@@ -1386,7 +1386,7 @@ public class RedisCommandBuilder<K, V> extends BaseRedisCommandBuilder<K, V> {
         return createCommand(HDEL, new IntegerOutput<>(codec), args);
     }
 
-    Command<String, String, Map<String, Object>> hello(int protocolVersion, String user, char[] password, String name) {
+    public Command<String, String, Map<String, Object>> hello(int protocolVersion, String user, char[] password, String name) {
 
         CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII).add(protocolVersion);
 

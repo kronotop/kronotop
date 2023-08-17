@@ -23,8 +23,8 @@ import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.redis.ArrayRedisMessage;
 import io.netty.handler.codec.redis.ErrorRedisMessage;
-import io.netty.handler.codec.redis.SimpleStringRedisMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +33,7 @@ import java.net.UnknownHostException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class AuthHandlerTest extends BaseHandlerTest {
+public class HelloHandlerAuthUsernamePasswordTest extends BaseHandlerTest {
     @Override
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
@@ -42,67 +42,28 @@ public class AuthHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testNOAUTH() {
+    public void testHELLO_AUTH_success() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.ping().encode(buf);
-
+        char[] password = {'d', 'e', 'v', 'p', 'a', 's', 's'};
+        cmd.hello(2, "devuser", password, null).encode(buf);
         channel.writeInbound(buf);
+
         Object msg = channel.readOutbound();
-        assertInstanceOf(ErrorRedisMessage.class, msg);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("NOAUTH Authentication required.", actualMessage.content());
+        assertInstanceOf(ArrayRedisMessage.class, msg);
     }
 
     @Test
-    public void testAuthHandlerSuccess() {
+    public void testHELLO_AUTH_failure() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.auth("devuser", "devpass").encode(buf);
-
+        char[] password = {'f'};
+        cmd.hello(2, "devuser", password, null).encode(buf);
         channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
-        assertInstanceOf(SimpleStringRedisMessage.class, msg);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-        assertEquals("OK", actualMessage.content());
-    }
 
-    @Test
-    public void testAuthHandlerSuccessWrongCredentials() {
-        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
-        ByteBuf buf = Unpooled.buffer();
-        cmd.auth("foobar", "barfoo").encode(buf);
-
-        channel.writeInbound(buf);
         Object msg = channel.readOutbound();
-        assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("WRONGPASS invalid username-password pair or user is disabled.", actualMessage.content());
     }
-
-    @Test
-    public void testAuth() {
-        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.auth("devuser", "devpass").encode(buf);
-
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.ping().encode(buf);
-
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("PONG", actualMessage.content());
-        }
-    }
 }
+

@@ -22,6 +22,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
+import com.kronotop.core.network.ClientIDGenerator;
 import com.kronotop.core.Context;
 import com.kronotop.core.watcher.Watcher;
 import com.kronotop.redis.RedisService;
@@ -115,6 +116,9 @@ public class Router extends ChannelDuplexHandler {
         Attribute<Boolean> redisMultiDiscarded = ctx.channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED);
         redisMultiDiscarded.set(false);
 
+        Attribute<Long> clientID = ctx.channel().attr(ChannelAttributes.CLIENT_ID);
+        clientID.set(ClientIDGenerator.getAndIncrement());
+
         super.channelRegistered(ctx);
     }
 
@@ -165,6 +169,8 @@ public class Router extends ChannelDuplexHandler {
         } else if (exception instanceof CommandNotFoundException) {
             logger.debug("Command not found: {}", request.getCommand());
             response.writeError(exception.getMessage());
+        } else if (exception instanceof NoProtoException) {
+            response.writeError(RESPError.NOPROTO, RESPError.UNSUPPORTED_PROTOCOL_VERSION);
         } else {
             logger.debug("Error while serving command: {}", request.getCommand(), exception);
             response.writeError(exception.getMessage());
@@ -198,7 +204,7 @@ public class Router extends ChannelDuplexHandler {
                     execute(handler, request, response);
                 } else {
                     // Not authenticated yet
-                    if (request.getCommand().equals("AUTH")) {
+                    if (request.getCommand().equals("AUTH") || request.getCommand().equals("HELLO")) {
                         // Execute AUTH command.
                         execute(handler, request, response);
                     } else {

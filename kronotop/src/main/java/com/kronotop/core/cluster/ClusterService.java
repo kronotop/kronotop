@@ -551,8 +551,7 @@ public class ClusterService implements KronotopService {
                 }
 
             } catch (Exception e) {
-                // TODO: Is that correct?
-                e.printStackTrace();
+                logger.error("Error while running failure detection task: {}", e.getMessage());
                 throw e;
             }
             scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);

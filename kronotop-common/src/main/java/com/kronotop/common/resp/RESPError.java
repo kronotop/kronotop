@@ -29,6 +29,7 @@ public enum RESPError {
     EXECABORT,
     MOVED,
     CROSSSLOT,
+    NOPROTO,
     ERR;
 
     public final static String TRANSACTION_TOO_OLD_MESSAGE = "Transaction is too old to perform reads or be committed";
@@ -39,9 +40,10 @@ public enum RESPError {
     public final static String EXECABORT_MESSAGE = "Transaction discarded because of previous errors.";
     public final static String PROTOCOL_VERSION_FORMAT_ERROR = "Protocol version is not an integer or out of range";
     public final static String CROSSSLOT_MESSAGE = "Keys in request don't hash to the same slot";
+    public final static String UNSUPPORTED_PROTOCOL_VERSION = "unsupported protocol version";
 
     public static String decapitalize(String string) {
-        if (string == null || string.length() == 0) {
+        if (string == null || string.isEmpty()) {
             return string;
         }
 

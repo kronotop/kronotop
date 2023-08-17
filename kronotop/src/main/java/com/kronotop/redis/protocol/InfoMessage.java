@@ -39,7 +39,6 @@ public class InfoMessage implements KronotopMessage<Void> {
         return new String(rawItem);
     }
 
-
     private void parse() {
         for (ByteBuf buf : request.getParams()) {
             sections.add(readFromByteBuf(buf));

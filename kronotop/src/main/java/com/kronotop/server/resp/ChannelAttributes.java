@@ -51,4 +51,6 @@ public class ChannelAttributes {
     public static final AttributeKey<KronotopMessage<?>> CURRENT_KRONOTOP_MESSAGE = AttributeKey.valueOf("current_kronotop_message");
 
     public static final AttributeKey<HashMap<String, Long>> WATCHED_KEYS = AttributeKey.valueOf("watched_keys");
+
+    public static final AttributeKey<Long> CLIENT_ID = AttributeKey.valueOf("client_id");
 }
