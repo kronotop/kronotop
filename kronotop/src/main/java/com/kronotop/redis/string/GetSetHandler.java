@@ -18,9 +18,8 @@ package com.kronotop.redis.string;
 
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.GetSetMessage;
 import com.kronotop.server.resp.*;
@@ -62,24 +61,18 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         GetSetMessage getSetMessage = request.attr(MessageTypes.GETSET).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(getSetMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
+        Partition partition = service.resolveKey(response.getContext(), getSetMessage.getKey());
         AtomicReference<Object> result = new AtomicReference<>();
 
-        ReadWriteLock lock = storage.getStriped().get(getSetMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(getSetMessage.getKey());
         try {
             lock.writeLock().lock();
-            storage.compute(getSetMessage.getKey(), (key, oldValue) -> {
+            partition.compute(getSetMessage.getKey(), (key, oldValue) -> {
                 if (oldValue != null && !(oldValue instanceof StringValue)) {
-                    throw new WrongTypeException(RESPError.WRONGTYPE_MESSAGE);
+                    throw new WrongTypeException();
                 }
                 if (oldValue == null) {
-                    storage.getIndex().update(getSetMessage.getKey());
+                    partition.getIndex().update(getSetMessage.getKey());
                 }
                 result.set(oldValue);
                 return new StringValue(getSetMessage.getValue());
@@ -96,7 +89,7 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
         StringValue stringValue = (StringValue) result.get();
         ByteBuf buf = response.getContext().alloc().buffer();
         buf.writeBytes(stringValue.getValue());
-        storage.getPersistenceQueue().add(new StringKey(getSetMessage.getKey()));
+        partition.getPersistenceQueue().add(new StringKey(getSetMessage.getKey()));
         response.write(buf);
     }
 }

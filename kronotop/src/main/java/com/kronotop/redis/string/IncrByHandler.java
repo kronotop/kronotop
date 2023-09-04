@@ -19,9 +19,8 @@ package com.kronotop.redis.string;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.IncrByMessage;
 import com.kronotop.server.resp.Handler;
@@ -64,18 +63,12 @@ public class IncrByHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         IncrByMessage incrByMessage = request.attr(MessageTypes.INCRBY).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(incrByMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
+        Partition partition = service.resolveKey(response.getContext(), incrByMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
-        ReadWriteLock lock = storage.getStriped().get(incrByMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(incrByMessage.getKey());
         try {
             lock.writeLock().lock();
-            storage.compute(incrByMessage.getKey(), (key, oldValue) -> {
+            partition.compute(incrByMessage.getKey(), (key, oldValue) -> {
                 int currentValue = 0;
                 if (oldValue != null) {
                     StringValue value = (StringValue) oldValue;
@@ -85,7 +78,7 @@ public class IncrByHandler extends BaseStringHandler implements Handler {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                     }
                 } else {
-                    storage.getIndex().update(incrByMessage.getKey());
+                    partition.getIndex().update(incrByMessage.getKey());
                 }
                 currentValue += incrByMessage.getIncrement();
                 result.set(currentValue);
@@ -95,7 +88,7 @@ public class IncrByHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        storage.getPersistenceQueue().add(new StringKey(incrByMessage.getKey()));
+        partition.getPersistenceQueue().add(new StringKey(incrByMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

@@ -20,10 +20,9 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HIncrByMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -60,25 +59,19 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HIncrByMessage hincrbyMessage = request.attr(MessageTypes.HINCRBY).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(hincrbyMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-        ReadWriteLock lock = storage.getStriped().get(hincrbyMessage.getKey());
+        Partition partition = service.resolveKey(response.getContext(), hincrbyMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(hincrbyMessage.getKey());
         lock.writeLock().lock();
         long newValue;
         try {
             HashValue hashValue;
-            Object retrieved = storage.get(hincrbyMessage.getKey());
+            Object retrieved = partition.get(hincrbyMessage.getKey());
             if (retrieved == null) {
                 hashValue = new HashValue();
-                storage.put(hincrbyMessage.getKey(), hashValue);
+                partition.put(hincrbyMessage.getKey(), hashValue);
             } else {
                 if (!(retrieved instanceof HashValue)) {
-                    throw new WrongTypeException(RESPError.WRONGTYPE_MESSAGE);
+                    throw new WrongTypeException();
                 }
                 hashValue = (HashValue) retrieved;
             }
@@ -103,7 +96,7 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        persistence(storage, hincrbyMessage.getKey(), hincrbyMessage.getFieldValuePairs());
+        persistence(partition, hincrbyMessage.getKey(), hincrbyMessage.getFieldValuePairs());
         response.writeInteger(newValue);
     }
 }

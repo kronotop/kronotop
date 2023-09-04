@@ -17,9 +17,10 @@
 package com.kronotop.server.resp;
 
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 
 public class NoProtoException extends KronotopException {
-    public NoProtoException(String content) {
-        super(content);
+    public NoProtoException() {
+        super(RESPError.NOPROTO, RESPError.UNSUPPORTED_PROTOCOL_VERSION);
     }
 }

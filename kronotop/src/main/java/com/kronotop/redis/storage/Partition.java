@@ -14,12 +14,22 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.storage.impl;
 
-import com.kronotop.redis.storage.LogicalDatabase;
+package com.kronotop.redis.storage;
 
-public class OnHeapLogicalDatabaseImpl extends AbstractInMemoryLogicalDatabase implements LogicalDatabase {
-    public OnHeapLogicalDatabaseImpl(String name) {
-        super(name);
-    }
+import com.google.common.util.concurrent.Striped;
+import com.kronotop.redis.storage.index.Index;
+import com.kronotop.redis.storage.persistence.PersistenceQueue;
+
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.ReadWriteLock;
+
+public interface Partition extends ConcurrentMap<String, Object> {
+    Index getIndex();
+
+    Striped<ReadWriteLock> getStriped();
+
+    PersistenceQueue getPersistenceQueue();
+
+    Integer getId();
 }

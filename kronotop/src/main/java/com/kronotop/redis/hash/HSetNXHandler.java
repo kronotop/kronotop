@@ -19,10 +19,9 @@ package com.kronotop.redis.hash;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HSetNXMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -59,26 +58,19 @@ public class HSetNXHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HSetNXMessage hsetnxMessage = request.attr(MessageTypes.HSETNX).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(hsetnxMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-        ReadWriteLock lock = storage.getStriped().get(hsetnxMessage.getKey());
+        Partition partition = service.resolveKey(response.getContext(), hsetnxMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(hsetnxMessage.getKey());
         lock.writeLock().lock();
         int result = 0;
         try {
             HashValue hashValue;
-            Object retrieved = storage.get(hsetnxMessage.getKey());
+            Object retrieved = partition.get(hsetnxMessage.getKey());
             if (retrieved == null) {
                 hashValue = new HashValue();
-                storage.put(hsetnxMessage.getKey(), hashValue);
+                partition.put(hsetnxMessage.getKey(), hashValue);
             } else {
                 if (!(retrieved instanceof HashValue)) {
-                    throw new WrongTypeException(RESPError.WRONGTYPE_MESSAGE);
+                    throw new WrongTypeException();
                 }
                 hashValue = (HashValue) retrieved;
             }
@@ -92,7 +84,7 @@ public class HSetNXHandler extends BaseHashHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        persistence(storage, hsetnxMessage.getKey(), hsetnxMessage.getFieldValuePairs());
+        persistence(partition, hsetnxMessage.getKey(), hsetnxMessage.getFieldValuePairs());
         response.writeInteger(result);
     }
 }

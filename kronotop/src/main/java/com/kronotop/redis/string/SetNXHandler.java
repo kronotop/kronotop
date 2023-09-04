@@ -17,9 +17,8 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.SetNXMessage;
 import com.kronotop.server.resp.Handler;
@@ -61,23 +60,17 @@ public class SetNXHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         SetNXMessage setnxMessage = request.attr(MessageTypes.SETNX).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(setnxMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
+        Partition partition = service.resolveKey(response.getContext(), setnxMessage.getKey());
         Object result;
-        ReadWriteLock lock = storage.getStriped().get(setnxMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(setnxMessage.getKey());
         try {
             lock.writeLock().lock();
-            result = storage.putIfAbsent(
+            result = partition.putIfAbsent(
                     setnxMessage.getKey(),
                     new StringValue(setnxMessage.getValue())
             );
             if (result == null) {
-                storage.getIndex().update(setnxMessage.getKey());
+                partition.getIndex().update(setnxMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();
@@ -89,6 +82,6 @@ public class SetNXHandler extends BaseStringHandler implements Handler {
             response.writeInteger(0);
         }
 
-        storage.getPersistenceQueue().add(new StringKey(setnxMessage.getKey()));
+        partition.getPersistenceQueue().add(new StringKey(setnxMessage.getKey()));
     }
 }

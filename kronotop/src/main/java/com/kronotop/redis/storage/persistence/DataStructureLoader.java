@@ -30,7 +30,7 @@ import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.Context;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.server.resp.WrongTypeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,20 +53,20 @@ public final class DataStructureLoader {
         this.rootPath = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().redis().persistence().asList();
     }
 
-    private void loadHashValue(LogicalDatabase logicalDatabase, DirectorySubspace subspace) {
+    private void loadHashValue(Partition partition, DirectorySubspace subspace) {
         byte[] begin = subspace.pack();
         byte[] end = ByteArrayUtil.strinc(subspace.pack());
         String key = subspace.getPath().get(subspace.getPath().size() - 1);
 
         HashValue hashValue;
-        Object retrieved = logicalDatabase.get(key);
+        Object retrieved = partition.get(key);
         if (retrieved == null) {
             hashValue = new HashValue();
-            logicalDatabase.put(key, hashValue);
+            partition.put(key, hashValue);
         } else {
             if (!(retrieved instanceof HashValue)) {
                 // TODO: add key to the error message
-                throw new WrongTypeException(RESPError.WRONGTYPE_MESSAGE);
+                throw new WrongTypeException();
             }
             hashValue = (HashValue) retrieved;
         }
@@ -92,7 +92,7 @@ public final class DataStructureLoader {
         }
     }
 
-    private void loadHashValues(LogicalDatabase logicalDatabase, DirectorySubspace hashSubspace) {
+    private void loadHashValues(Partition partition, DirectorySubspace hashSubspace) {
         List<DirectorySubspace> subspaces = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             List<String> hashes = hashSubspace.list(tr).join();
@@ -102,11 +102,11 @@ public final class DataStructureLoader {
             }
         }
         for (DirectorySubspace subspace : subspaces) {
-            loadHashValue(logicalDatabase, subspace);
+            loadHashValue(partition, subspace);
         }
     }
 
-    private void loadStringValues(LogicalDatabase logicalDatabase, DirectorySubspace subspace) {
+    private void loadStringValues(Partition partition, DirectorySubspace subspace) {
         byte[] begin = subspace.pack();
         byte[] end = ByteArrayUtil.strinc(subspace.pack());
 
@@ -118,7 +118,7 @@ public final class DataStructureLoader {
                     try {
                         StringValue stringValue = StringValue.decode(keyValue.getValue());
                         String key = subspace.unpack(keyValue.getKey()).get(0).toString();
-                        logicalDatabase.put(key, stringValue);
+                        partition.put(key, stringValue);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -136,7 +136,7 @@ public final class DataStructureLoader {
         }
     }
 
-    public void load(LogicalDatabase logicalDatabase, DataStructure dataStructure) {
+    public void load(Partition partition, DataStructure dataStructure) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             CompletableFuture<List<String>> future = directoryLayer.list(tr, rootPath);
             List<String> logicalDatabaseIndexes;
@@ -153,6 +153,7 @@ public final class DataStructureLoader {
             for (String index : logicalDatabaseIndexes) {
                 List<String> subpath = new ArrayList<>(rootPath);
                 subpath.add(index);
+                subpath.add(partition.getId().toString());
                 subpath.add(dataStructure.name().toLowerCase());
 
                 DirectorySubspace subspace;
@@ -166,9 +167,9 @@ public final class DataStructureLoader {
                     throw new RuntimeException(e);
                 }
                 if (dataStructure.equals(DataStructure.STRING)) {
-                    loadStringValues(logicalDatabase, subspace);
+                    loadStringValues(partition, subspace);
                 } else if (dataStructure.equals(DataStructure.HASH)) {
-                    loadHashValues(logicalDatabase, subspace);
+                    loadHashValues(partition, subspace);
                 }
             }
         }

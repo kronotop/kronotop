@@ -33,6 +33,11 @@ public class DirectoryLayout {
         return this;
     }
 
+    public DirectoryLayout partitionId(String partitionId) {
+        items.add(partitionId);
+        return this;
+    }
+
     public DirectoryLayout internal() {
         items.add("internal");
         return this;
@@ -94,6 +99,10 @@ public class DirectoryLayout {
 
         public static DirectoryLayout logicalDatabase(String logicalDatabase) {
             return new DirectoryLayout().logicalDatabase(logicalDatabase);
+        }
+
+        public static DirectoryLayout partitionId(String partitionId) {
+            return new DirectoryLayout().partitionId(partitionId);
         }
 
         public static DirectoryLayout internal() {

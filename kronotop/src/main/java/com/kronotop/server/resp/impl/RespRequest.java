@@ -92,14 +92,4 @@ public class RespRequest extends DefaultAttributeMap implements Request {
     public ChannelHandlerContext getContext() {
         return ctx;
     }
-
-    @Override
-    public KronotopMessage<?> getKronotopMessage() {
-        return this.attr(ChannelAttributes.CURRENT_KRONOTOP_MESSAGE).get();
-    }
-
-    @Override
-    public void setKronotopMessage(KronotopMessage<?> kronotopMessage) {
-        this.attr(ChannelAttributes.CURRENT_KRONOTOP_MESSAGE).set(kronotopMessage);
-    }
 }

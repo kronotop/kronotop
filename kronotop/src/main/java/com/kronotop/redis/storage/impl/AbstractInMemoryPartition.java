@@ -27,18 +27,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 
-public abstract class AbstractInMemoryLogicalDatabase extends ConcurrentHashMap<String, Object> implements ConcurrentMap<String, Object> {
-    private final String name;
+public abstract class AbstractInMemoryPartition extends ConcurrentHashMap<String, Object> implements ConcurrentMap<String, Object> {
+    private final Integer id;
     private final Index index = new IndexImpl();
     private final PersistenceQueue persistenceQueue = new OnHeapPersistenceQueue();
     private final Striped<ReadWriteLock> striped = Striped.lazyWeakReadWriteLock(271);
 
-    protected AbstractInMemoryLogicalDatabase(String name) {
-        this.name = name;
-    }
-
-    public String getName() {
-        return name;
+    protected AbstractInMemoryPartition(Integer id) {
+        this.id = id;
     }
 
     public Striped<ReadWriteLock> getStriped() {
@@ -51,5 +47,9 @@ public abstract class AbstractInMemoryLogicalDatabase extends ConcurrentHashMap<
 
     public PersistenceQueue getPersistenceQueue() {
         return persistenceQueue;
+    }
+
+    public Integer getId() {
+        return id;
     }
 }

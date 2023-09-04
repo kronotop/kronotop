@@ -29,7 +29,6 @@ import io.netty.handler.codec.redis.ErrorRedisMessage;
 import io.netty.util.Attribute;
 import org.junit.jupiter.api.Test;
 
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public class HelloHandlerTest extends BaseHandlerTest {

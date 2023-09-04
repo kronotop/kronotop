@@ -18,9 +18,8 @@ package com.kronotop.redis.string;
 
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.string.protocol.StrlenMessage;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
@@ -46,18 +45,12 @@ public class StrlenHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         StrlenMessage strlenMessage = request.attr(MessageTypes.STRLEN).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(strlenMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
+        Partition partition = service.resolveKey(response.getContext(), strlenMessage.getKey());
         Object received;
-        ReadWriteLock lock = storage.getStriped().get(strlenMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(strlenMessage.getKey());
         try {
             lock.readLock().lock();
-            received = storage.get(strlenMessage.getKey());
+            received = partition.get(strlenMessage.getKey());
         } finally {
             lock.readLock().unlock();
         }
@@ -67,7 +60,7 @@ public class StrlenHandler extends BaseStringHandler implements Handler {
             return;
         }
         if (!(received instanceof StringValue)) {
-            throw new WrongTypeException(RESPError.WRONGTYPE_MESSAGE);
+            throw new WrongTypeException();
         }
         StringValue stringValue = (StringValue) received;
         response.writeInteger(stringValue.getValue().length);

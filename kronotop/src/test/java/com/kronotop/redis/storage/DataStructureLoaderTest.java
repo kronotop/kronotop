@@ -18,7 +18,7 @@ package com.kronotop.redis.storage;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.impl.OnHeapLogicalDatabaseImpl;
+import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.DataStructureLoader;
 import com.kronotop.redis.storage.persistence.Persistence;
@@ -30,29 +30,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class DataStructureLoaderTest extends BaseStorageTest {
     @Test
     public void testDataStructureLoader_STRING() {
-        LogicalDatabase logicalDatabase = new OnHeapLogicalDatabaseImpl(RedisService.DEFAULT_LOGICAL_DATABASE);
+        Partition partition = new OnHeapPartitionImpl(0);
 
         for (int i = 0; i < 10; i++) {
             String key = String.format("key-%d", i);
             String value = String.format("value-%d", i);
-            logicalDatabase.put(key, new StringValue(value.getBytes(), 0));
-            logicalDatabase.getPersistenceQueue().add(new StringKey(key));
+            partition.put(key, new StringValue(value.getBytes(), 0));
+            partition.getPersistenceQueue().add(new StringKey(key));
         }
 
-        Persistence persistence = new Persistence(context, logicalDatabase);
+        Persistence persistence = new Persistence(context, RedisService.DEFAULT_LOGICAL_DATABASE, partition);
         persistence.run();
 
-        LogicalDatabase newLogicalDatabase = new OnHeapLogicalDatabaseImpl(RedisService.DEFAULT_LOGICAL_DATABASE);
+        Partition newPartition = new OnHeapPartitionImpl(0);
         DataStructureLoader dataStructureLoader = new DataStructureLoader(context);
-        dataStructureLoader.load(newLogicalDatabase, DataStructure.STRING);
+        dataStructureLoader.load(newPartition, DataStructure.STRING);
 
-        assertEquals(logicalDatabase.size(), newLogicalDatabase.size());
+        assertEquals(partition.size(), newPartition.size());
 
-        for (String key : newLogicalDatabase.keySet()) {
-            Object newObj = newLogicalDatabase.get(key);
+        for (String key : newPartition.keySet()) {
+            Object newObj = newPartition.get(key);
             StringValue newValue = (StringValue) newObj;
 
-            Object obj = logicalDatabase.get(key);
+            Object obj = partition.get(key);
             StringValue value = (StringValue) obj;
 
             assertEquals(value.getTTL(), newValue.getTTL());

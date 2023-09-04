@@ -20,9 +20,8 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.hash.protocol.HMGetMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MinimumParameterCount;
@@ -50,25 +49,19 @@ public class HMGetHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HMGetMessage hmgetMessage = request.attr(MessageTypes.HMGET).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(hmgetMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
         List<RedisMessage> upperList = new ArrayList<>();
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-        ReadWriteLock lock = storage.getStriped().get(hmgetMessage.getKey());
+        Partition partition = service.resolveKey(response.getContext(), hmgetMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(hmgetMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = storage.get(hmgetMessage.getKey());
+            Object retrieved = partition.get(hmgetMessage.getKey());
             if (retrieved == null) {
                 for (int i = 0; i < hmgetMessage.getFields().size(); i++) {
                     upperList.add(FullBulkStringRedisMessage.NULL_INSTANCE);
                 }
             } else {
                 if (!(retrieved instanceof HashValue)) {
-                    throw new WrongTypeException(RESPError.WRONGTYPE_MESSAGE);
+                    throw new WrongTypeException();
                 }
 
                 HashValue hashValue = (HashValue) retrieved;

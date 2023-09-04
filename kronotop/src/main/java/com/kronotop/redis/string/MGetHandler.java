@@ -17,9 +17,8 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.string.protocol.MGetMessage;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
@@ -51,23 +50,17 @@ public class MGetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         MGetMessage mgetMessage = request.attr(MessageTypes.MGET).get();
 
-        ResolveResponse resolveResponse = service.resolveKeys(mgetMessage.getKeys());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
+        Partition partition = service.resolveKeys(response.getContext(), mgetMessage.getKeys());
 
+        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(mgetMessage.getKeys());
         List<RedisMessage> result = new ArrayList<>();
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-
-        Iterable<ReadWriteLock> locks = storage.getStriped().bulkGet(mgetMessage.getKeys());
         try {
             for (ReadWriteLock lock : locks) {
                 lock.readLock().lock();
             }
 
             for (String key : mgetMessage.getKeys()) {
-                Object value = storage.get(key);
+                Object value = partition.get(key);
                 if (value == null) {
                     result.add(FullBulkStringRedisMessage.NULL_INSTANCE);
                     continue;

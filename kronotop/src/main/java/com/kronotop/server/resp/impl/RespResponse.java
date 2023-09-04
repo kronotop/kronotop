@@ -83,11 +83,6 @@ public class RespResponse implements Response {
     }
 
     @Override
-    public void writeError(RESPErrorMessage RESPErrorMessage) {
-        writeError(RESPErrorMessage.getPrefix(), RESPErrorMessage.getMessage());
-    }
-
-    @Override
     public void flush() {
         ctx.flush();
     }

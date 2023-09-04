@@ -16,7 +16,11 @@
 
 package com.kronotop.common;
 
+import com.kronotop.common.resp.RESPError;
+
 public class KronotopException extends RuntimeException {
+    private RESPError prefix = RESPError.ERR;
+
     public KronotopException() {
     }
 
@@ -24,11 +28,25 @@ public class KronotopException extends RuntimeException {
         super(message);
     }
 
+    public KronotopException(final RESPError prefix, final String message) {
+        super(message);
+        this.prefix = prefix;
+    }
+
     public KronotopException(final String message, final Throwable cause) {
         super(message, cause);
     }
 
+    public KronotopException(final RESPError prefix, final String message, final Throwable cause) {
+        super(message, cause);
+        this.prefix = prefix;
+    }
+
     public KronotopException(final Throwable cause) {
         super(cause);
+    }
+
+    public RESPError getPrefix() {
+        return prefix;
     }
 }

@@ -17,9 +17,10 @@
 package com.kronotop.server.resp;
 
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 
 public class WrongTypeException extends KronotopException {
-    public WrongTypeException(String content) {
-        super(content);
+    public WrongTypeException() {
+        super(RESPError.WRONGTYPE, RESPError.WRONGTYPE_MESSAGE);
     }
 }

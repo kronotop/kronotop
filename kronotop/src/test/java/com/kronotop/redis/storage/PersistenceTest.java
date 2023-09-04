@@ -22,7 +22,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.impl.OnHeapLogicalDatabaseImpl;
+import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.storage.persistence.StringKey;
@@ -36,11 +36,11 @@ import static org.junit.jupiter.api.Assertions.*;
 public class PersistenceTest extends BaseStorageTest {
     @Test
     public void testPersistence_STRING() {
-        LogicalDatabase logicalDatabase = new OnHeapLogicalDatabaseImpl(RedisService.DEFAULT_LOGICAL_DATABASE);
-        logicalDatabase.put("key-1", new StringValue("value-1".getBytes(), 0));
-        logicalDatabase.getPersistenceQueue().add(new StringKey("key-1"));
+        Partition partition = new OnHeapPartitionImpl(0);
+        partition.put("key-1", new StringValue("value-1".getBytes(), 0));
+        partition.getPersistenceQueue().add(new StringKey("key-1"));
 
-        Persistence persistence = new Persistence(context, logicalDatabase);
+        Persistence persistence = new Persistence(context, RedisService.DEFAULT_LOGICAL_DATABASE, partition);
         assertFalse(persistence.isQueueEmpty());
         persistence.run();
         assertTrue(persistence.isQueueEmpty());
@@ -50,7 +50,8 @@ public class PersistenceTest extends BaseStorageTest {
                 internal().
                 redis().
                 persistence().
-                logicalDatabase(logicalDatabase.getName()).
+                logicalDatabase(RedisService.DEFAULT_LOGICAL_DATABASE).
+                partitionId("0").
                 dataStructure(DataStructure.STRING.toString().toLowerCase()).
                 toString();
 

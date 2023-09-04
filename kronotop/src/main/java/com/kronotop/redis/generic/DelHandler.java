@@ -17,9 +17,8 @@
 package com.kronotop.redis.generic;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.generic.protocol.DelMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
@@ -58,25 +57,19 @@ public class DelHandler extends BaseGenericHandler implements Handler {
     public void execute(Request request, Response response) {
         DelMessage delMessage = request.attr(MessageTypes.DEL).get();
 
-        ResolveResponse resolveResponse = service.resolveKeys(delMessage.getKeys());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
+        Partition partition = service.resolveKeys(response.getContext(), delMessage.getKeys());
 
+        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(delMessage.getKeys());
         long keysRemoved = 0;
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-
-        Iterable<ReadWriteLock> locks = storage.getStriped().bulkGet(delMessage.getKeys());
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
 
             for (String key : delMessage.getKeys()) {
-                if (storage.remove(key) != null) {
+                if (partition.remove(key) != null) {
                     keysRemoved++;
-                    storage.getIndex().drop(key);
+                    partition.getIndex().drop(key);
                 }
             }
         } finally {
@@ -85,7 +78,7 @@ public class DelHandler extends BaseGenericHandler implements Handler {
             }
         }
         for (String key : delMessage.getKeys()) {
-            storage.getPersistenceQueue().add(new StringKey(key));
+            partition.getPersistenceQueue().add(new StringKey(key));
         }
         response.writeInteger(keysRemoved);
     }

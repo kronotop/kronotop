@@ -17,9 +17,8 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.AppendMessage;
 import com.kronotop.server.resp.Handler;
@@ -63,19 +62,13 @@ public class AppendHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         AppendMessage appendMessage = request.attr(MessageTypes.APPEND).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(appendMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
+        Partition partition = service.resolveKey(response.getContext(), appendMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
 
-        ReadWriteLock lock = storage.getStriped().get(appendMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(appendMessage.getKey());
         try {
             lock.writeLock().lock();
-            storage.compute(appendMessage.getKey(), (key, oldValue) -> {
+            partition.compute(appendMessage.getKey(), (key, oldValue) -> {
                 if (oldValue != null) {
                     StringValue value = (StringValue) oldValue;
                     ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -84,7 +77,7 @@ public class AppendHandler extends BaseStringHandler implements Handler {
                     result.set(output.size());
                     return new StringValue(output.toByteArray());
                 } else {
-                    storage.getIndex().update(appendMessage.getKey());
+                    partition.getIndex().update(appendMessage.getKey());
                     result.set(appendMessage.getValue().length);
                     return new StringValue(appendMessage.getValue());
                 }
@@ -93,7 +86,7 @@ public class AppendHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        storage.getPersistenceQueue().add(new StringKey(appendMessage.getKey()));
+        partition.getPersistenceQueue().add(new StringKey(appendMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

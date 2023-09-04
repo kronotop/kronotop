@@ -31,8 +31,4 @@ public interface Request extends AttributeMap {
     RedisMessage getRedisMessage();
 
     ChannelHandlerContext getContext();
-
-    KronotopMessage<?> getKronotopMessage();
-
-    void setKronotopMessage(KronotopMessage<?> kronotopMessage);
 }

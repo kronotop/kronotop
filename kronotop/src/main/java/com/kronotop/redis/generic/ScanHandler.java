@@ -19,7 +19,7 @@ package com.kronotop.redis.generic;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.ScanMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.index.Projection;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
@@ -59,24 +59,23 @@ public class ScanHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
+        // TODO: Implement SnowflakeID or similar for cursor
         ScanMessage scanMessage = request.attr(MessageTypes.SCAN).get();
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-
+        Partition partition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), 1);
         List<RedisMessage> children = new ArrayList<>();
-        Projection projection = storage.getIndex().getProjection(scanMessage.getCursor(), 10);
-        if (projection.getKeys().size() == 0) {
+        Projection projection = partition.getIndex().getProjection(scanMessage.getCursor(), 10);
+        if (projection.getKeys().isEmpty()) {
             response.writeArray(prepareResponse(projection, children));
             return;
         }
 
-        Iterable<ReadWriteLock> locks = storage.getStriped().bulkGet(projection.getKeys());
+        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(projection.getKeys());
         try {
             for (ReadWriteLock lock : locks) {
                 lock.readLock().lock();
             }
             for (String key : projection.getKeys()) {
-                if (storage.containsKey(key)) {
+                if (partition.containsKey(key)) {
                     ByteBuf buf = response.getContext().alloc().buffer();
                     buf.writeBytes(key.getBytes());
                     children.add(new FullBulkStringRedisMessage(buf));

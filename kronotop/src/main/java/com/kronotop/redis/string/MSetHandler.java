@@ -17,9 +17,8 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.MSetMessage;
 import com.kronotop.server.resp.Handler;
@@ -60,27 +59,21 @@ public class MSetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         MSetMessage msetMessage = request.attr(MessageTypes.MSET).get();
 
-        ResolveResponse resolveResponse = service.resolveKeys(msetMessage.getKeys());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
+        Partition partition = service.resolveKeys(response.getContext(), msetMessage.getKeys());
         List<String> keys = new ArrayList<>();
         for (MSetMessage.Pair pair : msetMessage.getPairs()) {
             keys.add(pair.getKey());
         }
 
-        Iterable<ReadWriteLock> locks = storage.getStriped().bulkGet(keys);
+        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
             for (MSetMessage.Pair pair : msetMessage.getPairs()) {
-                Object previousValue = storage.put(pair.getKey(), new StringValue(pair.getValue()));
+                Object previousValue = partition.put(pair.getKey(), new StringValue(pair.getValue()));
                 if (previousValue == null) {
-                    storage.getIndex().update(pair.getKey());
+                    partition.getIndex().update(pair.getKey());
                 }
             }
         } finally {
@@ -89,7 +82,7 @@ public class MSetHandler extends BaseStringHandler implements Handler {
             }
         }
         for (String key : msetMessage.getKeys()) {
-            storage.getPersistenceQueue().add(new StringKey(key));
+            partition.getPersistenceQueue().add(new StringKey(key));
         }
         response.writeOK();
     }

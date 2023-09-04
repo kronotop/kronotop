@@ -18,9 +18,8 @@ package com.kronotop.redis.string;
 
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.GetDelMessage;
 import com.kronotop.server.resp.*;
@@ -61,21 +60,15 @@ public class GetDelHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         GetDelMessage getDelMessage = request.attr(MessageTypes.GETDEL).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(getDelMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-        ReadWriteLock lock = storage.getStriped().get(getDelMessage.getKey());
+        Partition partition = service.resolveKey(response.getContext(), getDelMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(getDelMessage.getKey());
 
         Object retrieved;
         try {
             lock.writeLock().lock();
-            retrieved = storage.remove(getDelMessage.getKey());
+            retrieved = partition.remove(getDelMessage.getKey());
             if (retrieved != null) {
-                storage.getIndex().drop(getDelMessage.getKey());
+                partition.getIndex().drop(getDelMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();
@@ -86,12 +79,12 @@ public class GetDelHandler extends BaseStringHandler implements Handler {
             return;
         }
         if (!(retrieved instanceof StringValue)) {
-            throw new WrongTypeException(RESPError.WRONGTYPE_MESSAGE);
+            throw new WrongTypeException();
         }
         StringValue stringValue = (StringValue) retrieved;
         ByteBuf buf = response.getContext().alloc().buffer();
         buf.writeBytes(stringValue.getValue());
-        storage.getPersistenceQueue().add(new StringKey(getDelMessage.getKey()));
+        partition.getPersistenceQueue().add(new StringKey(getDelMessage.getKey()));
         response.write(buf);
     }
 }

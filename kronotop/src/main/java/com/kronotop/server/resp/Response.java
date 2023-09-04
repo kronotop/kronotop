@@ -38,8 +38,6 @@ public interface Response {
 
     <T> void writeError(T prefix, String content);
 
-    void writeError(RESPErrorMessage RESPErrorMessage);
-
     void write(ByteBuf content);
 
     void writeFullBulkString(FullBulkStringRedisMessage msg);

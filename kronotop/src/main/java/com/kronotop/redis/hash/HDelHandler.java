@@ -19,10 +19,9 @@ package com.kronotop.redis.hash;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HDelMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MinimumParameterCount;
@@ -57,25 +56,19 @@ public class HDelHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HDelMessage hdelMessage = request.attr(MessageTypes.HDEL).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(hdelMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
         int total = 0;
 
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-        ReadWriteLock lock = storage.getStriped().get(hdelMessage.getKey());
+        Partition partition = service.resolveKey(response.getContext(), hdelMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(hdelMessage.getKey());
         lock.writeLock().lock();
         try {
-            Object retrieved = storage.get(hdelMessage.getKey());
+            Object retrieved = partition.get(hdelMessage.getKey());
             if (retrieved == null) {
                 response.writeInteger(0);
                 return;
             }
             if (!(retrieved instanceof HashValue)) {
-                throw new WrongTypeException(RESPError.WRONGTYPE_MESSAGE);
+                throw new WrongTypeException();
             }
 
             HashValue hashValue = (HashValue) retrieved;
@@ -86,12 +79,12 @@ public class HDelHandler extends BaseHashHandler implements Handler {
                 }
             }
             if (hashValue.size() == 0) {
-                storage.remove(hdelMessage.getKey());
+                partition.remove(hdelMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();
         }
-        persistence(storage, hdelMessage.getKey(), hdelMessage.getFieldValuePairs());
+        persistence(partition, hdelMessage.getKey(), hdelMessage.getFieldValuePairs());
         response.writeInteger(total);
     }
 }

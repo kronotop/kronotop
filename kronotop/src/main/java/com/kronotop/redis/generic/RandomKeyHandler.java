@@ -19,7 +19,7 @@ package com.kronotop.redis.generic;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.RandomKeyMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
 import com.kronotop.server.resp.Request;
@@ -30,7 +30,9 @@ import com.kronotop.server.resp.annotation.MinimumParameterCount;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.redis.FullBulkStringRedisMessage;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Command(RandomKeyMessage.COMMAND)
 @MaximumParameterCount(RandomKeyMessage.MAXIMUM_PARAMETER_COUNT)
@@ -47,9 +49,12 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-        List<String> randomKeys = storage.getIndex().tryGetRandomKeys(1);
-        if (randomKeys.size() == 0) {
+        String index = getCurrentLogicalDatabaseIndex(response.getContext());
+        Collection<Partition> partitions = service.getLogicalDatabase(index).getPartitions().values();
+        int partitionId = ThreadLocalRandom.current().nextInt(partitions.size());
+        Partition partition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), partitionId);
+        List<String> randomKeys = partition.getIndex().tryGetRandomKeys(1);
+        if (randomKeys.isEmpty()) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }

@@ -14,17 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.storage;
+package com.kronotop.redis.storage.impl;
 
-import com.kronotop.redis.storage.impl.OnHeapLogicalDatabaseImpl;
-import org.junit.jupiter.api.Test;
+import com.kronotop.redis.storage.Partition;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-public class LogicalDatabaseTest {
-    @Test
-    public void testLogicalDatabase() {
-        LogicalDatabase logicalDatabase = new OnHeapLogicalDatabaseImpl("0");
-        assertNotNull(logicalDatabase.getIndex());
+public class OnHeapPartitionImpl extends AbstractInMemoryPartition implements Partition {
+    public OnHeapPartitionImpl(Integer id) {
+        super(id);
     }
 }

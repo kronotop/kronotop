@@ -17,9 +17,8 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.SetMessage;
 import com.kronotop.server.resp.Handler;
@@ -61,24 +60,18 @@ public class SetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         SetMessage setMessage = request.attr(MessageTypes.SET).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(setMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
+        Partition partition = service.resolveKey(response.getContext(), setMessage.getKey());
         StringValue stringValue = new StringValue(setMessage.getValue());
-        ReadWriteLock lock = storage.getStriped().get(setMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(setMessage.getKey());
         try {
             lock.writeLock().lock();
-            storage.put(setMessage.getKey(), stringValue);
-            storage.getIndex().update(setMessage.getKey());
+            partition.put(setMessage.getKey(), stringValue);
+            partition.getIndex().update(setMessage.getKey());
         } finally {
             lock.writeLock().unlock();
         }
 
-        storage.getPersistenceQueue().add(new StringKey(setMessage.getKey()));
+        partition.getPersistenceQueue().add(new StringKey(setMessage.getKey()));
         response.writeOK();
     }
 }

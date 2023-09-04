@@ -18,9 +18,8 @@ package com.kronotop.redis.generic;
 
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.generic.protocol.RenameNXMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
@@ -58,33 +57,33 @@ public class RenameNXHandler extends BaseGenericHandler implements Handler {
         keys.add(renamenxMessage.getKey());
         keys.add(renamenxMessage.getNewkey());
 
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-        Iterable<ReadWriteLock> locks = storage.getStriped().bulkGet(keys);
+        Partition partition = service.resolveKeys(response.getContext(), keys);
+        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
 
-            Object result = storage.get(renamenxMessage.getKey());
+            Object result = partition.get(renamenxMessage.getKey());
             if (result == null) {
                 throw new KronotopException("no such key");
             }
 
-            if (storage.containsKey(renamenxMessage.getNewkey())) {
+            if (partition.containsKey(renamenxMessage.getNewkey())) {
                 // newkey already exists.
                 return 0;
             }
 
-            storage.put(renamenxMessage.getNewkey(), result);
-            storage.getPersistenceQueue().add(new StringKey(renamenxMessage.getNewkey()));
-            storage.remove(renamenxMessage.getKey(), result);
+            partition.put(renamenxMessage.getNewkey(), result);
+            partition.getPersistenceQueue().add(new StringKey(renamenxMessage.getNewkey()));
+            partition.remove(renamenxMessage.getKey(), result);
         } finally {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().unlock();
             }
         }
 
-        storage.getPersistenceQueue().add(new StringKey(renamenxMessage.getKey()));
+        partition.getPersistenceQueue().add(new StringKey(renamenxMessage.getKey()));
         return 1;
     }
 
@@ -96,12 +95,6 @@ public class RenameNXHandler extends BaseGenericHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         RenameNXMessage renamenxMessage = request.attr(MessageTypes.RENAMENX).get();
-
-        ResolveResponse resolveResponse = service.resolveKey(renamenxMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
 
         int result;
         try {

@@ -17,9 +17,10 @@
 package com.kronotop.server.resp;
 
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 
 public class ExecAbortException extends KronotopException {
-    public ExecAbortException(String content) {
-        super(content);
+    public ExecAbortException() {
+        super(RESPError.EXECABORT, RESPError.EXECABORT_MESSAGE);
     }
 }

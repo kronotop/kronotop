@@ -21,7 +21,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.storage.BaseStorageTest;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redistest.RedisCommandBuilder;
@@ -41,6 +41,8 @@ public class FlushAllHandlerTest extends BaseStorageTest {
     public void testFLUSHALL() {
         setupRedisService();
 
+        String key = "mykey";
+
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             for (int i = 0; i < 5; i++) {
@@ -50,7 +52,7 @@ public class FlushAllHandlerTest extends BaseStorageTest {
                 channel.readOutbound();
 
                 buf = Unpooled.buffer();
-                cmd.set("mykey", "myvalue").encode(buf);
+                cmd.set(key, "myvalue").encode(buf);
 
                 channel.writeInbound(buf);
                 Object msg = channel.readOutbound();
@@ -65,8 +67,9 @@ public class FlushAllHandlerTest extends BaseStorageTest {
             // Let's run the task eagerly. It's safe.
             for (int i = 0; i < 5; i++) {
                 cmd.select(i);
-                LogicalDatabase logicalDatabase = redisService.getLogicalDatabase(Integer.toString(i));
-                Persistence persistence = new Persistence(context, logicalDatabase);
+                String logicalDatabaseName = Integer.toString(i);
+                Partition partition = redisService.getPartition(logicalDatabaseName, getPartitionId(key));
+                Persistence persistence = new Persistence(context, logicalDatabaseName, partition);
                 persistence.run();
             }
         }

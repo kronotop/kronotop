@@ -21,6 +21,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.core.*;
 import com.kronotop.core.cluster.ClusterService;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.core.cluster.PartitionMigrationService;
 import com.kronotop.core.commands.CommandDefinitions;
 import com.kronotop.core.network.Address;
 import com.kronotop.core.network.AddressUtil;
@@ -118,6 +119,10 @@ public class KronotopInstanceImpl implements KronotopInstance {
 
             FoundationDBService fdb = new FoundationDBService(kronotopInstance.context, handlers);
             kronotopInstance.context.registerService(FoundationDBService.NAME, fdb);
+
+            PartitionMigrationService partitionMigrationService = new PartitionMigrationService(kronotopInstance.context);
+            kronotopInstance.context.registerService(PartitionMigrationService.NAME, partitionMigrationService);
+            partitionMigrationService.start();
 
             ClusterService clusterService = new ClusterService(kronotopInstance.context);
             kronotopInstance.context.registerService(ClusterService.NAME, clusterService);

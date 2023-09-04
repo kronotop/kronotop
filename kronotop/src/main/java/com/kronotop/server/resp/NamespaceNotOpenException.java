@@ -17,9 +17,10 @@
 package com.kronotop.server.resp;
 
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 
 public class NamespaceNotOpenException extends KronotopException {
     public NamespaceNotOpenException(String content) {
-        super(content);
+        super(RESPError.NAMESPACENOTOPEN, content);
     }
 }

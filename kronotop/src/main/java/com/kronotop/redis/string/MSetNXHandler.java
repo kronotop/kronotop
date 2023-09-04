@@ -17,9 +17,8 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.MSetNXMessage;
 import com.kronotop.server.resp.Handler;
@@ -51,7 +50,7 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
         return Collections.singletonList(request.attr(MessageTypes.MSETNX).get().getKey());
     }
 
-    private int msetnx(LogicalDatabase storage, MSetNXMessage mSetNXMessage) {
+    private int msetnx(Partition storage, MSetNXMessage mSetNXMessage) {
         for (MSetNXMessage.Pair pair : mSetNXMessage.getPairs()) {
             if (storage.containsKey(pair.getKey())) {
                 return 0;
@@ -75,25 +74,19 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         MSetNXMessage msetnxMessage = request.attr(MessageTypes.MSETNX).get();
 
-        ResolveResponse resolveResponse = service.resolveKeys(msetnxMessage.getKeys());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
         List<String> keys = new ArrayList<>();
         for (MSetNXMessage.Pair pair : msetnxMessage.getPairs()) {
             keys.add(pair.getKey());
         }
 
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
+        Partition partition = service.resolveKeys(response.getContext(), msetnxMessage.getKeys());
         int result;
-        Iterable<ReadWriteLock> locks = storage.getStriped().bulkGet(keys);
+        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
-            result = msetnx(storage, msetnxMessage);
+            result = msetnx(partition, msetnxMessage);
         } finally {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().unlock();
@@ -101,7 +94,7 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
         }
 
         for (String key : msetnxMessage.getKeys()) {
-            storage.getPersistenceQueue().add(new StringKey(key));
+            partition.getPersistenceQueue().add(new StringKey(key));
         }
         response.writeInteger(result);
     }

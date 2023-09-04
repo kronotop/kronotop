@@ -20,9 +20,8 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.hash.protocol.HValsMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -53,24 +52,18 @@ public class HValsHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HValsMessage hvalsMessage = request.attr(MessageTypes.HVALS).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(hvalsMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
         List<RedisMessage> result = new ArrayList<>();
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-        ReadWriteLock lock = storage.getStriped().get(hvalsMessage.getKey());
+        Partition partition = service.resolveKey(response.getContext(), hvalsMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(hvalsMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = storage.get(hvalsMessage.getKey());
+            Object retrieved = partition.get(hvalsMessage.getKey());
             if (retrieved == null) {
                 response.writeArray(result);
                 return;
             }
             if (!(retrieved instanceof HashValue)) {
-                throw new WrongTypeException(RESPError.WRONGTYPE_MESSAGE);
+                throw new WrongTypeException();
             }
 
             HashValue hashValue = (HashValue) retrieved;

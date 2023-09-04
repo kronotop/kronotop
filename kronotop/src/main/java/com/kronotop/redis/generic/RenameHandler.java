@@ -17,9 +17,8 @@
 package com.kronotop.redis.generic;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.generic.protocol.RenameMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
@@ -61,38 +60,32 @@ public class RenameHandler extends BaseGenericHandler implements Handler {
     public void execute(Request request, Response response) {
         RenameMessage renameMessage = request.attr(MessageTypes.RENAME).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(renameMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
+        Partition partition = service.resolveKey(response.getContext(), renameMessage.getKey());
 
         List<String> keys = new ArrayList<>();
         keys.add(renameMessage.getKey());
         keys.add(renameMessage.getNewkey());
 
-        Iterable<ReadWriteLock> locks = storage.getStriped().bulkGet(keys);
+        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
-            Object result = storage.get(renameMessage.getKey());
+            Object result = partition.get(renameMessage.getKey());
             if (result == null) {
                 response.writeError("no such key");
                 return;
             }
 
-            storage.put(renameMessage.getNewkey(), result);
-            storage.getPersistenceQueue().add(new StringKey(renameMessage.getNewkey()));
-            storage.remove(renameMessage.getKey(), result);
+            partition.put(renameMessage.getNewkey(), result);
+            partition.getPersistenceQueue().add(new StringKey(renameMessage.getNewkey()));
+            partition.remove(renameMessage.getKey(), result);
         } finally {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().unlock();
             }
         }
-        storage.getPersistenceQueue().add(new StringKey(renameMessage.getKey()));
+        partition.getPersistenceQueue().add(new StringKey(renameMessage.getKey()));
         response.writeOK();
     }
 }

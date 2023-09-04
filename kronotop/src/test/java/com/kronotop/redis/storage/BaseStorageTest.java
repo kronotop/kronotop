@@ -31,6 +31,7 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.server.resp.Handlers;
 import com.kronotop.server.resp.Router;
 import com.typesafe.config.Config;
+import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.redis.RedisArrayAggregator;
 import io.netty.handler.codec.redis.RedisBulkStringAggregator;
@@ -52,6 +53,11 @@ public class BaseStorageTest {
 
     protected static EmbeddedChannel newChannel(Context context, Handlers commands) {
         return new EmbeddedChannel(new RedisDecoder(false), new RedisBulkStringAggregator(), new RedisArrayAggregator(), new Router(context, commands));
+    }
+
+    protected Integer getPartitionId(String key) {
+        int slot = SlotHash.getSlot(key);
+        return redisService.getHashSlots().get(slot);
     }
 
     public void setupRedisService() {

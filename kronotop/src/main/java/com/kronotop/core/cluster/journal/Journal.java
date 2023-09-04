@@ -37,7 +37,7 @@ public class Journal {
     private final byte[] INDEX_KEY;
     private final byte[] BROADCAST_KEY;
 
-    public Journal(Context context) {
+    public Journal(Context context, String broadcastKey) {
         this.context = context;
         this.journal = context.getFoundationDB().run(tr -> {
             List<String> subpath = DirectoryLayout.
@@ -46,10 +46,10 @@ public class Journal {
                     internal().
                     cluster().asList();
             DirectorySubspace directorySubspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
-            return directorySubspace.subspace(Tuple.from("J"));
+            return directorySubspace.subspace(Tuple.from("journal"));
         });
-        this.BROADCAST_KEY = journal.subspace(Tuple.from("B")).pack();
-        this.INDEX_KEY = journal.subspace(Tuple.from("I")).pack();
+        this.BROADCAST_KEY = journal.subspace(Tuple.from(broadcastKey)).pack();
+        this.INDEX_KEY = journal.subspace(Tuple.from(String.format("%s-index", broadcastKey))).pack();
     }
 
     public byte[] getBroadcastKey() {

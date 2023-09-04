@@ -20,10 +20,9 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HIncrByFloatMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -61,25 +60,19 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HIncrByFloatMessage hincrbyfloatMessage = request.attr(MessageTypes.HINCRBYFLOAT).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(hincrbyfloatMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-        ReadWriteLock lock = storage.getStriped().get(hincrbyfloatMessage.getKey());
+        Partition partition = service.resolveKey(response.getContext(), hincrbyfloatMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(hincrbyfloatMessage.getKey());
         lock.writeLock().lock();
         double newValue;
         try {
             HashValue hashValue;
-            Object retrieved = storage.get(hincrbyfloatMessage.getKey());
+            Object retrieved = partition.get(hincrbyfloatMessage.getKey());
             if (retrieved == null) {
                 hashValue = new HashValue();
-                storage.put(hincrbyfloatMessage.getKey(), hashValue);
+                partition.put(hincrbyfloatMessage.getKey(), hashValue);
             } else {
                 if (!(retrieved instanceof HashValue)) {
-                    throw new WrongTypeException(RESPError.WRONGTYPE_MESSAGE);
+                    throw new WrongTypeException();
                 }
                 hashValue = (HashValue) retrieved;
             }
@@ -104,7 +97,7 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        persistence(storage, hincrbyfloatMessage.getKey(), hincrbyfloatMessage.getFieldValuePairs());
+        persistence(partition, hincrbyfloatMessage.getKey(), hincrbyfloatMessage.getFieldValuePairs());
         ByteBuf buf = response.getContext().alloc().buffer();
         buf.writeBytes(Double.toString(newValue).getBytes());
         response.write(buf);

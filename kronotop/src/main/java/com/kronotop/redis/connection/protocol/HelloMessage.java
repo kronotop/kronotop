@@ -23,9 +23,7 @@ import com.kronotop.server.resp.NoProtoException;
 import com.kronotop.server.resp.Request;
 import io.netty.buffer.ByteBuf;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 
 public class HelloMessage implements KronotopMessage<Void> {
@@ -65,10 +63,10 @@ public class HelloMessage implements KronotopMessage<Void> {
 
         // Kronotop only supports RESP2
         if (protover != DEFAULT_PROTOVER) {
-            throw new NoProtoException(RESPError.UNSUPPORTED_PROTOCOL_VERSION);
+            throw new NoProtoException();
         }
 
-        for (int i = 1; i<request.getParams().size(); i++) {
+        for (int i = 1; i < request.getParams().size(); i++) {
             ByteBuf buf = request.getParams().get(i);
             String parameter = readFromByteBuf(buf);
             if (parameter.equalsIgnoreCase("AUTH")) {
@@ -76,10 +74,10 @@ public class HelloMessage implements KronotopMessage<Void> {
                 if (request.getParams().size() - i < 2) {
                     throw new KronotopException(String.format("Syntax error in %s option '%s'", COMMAND, parameter));
                 }
-                username = request.getParams().get(i+1).toString(StandardCharsets.US_ASCII);
-                password = request.getParams().get(i+2).toString(StandardCharsets.US_ASCII);
+                username = request.getParams().get(i + 1).toString(StandardCharsets.US_ASCII);
+                password = request.getParams().get(i + 2).toString(StandardCharsets.US_ASCII);
                 auth = true;
-                i = i+2;
+                i = i + 2;
             }
 
             if (parameter.equalsIgnoreCase("SETNAME")) {
@@ -88,7 +86,7 @@ public class HelloMessage implements KronotopMessage<Void> {
                 if (request.getParams().size() - i < 1) {
                     throw new KronotopException(String.format("Syntax error in %s option '%s'", COMMAND, parameter));
                 }
-                clientName = request.getParams().get(i+1).toString(StandardCharsets.US_ASCII);
+                clientName = request.getParams().get(i + 1).toString(StandardCharsets.US_ASCII);
                 setName = true;
                 i++;
             }

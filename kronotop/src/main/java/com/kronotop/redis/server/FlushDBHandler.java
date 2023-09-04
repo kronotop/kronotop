@@ -43,8 +43,9 @@ public class FlushDBHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
-        service.clearLogicalDatabase(storage.getName());
+        String index = getCurrentLogicalDatabaseIndex(response.getContext());
+        LogicalDatabase logicalDatabase = service.getLogicalDatabase(index);
+        service.clearLogicalDatabase(logicalDatabase.getName());
         response.writeOK();
     }
 }

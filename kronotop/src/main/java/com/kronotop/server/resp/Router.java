@@ -22,8 +22,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.core.network.ClientIDGenerator;
 import com.kronotop.core.Context;
+import com.kronotop.core.network.ClientIDGenerator;
 import com.kronotop.core.watcher.Watcher;
 import com.kronotop.redis.RedisService;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -31,6 +31,7 @@ import com.kronotop.server.resp.annotation.MinimumParameterCount;
 import com.kronotop.server.resp.impl.RespRequest;
 import com.kronotop.server.resp.impl.RespResponse;
 import com.kronotop.server.resp.impl.TransactionResponse;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -150,10 +151,9 @@ public class Router extends ChannelDuplexHandler {
     }
 
     private void exceptionToRespError(Request request, Response response, Exception exception) {
-        if (exception instanceof NamespaceNotOpenException) {
-            response.writeError(RESPError.NAMESPACENOTOPEN, exception.getMessage());
-        } else if (exception instanceof WrongTypeException) {
-            response.writeError(RESPError.WRONGTYPE, exception.getMessage());
+        if (exception instanceof KronotopException) {
+            KronotopException exp = (KronotopException) exception;
+            response.writeError(exp.getPrefix(), exp.getMessage());
         } else if (exception instanceof CompletionException) {
             if (exception.getCause() instanceof FDBException) {
                 String message = RESPError.decapitalize(exception.getCause().getMessage());
@@ -166,13 +166,16 @@ public class Router extends ChannelDuplexHandler {
                 }
             }
             throw new KronotopException(exception);
-        } else if (exception instanceof CommandNotFoundException) {
-            logger.debug("Command not found: {}", request.getCommand());
-            response.writeError(exception.getMessage());
-        } else if (exception instanceof NoProtoException) {
-            response.writeError(RESPError.NOPROTO, RESPError.UNSUPPORTED_PROTOCOL_VERSION);
         } else {
-            logger.debug("Error while serving command: {}", request.getCommand(), exception);
+            StringBuilder command = new StringBuilder();
+            command.append(request.getCommand()).append(" ");
+            for (ByteBuf buf: request.getParams()) {
+                byte[] rawParam = new byte[buf.readableBytes()];
+                buf.readBytes(rawParam);
+                String param = new String(rawParam);
+                command.append(param).append(" ");
+            }
+            logger.debug("Unhandled error while serving command: {}", command, exception);
             response.writeError(exception.getMessage());
         }
     }
@@ -180,7 +183,15 @@ public class Router extends ChannelDuplexHandler {
     private void beforeExecute(Handler handler, Request request) {
         checkMinimumParameterCount(handler, request);
         checkMaximumParameterCount(handler, request);
-        handler.beforeExecute(request);
+        try {
+            handler.beforeExecute(request);
+        } catch (Exception e) {
+           for (ByteBuf param: request.getParams()) {
+               // Reset the reader index to re-construct the received command for debugging purposes.
+               param.resetReaderIndex();
+           }
+           throw e;
+        }
     }
 
     private void execute(Handler handler, Request request, Response response) throws Exception {
@@ -227,7 +238,7 @@ public class Router extends ChannelDuplexHandler {
         try {
             Attribute<Boolean> redisMultiDiscarded = ctx.channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED);
             if (redisMultiDiscarded.get()) {
-                throw new ExecAbortException(RESPError.EXECABORT_MESSAGE);
+                throw new ExecAbortException();
             }
 
             HashMap<String, Long> watchedKeys = ctx.channel().attr(ChannelAttributes.WATCHED_KEYS).get();
@@ -251,7 +262,7 @@ public class Router extends ChannelDuplexHandler {
             }
             transactionResponse.flush();
         } catch (ExecAbortException e) {
-            response.writeError(RESPError.EXECABORT, e.getMessage());
+            response.writeError(e.getPrefix(), e.getMessage());
         } catch (Exception e) {
             response.writeError(
                     String.format("Unhandled exception during transaction handling: %s", e.getMessage())

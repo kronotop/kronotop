@@ -40,6 +40,7 @@ import java.util.concurrent.CompletionException;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JournalTest {
+    private final String broadcastKey = "journal-test";
     protected Config config;
     protected Database database;
     protected Context context;
@@ -71,7 +72,7 @@ public class JournalTest {
 
     @Test
     public void testPublish() {
-        Journal journal = new Journal(context);
+        Journal journal = new Journal(context, broadcastKey);
 
         long offsetOne = journal.publish("value-1".getBytes());
         assertEquals(1L, offsetOne);
@@ -82,7 +83,7 @@ public class JournalTest {
 
     @Test
     public void testConsume_FromSpecificOffset() {
-        Journal journal = new Journal(context);
+        Journal journal = new Journal(context, broadcastKey);
 
         for (int i = 1; i <= 5; i++) {
             journal.publish(String.format("value-%d", i).getBytes());
@@ -95,7 +96,7 @@ public class JournalTest {
 
     @Test
     public void testConsume_StartFromBeginning() {
-        Journal journal = new Journal(context);
+        Journal journal = new Journal(context, broadcastKey);
         for (int i = 1; i <= 5; i++) {
             journal.publish(String.format("value-%d", i).getBytes());
         }
@@ -109,7 +110,7 @@ public class JournalTest {
 
     @Test
     public void testGetLastIndex() {
-        Journal journal = new Journal(context);
+        Journal journal = new Journal(context, broadcastKey);
         for (int i = 1; i <= 5; i++) {
             journal.publish(String.format("value-%d", i).getBytes());
         }
@@ -118,7 +119,7 @@ public class JournalTest {
 
     @Test
     public void testConsume_IllegalOffset() {
-        Journal journal = new Journal(context);
+        Journal journal = new Journal(context, broadcastKey);
         for (int i = 1; i <= 5; i++) {
             journal.publish(String.format("value-%d", i).getBytes());
         }

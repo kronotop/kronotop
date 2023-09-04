@@ -18,6 +18,7 @@ package com.kronotop.redis;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.Context;
@@ -36,7 +37,8 @@ import com.kronotop.redis.server.CommandHandler;
 import com.kronotop.redis.server.FlushAllHandler;
 import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.LogicalDatabase;
-import com.kronotop.redis.storage.impl.OnHeapLogicalDatabaseImpl;
+import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.DataStructureLoader;
 import com.kronotop.redis.storage.persistence.Persistence;
@@ -46,6 +48,7 @@ import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.Commands;
 import io.lettuce.core.cluster.SlotHash;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.ReferenceCountUtil;
@@ -85,8 +88,10 @@ public class RedisService implements KronotopService {
         logger.info("Loading Redis data structures");
         DataStructureLoader dataLoader = new DataStructureLoader(context);
         for (LogicalDatabase logicalDatabase : logicalDatabases.values()) {
-            for (DataStructure dataStructure : DataStructure.values()) {
-                dataLoader.load(logicalDatabase, dataStructure);
+            for (Partition partition : logicalDatabase.getPartitions().values()) {
+                for (DataStructure dataStructure : DataStructure.values()) {
+                    dataLoader.load(partition, dataStructure);
+                }
             }
         }
         long finish = System.nanoTime();
@@ -189,15 +194,20 @@ public class RedisService implements KronotopService {
         return logicalDatabase;
     }
 
-    public void setLogicalDatabase(String index) {
-        logicalDatabases.compute(index, (k, logicalDatabase) -> {
-            if (logicalDatabase != null) {
-                return logicalDatabase;
+    public Partition getPartition(String index, Integer partitionId) {
+        LogicalDatabase logicalDatabase = getLogicalDatabase(index);
+        return logicalDatabase.getPartitions().compute(partitionId, (k, partition) -> {
+            if (partition != null) {
+                return partition;
             }
-            LogicalDatabase newLogicalDatabase = new OnHeapLogicalDatabaseImpl(index);
-            submitPersistenceTask(newLogicalDatabase);
-            return newLogicalDatabase;
+            Partition newPartition = new OnHeapPartitionImpl(partitionId);
+            submitPersistenceTask(logicalDatabase, newPartition);
+            return newPartition;
         });
+    }
+
+    public void setLogicalDatabase(String index) {
+        logicalDatabases.compute(index, (k, logicalDatabase) -> Objects.requireNonNullElseGet(logicalDatabase, () -> new LogicalDatabase(index)));
     }
 
     public void clearLogicalDatabases() {
@@ -231,8 +241,10 @@ public class RedisService implements KronotopService {
                 }
                 return null;
             });
-            logicalDatabase.clear();
-            logicalDatabase.getPersistenceQueue().clear();
+            for (Partition partition : logicalDatabase.getPartitions().values()) {
+                partition.clear();
+                partition.getPersistenceQueue().clear();
+            }
             return logicalDatabase;
         });
     }
@@ -264,11 +276,13 @@ public class RedisService implements KronotopService {
 
     private void drainPersistenceQueues() {
         for (LogicalDatabase logicalDatabase : logicalDatabases.values()) {
-            if (logicalDatabase.getPersistenceQueue().size() > 0) {
-                logger.info("Draining persistence queue of Redis logical database: {}", logicalDatabase.getName());
-                Persistence persistence = new Persistence(context, logicalDatabase);
-                while (!persistence.isQueueEmpty()) {
-                    persistence.run();
+            logger.info("Draining persistence queue of Redis logical database: {}", logicalDatabase.getName());
+            for (Partition partition : logicalDatabase.getPartitions().values()) {
+                if (partition.getPersistenceQueue().size() > 0) {
+                    Persistence persistence = new Persistence(context, logicalDatabase.getName(), partition);
+                    while (!persistence.isQueueEmpty()) {
+                        persistence.run();
+                    }
                 }
             }
         }
@@ -292,8 +306,8 @@ public class RedisService implements KronotopService {
         drainPersistenceQueues();
     }
 
-    private void submitPersistenceTask(LogicalDatabase logicalDatabase) {
-        Persistence persistence = new com.kronotop.redis.storage.persistence.Persistence(context, logicalDatabase);
+    private void submitPersistenceTask(LogicalDatabase logicalDatabase, Partition partition) {
+        Persistence persistence = new Persistence(context, logicalDatabase.getName(), partition);
         PersistenceTask persistenceTask = new PersistenceTask(persistence);
         persistenceExecutor.submit(persistenceTask);
     }
@@ -302,37 +316,40 @@ public class RedisService implements KronotopService {
         return clusterService;
     }
 
-    private ResolveResponse resolveKeyInternal(int slot) {
+    private Partition resolveKeyInternal(ChannelHandlerContext context, int slot) {
         int partId = getHashSlots().get(slot);
         Member owner = getClusterService().getRoutingTable().getPartitionOwner(partId);
         if (!owner.equals(getContext().getMember())) {
-            RESPErrorMessage errorMessage = new RESPErrorMessage(RESPError.MOVED,
+            throw new KronotopException(
+                    RESPError.MOVED,
                     String.format("%d %s:%d", slot, owner.getAddress().getHost(), owner.getAddress().getPort())
             );
-            return new ResolveResponse(errorMessage);
         }
-        return new ResolveResponse(partId);
+
+        Channel channel = context.channel();
+        Attribute<String> redisLogicalDatabaseIndex = channel.attr(ChannelAttributes.REDIS_LOGICAL_DATABASE_INDEX);
+        String index = redisLogicalDatabaseIndex.get();
+        return getPartition(index, partId);
     }
 
-    public ResolveResponse resolveKey(String key) {
+    public Partition resolveKey(ChannelHandlerContext context, String key) {
         int slot = SlotHash.getSlot(key);
-        return resolveKeyInternal(slot);
+        return resolveKeyInternal(context, slot);
     }
 
-    public ResolveResponse resolveKeys(List<String> keys) {
+    public Partition resolveKeys(ChannelHandlerContext context, List<String> keys) {
         Integer latestSlot = null;
         for (String key : keys) {
             int currentSlot = SlotHash.getSlot(key);
             if (latestSlot != null && latestSlot != currentSlot) {
-                RESPErrorMessage errorMessage = new RESPErrorMessage(RESPError.CROSSSLOT, RESPError.CROSSSLOT_MESSAGE);
-                return new ResolveResponse(errorMessage);
+                throw new KronotopException(RESPError.CROSSSLOT, RESPError.CROSSSLOT_MESSAGE);
             }
             latestSlot = currentSlot;
         }
         if (latestSlot == null) {
             throw new NullPointerException("slot cannot be calculated for the given set of keys");
         }
-        return resolveKeyInternal(latestSlot);
+        return resolveKeyInternal(context, latestSlot);
     }
 
     public Map<Integer, Integer> getHashSlots() {

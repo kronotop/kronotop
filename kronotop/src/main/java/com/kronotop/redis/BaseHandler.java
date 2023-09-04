@@ -16,7 +16,6 @@
 
 package com.kronotop.redis;
 
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.server.resp.ChannelAttributes;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -29,10 +28,9 @@ public class BaseHandler {
         this.service = service;
     }
 
-    public LogicalDatabase getLogicalDatabase(ChannelHandlerContext ctx) {
+    public String getCurrentLogicalDatabaseIndex(ChannelHandlerContext ctx) {
         Channel channel = ctx.channel();
         Attribute<String> redisLogicalDatabaseIndex = channel.attr(ChannelAttributes.REDIS_LOGICAL_DATABASE_INDEX);
-        String index = redisLogicalDatabaseIndex.get();
-        return service.getLogicalDatabase(index);
+        return redisLogicalDatabaseIndex.get();
     }
 }

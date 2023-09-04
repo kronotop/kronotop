@@ -14,33 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.redis.storage;
 
-import com.kronotop.server.resp.RESPErrorMessage;
+import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
+import org.junit.jupiter.api.Test;
 
-public class ResolveResponse {
-    private final int partId;
-    private final RESPErrorMessage error;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-    public ResolveResponse(RESPErrorMessage error) {
-        this.partId = 0;
-        this.error = error;
-    }
-
-    public ResolveResponse(int partId) {
-        this.partId = partId;
-        this.error = null;
-    }
-
-    public boolean hasError() {
-        return error != null;
-    }
-
-    public int getPartId() {
-        return partId;
-    }
-
-    public RESPErrorMessage getError() {
-        return error;
+public class PartitionTest {
+    @Test
+    public void testLogicalDatabase() {
+        Partition partition = new OnHeapPartitionImpl(0);
+        assertNotNull(partition.getIndex());
     }
 }

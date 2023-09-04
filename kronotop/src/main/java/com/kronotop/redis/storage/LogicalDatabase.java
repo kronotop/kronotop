@@ -14,22 +14,23 @@
  * limitations under the License.
  */
 
-
 package com.kronotop.redis.storage;
 
-import com.google.common.util.concurrent.Striped;
-import com.kronotop.redis.storage.index.Index;
-import com.kronotop.redis.storage.persistence.PersistenceQueue;
+import java.util.concurrent.ConcurrentHashMap;
 
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.locks.ReadWriteLock;
+public class LogicalDatabase {
+    private final String name;
+    private final ConcurrentHashMap<Integer, Partition> partitions = new ConcurrentHashMap<>();
 
-public interface LogicalDatabase extends ConcurrentMap<String, Object> {
-    Index getIndex();
+    public LogicalDatabase(String name) {
+        this.name = name;
+    }
 
-    String getName();
+    public String getName() {
+        return name;
+    }
 
-    Striped<ReadWriteLock> getStriped();
-
-    PersistenceQueue getPersistenceQueue();
+    public ConcurrentHashMap<Integer, Partition> getPartitions() {
+        return partitions;
+    }
 }

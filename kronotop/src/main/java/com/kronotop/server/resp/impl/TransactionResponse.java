@@ -85,11 +85,6 @@ public class TransactionResponse implements Response {
     }
 
     @Override
-    public void writeError(RESPErrorMessage RESPErrorMessage) {
-        writeError(RESPErrorMessage.getPrefix(), RESPErrorMessage.getMessage());
-    }
-
-    @Override
     public void flush() {
         if (messages.isEmpty()) {
             ctx.writeAndFlush(FullBulkStringRedisMessage.NULL_INSTANCE);

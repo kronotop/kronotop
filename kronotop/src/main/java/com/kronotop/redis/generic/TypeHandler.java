@@ -18,10 +18,9 @@ package com.kronotop.redis.generic;
 
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.ResolveResponse;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.generic.protocol.TypeMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
 import com.kronotop.server.resp.Request;
@@ -47,19 +46,13 @@ public class TypeHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         TypeMessage typeMessage = request.attr(MessageTypes.TYPE).get();
 
-        ResolveResponse resolveResponse = service.resolveKey(typeMessage.getKey());
-        if (resolveResponse.hasError()) {
-            response.writeError(resolveResponse.getError());
-            return;
-        }
-
-        LogicalDatabase storage = getLogicalDatabase(response.getContext());
+        Partition partition = service.resolveKey(response.getContext(), typeMessage.getKey());
 
         Object retrieved;
-        ReadWriteLock lock = storage.getStriped().get(typeMessage.getKey());
+        ReadWriteLock lock = partition.getStriped().get(typeMessage.getKey());
         try {
             lock.readLock().lock();
-            retrieved = storage.get(typeMessage.getKey());
+            retrieved = partition.get(typeMessage.getKey());
         } finally {
             lock.readLock().unlock();
         }

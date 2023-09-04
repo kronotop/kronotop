@@ -22,7 +22,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.BaseStorageTest;
-import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redistest.RedisCommandBuilder;
@@ -42,10 +42,12 @@ public class FlushDBHandlerTest extends BaseStorageTest {
     public void testFLUSHDB() {
         setupRedisService();
 
+        String key = "mykey";
+
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.set("mykey", "myvalue").encode(buf);
+            cmd.set(key, "myvalue").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -57,8 +59,8 @@ public class FlushDBHandlerTest extends BaseStorageTest {
         {
             // Persistence task has been run at the background, but it's an async event.
             // Let's run the task eagerly. It's safe.
-            LogicalDatabase logicalDatabase = redisService.getLogicalDatabase(RedisService.DEFAULT_LOGICAL_DATABASE);
-            Persistence persistence = new Persistence(context, logicalDatabase);
+            Partition partition = redisService.getPartition(RedisService.DEFAULT_LOGICAL_DATABASE, getPartitionId(key));
+            Persistence persistence = new Persistence(context, RedisService.DEFAULT_LOGICAL_DATABASE, partition);
             persistence.run();
         }
 

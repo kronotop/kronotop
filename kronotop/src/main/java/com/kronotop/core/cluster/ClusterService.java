@@ -70,7 +70,7 @@ public class ClusterService implements KronotopService {
         ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("kr.cluster-%d").build();
         this.scheduler = new ScheduledThreadPoolExecutor(2, namedThreadFactory);
         this.consistent = new Consistent(context.getConfig());
-        this.journal = new Journal(context);
+        this.journal = new Journal(context, "cluster-events");
         this.lastOffset = new AtomicLong(this.journal.getLastIndex());
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
