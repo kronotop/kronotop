@@ -77,7 +77,7 @@ public class AppendHandler extends BaseStringHandler implements Handler {
                     result.set(output.size());
                     return new StringValue(output.toByteArray());
                 } else {
-                    partition.getIndex().update(appendMessage.getKey());
+                    partition.getIndex().add(appendMessage.getKey());
                     result.set(appendMessage.getValue().length);
                     return new StringValue(appendMessage.getValue());
                 }

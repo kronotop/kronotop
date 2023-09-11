@@ -73,7 +73,7 @@ public class MSetHandler extends BaseStringHandler implements Handler {
             for (MSetMessage.Pair pair : msetMessage.getPairs()) {
                 Object previousValue = partition.put(pair.getKey(), new StringValue(pair.getValue()));
                 if (previousValue == null) {
-                    partition.getIndex().update(pair.getKey());
+                    partition.getIndex().add(pair.getKey());
                 }
             }
         } finally {

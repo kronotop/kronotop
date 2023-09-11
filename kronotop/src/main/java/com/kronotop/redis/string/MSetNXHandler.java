@@ -59,7 +59,7 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
         for (MSetNXMessage.Pair pair : mSetNXMessage.getPairs()) {
             Object previousValue = storage.put(pair.getKey(), new StringValue(pair.getValue()));
             if (previousValue == null) {
-                storage.getIndex().update(pair.getKey());
+                storage.getIndex().add(pair.getKey());
             }
         }
         return 1;

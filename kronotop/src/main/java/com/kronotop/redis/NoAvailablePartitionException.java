@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.storage.index;
+package com.kronotop.redis;
 
-public interface Index {
-    void add(String key);
+import com.kronotop.common.KronotopException;
 
-    void remove(String key);
-
-    Long head();
-
-    void flushBuffer();
-
-    Projection getProjection(long offset, int count);
+public class NoAvailablePartitionException extends KronotopException {
+    public NoAvailablePartitionException() {
+        super();
+    }
 }

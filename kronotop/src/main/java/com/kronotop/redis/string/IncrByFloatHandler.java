@@ -80,7 +80,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
                     }
                 } else {
-                    partition.getIndex().update(incrByFloatMessage.getKey());
+                    partition.getIndex().add(incrByFloatMessage.getKey());
                 }
                 currentValue += incrByFloatMessage.getIncrement();
                 result.set(currentValue);

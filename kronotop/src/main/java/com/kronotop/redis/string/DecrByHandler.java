@@ -80,7 +80,7 @@ public class DecrByHandler extends BaseStringHandler implements Handler {
                     }
                 } else {
                     // New key
-                    partition.getIndex().update(decrByMessage.getKey());
+                    partition.getIndex().add(decrByMessage.getKey());
                 }
                 currentValue -= decrByMessage.getDecrement();
                 result.set(currentValue);

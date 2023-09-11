@@ -69,7 +69,7 @@ public class DelHandler extends BaseGenericHandler implements Handler {
             for (String key : delMessage.getKeys()) {
                 if (partition.remove(key) != null) {
                     keysRemoved++;
-                    partition.getIndex().drop(key);
+                    partition.getIndex().remove(key);
                 }
             }
         } finally {

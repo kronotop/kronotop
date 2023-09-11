@@ -29,12 +29,13 @@ import java.util.concurrent.locks.ReadWriteLock;
 
 public abstract class AbstractInMemoryPartition extends ConcurrentHashMap<String, Object> implements ConcurrentMap<String, Object> {
     private final Integer id;
-    private final Index index = new IndexImpl();
+    private final Index index;
     private final PersistenceQueue persistenceQueue = new OnHeapPersistenceQueue();
     private final Striped<ReadWriteLock> striped = Striped.lazyWeakReadWriteLock(271);
 
     protected AbstractInMemoryPartition(Integer id) {
         this.id = id;
+        this.index = new IndexImpl(id);
     }
 
     public Striped<ReadWriteLock> getStriped() {

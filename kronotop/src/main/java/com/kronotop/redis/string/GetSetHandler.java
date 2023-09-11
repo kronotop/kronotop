@@ -16,7 +16,6 @@
 
 package com.kronotop.redis.string;
 
-import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.Partition;
@@ -72,7 +71,7 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
                     throw new WrongTypeException();
                 }
                 if (oldValue == null) {
-                    partition.getIndex().update(getSetMessage.getKey());
+                    partition.getIndex().add(getSetMessage.getKey());
                 }
                 result.set(oldValue);
                 return new StringValue(getSetMessage.getValue());

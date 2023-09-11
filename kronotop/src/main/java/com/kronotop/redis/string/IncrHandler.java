@@ -79,7 +79,7 @@ public class IncrHandler extends BaseStringHandler implements Handler {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                     }
                 } else {
-                    partition.getIndex().update(incrMessage.getKey());
+                    partition.getIndex().add(incrMessage.getKey());
                 }
                 currentValue += 1;
                 result.set(currentValue);

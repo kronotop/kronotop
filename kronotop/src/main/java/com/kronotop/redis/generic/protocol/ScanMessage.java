@@ -25,7 +25,7 @@ public class ScanMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "SCAN";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;
-    private int cursor;
+    private long cursor;
 
     public ScanMessage(Request request) {
         this.request = request;
@@ -35,10 +35,10 @@ public class ScanMessage implements KronotopMessage<Void> {
     private void parse() {
         byte[] rawcursor = new byte[request.getParams().get(0).readableBytes()];
         request.getParams().get(0).readBytes(rawcursor);
-        cursor = Integer.parseInt(new String(rawcursor));
+        cursor = Long.parseLong(new String(rawcursor));
     }
 
-    public Integer getCursor() {
+    public Long getCursor() {
         return cursor;
     }
 

@@ -19,102 +19,163 @@ package com.kronotop.redis.storage.index.impl;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.index.Projection;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class IndexImpl implements Index {
     private final ReadWriteLock rwlock = new ReentrantReadWriteLock();
-    private final List<Long> indexes = new ArrayList<>(1000000);
-    private final ConcurrentHashMap<Long, String> keys = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Long> reverseKeys = new ConcurrentHashMap<>();
-    private final AtomicLong counter = new AtomicLong(0);
-    private final Random random = new Random();
+    private final List<BufferEntry> buffer = new ArrayList<>();
+    private final ConcurrentHashMap<String, Long> keys = new ConcurrentHashMap<>();
+    private final ConcurrentSkipListMap<Long, String> index = new ConcurrentSkipListMap<>();
+    private final FlakeIdGenerator flakeIdGenerator;
 
-    public IndexImpl() {
+    public IndexImpl(long partitionId) {
+        this.flakeIdGenerator = new FlakeIdGenerator(partitionId);
     }
 
-    public void update(String key) {
-        long index = counter.incrementAndGet();
-        Long previousIndex = reverseKeys.remove(key);
-        if (previousIndex != null) {
-            keys.remove(previousIndex);
+    public void add(String key) {
+        if (keys.containsKey(key)) {
+            return;
         }
 
         rwlock.writeLock().lock();
         try {
-            indexes.add(index);
+            long id = flakeIdGenerator.nextId();
+            buffer.add(new BufferEntry(id, key));
         } finally {
             rwlock.writeLock().unlock();
         }
-        keys.put(index, key);
-        reverseKeys.put(key, index);
     }
 
-    public void drop(String key) {
-        Long index = reverseKeys.remove(key);
-        if (index != null)
-            keys.remove(index);
+    public void remove(String key) {
+        Long id = keys.remove(key);
+        if (id != null) {
+            index.remove(id);
+        } else {
+            rwlock.writeLock().lock();
+            try {
+                for (int i = 0; i < buffer.size(); i++) {
+                    BufferEntry entry = buffer.get(i);
+                    if (entry.key.equals(key)) {
+                        buffer.remove(i);
+                        break;
+                    }
+                }
+            } finally {
+                rwlock.writeLock().unlock();
+            }
+        }
     }
 
-    public Projection getProjection(int offset, int count) {
-        List<String> aggregatedKeys = new ArrayList<>();
+    public Long head() {
+        try {
+            Long head = index.firstKey();
+            if (head != null) {
+                return head - 1;
+            }
+        } catch (NoSuchElementException e) {
+            // Index is empty.
+        }
+
         rwlock.readLock().lock();
         try {
-            ListIterator<Long> iterator = indexes.listIterator(offset);
+            if (buffer.isEmpty()) {
+                return 0L;
+            }
+            return buffer.get(0).id - 1;
+        } finally {
+            rwlock.readLock().unlock();
+        }
+    }
+
+    public void flushBuffer() {
+        rwlock.writeLock().lock();
+        try {
             int total = 0;
-            int cursor = offset;
-            while (iterator.hasNext()) {
-                if (total >= count) {
+            for (ListIterator<BufferEntry> iterator = buffer.listIterator(); iterator.hasNext(); ) {
+                BufferEntry entry = iterator.next();
+                keys.put(entry.key, entry.id);
+                index.put(entry.id, entry.key);
+                iterator.remove();
+                total++;
+                if (total > 10000) {
                     break;
                 }
-                cursor++;
-
-                long index = iterator.next();
-                String key = keys.get(index);
-                if (key != null) {
-                    aggregatedKeys.add(key);
-                    total++;
-                }
             }
-
-            if (!iterator.hasNext()) {
-                cursor = 0;
-            }
-            return new Projection(aggregatedKeys, cursor);
-        } catch (IndexOutOfBoundsException e) {
-            return new Projection(aggregatedKeys, 0);
         } finally {
-            rwlock.readLock().unlock();
+            rwlock.writeLock().unlock();
         }
     }
 
-    public List<String> tryGetRandomKeys(int count) {
-        List<Long> randomIndexes = new ArrayList<>();
-        List<String> randomKeys = new ArrayList<>();
+    public Projection getProjection(long cursor, int count) {
+        List<String> aggregatedKeys = new ArrayList<>();
+
+        long nextCursor = cursor;
+        for (int i = 0; i < count; i++) {
+            Map.Entry<Long, String> entry = index.higherEntry(nextCursor);
+            if (entry == null) {
+                break;
+            }
+            aggregatedKeys.add(entry.getValue());
+            nextCursor = entry.getKey();
+        }
+
+        if (aggregatedKeys.size() >= count) {
+            rwlock.readLock().lock();
+            try {
+                if (buffer.isEmpty() && index.higherKey(nextCursor) == null) {
+                    nextCursor = 0;
+                }
+            } finally {
+                rwlock.readLock().unlock();
+            }
+            return new Projection(aggregatedKeys, nextCursor);
+        }
+
         rwlock.readLock().lock();
         try {
-            if (indexes.size() == 0) {
-                return randomKeys;
+            if (buffer.isEmpty() && index.higherKey(nextCursor) == null) {
+                return new Projection(aggregatedKeys, 0);
             }
-            for (int i = 0; i < count; i++) {
-                int randomNum = random.nextInt((indexes.size() + 1));
-                Long index = indexes.get(randomNum);
-                randomIndexes.add(index);
+
+            boolean bottom = false;
+            for (int i = 0; i < buffer.size(); i++) {
+                if (i + 1 == buffer.size()) {
+                    bottom = true;
+                }
+
+                BufferEntry bufferEntry = buffer.get(i);
+                if (keys.containsKey(bufferEntry.key) || nextCursor >= bufferEntry.id) {
+                    continue;
+                }
+                aggregatedKeys.add(bufferEntry.key);
+                nextCursor = bufferEntry.id;
+
+                if (aggregatedKeys.size() >= count) {
+                    break;
+                }
+            }
+
+            if ((buffer.isEmpty() || bottom) && index.higherKey(nextCursor) == null) {
+                nextCursor = 0;
             }
         } finally {
             rwlock.readLock().unlock();
         }
 
-        for (Long randomIndex : randomIndexes) {
-            String key = keys.get(randomIndex);
-            randomKeys.add(key);
+        return new Projection(aggregatedKeys, nextCursor);
+    }
+
+    static class BufferEntry {
+        private final String key;
+        private final Long id;
+
+        public BufferEntry(Long id, String key) {
+            this.id = id;
+            this.key = key;
         }
-        return randomKeys;
     }
 }

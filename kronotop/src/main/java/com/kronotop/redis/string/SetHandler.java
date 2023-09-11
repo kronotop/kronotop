@@ -66,7 +66,7 @@ public class SetHandler extends BaseStringHandler implements Handler {
         try {
             lock.writeLock().lock();
             partition.put(setMessage.getKey(), stringValue);
-            partition.getIndex().update(setMessage.getKey());
+            partition.getIndex().add(setMessage.getKey());
         } finally {
             lock.writeLock().unlock();
         }

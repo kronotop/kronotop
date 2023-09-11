@@ -70,7 +70,7 @@ public class SetNXHandler extends BaseStringHandler implements Handler {
                     new StringValue(setnxMessage.getValue())
             );
             if (result == null) {
-                partition.getIndex().update(setnxMessage.getKey());
+                partition.getIndex().add(setnxMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();

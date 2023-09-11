@@ -16,7 +16,6 @@
 
 package com.kronotop.redis.string;
 
-import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.Partition;
@@ -68,7 +67,7 @@ public class GetDelHandler extends BaseStringHandler implements Handler {
             lock.writeLock().lock();
             retrieved = partition.remove(getDelMessage.getKey());
             if (retrieved != null) {
-                partition.getIndex().drop(getDelMessage.getKey());
+                partition.getIndex().remove(getDelMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();

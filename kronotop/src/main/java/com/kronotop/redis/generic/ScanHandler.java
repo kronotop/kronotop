@@ -17,10 +17,13 @@
 package com.kronotop.redis.generic;
 
 import com.kronotop.redis.BaseHandler;
+import com.kronotop.redis.NoAvailablePartitionException;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.ScanMessage;
+import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.index.Projection;
+import com.kronotop.redis.storage.index.impl.FlakeIdGenerator;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
 import com.kronotop.server.resp.Request;
@@ -44,10 +47,10 @@ public class ScanHandler extends BaseHandler implements Handler {
         super(service);
     }
 
-    private List<RedisMessage> prepareResponse(Projection projection, List<RedisMessage> children) {
+    private List<RedisMessage> prepareResponse(long cursor, List<RedisMessage> children) {
         List<RedisMessage> parent = new ArrayList<>();
         // TODO: Cursor has to be a bulk string message
-        parent.add(new IntegerRedisMessage(projection.getCursor()));
+        parent.add(new IntegerRedisMessage(cursor));
         parent.add(new ArrayRedisMessage(children));
         return parent;
     }
@@ -57,15 +60,42 @@ public class ScanHandler extends BaseHandler implements Handler {
         request.attr(MessageTypes.SCAN).set(new ScanMessage(request));
     }
 
+    private int findPartitionId(Response response, int initial) {
+        LogicalDatabase logicalDatabase = service.getLogicalDatabase(getCurrentLogicalDatabaseIndex(response.getContext()));
+        for (int partitionId = initial; partitionId < service.getPartitionCount(); partitionId++) {
+            Partition partition = logicalDatabase.getPartitions().get(partitionId);
+            if (partition == null || partition.isEmpty()) {
+                continue;
+            }
+            return partitionId;
+        }
+        throw new NoAvailablePartitionException();
+    }
+
     @Override
     public void execute(Request request, Response response) {
-        // TODO: Implement SnowflakeID or similar for cursor
         ScanMessage scanMessage = request.attr(MessageTypes.SCAN).get();
-        Partition partition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), 1);
+
+        int partitionId;
+        if (scanMessage.getCursor() == 0) {
+            try {
+                partitionId = findPartitionId(response, 0);
+            } catch (NoAvailablePartitionException e) {
+                response.writeArray(prepareResponse(0, new ArrayList<>()));
+                return;
+            }
+        } else {
+            long[] parsedCursor = FlakeIdGenerator.parse(scanMessage.getCursor());
+            // This will never overflow. Maximum partition id is 2**14;
+            partitionId = Math.toIntExact(parsedCursor[0]);
+        }
+
+        Partition partition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), partitionId);
         List<RedisMessage> children = new ArrayList<>();
+
         Projection projection = partition.getIndex().getProjection(scanMessage.getCursor(), 10);
         if (projection.getKeys().isEmpty()) {
-            response.writeArray(prepareResponse(projection, children));
+            response.writeArray(prepareResponse(projection.getCursor(), children));
             return;
         }
 
@@ -87,6 +117,20 @@ public class ScanHandler extends BaseHandler implements Handler {
             }
         }
 
-        response.writeArray(prepareResponse(projection, children));
+        if (projection.getCursor() == 0) {
+            try {
+                int nextPartitionId = findPartitionId(response, partitionId + 1);
+                Partition nextPartition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), nextPartitionId);
+                if (nextPartition != null) {
+                    response.writeArray(prepareResponse(nextPartition.getIndex().head(), children));
+                    return;
+                }
+            } catch (NoAvailablePartitionException e) {
+                response.writeArray(prepareResponse(0, children));
+                return;
+            }
+        }
+
+        response.writeArray(prepareResponse(projection.getCursor(), children));
     }
 }

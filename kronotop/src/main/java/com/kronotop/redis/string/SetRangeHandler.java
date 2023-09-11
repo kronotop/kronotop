@@ -77,7 +77,7 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
                     output.writeBytes(padding);
                     output.writeBytes(setRangeMessage.getValue());
                     result.set(output.size());
-                    partition.getIndex().update(setRangeMessage.getKey());
+                    partition.getIndex().add(setRangeMessage.getKey());
                     return new StringValue(output.toByteArray());
                 }
 

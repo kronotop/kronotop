@@ -78,7 +78,7 @@ public class IncrByHandler extends BaseStringHandler implements Handler {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                     }
                 } else {
-                    partition.getIndex().update(incrByMessage.getKey());
+                    partition.getIndex().add(incrByMessage.getKey());
                 }
                 currentValue += incrByMessage.getIncrement();
                 result.set(currentValue);

@@ -30,6 +30,7 @@ import com.kronotop.server.resp.annotation.MinimumParameterCount;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.redis.FullBulkStringRedisMessage;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -53,7 +54,9 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
         Collection<Partition> partitions = service.getLogicalDatabase(index).getPartitions().values();
         int partitionId = ThreadLocalRandom.current().nextInt(partitions.size());
         Partition partition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), partitionId);
-        List<String> randomKeys = partition.getIndex().tryGetRandomKeys(1);
+        // TODO: Fixme??!!
+        // https://stackoverflow.com/questions/12385284/how-to-select-a-random-key-from-a-hashmap-in-java
+        List<String> randomKeys = new ArrayList<>(); // partition.getIndex().tryGetRandomKeys(1);
         if (randomKeys.isEmpty()) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;

@@ -39,6 +39,7 @@ import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
+import com.kronotop.redis.storage.index.impl.IndexImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.DataStructureLoader;
 import com.kronotop.redis.storage.persistence.Persistence;
@@ -170,6 +171,10 @@ public class RedisService implements KronotopService {
             counter++;
         }
         return Collections.unmodifiableMap(result);
+    }
+
+    public int getPartitionCount() {
+        return partitionCount;
     }
 
     private void registerHandler(Handler... handlers) throws CommandAlreadyRegisteredException {
