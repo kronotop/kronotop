@@ -29,7 +29,6 @@ import io.netty.handler.codec.redis.SimpleStringRedisMessage;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashSet;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -73,7 +72,7 @@ public class ScanHandlerTest extends BaseHandlerTest {
 
             ArrayRedisMessage rawKeys = (ArrayRedisMessage) actualMessage.children().get(1);
             for (RedisMessage rawKey : rawKeys.children()) {
-                FullBulkStringRedisMessage key = (FullBulkStringRedisMessage)rawKey;
+                FullBulkStringRedisMessage key = (FullBulkStringRedisMessage) rawKey;
                 result.add(key.content().toString(CharsetUtil.US_ASCII));
             }
 
