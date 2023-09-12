@@ -133,11 +133,5 @@ public class Persistence {
         } finally {
             transactionSize.set(0);
         }
-
-        try {
-            partition.getIndex().flushBuffer();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 }

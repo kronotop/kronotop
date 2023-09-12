@@ -18,6 +18,7 @@ package com.kronotop.redis;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.common.utils.DirectoryLayout;
@@ -39,7 +40,6 @@ import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
-import com.kronotop.redis.storage.index.impl.IndexImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.DataStructureLoader;
 import com.kronotop.redis.storage.persistence.Persistence;
@@ -71,7 +71,10 @@ public class RedisService implements KronotopService {
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
     private final ClusterService clusterService;
-    private final ScheduledExecutorService persistenceExecutor = new ScheduledThreadPoolExecutor(1);
+    private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
+            Runtime.getRuntime().availableProcessors(),
+            new ThreadFactoryBuilder().setNameFormat("kr.redis-service-%d").build()
+    );
     private final int partitionCount;
     private volatile boolean isShutdown;
 
@@ -207,6 +210,10 @@ public class RedisService implements KronotopService {
             }
             Partition newPartition = new OnHeapPartitionImpl(partitionId);
             submitPersistenceTask(logicalDatabase, newPartition);
+
+            IndexFlushTask indexFlushTask = new IndexFlushTask(newPartition);
+            scheduledExecutorService.submit(indexFlushTask);
+
             return newPartition;
         });
     }
@@ -296,9 +303,9 @@ public class RedisService implements KronotopService {
     @Override
     public void shutdown() {
         isShutdown = true;
-        persistenceExecutor.shutdownNow();
+        scheduledExecutorService.shutdownNow();
         try {
-            boolean result = persistenceExecutor.awaitTermination(6, TimeUnit.SECONDS);
+            boolean result = scheduledExecutorService.awaitTermination(6, TimeUnit.SECONDS);
             if (result) {
                 logger.debug("Persistence executor has been terminated");
             } else {
@@ -314,7 +321,7 @@ public class RedisService implements KronotopService {
     private void submitPersistenceTask(LogicalDatabase logicalDatabase, Partition partition) {
         Persistence persistence = new Persistence(context, logicalDatabase.getName(), partition);
         PersistenceTask persistenceTask = new PersistenceTask(persistence);
-        persistenceExecutor.submit(persistenceTask);
+        scheduledExecutorService.submit(persistenceTask);
     }
 
     public ClusterService getClusterService() {
@@ -375,10 +382,30 @@ public class RedisService implements KronotopService {
             } finally {
                 if (!isShutdown) {
                     if (task.isQueueEmpty()) {
-                        persistenceExecutor.schedule(this, 1, TimeUnit.SECONDS);
+                        scheduledExecutorService.schedule(this, 1, TimeUnit.SECONDS);
                     } else {
-                        persistenceExecutor.schedule(this, 0, TimeUnit.NANOSECONDS);
+                        scheduledExecutorService.schedule(this, 0, TimeUnit.NANOSECONDS);
                     }
+                }
+            }
+        }
+    }
+
+
+    class IndexFlushTask implements Runnable {
+        private final Partition partition;
+
+        public IndexFlushTask(Partition partition) {
+            this.partition = partition;
+        }
+
+        @Override
+        public void run() {
+            try {
+                partition.getIndex().flushBuffer();
+            } finally {
+                if (!isShutdown) {
+                    scheduledExecutorService.schedule(this, 1, TimeUnit.SECONDS);
                 }
             }
         }

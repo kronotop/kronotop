@@ -16,7 +16,6 @@
 
 package com.kronotop.redis.hash;
 
-import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;

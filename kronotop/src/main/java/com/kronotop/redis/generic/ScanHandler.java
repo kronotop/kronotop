@@ -33,7 +33,6 @@ import com.kronotop.server.resp.annotation.MinimumParameterCount;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.redis.ArrayRedisMessage;
 import io.netty.handler.codec.redis.FullBulkStringRedisMessage;
-import io.netty.handler.codec.redis.IntegerRedisMessage;
 import io.netty.handler.codec.redis.RedisMessage;
 
 import java.util.ArrayList;
@@ -47,10 +46,10 @@ public class ScanHandler extends BaseHandler implements Handler {
         super(service);
     }
 
-    private List<RedisMessage> prepareResponse(long cursor, List<RedisMessage> children) {
+    private List<RedisMessage> prepareResponse(Response response, long cursor, List<RedisMessage> children) {
         List<RedisMessage> parent = new ArrayList<>();
-        // TODO: Cursor has to be a bulk string message
-        parent.add(new IntegerRedisMessage(cursor));
+        ByteBuf buf = response.getContext().alloc().buffer();
+        parent.add(new FullBulkStringRedisMessage(buf.writeBytes(Long.toString(cursor).getBytes())));
         parent.add(new ArrayRedisMessage(children));
         return parent;
     }
@@ -81,7 +80,7 @@ public class ScanHandler extends BaseHandler implements Handler {
             try {
                 partitionId = findPartitionId(response, 0);
             } catch (NoAvailablePartitionException e) {
-                response.writeArray(prepareResponse(0, new ArrayList<>()));
+                response.writeArray(prepareResponse(response, 0, new ArrayList<>()));
                 return;
             }
         } else {
@@ -93,9 +92,9 @@ public class ScanHandler extends BaseHandler implements Handler {
         Partition partition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), partitionId);
         List<RedisMessage> children = new ArrayList<>();
 
-        Projection projection = partition.getIndex().getProjection(scanMessage.getCursor(), 10);
+        Projection projection = partition.getIndex().getProjection(scanMessage.getCursor(), scanMessage.getCount());
         if (projection.getKeys().isEmpty()) {
-            response.writeArray(prepareResponse(projection.getCursor(), children));
+            response.writeArray(prepareResponse(response, projection.getCursor(), children));
             return;
         }
 
@@ -122,15 +121,15 @@ public class ScanHandler extends BaseHandler implements Handler {
                 int nextPartitionId = findPartitionId(response, partitionId + 1);
                 Partition nextPartition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), nextPartitionId);
                 if (nextPartition != null) {
-                    response.writeArray(prepareResponse(nextPartition.getIndex().head(), children));
+                    response.writeArray(prepareResponse(response, nextPartition.getIndex().head(), children));
                     return;
                 }
             } catch (NoAvailablePartitionException e) {
-                response.writeArray(prepareResponse(0, children));
+                response.writeArray(prepareResponse(response, 0, children));
                 return;
             }
         }
 
-        response.writeArray(prepareResponse(projection.getCursor(), children));
+        response.writeArray(prepareResponse(response, projection.getCursor(), children));
     }
 }

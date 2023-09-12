@@ -2238,19 +2238,19 @@ public class RedisCommandBuilder<K, V> extends BaseRedisCommandBuilder<K, V> {
         return createCommand(SAVE, new StatusOutput<>(codec));
     }
 
-    Command<K, V, KeyScanCursor<K>> scan() {
+    public Command<K, V, KeyScanCursor<K>> scan() {
         return scan(ScanCursor.INITIAL, null);
     }
 
-    Command<K, V, KeyScanCursor<K>> scan(ScanCursor scanCursor) {
+    public Command<K, V, KeyScanCursor<K>> scan(ScanCursor scanCursor) {
         return scan(scanCursor, null);
     }
 
-    Command<K, V, KeyScanCursor<K>> scan(ScanArgs scanArgs) {
+    public Command<K, V, KeyScanCursor<K>> scan(ScanArgs scanArgs) {
         return scan(ScanCursor.INITIAL, scanArgs);
     }
 
-    Command<K, V, KeyScanCursor<K>> scan(ScanCursor scanCursor, ScanArgs scanArgs) {
+    public Command<K, V, KeyScanCursor<K>> scan(ScanCursor scanCursor, ScanArgs scanArgs) {
         CommandArgs<K, V> args = new CommandArgs<>(codec);
 
         scanArgs(scanCursor, scanArgs, args);

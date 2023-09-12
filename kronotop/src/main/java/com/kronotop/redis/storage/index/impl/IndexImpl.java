@@ -45,6 +45,7 @@ public class IndexImpl implements Index {
         try {
             long id = flakeIdGenerator.nextId();
             buffer.add(new BufferEntry(id, key));
+            keys.put(key, id);
         } finally {
             rwlock.writeLock().unlock();
         }
@@ -54,19 +55,18 @@ public class IndexImpl implements Index {
         Long id = keys.remove(key);
         if (id != null) {
             index.remove(id);
-        } else {
-            rwlock.writeLock().lock();
-            try {
-                for (int i = 0; i < buffer.size(); i++) {
-                    BufferEntry entry = buffer.get(i);
-                    if (entry.key.equals(key)) {
-                        buffer.remove(i);
-                        break;
-                    }
+        }
+        rwlock.writeLock().lock();
+        try {
+            for (int i = 0; i < buffer.size(); i++) {
+                BufferEntry entry = buffer.get(i);
+                if (entry.key.equals(key)) {
+                    buffer.remove(i);
+                    break;
                 }
-            } finally {
-                rwlock.writeLock().unlock();
             }
+        } finally {
+            rwlock.writeLock().unlock();
         }
     }
 
@@ -94,10 +94,14 @@ public class IndexImpl implements Index {
     public void flushBuffer() {
         rwlock.writeLock().lock();
         try {
+            if (buffer.isEmpty()) {
+                // It's cheap.
+                return;
+            }
+
             int total = 0;
             for (ListIterator<BufferEntry> iterator = buffer.listIterator(); iterator.hasNext(); ) {
                 BufferEntry entry = iterator.next();
-                keys.put(entry.key, entry.id);
                 index.put(entry.id, entry.key);
                 iterator.remove();
                 total++;
@@ -148,7 +152,7 @@ public class IndexImpl implements Index {
                 }
 
                 BufferEntry bufferEntry = buffer.get(i);
-                if (keys.containsKey(bufferEntry.key) || nextCursor >= bufferEntry.id) {
+                if (nextCursor >= bufferEntry.id) {
                     continue;
                 }
                 aggregatedKeys.add(bufferEntry.key);

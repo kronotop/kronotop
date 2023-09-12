@@ -19,19 +19,13 @@ package com.kronotop.redis.storage.index.impl;
 public class FlakeIdGenerator {
     private static final int PARTITION_ID_BITS = 14;
     private static final int SEQUENCE_BITS = 50;
-    private volatile long sequence = 0L;
-    private final long partitionId;
     private static final long maxSequence = (1L << SEQUENCE_BITS) - 1;
+    private final long partitionId;
+    private volatile long sequence = 0L;
 
     public FlakeIdGenerator(long partitionId) {
         this.partitionId = partitionId;
     }
-
-    public synchronized long nextId() {
-        sequence = (sequence + 1) & maxSequence;
-        return (partitionId << SEQUENCE_BITS) | sequence;
-    }
-
 
     public static long[] parse(long id) {
         long maskPartitionId = ((1L << PARTITION_ID_BITS) - 1) << SEQUENCE_BITS;
@@ -40,5 +34,10 @@ public class FlakeIdGenerator {
         long sequence = id & maskSequence;
 
         return new long[]{partitionId, sequence};
+    }
+
+    public synchronized long nextId() {
+        sequence = (sequence + 1) & maxSequence;
+        return (partitionId << SEQUENCE_BITS) | sequence;
     }
 }

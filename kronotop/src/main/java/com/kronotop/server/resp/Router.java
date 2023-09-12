@@ -169,7 +169,7 @@ public class Router extends ChannelDuplexHandler {
         } else {
             StringBuilder command = new StringBuilder();
             command.append(request.getCommand()).append(" ");
-            for (ByteBuf buf: request.getParams()) {
+            for (ByteBuf buf : request.getParams()) {
                 byte[] rawParam = new byte[buf.readableBytes()];
                 buf.readBytes(rawParam);
                 String param = new String(rawParam);
@@ -186,11 +186,11 @@ public class Router extends ChannelDuplexHandler {
         try {
             handler.beforeExecute(request);
         } catch (Exception e) {
-           for (ByteBuf param: request.getParams()) {
-               // Reset the reader index to re-construct the received command for debugging purposes.
-               param.resetReaderIndex();
-           }
-           throw e;
+            for (ByteBuf param : request.getParams()) {
+                // Reset the reader index to re-construct the received command for debugging purposes.
+                param.resetReaderIndex();
+            }
+            throw e;
         }
     }
 

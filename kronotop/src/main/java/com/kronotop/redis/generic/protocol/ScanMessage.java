@@ -16,6 +16,8 @@
 
 package com.kronotop.redis.generic.protocol;
 
+import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 import com.kronotop.server.resp.KronotopMessage;
 import com.kronotop.server.resp.Request;
 
@@ -26,6 +28,9 @@ public class ScanMessage implements KronotopMessage<Void> {
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;
     private long cursor;
+    private int count = 10;
+    private String match;
+    private String type;
 
     public ScanMessage(Request request) {
         this.request = request;
@@ -36,6 +41,44 @@ public class ScanMessage implements KronotopMessage<Void> {
         byte[] rawcursor = new byte[request.getParams().get(0).readableBytes()];
         request.getParams().get(0).readBytes(rawcursor);
         cursor = Long.parseLong(new String(rawcursor));
+
+        if (request.getParams().size() > 1) {
+            for (int i = 1; i < request.getParams().size(); i = i + 2) {
+                byte[] rawParameter = new byte[request.getParams().get(i).readableBytes()];
+                request.getParams().get(i).readBytes(rawParameter);
+                String parameter = new String(rawParameter);
+
+                byte[] rawValue = new byte[request.getParams().get(i + 1).readableBytes()];
+                request.getParams().get(i + 1).readBytes(rawValue);
+                String value = new String(rawValue);
+
+                if (parameter.equalsIgnoreCase("COUNT")) {
+                    try {
+                        count = Integer.parseInt(value);
+                    } catch (NumberFormatException e) {
+                        throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
+                    }
+                } else if (parameter.equalsIgnoreCase("MATCH")) {
+                    match = value;
+                } else if (parameter.equalsIgnoreCase("TYPE")) {
+                    type = value;
+                } else {
+                    throw new KronotopException("syntax error");
+                }
+            }
+        }
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getMatch() {
+        return match;
+    }
+
+    public int getCount() {
+        return count;
     }
 
     public Long getCursor() {

@@ -17,7 +17,6 @@
 package com.kronotop.server.resp.impl;
 
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.server.resp.RESPErrorMessage;
 import com.kronotop.server.resp.Response;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
