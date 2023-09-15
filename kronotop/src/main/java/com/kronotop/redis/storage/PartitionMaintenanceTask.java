@@ -34,7 +34,6 @@ public class PartitionMaintenanceTask implements Runnable {
         this.id = id;
         this.context = context;
         this.numWorkers = context.getConfig().getInt("persistence.num_workers");
-        ;
         this.logicalDatabases = logicalDatabases;
     }
 
