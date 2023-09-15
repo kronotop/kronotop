@@ -23,7 +23,7 @@ public interface Index {
 
     Long head();
 
-    void flushBuffer();
+    void flush();
 
     Projection getProjection(long offset, int count);
 }

@@ -91,7 +91,7 @@ public class IndexImpl implements Index {
         }
     }
 
-    public void flushBuffer() {
+    public void flush() {
         rwlock.writeLock().lock();
         try {
             if (buffer.isEmpty()) {

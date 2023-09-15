@@ -62,7 +62,7 @@ public class IndexImplTest {
         for (int i = 0; i < 20; i++) {
             index.add(String.format("key-{%d}", i));
         }
-        index.flushBuffer();
+        index.flush();
         checkProjection(index);
     }
 
@@ -72,7 +72,7 @@ public class IndexImplTest {
         for (int i = 0; i < 10; i++) {
             index.add(String.format("key-{%d}", i));
         }
-        index.flushBuffer();
+        index.flush();
 
         for (int i = 10; i < 20; i++) {
             index.add(String.format("key-{%d}", i));
@@ -87,7 +87,7 @@ public class IndexImplTest {
         for (int i = 0; i < 10; i++) {
             index.add(String.format("key-{%d}", i));
         }
-        index.flushBuffer();
+        index.flush();
         assertTrue(index.head() > 0);
     }
 
@@ -106,7 +106,7 @@ public class IndexImplTest {
         for (int i = 0; i < 10; i++) {
             index.add(String.format("key-{%d}", i));
         }
-        index.flushBuffer();
+        index.flush();
 
         for (int i = 10; i < 20; i++) {
             index.add(String.format("key-{%d}", i));

@@ -105,6 +105,9 @@ public class Persistence {
 
     public void run() {
         List<Key> keys = partition.getPersistenceQueue().poll(1000);
+        if (keys.isEmpty()) {
+            return;
+        }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (Key key : keys) {
                 ReadWriteLock lock = partition.getStriped().get(key.getKey());

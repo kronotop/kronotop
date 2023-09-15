@@ -39,6 +39,7 @@ import com.kronotop.redis.server.FlushAllHandler;
 import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.PartitionMaintenanceTask;
 import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.DataStructureLoader;
@@ -76,7 +77,6 @@ public class RedisService implements KronotopService {
             new ThreadFactoryBuilder().setNameFormat("kr.redis-service-%d").build()
     );
     private final int partitionCount;
-    private volatile boolean isShutdown;
 
     public RedisService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
         this.handlers = handlers;
@@ -100,6 +100,13 @@ public class RedisService implements KronotopService {
         }
         long finish = System.nanoTime();
         logger.info("Redis data structures loaded in {} ms", TimeUnit.NANOSECONDS.toMillis(finish - start));
+
+        int numPersistenceWorkers = context.getConfig().getInt("persistence.num_workers");
+        int period = context.getConfig().getInt("persistence.period");
+        for (int id = 0; id < numPersistenceWorkers; id++) {
+            PartitionMaintenanceTask partitionMaintenanceTask = new PartitionMaintenanceTask(context, id, logicalDatabases);
+            scheduledExecutorService.scheduleAtFixedRate(partitionMaintenanceTask, 0, period, TimeUnit.SECONDS);
+        }
 
         registerHandler(new PingHandler());
         registerHandler(new AuthHandler(this));
@@ -208,13 +215,7 @@ public class RedisService implements KronotopService {
             if (partition != null) {
                 return partition;
             }
-            Partition newPartition = new OnHeapPartitionImpl(partitionId);
-            submitPersistenceTask(logicalDatabase, newPartition);
-
-            IndexFlushTask indexFlushTask = new IndexFlushTask(newPartition);
-            scheduledExecutorService.submit(indexFlushTask);
-
-            return newPartition;
+            return new OnHeapPartitionImpl(partitionId);
         });
     }
 
@@ -302,7 +303,6 @@ public class RedisService implements KronotopService {
 
     @Override
     public void shutdown() {
-        isShutdown = true;
         scheduledExecutorService.shutdownNow();
         try {
             boolean result = scheduledExecutorService.awaitTermination(6, TimeUnit.SECONDS);
@@ -316,12 +316,6 @@ public class RedisService implements KronotopService {
         }
 
         drainPersistenceQueues();
-    }
-
-    private void submitPersistenceTask(LogicalDatabase logicalDatabase, Partition partition) {
-        Persistence persistence = new Persistence(context, logicalDatabase.getName(), partition);
-        PersistenceTask persistenceTask = new PersistenceTask(persistence);
-        scheduledExecutorService.submit(persistenceTask);
     }
 
     public ClusterService getClusterService() {
@@ -366,48 +360,5 @@ public class RedisService implements KronotopService {
 
     public Map<Integer, Integer> getHashSlots() {
         return hashSlots;
-    }
-
-    class PersistenceTask implements Runnable {
-        private final Persistence task;
-
-        PersistenceTask(Persistence task) {
-            this.task = task;
-        }
-
-        @Override
-        public void run() {
-            try {
-                task.run();
-            } finally {
-                if (!isShutdown) {
-                    if (task.isQueueEmpty()) {
-                        scheduledExecutorService.schedule(this, 1, TimeUnit.SECONDS);
-                    } else {
-                        scheduledExecutorService.schedule(this, 0, TimeUnit.NANOSECONDS);
-                    }
-                }
-            }
-        }
-    }
-
-
-    class IndexFlushTask implements Runnable {
-        private final Partition partition;
-
-        public IndexFlushTask(Partition partition) {
-            this.partition = partition;
-        }
-
-        @Override
-        public void run() {
-            try {
-                partition.getIndex().flushBuffer();
-            } finally {
-                if (!isShutdown) {
-                    scheduledExecutorService.schedule(this, 1, TimeUnit.SECONDS);
-                }
-            }
-        }
     }
 }
