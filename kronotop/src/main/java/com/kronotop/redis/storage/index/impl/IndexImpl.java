@@ -22,6 +22,7 @@ import com.kronotop.redis.storage.index.Projection;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -68,6 +69,29 @@ public class IndexImpl implements Index {
         } finally {
             rwlock.writeLock().unlock();
         }
+    }
+
+    public String random() {
+        try {
+            Long max = index.lastKey();
+            Long min = index.firstKey();
+            long randId = ThreadLocalRandom.current().nextLong(max - min) + min;
+            Map.Entry<Long, String> entry = index.ceilingEntry(randId);
+            return entry.getValue();
+        } catch (NoSuchElementException e) {
+            rwlock.readLock().lock();
+            try {
+                if (!buffer.isEmpty()) {
+                    int randId = ThreadLocalRandom.current().nextInt(buffer.size());
+                    BufferEntry entry = buffer.get(randId);
+                    return entry.key;
+                }
+            } finally {
+                rwlock.readLock().unlock();
+            }
+        }
+
+        throw new NoSuchElementException();
     }
 
     public Long head() {

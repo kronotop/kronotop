@@ -21,11 +21,9 @@ import com.kronotop.redis.storage.index.Projection;
 import com.kronotop.redis.storage.index.impl.IndexImpl;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class IndexImplTest {
 
@@ -98,6 +96,25 @@ public class IndexImplTest {
             index.add(String.format("key-{%d}", i));
         }
         assertTrue(index.head() > 0);
+    }
+
+    @Test
+    public void testHead_random_from_index() {
+        Index index = new IndexImpl(100);
+        for (int i = 0; i < 10; i++) {
+            index.add(String.format("key-{%d}", i));
+        }
+        index.flush();
+        assertDoesNotThrow(index::random);
+    }
+
+    @Test
+    public void testHead_random_from_buffer() {
+        Index index = new IndexImpl(100);
+        for (int i = 0; i < 10; i++) {
+            index.add(String.format("key-{%d}", i));
+        }
+        assertDoesNotThrow(index::random);
     }
 
     @Test

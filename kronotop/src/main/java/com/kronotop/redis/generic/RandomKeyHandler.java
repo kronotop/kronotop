@@ -33,6 +33,7 @@ import io.netty.handler.codec.redis.FullBulkStringRedisMessage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Command(RandomKeyMessage.COMMAND)
@@ -52,17 +53,24 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         String index = getCurrentLogicalDatabaseIndex(response.getContext());
         Collection<Partition> partitions = service.getLogicalDatabase(index).getPartitions().values();
-        int partitionId = ThreadLocalRandom.current().nextInt(partitions.size());
-        Partition partition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), partitionId);
-        // TODO: Fixme??!!
-        // https://stackoverflow.com/questions/12385284/how-to-select-a-random-key-from-a-hashmap-in-java
-        List<String> randomKeys = new ArrayList<>(); // partition.getIndex().tryGetRandomKeys(1);
-        if (randomKeys.isEmpty()) {
+        if (partitions.isEmpty()) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }
-        ByteBuf buf = response.getContext().alloc().buffer();
-        buf.writeBytes(randomKeys.get(0).getBytes());
-        response.write(buf);
+        List<Integer> partitionIds = new ArrayList<>();
+        for (Partition partition : partitions) {
+            partitionIds.add(partition.getId());
+        }
+        int randomIndex = ThreadLocalRandom.current().nextInt(partitionIds.size());
+        int partitionId = partitionIds.get(randomIndex);
+        Partition partition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), partitionId);
+        try {
+            String randomKey = partition.getIndex().random();
+            ByteBuf buf = response.getContext().alloc().buffer();
+            buf.writeBytes(randomKey.getBytes());
+            response.write(buf);
+        } catch (NoSuchElementException e) {
+            response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+        }
     }
 }

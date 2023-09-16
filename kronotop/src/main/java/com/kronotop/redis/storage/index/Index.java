@@ -23,6 +23,8 @@ public interface Index {
 
     Long head();
 
+    String random();
+
     void flush();
 
     Projection getProjection(long offset, int count);
