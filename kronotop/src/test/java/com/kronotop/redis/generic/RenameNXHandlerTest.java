@@ -37,7 +37,7 @@ public class RenameNXHandlerTest extends BaseHandlerTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.set("mykey", "myvalue").encode(buf);
+            cmd.set("mykey-{0}", "myvalue").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -48,7 +48,7 @@ public class RenameNXHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.renamenx("mykey", "newkey").encode(buf);
+            cmd.renamenx("mykey-{0}", "newkey-{0}").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -59,7 +59,7 @@ public class RenameNXHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.get("newkey").encode(buf);
+            cmd.get("newkey-{0}").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -70,7 +70,7 @@ public class RenameNXHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.get("mykey").encode(buf);
+            cmd.get("mykey-{0}").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -85,7 +85,7 @@ public class RenameNXHandlerTest extends BaseHandlerTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.set("mykey", "myvalue").encode(buf);
+            cmd.set("mykey-{0}", "myvalue").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -96,7 +96,7 @@ public class RenameNXHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.set("newkey", "newvalue").encode(buf);
+            cmd.set("newkey-{0}", "newvalue").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -107,7 +107,7 @@ public class RenameNXHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.renamenx("mykey", "newkey").encode(buf);
+            cmd.renamenx("mykey-{0}", "newkey-{0}").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -118,7 +118,7 @@ public class RenameNXHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.get("newkey").encode(buf);
+            cmd.get("newkey-{0}").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -129,7 +129,7 @@ public class RenameNXHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.get("mykey").encode(buf);
+            cmd.get("mykey-{0}").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
