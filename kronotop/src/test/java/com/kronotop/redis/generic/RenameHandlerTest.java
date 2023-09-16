@@ -36,7 +36,7 @@ public class RenameHandlerTest extends BaseHandlerTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.set("mykey", "myvalue").encode(buf);
+            cmd.set("{0}mykey", "myvalue").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -47,7 +47,7 @@ public class RenameHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.rename("mykey", "newkey").encode(buf);
+            cmd.rename("{0}mykey", "{0}newkey").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -58,7 +58,7 @@ public class RenameHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.get("newkey").encode(buf);
+            cmd.get("{0}newkey").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
@@ -69,7 +69,7 @@ public class RenameHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.get("mykey").encode(buf);
+            cmd.get("{0}mykey").encode(buf);
 
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();

@@ -60,12 +60,11 @@ public class RenameHandler extends BaseGenericHandler implements Handler {
     public void execute(Request request, Response response) {
         RenameMessage renameMessage = request.attr(MessageTypes.RENAME).get();
 
-        Partition partition = service.resolveKey(response.getContext(), renameMessage.getKey());
-
         List<String> keys = new ArrayList<>();
         keys.add(renameMessage.getKey());
         keys.add(renameMessage.getNewkey());
 
+        Partition partition = service.resolveKeys(response.getContext(), keys);
         Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
