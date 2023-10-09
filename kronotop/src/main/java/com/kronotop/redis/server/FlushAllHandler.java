@@ -42,7 +42,7 @@ public class FlushAllHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        service.clearLogicalDatabases();
+        service.clearLogicalDatabase();
         response.writeOK();
     }
 }

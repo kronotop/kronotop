@@ -21,7 +21,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.core.*;
 import com.kronotop.core.cluster.ClusterService;
 import com.kronotop.core.cluster.Member;
-import com.kronotop.core.cluster.PartitionMigrationService;
+import com.kronotop.core.cluster.PartitionService;
 import com.kronotop.core.commands.CommandDefinitions;
 import com.kronotop.core.network.Address;
 import com.kronotop.core.network.AddressUtil;
@@ -120,17 +120,18 @@ public class KronotopInstanceImpl implements KronotopInstance {
             FoundationDBService fdb = new FoundationDBService(kronotopInstance.context, handlers);
             kronotopInstance.context.registerService(FoundationDBService.NAME, fdb);
 
-            PartitionMigrationService partitionMigrationService = new PartitionMigrationService(kronotopInstance.context);
-            kronotopInstance.context.registerService(PartitionMigrationService.NAME, partitionMigrationService);
-            partitionMigrationService.start();
-
             ClusterService clusterService = new ClusterService(kronotopInstance.context);
             kronotopInstance.context.registerService(ClusterService.NAME, clusterService);
             clusterService.start();
             clusterService.waitUntilBootstrapped();
 
-            RedisService rdb = new RedisService(kronotopInstance.context, handlers);
-            kronotopInstance.context.registerService(RedisService.NAME, rdb);
+            RedisService redisService = new RedisService(kronotopInstance.context, handlers);
+            kronotopInstance.context.registerService(RedisService.NAME, redisService);
+            redisService.start();
+
+            PartitionService partitionService = new PartitionService(kronotopInstance.context);
+            kronotopInstance.context.registerService(PartitionService.NAME, partitionService);
+            partitionService.start();
 
             ZMapService zmapService = new ZMapService(kronotopInstance.context, handlers);
             kronotopInstance.context.registerService(ZMapService.NAME, zmapService);

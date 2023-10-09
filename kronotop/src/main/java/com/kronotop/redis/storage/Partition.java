@@ -18,6 +18,7 @@
 package com.kronotop.redis.storage;
 
 import com.google.common.util.concurrent.Striped;
+import com.kronotop.core.cluster.Member;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
 
@@ -32,4 +33,10 @@ public interface Partition extends ConcurrentMap<String, Object> {
     PersistenceQueue getPersistenceQueue();
 
     Integer getId();
+
+    PartitionMetadata getPartitionMetadata();
+
+    Member getOwner();
+
+    void setOwner(Member owner);
 }

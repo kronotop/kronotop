@@ -28,14 +28,14 @@ import static com.google.common.hash.Hashing.murmur3_32_fixed;
 public class Member {
     private String id;
     private Address address;
-    private long processID;
+    private long processId;
 
     Member() {
     }
 
-    public Member(Address address, long processID) {
+    public Member(Address address, long processId) {
         this.address = address;
-        this.processID = processID;
+        this.processId = processId;
         HashCode hashCode = Hashing.sha1().newHasher().
                 putString(address.getHost(), CharsetUtil.US_ASCII).
                 putInt(address.getPort()).
@@ -51,8 +51,8 @@ public class Member {
         return id;
     }
 
-    public long getProcessID() {
-        return processID;
+    public long getProcessId() {
+        return processId;
     }
 
     @Override
@@ -69,16 +69,16 @@ public class Member {
             return false;
         }
         final Member member = (Member) obj;
-        return member.getId().equals(id) && member.getProcessID() == processID;
+        return member.getId().equals(id) && member.getProcessId() == processId;
     }
 
     @Override
     public String toString() {
         return String.format(
-                "Member {id=%s address=%s processID=%s}",
+                "Member {id=%s address=%s processId=%s}",
                 id,
                 address,
-                processID
+                processId
         );
     }
 }

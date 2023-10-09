@@ -16,24 +16,20 @@
 
 package com.kronotop.core.cluster;
 
-import java.util.HashMap;
-import java.util.concurrent.ConcurrentHashMap;
+public class PartitionEvent {
+    private final int partitionId;
+    private final String logicalDatabase;
 
-public class RoutingTable {
-    private final ConcurrentHashMap<Integer, Member> routingTable = new ConcurrentHashMap<>();
-
-    public RoutingTable() {
+    public PartitionEvent(String logicalDatabase, int partitionId) {
+        this.logicalDatabase = logicalDatabase;
+        this.partitionId = partitionId;
     }
 
-    public Member getPartitionOwner(Integer partitionId) {
-        Member owner = routingTable.get(partitionId);
-        if (owner == null) {
-            throw new IllegalArgumentException("invalid partition id");
-        }
-        return owner;
+    public int getPartitionId() {
+        return partitionId;
     }
 
-    protected void setRoutingTable(HashMap<Integer, Member> table) {
-        routingTable.putAll(table);
+    public String getLogicalDatabase() {
+        return logicalDatabase;
     }
 }

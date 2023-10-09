@@ -16,6 +16,8 @@
 
 package com.kronotop.redis;
 
+import com.apple.foundationdb.FDBException;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -40,9 +42,10 @@ import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.PartitionMaintenanceTask;
+import com.kronotop.redis.storage.PartitionStatus;
 import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
-import com.kronotop.redis.storage.persistence.DataStructureLoader;
+import com.kronotop.redis.storage.persistence.PartitionLoader;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.string.*;
 import com.kronotop.redis.transactions.*;
@@ -50,7 +53,6 @@ import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.Commands;
 import io.lettuce.core.cluster.SlotHash;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.ReferenceCountUtil;
@@ -62,13 +64,11 @@ import java.util.concurrent.*;
 
 public class RedisService implements KronotopService {
     public static final String REDIS_VERSION = "7.0.8";
-    public static final String DEFAULT_LOGICAL_DATABASE = "0";
     public static final String NAME = "Redis";
     private static final Logger logger = LoggerFactory.getLogger(RedisService.class);
     public final int NUM_HASH_SLOTS = 16384;
     private final Handlers handlers;
     private final Context context;
-    private final ConcurrentMap<String, LogicalDatabase> logicalDatabases = new ConcurrentHashMap<>();
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
     private final ClusterService clusterService;
@@ -85,28 +85,6 @@ public class RedisService implements KronotopService {
         this.partitionCount = context.getConfig().getInt("cluster.partition_count");
         this.clusterService = context.getService(ClusterService.NAME);
         this.hashSlots = distributeHashSlots();
-
-        this.setLogicalDatabase(DEFAULT_LOGICAL_DATABASE);
-
-        long start = System.nanoTime();
-        logger.info("Loading Redis data structures");
-        DataStructureLoader dataLoader = new DataStructureLoader(context);
-        for (LogicalDatabase logicalDatabase : logicalDatabases.values()) {
-            for (Partition partition : logicalDatabase.getPartitions().values()) {
-                for (DataStructure dataStructure : DataStructure.values()) {
-                    dataLoader.load(partition, dataStructure);
-                }
-            }
-        }
-        long finish = System.nanoTime();
-        logger.info("Redis data structures loaded in {} ms", TimeUnit.NANOSECONDS.toMillis(finish - start));
-
-        int numPersistenceWorkers = context.getConfig().getInt("persistence.num_workers");
-        int period = context.getConfig().getInt("persistence.period");
-        for (int id = 0; id < numPersistenceWorkers; id++) {
-            PartitionMaintenanceTask partitionMaintenanceTask = new PartitionMaintenanceTask(context, id, logicalDatabases);
-            scheduledExecutorService.scheduleAtFixedRate(partitionMaintenanceTask, 0, period, TimeUnit.SECONDS);
-        }
 
         registerHandler(new PingHandler());
         registerHandler(new AuthHandler(this));
@@ -164,6 +142,60 @@ public class RedisService implements KronotopService {
         registerHandler(new ClusterHandler(this));
     }
 
+    public void start() {
+        int numPersistenceWorkers = context.getConfig().getInt("persistence.num_workers");
+        int period = context.getConfig().getInt("persistence.period");
+        for (int id = 0; id < numPersistenceWorkers; id++) {
+            PartitionMaintenanceTask partitionMaintenanceTask = new PartitionMaintenanceTask(context, id);
+            scheduledExecutorService.scheduleAtFixedRate(partitionMaintenanceTask, 0, period, TimeUnit.SECONDS);
+        }
+
+        long start = System.nanoTime();
+        logger.info("Loading Redis data structures");
+        loadPartitionsFromFDB();
+        long finish = System.nanoTime();
+        logger.info("Redis data structures loaded in {} ms", TimeUnit.NANOSECONDS.toMillis(finish - start));
+    }
+
+    private void loadPartitionsFromFDB() {
+        int currentPartitionId = 0;
+        while (true) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                for (int partitionId = currentPartitionId; partitionId < partitionCount; partitionId++) {
+                    Member owner = clusterService.getRoutingTable().getPartitionOwner(partitionId);
+                    if (!owner.equals(context.getMember())) {
+                        continue;
+                    }
+
+                    int finalPartitionId = partitionId;
+
+                    Partition partition = context.getLogicalDatabase().getPartitions().compute(finalPartitionId,
+                            (key, value) -> Objects.requireNonNullElseGet(
+                                    value, () -> new OnHeapPartitionImpl(finalPartitionId))
+                    );
+
+                    PartitionLoader partitionLoader = new PartitionLoader(context, partition);
+                    for (DataStructure dataStructure : DataStructure.values()) {
+                        partitionLoader.load(tr, dataStructure);
+                    }
+
+                    // Make it operable
+                    partition.getPartitionMetadata().setStatus(PartitionStatus.WRITABLE);
+                    currentPartitionId = finalPartitionId;
+                }
+                break;
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof FDBException) {
+                    String message = RESPError.decapitalize(e.getCause().getMessage());
+                    if (message.equalsIgnoreCase(RESPError.TRANSACTION_TOO_OLD_MESSAGE)) {
+                        continue;
+                    }
+                }
+                throw e;
+            }
+        }
+    }
+
     private Map<Integer, Integer> distributeHashSlots() {
         HashMap<Integer, Integer> result = new HashMap<>();
         int hashSlotsPerPartition = NUM_HASH_SLOTS / partitionCount;
@@ -201,65 +233,47 @@ public class RedisService implements KronotopService {
         }
     }
 
-    public LogicalDatabase getLogicalDatabase(String index) {
-        LogicalDatabase logicalDatabase = logicalDatabases.get(index);
-        if (logicalDatabase == null) {
-            throw new IllegalArgumentException(String.format("invalid logical database index: %s", index));
-        }
-        return logicalDatabase;
-    }
-
-    public Partition getPartition(String index, Integer partitionId) {
-        LogicalDatabase logicalDatabase = getLogicalDatabase(index);
-        return logicalDatabase.getPartitions().compute(partitionId, (k, partition) -> {
+    public Partition getPartition(Integer partitionId) {
+        return context.getLogicalDatabase().getPartitions().compute(partitionId, (k, partition) -> {
             if (partition != null) {
                 return partition;
             }
-            return new OnHeapPartitionImpl(partitionId);
+            Member owner = clusterService.getRoutingTable().getPartitionOwner(partitionId);
+            if (!owner.equals(context.getMember())) {
+                // This should not be happened at production but just for safety.
+                throw new KronotopException(String.format("PartitionId: %d not belong to this node: %s", partitionId, context.getMember()));
+            }
+            partition = new OnHeapPartitionImpl(partitionId);
+            partition.setOwner(context.getMember());
+            return partition;
         });
     }
 
-    public void setLogicalDatabase(String index) {
-        logicalDatabases.compute(index, (k, logicalDatabase) -> Objects.requireNonNullElseGet(logicalDatabase, () -> new LogicalDatabase(index)));
-    }
-
-    public void clearLogicalDatabases() {
-        for (String index : logicalDatabases.keySet()) {
-            clearLogicalDatabase(index);
-        }
-    }
-
-    public void clearLogicalDatabase(String index) {
-        logicalDatabases.compute(index, (k, logicalDatabase) -> {
-            if (logicalDatabase == null) {
-                return null;
-            }
-            context.getFoundationDB().run(tr -> {
-                DirectoryLayer directoryLayer = new DirectoryLayer();
-                String subspaceName = DirectoryLayout.Builder.
-                        clusterName(context.getClusterName()).
-                        internal().
-                        redis().
-                        persistence().
-                        logicalDatabase(index).
-                        toString();
-                CompletableFuture<Void> future = directoryLayer.remove(tr, Arrays.asList(subspaceName.split("\\.")));
-                try {
-                    future.join();
-                } catch (CompletionException e) {
-                    if (e.getCause() instanceof NoSuchDirectoryException) {
-                        return null;
-                    }
-                    throw new RuntimeException(e);
+    public void clearLogicalDatabase() {
+        context.getFoundationDB().run(tr -> {
+            DirectoryLayer directoryLayer = new DirectoryLayer();
+            String subspaceName = DirectoryLayout.Builder.
+                    clusterName(context.getClusterName()).
+                    internal().
+                    redis().
+                    persistence().
+                    logicalDatabase(LogicalDatabase.NAME).
+                    toString();
+            CompletableFuture<Void> future = directoryLayer.remove(tr, Arrays.asList(subspaceName.split("\\.")));
+            try {
+                future.join();
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof NoSuchDirectoryException) {
+                    return null;
                 }
-                return null;
-            });
-            for (Partition partition : logicalDatabase.getPartitions().values()) {
-                partition.clear();
-                partition.getPersistenceQueue().clear();
+                throw new RuntimeException(e);
             }
-            return logicalDatabase;
+            return null;
         });
+        for (Partition partition : context.getLogicalDatabase().getPartitions().values()) {
+            partition.clear();
+            partition.getPersistenceQueue().clear();
+        }
     }
 
     public void cleanupRedisTransaction(ChannelHandlerContext ctx) {
@@ -288,14 +302,12 @@ public class RedisService implements KronotopService {
     }
 
     private void drainPersistenceQueues() {
-        for (LogicalDatabase logicalDatabase : logicalDatabases.values()) {
-            logger.info("Draining persistence queue of Redis logical database: {}", logicalDatabase.getName());
-            for (Partition partition : logicalDatabase.getPartitions().values()) {
-                if (partition.getPersistenceQueue().size() > 0) {
-                    Persistence persistence = new Persistence(context, logicalDatabase.getName(), partition);
-                    while (!persistence.isQueueEmpty()) {
-                        persistence.run();
-                    }
+        logger.info("Draining persistence queue of Redis logical database");
+        for (Partition partition : context.getLogicalDatabase().getPartitions().values()) {
+            if (partition.getPersistenceQueue().size() > 0) {
+                Persistence persistence = new Persistence(context, partition);
+                while (!persistence.isQueueEmpty()) {
+                    persistence.run();
                 }
             }
         }
@@ -331,11 +343,7 @@ public class RedisService implements KronotopService {
                     String.format("%d %s:%d", slot, owner.getAddress().getHost(), owner.getAddress().getPort())
             );
         }
-
-        Channel channel = context.channel();
-        Attribute<String> redisLogicalDatabaseIndex = channel.attr(ChannelAttributes.REDIS_LOGICAL_DATABASE_INDEX);
-        String index = redisLogicalDatabaseIndex.get();
-        return getPartition(index, partId);
+        return getPartition(partId);
     }
 
     public Partition resolveKey(ChannelHandlerContext context, String key) {

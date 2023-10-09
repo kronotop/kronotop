@@ -20,7 +20,6 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.utils.DirectoryLayout;
-import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
@@ -40,7 +39,7 @@ public class PersistenceTest extends BaseStorageTest {
         partition.put("key-1", new StringValue("value-1".getBytes(), 0));
         partition.getPersistenceQueue().add(new StringKey("key-1"));
 
-        Persistence persistence = new Persistence(context, RedisService.DEFAULT_LOGICAL_DATABASE, partition);
+        Persistence persistence = new Persistence(context, partition);
         assertFalse(persistence.isQueueEmpty());
         persistence.run();
         assertTrue(persistence.isQueueEmpty());
@@ -50,7 +49,7 @@ public class PersistenceTest extends BaseStorageTest {
                 internal().
                 redis().
                 persistence().
-                logicalDatabase(RedisService.DEFAULT_LOGICAL_DATABASE).
+                logicalDatabase(LogicalDatabase.NAME).
                 partitionId("0").
                 dataStructure(DataStructure.STRING.toString().toLowerCase()).
                 toString();

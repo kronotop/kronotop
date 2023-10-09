@@ -19,7 +19,6 @@ package com.kronotop.redis.server;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
 import com.kronotop.server.resp.Request;
@@ -43,9 +42,7 @@ public class FlushDBHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        String index = getCurrentLogicalDatabaseIndex(response.getContext());
-        LogicalDatabase logicalDatabase = service.getLogicalDatabase(index);
-        service.clearLogicalDatabase(logicalDatabase.getName());
+        service.clearLogicalDatabase();
         response.writeOK();
     }
 }

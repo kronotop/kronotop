@@ -17,11 +17,14 @@
 package com.kronotop.core;
 
 import com.apple.foundationdb.Database;
+import com.google.common.util.concurrent.Striped;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.redis.storage.LogicalDatabase;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
 import java.util.List;
+import java.util.concurrent.locks.ReadWriteLock;
 
 public interface Context {
     String getClusterName();
@@ -37,4 +40,8 @@ public interface Context {
     <T> T getService(@Nonnull String id);
 
     List<KronotopService> getServices();
+
+    LogicalDatabase getLogicalDatabase();
+
+    Striped<ReadWriteLock> getStripedReadWriteLock();
 }

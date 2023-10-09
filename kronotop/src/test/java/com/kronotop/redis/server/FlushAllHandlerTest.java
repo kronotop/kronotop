@@ -65,13 +65,9 @@ public class FlushAllHandlerTest extends BaseStorageTest {
         {
             // Persistence task has been run at the background, but it's an async event.
             // Let's run the task eagerly. It's safe.
-            for (int i = 0; i < 5; i++) {
-                cmd.select(i);
-                String logicalDatabaseName = Integer.toString(i);
-                Partition partition = redisService.getPartition(logicalDatabaseName, getPartitionId(key));
-                Persistence persistence = new Persistence(context, logicalDatabaseName, partition);
-                persistence.run();
-            }
+            Partition partition = redisService.getPartition(getPartitionId(key));
+            Persistence persistence = new Persistence(context, partition);
+            persistence.run();
         }
 
         {

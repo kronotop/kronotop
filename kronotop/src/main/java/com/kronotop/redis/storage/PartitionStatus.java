@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.common;
+package com.kronotop.redis.storage;
 
-public class MissingConfigException extends KronotopException {
-    public MissingConfigException(String content) {
-        super(content);
-    }
+public enum PartitionStatus {
+    WRITABLE,
+    READONLY,
+    READY_FOR_MIGRATION
 }

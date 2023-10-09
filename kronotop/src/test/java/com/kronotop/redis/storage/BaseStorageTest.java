@@ -65,6 +65,7 @@ public class BaseStorageTest {
         handlers = new Handlers();
         redisService = new RedisService(context, handlers);
         context.registerService(RedisService.NAME, redisService);
+        redisService.start();
         channel = newChannel(context, handlers);
     }
 

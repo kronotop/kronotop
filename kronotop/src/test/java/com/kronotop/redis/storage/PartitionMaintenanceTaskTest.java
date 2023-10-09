@@ -21,24 +21,17 @@ import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
 import com.kronotop.redis.storage.persistence.StringKey;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class PartitionMaintenanceTaskTest extends BaseStorageTest {
     @Test
     public void testRun() {
-        ConcurrentMap<String, LogicalDatabase> logicalDatabases = new ConcurrentHashMap<>();
-        LogicalDatabase logicalDatabase = new LogicalDatabase("0");
-        logicalDatabases.put("0", logicalDatabase);
-
         Partition partition = new OnHeapPartitionImpl(0);
         partition.put("key-1", new StringValue("value-1".getBytes(), 0));
         partition.getPersistenceQueue().add(new StringKey("key-1"));
-        logicalDatabase.getPartitions().put(0, partition);
 
-        PartitionMaintenanceTask partitionMaintenanceTask = new PartitionMaintenanceTask(context, 0, logicalDatabases);
+        context.getLogicalDatabase().getPartitions().put(0, partition);
+        PartitionMaintenanceTask partitionMaintenanceTask = new PartitionMaintenanceTask(context, 0);
         partitionMaintenanceTask.run();
 
         assertEquals(0, partition.getPersistenceQueue().size());

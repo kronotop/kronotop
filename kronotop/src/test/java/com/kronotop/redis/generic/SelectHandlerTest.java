@@ -19,12 +19,11 @@ package com.kronotop.redis.generic;
 
 import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
-import com.kronotop.server.resp.ChannelAttributes;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.redis.ErrorRedisMessage;
 import io.netty.handler.codec.redis.SimpleStringRedisMessage;
-import io.netty.util.Attribute;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,18 +31,28 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class SelectHandlerTest extends BaseHandlerTest {
     @Test
-    public void testSelect() {
+    public void testSELECT_defaultLogicalDatabase() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.select(1).encode(buf);
+        cmd.select(0).encode(buf);
 
         channel.writeInbound(buf);
         Object msg = channel.readOutbound();
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals("OK", actualMessage.content());
+    }
 
-        Attribute<String> redisLogicalDatabaseIndex = channel.attr(ChannelAttributes.REDIS_LOGICAL_DATABASE_INDEX);
-        assertEquals("1", redisLogicalDatabaseIndex.get());
+    @Test
+    public void testSELECT_invalidLogicalDatabase() {
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.select(1).encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR SELECT is not allowed in cluster mode", actualMessage.content());
     }
 }

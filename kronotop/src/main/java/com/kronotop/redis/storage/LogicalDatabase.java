@@ -19,16 +19,8 @@ package com.kronotop.redis.storage;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LogicalDatabase {
-    private final String name;
+    public static final String NAME = "0";
     private final ConcurrentHashMap<Integer, Partition> partitions = new ConcurrentHashMap<>();
-
-    public LogicalDatabase(String name) {
-        this.name = name;
-    }
-
-    public String getName() {
-        return name;
-    }
 
     public ConcurrentHashMap<Integer, Partition> getPartitions() {
         return partitions;

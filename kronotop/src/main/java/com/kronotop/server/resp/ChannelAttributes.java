@@ -36,8 +36,6 @@ public class ChannelAttributes {
 
     public static final AttributeKey<Transaction> TRANSACTION = AttributeKey.valueOf("transaction");
 
-    public static final AttributeKey<String> REDIS_LOGICAL_DATABASE_INDEX = AttributeKey.valueOf("redis_logical_database_index");
-
     public static final AttributeKey<ConcurrentMap<String, DirectorySubspace>> OPEN_NAMESPACES = AttributeKey.valueOf("open_namespaces");
 
     public static final AttributeKey<ConcurrentMap<String, Subspace>> ZMAP_SUBSPACES = AttributeKey.valueOf("ZMAP_SUBSPACES");

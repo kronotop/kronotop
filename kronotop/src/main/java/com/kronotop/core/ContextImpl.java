@@ -17,9 +17,11 @@
 package com.kronotop.core;
 
 import com.apple.foundationdb.Database;
+import com.google.common.util.concurrent.Striped;
 import com.kronotop.MissingConfigException;
 import com.kronotop.common.KronotopException;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.redis.storage.LogicalDatabase;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
@@ -27,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.ReadWriteLock;
 
 public class ContextImpl implements Context {
     private final Config config;
@@ -34,11 +37,14 @@ public class ContextImpl implements Context {
     private final Database database;
     private final ConcurrentMap<String, KronotopService> services = new ConcurrentHashMap<>();
     private final String clusterName;
+    private final LogicalDatabase logicalDatabase;
+    private final Striped<ReadWriteLock> stripedReadWriteLock = Striped.readWriteLock(3);
 
     public ContextImpl(Config config, Member member, Database database) {
         this.config = config;
         this.member = member;
         this.database = database;
+        this.logicalDatabase = new LogicalDatabase();
 
         if (config.hasPath("cluster.name")) {
             clusterName = config.getString("cluster.name");
@@ -85,5 +91,13 @@ public class ContextImpl implements Context {
 
     public List<KronotopService> getServices() {
         return new ArrayList<>(services.values());
+    }
+
+    public LogicalDatabase getLogicalDatabase() {
+        return logicalDatabase;
+    }
+
+    public Striped<ReadWriteLock> getStripedReadWriteLock() {
+        return stripedReadWriteLock;
     }
 }

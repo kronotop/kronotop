@@ -92,7 +92,7 @@ public class ConsistentTest {
         expectedMembers.add(memberOne);
         expectedMembers.add(memberTwo);
 
-        double partitionCount = config.getDouble("cluster.consistent.partition_count");
+        double partitionCount = config.getDouble("cluster.partition_count");
 
         List<Member> result = new ArrayList<>();
         for (int partID = 0; partID < partitionCount; partID++) {

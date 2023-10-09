@@ -24,6 +24,7 @@ import com.kronotop.core.FoundationDBFactory;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.cluster.ClusterService;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.core.cluster.PartitionService;
 import com.kronotop.core.network.Address;
 import com.kronotop.core.watcher.Watcher;
 import com.kronotop.server.resp.Handlers;
@@ -66,6 +67,12 @@ public class BaseHandlerTest {
         handlers = new Handlers();
         redisService = new RedisService(context, handlers);
         context.registerService(RedisService.NAME, redisService);
+        redisService.start();
+
+        PartitionService partitionService = new PartitionService(context);
+        partitionService.start();
+        context.registerService(PartitionService.NAME, partitionService);
+
         channel = newChannel(context, handlers);
     }
 

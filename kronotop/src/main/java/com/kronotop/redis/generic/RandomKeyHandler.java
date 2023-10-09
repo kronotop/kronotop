@@ -51,19 +51,26 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        String index = getCurrentLogicalDatabaseIndex(response.getContext());
-        Collection<Partition> partitions = service.getLogicalDatabase(index).getPartitions().values();
+        Collection<Partition> partitions = service.getContext().getLogicalDatabase().getPartitions().values();
         if (partitions.isEmpty()) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }
         List<Integer> partitionIds = new ArrayList<>();
         for (Partition partition : partitions) {
-            partitionIds.add(partition.getId());
+            if (!partition.isEmpty()) {
+                partitionIds.add(partition.getId());
+            }
         }
+
+        if (partitionIds.isEmpty()) {
+            response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+            return;
+        }
+
         int randomIndex = ThreadLocalRandom.current().nextInt(partitionIds.size());
         int partitionId = partitionIds.get(randomIndex);
-        Partition partition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), partitionId);
+        Partition partition = service.getPartition(partitionId);
         try {
             String randomKey = partition.getIndex().random();
             ByteBuf buf = response.getContext().alloc().buffer();

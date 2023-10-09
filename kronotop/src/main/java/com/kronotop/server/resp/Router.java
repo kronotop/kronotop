@@ -105,9 +105,6 @@ public class Router extends ChannelDuplexHandler {
         Attribute<Boolean> oneOffTransaction = ctx.channel().attr(ChannelAttributes.ONE_OFF_TRANSACTION);
         oneOffTransaction.set(false);
 
-        Attribute<String> redisLogicalDatabaseIndex = ctx.channel().attr(ChannelAttributes.REDIS_LOGICAL_DATABASE_INDEX);
-        redisLogicalDatabaseIndex.set("0");
-
         Attribute<List<Request>> queuedCommands = ctx.channel().attr(ChannelAttributes.QUEUED_COMMANDS);
         queuedCommands.set(new ArrayList<>());
 

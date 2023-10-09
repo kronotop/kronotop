@@ -16,18 +16,18 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.redis.RedisService;
+import com.apple.foundationdb.Transaction;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
-import com.kronotop.redis.storage.persistence.DataStructureLoader;
+import com.kronotop.redis.storage.persistence.PartitionLoader;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.storage.persistence.StringKey;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class DataStructureLoaderTest extends BaseStorageTest {
+public class PartitionLoaderTest extends BaseStorageTest {
     @Test
     public void testDataStructureLoader_STRING() {
         Partition partition = new OnHeapPartitionImpl(0);
@@ -39,12 +39,14 @@ public class DataStructureLoaderTest extends BaseStorageTest {
             partition.getPersistenceQueue().add(new StringKey(key));
         }
 
-        Persistence persistence = new Persistence(context, RedisService.DEFAULT_LOGICAL_DATABASE, partition);
+        Persistence persistence = new Persistence(context, partition);
         persistence.run();
 
         Partition newPartition = new OnHeapPartitionImpl(0);
-        DataStructureLoader dataStructureLoader = new DataStructureLoader(context);
-        dataStructureLoader.load(newPartition, DataStructure.STRING);
+        PartitionLoader partitionLoader = new PartitionLoader(context, newPartition);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            partitionLoader.load(tr, DataStructure.STRING);
+        }
 
         assertEquals(partition.size(), newPartition.size());
 

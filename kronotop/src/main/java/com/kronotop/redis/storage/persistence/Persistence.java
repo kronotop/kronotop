@@ -24,6 +24,7 @@ import com.kronotop.core.Context;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.TransactionSizeLimitExceeded;
+import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Partition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,16 +37,19 @@ import java.util.concurrent.locks.ReadWriteLock;
 
 public class Persistence {
     public static final int MAXIMUM_TRANSACTION_SIZE = 10_000_000;
+    public static final String PERSISTENCE_LAYOUT_KEY = "persistence-layout";
     private static final Logger logger = LoggerFactory.getLogger(Persistence.class);
     private final Context context;
     private final AtomicInteger transactionSize = new AtomicInteger();
     private final Partition partition;
     private final EnumMap<DataStructure, Node> layout = new EnumMap<>(DataStructure.class);
 
-    public Persistence(Context context, String logicalDatabase, Partition partition) {
+    public Persistence(Context context, Partition partition) {
         this.context = context;
         this.partition = partition;
 
+        ReadWriteLock readWriteLock = context.getStripedReadWriteLock().get(PERSISTENCE_LAYOUT_KEY);
+        readWriteLock.writeLock().lock();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (DataStructure dataStructure : DataStructure.values()) {
                 List<String> subpath = DirectoryLayout.Builder.
@@ -53,7 +57,7 @@ public class Persistence {
                         internal().
                         redis().
                         persistence().
-                        logicalDatabase(logicalDatabase).
+                        logicalDatabase(LogicalDatabase.NAME).
                         partitionId(partition.getId().toString()).
                         dataStructure(dataStructure.name().toLowerCase()).
                         asList();
@@ -61,6 +65,8 @@ public class Persistence {
                 layout.put(dataStructure, new Node(subspace));
             }
             tr.commit().join();
+        } finally {
+            readWriteLock.writeLock().unlock();
         }
     }
 

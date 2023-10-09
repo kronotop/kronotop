@@ -20,8 +20,8 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.utils.DirectoryLayout;
-import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.BaseStorageTest;
+import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
@@ -59,8 +59,8 @@ public class FlushDBHandlerTest extends BaseStorageTest {
         {
             // Persistence task has been run at the background, but it's an async event.
             // Let's run the task eagerly. It's safe.
-            Partition partition = redisService.getPartition(RedisService.DEFAULT_LOGICAL_DATABASE, getPartitionId(key));
-            Persistence persistence = new Persistence(context, RedisService.DEFAULT_LOGICAL_DATABASE, partition);
+            Partition partition = redisService.getPartition(getPartitionId(key));
+            Persistence persistence = new Persistence(context, partition);
             persistence.run();
         }
 
@@ -89,7 +89,14 @@ public class FlushDBHandlerTest extends BaseStorageTest {
         {
             Database database = context.getFoundationDB();
             database.run(tr -> {
-                List<String> subspace = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().redis().persistence().logicalDatabase(RedisService.DEFAULT_LOGICAL_DATABASE).dataStructure(DataStructure.STRING.name().toLowerCase()).asList();
+                List<String> subspace = DirectoryLayout.Builder.
+                        clusterName(context.getClusterName()).
+                        internal().
+                        redis().
+                        persistence().
+                        logicalDatabase(LogicalDatabase.NAME).
+                        dataStructure(DataStructure.STRING.name().toLowerCase()).
+                        asList();
                 DirectoryLayer directoryLayer = new DirectoryLayer();
                 DirectorySubspace directorySubspace = directoryLayer.createOrOpen(tr, subspace).join();
                 byte[] value = tr.get(directorySubspace.pack("mykey")).join();

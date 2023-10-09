@@ -34,6 +34,8 @@ import com.kronotop.core.cluster.consistent.Consistent;
 import com.kronotop.core.cluster.journal.Journal;
 import com.kronotop.core.cluster.journal.JournalItem;
 import com.kronotop.core.network.Address;
+import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.redis.storage.Partition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +65,7 @@ public class ClusterService implements KronotopService {
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
     private final AtomicBoolean isBootstrapped = new AtomicBoolean();
+    private final LinkedBlockingQueue<PartitionEvent> partitionEventQueue = new LinkedBlockingQueue<>();
     private volatile boolean isShutdown;
 
     public ClusterService(Context context) {
@@ -76,11 +79,16 @@ public class ClusterService implements KronotopService {
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
     }
 
+    public LinkedBlockingQueue<PartitionEvent> getPartitionEventQueue() {
+        return partitionEventQueue;
+    }
+
     public void waitUntilBootstrapped() throws InterruptedException {
         synchronized (isBootstrapped) {
             if (isBootstrapped.get()) {
                 return;
             }
+            logger.info("Waiting to be bootstrapped");
             isBootstrapped.wait();
         }
     }
@@ -111,7 +119,7 @@ public class ClusterService implements KronotopService {
         MemberLeftEvent memberLeftEvent = new MemberLeftEvent(
                 member.getAddress().getHost(),
                 member.getAddress().getPort(),
-                member.getProcessID()
+                member.getProcessId()
         );
         try {
             BroadcastEvent broadcastEvent =
@@ -135,7 +143,7 @@ public class ClusterService implements KronotopService {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             DirectorySubspace directorySubspace = DirectoryLayer.getDefault().create(tr, subpath).join();
             byte[] processIDKey = directorySubspace.pack(Keys.PROCESS_ID.toString());
-            tr.set(processIDKey, ByteUtils.fromLong(context.getMember().getProcessID()));
+            tr.set(processIDKey, ByteUtils.fromLong(context.getMember().getProcessId()));
             tr.commit().join();
             subspaces.put(context.getMember(), directorySubspace);
         } catch (CompletionException e) {
@@ -153,7 +161,7 @@ public class ClusterService implements KronotopService {
         MemberJoinEvent memberJoinEvent = new MemberJoinEvent(
                 member.getAddress().getHost(),
                 member.getAddress().getPort(),
-                member.getProcessID()
+                member.getProcessId()
         );
         try {
             BroadcastEvent broadcastEvent =
@@ -170,14 +178,14 @@ public class ClusterService implements KronotopService {
     }
 
     private synchronized void propagateRoutingTable() {
-        HashMap<Integer, Member> routingTable = new HashMap<>();
-        int partitionCount = context.getConfig().getInt("cluster.consistent.partition_count");
+        HashMap<Integer, Member> newRoutingTable = new HashMap<>();
+        int partitionCount = context.getConfig().getInt("cluster.partition_count");
         for (int partId = 0; partId < partitionCount; partId++) {
             Member owner = consistent.getPartitionOwner(partId);
-            routingTable.put(partId, owner);
+            newRoutingTable.put(partId, owner);
         }
 
-        UpdateRoutingTableEvent updateRoutingTableEvent = new UpdateRoutingTableEvent(context.getMember(), routingTable);
+        UpdateRoutingTableEvent updateRoutingTableEvent = new UpdateRoutingTableEvent(context.getMember(), newRoutingTable);
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             BroadcastEvent broadcastEvent = new BroadcastEvent(
@@ -267,7 +275,7 @@ public class ClusterService implements KronotopService {
 
     private TreeSet<Member> getSortedMembers() {
         List<String> addresses = getMembers();
-        TreeSet<Member> members = new TreeSet<>(Comparator.comparingLong(Member::getProcessID));
+        TreeSet<Member> members = new TreeSet<>(Comparator.comparingLong(Member::getProcessId));
         for (String hostPort : addresses) {
             try {
                 Address address = Address.parseString(hostPort);
@@ -371,6 +379,31 @@ public class ClusterService implements KronotopService {
         }
     }
 
+    private void checkPartitionOwnership() {
+        int partitionCount = context.getConfig().getInt("cluster.partition_count");
+        for (int partitionId = 0; partitionId < partitionCount; partitionId++) {
+            Member owner = routingTable.getPartitionOwner(partitionId);
+            Partition partition = context.getLogicalDatabase().getPartitions().get(partitionId);
+            if (partition == null) {
+                if (owner.equals(context.getMember())) {
+                    // Take over the partition
+                    partitionEventQueue.add(new PartitionEvent(LogicalDatabase.NAME, partitionId));
+                }
+                continue;
+            }
+
+            // Potential previous owner
+            Member knownOwner = partition.getOwner();
+            if (!knownOwner.equals(context.getMember())) {
+                continue;
+            }
+            // Membership changed
+            if (knownOwner.equals(owner)) {
+                partitionEventQueue.add(new PartitionEvent(LogicalDatabase.NAME, partitionId));
+            }
+        }
+    }
+
     private synchronized void fetchBroadcastEvents() {
         context.getFoundationDB().run(tr -> {
             while (true) {
@@ -395,6 +428,7 @@ public class ClusterService implements KronotopService {
                         }
 
                         routingTable.setRoutingTable(updateRoutingTableEvent.getRoutingTable());
+                        checkPartitionOwnership();
                         logger.debug("Routing table has been updated");
                     }
                 } catch (IOException e) {

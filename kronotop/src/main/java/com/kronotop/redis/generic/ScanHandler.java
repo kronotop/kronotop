@@ -20,7 +20,6 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.NoAvailablePartitionException;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.ScanMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Partition;
 import com.kronotop.redis.storage.index.Projection;
 import com.kronotop.redis.storage.index.impl.FlakeIdGenerator;
@@ -60,9 +59,8 @@ public class ScanHandler extends BaseHandler implements Handler {
     }
 
     private int findPartitionId(Response response, int initial) {
-        LogicalDatabase logicalDatabase = service.getLogicalDatabase(getCurrentLogicalDatabaseIndex(response.getContext()));
         for (int partitionId = initial; partitionId < service.getPartitionCount(); partitionId++) {
-            Partition partition = logicalDatabase.getPartitions().get(partitionId);
+            Partition partition = service.getContext().getLogicalDatabase().getPartitions().get(partitionId);
             if (partition == null || partition.isEmpty()) {
                 continue;
             }
@@ -89,7 +87,7 @@ public class ScanHandler extends BaseHandler implements Handler {
             partitionId = Math.toIntExact(parsedCursor[0]);
         }
 
-        Partition partition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), partitionId);
+        Partition partition = service.getPartition(partitionId);
         List<RedisMessage> children = new ArrayList<>();
 
         Projection projection = partition.getIndex().getProjection(scanMessage.getCursor(), scanMessage.getCount());
@@ -119,7 +117,7 @@ public class ScanHandler extends BaseHandler implements Handler {
         if (projection.getCursor() == 0) {
             try {
                 int nextPartitionId = findPartitionId(response, partitionId + 1);
-                Partition nextPartition = service.getPartition(getCurrentLogicalDatabaseIndex(response.getContext()), nextPartitionId);
+                Partition nextPartition = service.getPartition(nextPartitionId);
                 if (nextPartition != null) {
                     response.writeArray(prepareResponse(response, nextPartition.getIndex().head(), children));
                     return;

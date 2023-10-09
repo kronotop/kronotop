@@ -18,12 +18,14 @@ package com.kronotop.redis.connection;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.connection.protocol.SelectMessage;
-import com.kronotop.server.resp.*;
+import com.kronotop.redis.storage.LogicalDatabase;
+import com.kronotop.server.resp.Handler;
+import com.kronotop.server.resp.MessageTypes;
+import com.kronotop.server.resp.Request;
+import com.kronotop.server.resp.Response;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
 import com.kronotop.server.resp.annotation.MinimumParameterCount;
-import io.netty.channel.Channel;
-import io.netty.util.Attribute;
 
 @Command(SelectMessage.COMMAND)
 @MaximumParameterCount(SelectMessage.MAXIMUM_PARAMETER_COUNT)
@@ -43,11 +45,10 @@ public class SelectHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         SelectMessage selectMessage = request.attr(MessageTypes.SELECT).get();
-        service.setLogicalDatabase(selectMessage.getIndex());
-
-        Channel channel = response.getContext().channel();
-        Attribute<String> redisLogicalDatabase = channel.attr(ChannelAttributes.REDIS_LOGICAL_DATABASE_INDEX);
-        redisLogicalDatabase.set(selectMessage.getIndex());
-        response.writeOK();
+        if (selectMessage.getIndex().equals(LogicalDatabase.NAME)) {
+            response.writeOK();
+            return;
+        }
+        response.writeError("SELECT is not allowed in cluster mode");
     }
 }

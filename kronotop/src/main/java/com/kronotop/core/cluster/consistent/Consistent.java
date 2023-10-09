@@ -16,7 +16,6 @@
 
 package com.kronotop.core.cluster.consistent;
 
-import com.kronotop.common.MissingConfigException;
 import com.kronotop.common.utils.Utils;
 import com.kronotop.core.cluster.Member;
 import com.typesafe.config.Config;
@@ -43,7 +42,7 @@ public class Consistent {
 
     public Consistent(Config config, List<Member> members) {
         this(config);
-        if (members != null && members.size() > 0) {
+        if (members != null && !members.isEmpty()) {
             for (Member member : members) {
                 addMemberInternal(member);
             }
@@ -52,20 +51,9 @@ public class Consistent {
     }
 
     public Consistent(Config config) {
-        if (!config.hasPath("cluster.consistent.replication_factor")) {
-            throw new MissingConfigException("'cluster.consistent.replication_factor' is missing");
-        }
         this.replicationFactor = config.getInt("cluster.consistent.replication_factor");
-
-        if (!config.hasPath("cluster.consistent.load_factor")) {
-            throw new MissingConfigException("'cluster.consistent.load_factor' is missing");
-        }
         this.loadFactor = config.getDouble("cluster.consistent.load_factor");
-
-        if (!config.hasPath("cluster.consistent.partition_count")) {
-            throw new MissingConfigException("'cluster.consistent.partition_count' is missing");
-        }
-        this.partitionCount = config.getInt("cluster.consistent.partition_count");
+        this.partitionCount = config.getInt("cluster.partition_count");
     }
 
     private int hash32(String key) {
@@ -74,7 +62,7 @@ public class Consistent {
     }
 
     private double averageLoadInternal() {
-        if (members.size() == 0) {
+        if (members.isEmpty()) {
             return 0;
         }
         double avgLoad = ((double) partitionCount / members.size()) * loadFactor;
@@ -117,7 +105,7 @@ public class Consistent {
         HashMap<String, Double> newLoads = new HashMap<>();
         HashMap<Integer, Member> newPartitions = new HashMap<>();
 
-        if (members.size() > 0) {
+        if (!members.isEmpty()) {
             for (int partID = 0; partID < partitionCount; partID++) {
                 int key = hash32(Integer.toString(partID));
                 Integer idx = sortedSet.ceiling(key);
