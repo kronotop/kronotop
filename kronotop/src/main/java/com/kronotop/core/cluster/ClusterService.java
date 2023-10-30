@@ -49,6 +49,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Cluster service implements all business logic around cluster membership and health checks.
+ */
 public class ClusterService implements KronotopService {
     public static final String NAME = "Cluster";
     private static final Logger logger = LoggerFactory.getLogger(ClusterService.class);
@@ -227,6 +230,9 @@ public class ClusterService implements KronotopService {
         }
     }
 
+    /**
+     * Tries to find a cluster coordinator.
+     */
     private synchronized void checkCluster() {
         TreeSet<Member> members = getSortedMembers();
         Member coordinator = members.first();
@@ -243,8 +249,16 @@ public class ClusterService implements KronotopService {
         return routingTable;
     }
 
+    /**
+     * Registers the newly created member on both FoundationDB and local consistent hash ring
+     * then initiates all background tasks.
+     */
     public void start() {
+        // Register the member on both FoundationDB and the local consistent hash ring.
         registerMember();
+
+        // Continue filling the local consistent hash ring and creating a queryable
+        // record of alive cluster members.
         TreeSet<Member> members = getSortedMembers();
         for (Member member : members) {
             openMemberSubspace(member);
@@ -252,6 +266,8 @@ public class ClusterService implements KronotopService {
             knownMembers.putIfAbsent(member, new MemberView(lastHeartbeat));
             consistent.addMember(member);
         }
+
+        // Schedule the periodic tasks here.
         scheduler.schedule(new CheckClusterTask(), 0, TimeUnit.NANOSECONDS);
     }
 
@@ -273,6 +289,12 @@ public class ClusterService implements KronotopService {
         }
     }
 
+    /**
+     * Returns a sorted set of registered cluster members. The members are sorted by process ID.
+     * The process IDs are implemented as an atomically increased long integer on FoundationDB.
+     *
+     * @return sorted set of registered cluster members.
+     */
     private TreeSet<Member> getSortedMembers() {
         List<String> addresses = getMembers();
         TreeSet<Member> members = new TreeSet<>(Comparator.comparingLong(Member::getProcessId));
@@ -288,6 +310,11 @@ public class ClusterService implements KronotopService {
         return members;
     }
 
+    /**
+     * Returns a list of registered cluster members. The current status of member aliveness isn't guaranteed.
+     *
+     * @return a list of string that contains the members in host:port format.
+     */
     public List<String> getMembers() {
         List<String> subpath = DirectoryLayout.Builder.
                 clusterName(context.getClusterName()).
@@ -304,16 +331,30 @@ public class ClusterService implements KronotopService {
         }
     }
 
+    /**
+     * Returns the service name
+     *
+     * @return service name
+     */
     @Override
     public String getName() {
         return NAME;
     }
 
+    /**
+     * Returns the global context
+     *
+     * @return global context
+     */
     @Override
     public Context getContext() {
         return context;
     }
 
+    /**
+     * Shuts down the cluster service. It stops the background services and
+     * frees allocated resources before quit.
+     */
     @Override
     public void shutdown() {
         isShutdown = true;
@@ -321,7 +362,6 @@ public class ClusterService implements KronotopService {
         scheduler.shutdownNow();
         try {
             if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
-                // TODO: re-write this log
                 logger.warn("ClusterService cannot be stopped gracefully");
             }
         } catch (InterruptedException e) {
@@ -358,6 +398,7 @@ public class ClusterService implements KronotopService {
         Member member = new Member(address, memberEvent.getProcessID());
 
         if (!member.equals(context.getMember())) {
+            // A new cluster member has joined.
             if (memberEvent instanceof MemberJoinEvent) {
                 openMemberSubspace(member);
                 long lastHeartbeat = getLastHeartbeat(member);
@@ -365,6 +406,7 @@ public class ClusterService implements KronotopService {
                 consistent.addMember(member);
                 logger.info("Member join: {}", member.getAddress());
             } else {
+                // A registered cluster member has left the cluster.
                 subspaces.remove(member);
                 knownMembers.remove(member);
                 consistent.removeMember(member);
@@ -372,6 +414,8 @@ public class ClusterService implements KronotopService {
             }
         }
 
+        // Try to find a cluster coordinator. If the coordinator is this node itself, propagate
+        // the current routing table.
         checkCluster();
         Member coordinator = knownCoordinator.get();
         if (coordinator.equals(context.getMember())) {
@@ -404,11 +448,16 @@ public class ClusterService implements KronotopService {
         }
     }
 
+    /**
+     * fetchBroadcastEvents tries to fetch the latest events from the cluster's global journal and processes them.
+     */
     private synchronized void fetchBroadcastEvents() {
         context.getFoundationDB().run(tr -> {
             while (true) {
+                // Try to consume the latest event.
                 JournalItem journalItem = journal.consume(lastOffset.get() + 1);
                 if (journalItem == null)
+                    // There is nothing to process
                     return null;
 
                 ObjectMapper objectMapper = new ObjectMapper();
@@ -431,12 +480,11 @@ public class ClusterService implements KronotopService {
                         checkPartitionOwnership();
                         logger.debug("Routing table has been updated");
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    throw new RuntimeException(e);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.error("Failed to process a broadcast event", e);
                 }
+
+                // Processed the event successfully. Forward the offset.
                 lastOffset.set(journalItem.getOffset());
             }
         });
