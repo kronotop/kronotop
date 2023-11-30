@@ -197,7 +197,6 @@ public class RedisService implements KronotopService {
                 throw new KronotopException(String.format("ShardId: %d not belong to this node: %s", shardId, context.getMember()));
             }
             shard = new OnHeapShardImpl(shardId);
-            shard.setOwner(context.getMember());
             return shard;
         });
     }

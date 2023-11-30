@@ -33,10 +33,4 @@ public interface Shard extends ConcurrentMap<String, Object> {
     PersistenceQueue getPersistenceQueue();
 
     Integer getId();
-
-    ShardMetadata getShardMetadata();
-
-    Member getOwner();
-
-    void setOwner(Member owner);
 }

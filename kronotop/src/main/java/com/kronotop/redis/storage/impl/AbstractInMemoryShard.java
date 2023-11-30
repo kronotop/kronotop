@@ -18,8 +18,6 @@
 package com.kronotop.redis.storage.impl;
 
 import com.google.common.util.concurrent.Striped;
-import com.kronotop.core.cluster.Member;
-import com.kronotop.core.cluster.sharding.ShardMetadata;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.index.impl.IndexImpl;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
@@ -36,8 +34,6 @@ public abstract class AbstractInMemoryShard extends ConcurrentHashMap<String, Ob
     private final PersistenceQueue persistenceQueue = new OnHeapPersistenceQueue();
     private final Striped<ReadWriteLock> striped = Striped.lazyWeakReadWriteLock(271);
     private final ReentrantReadWriteLock ownerLock = new ReentrantReadWriteLock();
-    private ShardMetadata shardMetadata;
-    private Member owner;
 
     protected AbstractInMemoryShard(Integer id) {
         this.id = id;
@@ -58,27 +54,5 @@ public abstract class AbstractInMemoryShard extends ConcurrentHashMap<String, Ob
 
     public Integer getId() {
         return id;
-    }
-
-    public ShardMetadata getShardMetadata() {
-        return shardMetadata;
-    }
-
-    public Member getOwner() {
-        ownerLock.readLock().lock();
-        try {
-            return owner;
-        } finally {
-            ownerLock.readLock().unlock();
-        }
-    }
-
-    public void setOwner(Member owner) {
-        ownerLock.writeLock().lock();
-        try {
-            this.owner = owner;
-        } finally {
-            ownerLock.writeLock().unlock();
-        }
     }
 }

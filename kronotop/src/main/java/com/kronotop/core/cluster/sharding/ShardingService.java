@@ -113,9 +113,9 @@ public class ShardingService implements KronotopService {
         );
         while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                ShardLoader partitionLoader = new ShardLoader(context, shard);
+                ShardLoader shardLoader = new ShardLoader(context, shard);
                 for (DataStructure dataStructure : DataStructure.values()) {
-                    partitionLoader.load(tr, dataStructure);
+                    shardLoader.load(tr, dataStructure);
                 }
                 break;
             } catch (CompletionException e) {
