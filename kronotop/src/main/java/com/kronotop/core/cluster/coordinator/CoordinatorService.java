@@ -126,24 +126,24 @@ public class CoordinatorService implements KronotopService {
         long elapsedTime = Instant.now().toEpochMilli() - task.getBaseTask().getCreatedAt();
         if (elapsedTime > TimeUnit.SECONDS.toMillis(5)) {
             shardMetadata.getTasks().remove(taskId);
-            LOGGER.info("Task has been dropped due to inactivity. Shard: {}, TaskType: {}", shardId, task.getBaseTask().getType());
+            LOGGER.info("Task has been dropped due to inactivity. ShardId: {}, TaskType: {}", shardId, task.getBaseTask().getType());
             return true;
         } else {
             TaskType taskType = task.getBaseTask().getType();
             if (taskType.equals(TaskType.ASSIGN_SHARD)) {
                 if (isShardOwnerDead(membershipService, shardMetadata.getOwner())) {
                     shardMetadata.getTasks().remove(taskId);
-                    LOGGER.info("Initialization of Shard: {} failed due to a member failure: {}", shardId, shardMetadata.getOwner());
+                    LOGGER.info("Shard initialization has failed due to a member failure. ShardId: {}, Owner: {}", shardId, shardMetadata.getOwner());
                     return true;
                 }
             } else if (taskType.equals(TaskType.REASSIGN_SHARD)) {
                 if (isShardOwnerDead(membershipService, task.getReassignShardTask().getNextOwner())) {
                     shardMetadata.getTasks().remove(taskId);
-                    LOGGER.info("Reassigning of Shard: {} failed due to a member failure: {}", shardId, task.getReassignShardTask().getNextOwner());
+                    LOGGER.info("Reassigning of shard has failed due to a member failure. ShardId: {}, Owner {}", shardId, task.getReassignShardTask().getNextOwner());
                     return true;
                 }
             } else {
-                LOGGER.error("Unknown task type: {} for task name: {}", task.getBaseTask().getType(), taskId);
+                LOGGER.error("Unknown task. ShardId: {}, TaskType: {}, TaskId: {}", shardId, task.getBaseTask().getType(), taskId);
                 shardMetadata.getTasks().remove(taskId);
                 return true;
             }
@@ -319,13 +319,13 @@ public class CoordinatorService implements KronotopService {
                     LOGGER.error("Unsupported task type: {}", taskCompletedEvent.getType());
                     return null;
                 }
-                LOGGER.info("ShardId: {} TaskType: {} TaskId: {} has been completed",
+                LOGGER.info("ShardId: {}, TaskType: {}, TaskId: {} has been completed",
                         taskCompletedEvent.getShardId(),
                         taskCompletedEvent.getType(),
                         taskCompletedEvent.getTaskId()
                 );
             } catch (Exception e) {
-                LOGGER.error("Error while checking shard ownership: {}", taskCompletedEvent.getShardId(), e);
+                LOGGER.error("Error while checking shard ownership. ShardId: {}", taskCompletedEvent.getShardId(), e);
                 throw new RuntimeException(e);
             }
             return null;
