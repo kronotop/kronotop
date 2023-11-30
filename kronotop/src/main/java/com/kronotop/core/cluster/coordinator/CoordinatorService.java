@@ -139,7 +139,7 @@ public class CoordinatorService implements KronotopService {
             } else if (taskType.equals(TaskType.REASSIGN_SHARD)) {
                 if (isShardOwnerDead(membershipService, task.getReassignShardTask().getNextOwner())) {
                     shardMetadata.getTasks().remove(taskId);
-                    LOGGER.info("Reassigning of shard has failed due to a member failure. ShardId: {}, Owner {}", shardId, task.getReassignShardTask().getNextOwner());
+                    LOGGER.info("Shard reassignment has failed due to a member failure. ShardId: {}, Owner {}", shardId, task.getReassignShardTask().getNextOwner());
                     return true;
                 }
             } else {
@@ -319,17 +319,21 @@ public class CoordinatorService implements KronotopService {
                     LOGGER.error("Unsupported task type: {}", taskCompletedEvent.getType());
                     return null;
                 }
-                LOGGER.info("ShardId: {}, TaskType: {}, TaskId: {} has been completed",
-                        taskCompletedEvent.getShardId(),
-                        taskCompletedEvent.getType(),
-                        taskCompletedEvent.getTaskId()
-                );
+
+                DirectorySubspace shardSubspace = shardsSubspaces.get(taskCompletedEvent.getShardId());
+                tr.set(shardSubspace.pack(taskCompletedEvent.getShardId()), new ObjectMapper().writeValueAsBytes(shardMetadata));
             } catch (Exception e) {
                 LOGGER.error("Error while checking shard ownership. ShardId: {}", taskCompletedEvent.getShardId(), e);
                 throw new RuntimeException(e);
             }
             return null;
         });
+
+        LOGGER.info("ShardId: {}, TaskType: {}, TaskId: {} has been completed",
+                taskCompletedEvent.getShardId(),
+                taskCompletedEvent.getType(),
+                taskCompletedEvent.getTaskId()
+        );
     }
 
     private void processCoordinatorEvent() {

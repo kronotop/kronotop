@@ -186,6 +186,7 @@ public class ShardingService implements KronotopService {
                 currentWatcher.set(watcher);
                 latch.countDown();
                 try {
+                    processShardingTask();
                     watcher.join();
                 } catch (CancellationException e) {
                     LOGGER.debug("{} watcher has been cancelled", JournalName.shardEvents(context.getMember()));
