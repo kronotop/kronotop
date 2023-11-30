@@ -60,7 +60,7 @@ public class SetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         SetMessage setMessage = request.attr(MessageTypes.SET).get();
 
-        Shard shard = service.resolveKey(response.getContext(), setMessage.getKey());
+        Shard shard = service.resolveKey(setMessage.getKey());
         StringValue stringValue = new StringValue(setMessage.getValue());
         ReadWriteLock lock = shard.getStriped().get(setMessage.getKey());
         try {

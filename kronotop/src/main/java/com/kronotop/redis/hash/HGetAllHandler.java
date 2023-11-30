@@ -52,7 +52,7 @@ public class HGetAllHandler extends BaseHandler implements Handler {
         HGetAllMessage hgetallMessage = request.attr(MessageTypes.HGETALL).get();
 
         List<RedisMessage> result = new ArrayList<>();
-        Shard shard = service.resolveKey(response.getContext(), hgetallMessage.getKey());
+        Shard shard = service.resolveKey(hgetallMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hgetallMessage.getKey());
         lock.readLock().lock();
         try {

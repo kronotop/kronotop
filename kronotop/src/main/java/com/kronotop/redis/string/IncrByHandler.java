@@ -63,7 +63,7 @@ public class IncrByHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         IncrByMessage incrByMessage = request.attr(MessageTypes.INCRBY).get();
 
-        Shard shard = service.resolveKey(response.getContext(), incrByMessage.getKey());
+        Shard shard = service.resolveKey(incrByMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
         ReadWriteLock lock = shard.getStriped().get(incrByMessage.getKey());
         try {

@@ -52,7 +52,7 @@ public class HValsHandler extends BaseHandler implements Handler {
         HValsMessage hvalsMessage = request.attr(MessageTypes.HVALS).get();
 
         List<RedisMessage> result = new ArrayList<>();
-        Shard shard = service.resolveKey(response.getContext(), hvalsMessage.getKey());
+        Shard shard = service.resolveKey(hvalsMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hvalsMessage.getKey());
         lock.readLock().lock();
         try {

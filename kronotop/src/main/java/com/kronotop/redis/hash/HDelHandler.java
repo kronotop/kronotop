@@ -57,7 +57,7 @@ public class HDelHandler extends BaseHashHandler implements Handler {
 
         int total = 0;
 
-        Shard shard = service.resolveKey(response.getContext(), hdelMessage.getKey());
+        Shard shard = service.resolveKey(hdelMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hdelMessage.getKey());
         lock.writeLock().lock();
         try {

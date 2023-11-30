@@ -60,7 +60,7 @@ public class SetNXHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         SetNXMessage setnxMessage = request.attr(MessageTypes.SETNX).get();
 
-        Shard shard = service.resolveKey(response.getContext(), setnxMessage.getKey());
+        Shard shard = service.resolveKey(setnxMessage.getKey());
         Object result;
         ReadWriteLock lock = shard.getStriped().get(setnxMessage.getKey());
         try {

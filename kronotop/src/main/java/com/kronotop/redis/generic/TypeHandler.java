@@ -30,7 +30,7 @@ import com.kronotop.server.resp.annotation.MinimumParameterCount;
 
 import java.util.concurrent.locks.ReadWriteLock;
 
-@Command("TYPE")
+@Command(TypeMessage.COMMAND)
 @MinimumParameterCount(TypeMessage.MINIMUM_PARAMETER_COUNT)
 public class TypeHandler extends BaseHandler implements Handler {
     public TypeHandler(RedisService service) {
@@ -46,7 +46,7 @@ public class TypeHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         TypeMessage typeMessage = request.attr(MessageTypes.TYPE).get();
 
-        Shard shard = service.resolveKey(response.getContext(), typeMessage.getKey());
+        Shard shard = service.resolveKey(typeMessage.getKey());
 
         Object retrieved;
         ReadWriteLock lock = shard.getStriped().get(typeMessage.getKey());

@@ -45,7 +45,7 @@ public class HLenHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HLenMessage hlenMessage = request.attr(MessageTypes.HLEN).get();
 
-        Shard shard = service.resolveKey(response.getContext(), hlenMessage.getKey());
+        Shard shard = service.resolveKey(hlenMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hlenMessage.getKey());
         lock.readLock().lock();
         try {

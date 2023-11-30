@@ -49,7 +49,7 @@ public class HMGetHandler extends BaseHandler implements Handler {
         HMGetMessage hmgetMessage = request.attr(MessageTypes.HMGET).get();
 
         List<RedisMessage> upperList = new ArrayList<>();
-        Shard shard = service.resolveKey(response.getContext(), hmgetMessage.getKey());
+        Shard shard = service.resolveKey(hmgetMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hmgetMessage.getKey());
         lock.readLock().lock();
         try {

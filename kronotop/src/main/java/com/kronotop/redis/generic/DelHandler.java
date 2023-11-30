@@ -57,7 +57,7 @@ public class DelHandler extends BaseGenericHandler implements Handler {
     public void execute(Request request, Response response) {
         DelMessage delMessage = request.attr(MessageTypes.DEL).get();
 
-        Shard shard = service.resolveKeys(response.getContext(), delMessage.getKeys());
+        Shard shard = service.resolveKeys(delMessage.getKeys());
 
         Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(delMessage.getKeys());
         long keysRemoved = 0;

@@ -45,7 +45,7 @@ public class ExistsHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         ExistsMessage existsMessage = request.attr(MessageTypes.EXISTS).get();
 
-        Shard shard = service.resolveKeys(response.getContext(), existsMessage.getKeys());
+        Shard shard = service.resolveKeys(existsMessage.getKeys());
 
         Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(existsMessage.getKeys());
         long total = 0;

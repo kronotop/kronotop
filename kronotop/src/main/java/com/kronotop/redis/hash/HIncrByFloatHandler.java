@@ -60,7 +60,7 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HIncrByFloatMessage hincrbyfloatMessage = request.attr(MessageTypes.HINCRBYFLOAT).get();
 
-        Shard shard = service.resolveKey(response.getContext(), hincrbyfloatMessage.getKey());
+        Shard shard = service.resolveKey(hincrbyfloatMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hincrbyfloatMessage.getKey());
         lock.writeLock().lock();
         double newValue;

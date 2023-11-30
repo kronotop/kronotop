@@ -287,7 +287,7 @@ public class RedisService implements KronotopService {
         return membershipService;
     }
 
-    private Shard resolveKeyInternal(ChannelHandlerContext context, int slot) {
+    private Shard resolveKeyInternal(int slot) {
         int shardId = getHashSlots().get(slot);
         Route route = getClusterService().getRoutingTable().getRoute(shardId);
         if (route == null) {
@@ -302,12 +302,12 @@ public class RedisService implements KronotopService {
         return getShard(shardId);
     }
 
-    public Shard resolveKey(ChannelHandlerContext context, String key) {
+    public Shard resolveKey(String key) {
         int slot = SlotHash.getSlot(key);
-        return resolveKeyInternal(context, slot);
+        return resolveKeyInternal(slot);
     }
 
-    public Shard resolveKeys(ChannelHandlerContext context, List<String> keys) {
+    public Shard resolveKeys(List<String> keys) {
         Integer latestSlot = null;
         for (String key : keys) {
             int currentSlot = SlotHash.getSlot(key);
@@ -319,7 +319,7 @@ public class RedisService implements KronotopService {
         if (latestSlot == null) {
             throw new NullPointerException("slot cannot be calculated for the given set of keys");
         }
-        return resolveKeyInternal(context, latestSlot);
+        return resolveKeyInternal(latestSlot);
     }
 
     public Map<Integer, Integer> getHashSlots() {

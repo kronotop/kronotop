@@ -79,7 +79,7 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
             keys.add(pair.getKey());
         }
 
-        Shard shard = service.resolveKeys(response.getContext(), msetnxMessage.getKeys());
+        Shard shard = service.resolveKeys(msetnxMessage.getKeys());
         int result;
         Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(keys);
         try {

@@ -59,7 +59,7 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HIncrByMessage hincrbyMessage = request.attr(MessageTypes.HINCRBY).get();
 
-        Shard shard = service.resolveKey(response.getContext(), hincrbyMessage.getKey());
+        Shard shard = service.resolveKey(hincrbyMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hincrbyMessage.getKey());
         lock.writeLock().lock();
         long newValue;

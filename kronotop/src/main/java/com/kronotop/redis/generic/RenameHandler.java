@@ -64,7 +64,7 @@ public class RenameHandler extends BaseGenericHandler implements Handler {
         keys.add(renameMessage.getKey());
         keys.add(renameMessage.getNewkey());
 
-        Shard shard = service.resolveKeys(response.getContext(), keys);
+        Shard shard = service.resolveKeys(keys);
         Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {

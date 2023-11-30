@@ -63,7 +63,7 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         SetRangeMessage setRangeMessage = request.attr(MessageTypes.SETRANGE).get();
 
-        Shard shard = service.resolveKey(response.getContext(), setRangeMessage.getKey());
+        Shard shard = service.resolveKey(setRangeMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
 
         ReadWriteLock lock = shard.getStriped().get(setRangeMessage.getKey());
