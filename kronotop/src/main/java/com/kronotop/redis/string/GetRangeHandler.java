@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.string.protocol.GetRangeMessage;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
@@ -56,13 +56,13 @@ public class GetRangeHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         GetRangeMessage getRangeMessage = request.attr(MessageTypes.GETRANGE).get();
 
-        Partition partition = service.resolveKey(response.getContext(), getRangeMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), getRangeMessage.getKey());
         Object result;
-        ReadWriteLock lock = partition.getStriped().get(getRangeMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(getRangeMessage.getKey());
 
         try {
             lock.readLock().lock();
-            result = partition.get(getRangeMessage.getKey());
+            result = shard.get(getRangeMessage.getKey());
         } finally {
             lock.readLock().unlock();
         }

@@ -1,0 +1,42 @@
+/*
+ * Copyright (c) 2023 Kronotop
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.kronotop.redis.storage;
+
+import com.google.common.util.concurrent.Striped;
+import com.kronotop.core.cluster.Member;
+import com.kronotop.core.cluster.sharding.ShardMetadata;
+import com.kronotop.redis.storage.index.Index;
+import com.kronotop.redis.storage.persistence.PersistenceQueue;
+
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.ReadWriteLock;
+
+public interface Shard extends ConcurrentMap<String, Object> {
+    Index getIndex();
+
+    Striped<ReadWriteLock> getStriped();
+
+    PersistenceQueue getPersistenceQueue();
+
+    Integer getId();
+
+    ShardMetadata getShardMetadata();
+
+    Member getOwner();
+
+    void setOwner(Member owner);
+}

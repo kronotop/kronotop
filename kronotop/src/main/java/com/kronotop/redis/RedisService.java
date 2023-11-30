@@ -16,8 +16,6 @@
 
 package com.kronotop.redis;
 
-import com.apple.foundationdb.FDBException;
-import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -26,8 +24,8 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
-import com.kronotop.core.cluster.ClusterService;
-import com.kronotop.core.cluster.Member;
+import com.kronotop.core.cluster.MembershipService;
+import com.kronotop.core.cluster.coordinator.Route;
 import com.kronotop.core.watcher.Watcher;
 import com.kronotop.redis.cluster.ClusterHandler;
 import com.kronotop.redis.connection.AuthHandler;
@@ -40,12 +38,9 @@ import com.kronotop.redis.server.CommandHandler;
 import com.kronotop.redis.server.FlushAllHandler;
 import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.LogicalDatabase;
-import com.kronotop.redis.storage.Partition;
-import com.kronotop.redis.storage.PartitionMaintenanceTask;
-import com.kronotop.redis.storage.PartitionStatus;
-import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
-import com.kronotop.redis.storage.persistence.DataStructure;
-import com.kronotop.redis.storage.persistence.PartitionLoader;
+import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.ShardMaintenanceTask;
+import com.kronotop.redis.storage.impl.OnHeapShardImpl;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.string.*;
 import com.kronotop.redis.transactions.*;
@@ -71,19 +66,19 @@ public class RedisService implements KronotopService {
     private final Context context;
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
-    private final ClusterService clusterService;
+    private final MembershipService membershipService;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             new ThreadFactoryBuilder().setNameFormat("kr.redis-service-%d").build()
     );
-    private final int partitionCount;
+    private final int numberOfShards;
 
     public RedisService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
         this.handlers = handlers;
         this.context = context;
         this.watcher = context.getService(Watcher.NAME);
-        this.partitionCount = context.getConfig().getInt("cluster.partition_count");
-        this.clusterService = context.getService(ClusterService.NAME);
+        this.numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
+        this.membershipService = context.getService(MembershipService.NAME);
         this.hashSlots = distributeHashSlots();
 
         registerHandler(new PingHandler());
@@ -146,66 +141,21 @@ public class RedisService implements KronotopService {
         int numPersistenceWorkers = context.getConfig().getInt("persistence.num_workers");
         int period = context.getConfig().getInt("persistence.period");
         for (int id = 0; id < numPersistenceWorkers; id++) {
-            PartitionMaintenanceTask partitionMaintenanceTask = new PartitionMaintenanceTask(context, id);
-            scheduledExecutorService.scheduleAtFixedRate(partitionMaintenanceTask, 0, period, TimeUnit.SECONDS);
-        }
-
-        long start = System.nanoTime();
-        logger.info("Loading Redis data structures");
-        loadPartitionsFromFDB();
-        long finish = System.nanoTime();
-        logger.info("Redis data structures loaded in {} ms", TimeUnit.NANOSECONDS.toMillis(finish - start));
-    }
-
-    private void loadPartitionsFromFDB() {
-        int currentPartitionId = 0;
-        while (true) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                for (int partitionId = currentPartitionId; partitionId < partitionCount; partitionId++) {
-                    Member owner = clusterService.getRoutingTable().getPartitionOwner(partitionId);
-                    if (!owner.equals(context.getMember())) {
-                        continue;
-                    }
-
-                    int finalPartitionId = partitionId;
-
-                    Partition partition = context.getLogicalDatabase().getPartitions().compute(finalPartitionId,
-                            (key, value) -> Objects.requireNonNullElseGet(
-                                    value, () -> new OnHeapPartitionImpl(finalPartitionId))
-                    );
-
-                    PartitionLoader partitionLoader = new PartitionLoader(context, partition);
-                    for (DataStructure dataStructure : DataStructure.values()) {
-                        partitionLoader.load(tr, dataStructure);
-                    }
-
-                    // Make it operable
-                    partition.getPartitionMetadata().setStatus(PartitionStatus.WRITABLE);
-                    currentPartitionId = finalPartitionId;
-                }
-                break;
-            } catch (CompletionException e) {
-                if (e.getCause() instanceof FDBException) {
-                    String message = RESPError.decapitalize(e.getCause().getMessage());
-                    if (message.equalsIgnoreCase(RESPError.TRANSACTION_TOO_OLD_MESSAGE)) {
-                        continue;
-                    }
-                }
-                throw e;
-            }
+            ShardMaintenanceTask shardMaintenanceTask = new ShardMaintenanceTask(context, id);
+            scheduledExecutorService.scheduleAtFixedRate(shardMaintenanceTask, 0, period, TimeUnit.SECONDS);
         }
     }
 
     private Map<Integer, Integer> distributeHashSlots() {
         HashMap<Integer, Integer> result = new HashMap<>();
-        int hashSlotsPerPartition = NUM_HASH_SLOTS / partitionCount;
+        int hashSlotsPerShard = NUM_HASH_SLOTS / numberOfShards;
         int counter = 1;
         int partId = 0;
         for (int hashSlot = 0; hashSlot < NUM_HASH_SLOTS; hashSlot++) {
-            if (counter >= hashSlotsPerPartition) {
+            if (counter >= hashSlotsPerShard) {
                 counter = 1;
                 partId++;
-                if (partId >= partitionCount) {
+                if (partId >= numberOfShards) {
                     partId = 0;
                 }
             }
@@ -215,8 +165,8 @@ public class RedisService implements KronotopService {
         return Collections.unmodifiableMap(result);
     }
 
-    public int getPartitionCount() {
-        return partitionCount;
+    public int getNumberOfShards() {
+        return numberOfShards;
     }
 
     private void registerHandler(Handler... handlers) throws CommandAlreadyRegisteredException {
@@ -233,19 +183,22 @@ public class RedisService implements KronotopService {
         }
     }
 
-    public Partition getPartition(Integer partitionId) {
-        return context.getLogicalDatabase().getPartitions().compute(partitionId, (k, partition) -> {
-            if (partition != null) {
-                return partition;
+    public Shard getShard(Integer shardId) {
+        return context.getLogicalDatabase().getShards().compute(shardId, (k, shard) -> {
+            if (shard != null) {
+                return shard;
             }
-            Member owner = clusterService.getRoutingTable().getPartitionOwner(partitionId);
-            if (!owner.equals(context.getMember())) {
+            Route route = membershipService.getRoutingTable().getRoute(shardId);
+            if (route == null) {
+                throw new KronotopException(RESPError.ERR, String.format("ShardId %d isn't owned by any member yet", shardId));
+            }
+            if (!route.getMember().equals(context.getMember())) {
                 // This should not be happened at production but just for safety.
-                throw new KronotopException(String.format("PartitionId: %d not belong to this node: %s", partitionId, context.getMember()));
+                throw new KronotopException(String.format("ShardId: %d not belong to this node: %s", shardId, context.getMember()));
             }
-            partition = new OnHeapPartitionImpl(partitionId);
-            partition.setOwner(context.getMember());
-            return partition;
+            shard = new OnHeapShardImpl(shardId);
+            shard.setOwner(context.getMember());
+            return shard;
         });
     }
 
@@ -270,9 +223,9 @@ public class RedisService implements KronotopService {
             }
             return null;
         });
-        for (Partition partition : context.getLogicalDatabase().getPartitions().values()) {
-            partition.clear();
-            partition.getPersistenceQueue().clear();
+        for (Shard shard : context.getLogicalDatabase().getShards().values()) {
+            shard.clear();
+            shard.getPersistenceQueue().clear();
         }
     }
 
@@ -303,9 +256,9 @@ public class RedisService implements KronotopService {
 
     private void drainPersistenceQueues() {
         logger.info("Draining persistence queue of Redis logical database");
-        for (Partition partition : context.getLogicalDatabase().getPartitions().values()) {
-            if (partition.getPersistenceQueue().size() > 0) {
-                Persistence persistence = new Persistence(context, partition);
+        for (Shard shard : context.getLogicalDatabase().getShards().values()) {
+            if (shard.getPersistenceQueue().size() > 0) {
+                Persistence persistence = new Persistence(context, shard);
                 while (!persistence.isQueueEmpty()) {
                     persistence.run();
                 }
@@ -330,28 +283,31 @@ public class RedisService implements KronotopService {
         drainPersistenceQueues();
     }
 
-    public ClusterService getClusterService() {
-        return clusterService;
+    public MembershipService getClusterService() {
+        return membershipService;
     }
 
-    private Partition resolveKeyInternal(ChannelHandlerContext context, int slot) {
-        int partId = getHashSlots().get(slot);
-        Member owner = getClusterService().getRoutingTable().getPartitionOwner(partId);
-        if (!owner.equals(getContext().getMember())) {
+    private Shard resolveKeyInternal(ChannelHandlerContext context, int slot) {
+        int shardId = getHashSlots().get(slot);
+        Route route = getClusterService().getRoutingTable().getRoute(shardId);
+        if (route == null) {
+            throw new KronotopException(RESPError.ERR, String.format("slot %d isn't owned by any member yet", slot));
+        }
+        if (!route.getMember().equals(getContext().getMember())) {
             throw new KronotopException(
                     RESPError.MOVED,
-                    String.format("%d %s:%d", slot, owner.getAddress().getHost(), owner.getAddress().getPort())
+                    String.format("%d %s:%d", slot, route.getMember().getAddress().getHost(), route.getMember().getAddress().getPort())
             );
         }
-        return getPartition(partId);
+        return getShard(shardId);
     }
 
-    public Partition resolveKey(ChannelHandlerContext context, String key) {
+    public Shard resolveKey(ChannelHandlerContext context, String key) {
         int slot = SlotHash.getSlot(key);
         return resolveKeyInternal(context, slot);
     }
 
-    public Partition resolveKeys(ChannelHandlerContext context, List<String> keys) {
+    public Shard resolveKeys(ChannelHandlerContext context, List<String> keys) {
         Integer latestSlot = null;
         for (String key : keys) {
             int currentSlot = SlotHash.getSlot(key);

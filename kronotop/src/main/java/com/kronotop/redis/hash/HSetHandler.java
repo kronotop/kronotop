@@ -20,7 +20,7 @@ import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HSetMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MinimumParameterCount;
@@ -55,16 +55,16 @@ public class HSetHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HSetMessage hsetMessage = request.attr(MessageTypes.HSET).get();
 
-        Partition partition = service.resolveKey(response.getContext(), hsetMessage.getKey());
-        ReadWriteLock lock = partition.getStriped().get(hsetMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), hsetMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(hsetMessage.getKey());
         lock.writeLock().lock();
         int total = 0;
         try {
             HashValue hashValue;
-            Object retrieved = partition.get(hsetMessage.getKey());
+            Object retrieved = shard.get(hsetMessage.getKey());
             if (retrieved == null) {
                 hashValue = new HashValue();
-                partition.put(hsetMessage.getKey(), hashValue);
+                shard.put(hsetMessage.getKey(), hashValue);
             } else {
                 if (!(retrieved instanceof HashValue)) {
                     throw new WrongTypeException();
@@ -80,7 +80,7 @@ public class HSetHandler extends BaseHashHandler implements Handler {
         } finally {
             lock.writeLock().unlock();
         }
-        persistence(partition, hsetMessage.getKey(), hsetMessage.getFieldValuePairs());
+        persistence(shard, hsetMessage.getKey(), hsetMessage.getFieldValuePairs());
         response.writeInteger(total);
     }
 }

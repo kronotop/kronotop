@@ -19,9 +19,10 @@ package com.kronotop.instance;
 import com.apple.foundationdb.Database;
 import com.kronotop.common.KronotopException;
 import com.kronotop.core.*;
-import com.kronotop.core.cluster.ClusterService;
 import com.kronotop.core.cluster.Member;
-import com.kronotop.core.cluster.PartitionService;
+import com.kronotop.core.cluster.MembershipService;
+import com.kronotop.core.cluster.coordinator.CoordinatorService;
+import com.kronotop.core.cluster.sharding.ShardingService;
 import com.kronotop.core.commands.CommandDefinitions;
 import com.kronotop.core.network.Address;
 import com.kronotop.core.network.AddressUtil;
@@ -120,18 +121,22 @@ public class KronotopInstanceImpl implements KronotopInstance {
             FoundationDBService fdb = new FoundationDBService(kronotopInstance.context, handlers);
             kronotopInstance.context.registerService(FoundationDBService.NAME, fdb);
 
-            ClusterService clusterService = new ClusterService(kronotopInstance.context);
-            kronotopInstance.context.registerService(ClusterService.NAME, clusterService);
-            clusterService.start();
-            clusterService.waitUntilBootstrapped();
+            ShardingService shardingService = new ShardingService(kronotopInstance.context);
+            kronotopInstance.context.registerService(ShardingService.NAME, shardingService);
+            shardingService.start();
+
+            CoordinatorService coordinatorService = new CoordinatorService(kronotopInstance.context);
+            kronotopInstance.context.registerService(CoordinatorService.NAME, coordinatorService);
+
+            MembershipService membershipService = new MembershipService(kronotopInstance.context);
+            kronotopInstance.context.registerService(MembershipService.NAME, membershipService);
+            membershipService.start();
+            // TODO: Enable this again
+            //membershipService.waitUntilBootstrapped();
 
             RedisService redisService = new RedisService(kronotopInstance.context, handlers);
             kronotopInstance.context.registerService(RedisService.NAME, redisService);
             redisService.start();
-
-            PartitionService partitionService = new PartitionService(kronotopInstance.context);
-            kronotopInstance.context.registerService(PartitionService.NAME, partitionService);
-            partitionService.start();
 
             ZMapService zmapService = new ZMapService(kronotopInstance.context, handlers);
             kronotopInstance.context.registerService(ZMapService.NAME, zmapService);

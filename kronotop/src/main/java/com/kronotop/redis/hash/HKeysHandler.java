@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HKeysMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -52,11 +52,11 @@ public class HKeysHandler extends BaseHandler implements Handler {
         HKeysMessage hkeysMessage = request.attr(MessageTypes.HKEYS).get();
 
         List<RedisMessage> fields = new ArrayList<>();
-        Partition partition = service.resolveKey(response.getContext(), hkeysMessage.getKey());
-        ReadWriteLock lock = partition.getStriped().get(hkeysMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), hkeysMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(hkeysMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = partition.get(hkeysMessage.getKey());
+            Object retrieved = shard.get(hkeysMessage.getKey());
             if (retrieved == null) {
                 response.writeArray(fields);
                 return;

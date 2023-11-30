@@ -77,7 +77,7 @@ public class ConsistentTest {
     }
 
     @Test
-    public void testGetPartitionOwner() throws UnknownHostException {
+    public void testGetShardOwner() throws UnknownHostException {
         Consistent consistent = new Consistent(config);
 
         Address addressOne = new Address("localhost", 0);
@@ -92,11 +92,11 @@ public class ConsistentTest {
         expectedMembers.add(memberOne);
         expectedMembers.add(memberTwo);
 
-        double partitionCount = config.getDouble("cluster.partition_count");
+        double numberOfShards = config.getDouble("cluster.number_of_shards");
 
         List<Member> result = new ArrayList<>();
-        for (int partID = 0; partID < partitionCount; partID++) {
-            Member owner = consistent.getPartitionOwner(partID);
+        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            Member owner = consistent.getShardOwner(shardId);
             result.add(owner);
         }
         assertTrue(expectedMembers.containsAll(result));
@@ -105,8 +105,8 @@ public class ConsistentTest {
     @Test
     public void testLocate_EmptyHashRing() {
         Consistent consistent = new Consistent(config);
-        NoPartitionOwnerFoundException exception = assertThrows(
-                NoPartitionOwnerFoundException.class,
+        NoShardOwnerFoundException exception = assertThrows(
+                NoShardOwnerFoundException.class,
                 () -> consistent.locate("foobar")
         );
         assertNotNull(exception);

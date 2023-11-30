@@ -19,7 +19,7 @@ package com.kronotop.redis.generic;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.RenameNXMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
@@ -57,33 +57,33 @@ public class RenameNXHandler extends BaseGenericHandler implements Handler {
         keys.add(renamenxMessage.getKey());
         keys.add(renamenxMessage.getNewkey());
 
-        Partition partition = service.resolveKeys(response.getContext(), keys);
-        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(keys);
+        Shard shard = service.resolveKeys(response.getContext(), keys);
+        Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
 
-            Object result = partition.get(renamenxMessage.getKey());
+            Object result = shard.get(renamenxMessage.getKey());
             if (result == null) {
                 throw new KronotopException("no such key");
             }
 
-            if (partition.containsKey(renamenxMessage.getNewkey())) {
+            if (shard.containsKey(renamenxMessage.getNewkey())) {
                 // newkey already exists.
                 return 0;
             }
 
-            partition.put(renamenxMessage.getNewkey(), result);
-            partition.getPersistenceQueue().add(new StringKey(renamenxMessage.getNewkey()));
-            partition.remove(renamenxMessage.getKey(), result);
+            shard.put(renamenxMessage.getNewkey(), result);
+            shard.getPersistenceQueue().add(new StringKey(renamenxMessage.getNewkey()));
+            shard.remove(renamenxMessage.getKey(), result);
         } finally {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().unlock();
             }
         }
 
-        partition.getPersistenceQueue().add(new StringKey(renamenxMessage.getKey()));
+        shard.getPersistenceQueue().add(new StringKey(renamenxMessage.getKey()));
         return 1;
     }
 

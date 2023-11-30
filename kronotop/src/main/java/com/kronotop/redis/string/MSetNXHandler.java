@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.MSetNXMessage;
 import com.kronotop.server.resp.Handler;
@@ -50,7 +50,7 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
         return Collections.singletonList(request.attr(MessageTypes.MSETNX).get().getKey());
     }
 
-    private int msetnx(Partition storage, MSetNXMessage mSetNXMessage) {
+    private int msetnx(Shard storage, MSetNXMessage mSetNXMessage) {
         for (MSetNXMessage.Pair pair : mSetNXMessage.getPairs()) {
             if (storage.containsKey(pair.getKey())) {
                 return 0;
@@ -79,14 +79,14 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
             keys.add(pair.getKey());
         }
 
-        Partition partition = service.resolveKeys(response.getContext(), msetnxMessage.getKeys());
+        Shard shard = service.resolveKeys(response.getContext(), msetnxMessage.getKeys());
         int result;
-        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(keys);
+        Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
-            result = msetnx(partition, msetnxMessage);
+            result = msetnx(shard, msetnxMessage);
         } finally {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().unlock();
@@ -94,7 +94,7 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
         }
 
         for (String key : msetnxMessage.getKeys()) {
-            partition.getPersistenceQueue().add(new StringKey(key));
+            shard.getPersistenceQueue().add(new StringKey(key));
         }
         response.writeInteger(result);
     }

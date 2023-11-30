@@ -33,8 +33,8 @@ public class DirectoryLayout {
         return this;
     }
 
-    public DirectoryLayout partitionId(String partitionId) {
-        items.add(partitionId);
+    public DirectoryLayout shardId(String shardId) {
+        items.add(shardId);
         return this;
     }
 
@@ -78,6 +78,11 @@ public class DirectoryLayout {
         return this;
     }
 
+    public DirectoryLayout shards() {
+        items.add("shards");
+        return this;
+    }
+
     public DirectoryLayout addAll(List<String> list) {
         items.addAll(list);
         return this;
@@ -101,8 +106,8 @@ public class DirectoryLayout {
             return new DirectoryLayout().logicalDatabase(logicalDatabase);
         }
 
-        public static DirectoryLayout partitionId(String partitionId) {
-            return new DirectoryLayout().partitionId(partitionId);
+        public static DirectoryLayout shardId(String shardId) {
+            return new DirectoryLayout().shardId(shardId);
         }
 
         public static DirectoryLayout internal() {
@@ -131,6 +136,10 @@ public class DirectoryLayout {
 
         public static DirectoryLayout memberlist() {
             return new DirectoryLayout().memberlist();
+        }
+
+        public static DirectoryLayout shards() {
+            return new DirectoryLayout().shards();
         }
 
         public static DirectoryLayout addAll(List<String> list) {

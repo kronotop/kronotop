@@ -23,8 +23,8 @@ import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.Context;
 import com.kronotop.core.ContextImpl;
 import com.kronotop.core.FoundationDBFactory;
-import com.kronotop.core.cluster.ClusterService;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.core.cluster.MembershipService;
 import com.kronotop.core.network.Address;
 import com.kronotop.core.watcher.Watcher;
 import com.kronotop.redis.RedisService;
@@ -55,7 +55,7 @@ public class BaseStorageTest {
         return new EmbeddedChannel(new RedisDecoder(false), new RedisBulkStringAggregator(), new RedisArrayAggregator(), new Router(context, commands));
     }
 
-    protected Integer getPartitionId(String key) {
+    protected Integer getShardId(String key) {
         int slot = SlotHash.getSlot(key);
         return redisService.getHashSlots().get(slot);
     }
@@ -77,10 +77,10 @@ public class BaseStorageTest {
         Database database = FoundationDBFactory.newDatabase(config);
         context = new ContextImpl(config, member, database);
 
-        ClusterService clusterService = new ClusterService(context);
-        clusterService.start();
-        clusterService.waitUntilBootstrapped();
-        context.registerService(ClusterService.NAME, clusterService);
+        MembershipService membershipService = new MembershipService(context);
+        membershipService.start();
+        membershipService.waitUntilBootstrapped();
+        context.registerService(MembershipService.NAME, membershipService);
     }
 
     @AfterEach

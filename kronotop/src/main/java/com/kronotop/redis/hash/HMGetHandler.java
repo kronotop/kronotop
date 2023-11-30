@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HMGetMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MinimumParameterCount;
@@ -49,11 +49,11 @@ public class HMGetHandler extends BaseHandler implements Handler {
         HMGetMessage hmgetMessage = request.attr(MessageTypes.HMGET).get();
 
         List<RedisMessage> upperList = new ArrayList<>();
-        Partition partition = service.resolveKey(response.getContext(), hmgetMessage.getKey());
-        ReadWriteLock lock = partition.getStriped().get(hmgetMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), hmgetMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(hmgetMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = partition.get(hmgetMessage.getKey());
+            Object retrieved = shard.get(hmgetMessage.getKey());
             if (retrieved == null) {
                 for (int i = 0; i < hmgetMessage.getFields().size(); i++) {
                     upperList.add(FullBulkStringRedisMessage.NULL_INSTANCE);

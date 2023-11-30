@@ -33,8 +33,8 @@ public class IndexImpl implements Index {
     private final ConcurrentSkipListMap<Long, String> index = new ConcurrentSkipListMap<>();
     private final FlakeIdGenerator flakeIdGenerator;
 
-    public IndexImpl(long partitionId) {
-        this.flakeIdGenerator = new FlakeIdGenerator(partitionId);
+    public IndexImpl(long shardId) {
+        this.flakeIdGenerator = new FlakeIdGenerator(shardId);
     }
 
     public void add(String key) {

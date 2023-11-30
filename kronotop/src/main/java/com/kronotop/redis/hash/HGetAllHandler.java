@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HGetAllMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -52,11 +52,11 @@ public class HGetAllHandler extends BaseHandler implements Handler {
         HGetAllMessage hgetallMessage = request.attr(MessageTypes.HGETALL).get();
 
         List<RedisMessage> result = new ArrayList<>();
-        Partition partition = service.resolveKey(response.getContext(), hgetallMessage.getKey());
-        ReadWriteLock lock = partition.getStriped().get(hgetallMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), hgetallMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(hgetallMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = partition.get(hgetallMessage.getKey());
+            Object retrieved = shard.get(hgetallMessage.getKey());
             if (retrieved == null) {
                 response.writeArray(result);
                 return;

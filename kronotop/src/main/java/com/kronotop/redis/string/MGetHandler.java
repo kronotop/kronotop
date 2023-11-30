@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.string.protocol.MGetMessage;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
@@ -50,9 +50,9 @@ public class MGetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         MGetMessage mgetMessage = request.attr(MessageTypes.MGET).get();
 
-        Partition partition = service.resolveKeys(response.getContext(), mgetMessage.getKeys());
+        Shard shard = service.resolveKeys(response.getContext(), mgetMessage.getKeys());
 
-        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(mgetMessage.getKeys());
+        Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(mgetMessage.getKeys());
         List<RedisMessage> result = new ArrayList<>();
         try {
             for (ReadWriteLock lock : locks) {
@@ -60,7 +60,7 @@ public class MGetHandler extends BaseStringHandler implements Handler {
             }
 
             for (String key : mgetMessage.getKeys()) {
-                Object value = partition.get(key);
+                Object value = shard.get(key);
                 if (value == null) {
                     result.add(FullBulkStringRedisMessage.NULL_INSTANCE);
                     continue;

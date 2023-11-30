@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.SetNXMessage;
 import com.kronotop.server.resp.Handler;
@@ -60,17 +60,17 @@ public class SetNXHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         SetNXMessage setnxMessage = request.attr(MessageTypes.SETNX).get();
 
-        Partition partition = service.resolveKey(response.getContext(), setnxMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), setnxMessage.getKey());
         Object result;
-        ReadWriteLock lock = partition.getStriped().get(setnxMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(setnxMessage.getKey());
         try {
             lock.writeLock().lock();
-            result = partition.putIfAbsent(
+            result = shard.putIfAbsent(
                     setnxMessage.getKey(),
                     new StringValue(setnxMessage.getValue())
             );
             if (result == null) {
-                partition.getIndex().add(setnxMessage.getKey());
+                shard.getIndex().add(setnxMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();
@@ -82,6 +82,6 @@ public class SetNXHandler extends BaseStringHandler implements Handler {
             response.writeInteger(0);
         }
 
-        partition.getPersistenceQueue().add(new StringKey(setnxMessage.getKey()));
+        shard.getPersistenceQueue().add(new StringKey(setnxMessage.getKey()));
     }
 }

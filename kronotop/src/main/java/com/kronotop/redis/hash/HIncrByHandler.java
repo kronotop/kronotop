@@ -22,7 +22,7 @@ import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HIncrByMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -59,16 +59,16 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HIncrByMessage hincrbyMessage = request.attr(MessageTypes.HINCRBY).get();
 
-        Partition partition = service.resolveKey(response.getContext(), hincrbyMessage.getKey());
-        ReadWriteLock lock = partition.getStriped().get(hincrbyMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), hincrbyMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(hincrbyMessage.getKey());
         lock.writeLock().lock();
         long newValue;
         try {
             HashValue hashValue;
-            Object retrieved = partition.get(hincrbyMessage.getKey());
+            Object retrieved = shard.get(hincrbyMessage.getKey());
             if (retrieved == null) {
                 hashValue = new HashValue();
-                partition.put(hincrbyMessage.getKey(), hashValue);
+                shard.put(hincrbyMessage.getKey(), hashValue);
             } else {
                 if (!(retrieved instanceof HashValue)) {
                     throw new WrongTypeException();
@@ -96,7 +96,7 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        persistence(partition, hincrbyMessage.getKey(), hincrbyMessage.getFieldValuePairs());
+        persistence(shard, hincrbyMessage.getKey(), hincrbyMessage.getFieldValuePairs());
         response.writeInteger(newValue);
     }
 }

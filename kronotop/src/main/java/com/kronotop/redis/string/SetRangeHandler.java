@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.SetRangeMessage;
 import com.kronotop.server.resp.Handler;
@@ -63,13 +63,13 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         SetRangeMessage setRangeMessage = request.attr(MessageTypes.SETRANGE).get();
 
-        Partition partition = service.resolveKey(response.getContext(), setRangeMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), setRangeMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
 
-        ReadWriteLock lock = partition.getStriped().get(setRangeMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(setRangeMessage.getKey());
         try {
             lock.writeLock().lock();
-            partition.compute(setRangeMessage.getKey(), (key, oldValue) -> {
+            shard.compute(setRangeMessage.getKey(), (key, oldValue) -> {
                 if (oldValue == null) {
                     int offset = setRangeMessage.getOffset();
                     ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -77,7 +77,7 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
                     output.writeBytes(padding);
                     output.writeBytes(setRangeMessage.getValue());
                     result.set(output.size());
-                    partition.getIndex().add(setRangeMessage.getKey());
+                    shard.getIndex().add(setRangeMessage.getKey());
                     return new StringValue(output.toByteArray());
                 }
 
@@ -99,7 +99,7 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
         } finally {
             lock.writeLock().unlock();
         }
-        partition.getPersistenceQueue().add(new StringKey(setRangeMessage.getKey()));
+        shard.getPersistenceQueue().add(new StringKey(setRangeMessage.getKey()));
         response.writeInteger(result.get());
     }
 

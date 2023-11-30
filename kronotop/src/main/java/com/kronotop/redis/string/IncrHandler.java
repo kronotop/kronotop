@@ -20,7 +20,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.IncrMessage;
 import com.kronotop.server.resp.Handler;
@@ -63,13 +63,13 @@ public class IncrHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         IncrMessage incrMessage = request.attr(MessageTypes.INCR).get();
 
-        Partition partition = service.resolveKey(request.getContext(), incrMessage.getKey());
+        Shard shard = service.resolveKey(request.getContext(), incrMessage.getKey());
 
-        ReadWriteLock lock = partition.getStriped().get(incrMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(incrMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
         try {
             lock.writeLock().lock();
-            partition.compute(incrMessage.getKey(), (key, oldValue) -> {
+            shard.compute(incrMessage.getKey(), (key, oldValue) -> {
                 int currentValue = 0;
                 if (oldValue != null) {
                     StringValue value = (StringValue) oldValue;
@@ -79,7 +79,7 @@ public class IncrHandler extends BaseStringHandler implements Handler {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                     }
                 } else {
-                    partition.getIndex().add(incrMessage.getKey());
+                    shard.getIndex().add(incrMessage.getKey());
                 }
                 currentValue += 1;
                 result.set(currentValue);
@@ -89,7 +89,7 @@ public class IncrHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        partition.getPersistenceQueue().add(new StringKey(incrMessage.getKey()));
+        shard.getPersistenceQueue().add(new StringKey(incrMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

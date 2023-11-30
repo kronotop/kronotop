@@ -25,7 +25,7 @@ import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.TransactionSizeLimitExceeded;
 import com.kronotop.redis.storage.LogicalDatabase;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,12 +41,12 @@ public class Persistence {
     private static final Logger logger = LoggerFactory.getLogger(Persistence.class);
     private final Context context;
     private final AtomicInteger transactionSize = new AtomicInteger();
-    private final Partition partition;
+    private final Shard shard;
     private final EnumMap<DataStructure, Node> layout = new EnumMap<>(DataStructure.class);
 
-    public Persistence(Context context, Partition partition) {
+    public Persistence(Context context, Shard shard) {
         this.context = context;
-        this.partition = partition;
+        this.shard = shard;
 
         ReadWriteLock readWriteLock = context.getStripedReadWriteLock().get(PERSISTENCE_LAYOUT_KEY);
         readWriteLock.writeLock().lock();
@@ -58,7 +58,7 @@ public class Persistence {
                         redis().
                         persistence().
                         logicalDatabase(LogicalDatabase.NAME).
-                        partitionId(partition.getId().toString()).
+                        shardId(shard.getId().toString()).
                         dataStructure(dataStructure.name().toLowerCase()).
                         asList();
                 DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
@@ -71,7 +71,7 @@ public class Persistence {
     }
 
     public boolean isQueueEmpty() {
-        return partition.getPersistenceQueue().size() == 0;
+        return shard.getPersistenceQueue().size() == 0;
     }
 
     private void persistStringValue(Transaction tr, StringKey key, StringValue stringValue) throws IOException {
@@ -110,16 +110,16 @@ public class Persistence {
     }
 
     public void run() {
-        List<Key> keys = partition.getPersistenceQueue().poll(1000);
+        List<Key> keys = shard.getPersistenceQueue().poll(1000);
         if (keys.isEmpty()) {
             return;
         }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (Key key : keys) {
-                ReadWriteLock lock = partition.getStriped().get(key.getKey());
+                ReadWriteLock lock = shard.getStriped().get(key.getKey());
                 lock.readLock().lock();
                 try {
-                    Object latestValue = partition.get(key.getKey());
+                    Object latestValue = shard.get(key.getKey());
                     if (key instanceof StringKey) {
                         persistStringValue(tr, (StringKey) key, (StringValue) latestValue);
                     } else if (key instanceof HashKey) {
@@ -136,7 +136,7 @@ public class Persistence {
             tr.commit().join();
         } catch (Exception e) {
             for (Key key : keys) {
-                partition.getPersistenceQueue().add(key);
+                shard.getPersistenceQueue().add(key);
             }
             throw new RuntimeException(e);
         } finally {

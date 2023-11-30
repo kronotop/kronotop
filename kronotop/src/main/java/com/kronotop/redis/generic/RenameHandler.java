@@ -18,7 +18,7 @@ package com.kronotop.redis.generic;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.RenameMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
@@ -64,27 +64,27 @@ public class RenameHandler extends BaseGenericHandler implements Handler {
         keys.add(renameMessage.getKey());
         keys.add(renameMessage.getNewkey());
 
-        Partition partition = service.resolveKeys(response.getContext(), keys);
-        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(keys);
+        Shard shard = service.resolveKeys(response.getContext(), keys);
+        Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
-            Object result = partition.get(renameMessage.getKey());
+            Object result = shard.get(renameMessage.getKey());
             if (result == null) {
                 response.writeError("no such key");
                 return;
             }
 
-            partition.put(renameMessage.getNewkey(), result);
-            partition.getPersistenceQueue().add(new StringKey(renameMessage.getNewkey()));
-            partition.remove(renameMessage.getKey(), result);
+            shard.put(renameMessage.getNewkey(), result);
+            shard.getPersistenceQueue().add(new StringKey(renameMessage.getNewkey()));
+            shard.remove(renameMessage.getKey(), result);
         } finally {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().unlock();
             }
         }
-        partition.getPersistenceQueue().add(new StringKey(renameMessage.getKey()));
+        shard.getPersistenceQueue().add(new StringKey(renameMessage.getKey()));
         response.writeOK();
     }
 }

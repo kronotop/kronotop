@@ -25,11 +25,10 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.MissingConfigException;
+import com.kronotop.common.utils.ByteUtils;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.typesafe.config.Config;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
@@ -52,15 +51,9 @@ public class ProcessIDGeneratorImpl implements ProcessIDGenerator {
             DirectorySubspace root = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
             Subspace processIDSubspace = root.subspace(Tuple.from("processID"));
 
-            ByteBuffer b = ByteBuffer.allocate(8);
-            b.order(ByteOrder.LITTLE_ENDIAN);
-            b.putLong(1);
-            tr.mutate(MutationType.ADD, processIDSubspace.pack(), b.array());
+            tr.mutate(MutationType.ADD, processIDSubspace.pack(), ByteUtils.fromLong(1L));
             byte[] rawProcessID = tr.get(processIDSubspace.pack()).join();
-
-            b.clear();
-            b.put(rawProcessID);
-            long processID = b.getLong(0);
+            long processID = ByteUtils.toLong(rawProcessID);
             tr.commit().join();
 
             return processID;

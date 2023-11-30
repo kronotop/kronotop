@@ -20,9 +20,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class LogicalDatabase {
     public static final String NAME = "0";
-    private final ConcurrentHashMap<Integer, Partition> partitions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, Shard> shards = new ConcurrentHashMap<>();
 
-    public ConcurrentHashMap<Integer, Partition> getPartitions() {
-        return partitions;
+    public ConcurrentHashMap<Integer, Shard> getShards() {
+        return shards;
     }
 }

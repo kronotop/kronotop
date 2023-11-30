@@ -32,12 +32,12 @@ import static com.google.common.hash.Hashing.murmur3_32_fixed;
 public class Consistent {
     private final int replicationFactor;
     private final double loadFactor;
-    private final int partitionCount;
+    private final int numberOfShards;
     private final TreeSet<Integer> sortedSet = new TreeSet<>();
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final HashMap<String, Double> loads = new HashMap<>();
     private final HashMap<String, Member> members = new HashMap<>();
-    private final HashMap<Integer, Member> partitions = new HashMap<>();
+    private final HashMap<Integer, Member> shards = new HashMap<>();
     private final HashMap<Integer, Member> ring = new HashMap<>();
 
     public Consistent(Config config, List<Member> members) {
@@ -46,14 +46,14 @@ public class Consistent {
             for (Member member : members) {
                 addMemberInternal(member);
             }
-            distributePartitions();
+            distributeShards();
         }
     }
 
     public Consistent(Config config) {
         this.replicationFactor = config.getInt("cluster.consistent.replication_factor");
         this.loadFactor = config.getDouble("cluster.consistent.load_factor");
-        this.partitionCount = config.getInt("cluster.partition_count");
+        this.numberOfShards = config.getInt("cluster.number_of_shards");
     }
 
     private int hash32(String key) {
@@ -65,19 +65,19 @@ public class Consistent {
         if (members.isEmpty()) {
             return 0;
         }
-        double avgLoad = ((double) partitionCount / members.size()) * loadFactor;
+        double avgLoad = ((double) numberOfShards / members.size()) * loadFactor;
         return Math.ceil(avgLoad);
     }
 
 
-    private void distributeWithLoad(int partID, Integer idx, HashMap<Integer, Member> newPartitions, HashMap<String, Double> newLoads) {
+    private void distributeWithLoad(int partID, Integer idx, HashMap<Integer, Member> newShards, HashMap<String, Double> newLoads) {
         double avgLoad = averageLoadInternal();
         int count = 0;
         while (true) {
             count++;
             if (count >= sortedSet.size()) {
-                // User needs to decrease partition count, increase member count or increase load factor.
-                throw new RuntimeException("not enough room to distribute partitions");
+                // User needs to decrease the number of shards, increase member count or increase load factor.
+                throw new RuntimeException("not enough room to distribute shards");
             }
 
             Member member = ring.get(idx);
@@ -90,7 +90,7 @@ public class Consistent {
                 load = 0.0;
             }
             if (load + 1 <= avgLoad) {
-                newPartitions.put(partID, member);
+                newShards.put(partID, member);
                 newLoads.put(member.getId(), load + 1);
                 return;
             }
@@ -101,23 +101,23 @@ public class Consistent {
         }
     }
 
-    private void distributePartitions() {
+    private void distributeShards() {
         HashMap<String, Double> newLoads = new HashMap<>();
-        HashMap<Integer, Member> newPartitions = new HashMap<>();
+        HashMap<Integer, Member> newShards = new HashMap<>();
 
         if (!members.isEmpty()) {
-            for (int partID = 0; partID < partitionCount; partID++) {
+            for (int partID = 0; partID < numberOfShards; partID++) {
                 int key = hash32(Integer.toString(partID));
                 Integer idx = sortedSet.ceiling(key);
                 if (idx == null) {
                     idx = sortedSet.first();
                 }
-                distributeWithLoad(partID, idx, newPartitions, newLoads);
+                distributeWithLoad(partID, idx, newShards, newLoads);
             }
         }
 
-        partitions.clear();
-        partitions.putAll(newPartitions);
+        shards.clear();
+        shards.putAll(newShards);
 
         loads.clear();
         loads.putAll(newLoads);
@@ -130,7 +130,7 @@ public class Consistent {
             ring.put(h, member);
             sortedSet.add(h);
         }
-        // Storing member at this map is useful to find backup members of a partition.
+        // Storing member at this map is useful to find backup members of a shard.
         members.put(member.getId(), member);
     }
 
@@ -143,36 +143,36 @@ public class Consistent {
                 return;
             }
             addMemberInternal(member);
-            distributePartitions();
+            distributeShards();
         } finally {
             lock.writeLock().unlock();
         }
     }
 
-    public int findPartition(String key) {
-        return hash32(key) % partitionCount;
+    public int findShard(String key) {
+        return hash32(key) % numberOfShards;
     }
 
-    private Member getPartitionOwnerInternal(int partID) {
-        Member member = partitions.get(partID);
+    private Member getShardOwnerInternal(int shardId) {
+        Member member = shards.get(shardId);
         if (member == null) {
-            throw new NoPartitionOwnerFoundException();
+            throw new NoShardOwnerFoundException();
         }
         return member;
     }
 
-    public Member getPartitionOwner(int partID) {
+    public Member getShardOwner(int partID) {
         lock.readLock().lock();
         try {
-            return getPartitionOwnerInternal(partID);
+            return getShardOwnerInternal(partID);
         } finally {
             lock.readLock().unlock();
         }
     }
 
     public Member locate(String key) {
-        int partID = findPartition(key);
-        return getPartitionOwner(partID);
+        int partID = findShard(key);
+        return getShardOwner(partID);
     }
 
     public double averageLoad() {
@@ -228,7 +228,7 @@ public class Consistent {
                 sortedSet.remove(h);
             }
             members.remove(member.getId());
-            distributePartitions();
+            distributeShards();
         } finally {
             lock.writeLock().unlock();
         }

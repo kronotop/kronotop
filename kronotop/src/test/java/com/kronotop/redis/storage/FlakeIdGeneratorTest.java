@@ -23,11 +23,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class FlakeIdGeneratorTest {
-    long partitionId = 0;
+    long shardId = 0;
 
     @Test
     public void testSequentialIdCreation() {
-        FlakeIdGenerator flakeIdGenerator = new FlakeIdGenerator(partitionId);
+        FlakeIdGenerator flakeIdGenerator = new FlakeIdGenerator(shardId);
         long lower = flakeIdGenerator.nextId();
         long higher = flakeIdGenerator.nextId();
         assertTrue(higher > lower);
@@ -35,16 +35,16 @@ public class FlakeIdGeneratorTest {
 
     @Test
     public void testParse() {
-        FlakeIdGenerator flakeIdGenerator = new FlakeIdGenerator(partitionId);
+        FlakeIdGenerator flakeIdGenerator = new FlakeIdGenerator(shardId);
 
         long first = flakeIdGenerator.nextId();
         long second = flakeIdGenerator.nextId();
 
         long[] parsedFirst = FlakeIdGenerator.parse(first);
-        assertEquals(partitionId, parsedFirst[0]);
+        assertEquals(shardId, parsedFirst[0]);
 
         long[] parsedSecond = FlakeIdGenerator.parse(second);
-        assertEquals(partitionId, parsedSecond[0]);
+        assertEquals(shardId, parsedSecond[0]);
 
         long lower = parsedFirst[1];
         long higher = parsedSecond[1];

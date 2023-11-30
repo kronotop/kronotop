@@ -22,7 +22,7 @@ import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HIncrByFloatMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -60,16 +60,16 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HIncrByFloatMessage hincrbyfloatMessage = request.attr(MessageTypes.HINCRBYFLOAT).get();
 
-        Partition partition = service.resolveKey(response.getContext(), hincrbyfloatMessage.getKey());
-        ReadWriteLock lock = partition.getStriped().get(hincrbyfloatMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), hincrbyfloatMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(hincrbyfloatMessage.getKey());
         lock.writeLock().lock();
         double newValue;
         try {
             HashValue hashValue;
-            Object retrieved = partition.get(hincrbyfloatMessage.getKey());
+            Object retrieved = shard.get(hincrbyfloatMessage.getKey());
             if (retrieved == null) {
                 hashValue = new HashValue();
-                partition.put(hincrbyfloatMessage.getKey(), hashValue);
+                shard.put(hincrbyfloatMessage.getKey(), hashValue);
             } else {
                 if (!(retrieved instanceof HashValue)) {
                     throw new WrongTypeException();
@@ -97,7 +97,7 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        persistence(partition, hincrbyfloatMessage.getKey(), hincrbyfloatMessage.getFieldValuePairs());
+        persistence(shard, hincrbyfloatMessage.getKey(), hincrbyfloatMessage.getFieldValuePairs());
         ByteBuf buf = response.getContext().alloc().buffer();
         buf.writeBytes(Double.toString(newValue).getBytes());
         response.write(buf);

@@ -21,7 +21,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.storage.BaseStorageTest;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redistest.RedisCommandBuilder;
@@ -65,8 +65,8 @@ public class FlushAllHandlerTest extends BaseStorageTest {
         {
             // Persistence task has been run at the background, but it's an async event.
             // Let's run the task eagerly. It's safe.
-            Partition partition = redisService.getPartition(getPartitionId(key));
-            Persistence persistence = new Persistence(context, partition);
+            Shard shard = redisService.getShard(getShardId(key));
+            Persistence persistence = new Persistence(context, shard);
             persistence.run();
         }
 

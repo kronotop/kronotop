@@ -22,9 +22,9 @@ import com.kronotop.core.Context;
 import com.kronotop.core.ContextImpl;
 import com.kronotop.core.FoundationDBFactory;
 import com.kronotop.core.KronotopService;
-import com.kronotop.core.cluster.ClusterService;
 import com.kronotop.core.cluster.Member;
-import com.kronotop.core.cluster.PartitionService;
+import com.kronotop.core.cluster.MembershipService;
+import com.kronotop.core.cluster.coordinator.CoordinatorService;
 import com.kronotop.core.network.Address;
 import com.kronotop.core.watcher.Watcher;
 import com.kronotop.server.resp.Handlers;
@@ -58,20 +58,20 @@ public class BaseHandlerTest {
         database = FoundationDBFactory.newDatabase(config);
         context = new ContextImpl(config, member, database);
 
-        ClusterService clusterService = new ClusterService(context);
-        clusterService.start();
-        clusterService.waitUntilBootstrapped();
-        context.registerService(ClusterService.NAME, clusterService);
+        CoordinatorService coordinatorService = new CoordinatorService(context);
+        coordinatorService.start();
+        context.registerService(CoordinatorService.NAME, coordinatorService);
+
+        MembershipService membershipService = new MembershipService(context);
+        membershipService.start();
+        membershipService.waitUntilBootstrapped();
+        context.registerService(MembershipService.NAME, membershipService);
 
         context.registerService(Watcher.NAME, new Watcher());
         handlers = new Handlers();
         redisService = new RedisService(context, handlers);
         context.registerService(RedisService.NAME, redisService);
         redisService.start();
-
-        PartitionService partitionService = new PartitionService(context);
-        partitionService.start();
-        context.registerService(PartitionService.NAME, partitionService);
 
         channel = newChannel(context, handlers);
     }

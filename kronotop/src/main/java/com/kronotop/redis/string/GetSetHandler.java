@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.GetSetMessage;
 import com.kronotop.server.resp.*;
@@ -60,18 +60,18 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         GetSetMessage getSetMessage = request.attr(MessageTypes.GETSET).get();
 
-        Partition partition = service.resolveKey(response.getContext(), getSetMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), getSetMessage.getKey());
         AtomicReference<Object> result = new AtomicReference<>();
 
-        ReadWriteLock lock = partition.getStriped().get(getSetMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(getSetMessage.getKey());
         try {
             lock.writeLock().lock();
-            partition.compute(getSetMessage.getKey(), (key, oldValue) -> {
+            shard.compute(getSetMessage.getKey(), (key, oldValue) -> {
                 if (oldValue != null && !(oldValue instanceof StringValue)) {
                     throw new WrongTypeException();
                 }
                 if (oldValue == null) {
-                    partition.getIndex().add(getSetMessage.getKey());
+                    shard.getIndex().add(getSetMessage.getKey());
                 }
                 result.set(oldValue);
                 return new StringValue(getSetMessage.getValue());
@@ -88,7 +88,7 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
         StringValue stringValue = (StringValue) result.get();
         ByteBuf buf = response.getContext().alloc().buffer();
         buf.writeBytes(stringValue.getValue());
-        partition.getPersistenceQueue().add(new StringKey(getSetMessage.getKey()));
+        shard.getPersistenceQueue().add(new StringKey(getSetMessage.getKey()));
         response.write(buf);
     }
 }

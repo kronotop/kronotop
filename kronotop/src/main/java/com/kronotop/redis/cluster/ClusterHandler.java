@@ -57,23 +57,23 @@ public class ClusterHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         List<Range> ranges = new ArrayList<>();
         Range currentRange = new Range(0);
-        Integer currentPartId = null;
+        Integer currentShardId = null;
         int lastHashSlot = 0;
         for (int hashSlot = 0; hashSlot < service.NUM_HASH_SLOTS; hashSlot++) {
-            int partId = service.getHashSlots().get(hashSlot);
-            if (currentPartId != null && partId != currentPartId) {
+            int shardId = service.getHashSlots().get(hashSlot);
+            if (currentShardId != null && shardId != currentShardId) {
                 currentRange.setEnd(hashSlot - 1);
-                Member owner = service.getClusterService().getRoutingTable().getPartitionOwner(currentPartId);
+                Member owner = service.getClusterService().getRoutingTable().getRoute(currentShardId).getMember();
                 currentRange.setOwner(owner);
                 ranges.add(currentRange);
                 currentRange = new Range(hashSlot);
             }
-            currentPartId = partId;
+            currentShardId = shardId;
             lastHashSlot = hashSlot;
         }
 
         currentRange.setEnd(lastHashSlot + 1);
-        Member owner = service.getClusterService().getRoutingTable().getPartitionOwner(currentPartId);
+        Member owner = service.getClusterService().getRoutingTable().getRoute(currentShardId).getMember();
         currentRange.setOwner(owner);
         ranges.add(currentRange);
 

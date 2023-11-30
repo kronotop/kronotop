@@ -20,7 +20,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.IncrByFloatMessage;
 import com.kronotop.server.resp.Handler;
@@ -64,13 +64,13 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         IncrByFloatMessage incrByFloatMessage = request.attr(MessageTypes.INCRBYFLOAT).get();
 
-        Partition partition = service.resolveKey(response.getContext(), incrByFloatMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), incrByFloatMessage.getKey());
         AtomicReference<Double> result = new AtomicReference<>();
-        ReadWriteLock lock = partition.getStriped().get(incrByFloatMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(incrByFloatMessage.getKey());
 
         try {
             lock.writeLock().lock();
-            partition.compute(incrByFloatMessage.getKey(), (key, oldValue) -> {
+            shard.compute(incrByFloatMessage.getKey(), (key, oldValue) -> {
                 double currentValue = 0;
                 if (oldValue != null) {
                     StringValue value = (StringValue) oldValue;
@@ -80,7 +80,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
                     }
                 } else {
-                    partition.getIndex().add(incrByFloatMessage.getKey());
+                    shard.getIndex().add(incrByFloatMessage.getKey());
                 }
                 currentValue += incrByFloatMessage.getIncrement();
                 result.set(currentValue);
@@ -90,7 +90,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        partition.getPersistenceQueue().add(new StringKey(incrByFloatMessage.getKey()));
+        shard.getPersistenceQueue().add(new StringKey(incrByFloatMessage.getKey()));
         ByteBuf buf = response.getContext().alloc().buffer();
         buf.writeBytes(result.get().toString().getBytes());
         response.write(buf);

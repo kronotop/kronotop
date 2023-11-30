@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HStrlenMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -45,11 +45,11 @@ public class HStrlenHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HStrlenMessage hstrlenMessage = request.attr(MessageTypes.HSTRLEN).get();
 
-        Partition partition = service.resolveKey(response.getContext(), hstrlenMessage.getKey());
-        ReadWriteLock lock = partition.getStriped().get(hstrlenMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), hstrlenMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(hstrlenMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = partition.get(hstrlenMessage.getKey());
+            Object retrieved = shard.get(hstrlenMessage.getKey());
             if (retrieved == null) {
                 response.writeInteger(0);
                 return;

@@ -17,10 +17,10 @@
 package com.kronotop.redis.generic;
 
 import com.kronotop.redis.BaseHandler;
-import com.kronotop.redis.NoAvailablePartitionException;
+import com.kronotop.redis.NoAvailableShardException;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.ScanMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.index.Projection;
 import com.kronotop.redis.storage.index.impl.FlakeIdGenerator;
 import com.kronotop.server.resp.Handler;
@@ -58,51 +58,51 @@ public class ScanHandler extends BaseHandler implements Handler {
         request.attr(MessageTypes.SCAN).set(new ScanMessage(request));
     }
 
-    private int findPartitionId(Response response, int initial) {
-        for (int partitionId = initial; partitionId < service.getPartitionCount(); partitionId++) {
-            Partition partition = service.getContext().getLogicalDatabase().getPartitions().get(partitionId);
-            if (partition == null || partition.isEmpty()) {
+    private int findShardId(Response response, int initial) {
+        for (int shardId = initial; shardId < service.getNumberOfShards(); shardId++) {
+            Shard shard = service.getContext().getLogicalDatabase().getShards().get(shardId);
+            if (shard == null || shard.isEmpty()) {
                 continue;
             }
-            return partitionId;
+            return shardId;
         }
-        throw new NoAvailablePartitionException();
+        throw new NoAvailableShardException();
     }
 
     @Override
     public void execute(Request request, Response response) {
         ScanMessage scanMessage = request.attr(MessageTypes.SCAN).get();
 
-        int partitionId;
+        int shardId;
         if (scanMessage.getCursor() == 0) {
             try {
-                partitionId = findPartitionId(response, 0);
-            } catch (NoAvailablePartitionException e) {
+                shardId = findShardId(response, 0);
+            } catch (NoAvailableShardException e) {
                 response.writeArray(prepareResponse(response, 0, new ArrayList<>()));
                 return;
             }
         } else {
             long[] parsedCursor = FlakeIdGenerator.parse(scanMessage.getCursor());
-            // This will never overflow. Maximum partition id is 2**14;
-            partitionId = Math.toIntExact(parsedCursor[0]);
+            // This will never overflow. Maximum shard id is 2**14;
+            shardId = Math.toIntExact(parsedCursor[0]);
         }
 
-        Partition partition = service.getPartition(partitionId);
+        Shard shard = service.getShard(shardId);
         List<RedisMessage> children = new ArrayList<>();
 
-        Projection projection = partition.getIndex().getProjection(scanMessage.getCursor(), scanMessage.getCount());
+        Projection projection = shard.getIndex().getProjection(scanMessage.getCursor(), scanMessage.getCount());
         if (projection.getKeys().isEmpty()) {
             response.writeArray(prepareResponse(response, projection.getCursor(), children));
             return;
         }
 
-        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(projection.getKeys());
+        Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(projection.getKeys());
         try {
             for (ReadWriteLock lock : locks) {
                 lock.readLock().lock();
             }
             for (String key : projection.getKeys()) {
-                if (partition.containsKey(key)) {
+                if (shard.containsKey(key)) {
                     ByteBuf buf = response.getContext().alloc().buffer();
                     buf.writeBytes(key.getBytes());
                     children.add(new FullBulkStringRedisMessage(buf));
@@ -116,13 +116,13 @@ public class ScanHandler extends BaseHandler implements Handler {
 
         if (projection.getCursor() == 0) {
             try {
-                int nextPartitionId = findPartitionId(response, partitionId + 1);
-                Partition nextPartition = service.getPartition(nextPartitionId);
-                if (nextPartition != null) {
-                    response.writeArray(prepareResponse(response, nextPartition.getIndex().head(), children));
+                int nextShardId = findShardId(response, shardId + 1);
+                Shard nextShard = service.getShard(nextShardId);
+                if (nextShard != null) {
+                    response.writeArray(prepareResponse(response, nextShard.getIndex().head(), children));
                     return;
                 }
-            } catch (NoAvailablePartitionException e) {
+            } catch (NoAvailableShardException e) {
                 response.writeArray(prepareResponse(response, 0, children));
                 return;
             }

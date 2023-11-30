@@ -21,7 +21,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.impl.OnHeapPartitionImpl;
+import com.kronotop.redis.storage.impl.OnHeapShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.storage.persistence.StringKey;
@@ -35,11 +35,11 @@ import static org.junit.jupiter.api.Assertions.*;
 public class PersistenceTest extends BaseStorageTest {
     @Test
     public void testPersistence_STRING() {
-        Partition partition = new OnHeapPartitionImpl(0);
-        partition.put("key-1", new StringValue("value-1".getBytes(), 0));
-        partition.getPersistenceQueue().add(new StringKey("key-1"));
+        Shard shard = new OnHeapShardImpl(0);
+        shard.put("key-1", new StringValue("value-1".getBytes(), 0));
+        shard.getPersistenceQueue().add(new StringKey("key-1"));
 
-        Persistence persistence = new Persistence(context, partition);
+        Persistence persistence = new Persistence(context, shard);
         assertFalse(persistence.isQueueEmpty());
         persistence.run();
         assertTrue(persistence.isQueueEmpty());
@@ -50,7 +50,7 @@ public class PersistenceTest extends BaseStorageTest {
                 redis().
                 persistence().
                 logicalDatabase(LogicalDatabase.NAME).
-                partitionId("0").
+                shardId("0").
                 dataStructure(DataStructure.STRING.toString().toLowerCase()).
                 toString();
 

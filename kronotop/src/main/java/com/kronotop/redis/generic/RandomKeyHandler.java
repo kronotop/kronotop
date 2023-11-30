@@ -19,7 +19,7 @@ package com.kronotop.redis.generic;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.RandomKeyMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
 import com.kronotop.server.resp.Request;
@@ -51,28 +51,28 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Collection<Partition> partitions = service.getContext().getLogicalDatabase().getPartitions().values();
-        if (partitions.isEmpty()) {
+        Collection<Shard> shards = service.getContext().getLogicalDatabase().getShards().values();
+        if (shards.isEmpty()) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }
-        List<Integer> partitionIds = new ArrayList<>();
-        for (Partition partition : partitions) {
-            if (!partition.isEmpty()) {
-                partitionIds.add(partition.getId());
+        List<Integer> shardIds = new ArrayList<>();
+        for (Shard shard : shards) {
+            if (!shard.isEmpty()) {
+                shardIds.add(shard.getId());
             }
         }
 
-        if (partitionIds.isEmpty()) {
+        if (shardIds.isEmpty()) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }
 
-        int randomIndex = ThreadLocalRandom.current().nextInt(partitionIds.size());
-        int partitionId = partitionIds.get(randomIndex);
-        Partition partition = service.getPartition(partitionId);
+        int randomIndex = ThreadLocalRandom.current().nextInt(shardIds.size());
+        int shardId = shardIds.get(randomIndex);
+        Shard shard = service.getShard(shardId);
         try {
-            String randomKey = partition.getIndex().random();
+            String randomKey = shard.getIndex().random();
             ByteBuf buf = response.getContext().alloc().buffer();
             buf.writeBytes(randomKey.getBytes());
             response.write(buf);

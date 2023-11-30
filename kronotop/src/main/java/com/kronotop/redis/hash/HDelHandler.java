@@ -20,7 +20,7 @@ import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HDelMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MinimumParameterCount;
@@ -57,11 +57,11 @@ public class HDelHandler extends BaseHashHandler implements Handler {
 
         int total = 0;
 
-        Partition partition = service.resolveKey(response.getContext(), hdelMessage.getKey());
-        ReadWriteLock lock = partition.getStriped().get(hdelMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), hdelMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(hdelMessage.getKey());
         lock.writeLock().lock();
         try {
-            Object retrieved = partition.get(hdelMessage.getKey());
+            Object retrieved = shard.get(hdelMessage.getKey());
             if (retrieved == null) {
                 response.writeInteger(0);
                 return;
@@ -78,12 +78,12 @@ public class HDelHandler extends BaseHashHandler implements Handler {
                 }
             }
             if (hashValue.size() == 0) {
-                partition.remove(hdelMessage.getKey());
+                shard.remove(hdelMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();
         }
-        persistence(partition, hdelMessage.getKey(), hdelMessage.getFieldValuePairs());
+        persistence(shard, hdelMessage.getKey(), hdelMessage.getFieldValuePairs());
         response.writeInteger(total);
     }
 }

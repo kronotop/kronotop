@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HRandFieldMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
@@ -97,11 +97,11 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
         FullBulkStringRedisMessage bulkReply = null;
         List<RedisMessage> arrayReply = null;
 
-        Partition partition = service.resolveKey(response.getContext(), hrandfieldMessage.getKey());
-        ReadWriteLock lock = partition.getStriped().get(hrandfieldMessage.getKey());
+        Shard shard = service.resolveKey(response.getContext(), hrandfieldMessage.getKey());
+        ReadWriteLock lock = shard.getStriped().get(hrandfieldMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = partition.get(hrandfieldMessage.getKey());
+            Object retrieved = shard.get(hrandfieldMessage.getKey());
             if (retrieved == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;

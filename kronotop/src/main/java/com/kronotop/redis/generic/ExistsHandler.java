@@ -19,7 +19,7 @@ package com.kronotop.redis.generic;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.ExistsMessage;
-import com.kronotop.redis.storage.Partition;
+import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.Handler;
 import com.kronotop.server.resp.MessageTypes;
 import com.kronotop.server.resp.Request;
@@ -45,9 +45,9 @@ public class ExistsHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         ExistsMessage existsMessage = request.attr(MessageTypes.EXISTS).get();
 
-        Partition partition = service.resolveKeys(response.getContext(), existsMessage.getKeys());
+        Shard shard = service.resolveKeys(response.getContext(), existsMessage.getKeys());
 
-        Iterable<ReadWriteLock> locks = partition.getStriped().bulkGet(existsMessage.getKeys());
+        Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(existsMessage.getKeys());
         long total = 0;
         try {
             for (ReadWriteLock lock : locks) {
@@ -55,7 +55,7 @@ public class ExistsHandler extends BaseHandler implements Handler {
             }
 
             for (String key : existsMessage.getKeys()) {
-                if (partition.containsKey(key)) {
+                if (shard.containsKey(key)) {
                     total++;
                 }
             }
