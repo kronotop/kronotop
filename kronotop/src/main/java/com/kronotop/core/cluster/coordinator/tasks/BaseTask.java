@@ -17,8 +17,10 @@
 package com.kronotop.core.cluster.coordinator.tasks;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public class BaseTask {
+    private String taskId;
     private int shardId;
     private TaskType type;
     private long createdAt;
@@ -27,6 +29,7 @@ public class BaseTask {
     }
 
     public BaseTask(TaskType type, int shardId, long createdAt) {
+        this.taskId = UUID.randomUUID().toString();
         this.type = type;
         this.shardId = shardId;
         this.createdAt = createdAt;
@@ -34,6 +37,10 @@ public class BaseTask {
 
     public BaseTask(TaskType type, int shardId) {
         this(type, shardId, Instant.now().toEpochMilli());
+    }
+
+    public String getTaskId() {
+        return taskId;
     }
 
     public TaskType getType() {
@@ -46,5 +53,10 @@ public class BaseTask {
 
     public long getCreatedAt() {
         return createdAt;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Task {shardId: %d taskId: %s type: %s}", shardId, taskId, type);
     }
 }

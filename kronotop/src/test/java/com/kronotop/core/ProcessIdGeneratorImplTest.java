@@ -14,52 +14,49 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster.journal;
+package com.kronotop.core;
 
 import com.apple.foundationdb.Database;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.ConfigTestUtil;
-import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.DirectoryLayout;
-import com.kronotop.core.Context;
-import com.kronotop.core.ContextImpl;
-import com.kronotop.core.FoundationDBFactory;
-import com.kronotop.core.cluster.Member;
-import com.kronotop.core.network.Address;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.net.UnknownHostException;
-import java.time.Instant;
 import java.util.List;
 
-public class BaseJournalTest {
-    protected String testJournal = "test-journal";
-    protected Config config;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public class ProcessIdGeneratorImplTest {
     protected Database database;
-    protected Context context;
+    protected Config config;
 
     @BeforeEach
     public void setup() {
         config = ConfigTestUtil.load("test.conf");
         database = FoundationDBFactory.newDatabase(config);
-        try {
-            Address address = new Address("localhost", 0);
-            Member member = new Member(address, Instant.now().toEpochMilli());
-            context = new ContextImpl(config, member, database);
-        } catch (UnknownHostException e) {
-            throw new KronotopException(e);
-        }
     }
 
     @AfterEach
-    public void teardown() {
-        database.run(tr -> {
+    public void tearDown() {
+        try (Transaction tr = database.createTransaction()) {
+            String clusterName = config.getString("cluster.name");
             DirectoryLayer directoryLayer = DirectoryLayer.getDefault();
-            List<String> subpath = DirectoryLayout.Builder.clusterName(context.getClusterName()).asList();
-            return directoryLayer.remove(tr, subpath).join();
-        });
-        database.close();
+            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).asList();
+            directoryLayer.remove(tr, subpath).join();
+            tr.commit().join();
+        }
+    }
+
+    @Test
+    public void test_getProcessId() {
+        ProcessIdGeneratorImpl processIDGenerator = new ProcessIdGeneratorImpl(config, database);
+        Versionstamp first = processIDGenerator.getProcessID();
+        Versionstamp second = processIDGenerator.getProcessID();
+        assertTrue(first.compareTo(second) < 0);
     }
 }

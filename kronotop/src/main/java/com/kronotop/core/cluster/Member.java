@@ -16,8 +16,12 @@
 
 package com.kronotop.core.cluster;
 
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
+import com.google.common.io.BaseEncoding;
 import com.kronotop.core.network.Address;
 import io.netty.util.CharsetUtil;
 
@@ -28,12 +32,14 @@ import static com.google.common.hash.Hashing.murmur3_32_fixed;
 public class Member {
     private String id;
     private Address address;
-    private long processId;
+    @JsonSerialize(using = ProcessIdSerializer.class)
+    @JsonDeserialize(using = ProcessIdDeserializer.class)
+    private Versionstamp processId;
 
     Member() {
     }
 
-    public Member(Address address, long processId) {
+    public Member(Address address, Versionstamp processId) {
         this.address = address;
         this.processId = processId;
         HashCode hashCode = Hashing.sha1().newHasher().
@@ -51,7 +57,7 @@ public class Member {
         return id;
     }
 
-    public long getProcessId() {
+    public Versionstamp getProcessId() {
         return processId;
     }
 
@@ -69,7 +75,7 @@ public class Member {
             return false;
         }
         final Member member = (Member) obj;
-        return member.getId().equals(id) && member.getProcessId() == processId;
+        return member.getId().equals(id) && member.getProcessId().equals(processId);
     }
 
     @Override
@@ -78,7 +84,7 @@ public class Member {
                 "Member {id=%s address=%s processId=%s}",
                 id,
                 address,
-                processId
+                BaseEncoding.base64().encode(processId.getBytes())
         );
     }
 }

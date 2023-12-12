@@ -30,17 +30,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class MembershipServiceTest extends BaseClusterTest {
 
     @AfterEach
-    public void teardown() {
+    public void tearDown() {
         database.run(tr -> {
             DirectoryLayer directoryLayer = DirectoryLayer.getDefault();
             List<String> subpath = DirectoryLayout.Builder.clusterName(config.getString("cluster.name")).asList();
             return directoryLayer.remove(tr, subpath).join();
         });
-        super.teardown();
+        super.tearDown();
     }
 
     @Test
-    public void testClusterService() {
+    public void test_MembershipService() {
         int numMembers = 3;
         List<MembershipService> services = new ArrayList<>();
         for (int i = 0; i < numMembers; i++) {

@@ -14,11 +14,25 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster.sharding;
+package com.kronotop.core.journal;
 
-public enum ShardStatus {
-    ASSIGNING,
-    OPERABLE,
-    INOPERABLE,
-    REASSIGNING
+/**
+ * The Event class represents an event consumed from a journal.
+ */
+public class Event {
+    private final byte[] key;
+    private final byte[] value;
+
+    public Event(byte[] key, byte[] value) {
+        this.key = key;
+        this.value = value;
+    }
+
+    public byte[] getKey() {
+        return key;
+    }
+
+    public byte[] getValue() {
+        return value;
+    }
 }

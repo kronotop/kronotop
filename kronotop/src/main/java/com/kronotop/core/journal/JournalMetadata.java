@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster.journal;
+package com.kronotop.core.journal;
 
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 
+/**
+ * The JournalMetadata class represents the metadata of a journal.
+ * It encapsulates the subspace, index key, and journal key related to the journal.
+ */
 public class JournalMetadata {
     private final Subspace subspace;
     private final byte[] indexKey;

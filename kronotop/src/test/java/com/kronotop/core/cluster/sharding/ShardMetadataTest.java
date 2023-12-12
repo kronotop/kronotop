@@ -18,6 +18,7 @@ package com.kronotop.core.cluster.sharding;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kronotop.core.cluster.MockProcessIdGeneratorImpl;
 import com.kronotop.core.cluster.coordinator.tasks.ReassignShardTask;
 import com.kronotop.core.network.Address;
 import org.junit.jupiter.api.Test;
@@ -31,36 +32,35 @@ public class ShardMetadataTest {
 
     @Test
     public void testShardMetadata_encode() throws JsonProcessingException, UnknownHostException {
+        MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
         Address address = Address.parseString("localhost:[5484]");
         ObjectMapper objectMapper = new ObjectMapper();
-        ShardMetadata shardMetadata = new ShardMetadata(address, 1);
-        shardMetadata.setStatus(ShardStatus.OPERABLE);
+        ShardMetadata shardMetadata = new ShardMetadata(address, processIdGenerator.getProcessID());
         String result = objectMapper.writeValueAsString(shardMetadata);
         assertEquals(expectedResult, result);
     }
 
     @Test
     public void testShardMetadata_decode() throws JsonProcessingException, UnknownHostException {
+        MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
         Address address = Address.parseString("localhost:[5484]");
         ObjectMapper objectMapper = new ObjectMapper();
-        ShardMetadata expectedShardMetadata = new ShardMetadata(address, 1);
-        expectedShardMetadata.setStatus(ShardStatus.OPERABLE);
+        ShardMetadata expectedShardMetadata = new ShardMetadata(address, processIdGenerator.getProcessID());
 
         ShardMetadata shardMetadata = objectMapper.readValue(expectedResult, ShardMetadata.class);
-        assertEquals(expectedShardMetadata.getStatus(), shardMetadata.getStatus());
         assertEquals(expectedShardMetadata.getOwner().getAddress(), shardMetadata.getOwner().getAddress());
         assertEquals(expectedShardMetadata.getOwner().getProcessId(), shardMetadata.getOwner().getProcessId());
     }
 
     @Test
     public void testShardMetadata_tasks() throws UnknownHostException, JsonProcessingException {
-        ShardOwner nextOwner = new ShardOwner(Address.parseString("localhost:[5585]"), 10);
+        MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
+        ShardOwner nextOwner = new ShardOwner(Address.parseString("localhost:[5585]"), processIdGenerator.getProcessID());
         ReassignShardTask reassignShardTask = new ReassignShardTask(nextOwner, 3);
 
         Address address = Address.parseString("localhost:[5484]");
         ObjectMapper objectMapper = new ObjectMapper();
-        ShardMetadata shardMetadata = new ShardMetadata(address, 1);
-        shardMetadata.setStatus(ShardStatus.OPERABLE);
+        ShardMetadata shardMetadata = new ShardMetadata(address, processIdGenerator.getProcessID());
         ShardMetadata.Task task = new ShardMetadata.Task(reassignShardTask);
         shardMetadata.getTasks().put("foobar:10", task);
         String result = objectMapper.writeValueAsString(shardMetadata);

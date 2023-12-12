@@ -27,6 +27,10 @@ import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
 import com.kronotop.server.resp.annotation.MinimumParameterCount;
 
+/**
+ * This class is a handler for the "FLUSHALL" command in a Redis service. It implements the Handler interface
+ * and extends the BaseHandler class. It is responsible for executing the actual logic of the "FLUSHALL" command.
+ */
 @Command(FlushAllMessage.COMMAND)
 @MaximumParameterCount(FlushAllMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(FlushAllMessage.MINIMUM_PARAMETER_COUNT)

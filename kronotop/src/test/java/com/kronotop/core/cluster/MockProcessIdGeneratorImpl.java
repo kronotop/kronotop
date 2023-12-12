@@ -14,22 +14,19 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster.journal;
 
-public class Event {
-    private final long offset;
-    private final byte[] value;
+package com.kronotop.core.cluster;
 
-    public Event(long offset, byte[] value) {
-        this.offset = offset;
-        this.value = value;
-    }
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.core.ProcessIdGenerator;
 
-    public long getOffset() {
-        return offset;
-    }
+import java.util.concurrent.atomic.AtomicInteger;
 
-    public byte[] getValue() {
-        return value;
+public class MockProcessIdGeneratorImpl implements ProcessIdGenerator {
+    private final AtomicInteger userVersion = new AtomicInteger(0);
+
+    @Override
+    public Versionstamp getProcessID() {
+        return Versionstamp.incomplete(userVersion.incrementAndGet());
     }
 }

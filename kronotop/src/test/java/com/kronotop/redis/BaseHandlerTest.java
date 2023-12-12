@@ -24,6 +24,7 @@ import com.kronotop.core.FoundationDBFactory;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.cluster.Member;
 import com.kronotop.core.cluster.MembershipService;
+import com.kronotop.core.cluster.MockProcessIdGeneratorImpl;
 import com.kronotop.core.cluster.coordinator.CoordinatorService;
 import com.kronotop.core.network.Address;
 import com.kronotop.core.watcher.Watcher;
@@ -53,8 +54,9 @@ public class BaseHandlerTest {
     }
 
     protected void setupCommon(Config config) throws UnknownHostException, InterruptedException {
+        MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
         Address address = new Address("localhost", 0);
-        Member member = new Member(address, System.currentTimeMillis());
+        Member member = new Member(address, processIdGenerator.getProcessID());
         database = FoundationDBFactory.newDatabase(config);
         context = new ContextImpl(config, member, database);
 

@@ -24,10 +24,21 @@ import com.typesafe.config.ConfigException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The FoundationDBFactory class provides a static method for creating a new FoundationDB Database instance.
+ */
 public class FoundationDBFactory {
     private static final int DEFAULT_FDB_API_VERSION = 510;
     private static final Logger logger = LoggerFactory.getLogger(FoundationDBFactory.class);
 
+    /**
+     * Creates a new FoundationDB Database instance based on the provided configuration.
+     *
+     * @param config the configuration object containing the necessary parameters for establishing a connection to the database
+     * @return a new FoundationDB Database instance
+     * @throws FDBException             if there is an error accessing the FoundationDB database
+     * @throws IllegalArgumentException if the API version specified in the configuration is zero
+     */
     public static Database newDatabase(Config config) throws FDBException {
         int apiVersion = DEFAULT_FDB_API_VERSION;
         try {

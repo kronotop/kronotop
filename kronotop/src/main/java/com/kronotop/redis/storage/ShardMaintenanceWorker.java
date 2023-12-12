@@ -24,36 +24,40 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Objects;
 
-public class ShardMaintenanceTask implements Runnable {
-    private static final Logger logger = LoggerFactory.getLogger(ShardMaintenanceTask.class);
+/**
+ * The ShardMaintenanceWorker class represents a task that performs shard maintenance in a multi-worker environment.
+ * It runs periodically to flush shard indexes and persist data from the persistence queue for a specific worker.
+ * It implements the Runnable interface to be executed by a thread pool.
+ */
+public class ShardMaintenanceWorker implements Runnable {
+    private static final Logger logger = LoggerFactory.getLogger(ShardMaintenanceWorker.class);
     private final Context context;
-    private final int id;
+    private final int workerId;
     private final int numWorkers;
     private final HashMap<Integer, Persistence> cache = new HashMap<>();
 
-    public ShardMaintenanceTask(Context context, int id) {
-        this.id = id;
+    public ShardMaintenanceWorker(Context context, int workerId) {
+        this.workerId = workerId;
         this.context = context;
         this.numWorkers = context.getConfig().getInt("persistence.num_workers");
     }
 
     @Override
     public void run() {
-        // TODO: Persistence.run can take transaction as a parameter.
         try {
-            for (Shard shard : context.getLogicalDatabase().getShards().values()) {
-                if (shard.getId() % numWorkers != id) {
-                    continue;
+            context.getLogicalDatabase().getShards().forEach((shardId, shard) -> {
+                if (shardId % numWorkers != workerId) {
+                    return;
                 }
                 shard.getIndex().flush();
                 if (shard.getPersistenceQueue().size() > 0) {
-                    Persistence persistence = cache.compute(shard.getId(),
+                    Persistence persistence = cache.compute(shardId,
                             (k, value) ->
                                     Objects.requireNonNullElseGet(value,
                                             () -> new Persistence(context, shard)));
                     persistence.run();
                 }
-            }
+            });
         } catch (Exception e) {
             logger.error("Error while running persistence maintenance task {}", e.getMessage());
             throw e;

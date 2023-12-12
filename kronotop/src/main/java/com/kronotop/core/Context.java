@@ -19,6 +19,7 @@ package com.kronotop.core;
 import com.apple.foundationdb.Database;
 import com.google.common.util.concurrent.Striped;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.core.journal.Journal;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.typesafe.config.Config;
 
@@ -44,4 +45,6 @@ public interface Context {
     LogicalDatabase getLogicalDatabase();
 
     Striped<ReadWriteLock> getStripedReadWriteLock();
+
+    Journal getJournal();
 }

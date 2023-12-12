@@ -16,18 +16,25 @@
 
 package com.kronotop.core.cluster.coordinator.events;
 
+import com.kronotop.core.cluster.coordinator.tasks.BaseTask;
+
 public class TaskCompletedEvent extends BaseCoordinatorEvent {
     private String taskId;
 
     TaskCompletedEvent() {
     }
 
-    public TaskCompletedEvent(int shardId, String taskId) {
-        super(CoordinatorEventType.TASK_COMPLETED, shardId);
-        this.taskId = taskId;
+    public TaskCompletedEvent(BaseTask baseTask) {
+        super(CoordinatorEventType.TASK_COMPLETED, baseTask.getShardId());
+        this.taskId = baseTask.getTaskId();
     }
 
     public String getTaskId() {
         return taskId;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("TaskCompletedEvent {shardId: %d taskId: %s type: %s}", getShardId(), taskId, getType());
     }
 }

@@ -17,8 +17,6 @@
 package com.kronotop.redis.storage;
 
 import com.google.common.util.concurrent.Striped;
-import com.kronotop.core.cluster.Member;
-import com.kronotop.core.cluster.sharding.ShardMetadata;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
 
@@ -26,6 +24,10 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 
 public interface Shard extends ConcurrentMap<String, Object> {
+    boolean isReadOnly();
+
+    void setReadOnly(boolean readOnly);
+
     Index getIndex();
 
     Striped<ReadWriteLock> getStriped();
@@ -33,4 +35,8 @@ public interface Shard extends ConcurrentMap<String, Object> {
     PersistenceQueue getPersistenceQueue();
 
     Integer getId();
+
+    boolean isOperable();
+
+    void setOperable(boolean operable);
 }

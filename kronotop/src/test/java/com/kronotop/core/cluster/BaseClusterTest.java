@@ -32,7 +32,7 @@ public class BaseClusterTest {
     private final ConcurrentHashMap<String, KronotopService> services = new ConcurrentHashMap<>();
     protected Config config;
     protected Database database;
-    protected ProcessIDGenerator processIDGenerator = new MockProcessIDGeneratorImpl();
+    protected ProcessIdGenerator processIDGenerator = new MockProcessIdGeneratorImpl();
 
     @BeforeEach
     public void setup() {
@@ -41,7 +41,7 @@ public class BaseClusterTest {
     }
 
     @AfterEach
-    public void teardown() {
+    public void tearDown() {
         for (KronotopService service : services.values()) {
             service.shutdown();
         }

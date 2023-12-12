@@ -14,20 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster;
+package com.kronotop.redis.storage;
 
-import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.common.KronotopException;
 
-public class MemberLeftEvent extends MemberEvent {
-    private MemberLeftEvent() {
-        super();
-    }
-
-    public MemberLeftEvent(String host, int port, Versionstamp processID, long createdAt) {
-        super(EventTypes.MEMBER_LEFT, host, port, processID, createdAt);
-    }
-
-    public MemberLeftEvent(String host, int port, Versionstamp processID) {
-        super(EventTypes.MEMBER_LEFT, host, port, processID);
+public class ShardReadOnlyException extends KronotopException {
+    public ShardReadOnlyException(int shardId) {
+        super(String.format("ShardId: %d is in read-only state", shardId));
     }
 }

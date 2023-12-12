@@ -14,54 +14,43 @@
  * limitations under the License.
  */
 
-package com.kronotop.core;
+package com.kronotop.core.journal;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.ConfigTestUtil;
+import com.kronotop.MissingConfigException;
 import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.core.FoundationDBFactory;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-public class ProcessIDGeneratorImplTest {
-    protected Database database;
+public class BaseJournalTest {
+    protected String testJournal = "test-journal";
     protected Config config;
+    protected Database database;
+    protected String clusterName;
 
     @BeforeEach
     public void setup() {
         config = ConfigTestUtil.load("test.conf");
         database = FoundationDBFactory.newDatabase(config);
+        if (!config.hasPath("cluster.name")) {
+            throw new MissingConfigException("cluster.name is missing in configuration");
+        }
+        this.clusterName = config.getString("cluster.name");
     }
 
     @AfterEach
-    public void teardown() {
-        try (Transaction tr = database.createTransaction()) {
-            String clusterName = config.getString("cluster.name");
+    public void tearDown() {
+        database.run(tr -> {
             DirectoryLayer directoryLayer = DirectoryLayer.getDefault();
-            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).asList();
-            directoryLayer.remove(tr, subpath).join();
-            tr.commit().join();
-        }
-    }
-
-    @Test
-    public void testGetProcessID() {
-        ProcessIDGenerator processIDGenerator = new ProcessIDGeneratorImpl(config, database);
-        assertEquals(1, processIDGenerator.getProcessID());
-    }
-
-    @Test
-    public void testGetProcessID_SequentialIncrease() {
-        ProcessIDGenerator processIDGenerator = new ProcessIDGeneratorImpl(config, database);
-        for (int i = 1; i < 10; i++) {
-            assertEquals(i, processIDGenerator.getProcessID());
-        }
+            List<String> subpath = DirectoryLayout.Builder.clusterName(this.clusterName).asList();
+            return directoryLayer.remove(tr, subpath).join();
+        });
+        database.close();
     }
 }

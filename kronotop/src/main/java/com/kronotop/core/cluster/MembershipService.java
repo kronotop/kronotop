@@ -22,8 +22,10 @@ import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.ByteUtils;
@@ -32,9 +34,9 @@ import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.cluster.coordinator.CoordinatorService;
 import com.kronotop.core.cluster.coordinator.RoutingTable;
-import com.kronotop.core.cluster.journal.Event;
-import com.kronotop.core.cluster.journal.Journal;
-import com.kronotop.core.cluster.journal.JournalName;
+import com.kronotop.core.cluster.sharding.ShardingService;
+import com.kronotop.core.journal.Event;
+import com.kronotop.core.journal.JournalName;
 import com.kronotop.core.network.Address;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +48,6 @@ import java.util.List;
 import java.util.TreeSet;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -58,13 +59,13 @@ public class MembershipService implements KronotopService {
     private final Context context;
     private final ScheduledThreadPoolExecutor scheduler;
     private final AtomicReference<CompletableFuture<Void>> currentWatcher = new AtomicReference<>();
-    private final Journal journal;
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
-    private final AtomicLong lastOffset;
     private final CoordinatorService coordinatorService;
+    private final ShardingService shardingService;
     private final AtomicReference<Member> knownCoordinator = new AtomicReference<>();
     private final ConcurrentHashMap<Member, MemberView> knownMembers = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Member, DirectorySubspace> memberSubspaces = new ConcurrentHashMap<>();
+    private final AtomicReference<byte[]> lastClusterEventsVersionstamp = new AtomicReference<>();
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
     private final AtomicBoolean isBootstrapped = new AtomicBoolean();
@@ -72,13 +73,19 @@ public class MembershipService implements KronotopService {
 
     public MembershipService(Context context) {
         this.context = context;
-        ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("kr.membership-%d").build();
-        this.scheduler = new ScheduledThreadPoolExecutor(2, namedThreadFactory);
-        this.journal = new Journal(context);
-        this.lastOffset = new AtomicLong(this.journal.getConsumer().getLatestIndex(JournalName.clusterEvents())); // TODO: Remove this?
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
         this.coordinatorService = context.getService(CoordinatorService.NAME);
+        this.shardingService = context.getService(ShardingService.NAME);
+
+        ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("kr.membership-%d").build();
+        this.scheduler = new ScheduledThreadPoolExecutor(2, namedThreadFactory);
+
+        context.getFoundationDB().run(tr -> {
+            byte[] key = context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.clusterEvents());
+            this.lastClusterEventsVersionstamp.set(key);
+            return null;
+        });
     }
 
     public void waitUntilBootstrapped() throws InterruptedException {
@@ -96,6 +103,11 @@ public class MembershipService implements KronotopService {
         return DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().cluster().memberlist().addAll(list);
     }
 
+    /**
+     * Unregisters a member from the cluster.
+     *
+     * @param member the member to unregister
+     */
     private void unregisterMember(Member member) {
         Address address = member.getAddress();
         List<String> subpath = getMemberDirectoryLayout(address).asList();
@@ -113,7 +125,7 @@ public class MembershipService implements KronotopService {
 
         try {
             BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.MEMBER_LEFT, new ObjectMapper().writeValueAsString(memberLeftEvent));
-            journal.getPublisher().publish(JournalName.clusterEvents(), broadcastEvent);
+            context.getJournal().getPublisher().publish(JournalName.clusterEvents(), broadcastEvent);
         } catch (JsonProcessingException e) {
             LOGGER.error("Error while creating an event with type: {} for journal: {}", EventTypes.MEMBER_LEFT, JournalName.clusterEvents());
             throw new KronotopException(e);
@@ -122,6 +134,18 @@ public class MembershipService implements KronotopService {
         LOGGER.info("{} has been unregistered", address);
     }
 
+    /**
+     * Registers a member in the cluster.
+     * <p>
+     * This method adds the member to the coordinator service, creates a directory for the member's address in the FoundationDB,
+     * and performs various background tasks related to the membership of the cluster. It also publishes
+     * a {@link MemberJoinEvent} in the cluster events journal.
+     * </p>
+     * <p>
+     * This method throws a {@link MemberAlreadyRegisteredException} if the member is already registered or not gracefully stopped,
+     * and a {@link KronotopException} if there is any other error during the registration process.
+     * </p>
+     */
     private void registerMember() {
         coordinatorService.addMember(context.getMember());
         Address address = context.getMember().getAddress();
@@ -130,7 +154,7 @@ public class MembershipService implements KronotopService {
 
             DirectorySubspace directorySubspace = DirectoryLayer.getDefault().create(tr, subpath).join();
             byte[] processIDKey = directorySubspace.pack(Keys.PROCESS_ID.toString());
-            tr.set(processIDKey, ByteUtils.fromLong(context.getMember().getProcessId()));
+            tr.set(processIDKey, context.getMember().getProcessId().getBytes());
             tr.commit().join();
 
             memberSubspaces.put(context.getMember(), directorySubspace);
@@ -150,7 +174,7 @@ public class MembershipService implements KronotopService {
         MemberJoinEvent memberJoinEvent = new MemberJoinEvent(member.getAddress().getHost(), member.getAddress().getPort(), member.getProcessId());
         try {
             BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.MEMBER_JOIN, new ObjectMapper().writeValueAsString(memberJoinEvent));
-            journal.getPublisher().publish(JournalName.clusterEvents(), broadcastEvent);
+            context.getJournal().getPublisher().publish(JournalName.clusterEvents(), broadcastEvent);
         } catch (JsonProcessingException e) {
             LOGGER.error("Error while creating an event with type: {} for journal: {}", EventTypes.MEMBER_JOIN, JournalName.clusterEvents());
             throw new KronotopException(e);
@@ -159,6 +183,14 @@ public class MembershipService implements KronotopService {
         LOGGER.info("{} has been registered", address);
     }
 
+    /**
+     * Retrieves the last heartbeat timestamp for a given member.
+     *
+     * @param tr     FoundationDB transaction to use for the operation
+     * @param member Member for which to retrieve the last heartbeat timestamp
+     * @return The last heartbeat timestamp for the member, or 0 if it has not been set
+     * @throws NoSuchMemberException if the member does not exist
+     */
     private long getLastHeartbeat(Transaction tr, Member member) {
         long lastHeartbeat = 0;
         try {
@@ -221,6 +253,13 @@ public class MembershipService implements KronotopService {
         scheduler.schedule(new CheckClusterTask(), 0, TimeUnit.NANOSECONDS);
     }
 
+    /**
+     * Retrieves a member by its address from the cluster.
+     *
+     * @param address The address of the member.
+     * @return The member with the specified address.
+     * @throws NoSuchMemberException If the member does not exist.
+     */
     private Member getMemberByAddress(Address address) {
         List<String> subpath = getMemberDirectoryLayout(address).asList();
         try {
@@ -228,7 +267,7 @@ public class MembershipService implements KronotopService {
                 DirectorySubspace directorySubspace = DirectoryLayer.getDefault().open(tr, subpath).join();
                 byte[] processIDKey = directorySubspace.pack(Keys.PROCESS_ID.toString());
                 byte[] rawProcessID = tr.get(processIDKey).join();
-                long processID = ByteUtils.toLong(rawProcessID);
+                Versionstamp processID = Versionstamp.fromBytes(rawProcessID);
                 return new Member(address, processID);
             });
         } catch (CompletionException e) {
@@ -239,15 +278,23 @@ public class MembershipService implements KronotopService {
         }
     }
 
-    public Member getMember(Address address, long processId) {
+    /**
+     * Retrieves a member by its address and process ID from the cluster.
+     *
+     * @param address   The address of the member.
+     * @param processId The process ID of the member.
+     * @return The member with the specified address and process ID.
+     * @throws NoSuchMemberException If the member does not exist.
+     */
+    public Member getMember(Address address, Versionstamp processId) {
         List<String> subpath = getMemberDirectoryLayout(address).asList();
         try {
             return context.getFoundationDB().run(tr -> {
                 DirectorySubspace directorySubspace = DirectoryLayer.getDefault().open(tr, subpath).join();
                 byte[] processIDKey = directorySubspace.pack(Keys.PROCESS_ID.toString());
                 byte[] rawProcessID = tr.get(processIDKey).join();
-                if (processId != ByteUtils.toLong(rawProcessID)) {
-                    throw new NoSuchMemberException(String.format("No such member: %s with processId: %d", address, processId));
+                if (!processId.equals(Versionstamp.fromBytes(rawProcessID))) {
+                    throw new NoSuchMemberException(String.format("No such member: %s with processId: %s", address, BaseEncoding.base64().encode(processId.getBytes())));
                 }
                 return new Member(address, processId);
             });
@@ -269,7 +316,7 @@ public class MembershipService implements KronotopService {
      */
     private TreeSet<Member> getSortedMembers() {
         List<String> addresses = getMembers();
-        TreeSet<Member> members = new TreeSet<>(Comparator.comparingLong(Member::getProcessId));
+        TreeSet<Member> members = new TreeSet<>(Comparator.comparing(Member::getProcessId));
         for (String hostPort : addresses) {
             try {
                 Address address = Address.parseString(hostPort);
@@ -330,7 +377,7 @@ public class MembershipService implements KronotopService {
         currentWatcher.get().cancel(true);
         scheduler.shutdownNow();
         try {
-            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
+            if (!scheduler.awaitTermination(1, TimeUnit.SECONDS)) {
                 LOGGER.warn("MembershipService cannot be stopped gracefully");
             }
         } catch (InterruptedException e) {
@@ -358,6 +405,12 @@ public class MembershipService implements KronotopService {
         }
     }
 
+    /**
+     * Processes a MemberEvent, updating the cluster membership and performing related tasks.
+     *
+     * @param event the MemberEvent to process
+     * @throws UnknownHostException if there is an error with the host address
+     */
     private void processMemberEvent(BroadcastEvent event) throws UnknownHostException {
         ObjectMapper objectMapper = new ObjectMapper();
         MemberEvent memberEvent;
@@ -409,9 +462,8 @@ public class MembershipService implements KronotopService {
         context.getFoundationDB().run(tr -> {
             while (true) {
                 // Try to consume the latest event.
-                Event event = journal.getConsumer().consumeEvent(tr, JournalName.clusterEvents(), lastOffset.get() + 1);
+                Event event = context.getJournal().getConsumer().consumeNext(tr, JournalName.clusterEvents(), lastClusterEventsVersionstamp.get());
                 if (event == null)
-                    // There is nothing to process
                     return null;
 
                 ObjectMapper objectMapper = new ObjectMapper();
@@ -429,7 +481,10 @@ public class MembershipService implements KronotopService {
                                 isBootstrapped.notifyAll();
                             }
                         }
+                        RoutingTable oldRoutingTable = routingTable.get();
+                        shardingService.makeShardsOperable(oldRoutingTable, newRoutingTable);
                         routingTable.set(newRoutingTable);
+                        shardingService.dropPreviouslyOwnedShards(oldRoutingTable, newRoutingTable);
                         LOGGER.debug("Routing table has been updated");
                     }
                 } catch (Exception e) {
@@ -437,11 +492,17 @@ public class MembershipService implements KronotopService {
                 }
 
                 // Processed the event successfully. Forward the offset.
-                lastOffset.set(event.getOffset());
+                lastClusterEventsVersionstamp.set(event.getKey());
             }
         });
     }
 
+    /**
+     * Removes a dead member from the TreeSet of members by recursively pruning dead members.
+     *
+     * @param members The TreeSet of members
+     * @param dead    The dead member to be pruned
+     */
     private void pruneDeadMembers(TreeSet<Member> members, Member dead) {
         unregisterMember(dead);
 
@@ -455,6 +516,12 @@ public class MembershipService implements KronotopService {
         }
     }
 
+    /**
+     * Finds the dead coordinator in the given TreeSet of members and recursively prunes dead members.
+     *
+     * @param members The TreeSet of members
+     * @param member  The member to start the search from
+     */
     private void findDeadCoordinator(TreeSet<Member> members, Member member) {
         Member closest = members.lower(member);
         if (closest == null) {
@@ -479,6 +546,10 @@ public class MembershipService implements KronotopService {
         PROCESS_ID, LAST_HEARTBEAT,
     }
 
+    /**
+     * A private class that implements the Runnable interface.
+     * This task is responsible for finding the cluster coordinator.
+     */
     private class CheckClusterTask implements Runnable {
         @Override
         public void run() {
@@ -497,6 +568,10 @@ public class MembershipService implements KronotopService {
         }
     }
 
+    /**
+     * This class represents a runnable object that watches the cluster events journal.
+     * It fetches the latest events from the journal and processes them.
+     */
     private class ClusterEventsJournalWatcher implements Runnable {
         @Override
         public void run() {
@@ -505,7 +580,7 @@ public class MembershipService implements KronotopService {
             }
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = tr.watch(journal.getConsumer().getJournalMetadata(JournalName.clusterEvents()).getJournalKey());
+                CompletableFuture<Void> watcher = tr.watch(context.getJournal().getJournalMetadata(JournalName.clusterEvents()).getJournalKey());
                 tr.commit().join();
                 currentWatcher.set(watcher);
                 try {
@@ -529,6 +604,10 @@ public class MembershipService implements KronotopService {
         }
     }
 
+    /**
+     * Runnable class representing a heartbeat task.
+     * This task is responsible for updating the last heartbeat timestamp of a member in the cluster.
+     */
     private class HeartbeatTask implements Runnable {
         @Override
         public void run() {
@@ -549,6 +628,10 @@ public class MembershipService implements KronotopService {
         }
     }
 
+    /**
+     * FailureDetectionTask is a private nested class that implements the Runnable interface.
+     * It is responsible for monitoring the heartbeat of cluster members and detecting failures.
+     */
     private class FailureDetectionTask implements Runnable {
         private final long maxSilentPeriod = (long) Math.ceil((double) heartbeatMaximumSilentPeriod / heartbeatInterval);
 

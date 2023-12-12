@@ -18,25 +18,26 @@ package com.kronotop.core.cluster.consistent;
 
 import com.kronotop.ConfigTestUtil;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.core.cluster.MockProcessIdGeneratorImpl;
 import com.kronotop.core.network.Address;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
-import java.time.Instant;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConsistentTest {
-    protected Config config = ConfigTestUtil.load("test.conf");
+    private final Config config = ConfigTestUtil.load("test.conf");
+    private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
 
     @Test
     public void testAdd() throws UnknownHostException {
         Consistent consistent = new Consistent(config);
 
         Address address = new Address("localhost", 0);
-        Member member = new Member(address, Instant.now().toEpochMilli());
+        Member member = new Member(address, processIdGenerator.getProcessID());
         consistent.addMember(member);
 
         Member targetMember = consistent.locate("foobar");
@@ -48,11 +49,11 @@ public class ConsistentTest {
         Consistent consistent = new Consistent(config);
 
         Address addressOne = new Address("localhost", 0);
-        Member memberOne = new Member(addressOne, Instant.now().toEpochMilli());
+        Member memberOne = new Member(addressOne, processIdGenerator.getProcessID());
         consistent.addMember(memberOne);
 
         Address addressTwo = new Address("localhost", 0);
-        Member memberTwo = new Member(addressTwo, Instant.now().toEpochMilli());
+        Member memberTwo = new Member(addressTwo, processIdGenerator.getProcessID());
         consistent.addMember(memberTwo);
 
         List<Member> expectedMembers = new ArrayList<>();
@@ -70,7 +71,7 @@ public class ConsistentTest {
         Consistent consistent = new Consistent(config);
 
         Address address = new Address("localhost", 0);
-        Member member = new Member(address, Instant.now().toEpochMilli());
+        Member member = new Member(address, processIdGenerator.getProcessID());
         consistent.addMember(member);
 
         assertTrue(consistent.averageLoad() > 0);
@@ -81,11 +82,11 @@ public class ConsistentTest {
         Consistent consistent = new Consistent(config);
 
         Address addressOne = new Address("localhost", 0);
-        Member memberOne = new Member(addressOne, Instant.now().toEpochMilli());
+        Member memberOne = new Member(addressOne, processIdGenerator.getProcessID());
         consistent.addMember(memberOne);
 
         Address addressTwo = new Address("localhost", 0);
-        Member memberTwo = new Member(addressTwo, Instant.now().toEpochMilli());
+        Member memberTwo = new Member(addressTwo, processIdGenerator.getProcessID());
         consistent.addMember(memberTwo);
 
         List<Member> expectedMembers = new ArrayList<>();
@@ -117,11 +118,11 @@ public class ConsistentTest {
         Consistent consistent = new Consistent(config);
 
         Address addressOne = new Address("localhost", 0);
-        Member memberOne = new Member(addressOne, Instant.now().toEpochMilli());
+        Member memberOne = new Member(addressOne, processIdGenerator.getProcessID());
         consistent.addMember(memberOne);
 
         Address addressTwo = new Address("localhost", 0);
-        Member memberTwo = new Member(addressTwo, Instant.now().toEpochMilli());
+        Member memberTwo = new Member(addressTwo, processIdGenerator.getProcessID());
         consistent.addMember(memberTwo);
 
         Set<String> members = new HashSet<>();
@@ -139,7 +140,7 @@ public class ConsistentTest {
         for (int i = 1; i <= 10; i++) {
             try {
                 Address address = new Address("localhost", 0);
-                Member m = new Member(address, Instant.now().toEpochMilli());
+                Member m = new Member(address, processIdGenerator.getProcessID());
                 consistent.addMember(m);
             } catch (UnknownHostException e) {
                 throw new RuntimeException(e);
@@ -158,7 +159,7 @@ public class ConsistentTest {
         Consistent consistent = new Consistent(config);
 
         Address address = new Address("localhost", 0);
-        Member member = new Member(address, Instant.now().toEpochMilli());
+        Member member = new Member(address, processIdGenerator.getProcessID());
 
         assertDoesNotThrow(() -> consistent.removeMember(member));
     }
@@ -168,11 +169,11 @@ public class ConsistentTest {
         Consistent consistent = new Consistent(config);
 
         Address addressOne = new Address("localhost", 0);
-        Member memberOne = new Member(addressOne, Instant.now().toEpochMilli());
+        Member memberOne = new Member(addressOne, processIdGenerator.getProcessID());
         consistent.addMember(memberOne);
 
         Address addressTwo = new Address("localhost", 0);
-        Member memberTwo = new Member(addressTwo, Instant.now().toEpochMilli());
+        Member memberTwo = new Member(addressTwo, processIdGenerator.getProcessID());
         consistent.addMember(memberTwo);
 
         consistent.removeMember(memberTwo);
@@ -187,7 +188,7 @@ public class ConsistentTest {
         for (int i = 1; i <= 10; i++) {
             try {
                 Address address = new Address("localhost", 0);
-                Member m = new Member(address, Instant.now().toEpochMilli());
+                Member m = new Member(address, processIdGenerator.getProcessID());
                 members.add(m);
             } catch (UnknownHostException e) {
                 throw new RuntimeException(e);

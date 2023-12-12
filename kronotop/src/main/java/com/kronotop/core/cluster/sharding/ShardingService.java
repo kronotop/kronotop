@@ -18,7 +18,6 @@ package com.kronotop.core.cluster.sharding;
 
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -26,36 +25,44 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
+import com.kronotop.core.cluster.coordinator.Route;
+import com.kronotop.core.cluster.coordinator.RoutingTable;
 import com.kronotop.core.cluster.coordinator.events.TaskCompletedEvent;
 import com.kronotop.core.cluster.coordinator.tasks.AssignShardTask;
 import com.kronotop.core.cluster.coordinator.tasks.BaseTask;
 import com.kronotop.core.cluster.coordinator.tasks.ReassignShardTask;
 import com.kronotop.core.cluster.coordinator.tasks.TaskType;
-import com.kronotop.core.cluster.journal.Event;
-import com.kronotop.core.cluster.journal.Journal;
-import com.kronotop.core.cluster.journal.JournalMetadata;
-import com.kronotop.core.cluster.journal.JournalName;
+import com.kronotop.core.journal.Event;
+import com.kronotop.core.journal.JournalMetadata;
+import com.kronotop.core.journal.JournalName;
 import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.impl.OnHeapShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
+import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.storage.persistence.ShardLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Objects;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * ShardingService is a service for managing shards in a distributed database system.
+ * <p>
+ * This service is responsible for loading shards from FoundationDB,
+ * dropping previously owned shards, and making shards operable based on routing tables.
+ * <p>
+ * The service listens for sharding tasks from a journal and handles them accordingly.
+ * <p>
+ * Shards can be loaded, dropped, and made operable by calling the respective methods.
+ */
 public class ShardingService implements KronotopService {
     public static final String NAME = "Sharding";
     private static final Logger LOGGER = LoggerFactory.getLogger(ShardingService.class);
     private final Context context;
-    private final Journal journal;
-    private final AtomicLong lastOffset;
-    private final HashMap<Integer, DirectorySubspace> shardsSubspaces = new HashMap<>();
+    private final AtomicReference<byte[]> latestShardEventsVersionstamp = new AtomicReference<>();
     private final AtomicReference<CompletableFuture<Void>> currentWatcher = new AtomicReference<>();
     private final ExecutorService executor;
     private final CountDownLatch latch = new CountDownLatch(1);
@@ -64,10 +71,14 @@ public class ShardingService implements KronotopService {
     public ShardingService(Context context) {
         this.context = context;
         this.executor = Executors.newSingleThreadExecutor(
-                new ThreadFactoryBuilder().setNameFormat("kr.sharding-service-%d").build()
+                new ThreadFactoryBuilder().setNameFormat("kr.sharding-%d").build()
         );
-        this.journal = new Journal(context);
-        this.lastOffset = new AtomicLong(this.journal.getConsumer().getLatestIndex(JournalName.shardEvents(context.getMember())));
+
+        context.getFoundationDB().run(tr -> {
+            byte[] key = context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.shardEvents(context.getMember()));
+            this.latestShardEventsVersionstamp.set(key);
+            return null;
+        });
     }
 
     public void start() {
@@ -106,7 +117,17 @@ public class ShardingService implements KronotopService {
         }
     }
 
+    /**
+     * Loads a shard from FoundationDB.
+     *
+     * @param task The task containing the shard ID of the shard to be loaded.
+     */
     private void loadShardFromFDB(BaseTask task) {
+        if (context.getLogicalDatabase().getShards().containsKey(task.getShardId())) {
+            LOGGER.warn("ShardId: {} could not be loaded from FoundationDB because it's already exists", task.getShardId());
+            return;
+        }
+
         Shard shard = context.getLogicalDatabase().getShards().compute(task.getShardId(),
                 (key, value) -> Objects.requireNonNullElseGet(
                         value, () -> new OnHeapShardImpl(task.getShardId()))
@@ -129,49 +150,133 @@ public class ShardingService implements KronotopService {
             }
         }
         LOGGER.info("ShardId: {} has been loaded from FoundationDB", task.getShardId());
+        shard.setReadOnly(true);
     }
 
-    private String getTaskId(String journal, long offset) {
-        return String.format("%s:%d", journal, offset);
+    /**
+     * Drops shards that were previously owned by the current member and have been assigned to a different owner in the new routing table.
+     *
+     * @param oldRoutingTable The old routing table.
+     * @param newRoutingTable The new routing table.
+     */
+    public void dropPreviouslyOwnedShards(RoutingTable oldRoutingTable, RoutingTable newRoutingTable) {
+        if (oldRoutingTable == null || newRoutingTable == null) {
+            return;
+        }
+        int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
+        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            Route oldRoute = oldRoutingTable.getRoute(shardId);
+            if (oldRoute == null) {
+                continue;
+            }
+            if (oldRoute.getMember().equals(context.getMember())) {
+                // It belonged to this member. Check the new owner.
+                Route newRoute = newRoutingTable.getRoute(shardId);
+                if (!newRoute.getMember().equals(context.getMember())) {
+                    LOGGER.info("Dropping ShardId: {}", shardId);
+                    context.getLogicalDatabase().getShards().remove(shardId);
+                }
+            }
+        }
     }
 
+    /**
+     * Makes the shards operable by setting their read-only flag to false and operable flag to true,
+     * based on the old and new routing tables.
+     *
+     * @param oldRoutingTable The old routing table.
+     * @param newRoutingTable The new routing table.
+     */
+    public void makeShardsOperable(RoutingTable oldRoutingTable, RoutingTable newRoutingTable) {
+        if (oldRoutingTable == null) {
+            oldRoutingTable = new RoutingTable();
+        }
+        int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
+        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            Route oldRoute = oldRoutingTable.getRoute(shardId);
+            if (oldRoute == null || !oldRoute.getMember().equals(context.getMember())) {
+                Route newRoute = newRoutingTable.getRoute(shardId);
+                if (newRoute != null && newRoute.getMember().equals(context.getMember())) {
+                    context.getLogicalDatabase().getShards().computeIfPresent(shardId, (id, shard) -> {
+                        shard.setReadOnly(false);
+                        shard.setOperable(true);
+                        return shard;
+                    });
+                }
+            }
+        }
+    }
+
+    /**
+     * Processes sharding tasks by consuming and handling events from a journal.
+     * This method is synchronized to ensure that only one thread can process tasks at a time.
+     * <p>
+     * The method retrieves the latest event from the shard events journal
+     * and handles the event based on the type of the task.
+     * <p>
+     * If the task is an ASSIGN_SHARD task, the method loads the shard from FoundationDB
+     * and completes the task by publishing a TaskCompletedEvent to the coordinator events journal.
+     * <p>
+     * If the task is a REASSIGN_SHARD task, the method sets the shard as read-only,
+     * processes any pending persistence operations, and completes the task by publishing a TaskCompletedEvent
+     * to the coordinator events journal.
+     * <p>
+     * If the task is of an unknown type, the method logs an error.
+     * <p>
+     * Finally, the method updates the latestShardEventsVersionstamp to the key of the processed event.
+     */
     private synchronized void processShardingTask() {
         context.getFoundationDB().run(tr -> {
             String journalName = JournalName.shardEvents(context.getMember());
             while (true) {
                 // Try to consume the latest event.
-                Event event = journal.getConsumer().consumeEvent(tr, journalName, lastOffset.get() + 1);
+                Event event = context.getJournal().getConsumer().consumeNext(tr, journalName, latestShardEventsVersionstamp.get());
                 if (event == null)
-                    // There is nothing to process
                     return null;
 
                 ObjectMapper objectMapper = new ObjectMapper();
                 objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
                 try {
                     BaseTask baseTask = objectMapper.readValue(event.getValue(), BaseTask.class);
-                    LOGGER.info("New sharding task has been received. ShardId: {}, TaskType: {}", baseTask.getShardId(), baseTask.getType());
+                    LOGGER.info("{} has been received", baseTask);
                     if (baseTask.getType() == TaskType.ASSIGN_SHARD) {
                         AssignShardTask task = objectMapper.readValue(event.getValue(), AssignShardTask.class);
                         loadShardFromFDB(task);
 
                         // Complete the task.
-                        String taskId = getTaskId(journalName, event.getOffset());
-                        journal.getPublisher().publish(JournalName.coordinatorEvents(), new TaskCompletedEvent(baseTask.getShardId(), taskId));
+                        context.getJournal().getPublisher().publish(JournalName.coordinatorEvents(), new TaskCompletedEvent(baseTask));
                     } else if (baseTask.getType() == TaskType.REASSIGN_SHARD) {
                         ReassignShardTask task = objectMapper.readValue(event.getValue(), ReassignShardTask.class);
+                        Shard shard = context.getLogicalDatabase().getShards().get(task.getShardId());
+                        if (shard != null) {
+                            shard.setReadOnly(true);
+                            if (shard.getPersistenceQueue().size() > 0) {
+                                Persistence persistence = new Persistence(context, shard);
+                                while (!persistence.isQueueEmpty()) {
+                                    persistence.run();
+                                }
+                            }
+                        }
+                        context.getJournal().getPublisher().publish(JournalName.coordinatorEvents(), new TaskCompletedEvent(baseTask));
                     } else {
-                        LOGGER.error("Unknown task. ShardId: {}, TaskType: {}", baseTask.getShardId(), baseTask.getType());
+                        LOGGER.error("{} unknown task ", baseTask);
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
 
                 // Processed the event successfully. Forward the offset.
-                lastOffset.set(event.getOffset());
+                latestShardEventsVersionstamp.set(event.getKey());
             }
         });
     }
 
+    /**
+     * The ShardEventsJournalWatcher class represents a watcher for the shard events journal.
+     * It implements the Runnable interface for running the watcher in a separate thread.
+     *
+     * @see Runnable
+     */
     private class ShardEventsJournalWatcher implements Runnable {
         @Override
         public void run() {
@@ -180,7 +285,7 @@ public class ShardingService implements KronotopService {
             }
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                JournalMetadata journalMetadata = journal.getConsumer().getJournalMetadata(JournalName.shardEvents(context.getMember()));
+                JournalMetadata journalMetadata = context.getJournal().getJournalMetadata(JournalName.shardEvents(context.getMember()));
                 CompletableFuture<Void> watcher = tr.watch(journalMetadata.getJournalKey());
                 tr.commit().join();
                 currentWatcher.set(watcher);

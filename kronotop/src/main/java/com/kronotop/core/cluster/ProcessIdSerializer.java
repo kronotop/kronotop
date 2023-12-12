@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-
 package com.kronotop.core.cluster;
 
-import com.kronotop.core.ProcessIDGenerator;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.io.IOException;
 
-public class MockProcessIDGeneratorImpl implements ProcessIDGenerator {
-    private final AtomicLong counter = new AtomicLong(0);
-
+public class ProcessIdSerializer extends JsonSerializer<Versionstamp> {
     @Override
-    public long getProcessID() {
-        return counter.incrementAndGet();
+    public void serialize(Versionstamp value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+        gen.writeBinary(value.getBytes());
     }
 }

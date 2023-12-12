@@ -18,6 +18,9 @@ package com.kronotop.core.cluster.coordinator;
 
 import com.kronotop.core.cluster.Member;
 
+/**
+ * The Route class represents a route in a routing table. It is associated with a Member object.
+ */
 public class Route {
     private Member member;
 

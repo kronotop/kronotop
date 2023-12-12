@@ -19,8 +19,10 @@ package com.kronotop.core.cluster.coordinator;
 import com.kronotop.core.cluster.BroadcastEvent;
 import com.kronotop.core.cluster.EventTypes;
 
+/**
+ * Represents an event that updates the routing table.
+ */
 public class UpdateRoutingTableEvent extends BroadcastEvent {
-
     public UpdateRoutingTableEvent(String payload) {
         super(EventTypes.UPDATE_ROUTING_TABLE, payload);
     }

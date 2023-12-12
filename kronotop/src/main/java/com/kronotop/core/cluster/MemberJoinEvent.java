@@ -16,16 +16,18 @@
 
 package com.kronotop.core.cluster;
 
+import com.apple.foundationdb.tuple.Versionstamp;
+
 public class MemberJoinEvent extends MemberEvent {
     private MemberJoinEvent() {
         super();
     }
 
-    public MemberJoinEvent(String host, int port, long processID, long createdAt) {
+    public MemberJoinEvent(String host, int port, Versionstamp processID, long createdAt) {
         super(EventTypes.MEMBER_JOIN, host, port, processID, createdAt);
     }
 
-    public MemberJoinEvent(String host, int port, long processID) {
+    public MemberJoinEvent(String host, int port, Versionstamp processID) {
         super(EventTypes.MEMBER_JOIN, host, port, processID);
     }
 }

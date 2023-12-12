@@ -3,6 +3,7 @@ package com.kronotop.core.cluster.sharding;
 import com.kronotop.core.Context;
 import com.kronotop.core.cluster.BaseClusterTest;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.core.cluster.MockProcessIdGeneratorImpl;
 import com.kronotop.core.cluster.coordinator.CoordinatorService;
 import com.kronotop.core.network.Address;
 import org.junit.jupiter.api.Test;
@@ -16,7 +17,8 @@ public class CoordinatorServiceTest extends BaseClusterTest {
         Context context = newContext();
         CoordinatorService coordinatorService = new CoordinatorService(context);
 
-        Member member = new Member(Address.parseString("localhost:[5484]"), 10);
+        MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
+        Member member = new Member(Address.parseString("localhost:[5484]"), processIdGenerator.getProcessID());
         coordinatorService.addMember(member);
         coordinatorService.checkShardOwnerships();
     }

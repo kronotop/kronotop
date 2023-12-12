@@ -35,6 +35,10 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 
+/**
+ * The Persistence class is responsible for persisting data to the FoundationDB cluster.
+ * It provides methods for persisting different types of data structures such as strings and hashes.
+ */
 public class Persistence {
     public static final int MAXIMUM_TRANSACTION_SIZE = 10_000_000;
     public static final String PERSISTENCE_LAYOUT_KEY = "persistence-layout";
@@ -44,6 +48,13 @@ public class Persistence {
     private final Shard shard;
     private final EnumMap<DataStructure, Node> layout = new EnumMap<>(DataStructure.class);
 
+    /**
+     * Constructs a Persistence object with the given context and shard.
+     * Initializes the layout and directories for each data structure in the persistence layer.
+     *
+     * @param context the Context object containing information about the cluster and database
+     * @param shard   the Shard object representing a shard in the cluster
+     */
     public Persistence(Context context, Shard shard) {
         this.context = context;
         this.shard = shard;
@@ -70,10 +81,24 @@ public class Persistence {
         }
     }
 
+    /**
+     * Checks if the persistence queue of a shard is empty.
+     *
+     * @return true if the persistence queue is empty, false otherwise
+     */
     public boolean isQueueEmpty() {
         return shard.getPersistenceQueue().size() == 0;
     }
 
+    /**
+     * Persists the given string value with the specified key in the transaction.
+     *
+     * @param tr          the transaction object
+     * @param key         the key object for the string value
+     * @param stringValue the string value to be persisted
+     * @throws IOException                  if an I/O error occurs while encoding the string value
+     * @throws TransactionSizeLimitExceeded if the size of the transaction exceeds the maximum allowed size
+     */
     private void persistStringValue(Transaction tr, StringKey key, StringValue stringValue) throws IOException {
         Node node = layout.get(DataStructure.STRING);
         byte[] packetKey = node.getSubspace().pack(key.getKey());
@@ -89,6 +114,14 @@ public class Persistence {
         transactionSize.addAndGet(data.length);
     }
 
+    /**
+     * Persists the given hash value with the specified key in the transaction.
+     *
+     * @param tr        the transaction object
+     * @param hashKey   the key object for the hash value
+     * @param hashValue the hash value to be persisted
+     * @throws TransactionSizeLimitExceeded if the size of the transaction exceeds the maximum allowed size
+     */
     private void persistHashValue(Transaction tr, HashKey hashKey, HashValue hashValue) {
         Node node = layout.get(DataStructure.HASH);
         DirectorySubspace subspace = node.getLeaf(tr.getDatabase(), hashKey.getKey()).getSubspace();
@@ -109,6 +142,15 @@ public class Persistence {
         }
     }
 
+    /**
+     * Executes the persistence process for a batch of keys.
+     * It retrieves a batch of keys from the persistence queue,
+     * and for each key, it locks the corresponding lock, retrieves the latest value from the shard,
+     * and persists the value in the transaction.
+     * Finally, it commits the transaction and handles any exceptions that occur during the process.
+     *
+     * @throws RuntimeException if an exception occurs during the persistence process
+     */
     public void run() {
         List<Key> keys = shard.getPersistenceQueue().poll(1000);
         if (keys.isEmpty()) {

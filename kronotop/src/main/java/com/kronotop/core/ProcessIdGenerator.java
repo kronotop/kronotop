@@ -14,24 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster.journal;
+package com.kronotop.core;
 
-import com.kronotop.core.Context;
+import com.apple.foundationdb.tuple.Versionstamp;
 
-public class Journal {
-    private final Publisher publisher;
-    private final Consumer consumer;
-
-    public Journal(Context context) {
-        this.publisher = new Publisher(context);
-        this.consumer = new Consumer(context);
-    }
-
-    public Consumer getConsumer() {
-        return consumer;
-    }
-
-    public Publisher getPublisher() {
-        return publisher;
-    }
+/**
+ * The ProcessIdGenerator interface provides a method to generate process IDs.
+ */
+public interface ProcessIdGenerator {
+    Versionstamp getProcessID();
 }

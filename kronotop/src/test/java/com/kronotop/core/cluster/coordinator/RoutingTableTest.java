@@ -19,6 +19,7 @@ package com.kronotop.core.cluster.coordinator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.core.cluster.MockProcessIdGeneratorImpl;
 import com.kronotop.core.network.Address;
 import org.junit.jupiter.api.Test;
 
@@ -28,8 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class RoutingTableTest {
+    private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
+
     private Route newRoute() throws UnknownHostException {
-        Member member = new Member(Address.parseString("localhost:3320"), 1);
+        Member member = new Member(Address.parseString("localhost:3320"), processIdGenerator.getProcessID());
         return new Route(member);
     }
 
@@ -64,7 +67,7 @@ public class RoutingTableTest {
     public void test_setCoordinator() throws UnknownHostException {
         RoutingTable routingTable = new RoutingTable();
 
-        Member member = new Member(Address.parseString("localhost:3320"), 1);
+        Member member = new Member(Address.parseString("localhost:3320"), processIdGenerator.getProcessID());
         assertDoesNotThrow(() -> routingTable.updateCoordinator(member));
     }
 
@@ -72,7 +75,7 @@ public class RoutingTableTest {
     public void test_getCoordinator() throws UnknownHostException {
         RoutingTable routingTable = new RoutingTable();
 
-        Member member = new Member(Address.parseString("localhost:3320"), 1);
+        Member member = new Member(Address.parseString("localhost:3320"), processIdGenerator.getProcessID());
         routingTable.updateCoordinator(member);
 
         assertEquals(member, routingTable.getCoordinator());

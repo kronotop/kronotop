@@ -21,6 +21,7 @@ import com.google.common.util.concurrent.Striped;
 import com.kronotop.MissingConfigException;
 import com.kronotop.common.KronotopException;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.core.journal.Journal;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.typesafe.config.Config;
 
@@ -39,18 +40,20 @@ public class ContextImpl implements Context {
     private final String clusterName;
     private final LogicalDatabase logicalDatabase;
     private final Striped<ReadWriteLock> stripedReadWriteLock = Striped.readWriteLock(3);
+    private final Journal journal;
 
     public ContextImpl(Config config, Member member, Database database) {
-        this.config = config;
-        this.member = member;
-        this.database = database;
-        this.logicalDatabase = new LogicalDatabase();
-
         if (config.hasPath("cluster.name")) {
             clusterName = config.getString("cluster.name");
         } else {
             throw new MissingConfigException("cluster.name is missing in configuration");
         }
+
+        this.config = config;
+        this.member = member;
+        this.database = database;
+        this.logicalDatabase = new LogicalDatabase();
+        this.journal = new Journal(config, database);
     }
 
     @Override
@@ -99,5 +102,10 @@ public class ContextImpl implements Context {
 
     public Striped<ReadWriteLock> getStripedReadWriteLock() {
         return stripedReadWriteLock;
+    }
+
+    @Override
+    public Journal getJournal() {
+        return journal;
     }
 }

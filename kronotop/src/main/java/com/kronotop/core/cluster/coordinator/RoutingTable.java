@@ -32,6 +32,10 @@ import java.util.HashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * The RoutingTable class represents a routing table used in a distributed system. It maintains a mapping of shard identifiers to routes,
+ * and keeps track of the coordinator member and version number.
+ */
 public class RoutingTable {
     @JsonSerialize(using = RoutesSerializer.class)
     @JsonDeserialize(using = RoutesDeserializer.class)

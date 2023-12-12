@@ -14,8 +14,19 @@
  * limitations under the License.
  */
 
-package com.kronotop.core;
+package com.kronotop.core.cluster;
 
-public interface ProcessIDGenerator {
-    long getProcessID();
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+
+import java.io.IOException;
+
+public class ProcessIdDeserializer extends JsonDeserializer<Versionstamp> {
+    @Override
+    public Versionstamp deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+        byte[] bytes = p.getBinaryValue();
+        return Versionstamp.fromBytes(bytes);
+    }
 }

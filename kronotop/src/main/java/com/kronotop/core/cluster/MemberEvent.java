@@ -16,11 +16,18 @@
 
 package com.kronotop.core.cluster;
 
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.google.common.io.BaseEncoding;
+
 import java.time.Instant;
 
 public class MemberEvent {
     private EventTypes type;
-    private long processID;
+    @JsonSerialize(using = ProcessIdSerializer.class)
+    @JsonDeserialize(using = ProcessIdDeserializer.class)
+    private Versionstamp processID;
     private long createdAt;
     private String host;
     private int port;
@@ -28,7 +35,7 @@ public class MemberEvent {
     MemberEvent() {
     }
 
-    public MemberEvent(EventTypes type, String host, int port, long processID, long createdAt) {
+    public MemberEvent(EventTypes type, String host, int port, Versionstamp processID, long createdAt) {
         this.type = type;
         this.processID = processID;
         this.createdAt = createdAt;
@@ -36,7 +43,7 @@ public class MemberEvent {
         this.port = port;
     }
 
-    public MemberEvent(EventTypes type, String host, int port, long processID) {
+    public MemberEvent(EventTypes type, String host, int port, Versionstamp processID) {
         this(type, host, port, processID, Instant.now().toEpochMilli());
     }
 
@@ -48,7 +55,7 @@ public class MemberEvent {
         return createdAt;
     }
 
-    public long getProcessID() {
+    public Versionstamp getProcessID() {
         return processID;
     }
 
@@ -66,7 +73,7 @@ public class MemberEvent {
                 type,
                 host,
                 port,
-                processID,
+                BaseEncoding.base64().encode(processID.getBytes()),
                 createdAt
         );
     }

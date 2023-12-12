@@ -16,6 +16,7 @@
 
 package com.kronotop.core.cluster.coordinator;
 
+import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -37,13 +38,11 @@ import com.kronotop.core.cluster.coordinator.events.TaskCompletedEvent;
 import com.kronotop.core.cluster.coordinator.tasks.AssignShardTask;
 import com.kronotop.core.cluster.coordinator.tasks.ReassignShardTask;
 import com.kronotop.core.cluster.coordinator.tasks.TaskType;
-import com.kronotop.core.cluster.journal.Event;
-import com.kronotop.core.cluster.journal.Journal;
-import com.kronotop.core.cluster.journal.JournalMetadata;
-import com.kronotop.core.cluster.journal.JournalName;
 import com.kronotop.core.cluster.sharding.ShardMetadata;
 import com.kronotop.core.cluster.sharding.ShardOwner;
-import com.kronotop.core.cluster.sharding.ShardStatus;
+import com.kronotop.core.journal.Event;
+import com.kronotop.core.journal.JournalMetadata;
+import com.kronotop.core.journal.JournalName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,19 +52,20 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * The CoordinatorService class represents a service that manages coordination and routing in the system.
+ */
 public class CoordinatorService implements KronotopService {
     public static final String NAME = "Coordinator";
     private static final Logger LOGGER = LoggerFactory.getLogger(CoordinatorService.class);
     private final Context context;
-    private final Journal journal;
     private final Consistent consistent;
     private final RoutingTable routingTable = new RoutingTable();
     private final AtomicReference<CompletableFuture<Void>> currentWatcher = new AtomicReference<>();
-    private final AtomicLong lastOffset;
+    private final AtomicReference<byte[]> latestCoordinatorEventsEventKey = new AtomicReference<>();
     private final HashMap<Integer, DirectorySubspace> shardsSubspaces = new HashMap<>();
     private final ScheduledThreadPoolExecutor scheduler;
     private final CountDownLatch latch = new CountDownLatch(2);
@@ -74,40 +74,153 @@ public class CoordinatorService implements KronotopService {
 
     public CoordinatorService(Context context) {
         this.context = context;
-        this.journal = new Journal(context);
-        this.lastOffset = new AtomicLong(this.journal.getConsumer().getLatestIndex(JournalName.coordinatorEvents()));
         this.consistent = new Consistent(context.getConfig());
-        this.scheduler = new ScheduledThreadPoolExecutor(1,
-                new ThreadFactoryBuilder().setNameFormat("kr.coordinator-service-%d").build()
+        this.scheduler = new ScheduledThreadPoolExecutor(2,
+                new ThreadFactoryBuilder().setNameFormat("kr.coordinator-%d").build()
         );
-        this.routingTable.updateCoordinator(context.getMember());
     }
 
+    /**
+     * Creates or opens shard subspaces in the FoundationDB database.
+     *
+     * @param tr the transaction object used to interact with the database
+     */
+    private void createOrOpenShardSubspaces(Transaction tr) {
+        List<String> root = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().shards().asList();
+        int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
+        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            List<String> shardPath = new ArrayList<>(root);
+            shardPath.add(Integer.toString(shardId));
+            shardsSubspaces.computeIfAbsent(shardId, (k) -> DirectoryLayer.getDefault().createOrOpen(tr, shardPath).join());
+        }
+    }
+
+    /**
+     * Sets the latest event key for the coordinator events journal.
+     *
+     * @param tr the ReadTransaction object used to interact with the database.
+     */
+    private void setLatestEventKey(ReadTransaction tr) {
+        byte[] key = context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.coordinatorEvents());
+        latestCoordinatorEventsEventKey.set(key);
+    }
+
+    /**
+     * Rebuilds the routing table by reading shard metadata from FoundationDB.
+     *
+     * @param tr the read transaction object used to read from the database
+     */
+    private void rebuildRoutingTable(ReadTransaction tr) {
+        int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
+        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            try {
+                ShardMetadata shardMetadata = loadShardMetadata(tr, shardId);
+                if (shardMetadata == null) {
+                    continue;
+                }
+                Member member = new Member(shardMetadata.getOwner().getAddress(), shardMetadata.getOwner().getProcessId());
+                Route route = new Route(member);
+                routingTable.setRoute(shardId, route);
+            } catch (IOException e) {
+                LOGGER.error("Failed to load metadata for ShardId: {}", shardId);
+            }
+        }
+        routingTable.updateCoordinator(context.getMember());
+        LOGGER.info("Routing table has been rebuilt from FoundationDB");
+    }
+
+    /**
+     * Starts the Coordinator service.
+     * This method performs the following steps:
+     * 1. Creates or opens shard subspaces in the FoundationDB database.
+     * 2. Sets the latest event key for the coordinator events journal.
+     * 3. Rebuilds the routing table by reading shard metadata from FoundationDB.
+     * 4. Executes background threads for checking shards periodically and watching the coordinator events journal.
+     * 5. Waits for a latch countdown to ensure that the background threads have started.
+     * 6. Throws a KronotopException if the latch countdown does not complete within the specified time.
+     * 7. Logs a success message after the service has been started.
+     */
+    public void start() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            createOrOpenShardSubspaces(tr);
+            setLatestEventKey(tr);
+            rebuildRoutingTable(tr);
+        }
+
+        scheduler.execute(new CheckShardsPeriodically());
+        scheduler.execute(new CoordinatorEventsJournalWatcher());
+        try {
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                LOGGER.error("Coordinator service has failed to start background threads");
+                throw new KronotopException("Coordinator cannot be started");
+            }
+        } catch (InterruptedException e) {
+            throw new KronotopException(e);
+        }
+        LOGGER.info("Coordinator service has been started");
+    }
+
+    @Override
+    public String getName() {
+        return NAME;
+    }
+
+    @Override
+    public Context getContext() {
+        return context;
+    }
+
+    /**
+     * Shuts down the Coordinator service. This method performs the following steps:
+     * 1. Sets the 'isShutdown' flag to true.
+     * 2. Cancels the current watcher if it exists.
+     * 3. Shuts down the scheduler.
+     * 4. Waits for a maximum of 1 second for the scheduler to terminate.
+     * 5. Logs a warning message if the scheduler does not terminate gracefully within 1 second.
+     * 6. Throws a RuntimeException if the waiting is interrupted.
+     */
+    @Override
+    public void shutdown() {
+        isShutdown = true;
+        CompletableFuture<Void> watcher = currentWatcher.get();
+        if (watcher != null) {
+            watcher.cancel(true);
+        }
+        scheduler.shutdownNow();
+        try {
+            if (!scheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                LOGGER.warn(String.format("%s cannot be stopped gracefully", NAME));
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Adds a new member to the consistent hash circle.
+     *
+     * @param member the member to be added to the consistent hash circle
+     */
     public void addMember(Member member) {
         consistent.addMember(member);
     }
 
+    /**
+     * Removes a member from the consistent hash circle.
+     *
+     * @param member the member to be removed
+     */
     public void removeMember(Member member) {
         consistent.removeMember(member);
     }
 
-    private String getTaskId(String journal, long offset) {
-        return String.format("%s:%d", journal, offset);
-    }
-
-    private void createOrOpenShardSubspaces() {
-        List<String> root = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().shards().asList();
-        int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
-        context.getFoundationDB().run(tr -> {
-            for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                List<String> shardPath = new ArrayList<>(root);
-                shardPath.add(Integer.toString(shardId));
-                shardsSubspaces.computeIfAbsent(shardId, (k) -> DirectoryLayer.getDefault().createOrOpen(tr, shardPath).join());
-            }
-            return null;
-        });
-    }
-
+    /**
+     * Checks if the shard owner is dead.
+     *
+     * @param membershipService the membership service
+     * @param shardOwner        the shard owner to check
+     * @return true if the shard owner is dead, false otherwise
+     */
     private boolean isShardOwnerDead(MembershipService membershipService, ShardOwner shardOwner) {
         try {
             membershipService.getMember(shardOwner.getAddress(), shardOwner.getProcessId());
@@ -118,6 +231,14 @@ public class CoordinatorService implements KronotopService {
         return false;
     }
 
+    /**
+     * Checks a task in the given shard metadata and performs appropriate actions based on the task type and deadline.
+     *
+     * @param taskId        the identifier of the task
+     * @param shardId       the identifier of the shard
+     * @param shardMetadata the metadata object for the shard
+     * @return true if the task is dropped or failed, false otherwise
+     */
     private boolean checkTask(String taskId, int shardId, ShardMetadata shardMetadata) {
         MembershipService membershipService = context.getService(MembershipService.NAME);
         ShardMetadata.Task task = shardMetadata.getTasks().get(taskId);
@@ -126,24 +247,24 @@ public class CoordinatorService implements KronotopService {
         long elapsedTime = Instant.now().toEpochMilli() - task.getBaseTask().getCreatedAt();
         if (elapsedTime > TimeUnit.SECONDS.toMillis(5)) {
             shardMetadata.getTasks().remove(taskId);
-            LOGGER.info("Task has been dropped due to inactivity. ShardId: {}, TaskType: {}", shardId, task.getBaseTask().getType());
+            LOGGER.info("{} has been dropped due to inactivity.", task.getBaseTask());
             return true;
         } else {
             TaskType taskType = task.getBaseTask().getType();
             if (taskType.equals(TaskType.ASSIGN_SHARD)) {
                 if (isShardOwnerDead(membershipService, shardMetadata.getOwner())) {
                     shardMetadata.getTasks().remove(taskId);
-                    LOGGER.info("Shard initialization has failed due to a member failure. ShardId: {}, Owner: {}", shardId, shardMetadata.getOwner());
+                    LOGGER.info("{} has failed due to a member failure. Owner: {}", task.getBaseTask(), shardMetadata.getOwner());
                     return true;
                 }
             } else if (taskType.equals(TaskType.REASSIGN_SHARD)) {
                 if (isShardOwnerDead(membershipService, task.getReassignShardTask().getNextOwner())) {
                     shardMetadata.getTasks().remove(taskId);
-                    LOGGER.info("Shard reassignment has failed due to a member failure. ShardId: {}, Owner {}", shardId, task.getReassignShardTask().getNextOwner());
+                    LOGGER.info("{} has failed due to a member failure. Owner {}", task.getBaseTask(), task.getReassignShardTask().getNextOwner());
                     return true;
                 }
             } else {
-                LOGGER.error("Unknown task. ShardId: {}, TaskType: {}, TaskId: {}", shardId, task.getBaseTask().getType(), taskId);
+                LOGGER.error("{} unknown task", task.getBaseTask());
                 shardMetadata.getTasks().remove(taskId);
                 return true;
             }
@@ -152,6 +273,14 @@ public class CoordinatorService implements KronotopService {
         return false;
     }
 
+    /**
+     * Checks all tasks in the given shard metadata and performs appropriate actions based on the task type and deadline.
+     *
+     * @param tr            the transaction object used to interact with the database
+     * @param shardId       the identifier of the shard
+     * @param shardMetadata the metadata object for the shard
+     * @throws JsonProcessingException if an error occurs while serializing the shard metadata to JSON
+     */
     private void checkTasks(Transaction tr, int shardId, ShardMetadata shardMetadata) throws JsonProcessingException {
         boolean shardMetadataModified = false;
         for (String taskId : shardMetadata.getTasks().keySet()) {
@@ -166,38 +295,58 @@ public class CoordinatorService implements KronotopService {
         }
     }
 
+    /**
+     * Reassigns the ownership of a shard from the current owner to the next owner.
+     *
+     * @param tr            the transaction object used to interact with the database
+     * @param shardMetadata the metadata object for the shard
+     * @param currentOwner  the current owner of the shard
+     * @param nextOwner     the next owner to whom the shard will be reassigned
+     * @param shardId       the identifier of the shard
+     * @throws JsonProcessingException if an error occurs while serializing the shard metadata to JSON
+     */
     private void reassignShardOwnership(Transaction tr, ShardMetadata shardMetadata, Member currentOwner, Member nextOwner, int shardId) throws JsonProcessingException {
         ShardOwner nextShardOwner = new ShardOwner(nextOwner.getAddress(), nextOwner.getProcessId());
         ReassignShardTask reassignShardTask = new ReassignShardTask(nextShardOwner, shardId);
 
         String journalName = JournalName.shardEvents(currentOwner);
-        long offset = journal.getPublisher().publish(tr, journalName, reassignShardTask);
-        String taskId = getTaskId(journalName, offset);
+        context.getJournal().getPublisher().publish(tr, journalName, reassignShardTask);
 
-        shardMetadata.getTasks().put(taskId, new ShardMetadata.Task(reassignShardTask));
-        shardMetadata.setStatus(ShardStatus.REASSIGNING);
-
+        shardMetadata.getTasks().put(reassignShardTask.getTaskId(), new ShardMetadata.Task(reassignShardTask));
         DirectorySubspace shardSubspace = shardsSubspaces.get(shardId);
         tr.set(shardSubspace.pack(shardId), new ObjectMapper().writeValueAsBytes(shardMetadata));
     }
 
+    /**
+     * Assigns the ownership of a shard to a member.
+     *
+     * @param tr      the transaction object used to interact with the database
+     * @param shardId the identifier of the shard
+     * @throws JsonProcessingException if an error occurs while serializing the shard metadata to JSON
+     */
     private void assignShardOwnership(Transaction tr, int shardId) throws JsonProcessingException {
         Member owner = consistent.getShardOwner(shardId);
         String journalName = JournalName.shardEvents(owner);
 
         AssignShardTask assignShardTask = new AssignShardTask(shardId);
-        long offset = journal.getPublisher().publish(tr, journalName, assignShardTask);
-        String taskId = getTaskId(journalName, offset);
+        context.getJournal().getPublisher().publish(tr, journalName, assignShardTask);
 
         ShardMetadata shardMetadata = new ShardMetadata(owner.getAddress(), owner.getProcessId());
-        shardMetadata.setStatus(ShardStatus.ASSIGNING);
-        shardMetadata.getTasks().put(taskId, new ShardMetadata.Task(assignShardTask));
+        shardMetadata.getTasks().put(assignShardTask.getTaskId(), new ShardMetadata.Task(assignShardTask));
 
         DirectorySubspace shardSubspace = shardsSubspaces.get(shardId);
         tr.set(shardSubspace.pack(shardId), new ObjectMapper().writeValueAsBytes(shardMetadata));
     }
 
-    private ShardMetadata loadShardMetadata(Transaction tr, int shardId) throws IOException {
+    /**
+     * Loads the metadata for a shard from FoundationDB.
+     *
+     * @param tr      the read transaction object used to read from the database
+     * @param shardId the identifier of the shard
+     * @return the ShardMetadata object representing the metadata of the shard, or null if no metadata is found
+     * @throws IOException if an error occurs while loading the metadata
+     */
+    private ShardMetadata loadShardMetadata(ReadTransaction tr, int shardId) throws IOException {
         DirectorySubspace shardSubspace = shardsSubspaces.get(shardId);
         byte[] rawShardMetadata = tr.get(shardSubspace.pack(shardId)).join();
 
@@ -211,6 +360,13 @@ public class CoordinatorService implements KronotopService {
         return objectMapper.readValue(rawShardMetadata, ShardMetadata.class);
     }
 
+    /**
+     * Checks the ownership of a shard and performs appropriate actions based on the current owner and tasks associated with the shard.
+     *
+     * @param tr      the transaction object used to interact with the database
+     * @param shardId the identifier of the shard
+     * @throws IOException if an error occurs while loading the shard metadata
+     */
     private void checkShardOwnership(Transaction tr, int shardId) throws IOException {
         ShardMetadata shardMetadata = loadShardMetadata(tr, shardId);
         if (shardMetadata == null) {
@@ -218,8 +374,13 @@ public class CoordinatorService implements KronotopService {
             return;
         }
 
-        checkTasks(tr, shardId, shardMetadata);
+        MembershipService membershipService = context.getService(MembershipService.NAME);
+        if (isShardOwnerDead(membershipService, shardMetadata.getOwner())) {
+            assignShardOwnership(tr, shardId);
+            return;
+        }
 
+        checkTasks(tr, shardId, shardMetadata);
         if (shardMetadata.getTasks().isEmpty()) {
             Member nextOwner = consistent.getShardOwner(shardId);
             Member currentOwner = new Member(shardMetadata.getOwner().getAddress(), shardMetadata.getOwner().getProcessId());
@@ -249,44 +410,14 @@ public class CoordinatorService implements KronotopService {
         }
     }
 
-    public void start() {
-        createOrOpenShardSubspaces();
-        scheduler.execute(new CheckShardsPeriodically());
-        scheduler.execute(new CoordinatorEventsJournalWatcher());
-        try {
-            if (!latch.await(5, TimeUnit.SECONDS)) {
-                LOGGER.error("Coordinator service has failed to start background threads");
-            }
-        } catch (InterruptedException e) {
-            throw new KronotopException(e);
-        }
-        LOGGER.info("Coordinator service has been started");
-    }
-
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    @Override
-    public Context getContext() {
-        return context;
-    }
-
-    @Override
-    public void shutdown() {
-        isShutdown = true;
-        currentWatcher.get().cancel(true);
-        scheduler.shutdownNow();
-        try {
-            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
-                LOGGER.warn(String.format("%s cannot be stopped gracefully", NAME));
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
+    /**
+     * Propagates the routing table by updating the route for a specific shard with the provided owner information.
+     *
+     * @param tr      the transaction object used to interact with the database
+     * @param shardId the identifier of the shard to update the route for
+     * @param owner   the owner of the shard
+     * @throws JsonProcessingException if an error occurs while serializing the routing table to JSON
+     */
     private void propagateRoutingTable(Transaction tr, int shardId, ShardOwner owner) throws JsonProcessingException {
         Member member = new Member(owner.getAddress(), owner.getProcessId());
         Route route = new Route(member);
@@ -295,26 +426,74 @@ public class CoordinatorService implements KronotopService {
         ObjectMapper objectMapper = new ObjectMapper();
         String payload = objectMapper.writeValueAsString(routingTable);
         UpdateRoutingTableEvent updateRoutingTableEvent = new UpdateRoutingTableEvent(payload);
-        journal.getPublisher().publish(tr, JournalName.clusterEvents(), updateRoutingTableEvent);
+        context.getJournal().getPublisher().publish(tr, JournalName.clusterEvents(), updateRoutingTableEvent);
     }
 
+    /**
+     * Completes the assignment of a shard task by updating the shard metadata and propagating the routing table.
+     *
+     * @param tr                 the transaction object used to interact with the database
+     * @param shardMetadata      the metadata object for the shard
+     * @param taskCompletedEvent the completed task event
+     * @throws JsonProcessingException if an error occurs while serializing the shard metadata to JSON
+     */
     private void completeAssignShardTask(Transaction tr, ShardMetadata shardMetadata, TaskCompletedEvent taskCompletedEvent) throws JsonProcessingException {
         shardMetadata.getTasks().remove(taskCompletedEvent.getTaskId());
-        shardMetadata.setStatus(ShardStatus.OPERABLE);
         propagateRoutingTable(tr, taskCompletedEvent.getShardId(), shardMetadata.getOwner());
     }
 
+    /**
+     * Completes the reassignment of a shard task by updating the shard metadata and publishing the assignment to the journal.
+     *
+     * @param tr                 the transaction object used to interact with the database
+     * @param shardMetadata      the metadata object for the shard
+     * @param taskCompletedEvent the completed task event
+     * @throws JsonProcessingException if an error occurs while serializing the shard metadata to JSON
+     */
+    private void completeReassignShardTask(Transaction tr, ShardMetadata shardMetadata, TaskCompletedEvent taskCompletedEvent) throws JsonProcessingException {
+        ShardMetadata.Task task = shardMetadata.getTasks().get(taskCompletedEvent.getTaskId());
+        ReassignShardTask reassignShardTask = task.getReassignShardTask();
+
+        Member owner = new Member(
+                reassignShardTask.getNextOwner().getAddress(),
+                reassignShardTask.getNextOwner().getProcessId()
+        );
+
+        String journalName = JournalName.shardEvents(owner);
+        AssignShardTask assignShardTask = new AssignShardTask(reassignShardTask.getShardId());
+        context.getJournal().getPublisher().publish(tr, journalName, assignShardTask);
+
+        shardMetadata.setOwner(reassignShardTask.getNextOwner());
+        shardMetadata.getTasks().put(assignShardTask.getTaskId(), new ShardMetadata.Task(assignShardTask));
+        shardMetadata.getTasks().remove(taskCompletedEvent.getTaskId());
+
+        DirectorySubspace shardSubspace = shardsSubspaces.get(reassignShardTask.getShardId());
+        tr.set(shardSubspace.pack(reassignShardTask.getShardId()), new ObjectMapper().writeValueAsBytes(shardMetadata));
+    }
+
+    /**
+     * Processes a task completed event by updating the shard metadata and propagating the routing table.
+     *
+     * @param taskCompletedEvent the TaskCompletedEvent object representing the completed task event
+     */
     private void processTaskCompletedEvent(TaskCompletedEvent taskCompletedEvent) {
         context.getFoundationDB().run(tr -> {
             try {
                 ShardMetadata shardMetadata = loadShardMetadata(tr, taskCompletedEvent.getShardId());
                 if (shardMetadata == null) {
-                    LOGGER.error("ShardMetadata could not be loaded for ShardId: {}", taskCompletedEvent.getShardId());
+                    LOGGER.error("Shard metadata could not be loaded for ShardId: {}", taskCompletedEvent.getShardId());
                     return null;
                 }
                 ShardMetadata.Task task = shardMetadata.getTasks().get(taskCompletedEvent.getTaskId());
+                if (task == null) {
+                    LOGGER.warn("TaskId: {} could not be found", taskCompletedEvent.getTaskId());
+                    return null;
+                }
+
                 if (task.getBaseTask().getType().equals(TaskType.ASSIGN_SHARD)) {
                     completeAssignShardTask(tr, shardMetadata, taskCompletedEvent);
+                } else if (task.getBaseTask().getType().equals(TaskType.REASSIGN_SHARD)) {
+                    completeReassignShardTask(tr, shardMetadata, taskCompletedEvent);
                 } else {
                     LOGGER.error("Unsupported task type: {}", taskCompletedEvent.getType());
                     return null;
@@ -329,20 +508,19 @@ public class CoordinatorService implements KronotopService {
             return null;
         });
 
-        LOGGER.info("ShardId: {}, TaskType: {}, TaskId: {} has been completed",
-                taskCompletedEvent.getShardId(),
-                taskCompletedEvent.getType(),
-                taskCompletedEvent.getTaskId()
-        );
+        LOGGER.info("{} has been processed", taskCompletedEvent);
     }
 
+    /**
+     * Processes a coordinator event by consuming events from the coordinator events journal,
+     * deserializing them into coordinator event objects, and performing appropriate actions based on the event type.
+     */
     private void processCoordinatorEvent() {
         context.getFoundationDB().run(tr -> {
             while (true) {
                 // Try to consume the latest event.
-                Event event = journal.getConsumer().consumeEvent(tr, JournalName.coordinatorEvents(), lastOffset.get() + 1);
+                Event event = context.getJournal().getConsumer().consumeNext(tr, JournalName.coordinatorEvents(), latestCoordinatorEventsEventKey.get());
                 if (event == null)
-                    // There is nothing to process
                     return null;
 
                 ObjectMapper objectMapper = new ObjectMapper();
@@ -358,29 +536,14 @@ public class CoordinatorService implements KronotopService {
                 }
 
                 // Processed the event successfully. Forward the offset.
-                lastOffset.set(event.getOffset());
+                latestCoordinatorEventsEventKey.set(event.getKey());
             }
         });
     }
 
-    private class CheckShardsPeriodically implements Runnable {
-        @Override
-        public void run() {
-            if (isShutdown) {
-                return;
-            }
-
-            latch.countDown();
-            try {
-                checkShardOwnerships();
-            } finally {
-                if (!isShutdown) {
-                    scheduler.schedule(this, 5, TimeUnit.SECONDS);
-                }
-            }
-        }
-    }
-
+    /**
+     * Runnable class that watches the coordinator events journal and processes coordinator events.
+     */
     private class CoordinatorEventsJournalWatcher implements Runnable {
         @Override
         public void run() {
@@ -389,7 +552,7 @@ public class CoordinatorService implements KronotopService {
             }
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                JournalMetadata journalMetadata = journal.getConsumer().getJournalMetadata(JournalName.coordinatorEvents());
+                JournalMetadata journalMetadata = context.getJournal().getJournalMetadata(JournalName.coordinatorEvents());
                 CompletableFuture<Void> watcher = tr.watch(journalMetadata.getJournalKey());
                 tr.commit().join();
                 currentWatcher.set(watcher);
@@ -409,6 +572,28 @@ public class CoordinatorService implements KronotopService {
             } finally {
                 if (!isShutdown) {
                     scheduler.execute(this);
+                }
+            }
+        }
+    }
+
+    /**
+     * This private class implements the Runnable interface and is responsible for periodically checking the ownership
+     * of shards.
+     */
+    private class CheckShardsPeriodically implements Runnable {
+        @Override
+        public void run() {
+            if (isShutdown) {
+                return;
+            }
+
+            latch.countDown();
+            try {
+                checkShardOwnerships();
+            } finally {
+                if (!isShutdown) {
+                    scheduler.schedule(this, 5, TimeUnit.SECONDS);
                 }
             }
         }

@@ -19,7 +19,6 @@ package com.kronotop.core.cluster.sharding;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.core.cluster.coordinator.tasks.AssignShardTask;
-import com.kronotop.core.network.Address;
 import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
@@ -29,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class AssignShardTaskTest {
     @Test
     public void testAssignShardTask() throws JsonProcessingException, UnknownHostException {
-        ShardOwner nextOwner = new ShardOwner(Address.parseString("localhost:[5585]"), 10);
         AssignShardTask assignShardTask = new AssignShardTask(3);
 
         ObjectMapper objectMapper = new ObjectMapper();

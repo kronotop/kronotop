@@ -16,6 +16,7 @@
 
 package com.kronotop.core.cluster.sharding;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.core.cluster.coordinator.tasks.AssignShardTask;
 import com.kronotop.core.cluster.coordinator.tasks.BaseTask;
 import com.kronotop.core.cluster.coordinator.tasks.ReassignShardTask;
@@ -23,24 +24,18 @@ import com.kronotop.core.network.Address;
 
 import java.util.HashMap;
 
+/**
+ * Represents metadata for a shard, including status, owner, and tasks.
+ */
 public class ShardMetadata {
     private final HashMap<String, Task> tasks = new HashMap<>();
-    private ShardStatus status = ShardStatus.INOPERABLE;
     private ShardOwner owner;
 
     ShardMetadata() {
     }
 
-    public ShardMetadata(Address address, long processId) {
+    public ShardMetadata(Address address, Versionstamp processId) {
         this.owner = new ShardOwner(address, processId);
-    }
-
-    public ShardStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(ShardStatus status) {
-        this.status = status;
     }
 
     public ShardOwner getOwner() {
@@ -58,9 +53,8 @@ public class ShardMetadata {
     @Override
     public String toString() {
         return String.format(
-                "ShardMetadata {owner=%s status=%s}",
-                owner,
-                status
+                "ShardMetadata {owner=%s}",
+                owner
         );
     }
 

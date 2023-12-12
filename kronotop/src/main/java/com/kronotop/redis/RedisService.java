@@ -16,7 +16,10 @@
 
 package com.kronotop.redis;
 
+import com.apple.foundationdb.Range;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
@@ -39,8 +42,8 @@ import com.kronotop.redis.server.FlushAllHandler;
 import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Shard;
-import com.kronotop.redis.storage.ShardMaintenanceTask;
-import com.kronotop.redis.storage.impl.OnHeapShardImpl;
+import com.kronotop.redis.storage.ShardMaintenanceWorker;
+import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.string.*;
 import com.kronotop.redis.transactions.*;
@@ -55,7 +58,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class RedisService implements KronotopService {
     public static final String REDIS_VERSION = "7.0.8";
@@ -140,12 +146,17 @@ public class RedisService implements KronotopService {
     public void start() {
         int numPersistenceWorkers = context.getConfig().getInt("persistence.num_workers");
         int period = context.getConfig().getInt("persistence.period");
-        for (int id = 0; id < numPersistenceWorkers; id++) {
-            ShardMaintenanceTask shardMaintenanceTask = new ShardMaintenanceTask(context, id);
-            scheduledExecutorService.scheduleAtFixedRate(shardMaintenanceTask, 0, period, TimeUnit.SECONDS);
+        for (int workerId = 0; workerId < numPersistenceWorkers; workerId++) {
+            ShardMaintenanceWorker shardMaintenanceWorker = new ShardMaintenanceWorker(context, workerId);
+            scheduledExecutorService.scheduleAtFixedRate(shardMaintenanceWorker, 0, period, TimeUnit.SECONDS);
         }
     }
 
+    /**
+     * This method is used to distribute the hash slots among the shards in a Kronotop cluster.
+     *
+     * @return a map where the key represents the hash slot and the value represents the shard ID.
+     */
     private Map<Integer, Integer> distributeHashSlots() {
         HashMap<Integer, Integer> result = new HashMap<>();
         int hashSlotsPerShard = NUM_HASH_SLOTS / numberOfShards;
@@ -183,51 +194,94 @@ public class RedisService implements KronotopService {
         }
     }
 
+    /**
+     * Retrieves the Shard with the specified shard ID.
+     *
+     * @param shardId the ID of the shard to retrieve
+     * @return the Shard object with the specified shard ID
+     * @throws KronotopException if the shard is not operable, not owned by any member yet or not usable yet
+     */
     public Shard getShard(Integer shardId) {
         return context.getLogicalDatabase().getShards().compute(shardId, (k, shard) -> {
             if (shard != null) {
+                if (!shard.isOperable()) {
+                    throw new KronotopException(String.format("ShardId: %s not operable", shardId));
+                }
                 return shard;
             }
             Route route = membershipService.getRoutingTable().getRoute(shardId);
             if (route == null) {
-                throw new KronotopException(RESPError.ERR, String.format("ShardId %d isn't owned by any member yet", shardId));
+                throw new KronotopException(RESPError.ERR, String.format("ShardId: %d not owned by any member yet", shardId));
             }
             if (!route.getMember().equals(context.getMember())) {
                 // This should not be happened at production but just for safety.
                 throw new KronotopException(String.format("ShardId: %d not belong to this node: %s", shardId, context.getMember()));
             }
-            shard = new OnHeapShardImpl(shardId);
-            return shard;
+            throw new KronotopException(String.format("ShardId: %d not usable yet", shardId));
         });
     }
 
+    /**
+     * Clears the logical database by performing the following steps:
+     * 1. Stop all the operations on the owned shards.
+     * 2. Clear all data in the logical database using FoundationDB transactions.
+     * 3. Clear all in-memory data in the shards.
+     * 4. Make the shards operable again.
+     */
     public void clearLogicalDatabase() {
-        context.getFoundationDB().run(tr -> {
+        try {
+            // Stop all the operations on the owned shards
+            context.getLogicalDatabase().getShards().values().forEach(shard -> {
+                shard.setOperable(false);
+                shard.setReadOnly(true);
+            });
+
             DirectoryLayer directoryLayer = new DirectoryLayer();
-            String subspaceName = DirectoryLayout.Builder.
-                    clusterName(context.getClusterName()).
-                    internal().
-                    redis().
-                    persistence().
-                    logicalDatabase(LogicalDatabase.NAME).
-                    toString();
-            CompletableFuture<Void> future = directoryLayer.remove(tr, Arrays.asList(subspaceName.split("\\.")));
-            try {
-                future.join();
-            } catch (CompletionException e) {
-                if (e.getCause() instanceof NoSuchDirectoryException) {
-                    return null;
-                }
-                throw new RuntimeException(e);
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                context.getLogicalDatabase().getShards().values().forEach(shard -> {
+                    for (DataStructure dataStructure : DataStructure.values()) {
+                        List<String> subpath = DirectoryLayout.Builder.
+                                clusterName(context.getClusterName()).
+                                internal().
+                                redis().
+                                persistence().
+                                logicalDatabase(LogicalDatabase.NAME).
+                                shardId(shard.getId().toString()).
+                                dataStructure(dataStructure.name().toLowerCase()).
+                                asList();
+                        try {
+                            DirectorySubspace shardSubspace = directoryLayer.open(tr, subpath).join();
+                            tr.clear(Range.startsWith(shardSubspace.pack()));
+                        } catch (CompletionException e) {
+                            if (e.getCause() instanceof NoSuchDirectoryException) {
+                                return;
+                            }
+                            throw new RuntimeException(e);
+                        }
+                    }
+                });
+                tr.commit().join();
             }
-            return null;
-        });
-        for (Shard shard : context.getLogicalDatabase().getShards().values()) {
-            shard.clear();
-            shard.getPersistenceQueue().clear();
+
+            // Clear all in-memory data
+            context.getLogicalDatabase().getShards().values().forEach(shard -> {
+                shard.clear();
+                shard.getPersistenceQueue().clear();
+            });
+        } finally {
+            // Make the shard operable again
+            context.getLogicalDatabase().getShards().values().forEach(shard -> {
+                shard.setReadOnly(false);
+                shard.setOperable(true);
+            });
         }
     }
 
+    /**
+     * Cleans up the Redis transaction by releasing the resources and resetting the transaction state.
+     *
+     * @param ctx the channel handler context associated with the transaction
+     */
     public void cleanupRedisTransaction(ChannelHandlerContext ctx) {
         watcher.cleanupChannelHandlerContext(ctx);
         ctx.channel().attr(ChannelAttributes.REDIS_MULTI).set(false);
@@ -253,6 +307,10 @@ public class RedisService implements KronotopService {
         return watcher;
     }
 
+    /**
+     * Drains the persistence queues of all shards in the logical database by running the persistence process for each key in the queues.
+     * The persistence process retrieves the latest values for each key from the shard and persists them to the FoundationDB cluster.
+     */
     private void drainPersistenceQueues() {
         logger.info("Draining persistence queue of Redis logical database");
         for (Shard shard : context.getLogicalDatabase().getShards().values()) {
@@ -286,6 +344,13 @@ public class RedisService implements KronotopService {
         return membershipService;
     }
 
+    /**
+     * Resolves the shard for the given hash slot.
+     *
+     * @param slot the hash slot to resolve
+     * @return the Shard object that owns the hash slot
+     * @throws KronotopException if the hash slot is not owned by any member yet or not owned by the current member
+     */
     private Shard resolveKeyInternal(int slot) {
         int shardId = getHashSlots().get(slot);
         Route route = getClusterService().getRoutingTable().getRoute(shardId);
@@ -301,11 +366,27 @@ public class RedisService implements KronotopService {
         return getShard(shardId);
     }
 
+    /**
+     * Resolves the shard for the given key.
+     *
+     * @param key the key to resolve
+     * @return the Shard object that owns the key
+     * @throws KronotopException if the key is not owned by any member yet or not owned by the current member
+     */
     public Shard resolveKey(String key) {
         int slot = SlotHash.getSlot(key);
         return resolveKeyInternal(slot);
     }
 
+    /**
+     * Resolves the shard for the given set of keys.
+     *
+     * @param keys the set of keys to resolve
+     * @return the Shard object that owns the keys
+     * @throws NullPointerException if the slot cannot be calculated for the given set of keys
+     * @throws KronotopException    if the keys are not owned by any member yet or not owned by the current member
+     *                              or if the keys do not hash to the same slot
+     */
     public Shard resolveKeys(List<String> keys) {
         Integer latestSlot = null;
         for (String key : keys) {

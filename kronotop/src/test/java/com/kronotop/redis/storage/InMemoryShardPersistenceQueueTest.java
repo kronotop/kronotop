@@ -16,25 +16,20 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.redis.StringValue;
+import com.kronotop.redis.storage.impl.InMemoryShardPersistenceQueue;
 import com.kronotop.redis.storage.impl.OnHeapShardImpl;
 import com.kronotop.redis.storage.persistence.StringKey;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class ShardMaintenanceTaskTest extends BaseStorageTest {
+public class InMemoryShardPersistenceQueueTest {
     @Test
-    public void testRun() {
+    public void test_add() {
         Shard shard = new OnHeapShardImpl(0);
-        shard.put("key-1", new StringValue("value-1".getBytes(), 0));
-        shard.getPersistenceQueue().add(new StringKey("key-1"));
+        shard.setReadOnly(true);
 
-        context.getLogicalDatabase().getShards().put(0, shard);
-        ShardMaintenanceTask shardMaintenanceTask = new ShardMaintenanceTask(context, 0);
-        shardMaintenanceTask.run();
-
-        assertEquals(0, shard.getPersistenceQueue().size());
-
+        InMemoryShardPersistenceQueue queue = new InMemoryShardPersistenceQueue(shard);
+        assertThrows(ShardReadOnlyException.class, () -> queue.add(new StringKey("foo")));
     }
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster.journal;
+package com.kronotop.core.journal;
 
 import com.kronotop.core.cluster.Member;
 

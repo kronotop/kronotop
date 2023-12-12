@@ -25,6 +25,7 @@ import com.kronotop.core.ContextImpl;
 import com.kronotop.core.FoundationDBFactory;
 import com.kronotop.core.cluster.Member;
 import com.kronotop.core.cluster.MembershipService;
+import com.kronotop.core.cluster.MockProcessIdGeneratorImpl;
 import com.kronotop.core.network.Address;
 import com.kronotop.core.watcher.Watcher;
 import com.kronotop.redis.RedisService;
@@ -71,9 +72,10 @@ public class BaseStorageTest {
 
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
+        MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
         Config config = ConfigTestUtil.load("persistence-test.conf");
         Address address = new Address("localhost", 0);
-        Member member = new Member(address, System.currentTimeMillis());
+        Member member = new Member(address, processIdGenerator.getProcessID());
         Database database = FoundationDBFactory.newDatabase(config);
         context = new ContextImpl(config, member, database);
 

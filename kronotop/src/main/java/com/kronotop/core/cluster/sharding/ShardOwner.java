@@ -16,19 +16,25 @@
 
 package com.kronotop.core.cluster.sharding;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.kronotop.core.cluster.ProcessIdDeserializer;
+import com.kronotop.core.cluster.ProcessIdSerializer;
 import com.kronotop.core.network.Address;
 import com.kronotop.core.network.AddressDeserializer;
 
 public class ShardOwner {
-    private long processId;
+    @JsonSerialize(using = ProcessIdSerializer.class)
+    @JsonDeserialize(using = ProcessIdDeserializer.class)
+    private Versionstamp processId;
     @JsonDeserialize(using = AddressDeserializer.class)
     private Address address;
 
     ShardOwner() {
     }
 
-    public ShardOwner(Address address, long processId) {
+    public ShardOwner(Address address, Versionstamp processId) {
         this.address = address;
         this.processId = processId;
     }
@@ -41,11 +47,11 @@ public class ShardOwner {
         this.address = address;
     }
 
-    public long getProcessId() {
+    public Versionstamp getProcessId() {
         return processId;
     }
 
-    public void setProcessId(long processId) {
+    public void setProcessId(Versionstamp processId) {
         this.processId = processId;
     }
 

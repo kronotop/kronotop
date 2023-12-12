@@ -17,6 +17,7 @@
 package com.kronotop.instance;
 
 import com.apple.foundationdb.Database;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.common.KronotopException;
 import com.kronotop.core.*;
 import com.kronotop.core.cluster.Member;
@@ -84,8 +85,8 @@ public class KronotopInstanceImpl implements KronotopInstance {
         try {
             Database database = FoundationDBFactory.newDatabase(config);
 
-            ProcessIDGenerator processIDGenerator = new ProcessIDGeneratorImpl(config, database);
-            long processID = processIDGenerator.getProcessID();
+            ProcessIdGenerator processIDGenerator = new ProcessIdGeneratorImpl(config, database);
+            Versionstamp processID = processIDGenerator.getProcessID();
 
             int inetPort = config.getInt("network.port");
             String inetHost = getInetAddress(
@@ -131,8 +132,7 @@ public class KronotopInstanceImpl implements KronotopInstance {
             MembershipService membershipService = new MembershipService(kronotopInstance.context);
             kronotopInstance.context.registerService(MembershipService.NAME, membershipService);
             membershipService.start();
-            // TODO: Enable this again
-            //membershipService.waitUntilBootstrapped();
+            membershipService.waitUntilBootstrapped();
 
             RedisService redisService = new RedisService(kronotopInstance.context, handlers);
             kronotopInstance.context.registerService(RedisService.NAME, redisService);
