@@ -286,7 +286,7 @@ public class ShardingService implements KronotopService {
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 JournalMetadata journalMetadata = context.getJournal().getJournalMetadata(JournalName.shardEvents(context.getMember()));
-                CompletableFuture<Void> watcher = tr.watch(journalMetadata.getJournalKey());
+                CompletableFuture<Void> watcher = tr.watch(journalMetadata.getTrigger());
                 tr.commit().join();
                 currentWatcher.set(watcher);
                 latch.countDown();

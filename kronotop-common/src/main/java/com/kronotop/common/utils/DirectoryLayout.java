@@ -83,6 +83,11 @@ public class DirectoryLayout {
         return this;
     }
 
+    public DirectoryLayout journals() {
+        items.add("journals");
+        return this;
+    }
+
     public DirectoryLayout addAll(List<String> list) {
         items.addAll(list);
         return this;
@@ -140,6 +145,10 @@ public class DirectoryLayout {
 
         public static DirectoryLayout shards() {
             return new DirectoryLayout().shards();
+        }
+
+        public static DirectoryLayout journals() {
+            return new DirectoryLayout().journals();
         }
 
         public static DirectoryLayout addAll(List<String> list) {

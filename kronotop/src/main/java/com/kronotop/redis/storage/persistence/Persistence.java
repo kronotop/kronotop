@@ -42,7 +42,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 public class Persistence {
     public static final int MAXIMUM_TRANSACTION_SIZE = 10_000_000;
     public static final String PERSISTENCE_LAYOUT_KEY = "persistence-layout";
-    private static final Logger logger = LoggerFactory.getLogger(Persistence.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Persistence.class);
     private final Context context;
     private final AtomicInteger transactionSize = new AtomicInteger();
     private final Shard shard;
@@ -167,7 +167,7 @@ public class Persistence {
                     } else if (key instanceof HashKey) {
                         persistHashValue(tr, (HashKey) key, (HashValue) latestValue);
                     } else {
-                        logger.warn("Unknown value type for key: {}", key.getKey());
+                        LOGGER.warn("Unknown value type for key: {}", key.getKey());
                     }
                 } catch (TransactionSizeLimitExceeded e) {
                     break;

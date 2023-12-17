@@ -16,6 +16,7 @@ package com.kronotop.foundationdb.zmap;
  * limitations under the License.
  */
 
+import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.protocol.NamespaceArgs;
 import io.lettuce.core.codec.StringCodec;
@@ -29,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZDelPrefixHandlerTest extends BaseZMapTest {
+public class ZDelPrefixHandlerTest extends BaseHandlerTest {
     @Test
     public void testZDELRANGE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);

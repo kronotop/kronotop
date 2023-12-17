@@ -20,29 +20,22 @@ import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 
 /**
- * The JournalMetadata class represents the metadata of a journal.
- * It encapsulates the subspace, index key, and journal key related to the journal.
+ * JournalMetadata is a class that represents the metadata of a journal.
  */
 public class JournalMetadata {
-    private final Subspace subspace;
-    private final byte[] indexKey;
-    private final byte[] journalKey;
+    private final Subspace eventsSubspace;
+    private final byte[] trigger;
 
-    public JournalMetadata(String journal, Subspace subspace) {
-        this.subspace = subspace;
-        this.journalKey = this.subspace.subspace(Tuple.from(journal)).pack();
-        this.indexKey = this.subspace.subspace(Tuple.from(String.format("%s-index", journal))).pack();
+    public JournalMetadata(Subspace subspace) {
+        this.trigger = subspace.pack("trigger");
+        this.eventsSubspace = subspace.subspace(Tuple.from("events-subspace"));
     }
 
-    public byte[] getIndexKey() {
-        return indexKey;
+    public Subspace getEventsSubspace() {
+        return eventsSubspace;
     }
 
-    public byte[] getJournalKey() {
-        return journalKey;
-    }
-
-    public Subspace getSubspace() {
-        return subspace;
+    public byte[] getTrigger() {
+        return trigger;
     }
 }

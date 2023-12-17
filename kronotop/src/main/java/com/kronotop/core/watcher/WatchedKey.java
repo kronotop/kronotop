@@ -21,6 +21,10 @@ import io.netty.channel.ChannelId;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * The WatchedKey class represents a watched key in the Watcher class.
+ * It keeps track of the set of channels associated with the key and the version of the key.
+ */
 public class WatchedKey {
     private final Set<ChannelId> channels = new HashSet<>();
     private Long version = 0L;

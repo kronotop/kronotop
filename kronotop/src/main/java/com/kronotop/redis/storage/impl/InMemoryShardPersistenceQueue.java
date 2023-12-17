@@ -22,6 +22,21 @@ import com.kronotop.redis.storage.persistence.Key;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
 import com.kronotop.redis.storage.persistence.impl.OnHeapPersistenceQueue;
 
+/**
+ * A class that represents an in-memory shard persistence queue.
+ * It extends the {@link OnHeapPersistenceQueue} class and implements the {@link PersistenceQueue} interface.
+ * The queue is associated with a specific shard.
+ *
+ * <p>
+ * Usage example:
+ * <pre>{@code
+ * Shard shard = new OnHeapShardImpl(0);
+ * shard.setReadOnly(true);
+ *
+ * InMemoryShardPersistenceQueue queue = new InMemoryShardPersistenceQueue(shard);
+ * queue.add(new StringKey("foo"));
+ * }</pre>
+ */
 public class InMemoryShardPersistenceQueue extends OnHeapPersistenceQueue implements PersistenceQueue {
     private final Shard shard;
 

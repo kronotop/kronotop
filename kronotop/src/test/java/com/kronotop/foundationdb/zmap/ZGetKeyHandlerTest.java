@@ -16,6 +16,7 @@
 
 package com.kronotop.foundationdb.zmap;
 
+import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.protocol.ZGetKeyArgs;
 import io.lettuce.core.codec.StringCodec;
@@ -30,7 +31,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZGetKeyHandlerTest extends BaseZMapTest {
+public class ZGetKeyHandlerTest extends BaseHandlerTest {
     @Test
     public void testZGETKEY() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);

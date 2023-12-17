@@ -29,7 +29,7 @@ import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.ByteUtils;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.core.ClusterLayout;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.cluster.coordinator.CoordinatorService;
@@ -42,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.UnknownHostException;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.TreeSet;
@@ -98,11 +97,6 @@ public class MembershipService implements KronotopService {
         }
     }
 
-    private DirectoryLayout getMemberDirectoryLayout(Address address) {
-        List<String> list = Collections.singletonList(address.toString());
-        return DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().cluster().memberlist().addAll(list);
-    }
-
     /**
      * Unregisters a member from the cluster.
      *
@@ -110,7 +104,7 @@ public class MembershipService implements KronotopService {
      */
     private void unregisterMember(Member member) {
         Address address = member.getAddress();
-        List<String> subpath = getMemberDirectoryLayout(address).asList();
+        List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(address.toString())).asList();
         try {
             context.getFoundationDB().run(tr -> DirectoryLayer.getDefault().remove(tr, subpath).join());
         } catch (CompletionException e) {
@@ -149,7 +143,7 @@ public class MembershipService implements KronotopService {
     private void registerMember() {
         coordinatorService.addMember(context.getMember());
         Address address = context.getMember().getAddress();
-        List<String> subpath = getMemberDirectoryLayout(address).asList();
+        List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(address.toString())).asList();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
 
             DirectorySubspace directorySubspace = DirectoryLayer.getDefault().create(tr, subpath).join();
@@ -261,7 +255,7 @@ public class MembershipService implements KronotopService {
      * @throws NoSuchMemberException If the member does not exist.
      */
     private Member getMemberByAddress(Address address) {
-        List<String> subpath = getMemberDirectoryLayout(address).asList();
+        List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(address.toString())).asList();
         try {
             return context.getFoundationDB().run(tr -> {
                 DirectorySubspace directorySubspace = DirectoryLayer.getDefault().open(tr, subpath).join();
@@ -287,7 +281,7 @@ public class MembershipService implements KronotopService {
      * @throws NoSuchMemberException If the member does not exist.
      */
     public Member getMember(Address address, Versionstamp processId) {
-        List<String> subpath = getMemberDirectoryLayout(address).asList();
+        List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(address.toString())).asList();
         try {
             return context.getFoundationDB().run(tr -> {
                 DirectorySubspace directorySubspace = DirectoryLayer.getDefault().open(tr, subpath).join();
@@ -336,7 +330,7 @@ public class MembershipService implements KronotopService {
      * @return a list of string that contains the members in host:port format.
      */
     public List<String> getMembers() {
-        List<String> subpath = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().cluster().memberlist().asList();
+        List<String> subpath = ClusterLayout.getMemberlist(context).asList();
         try {
             return context.getFoundationDB().run(tr -> DirectoryLayer.getDefault().list(tr, subpath).join());
         } catch (CompletionException e) {
@@ -394,7 +388,7 @@ public class MembershipService implements KronotopService {
     }
 
     private void openMemberSubspace(Member member) {
-        List<String> subpath = getMemberDirectoryLayout(member.getAddress()).asList();
+        List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(member.getAddress().toString())).asList();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
             memberSubspaces.put(member, subspace);
@@ -580,7 +574,7 @@ public class MembershipService implements KronotopService {
             }
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = tr.watch(context.getJournal().getJournalMetadata(JournalName.clusterEvents()).getJournalKey());
+                CompletableFuture<Void> watcher = tr.watch(context.getJournal().getJournalMetadata(JournalName.clusterEvents()).getTrigger());
                 tr.commit().join();
                 currentWatcher.set(watcher);
                 try {

@@ -53,7 +53,7 @@ public class Consumer {
     public byte[] getLatestEventKey(ReadTransaction tr, String journal) {
         try {
             JournalMetadata journalMetadata = cache.get(journal);
-            Subspace subspace = new Subspace(journalMetadata.getIndexKey());
+            Subspace subspace = journalMetadata.getEventsSubspace();
 
             AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(), 1, true).iterator();
             if (!iterator.hasNext()) {
@@ -77,7 +77,7 @@ public class Consumer {
     public Versionstamp getVersionstampFromKey(String journal, byte[] key) {
         try {
             JournalMetadata journalMetadata = cache.get(journal);
-            Subspace subspace = new Subspace(journalMetadata.getIndexKey());
+            Subspace subspace = journalMetadata.getEventsSubspace();
             return subspace.unpack(key).getVersionstamp(0);
         } catch (ExecutionException e) {
             LOGGER.error("Failed to get latest index: {}", e.getMessage());
@@ -99,7 +99,7 @@ public class Consumer {
     public Event consumeByVersionstamp(Transaction tr, String journal, Versionstamp versionstamp) {
         try {
             JournalMetadata journalMetadata = cache.get(journal);
-            Subspace subspace = new Subspace(Tuple.fromBytes(journalMetadata.getIndexKey()));
+            Subspace subspace = journalMetadata.getEventsSubspace();
 
             AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(Tuple.from(versionstamp)), 1).iterator();
             if (!iterator.hasNext()) {
@@ -135,7 +135,7 @@ public class Consumer {
     public Event consumeNext(ReadTransaction tr, String journal, byte[] key) {
         try {
             JournalMetadata journalMetadata = cache.get(journal);
-            Subspace subspace = new Subspace(journalMetadata.getIndexKey());
+            Subspace subspace = journalMetadata.getEventsSubspace();
             if (key == null) {
                 key = subspace.pack();
             }

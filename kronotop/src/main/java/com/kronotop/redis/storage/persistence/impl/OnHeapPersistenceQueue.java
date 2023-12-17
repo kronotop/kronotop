@@ -26,6 +26,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * A class that represents an in-memory persistence queue implementation. It implements the {@link PersistenceQueue} interface.
+ * <p>
+ * The queue ensures that the business logic is executed atomically. This class uses a {@link Lock} to synchronize
+ * concurrent calls to the queue methods.
+ * <p>
+ * It also uses a {@link ConcurrentHashMap} to maintain an index of the keys in the queue. The index is used to avoid adding
+ * duplicate keys to the queue. The class uses a {@link ConcurrentLinkedQueue} to maintain the actual queue of keys.
+ */
 public class OnHeapPersistenceQueue implements PersistenceQueue {
     private final Lock lock = new ReentrantLock(true);
     private final ConcurrentHashMap<Key, Boolean> index = new ConcurrentHashMap<>();

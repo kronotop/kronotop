@@ -18,9 +18,7 @@ package com.kronotop.core.journal;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.directory.DirectoryLayer;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -99,11 +97,13 @@ public class Journal {
                         Builder.
                         clusterName(clusterName).
                         internal().
-                        cluster().asList();
-                DirectorySubspace directorySubspace = DirectoryLayer.getDefault().createOrOpen(transaction, subpath).join();
-                return directorySubspace.subspace(Tuple.from(journal));
+                        cluster().
+                        journals().
+                        addAll(List.of(journal)).
+                        asList();
+                return DirectoryLayer.getDefault().createOrOpen(transaction, subpath).join();
             });
-            return new JournalMetadata(journal, subspace);
+            return new JournalMetadata(subspace);
         }
     }
 }

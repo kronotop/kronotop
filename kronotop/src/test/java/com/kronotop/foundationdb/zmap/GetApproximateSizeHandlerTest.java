@@ -16,6 +16,7 @@
 
 package com.kronotop.foundationdb.zmap;
 
+import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -27,7 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class GetApproximateSizeHandlerTest extends BaseZMapTest {
+public class GetApproximateSizeHandlerTest extends BaseHandlerTest {
     @Test
     public void testGETAPPROXIMATESIZE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);

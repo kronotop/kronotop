@@ -32,11 +32,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 
+/**
+ * The Watcher class is an implementation of the KronotopService interface.
+ * It provides methods to watch, unwatch, and check the modification status of keys.
+ */
 public class Watcher implements KronotopService {
     public static final String NAME = "Watcher";
     private final ConcurrentMap<String, WatchedKey> watchedKeys = new ConcurrentHashMap<>();
     private final Striped<Lock> striped = Striped.lazyWeakLock(271);
 
+    /**
+     * Watches a key for changes and associates a given channelId with it.
+     *
+     * @param channelId The channelId to associate with the key
+     * @param key       The key to watch
+     * @return The version of the watched key
+     */
     public Long watchKey(ChannelId channelId, String key) {
         AtomicLong version = new AtomicLong();
         watchedKeys.compute(key, (k, watchedKey) -> {
@@ -50,6 +61,12 @@ public class Watcher implements KronotopService {
         return version.get();
     }
 
+    /**
+     * Removes the association between a channelId and a watched key.
+     *
+     * @param channelId The channelId associated with the key
+     * @param key       The key to unwatch
+     */
     public void unwatchKey(ChannelId channelId, String key) {
         watchedKeys.compute(key, (k, watchedKey) -> {
             if (watchedKey == null) {
@@ -57,13 +74,18 @@ public class Watcher implements KronotopService {
             }
             Set<ChannelId> channels = watchedKey.getChannels();
             channels.remove(channelId);
-            if (channels.size() == 0) {
+            if (channels.isEmpty()) {
                 return null;
             }
             return watchedKey;
         });
     }
 
+    /**
+     * Increases the version of a watched key.
+     *
+     * @param key The key for which to increase the version
+     */
     public void increaseWatchedKeyVersion(String key) {
         watchedKeys.compute(key, (k, watchedKey) -> {
             if (watchedKey == null) {
@@ -75,6 +97,13 @@ public class Watcher implements KronotopService {
         });
     }
 
+    /**
+     * Checks if a watched key has been modified since a given version.
+     *
+     * @param key     The key to check
+     * @param version The version to compare against
+     * @return True if the key has been modified, false otherwise
+     */
     public Boolean isModified(String key, Long version) {
         AtomicBoolean result = new AtomicBoolean();
         watchedKeys.compute(key, (k, watchedKey) -> {
@@ -91,10 +120,21 @@ public class Watcher implements KronotopService {
         return result.get();
     }
 
+    /**
+     * Checks whether there are any keys being watched by the Watcher object.
+     *
+     * @return true if there are watched keys, false otherwise
+     */
     public Boolean hasWatchers() {
-        return watchedKeys.size() > 0;
+        return !watchedKeys.isEmpty();
     }
 
+    /**
+     * Cleans up the {@link ChannelHandlerContext} by unwatching all keys associated with the channel.
+     * Removes the association between the channel and watched keys, and releases the lock.
+     *
+     * @param ctx the ChannelHandlerContext to cleanup
+     */
     public void cleanupChannelHandlerContext(ChannelHandlerContext ctx) {
         Lock lock = striped.get(ctx.channel().id());
         lock.lock();

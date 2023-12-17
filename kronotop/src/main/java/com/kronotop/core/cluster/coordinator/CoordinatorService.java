@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.core.ClusterLayout;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.cluster.Member;
@@ -86,7 +86,8 @@ public class CoordinatorService implements KronotopService {
      * @param tr the transaction object used to interact with the database
      */
     private void createOrOpenShardSubspaces(Transaction tr) {
-        List<String> root = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().shards().asList();
+        // TODO: This will be removed
+        List<String> root = ClusterLayout.getShards(context).asList();
         int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             List<String> shardPath = new ArrayList<>(root);
@@ -141,8 +142,13 @@ public class CoordinatorService implements KronotopService {
      * 7. Logs a success message after the service has been started.
      */
     public void start() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        // TODO: remove this
+        context.getFoundationDB().run(tr -> {
             createOrOpenShardSubspaces(tr);
+            return null;
+        });
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             setLatestEventKey(tr);
             rebuildRoutingTable(tr);
         }
@@ -553,7 +559,7 @@ public class CoordinatorService implements KronotopService {
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 JournalMetadata journalMetadata = context.getJournal().getJournalMetadata(JournalName.coordinatorEvents());
-                CompletableFuture<Void> watcher = tr.watch(journalMetadata.getJournalKey());
+                CompletableFuture<Void> watcher = tr.watch(journalMetadata.getTrigger());
                 tr.commit().join();
                 currentWatcher.set(watcher);
                 latch.countDown();

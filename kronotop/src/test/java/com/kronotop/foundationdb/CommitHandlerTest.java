@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 public class CommitHandlerTest extends BaseHandlerTest {
     @Test
     public void testCOMMIT() {
-        TestTransaction tt = new TestTransaction();
+        TestTransaction tt = new TestTransaction(channel);
         tt.begin();
         tt.commit();
         Object response = tt.getResponse();
@@ -44,7 +44,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
 
     @Test
     public void testCOMMIT_NoTransactionInProgress() {
-        TestTransaction tt = new TestTransaction();
+        TestTransaction tt = new TestTransaction(channel);
 
         // Start a new transaction
         tt.commit();

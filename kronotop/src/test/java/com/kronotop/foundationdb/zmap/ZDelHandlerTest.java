@@ -16,6 +16,7 @@
 
 package com.kronotop.foundationdb.zmap;
 
+import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -28,7 +29,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZDelHandlerTest extends BaseZMapTest {
+public class ZDelHandlerTest extends BaseHandlerTest {
     @Test
     public void testZDEL() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);

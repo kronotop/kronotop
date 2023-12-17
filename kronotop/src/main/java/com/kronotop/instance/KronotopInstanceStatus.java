@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.server;
+package com.kronotop.instance;
 
-import com.kronotop.instance.KronotopInstanceFactory;
-
-public final class KronotopInstanceStarter {
-    public static void main(String[] args) {
-        KronotopInstanceFactory.newKronotopInstance(null);
-    }
+public enum KronotopInstanceStatus {
+    INITIALIZING,
+    RUNNING,
+    STOPPED
 }

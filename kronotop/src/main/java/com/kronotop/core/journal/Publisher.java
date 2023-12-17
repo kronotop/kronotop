@@ -69,11 +69,11 @@ public class Publisher {
             long readVersion = tr.getReadVersion().join();
             int userVersion = userVersions.get(readVersion).getAndIncrement();
 
-            Subspace subspace = new Subspace(journalMetadata.getIndexKey());
+            Subspace subspace = journalMetadata.getEventsSubspace();
             Tuple tuple = Tuple.from(Versionstamp.incomplete(), userVersion);
 
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), data);
-            tr.mutate(MutationType.ADD, journalMetadata.getJournalKey(), ByteUtils.fromLong(1L));
+            tr.mutate(MutationType.ADD, journalMetadata.getTrigger(), ByteUtils.fromLong(1L));
 
             return new VersionstampContainer(tr.getVersionstamp(), userVersion);
         } catch (Exception e) {

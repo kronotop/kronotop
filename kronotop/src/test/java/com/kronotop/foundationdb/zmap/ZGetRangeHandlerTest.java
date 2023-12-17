@@ -16,6 +16,7 @@
 
 package com.kronotop.foundationdb.zmap;
 
+import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.protocol.ZGetRangeArgs;
 import io.lettuce.core.codec.StringCodec;
@@ -33,7 +34,7 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZGetRangeHandlerTest extends BaseZMapTest {
+public class ZGetRangeHandlerTest extends BaseHandlerTest {
     @Test
     public void testZGETRANGE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);

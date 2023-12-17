@@ -78,6 +78,7 @@ public class RedisService implements KronotopService {
             new ThreadFactoryBuilder().setNameFormat("kr.redis-service-%d").build()
     );
     private final int numberOfShards;
+    private final List<ShardMaintenanceWorker> shardMaintenanceWorkers = new ArrayList<>();
 
     public RedisService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
         this.handlers = handlers;
@@ -148,6 +149,7 @@ public class RedisService implements KronotopService {
         int period = context.getConfig().getInt("persistence.period");
         for (int workerId = 0; workerId < numPersistenceWorkers; workerId++) {
             ShardMaintenanceWorker shardMaintenanceWorker = new ShardMaintenanceWorker(context, workerId);
+            shardMaintenanceWorkers.add(shardMaintenanceWorker);
             scheduledExecutorService.scheduleAtFixedRate(shardMaintenanceWorker, 0, period, TimeUnit.SECONDS);
         }
     }
@@ -223,13 +225,19 @@ public class RedisService implements KronotopService {
 
     /**
      * Clears the logical database by performing the following steps:
-     * 1. Stop all the operations on the owned shards.
-     * 2. Clear all data in the logical database using FoundationDB transactions.
-     * 3. Clear all in-memory data in the shards.
-     * 4. Make the shards operable again.
+     * 1. Pauses all shard maintenance workers.
+     * 2. Sets all shards in the logical database to be inoperable and read-only.
+     * 3. Clears the data structures for each shard in the logical database by deleting all data in the corresponding directory subspaces.
+     * 4. Clears the in-memory data for each shard in the logical database.
+     * 5. Resumes all shard maintenance workers.
+     * 6. Restores the shard operability and read-write state.
+     *
+     * @throws RuntimeException if there is an error during the process.
      */
     public void clearLogicalDatabase() {
         try {
+            shardMaintenanceWorkers.forEach(ShardMaintenanceWorker::pause);
+
             // Stop all the operations on the owned shards
             context.getLogicalDatabase().getShards().values().forEach(shard -> {
                 shard.setOperable(false);
@@ -269,6 +277,7 @@ public class RedisService implements KronotopService {
                 shard.getPersistenceQueue().clear();
             });
         } finally {
+            shardMaintenanceWorkers.forEach(ShardMaintenanceWorker::unpause);
             // Make the shard operable again
             context.getLogicalDatabase().getShards().values().forEach(shard -> {
                 shard.setReadOnly(false);

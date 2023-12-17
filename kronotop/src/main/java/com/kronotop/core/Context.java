@@ -27,24 +27,82 @@ import javax.annotation.Nonnull;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
 
+/**
+ * The Context interface represents the context of a Kronotop instance.
+ */
 public interface Context {
+    /**
+     * Retrieves the name of the cluster.
+     *
+     * @return the name of the cluster.
+     */
     String getClusterName();
 
+    /**
+     * Retrieves the configuration associated with the Context.
+     *
+     * @return the configuration associated with the Context.
+     */
     Config getConfig();
 
+    /**
+     * Retrieves the Member object representing the current member in the cluster.
+     *
+     * @return the Member representing the current member
+     */
     Member getMember();
 
+    /**
+     * Returns the FoundationDB database associated with the Context.
+     *
+     * @return the FoundationDB database.
+     */
     Database getFoundationDB();
 
+    /**
+     * Registers a Kronotop service in the context.
+     *
+     * @param id      the unique identifier for the service
+     * @param service the Kronotop service to register
+     */
     void registerService(String id, KronotopService service);
 
+    /**
+     * Retrieves a Kronotop service from the context using the specified service identifier.
+     *
+     * @param id  the unique identifier for the service
+     * @param <T> the type of the service to retrieve
+     * @return the Kronotop service with the specified identifier
+     */
     <T> T getService(@Nonnull String id);
 
+    /**
+     * Retrieves the list of Kronotop services registered in the context.
+     *
+     * @return the list of Kronotop services
+     */
     List<KronotopService> getServices();
 
+    /**
+     * Retrieves the logical database from the context.
+     *
+     * @return the logical database object.
+     */
     LogicalDatabase getLogicalDatabase();
 
+    /**
+     * Retrieves a Striped object that provides striped read-write locks.
+     * The returned Striped object can be used to obtain a specific stripe
+     * for locking purposes.
+     *
+     * @return a Striped object that provides striped read-write locks
+     */
     Striped<ReadWriteLock> getStripedReadWriteLock();
 
+    /**
+     * Retrieves the Journal object associated with the Context.
+     *
+     * @return The Journal object.
+     */
     Journal getJournal();
 }
