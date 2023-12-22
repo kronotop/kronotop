@@ -197,6 +197,9 @@ public class KronotopInstance {
      * @throws KronotopException    if an error occurs during the startup process
      */
     public void start() throws UnknownHostException, InterruptedException {
+        if (getStatus().equals(KronotopInstanceStatus.RUNNING)) {
+            throw new IllegalStateException("Kronotop instance is already running");
+        }
         LOGGER.info("Initializing a new Kronotop instance");
         try {
             initializeMember();
@@ -226,7 +229,7 @@ public class KronotopInstance {
      */
     public synchronized void shutdown() {
         if (status.equals(KronotopInstanceStatus.STOPPED)) {
-            return;
+            throw new IllegalStateException("Kronotop instance is already stopped");
         }
 
         try {
@@ -240,7 +243,6 @@ public class KronotopInstance {
                 }
                 LOGGER.debug("{} service has been shutting down", service.getName());
             }
-            context.getFoundationDB().close();
             LOGGER.info("Quit!");
         } finally {
             setStatus(KronotopInstanceStatus.STOPPED);
@@ -277,5 +279,12 @@ public class KronotopInstance {
      */
     public Context getContext() {
         return context;
+    }
+
+    /**
+     * Closes the FoundationDB connection.
+     */
+    public void closeFoundationDBConnection() {
+        FoundationDBFactory.closeDatabase();
     }
 }

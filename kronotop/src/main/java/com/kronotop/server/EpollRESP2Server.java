@@ -21,6 +21,10 @@ import com.kronotop.server.resp.Handlers;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 
+/**
+ * The EpollRESP2Server class represents a RESP2 server that uses the Epoll network transport.
+ * It extends the RESP2Server abstract class and implements the KronotopService interface.
+ */
 public class EpollRESP2Server extends RESP2Server {
     public EpollRESP2Server(Context context, Handlers commands) {
         super(context, commands, EpollServerSocketChannel.class, new EpollEventLoopGroup(), new EpollEventLoopGroup());

@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.storage.impl;
+package com.kronotop;
 
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.core.FoundationDBFactory;
+import org.junit.platform.launcher.TestExecutionListener;
+import org.junit.platform.launcher.TestPlan;
 
-/**
- * This class represents an on-heap shard implementation that extends the AbstractInMemoryShard class and implements the Shard interface.
- * It provides a concurrent map with additional functionality.
- */
-public class OnHeapShardImpl extends AbstractInMemoryShard implements Shard {
-    public OnHeapShardImpl(Integer id) {
-        super(id);
+// See https://stackoverflow.com/questions/75290490/junit5-before-and-after-suite-method-invocation
+public class BeforeAfterSuiteListener implements TestExecutionListener {
+
+    @Override
+    public void testPlanExecutionFinished(TestPlan testPlan) {
+        FoundationDBFactory.closeDatabase();
     }
 }

@@ -31,6 +31,10 @@ import io.netty.handler.codec.redis.RedisBulkStringAggregator;
 import io.netty.handler.codec.redis.RedisDecoder;
 import io.netty.handler.codec.redis.RedisEncoder;
 
+/**
+ * This abstract class represents a RESP2 server that implements the KronotopService interface.
+ * It provides the basic functionality for starting and shutting down a server.
+ */
 public abstract class RESP2Server implements KronotopService {
     private final Handlers commands;
     private final EventLoopGroup parentGroup;

@@ -17,7 +17,7 @@
 package com.kronotop.foundationdb;
 
 import com.kronotop.ConfigTestUtil;
-import com.kronotop.KronotopInstanceTest;
+import com.kronotop.KronotopTestInstance;
 import com.typesafe.config.Config;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.AfterEach;
@@ -27,7 +27,7 @@ import java.net.UnknownHostException;
 import java.util.UUID;
 
 public class BaseHandlerTest {
-    protected KronotopInstanceTest kronotopInstance;
+    protected KronotopTestInstance kronotopInstance;
     protected EmbeddedChannel channel;
     protected String namespace;
 
@@ -38,7 +38,7 @@ public class BaseHandlerTest {
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
         Config config = ConfigTestUtil.load("test.conf");
-        kronotopInstance = new KronotopInstanceTest(config);
+        kronotopInstance = new KronotopTestInstance(config);
         kronotopInstance.start();
         channel = kronotopInstance.getChannel();
         namespace = UUID.randomUUID().toString();

@@ -29,7 +29,9 @@ import org.slf4j.LoggerFactory;
  */
 public class FoundationDBFactory {
     private static final int DEFAULT_FDB_API_VERSION = 510;
-    private static final Logger logger = LoggerFactory.getLogger(FoundationDBFactory.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(FoundationDBFactory.class);
+    private static Database database;
+    private static boolean isClosed;
 
     /**
      * Creates a new FoundationDB Database instance based on the provided configuration.
@@ -39,12 +41,18 @@ public class FoundationDBFactory {
      * @throws FDBException             if there is an error accessing the FoundationDB database
      * @throws IllegalArgumentException if the API version specified in the configuration is zero
      */
-    public static Database newDatabase(Config config) throws FDBException {
+    public synchronized static Database newDatabase(Config config) throws FDBException {
+        // TODO: Check isClosed here
+
+        if (database != null) {
+            return database;
+        }
+
         int apiVersion = DEFAULT_FDB_API_VERSION;
         try {
             apiVersion = config.getInt("foundationdb.apiversion");
         } catch (ConfigException.Missing e) {
-            logger.warn(String.format(
+            LOGGER.warn(String.format(
                     "foundationdb.apiversion is missing. Setting the default version: %d", DEFAULT_FDB_API_VERSION)
             );
         }
@@ -67,6 +75,24 @@ public class FoundationDBFactory {
         // TODO: Add network options.
         FDB fdb = FDB.selectAPIVersion(apiVersion);
         fdb.disableShutdownHook();
-        return fdb.open();
+        FoundationDBFactory.database = fdb.open();
+        return database;
+    }
+
+    /**
+     * Closes the FoundationDB connection.
+     * <p>
+     * This method closes the FoundationDB connection if it is open and sets the 'isClosed' flag to true.
+     * It is synchronized to ensure thread safety.
+     */
+    public synchronized static void closeDatabase() {
+        if (isClosed || database == null) {
+            return;
+        }
+        try {
+            database.close();
+        } finally {
+            isClosed = true;
+        }
     }
 }

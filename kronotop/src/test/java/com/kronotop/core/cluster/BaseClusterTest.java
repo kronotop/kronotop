@@ -45,7 +45,8 @@ public class BaseClusterTest {
         for (KronotopService service : services.values()) {
             service.shutdown();
         }
-        database.close();
+        // TODO:
+        //FoundationDBFactory.closeDatabase();
     }
 
     protected void registerService(KronotopService service) {

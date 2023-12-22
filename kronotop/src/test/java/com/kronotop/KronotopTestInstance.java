@@ -16,10 +16,8 @@
 
 package com.kronotop;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.common.utils.DirectoryLayout;
-import com.kronotop.core.FoundationDBFactory;
 import com.kronotop.core.cluster.MembershipService;
 import com.kronotop.core.cluster.coordinator.Route;
 import com.kronotop.instance.KronotopInstance;
@@ -37,15 +35,15 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The KronotopInstanceTest class is a test implementation of the KronotopInstance class.
- * It extends the KronotopInstance class and overrides some methods for testing purposes.
+ * KronotopTestInstance is a class that extends KronotopInstance and represents a standalone instance of
+ * Kronotop for testing.
  */
-public class KronotopInstanceTest extends KronotopInstance {
+public class KronotopTestInstance extends KronotopInstance {
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
     private final Object clusterOperable = new Object();
     private EmbeddedChannel channel;
 
-    public KronotopInstanceTest(Config config) {
+    public KronotopTestInstance(Config config) {
         super(config);
     }
 
@@ -92,18 +90,17 @@ public class KronotopInstanceTest extends KronotopInstance {
      * Cleans up the test cluster by removing the corresponding directory in the FoundationDB database.
      */
     private void cleanupTestCluster() {
-        try (Database database = FoundationDBFactory.newDatabase(config)) {
-            database.run(tr -> {
-                List<String> subpath = DirectoryLayout.Builder.clusterName(context.getClusterName()).asList();
-                return DirectoryLayer.getDefault().removeIfExists(tr, subpath).join();
-            });
-        }
+        context.getFoundationDB().run(tr -> {
+            List<String> subpath = DirectoryLayout.Builder.clusterName(context.getClusterName()).asList();
+            return DirectoryLayer.getDefault().removeIfExists(tr, subpath).join();
+        });
     }
 
     @Override
     public void shutdown() {
         try {
             super.shutdown();
+            executor.shutdownNow();
             channel.finishAndReleaseAll();
         } finally {
             cleanupTestCluster();
@@ -126,6 +123,10 @@ public class KronotopInstanceTest extends KronotopInstance {
                 if (route == null) {
                     executor.schedule(this, 20, TimeUnit.MILLISECONDS);
                     return;
+                }
+                if (!route.getMember().equals(context.getMember())) {
+                    // Belong to another member
+                    continue;
                 }
                 Shard shard = context.getLogicalDatabase().getShards().get(shardId);
                 if (shard == null) {

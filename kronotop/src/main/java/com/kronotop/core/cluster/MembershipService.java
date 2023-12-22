@@ -16,6 +16,7 @@
 
 package com.kronotop.core.cluster;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
@@ -129,20 +130,12 @@ public class MembershipService implements KronotopService {
     }
 
     /**
-     * Registers a member in the cluster.
-     * <p>
-     * This method adds the member to the coordinator service, creates a directory for the member's address in the FoundationDB,
-     * and performs various background tasks related to the membership of the cluster. It also publishes
-     * a {@link MemberJoinEvent} in the cluster events journal.
-     * </p>
-     * <p>
-     * This method throws a {@link MemberAlreadyRegisteredException} if the member is already registered or not gracefully stopped,
-     * and a {@link KronotopException} if there is any other error during the registration process.
-     * </p>
+     * Registers a member to the cluster by creating a directory for the member's address
+     * and storing the member ID in the directory.
+     *
+     * @param address The address of the member to register
      */
-    private void registerMember() {
-        coordinatorService.addMember(context.getMember());
-        Address address = context.getMember().getAddress();
+    private void registerMember(Address address) {
         List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(address.toString())).asList();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
 
@@ -156,15 +149,33 @@ public class MembershipService implements KronotopService {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
                 throw new MemberAlreadyRegisteredException(String.format("%s already registered or not gracefully stopped", address));
             }
+            if (e.getCause() instanceof FDBException) {
+                FDBException exception = (FDBException) e.getCause();
+                if (exception.isRetryable()) {
+                    registerMember(address);
+                    return;
+                }
+            }
             throw new KronotopException(e);
         }
+    }
+
+    /**
+     * Initializes the cluster by adding the current member, registering the member's address,
+     * executing background tasks, and publishing a member join event to the cluster's journal.
+     * This method is private and does not return any value.
+     */
+    private void initialize() {
+        coordinatorService.addMember(context.getMember());
+
+        Address address = context.getMember().getAddress();
+        registerMember(address);
 
         scheduler.execute(new ClusterEventsJournalWatcher());
         scheduler.execute(new HeartbeatTask());
         scheduler.execute(new FailureDetectionTask());
 
         Member member = context.getMember();
-
         MemberJoinEvent memberJoinEvent = new MemberJoinEvent(member.getAddress().getHost(), member.getAddress().getPort(), member.getProcessId());
         try {
             BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.MEMBER_JOIN, new ObjectMapper().writeValueAsString(memberJoinEvent));
@@ -231,7 +242,7 @@ public class MembershipService implements KronotopService {
      */
     public void start() {
         // Register the member on both FoundationDB and the local consistent hash ring.
-        registerMember();
+        initialize();
 
         // Continue filling the local consistent hash ring and creating a queryable
         // record of alive cluster members.

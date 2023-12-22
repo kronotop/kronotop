@@ -21,6 +21,12 @@ import com.kronotop.server.resp.Handlers;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
+/**
+ * The NioRESP2Server class represents a RESP2 server that uses NIO for network transport.
+ * It extends the RESP2Server class.
+ *
+ * @see RESP2Server
+ */
 public class NioRESP2Server extends RESP2Server {
     public NioRESP2Server(Context context, Handlers commands) {
         super(context, commands, NioServerSocketChannel.class, new NioEventLoopGroup(), new NioEventLoopGroup());

@@ -49,8 +49,7 @@ public class BaseJournalTest {
         database.run(tr -> {
             DirectoryLayer directoryLayer = DirectoryLayer.getDefault();
             List<String> subpath = DirectoryLayout.Builder.clusterName(this.clusterName).asList();
-            return directoryLayer.remove(tr, subpath).join();
+            return directoryLayer.removeIfExists(tr, subpath).join();
         });
-        database.close();
     }
 }

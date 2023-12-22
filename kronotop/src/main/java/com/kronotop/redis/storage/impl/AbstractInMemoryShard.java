@@ -29,6 +29,11 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+/**
+ * This abstract class represents an in-memory shard implementation.
+ * It extends the ConcurrentHashMap class and implements the Shard interface.
+ * It provides a concurrent map with additional functionality.
+ */
 public abstract class AbstractInMemoryShard extends ConcurrentHashMap<String, Object> implements Shard {
     private final Integer id;
     private final Index index;

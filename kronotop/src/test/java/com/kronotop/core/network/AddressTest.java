@@ -21,7 +21,8 @@ import org.junit.jupiter.api.Test;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class AddressTest {
     @Test
@@ -47,7 +48,7 @@ public class AddressTest {
     public void testEquals() throws UnknownHostException {
         Address one = new Address("localhost", 5484);
         Address two = new Address("localhost", 5484);
-        assertTrue(one.equals(two));
+        assertEquals(one, two);
     }
 
     @Test
