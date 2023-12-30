@@ -9,7 +9,7 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Kronotop Root</name>
-    <description>Distributed object store and compute cluster</description>
+    <description>Kronotop is a Redis-like, distributed NoSQL database backed by FoundationDB</description>
     <url>https://kronotop.com</url>
 
     <modules>
@@ -30,7 +30,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.9</version>
+            <version>1.4.14</version>
         </dependency>
 
         <dependency>
@@ -40,9 +40,17 @@
         </dependency>
 
         <dependency>
-            <groupId>io.lettuce</groupId>
-            <artifactId>lettuce-core</artifactId>
-            <version>6.2.6.RELEASE</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.10.1</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.10.1</version>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>
