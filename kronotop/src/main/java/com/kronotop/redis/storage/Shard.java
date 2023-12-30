@@ -50,7 +50,6 @@ public interface Shard extends ConcurrentMap<String, Object> {
     Index getIndex();
 
     /**
-     *
      * @return the Striped object that provides access to a collection of ReadWriteLocks
      */
     Striped<ReadWriteLock> getStriped();

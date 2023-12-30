@@ -60,9 +60,9 @@ public class CoordinatorServiceIntegrationTest extends BaseClusterTest {
      * It retrieves the first KronotopTestInstance from the kronotopInstances map.
      * It then retrieves the number of shards from the instance's context configuration.
      * It iterates through each shard and performs the necessary checks:
-     *   - Asserts that the shard is not null
-     *   - Asserts that the shard is not read-only
-     *   - Asserts that the shard is operable
+     * - Asserts that the shard is not null
+     * - Asserts that the shard is not read-only
+     * - Asserts that the shard is operable
      *
      * @throws AssertionError if any of the shard checks fail
      */
@@ -82,12 +82,12 @@ public class CoordinatorServiceIntegrationTest extends BaseClusterTest {
 
     /**
      * This method tests the functionality of the Kronotop cluster when two instances are created.
-     *
+     * <p>
      * The initial state of the cluster is checked by iterating through each shard of the first Kronotop instance.
      * - Asserts that the shard is not null
      * - Asserts that the shard is not read-only
      * - Asserts that the shard is operable
-     *
+     * <p>
      * Then, a new Kronotop instance is added to the cluster. The routing table, shards, shard ownership, and their statuses are checked.
      * - For each shard, it retrieves the route from the routing table.
      * - If the route's member is the new instance, asserts that the shard is not read-only and is operable.
