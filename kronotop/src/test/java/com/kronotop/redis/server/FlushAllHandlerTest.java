@@ -38,9 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class FlushAllHandlerTest extends BaseStorageTest {
     @Test
-    public void testFLUSHALL() {
-        setupRedisService();
-
+    public void test_FLUSHALL() {
         String key = "mykey";
 
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);

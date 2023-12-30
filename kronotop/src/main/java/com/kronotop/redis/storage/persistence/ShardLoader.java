@@ -31,8 +31,6 @@ import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.WrongTypeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,8 +38,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
+/**
+ * The ShardLoader class is responsible for loading data from a specified directory subspace into a Shard object.
+ * It provides methods to load string values and hash values from the subspace into the Shard.
+ */
 public final class ShardLoader {
-    private static final Logger logger = LoggerFactory.getLogger(ShardLoader.class);
     private final DirectoryLayer directoryLayer = new DirectoryLayer();
     private final List<String> rootPath;
     private final Shard shard;
@@ -52,6 +53,12 @@ public final class ShardLoader {
         this.rootPath = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().redis().persistence().asList();
     }
 
+    /**
+     * Loads the hash values from a given hash subspace.
+     *
+     * @param tr       the transaction used to access the database
+     * @param subspace the hash subspace from which hash values are loaded
+     */
     private void loadHashValue(Transaction tr, DirectorySubspace subspace) {
         if (range == null) {
             range = new Range(subspace.pack(), ByteArrayUtil.strinc(subspace.pack()));
@@ -78,6 +85,12 @@ public final class ShardLoader {
         }
     }
 
+    /**
+     * Loads hash values from a given hash subspace.
+     *
+     * @param tr           the transaction used to access the database
+     * @param hashSubspace the hash subspace from which hash values are loaded
+     */
     private void loadHashValues(Transaction tr, DirectorySubspace hashSubspace) {
         List<DirectorySubspace> subspaces = new ArrayList<>();
         List<String> hashes = hashSubspace.list(tr).join();
@@ -90,6 +103,12 @@ public final class ShardLoader {
         }
     }
 
+    /**
+     * Loads string values from a given subspace in the database.
+     *
+     * @param tr       the transaction used to access the database
+     * @param subspace the subspace from which string values are loaded
+     */
     private void loadStringValues(Transaction tr, DirectorySubspace subspace) {
         if (range == null) {
             range = new Range(subspace.pack(), ByteArrayUtil.strinc(subspace.pack()));
@@ -112,6 +131,12 @@ public final class ShardLoader {
         }
     }
 
+    /**
+     * Loads values from a given subspace in the database.
+     *
+     * @param tr            the transaction used to access the database
+     * @param dataStructure the data structure from which values are loaded
+     */
     public void load(Transaction tr, DataStructure dataStructure) {
         List<String> subpath = new ArrayList<>(rootPath);
         subpath.add(LogicalDatabase.NAME);

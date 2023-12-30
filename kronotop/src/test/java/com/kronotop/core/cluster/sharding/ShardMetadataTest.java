@@ -25,35 +25,11 @@ import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class ShardMetadataTest {
-    protected String expectedResult = "{\"tasks\":{},\"status\":\"OPERABLE\",\"owner\":{\"processId\":1,\"address\":{\"port\":5484,\"host\":\"localhost\"}}}";
-
     @Test
-    public void testShardMetadata_encode() throws JsonProcessingException, UnknownHostException {
-        MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
-        Address address = Address.parseString("localhost:[5484]");
-        ObjectMapper objectMapper = new ObjectMapper();
-        ShardMetadata shardMetadata = new ShardMetadata(address, processIdGenerator.getProcessID());
-        String result = objectMapper.writeValueAsString(shardMetadata);
-        assertEquals(expectedResult, result);
-    }
-
-    @Test
-    public void testShardMetadata_decode() throws JsonProcessingException, UnknownHostException {
-        MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
-        Address address = Address.parseString("localhost:[5484]");
-        ObjectMapper objectMapper = new ObjectMapper();
-        ShardMetadata expectedShardMetadata = new ShardMetadata(address, processIdGenerator.getProcessID());
-
-        ShardMetadata shardMetadata = objectMapper.readValue(expectedResult, ShardMetadata.class);
-        assertEquals(expectedShardMetadata.getOwner().getAddress(), shardMetadata.getOwner().getAddress());
-        assertEquals(expectedShardMetadata.getOwner().getProcessId(), shardMetadata.getOwner().getProcessId());
-    }
-
-    @Test
-    public void testShardMetadata_tasks() throws UnknownHostException, JsonProcessingException {
+    public void test_encode_decode() throws UnknownHostException, JsonProcessingException {
         MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
         ShardOwner nextOwner = new ShardOwner(Address.parseString("localhost:[5585]"), processIdGenerator.getProcessID());
         ReassignShardTask reassignShardTask = new ReassignShardTask(nextOwner, 3);
@@ -62,12 +38,10 @@ public class ShardMetadataTest {
         ObjectMapper objectMapper = new ObjectMapper();
         ShardMetadata shardMetadata = new ShardMetadata(address, processIdGenerator.getProcessID());
         ShardMetadata.Task task = new ShardMetadata.Task(reassignShardTask);
-        shardMetadata.getTasks().put("foobar:10", task);
-        String result = objectMapper.writeValueAsString(shardMetadata);
+        shardMetadata.getTasks().put(task.getBaseTask().getTaskId(), task);
 
-        String expectedResult = String.format("{\"tasks\":{\"foobar:10\":{\"task\":{\"shardId\":3,\"type\":\"REASSIGN_SHARD\"," +
-                "\"createdAt\":%d,\"nextOwner\":{\"processId\":10,\"address\":{\"port\":5585,\"host\":\"localhost\"}}},\"completed\":false}}," +
-                "\"status\":\"OPERABLE\",\"owner\":{\"processId\":1,\"address\":{\"port\":5484,\"host\":\"localhost\"}}}", reassignShardTask.getCreatedAt());
-        assertEquals(expectedResult, result);
+        String encodedShardMetadata = objectMapper.writeValueAsString(shardMetadata);
+        ShardMetadata decodedShardMetadata = objectMapper.readValue(encodedShardMetadata, ShardMetadata.class);
+        assertThat(shardMetadata).usingRecursiveComparison().isEqualTo(decodedShardMetadata);
     }
 }

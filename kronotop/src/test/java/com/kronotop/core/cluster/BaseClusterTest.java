@@ -16,11 +16,9 @@
 
 package com.kronotop.core.cluster;
 
-import com.apple.foundationdb.Database;
 import com.kronotop.ConfigTestUtil;
-import com.kronotop.common.KronotopException;
-import com.kronotop.core.*;
-import com.kronotop.core.network.Address;
+import com.kronotop.KronotopTestInstance;
+import com.kronotop.redis.storage.Shard;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,38 +26,63 @@ import org.junit.jupiter.api.BeforeEach;
 import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * BaseClusterTest is a base class for testing cluster functionality.
+ * <p>
+ * It provides common functionality for setting up and tearing down a Kronotop cluster
+ * with multiple instances. The class uses a ConcurrentHashMap to store the KronotopTestInstance
+ * objects associated with their respective Members.
+ */
 public class BaseClusterTest {
-    private final ConcurrentHashMap<String, KronotopService> services = new ConcurrentHashMap<>();
-    protected Config config;
-    protected Database database;
-    protected ProcessIdGenerator processIDGenerator = new MockProcessIdGeneratorImpl();
+    private final Config config = ConfigTestUtil.load("test.conf");
+    protected ConcurrentHashMap<Member, KronotopTestInstance> kronotopInstances = new ConcurrentHashMap<>();
 
     @BeforeEach
     public void setup() {
-        config = ConfigTestUtil.load("test.conf");
-        database = FoundationDBFactory.newDatabase(config);
+        addNewInstance();
+    }
+
+    /**
+     * Checks if all shards in the Kronotop test instances are operable.
+     *
+     * @return true if all shards are operable, false otherwise
+     */
+    protected boolean areAllShardsOperable() {
+        for (KronotopTestInstance kronotopTestInstance : kronotopInstances.values()) {
+            int numberOfShards = kronotopTestInstance.getContext().getConfig().getInt("cluster.number_of_shards");
+            for (int shardId = 0; shardId < numberOfShards; shardId++) {
+                Shard shard = kronotopTestInstance.getContext().getLogicalDatabase().getShards().get(shardId);
+                if (shard != null && shard.isReadOnly() && !shard.isOperable()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Adds a new KronotopTestInstance to the cluster.
+     *
+     * @return the added KronotopTestInstance
+     * @throws RuntimeException if an UnknownHostException or InterruptedException occurs
+     */
+    protected KronotopTestInstance addNewInstance() {
+        KronotopTestInstance kronotopInstance = new KronotopTestInstance(config);
+
+        try {
+            kronotopInstance.start();
+        } catch (UnknownHostException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        kronotopInstances.put(kronotopInstance.getMember(), kronotopInstance);
+        return kronotopInstance;
     }
 
     @AfterEach
     public void tearDown() {
-        for (KronotopService service : services.values()) {
-            service.shutdown();
-        }
-        // TODO:
-        //FoundationDBFactory.closeDatabase();
-    }
-
-    protected void registerService(KronotopService service) {
-        services.put(service.getName(), service);
-    }
-
-    protected Context newContext() {
-        try {
-            Address address = new Address("localhost", 0);
-            Member member = new Member(address, processIDGenerator.getProcessID());
-            return new ContextImpl(config, member, database);
-        } catch (UnknownHostException e) {
-            throw new KronotopException(e);
+        for (KronotopTestInstance kronotopInstance : kronotopInstances.values()) {
+            kronotopInstance.shutdown();
         }
     }
 }

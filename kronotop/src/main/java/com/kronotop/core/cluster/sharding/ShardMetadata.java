@@ -17,6 +17,7 @@
 package com.kronotop.core.cluster.sharding;
 
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.kronotop.core.cluster.coordinator.tasks.AssignShardTask;
 import com.kronotop.core.cluster.coordinator.tasks.BaseTask;
 import com.kronotop.core.cluster.coordinator.tasks.ReassignShardTask;
@@ -61,6 +62,7 @@ public class ShardMetadata {
     public static class Task {
         private AssignShardTask assignShardTask;
         private ReassignShardTask reassignShardTask;
+        @JsonIgnore
         private BaseTask baseTask;
 
         Task() {
@@ -68,15 +70,22 @@ public class ShardMetadata {
 
         public Task(AssignShardTask assignShardTask) {
             this.assignShardTask = assignShardTask;
-            this.baseTask = this.assignShardTask;
         }
 
         public Task(ReassignShardTask reassignShardTask) {
             this.reassignShardTask = reassignShardTask;
-            this.baseTask = reassignShardTask;
         }
 
-        public BaseTask getBaseTask() {
+        public synchronized BaseTask getBaseTask() {
+            if (baseTask != null) {
+                return baseTask;
+            }
+
+            if (assignShardTask != null) {
+                baseTask = assignShardTask;
+            } else if (reassignShardTask != null) {
+                baseTask = reassignShardTask;
+            }
             return baseTask;
         }
 

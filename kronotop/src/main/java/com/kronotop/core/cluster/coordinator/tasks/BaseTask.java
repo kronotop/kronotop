@@ -19,6 +19,9 @@ package com.kronotop.core.cluster.coordinator.tasks;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * The BaseTask class represents a base task with common attributes such as taskId, shardId, type, and createdAt.
+ */
 public class BaseTask {
     private String taskId;
     private int shardId;

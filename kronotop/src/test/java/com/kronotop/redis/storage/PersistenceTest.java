@@ -20,21 +20,24 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
+import com.kronotop.redis.storage.persistence.HashKey;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.storage.persistence.StringKey;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PersistenceTest extends BaseStorageTest {
     @Test
-    public void testPersistence_STRING() {
+    public void test_STRING() {
         Shard shard = new OnHeapShardImpl(0);
         shard.put("key-1", new StringValue("value-1".getBytes(), 0));
         shard.getPersistenceQueue().add(new StringKey("key-1"));
@@ -73,6 +76,44 @@ public class PersistenceTest extends BaseStorageTest {
                 throw new RuntimeException(e);
             }
 
+            return null;
+        });
+    }
+
+    @Test
+    public void test_HASH() {
+        Shard shard = new OnHeapShardImpl(0);
+        HashValue hashValue = new HashValue();
+        hashValue.put("field-name", "value".getBytes());
+        shard.put("hash-name", hashValue);
+        HashKey hashKey = new HashKey("hash-name", "field-name");
+        shard.getPersistenceQueue().add(hashKey);
+
+        Persistence persistence = new Persistence(context, shard);
+        assertFalse(persistence.isQueueEmpty());
+        persistence.run();
+        assertTrue(persistence.isQueueEmpty());
+
+        List<String> subpath = DirectoryLayout.Builder.
+                clusterName(context.getClusterName()).
+                internal().
+                redis().
+                persistence().
+                logicalDatabase(LogicalDatabase.NAME).
+                shardId("0").
+                dataStructure(DataStructure.HASH.toString().toLowerCase()).
+                addAll(List.of(hashKey.getKey())).asList();
+
+        Database database = context.getFoundationDB();
+        DirectorySubspace subspace;
+        try (Transaction tr = database.createTransaction()) {
+            subspace = directoryLayer.createOrOpen(tr, subpath).join();
+            tr.commit().join();
+        }
+        database.run(tr -> {
+            byte[] rawValue = tr.get(subspace.pack(hashKey.getField())).join();
+            assertNotNull(rawValue);
+            assertArrayEquals("value".getBytes(), rawValue);
             return null;
         });
     }

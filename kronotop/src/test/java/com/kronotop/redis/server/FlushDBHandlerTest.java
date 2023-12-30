@@ -39,9 +39,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class FlushDBHandlerTest extends BaseStorageTest {
     @Test
-    public void testFLUSHDB() {
-        setupRedisService();
-
+    public void test_FLUSHDB() {
         String key = "mykey";
 
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
