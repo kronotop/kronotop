@@ -47,7 +47,7 @@ public class HGetHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HGetMessage hgetMessage = request.attr(MessageTypes.HGET).get();
 
-        Shard shard = service.resolveKey(hgetMessage.getKey());
+        Shard shard = service.findShard(hgetMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hgetMessage.getKey());
         lock.readLock().lock();
         try {

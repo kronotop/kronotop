@@ -44,7 +44,7 @@ public class StrlenHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         StrlenMessage strlenMessage = request.attr(MessageTypes.STRLEN).get();
 
-        Shard shard = service.resolveKey(strlenMessage.getKey());
+        Shard shard = service.findShard(strlenMessage.getKey());
         Object received;
         ReadWriteLock lock = shard.getStriped().get(strlenMessage.getKey());
         try {

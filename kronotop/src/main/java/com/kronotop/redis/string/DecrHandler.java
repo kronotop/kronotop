@@ -63,7 +63,7 @@ public class DecrHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         DecrMessage decrMessage = request.attr(MessageTypes.DECR).get();
 
-        Shard shard = service.resolveKey(decrMessage.getKey());
+        Shard shard = service.findShard(decrMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
 
         ReadWriteLock lock = shard.getStriped().get(decrMessage.getKey());

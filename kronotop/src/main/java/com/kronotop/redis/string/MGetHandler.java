@@ -50,7 +50,7 @@ public class MGetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         MGetMessage mgetMessage = request.attr(MessageTypes.MGET).get();
 
-        Shard shard = service.resolveKeys(mgetMessage.getKeys());
+        Shard shard = service.findShard(mgetMessage.getKeys());
 
         Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(mgetMessage.getKeys());
         List<RedisMessage> result = new ArrayList<>();

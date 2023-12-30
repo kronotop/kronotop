@@ -56,7 +56,7 @@ public class GetRangeHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         GetRangeMessage getRangeMessage = request.attr(MessageTypes.GETRANGE).get();
 
-        Shard shard = service.resolveKey(getRangeMessage.getKey());
+        Shard shard = service.findShard(getRangeMessage.getKey());
         Object result;
         ReadWriteLock lock = shard.getStriped().get(getRangeMessage.getKey());
 

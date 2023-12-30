@@ -59,7 +59,7 @@ public class MSetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         MSetMessage msetMessage = request.attr(MessageTypes.MSET).get();
 
-        Shard shard = service.resolveKeys(msetMessage.getKeys());
+        Shard shard = service.findShard(msetMessage.getKeys());
         List<String> keys = new ArrayList<>();
         for (MSetMessage.Pair pair : msetMessage.getPairs()) {
             keys.add(pair.getKey());

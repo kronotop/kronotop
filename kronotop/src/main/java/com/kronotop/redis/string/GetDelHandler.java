@@ -59,7 +59,7 @@ public class GetDelHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         GetDelMessage getDelMessage = request.attr(MessageTypes.GETDEL).get();
 
-        Shard shard = service.resolveKey(getDelMessage.getKey());
+        Shard shard = service.findShard(getDelMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(getDelMessage.getKey());
 
         Object retrieved;

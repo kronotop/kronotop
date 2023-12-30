@@ -52,7 +52,7 @@ public class HKeysHandler extends BaseHandler implements Handler {
         HKeysMessage hkeysMessage = request.attr(MessageTypes.HKEYS).get();
 
         List<RedisMessage> fields = new ArrayList<>();
-        Shard shard = service.resolveKey(hkeysMessage.getKey());
+        Shard shard = service.findShard(hkeysMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hkeysMessage.getKey());
         lock.readLock().lock();
         try {

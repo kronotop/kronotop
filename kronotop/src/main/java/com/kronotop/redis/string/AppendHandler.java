@@ -62,7 +62,7 @@ public class AppendHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         AppendMessage appendMessage = request.attr(MessageTypes.APPEND).get();
 
-        Shard shard = service.resolveKey(appendMessage.getKey());
+        Shard shard = service.findShard(appendMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
 
         ReadWriteLock lock = shard.getStriped().get(appendMessage.getKey());

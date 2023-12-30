@@ -57,7 +57,7 @@ public class HSetNXHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HSetNXMessage hsetnxMessage = request.attr(MessageTypes.HSETNX).get();
 
-        Shard shard = service.resolveKey(hsetnxMessage.getKey());
+        Shard shard = service.findShard(hsetnxMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hsetnxMessage.getKey());
         lock.writeLock().lock();
         int result = 0;

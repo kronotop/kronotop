@@ -45,7 +45,7 @@ public class HExistsHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HExistsMessage hexistsMessage = request.attr(MessageTypes.HEXISTS).get();
 
-        Shard shard = service.resolveKey(hexistsMessage.getKey());
+        Shard shard = service.findShard(hexistsMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hexistsMessage.getKey());
         lock.readLock().lock();
         try {

@@ -45,7 +45,7 @@ public class HStrlenHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HStrlenMessage hstrlenMessage = request.attr(MessageTypes.HSTRLEN).get();
 
-        Shard shard = service.resolveKey(hstrlenMessage.getKey());
+        Shard shard = service.findShard(hstrlenMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hstrlenMessage.getKey());
         lock.readLock().lock();
         try {

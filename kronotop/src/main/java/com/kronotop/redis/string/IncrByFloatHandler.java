@@ -64,7 +64,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         IncrByFloatMessage incrByFloatMessage = request.attr(MessageTypes.INCRBYFLOAT).get();
 
-        Shard shard = service.resolveKey(incrByFloatMessage.getKey());
+        Shard shard = service.findShard(incrByFloatMessage.getKey());
         AtomicReference<Double> result = new AtomicReference<>();
         ReadWriteLock lock = shard.getStriped().get(incrByFloatMessage.getKey());
 

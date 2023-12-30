@@ -60,7 +60,7 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         GetSetMessage getSetMessage = request.attr(MessageTypes.GETSET).get();
 
-        Shard shard = service.resolveKey(getSetMessage.getKey());
+        Shard shard = service.findShard(getSetMessage.getKey());
         AtomicReference<Object> result = new AtomicReference<>();
 
         ReadWriteLock lock = shard.getStriped().get(getSetMessage.getKey());

@@ -354,13 +354,13 @@ public class RedisService implements KronotopService {
     }
 
     /**
-     * Resolves the shard for the given hash slot.
+     * Find the shard associated with the given slot.
      *
-     * @param slot the hash slot to resolve
-     * @return the Shard object that owns the hash slot
-     * @throws KronotopException if the hash slot is not owned by any member yet or not owned by the current member
+     * @param slot the slot to find the shard for
+     * @return the Shard object associated with the given slot
+     * @throws KronotopException if the slot is not owned by any member yet or not owned by the current member
      */
-    private Shard resolveKeyInternal(int slot) {
+    private Shard findShard_internal(int slot) {
         int shardId = getHashSlots().get(slot);
         Route route = getClusterService().getRoutingTable().getRoute(shardId);
         if (route == null) {
@@ -376,27 +376,26 @@ public class RedisService implements KronotopService {
     }
 
     /**
-     * Resolves the shard for the given key.
+     * Find the shard associated with the given key.
      *
-     * @param key the key to resolve
-     * @return the Shard object that owns the key
-     * @throws KronotopException if the key is not owned by any member yet or not owned by the current member
+     * @param key the key to find the shard for
+     * @return the Shard object associated with the given key
+     * @throws KronotopException if the key's slot is not owned by any member yet or not owned by the current member
      */
-    public Shard resolveKey(String key) {
+    public Shard findShard(String key) {
         int slot = SlotHash.getSlot(key);
-        return resolveKeyInternal(slot);
+        return findShard_internal(slot);
     }
 
     /**
-     * Resolves the shard for the given set of keys.
+     * Finds the shard associated with the given list of keys.
      *
-     * @param keys the set of keys to resolve
-     * @return the Shard object that owns the keys
+     * @param keys the list of keys to find the shard for
+     * @return the Shard object associated with the given keys
+     * @throws KronotopException if the shard is not operable, not owned by any member yet, or not usable yet
      * @throws NullPointerException if the slot cannot be calculated for the given set of keys
-     * @throws KronotopException    if the keys are not owned by any member yet or not owned by the current member
-     *                              or if the keys do not hash to the same slot
      */
-    public Shard resolveKeys(List<String> keys) {
+    public Shard findShard(List<String> keys) {
         Integer latestSlot = null;
         for (String key : keys) {
             int currentSlot = SlotHash.getSlot(key);
@@ -408,7 +407,7 @@ public class RedisService implements KronotopService {
         if (latestSlot == null) {
             throw new NullPointerException("slot cannot be calculated for the given set of keys");
         }
-        return resolveKeyInternal(latestSlot);
+        return findShard_internal(latestSlot);
     }
 
     public Map<Integer, Integer> getHashSlots() {

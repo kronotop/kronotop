@@ -46,7 +46,7 @@ public class TypeHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         TypeMessage typeMessage = request.attr(MessageTypes.TYPE).get();
 
-        Shard shard = service.resolveKey(typeMessage.getKey());
+        Shard shard = service.findShard(typeMessage.getKey());
 
         Object retrieved;
         ReadWriteLock lock = shard.getStriped().get(typeMessage.getKey());

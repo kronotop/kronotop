@@ -46,7 +46,7 @@ public class GetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         GetMessage getMessage = request.attr(MessageTypes.GET).get();
 
-        Shard shard = service.resolveKey(getMessage.getKey());
+        Shard shard = service.findShard(getMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(getMessage.getKey());
         Object retrieved;
         try {

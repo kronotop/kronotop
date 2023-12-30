@@ -55,7 +55,7 @@ public class HSetHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HSetMessage hsetMessage = request.attr(MessageTypes.HSET).get();
 
-        Shard shard = service.resolveKey(hsetMessage.getKey());
+        Shard shard = service.findShard(hsetMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hsetMessage.getKey());
         lock.writeLock().lock();
         int total = 0;

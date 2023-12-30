@@ -97,7 +97,7 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
         FullBulkStringRedisMessage bulkReply = null;
         List<RedisMessage> arrayReply = null;
 
-        Shard shard = service.resolveKey(hrandfieldMessage.getKey());
+        Shard shard = service.findShard(hrandfieldMessage.getKey());
         ReadWriteLock lock = shard.getStriped().get(hrandfieldMessage.getKey());
         lock.readLock().lock();
         try {
