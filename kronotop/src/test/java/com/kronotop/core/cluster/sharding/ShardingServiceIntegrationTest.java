@@ -48,7 +48,7 @@ public class ShardingServiceIntegrationTest extends BaseClusterTest {
      * 3. Adds a new instance to 'kronotopInstances' map and retrieves the MembershipService object from the second instance.
      * 4. Waits until all shards are operable.
      * 5. Iterates over the number of shards and adds the shard ids to the respective sets
-     *    based on whether the shard is owned by the first or second instance.
+     * based on whether the shard is owned by the first or second instance.
      * 6. Asserts that shards owned by the second instance are not present in the first instance and vice versa.
      * 7. Asserts that shards owned by the first instance are present in the first instance and are operable.
      * </p>
@@ -76,15 +76,23 @@ public class ShardingServiceIntegrationTest extends BaseClusterTest {
             }
 
             for (Integer shardId : shardIdsOwnedBySecondInstance) {
-                Shard shard = firstInstance.getContext().getLogicalDatabase().getShards().get(shardId);
-                assertNull(shard);
+                {
+                    Shard shard = firstInstance.getContext().getLogicalDatabase().getShards().get(shardId);
+                    assertNull(shard);
+                }
+                {
+                    Shard shard = secondInstance.getContext().getLogicalDatabase().getShards().get(shardId);
+                    assertNotNull(shard);
+                    assertTrue(shard.isOperable());
+                    assertFalse(shard.isReadOnly());
+                }
             }
 
             for (Integer shardId : shardIdsOwnedByFirstInstance) {
                 Shard shard = firstInstance.getContext().getLogicalDatabase().getShards().get(shardId);
                 assertNotNull(shard);
-                //assertTrue(shard.isOperable());
-                System.out.println(shardId + ">>>" + shard.isOperable() + " " +shard.isReadOnly());
+                assertTrue(shard.isOperable());
+                assertFalse(shard.isReadOnly());
             }
         }
     }
