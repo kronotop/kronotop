@@ -8,6 +8,7 @@ on:
 
 env:
   FOUNDATIONDB_VERSION: 7.3.26
+  FOUNDATIONDB_DOWNLOAD_URL: https://github.com/apple/foundationdb/releases/download
 
 jobs:
   build:
@@ -26,13 +27,13 @@ jobs:
           cache: maven
 
       - name: Download FoundationDB client
-        run: curl -sLo $HOME/foundationdb-clients_$FOUNDATIONDB_VERSION-1_amd64.deb https://github.com/apple/foundationdb/releases/download/$FOUNDATIONDB_VERSION/foundationdb-clients_$FOUNDATIONDB_VERSION-1_amd64.deb
+        run: curl -sLo $HOME/foundationdb-clients_$FOUNDATIONDB_VERSION-1_amd64.deb $FOUNDATIONDB_DOWNLOAD_URL/$FOUNDATIONDB_VERSION/foundationdb-clients_$FOUNDATIONDB_VERSION-1_amd64.deb
 
       - name: Install FoundationDB client
         run: sudo dpkg -i $HOME/foundationdb-clients_$FOUNDATIONDB_VERSION-1_amd64.deb
 
       - name: Download FoundationDB server
-        run: curl -sLo $HOME/foundationdb-server_$FOUNDATIONDB_VERSION-1_amd64.deb https://github.com/apple/foundationdb/releases/download/$FOUNDATIONDB_VERSION/foundationdb-server_$FOUNDATIONDB_VERSION-1_amd64.deb
+        run: curl -sLo $HOME/foundationdb-server_$FOUNDATIONDB_VERSION-1_amd64.deb $FOUNDATIONDB_DOWNLOAD_URL/$FOUNDATIONDB_VERSION/foundationdb-server_$FOUNDATIONDB_VERSION-1_amd64.deb
 
       - name: Install FoundationDB server
         run: sudo dpkg -i $HOME/foundationdb-server_$FOUNDATIONDB_VERSION-1_amd64.deb
