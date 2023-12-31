@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  FOUNDATIONDB_VERSION: 7.3.26
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,16 +26,16 @@ jobs:
           cache: maven
 
       - name: Download FoundationDB client
-        run: curl -sLo $HOME/foundationdb-clients_7.3.26-1_amd64.deb https://github.com/apple/foundationdb/releases/download/7.3.26/foundationdb-clients_7.3.26-1_amd64.deb
+        run: curl -sLo $HOME/foundationdb-clients_$FOUNDATIONDB_VERSION-1_amd64.deb https://github.com/apple/foundationdb/releases/download/$FOUNDATIONDB_VERSION/foundationdb-clients_$FOUNDATIONDB_VERSION-1_amd64.deb
 
       - name: Install FoundationDB client
-        run: sudo dpkg -i $HOME/foundationdb-clients_7.3.26-1_amd64.deb
+        run: sudo dpkg -i $HOME/foundationdb-clients_$FOUNDATIONDB_VERSION-1_amd64.deb
 
       - name: Download FoundationDB server
-        run: curl -sLo $HOME/foundationdb-server_7.3.26-1_amd64.deb https://github.com/apple/foundationdb/releases/download/7.3.26/foundationdb-server_7.3.26-1_amd64.deb
+        run: curl -sLo $HOME/foundationdb-server_$FOUNDATIONDB_VERSION-1_amd64.deb https://github.com/apple/foundationdb/releases/download/$FOUNDATIONDB_VERSION/foundationdb-server_$FOUNDATIONDB_VERSION-1_amd64.deb
 
       - name: Install FoundationDB server
-        run: sudo dpkg -i $HOME/foundationdb-server_7.3.26-1_amd64.deb
+        run: sudo dpkg -i $HOME/foundationdb-server_$FOUNDATIONDB_VERSION-1_amd64.deb
 
       - name: Run tests with Maven
         run: FDB_LIBRARY_PATH_FDB_C=/usr/lib/libfdb_c.so mvn -B test --file pom.xml
