@@ -26,9 +26,9 @@ jobs:
       - name: Download FoundationDB client
         run: curl -sLo $HOME/foundationdb-clients_7.3.26-1_amd64.deb https://github.com/apple/foundationdb/releases/download/7.3.26/foundationdb-clients_7.3.26-1_amd64.deb
       - name: Install FoundationDB server
-        run: dpkg -i $HOME/foundationdb-server_7.3.26-1_amd64.deb
+        run: sudo dpkg -i $HOME/foundationdb-server_7.3.26-1_amd64.deb
       - name: Install FoundationDB client
-        run: dpkg -i $HOME/foundationdb-clients_7.3.26-1_amd64.deb
+        run: sudo dpkg -i $HOME/foundationdb-clients_7.3.26-1_amd64.deb
       - name: Run tests with Maven
         run: FDB_LIBRARY_PATH_FDB_C=/usr/lib/libfdb_c.so mvn -B test --file pom.xml
 
