@@ -19,6 +19,7 @@ package com.kronotop.core;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;
 import com.apple.foundationdb.FDBException;
+import com.apple.foundationdb.JNIUtil;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import org.slf4j.Logger;
@@ -62,19 +63,7 @@ public class FoundationDBFactory {
             throw new IllegalArgumentException("FoundationDB API Version cannot be zero");
         }
 
-        if (System.getProperty("FDB_LIBRARY_PATH_FDB_C") == null) {
-            if (config.hasPath("foundationdb.fdbc")) {
-                String fdbc = config.getString("foundationdb.fdbc");
-                System.setProperty("FDB_LIBRARY_PATH_FDB_C", fdbc);
-            }
-        }
-
-        if (System.getProperty("FDB_LIBRARY_PATH_FDB_JAVA") == null) {
-            if (config.hasPath("foundationdb.fdbjava")) {
-                String fdbjava = config.getString("foundationdb.fdbjava");
-                System.setProperty("FDB_LIBRARY_PATH_FDB_JAVA", fdbjava);
-            }
-        }
+        configureFDBLibraryPaths(config);
 
         // TODO: Add network options.
         FDB fdb = FDB.selectAPIVersion(apiVersion);
@@ -97,6 +86,37 @@ public class FoundationDBFactory {
             database.close();
         } finally {
             isClosed = true;
+        }
+    }
+
+    /**
+     * Configures the FoundationDB library paths based on the provided configuration.
+     *
+     * @param config the configuration object containing the necessary paths for FoundationDB libraries
+     */
+    private static void configureFDBLibraryPaths(Config config) {
+        if (System.getProperty("FDB_LIBRARY_PATH_FDB_C") == null) {
+            if (config.hasPath("foundationdb.fdbc")) {
+                String fdbc = config.getString("foundationdb.fdbc");
+                System.setProperty("FDB_LIBRARY_PATH_FDB_C", fdbc);
+            }
+        }
+
+        // We couldn't find libfdb_c. Let's try to make a guess.
+        if (System.getProperty("FDB_LIBRARY_PATH_FDB_C") == null) {
+            String operatingSystemName = System.getProperty("os.name").toLowerCase();
+            if (operatingSystemName.startsWith("linux")) {
+                System.setProperty("FDB_LIBRARY_PATH_FDB_C", "/usr/lib/libfdb_c.so");
+            } else if (operatingSystemName.startsWith("mac") || operatingSystemName.startsWith("darwin")) {
+                System.setProperty("FDB_LIBRARY_PATH_FDB_C", "/usr/local/lib/libfdb_c.dylib");
+            }
+        }
+
+        if (System.getProperty("FDB_LIBRARY_PATH_FDB_JAVA") == null) {
+            if (config.hasPath("foundationdb.fdbjava")) {
+                String fdbjava = config.getString("foundationdb.fdbjava");
+                System.setProperty("FDB_LIBRARY_PATH_FDB_JAVA", fdbjava);
+            }
         }
     }
 }

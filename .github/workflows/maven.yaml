@@ -39,7 +39,7 @@ jobs:
         run: sudo dpkg -i $HOME/foundationdb-server_$FOUNDATIONDB_VERSION-1_amd64.deb
 
       - name: Run tests with Maven
-        run: FDB_LIBRARY_PATH_FDB_C=/usr/lib/libfdb_c.so mvn -B test --file pom.xml
+        run: mvn -B test --file pom.xml
 
       # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
       - name: Update dependency graph
