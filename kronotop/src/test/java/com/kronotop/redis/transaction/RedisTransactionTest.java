@@ -20,11 +20,11 @@ import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.resp.ChannelAttributes;
 import com.kronotop.server.resp.Request;
+import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.redis.*;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
 

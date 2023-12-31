@@ -22,8 +22,8 @@ import com.kronotop.server.resp.MessageTypes;
 import com.kronotop.server.resp.Request;
 import com.kronotop.server.resp.Response;
 import com.kronotop.server.resp.annotation.Command;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.redis.FullBulkStringRedisMessage;
 
 @Command(InfoMessage.COMMAND)
 public class InfoHandler implements Handler {

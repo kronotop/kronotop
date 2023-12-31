@@ -28,9 +28,10 @@ import java.util.List;
 
 public class HelloMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "HELLO";
-    public static final int DEFAULT_PROTOVER = 2;
+    public static final int RESP_VERSION_TWO = 2;
+    public static final int RESP_VERSION_THREE = 3;
     private final Request request;
-    private int protover;
+    private Integer protover;
     private String username;
     private String password;
     private boolean auth;
@@ -50,7 +51,7 @@ public class HelloMessage implements KronotopMessage<Void> {
 
     private void parse() {
         if (request.getParams().isEmpty()) {
-            protover = DEFAULT_PROTOVER;
+            protover = RESP_VERSION_THREE;
             return;
         }
 
@@ -61,8 +62,7 @@ public class HelloMessage implements KronotopMessage<Void> {
             throw new KronotopException(RESPError.PROTOCOL_VERSION_FORMAT_ERROR, e);
         }
 
-        // Kronotop only supports RESP2
-        if (protover != DEFAULT_PROTOVER) {
+        if (protover != RESP_VERSION_TWO && protover != RESP_VERSION_THREE) {
             throw new NoProtoException();
         }
 
@@ -93,7 +93,7 @@ public class HelloMessage implements KronotopMessage<Void> {
         }
     }
 
-    public int getProtover() {
+    public Integer getProtover() {
         return protover;
     }
 

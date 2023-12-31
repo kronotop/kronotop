@@ -392,7 +392,7 @@ public class RedisService implements KronotopService {
      *
      * @param keys the list of keys to find the shard for
      * @return the Shard object associated with the given keys
-     * @throws KronotopException if the shard is not operable, not owned by any member yet, or not usable yet
+     * @throws KronotopException    if the shard is not operable, not owned by any member yet, or not usable yet
      * @throws NullPointerException if the slot cannot be calculated for the given set of keys
      */
     public Shard findShard(List<String> keys) {

@@ -22,14 +22,11 @@ import com.kronotop.core.cluster.Member;
 import com.kronotop.core.network.Address;
 import com.kronotop.server.resp.Handlers;
 import com.kronotop.server.resp.Router;
+import com.kronotop.server.resp3.*;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.redis.RedisArrayAggregator;
-import io.netty.handler.codec.redis.RedisBulkStringAggregator;
-import io.netty.handler.codec.redis.RedisDecoder;
-import io.netty.handler.codec.redis.RedisEncoder;
 
 /**
  * This abstract class represents a RESP2 server that implements the KronotopService interface.
@@ -62,6 +59,7 @@ public abstract class RESP2Server implements KronotopService {
                         p.addLast(new RedisDecoder());
                         p.addLast(new RedisBulkStringAggregator());
                         p.addLast(new RedisArrayAggregator());
+                        p.addLast(new RedisMapAggregator());
                         p.addLast(new RedisEncoder());
                         p.addLast(new Router(context, commands));
                     }

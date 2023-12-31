@@ -16,8 +16,8 @@
 
 package com.kronotop.foundationdb;
 
-import io.netty.handler.codec.redis.ErrorRedisMessage;
-import io.netty.handler.codec.redis.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

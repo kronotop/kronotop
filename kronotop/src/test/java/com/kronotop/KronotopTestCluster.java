@@ -41,6 +41,7 @@ public class KronotopTestCluster {
     }
 
     public static void main(String[] args) throws InterruptedException, UnknownHostException {
+        // TODO: remove this.
         Config config = ConfigTestUtil.load("test.conf");
         KronotopTestCluster cluster = new KronotopTestCluster(config);
         cluster.start(2);

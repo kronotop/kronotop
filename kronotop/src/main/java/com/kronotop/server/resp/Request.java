@@ -16,9 +16,9 @@
 
 package com.kronotop.server.resp;
 
+import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.redis.RedisMessage;
 import io.netty.util.AttributeMap;
 
 import java.util.ArrayList;

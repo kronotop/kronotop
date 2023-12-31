@@ -19,12 +19,12 @@ package com.kronotop.redis.connection;
 import com.kronotop.ConfigTestUtil;
 import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
+import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.redis.ArrayRedisMessage;
-import io.netty.handler.codec.redis.ErrorRedisMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

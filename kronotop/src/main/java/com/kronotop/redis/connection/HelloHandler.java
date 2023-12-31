@@ -24,17 +24,12 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.connection.protocol.HelloMessage;
 import com.kronotop.server.resp.*;
 import com.kronotop.server.resp.annotation.Command;
+import com.kronotop.server.resp3.*;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
-import io.netty.handler.codec.redis.ArrayRedisMessage;
-import io.netty.handler.codec.redis.IntegerRedisMessage;
-import io.netty.handler.codec.redis.RedisMessage;
-import io.netty.handler.codec.redis.SimpleStringRedisMessage;
 import io.netty.util.Attribute;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 
 @Command(HelloMessage.COMMAND)
@@ -104,17 +99,47 @@ public class HelloHandler extends BaseHandler implements Handler {
             Clients.setClient(clientID.get(), client);
         }
 
+        if (msg.getProtover().equals(HelloMessage.RESP_VERSION_TWO)) {
+            resp2Response(response);
+        } else if (msg.getProtover().equals(HelloMessage.RESP_VERSION_THREE)) {
+            resp3Response(response);
+        } else {
+            // Actually, this case was already handled by the message parser but safety is a good thing.
+            throw new NoProtoException();
+        }
+    }
+
+    private SimpleStringRedisMessage getVersion() {
+        String implementationVersion = getClass().getPackage().getImplementationVersion();
+        return new SimpleStringRedisMessage(implementationVersion != null ? implementationVersion : "undefined");
+    }
+
+    private void resp3Response(Response response) {
+        // We want to keep the insertion order.
+        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
+        map.put(new SimpleStringRedisMessage("server"), new SimpleStringRedisMessage("kronotop"));
+        map.put(new SimpleStringRedisMessage("version"), getVersion());
+        map.put(new SimpleStringRedisMessage("proto"), new IntegerRedisMessage(HelloMessage.RESP_VERSION_THREE));
+
+        Attribute<Long> clientID = response.getContext().channel().attr(ChannelAttributes.CLIENT_ID);
+        map.put(new SimpleStringRedisMessage("id"), new IntegerRedisMessage(clientID.get()));
+        map.put(new SimpleStringRedisMessage("mode"), new SimpleStringRedisMessage("cluster"));
+        map.put(new SimpleStringRedisMessage("role"), new SimpleStringRedisMessage("master"));
+        map.put(new SimpleStringRedisMessage("modules"), new ArrayRedisMessage(new ArrayList<>()));
+        MapRedisMessage mapRedisMessage = new MapRedisMessage(map);
+        response.getContext().writeAndFlush(mapRedisMessage);
+    }
+
+    private void resp2Response(Response response) {
         List<RedisMessage> result = new ArrayList<>();
         result.add(new SimpleStringRedisMessage("server"));
         result.add(new SimpleStringRedisMessage("kronotop"));
+
         result.add(new SimpleStringRedisMessage("version"));
+        result.add(getVersion());
 
-        String implementationVersion = getClass().getPackage().getImplementationVersion();
-        result.add(new SimpleStringRedisMessage(implementationVersion != null ? implementationVersion : "undefined"));
-
-        // Kronotop only supports RESP2.
         result.add(new SimpleStringRedisMessage("proto"));
-        result.add(new IntegerRedisMessage(2));
+        result.add(new IntegerRedisMessage(HelloMessage.RESP_VERSION_TWO));
         result.add(new SimpleStringRedisMessage("id"));
 
         Attribute<Long> clientID = response.getContext().channel().attr(ChannelAttributes.CLIENT_ID);

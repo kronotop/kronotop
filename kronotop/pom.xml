@@ -33,13 +33,6 @@
 
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty-codec-redis</artifactId>
-            <version>4.1.104.Final</version>
-            <scope>compile</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-epoll</artifactId>
             <version>4.1.104.Final</version>
             <classifier>linux-x86_64</classifier>

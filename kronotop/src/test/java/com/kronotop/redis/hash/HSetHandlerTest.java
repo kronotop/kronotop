@@ -19,10 +19,10 @@ package com.kronotop.redis.hash;
 
 import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
+import com.kronotop.server.resp3.IntegerRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.redis.IntegerRedisMessage;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;

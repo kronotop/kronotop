@@ -23,11 +23,12 @@ import com.kronotop.core.cluster.coordinator.Route;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.resp.Router;
+import com.kronotop.server.resp3.RedisArrayAggregator;
+import com.kronotop.server.resp3.RedisBulkStringAggregator;
+import com.kronotop.server.resp3.RedisDecoder;
+import com.kronotop.server.resp3.RedisMapAggregator;
 import com.typesafe.config.Config;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.redis.RedisArrayAggregator;
-import io.netty.handler.codec.redis.RedisBulkStringAggregator;
-import io.netty.handler.codec.redis.RedisDecoder;
 
 import java.net.UnknownHostException;
 import java.util.List;
@@ -52,6 +53,7 @@ public class KronotopTestInstance extends KronotopInstance {
                 new RedisDecoder(false),
                 new RedisBulkStringAggregator(),
                 new RedisArrayAggregator(),
+                new RedisMapAggregator(),
                 new Router(super.context, super.handlers)
         );
     }

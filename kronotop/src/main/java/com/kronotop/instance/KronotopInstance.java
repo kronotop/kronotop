@@ -243,7 +243,6 @@ public class KronotopInstance {
                 }
                 LOGGER.debug("{} service has been shutting down", service.getName());
             }
-            LOGGER.info("Quit!");
         } finally {
             setStatus(KronotopInstanceStatus.STOPPED);
         }

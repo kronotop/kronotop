@@ -26,8 +26,8 @@ import com.kronotop.server.resp.Response;
 import com.kronotop.server.resp.annotation.Command;
 import com.kronotop.server.resp.annotation.MaximumParameterCount;
 import com.kronotop.server.resp.annotation.MinimumParameterCount;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.redis.FullBulkStringRedisMessage;
 import io.netty.util.ReferenceCountUtil;
 
 import java.util.concurrent.CompletableFuture;

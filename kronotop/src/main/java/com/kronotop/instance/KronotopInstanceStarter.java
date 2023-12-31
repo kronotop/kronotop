@@ -58,6 +58,7 @@ public class KronotopInstanceStarter {
                 throw new RuntimeException(e);
             } finally {
                 instance.closeFoundationDBConnection();
+                LOGGER.info("Quit!");
             }
         });
     }

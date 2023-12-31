@@ -16,10 +16,10 @@
 
 package com.kronotop;
 
+import com.kronotop.server.resp3.RedisArrayAggregator;
+import com.kronotop.server.resp3.RedisBulkStringAggregator;
+import com.kronotop.server.resp3.RedisDecoder;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.redis.RedisArrayAggregator;
-import io.netty.handler.codec.redis.RedisBulkStringAggregator;
-import io.netty.handler.codec.redis.RedisDecoder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
