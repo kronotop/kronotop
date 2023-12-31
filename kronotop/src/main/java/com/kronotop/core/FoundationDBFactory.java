@@ -62,14 +62,18 @@ public class FoundationDBFactory {
             throw new IllegalArgumentException("FoundationDB API Version cannot be zero");
         }
 
-        if (config.hasPath("foundationdb.fdbc")) {
-            String fdbc = config.getString("foundationdb.fdbc");
-            System.setProperty("FDB_LIBRARY_PATH_FDB_C", fdbc);
+        if (System.getProperty("FDB_LIBRARY_PATH_FDB_C") == null) {
+            if (config.hasPath("foundationdb.fdbc")) {
+                String fdbc = config.getString("foundationdb.fdbc");
+                System.setProperty("FDB_LIBRARY_PATH_FDB_C", fdbc);
+            }
         }
 
-        if (config.hasPath("foundationdb.fdbjava")) {
-            String fdbjava = config.getString("foundationdb.fdbjava");
-            System.setProperty("FDB_LIBRARY_PATH_FDB_JAVA", fdbjava);
+        if (System.getProperty("FDB_LIBRARY_PATH_FDB_JAVA") == null) {
+            if (config.hasPath("foundationdb.fdbjava")) {
+                String fdbjava = config.getString("foundationdb.fdbjava");
+                System.setProperty("FDB_LIBRARY_PATH_FDB_JAVA", fdbjava);
+            }
         }
 
         // TODO: Add network options.

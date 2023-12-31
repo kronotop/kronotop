@@ -1,0 +1,37 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ '11', '17', '21' ]
+    name: Java ${{ matrix.Java }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'corretto'
+          cache: maven
+      - name: Download FoundationDB server
+        run: curl -sLo $HOME/foundationdb-server_7.3.26-1_amd64.deb https://github.com/apple/foundationdb/releases/download/7.3.26/foundationdb-server_7.3.26-1_amd64.deb
+      - name: Download FoundationDB client
+        run: curl -sLo $HOME/foundationdb-clients_7.3.26-1_amd64.deb https://github.com/apple/foundationdb/releases/download/7.3.26/foundationdb-clients_7.3.26-1_amd64.deb
+      - name: Install FoundationDB server
+        run: dpkg -i $HOME/foundationdb-server_7.3.26-1_amd64.deb
+      - name: Install FoundationDB client
+        run: dpkg -i $HOME/foundationdb-clients_7.3.26-1_amd64.deb
+      - name: Run tests with Maven
+        run: FDB_LIBRARY_PATH_FDB_C=/usr/lib/libfdb_c.so mvn -B test --file pom.xml
+
+      # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
+      - name: Update dependency graph
+        uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
