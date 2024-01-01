@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp;
 
-import com.kronotop.common.KronotopException;
+package com.kronotop.server.annotation;
 
-public class InvalidArgument extends KronotopException {
-    public InvalidArgument(String content) {
-        super(content);
-    }
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface Commands {
+
+    Command[] value();
 }

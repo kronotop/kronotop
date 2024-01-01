@@ -18,10 +18,10 @@ package com.kronotop.foundationdb.zmap;
 
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
-import com.kronotop.server.resp.CommandAlreadyRegisteredException;
-import com.kronotop.server.resp.Handler;
-import com.kronotop.server.resp.Handlers;
-import com.kronotop.server.resp.annotation.Command;
+import com.kronotop.server.CommandAlreadyRegisteredException;
+import com.kronotop.server.Handler;
+import com.kronotop.server.Handlers;
+import com.kronotop.server.annotation.Command;
 
 public class ZMapService implements KronotopService {
     public static final byte SubspaceMagic = 0x01;

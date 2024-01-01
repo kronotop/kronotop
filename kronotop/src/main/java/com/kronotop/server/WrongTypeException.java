@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp.annotation;
+package com.kronotop.server;
 
-import java.lang.annotation.*;
+import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.TYPE)
-@Documented
-public @interface MinimumParameterCount {
-    int value();
+public class WrongTypeException extends KronotopException {
+    public WrongTypeException() {
+        super(RESPError.WRONGTYPE, RESPError.WRONGTYPE_MESSAGE);
+    }
 }

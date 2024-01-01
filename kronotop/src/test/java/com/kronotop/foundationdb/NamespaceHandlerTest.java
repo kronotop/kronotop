@@ -19,7 +19,7 @@ package com.kronotop.foundationdb;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.kronotop.protocol.KronotopCommandBuilder;
-import com.kronotop.server.resp.ChannelAttributes;
+import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;

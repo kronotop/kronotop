@@ -17,7 +17,7 @@
 
 package com.kronotop.redis.hash.protocol;
 
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.Request;
 
 public class HMSetMessage extends HSetMessage {
     public static final String COMMAND = "HMSET";

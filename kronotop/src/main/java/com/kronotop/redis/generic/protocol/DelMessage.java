@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.generic.protocol;
 
-import com.kronotop.server.resp.KronotopMessage;
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;

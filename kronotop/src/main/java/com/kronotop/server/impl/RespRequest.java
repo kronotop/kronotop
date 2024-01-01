@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp.impl;
+package com.kronotop.server.impl;
 
 import com.kronotop.common.Preconditions;
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.Request;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;

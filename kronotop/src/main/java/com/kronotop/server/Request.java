@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp;
+package com.kronotop.server;
 
-import com.kronotop.common.KronotopException;
-import com.kronotop.common.resp.RESPError;
+import com.kronotop.server.resp3.RedisMessage;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.AttributeMap;
 
-public class NamespaceNotOpenException extends KronotopException {
-    public NamespaceNotOpenException(String content) {
-        super(RESPError.NAMESPACENOTOPEN, content);
-    }
+import java.util.ArrayList;
+
+public interface Request extends AttributeMap {
+    String getCommand();
+
+    ArrayList<ByteBuf> getParams();
+
+    RedisMessage getRedisMessage();
+
+    ChannelHandlerContext getContext();
 }

@@ -24,7 +24,7 @@ import com.kronotop.core.FoundationDBFactory;
 import com.kronotop.core.cluster.Member;
 import com.kronotop.core.cluster.MockProcessIdGeneratorImpl;
 import com.kronotop.core.network.Address;
-import com.kronotop.server.resp.Handlers;
+import com.kronotop.server.Handlers;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

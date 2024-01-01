@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp;
+package com.kronotop.server;
 
 import com.kronotop.common.KronotopException;
-import com.kronotop.common.resp.RESPError;
 
-public class ExecAbortException extends KronotopException {
-    public ExecAbortException() {
-        super(RESPError.EXECABORT, RESPError.EXECABORT_MESSAGE);
+public class CommandAlreadyRegisteredException extends KronotopException {
+    public CommandAlreadyRegisteredException(String content) {
+        super(content);
     }
 }

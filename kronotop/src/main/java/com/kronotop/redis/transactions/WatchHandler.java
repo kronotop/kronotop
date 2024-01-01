@@ -18,9 +18,9 @@ package com.kronotop.redis.transactions;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.transactions.protocol.WatchMessage;
-import com.kronotop.server.resp.*;
-import com.kronotop.server.resp.annotation.Command;
-import com.kronotop.server.resp.annotation.MinimumParameterCount;
+import com.kronotop.server.*;
+import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MinimumParameterCount;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 

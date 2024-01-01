@@ -16,9 +16,9 @@
 
 package com.kronotop.redis.hash.protocol;
 
-import com.kronotop.server.resp.KronotopMessage;
-import com.kronotop.server.resp.Request;
-import com.kronotop.server.resp.WrongNumberOfArgumentsException;
+import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.Request;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 
 import java.util.List;
 

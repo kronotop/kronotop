@@ -16,7 +16,7 @@
 
 package com.kronotop.foundationdb.protocol;
 
-import com.kronotop.server.resp.KronotopMessage;
+import com.kronotop.server.KronotopMessage;
 
 import java.util.List;
 

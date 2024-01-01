@@ -20,10 +20,10 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.string.protocol.StrlenMessage;
-import com.kronotop.server.resp.*;
-import com.kronotop.server.resp.annotation.Command;
-import com.kronotop.server.resp.annotation.MaximumParameterCount;
-import com.kronotop.server.resp.annotation.MinimumParameterCount;
+import com.kronotop.server.*;
+import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.concurrent.locks.ReadWriteLock;
 

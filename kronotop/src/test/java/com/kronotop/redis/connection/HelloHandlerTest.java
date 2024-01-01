@@ -21,7 +21,7 @@ import com.kronotop.core.network.clients.Clients;
 import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redis.connection.protocol.HelloMessage;
 import com.kronotop.redistest.RedisCommandBuilder;
-import com.kronotop.server.resp.ChannelAttributes;
+import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -48,7 +48,7 @@ public class HelloHandlerTest extends BaseHandlerTest {
             if (index % 2 == 0) {
                 RedisMessage redisMessage = response.children().get(index);
                 keyMessage = (SimpleStringRedisMessage) redisMessage;
-                int valueIndex = index+1;
+                int valueIndex = index + 1;
                 switch (keyMessage.content()) {
                     case "server":
                         SimpleStringRedisMessage serverName = (SimpleStringRedisMessage) response.children().get(valueIndex);
@@ -93,7 +93,7 @@ public class HelloHandlerTest extends BaseHandlerTest {
         Object msg = channel.readOutbound();
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage response = (MapRedisMessage) msg;
-        for (RedisMessage redisMessage: response.children().keySet()) {
+        for (RedisMessage redisMessage : response.children().keySet()) {
             SimpleStringRedisMessage key = (SimpleStringRedisMessage) redisMessage;
             switch (key.content()) {
                 case "server":

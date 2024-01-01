@@ -18,7 +18,7 @@ package com.kronotop.foundationdb;
 
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.protocol.SnapshotReadArgs;
-import com.kronotop.server.resp.ChannelAttributes;
+import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;

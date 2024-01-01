@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.hash.protocol;
 
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.Request;
 
 public class HLenMessage extends KeyCommon {
     public static final String COMMAND = "HLEN";

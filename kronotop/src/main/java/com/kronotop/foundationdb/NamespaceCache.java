@@ -20,8 +20,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.foundationdb.zmap.ZMapService;
-import com.kronotop.server.resp.ChannelAttributes;
-import com.kronotop.server.resp.Response;
+import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.Response;
 import io.netty.util.Attribute;
 
 import java.util.List;

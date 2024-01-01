@@ -18,8 +18,8 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.foundationdb.protocol.NamespaceMessage;
-import com.kronotop.server.resp.ChannelAttributes;
-import com.kronotop.server.resp.Response;
+import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;

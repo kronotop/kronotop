@@ -14,22 +14,20 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp.impl;
+package com.kronotop.server.impl;
 
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.server.resp.Response;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class TransactionResponse implements Response {
+public class RespResponse implements Response {
     private final ChannelHandlerContext ctx;
-    private final List<RedisMessage> messages = new ArrayList<>();
 
-    public TransactionResponse(ChannelHandlerContext ctx) {
+    public RespResponse(ChannelHandlerContext ctx) {
         this.ctx = ctx;
     }
 
@@ -40,32 +38,32 @@ public class TransactionResponse implements Response {
 
     @Override
     public void writeQUEUED() {
-        writeSimpleString("QUEUED");
+        ctx.write(new SimpleStringRedisMessage("QUEUED"));
     }
 
     @Override
     public void writeInteger(long value) {
-        messages.add(new IntegerRedisMessage(value));
+        ctx.writeAndFlush(new IntegerRedisMessage(value));
     }
 
     @Override
     public void writeArray(List<RedisMessage> children) {
-        messages.add(new ArrayRedisMessage(children));
+        ctx.writeAndFlush(new ArrayRedisMessage(children));
     }
 
     @Override
     public void writeSimpleString(String msg) {
-        messages.add(new SimpleStringRedisMessage(msg));
+        ctx.writeAndFlush(new SimpleStringRedisMessage(msg));
     }
 
     @Override
     public void write(ByteBuf content) {
-        messages.add(new FullBulkStringRedisMessage(content));
+        ctx.writeAndFlush(new FullBulkStringRedisMessage(content));
     }
 
     @Override
     public void writeFullBulkString(FullBulkStringRedisMessage msg) {
-        messages.add(msg);
+        ctx.writeAndFlush(msg);
     }
 
     @Override
@@ -80,15 +78,11 @@ public class TransactionResponse implements Response {
 
     @Override
     public <T> void writeError(T prefix, String content) {
-        messages.add(new ErrorRedisMessage(String.format("%s %s", prefix, content)));
+        ctx.writeAndFlush(new ErrorRedisMessage(String.format("%s %s", prefix, content)));
     }
 
     @Override
     public void flush() {
-        if (messages.isEmpty()) {
-            ctx.writeAndFlush(FullBulkStringRedisMessage.NULL_INSTANCE);
-            return;
-        }
-        ctx.writeAndFlush(new ArrayRedisMessage(messages));
+        ctx.flush();
     }
 }

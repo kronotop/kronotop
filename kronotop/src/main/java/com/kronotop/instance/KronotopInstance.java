@@ -36,7 +36,7 @@ import com.kronotop.foundationdb.zmap.ZMapService;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.persistence.DataStructure;
-import com.kronotop.server.resp.Handlers;
+import com.kronotop.server.Handlers;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.slf4j.Logger;

@@ -20,12 +20,12 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.DelMessage;
 import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.StringKey;
-import com.kronotop.server.resp.Handler;
-import com.kronotop.server.resp.MessageTypes;
-import com.kronotop.server.resp.Request;
-import com.kronotop.server.resp.Response;
-import com.kronotop.server.resp.annotation.Command;
-import com.kronotop.server.resp.annotation.MinimumParameterCount;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
+import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.Collections;
 import java.util.List;

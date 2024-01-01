@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp;
+package com.kronotop.server;
 
 import com.kronotop.common.KronotopException;
-import com.kronotop.common.resp.RESPError;
 
-public class WrongTypeException extends KronotopException {
-    public WrongTypeException() {
-        super(RESPError.WRONGTYPE, RESPError.WRONGTYPE_MESSAGE);
+public class InvalidArgument extends KronotopException {
+    public InvalidArgument(String content) {
+        super(content);
     }
 }

@@ -1,4 +1,4 @@
-package com.kronotop.server.resp;
+package com.kronotop.server;
 
 import com.kronotop.common.resp.RESPError;
 

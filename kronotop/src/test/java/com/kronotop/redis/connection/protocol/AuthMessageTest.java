@@ -18,8 +18,8 @@ package com.kronotop.redis.connection.protocol;
 
 import com.kronotop.BaseProtocolTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
-import com.kronotop.server.resp.Request;
-import com.kronotop.server.resp.impl.RespRequest;
+import com.kronotop.server.Request;
+import com.kronotop.server.impl.RespRequest;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

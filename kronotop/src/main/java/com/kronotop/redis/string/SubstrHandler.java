@@ -18,9 +18,9 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.string.protocol.SubstrMessage;
-import com.kronotop.server.resp.annotation.Command;
-import com.kronotop.server.resp.annotation.MaximumParameterCount;
-import com.kronotop.server.resp.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MinimumParameterCount;
 
 @Command(SubstrMessage.COMMAND)
 @MaximumParameterCount(SubstrMessage.MAXIMUM_PARAMETER_COUNT)

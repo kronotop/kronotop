@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.connection.protocol;
 
-import com.kronotop.server.resp.KronotopMessage;
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.Request;
 import io.netty.util.CharsetUtil;
 
 import java.util.List;

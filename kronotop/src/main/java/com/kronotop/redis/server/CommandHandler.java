@@ -21,11 +21,11 @@ import com.kronotop.core.commands.CommandMetadata;
 import com.kronotop.core.commands.KeySpec;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.server.protocol.CommandMessage;
-import com.kronotop.server.resp.Handler;
-import com.kronotop.server.resp.MessageTypes;
-import com.kronotop.server.resp.Request;
-import com.kronotop.server.resp.Response;
-import com.kronotop.server.resp.annotation.Command;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
+import com.kronotop.server.annotation.Command;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 

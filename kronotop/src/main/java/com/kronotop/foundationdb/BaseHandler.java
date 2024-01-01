@@ -20,9 +20,9 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.core.KronotopService;
-import com.kronotop.server.resp.ChannelAttributes;
-import com.kronotop.server.resp.NamespaceNotOpenException;
-import com.kronotop.server.resp.Response;
+import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.NamespaceNotOpenException;
+import com.kronotop.server.Response;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 

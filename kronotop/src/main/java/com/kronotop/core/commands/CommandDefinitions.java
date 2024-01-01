@@ -20,7 +20,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
-import com.kronotop.server.resp.Handlers;
+import com.kronotop.server.Handlers;
 
 import java.io.IOException;
 import java.io.InputStream;

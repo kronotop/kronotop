@@ -21,8 +21,8 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.foundationdb.protocol.NamespaceMessage;
-import com.kronotop.server.resp.ChannelAttributes;
-import com.kronotop.server.resp.Response;
+import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.Response;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 

@@ -17,9 +17,9 @@
 package com.kronotop.foundationdb;
 
 import com.kronotop.foundationdb.protocol.NamespaceMessage;
-import com.kronotop.server.resp.*;
-import com.kronotop.server.resp.annotation.Command;
-import com.kronotop.server.resp.annotation.MinimumParameterCount;
+import com.kronotop.server.*;
+import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MinimumParameterCount;
 
 @Command(NamespaceMessage.COMMAND)
 @MinimumParameterCount(NamespaceMessage.MINIMUM_PARAMETER_COUNT)

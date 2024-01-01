@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp;
+package com.kronotop.server;
 
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
@@ -26,11 +26,11 @@ import com.kronotop.core.Context;
 import com.kronotop.core.network.ClientIDGenerator;
 import com.kronotop.core.watcher.Watcher;
 import com.kronotop.redis.RedisService;
-import com.kronotop.server.resp.annotation.MaximumParameterCount;
-import com.kronotop.server.resp.annotation.MinimumParameterCount;
-import com.kronotop.server.resp.impl.RespRequest;
-import com.kronotop.server.resp.impl.RespResponse;
-import com.kronotop.server.resp.impl.TransactionResponse;
+import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.impl.RespRequest;
+import com.kronotop.server.impl.RespResponse;
+import com.kronotop.server.impl.TransactionResponse;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;

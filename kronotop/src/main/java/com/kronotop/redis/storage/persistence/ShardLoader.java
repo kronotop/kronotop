@@ -30,7 +30,7 @@ import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Shard;
-import com.kronotop.server.resp.WrongTypeException;
+import com.kronotop.server.WrongTypeException;
 
 import java.io.IOException;
 import java.util.ArrayList;

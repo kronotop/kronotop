@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp.annotation;
+package com.kronotop.server;
 
-import java.lang.annotation.*;
+import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.TYPE)
-@Documented
-public @interface MaximumParameterCount {
-    int value();
+public class NamespaceNotOpenException extends KronotopException {
+    public NamespaceNotOpenException(String content) {
+        super(RESPError.NAMESPACENOTOPEN, content);
+    }
 }

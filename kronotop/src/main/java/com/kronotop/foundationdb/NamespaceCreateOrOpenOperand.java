@@ -18,7 +18,7 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.foundationdb.protocol.NamespaceMessage;
-import com.kronotop.server.resp.Response;
+import com.kronotop.server.Response;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

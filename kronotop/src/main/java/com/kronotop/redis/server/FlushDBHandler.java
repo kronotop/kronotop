@@ -19,13 +19,13 @@ package com.kronotop.redis.server;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
-import com.kronotop.server.resp.Handler;
-import com.kronotop.server.resp.MessageTypes;
-import com.kronotop.server.resp.Request;
-import com.kronotop.server.resp.Response;
-import com.kronotop.server.resp.annotation.Command;
-import com.kronotop.server.resp.annotation.MaximumParameterCount;
-import com.kronotop.server.resp.annotation.MinimumParameterCount;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
+import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MinimumParameterCount;
 
 @Command(FlushDBMessage.COMMAND)
 @MaximumParameterCount(FlushDBMessage.MAXIMUM_PARAMETER_COUNT)

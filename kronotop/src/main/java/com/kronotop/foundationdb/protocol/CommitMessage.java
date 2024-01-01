@@ -16,9 +16,9 @@
 
 package com.kronotop.foundationdb.protocol;
 
-import com.kronotop.server.resp.KronotopMessage;
-import com.kronotop.server.resp.Request;
-import com.kronotop.server.resp.UnknownOperandException;
+import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.Request;
+import com.kronotop.server.UnknownOperandException;
 
 import java.util.List;
 

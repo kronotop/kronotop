@@ -23,10 +23,10 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
-import com.kronotop.server.resp.CommandAlreadyRegisteredException;
-import com.kronotop.server.resp.Handler;
-import com.kronotop.server.resp.Handlers;
-import com.kronotop.server.resp.annotation.Command;
+import com.kronotop.server.CommandAlreadyRegisteredException;
+import com.kronotop.server.Handler;
+import com.kronotop.server.Handlers;
+import com.kronotop.server.annotation.Command;
 
 import java.util.List;
 

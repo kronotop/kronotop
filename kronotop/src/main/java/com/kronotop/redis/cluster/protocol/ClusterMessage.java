@@ -1,7 +1,7 @@
 package com.kronotop.redis.cluster.protocol;
 
-import com.kronotop.server.resp.KronotopMessage;
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.Request;
 
 import java.util.List;
 

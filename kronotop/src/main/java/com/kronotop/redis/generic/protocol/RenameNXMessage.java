@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.generic.protocol;
 
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.Request;
 
 public class RenameNXMessage extends RenameMessage {
     public static final String COMMAND = "RENAMENX";

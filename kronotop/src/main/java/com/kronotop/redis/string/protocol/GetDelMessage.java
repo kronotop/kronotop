@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.string.protocol;
 
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.Request;
 
 public class GetDelMessage extends GetMessage {
     public static final String COMMAND = "GETDEL";

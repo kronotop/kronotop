@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp;
+package com.kronotop.server;
 
 import com.kronotop.common.KronotopException;
 
-public class CommandAlreadyRegisteredException extends KronotopException {
-    public CommandAlreadyRegisteredException(String content) {
+public class CommandNotFoundException extends KronotopException {
+    public CommandNotFoundException(String content) {
         super(content);
     }
 }

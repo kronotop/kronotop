@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp;
+package com.kronotop.server.annotation;
 
-import java.util.List;
+import java.lang.annotation.*;
 
-public interface KronotopMessage<K> {
-    K getKey();
-
-    List<K> getKeys();
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+@Documented
+public @interface MaximumParameterCount {
+    int value();
 }

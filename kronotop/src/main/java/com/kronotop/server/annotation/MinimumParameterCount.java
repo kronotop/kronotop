@@ -14,21 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp;
+package com.kronotop.server.annotation;
 
-import java.util.Collections;
-import java.util.List;
+import java.lang.annotation.*;
 
-public interface Handler {
-    default boolean isWatchable() {
-        return false;
-    }
-
-    default List<String> getKeys(Request request) {
-        return Collections.emptyList();
-    }
-
-    void beforeExecute(Request request);
-
-    void execute(Request request, Response response) throws Exception;
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+@Documented
+public @interface MinimumParameterCount {
+    int value();
 }

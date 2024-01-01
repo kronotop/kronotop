@@ -18,8 +18,8 @@ package com.kronotop.foundationdb.zmap.protocol;
 
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.server.resp.KronotopMessage;
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
 import java.util.List;

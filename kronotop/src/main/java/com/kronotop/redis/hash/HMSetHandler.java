@@ -18,8 +18,8 @@ package com.kronotop.redis.hash;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HMSetMessage;
-import com.kronotop.server.resp.annotation.Command;
-import com.kronotop.server.resp.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MinimumParameterCount;
 
 @Command(HMSetMessage.COMMAND)
 @MinimumParameterCount(HMSetMessage.MINIMUM_PARAMETER_COUNT)

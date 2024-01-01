@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.string.protocol;
 
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.Request;
 
 public class SetNXMessage extends SetMessage {
     public static final String COMMAND = "SETNX";

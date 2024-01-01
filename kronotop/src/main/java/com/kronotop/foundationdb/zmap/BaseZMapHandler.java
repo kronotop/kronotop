@@ -19,9 +19,9 @@ package com.kronotop.foundationdb.zmap;
 import com.apple.foundationdb.subspace.Subspace;
 import com.kronotop.core.KronotopService;
 import com.kronotop.foundationdb.BaseHandler;
-import com.kronotop.server.resp.ChannelAttributes;
-import com.kronotop.server.resp.NamespaceNotOpenException;
-import com.kronotop.server.resp.Response;
+import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.NamespaceNotOpenException;
+import com.kronotop.server.Response;
 
 import java.util.concurrent.ConcurrentMap;
 

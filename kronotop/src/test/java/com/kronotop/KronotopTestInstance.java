@@ -22,7 +22,7 @@ import com.kronotop.core.cluster.MembershipService;
 import com.kronotop.core.cluster.coordinator.Route;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.storage.Shard;
-import com.kronotop.server.resp.Router;
+import com.kronotop.server.Router;
 import com.kronotop.server.resp3.RedisArrayAggregator;
 import com.kronotop.server.resp3.RedisBulkStringAggregator;
 import com.kronotop.server.resp3.RedisDecoder;

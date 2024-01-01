@@ -17,10 +17,10 @@
 
 package com.kronotop.foundationdb.protocol;
 
-import com.kronotop.server.resp.KronotopMessage;
-import com.kronotop.server.resp.Request;
-import com.kronotop.server.resp.UnknownOperandException;
-import com.kronotop.server.resp.WrongNumberOfArgumentsException;
+import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.Request;
+import com.kronotop.server.UnknownOperandException;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;

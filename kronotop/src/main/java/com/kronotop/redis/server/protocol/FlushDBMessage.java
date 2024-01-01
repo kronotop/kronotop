@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.server.protocol;
 
-import com.kronotop.server.resp.KronotopMessage;
-import com.kronotop.server.resp.Request;
+import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.Request;
 
 import java.util.List;
 
@@ -35,7 +35,7 @@ public class FlushDBMessage implements KronotopMessage<Void> {
     }
 
     private void parse() {
-        if (request.getParams().size() == 0) {
+        if (request.getParams().isEmpty()) {
             return;
         }
 

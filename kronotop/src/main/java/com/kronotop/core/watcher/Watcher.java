@@ -19,7 +19,7 @@ package com.kronotop.core.watcher;
 import com.google.common.util.concurrent.Striped;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
-import com.kronotop.server.resp.ChannelAttributes;
+import com.kronotop.server.ChannelAttributes;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.util.Attribute;

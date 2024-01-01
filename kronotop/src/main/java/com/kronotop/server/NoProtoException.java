@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.resp;
+package com.kronotop.server;
 
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 
-public class WrongNumberOfArgumentsException extends KronotopException {
-    public WrongNumberOfArgumentsException(String content) {
-        super(content);
+public class NoProtoException extends KronotopException {
+    public NoProtoException() {
+        super(RESPError.NOPROTO, RESPError.UNSUPPORTED_PROTOCOL_VERSION);
     }
 }
