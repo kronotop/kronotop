@@ -160,6 +160,13 @@ public interface Response {
     void writeBigNumber(byte[] value);
 
     /**
+     * Writes the content of a ByteBuf as a verbatim string to the client.
+     *
+     * @param content the content to be written as a verbatim string
+     */
+    void writeVerbatimString(ByteBuf content);
+
+    /**
      * Flushes the response messages to the client.
      * <p>
      * This method is used to flush the response messages to the client. It sends the buffered messages to the client

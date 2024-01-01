@@ -206,8 +206,25 @@ public class RespResponse implements Response {
      * @param value the big number value to be written as a byte array
      * @throws NullPointerException if the value is null
      */
+    @Override
     public void writeBigNumber(byte[] value) {
         ctx.writeAndFlush(new BigNumberRedisMessage(value));
+    }
+
+    /**
+     * Writes a verbatim string message to the client.
+     * <p>
+     * This method is used to write a verbatim string message to the client.
+     * The verbatim string message includes a format and the actual content.
+     * The format is a 3-byte string representing the format of the content,
+     * such as "txt" for plain text. The actual content follows the format.
+     *
+     * @param content the content to be written, must not be null
+     * @throws NullPointerException if the content is null
+     */
+    @Override
+    public void writeVerbatimString(ByteBuf content) {
+        ctx.writeAndFlush(new FullBulkVerbatimStringRedisMessage(content));
     }
 
     /**

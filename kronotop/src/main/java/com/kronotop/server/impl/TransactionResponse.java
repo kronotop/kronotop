@@ -248,6 +248,19 @@ public class TransactionResponse implements Response {
     }
 
     /**
+     * Adds a {@link FullBulkVerbatimStringRedisMessage} to the list of response messages.
+     * <p>
+     * The verbatim string message includes a format type and the real content.
+     *
+     * @param content the content of the {@link FullBulkVerbatimStringRedisMessage} to be added. Must not be {@code null}.
+     * @see FullBulkVerbatimStringRedisMessage
+     */
+    @Override
+    public void writeVerbatimString(ByteBuf content) {
+        messages.add(new FullBulkVerbatimStringRedisMessage(content));
+    }
+
+    /**
      * Flushes the messages in the TransactionResponse object.
      * If the messages list is empty, it writes a NULL_INSTANCE message to the channel and flushes it.
      * If the messages list is not empty, it writes an ArrayRedisMessage containing the messages list to the channel and flushes it.
