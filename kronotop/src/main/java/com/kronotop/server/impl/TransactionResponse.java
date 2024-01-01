@@ -50,7 +50,7 @@ public class TransactionResponse implements Response {
 
     /**
      * Writes a "QUEUED" Redis response message to the client.
-     *
+     * <p>
      * This method is used to write a "QUEUED" message to the client as part of a Redis transaction.
      * It should be called after adding a request to the queued commands and before flushing the response.
      */
@@ -81,7 +81,7 @@ public class TransactionResponse implements Response {
 
     /**
      * Writes an array of Redis messages as a response message to the client.
-     *
+     * <p>
      * This method is used to write an array of Redis messages to the client as a response.
      * Each Redis message is represented by an instance of the RedisMessage interface.
      * The array of Redis messages is represented by a List<RedisMessage>.

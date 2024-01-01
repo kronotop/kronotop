@@ -55,7 +55,7 @@ public interface Handler {
      * This method is used to execute a Redis request. It takes a Request object and a Response object as parameters.
      * The response object is used to write the response messages back to the client.
      *
-     * @param request the Redis request object to be executed
+     * @param request  the Redis request object to be executed
      * @param response the Response object used to write response messages back to the client
      * @throws Exception if an error occurs during execution
      */

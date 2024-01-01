@@ -69,6 +69,7 @@ public interface Response {
     void writeArray(List<RedisMessage> children);
 
     void writeMap(Map<RedisMessage, RedisMessage> children);
+
     /**
      * Writes a simple string message to the client.
      *
@@ -86,9 +87,9 @@ public interface Response {
     /**
      * Writes an error message to the client.
      *
-     * @param prefix the prefix of the error message
+     * @param prefix  the prefix of the error message
      * @param content the content of the error message
-     * @param <T> the type of the prefix
+     * @param <T>     the type of the prefix
      */
     <T> void writeError(T prefix, String content);
 
@@ -154,7 +155,6 @@ public interface Response {
      * Writes a byte array as a Redis response message to the client.
      *
      * @param value the byte array value to be written
-     *
      * @throws NullPointerException if the value is null
      */
     void writeBigNumber(byte[] value);
