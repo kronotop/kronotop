@@ -21,13 +21,13 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 /**
- * The NioRESP2Server class represents a RESP2 server that uses NIO for network transport.
- * It extends the RESP2Server class.
+ * The NioRESPServer class represents a RESP server that uses NIO for network transport.
+ * It extends the RESPServer class.
  *
- * @see RESP2Server
+ * @see RESPServer
  */
-public class NioRESP2Server extends RESP2Server {
-    public NioRESP2Server(Context context, Handlers commands) {
+public class NioRESPServer extends RESPServer {
+    public NioRESPServer(Context context, Handlers commands) {
         super(context, commands, NioServerSocketChannel.class, new NioEventLoopGroup(), new NioEventLoopGroup());
     }
 }

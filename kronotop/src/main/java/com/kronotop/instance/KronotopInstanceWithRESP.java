@@ -17,9 +17,9 @@
 package com.kronotop.instance;
 
 import com.kronotop.common.KronotopException;
-import com.kronotop.server.EpollRESP2Server;
-import com.kronotop.server.NioRESP2Server;
-import com.kronotop.server.RESP2Server;
+import com.kronotop.server.EpollRESPServer;
+import com.kronotop.server.NioRESPServer;
+import com.kronotop.server.RESPServer;
 import com.typesafe.config.Config;
 
 import java.net.UnknownHostException;
@@ -27,26 +27,26 @@ import java.net.UnknownHostException;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
- * The KronotopInstanceWithRESP2 class represents a running instance of Kronotop with RESP2 support.
+ * The KronotopInstanceWithRESP class represents a running instance of Kronotop with RESP support.
  * It extends the KronotopInstance class.
  *
  * @see KronotopInstance
  */
-public class KronotopInstanceWithRESP2 extends KronotopInstance {
+public class KronotopInstanceWithRESP extends KronotopInstance {
     private static final String NETTY_TRANSPORT_NIO = "nio";
     private static final String NETTY_TRANSPORT_EPOLL = "epoll";
     private static final String DEFAULT_NETTY_TRANSPORT = NETTY_TRANSPORT_NIO;
 
-    public KronotopInstanceWithRESP2() {
+    public KronotopInstanceWithRESP() {
         super();
     }
 
-    public KronotopInstanceWithRESP2(Config config) {
+    public KronotopInstanceWithRESP(Config config) {
         super(config);
     }
 
     /**
-     * Starts the TCP server for handling RESP2 requests.
+     * Starts the TCP server for handling RESP requests.
      * The server is started based on the configured network transport.
      * If the network transport is not specified, the default is used.
      * The server is registered as a service in the context and started.
@@ -61,11 +61,11 @@ public class KronotopInstanceWithRESP2 extends KronotopInstance {
             nettyTransport = config.getString("network.netty.transport");
         }
 
-        RESP2Server server;
+        RESPServer server;
         if (nettyTransport.equals(NETTY_TRANSPORT_NIO)) {
-            server = new NioRESP2Server(context, handlers);
+            server = new NioRESPServer(context, handlers);
         } else if (nettyTransport.equals(NETTY_TRANSPORT_EPOLL)) {
-            server = new EpollRESP2Server(context, handlers);
+            server = new EpollRESPServer(context, handlers);
         } else {
             throw new KronotopException(String.format("invalid network.netty.transport: %s", nettyTransport));
         }

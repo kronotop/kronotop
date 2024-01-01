@@ -38,7 +38,7 @@ public class KronotopInstanceStarter {
     }
 
     public static void main(String[] args) {
-        KronotopInstance kronotopInstance = new KronotopInstanceWithRESP2();
+        KronotopInstance kronotopInstance = new KronotopInstanceWithRESP();
         Thread shutdownHook = createShutdownHook(kronotopInstance);
         Runtime.getRuntime().addShutdownHook(shutdownHook);
         try {

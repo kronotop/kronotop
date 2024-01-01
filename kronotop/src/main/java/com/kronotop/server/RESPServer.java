@@ -27,10 +27,10 @@ import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 
 /**
- * This abstract class represents a RESP2 server that implements the KronotopService interface.
+ * This abstract class represents a RESP server that implements the KronotopService interface.
  * It provides the basic functionality for starting and shutting down a server.
  */
-public abstract class RESP2Server implements KronotopService {
+public abstract class RESPServer implements KronotopService {
     private final Handlers commands;
     private final EventLoopGroup parentGroup;
     private final EventLoopGroup childGroup;
@@ -38,7 +38,7 @@ public abstract class RESP2Server implements KronotopService {
     private final Class<? extends ServerSocketChannel> channel;
     private ChannelFuture channelFuture;
 
-    public RESP2Server(Context context, Handlers commands, Class<? extends ServerSocketChannel> channel, EventLoopGroup parentGroup, EventLoopGroup childGroup) {
+    public RESPServer(Context context, Handlers commands, Class<? extends ServerSocketChannel> channel, EventLoopGroup parentGroup, EventLoopGroup childGroup) {
         this.commands = commands;
         this.context = context;
         this.parentGroup = parentGroup;
@@ -73,7 +73,7 @@ public abstract class RESP2Server implements KronotopService {
 
     @Override
     public String getName() {
-        return "RESP2";
+        return "RESP";
     }
 
     @Override
