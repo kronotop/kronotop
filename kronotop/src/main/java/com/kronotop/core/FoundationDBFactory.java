@@ -31,8 +31,8 @@ import org.slf4j.LoggerFactory;
 public class FoundationDBFactory {
     private static final int DEFAULT_FDB_API_VERSION = 510;
     private static final Logger LOGGER = LoggerFactory.getLogger(FoundationDBFactory.class);
-    private static Database database;
-    private static boolean isClosed;
+    private static volatile Database database;
+    private static volatile boolean isClosed;
 
     /**
      * Creates a new FoundationDB Database instance based on the provided configuration.
@@ -43,8 +43,11 @@ public class FoundationDBFactory {
      * @throws IllegalArgumentException if the API version specified in the configuration is zero
      */
     public synchronized static Database newDatabase(Config config) throws FDBException {
-        // TODO: Check isClosed here
+        if (isClosed) {
+            throw new IllegalStateException("Database is already closed");
+        }
 
+        // We already created a FoundationDB connection. Let's reuse it.
         if (database != null) {
             return database;
         }
