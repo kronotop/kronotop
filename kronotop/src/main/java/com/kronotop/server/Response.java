@@ -93,6 +93,22 @@ public interface Response {
     <T> void writeError(T prefix, String content);
 
     /**
+     * Writes a bulk error message to the client.
+     *
+     * @param content the content of the error message
+     */
+    void writeBulkError(String content);
+
+    /**
+     * Writes a bulk error message to the client.
+     *
+     * @param prefix  the prefix of the error message
+     * @param content the content of the error message
+     * @param <T>     the type of the prefix
+     */
+    <T> void writeBulkError(T prefix, String content);
+
+    /**
      * Writes the content of a ByteBuf as a response message to the client.
      *
      * @param content the content to be written

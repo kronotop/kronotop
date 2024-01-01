@@ -20,6 +20,7 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.math.BigInteger;
@@ -219,6 +220,31 @@ public class TransactionResponse implements Response {
     @Override
     public <T> void writeError(T prefix, String content) {
         messages.add(new ErrorRedisMessage(String.format("%s %s", prefix, content)));
+    }
+
+    /**
+     * Writes a bulk error message to the client.
+     *
+     * @param content the content of the error message
+     */
+    @Override
+    public void writeBulkError(String content) {
+        this.writeBulkError(RESPError.ERR, content);
+    }
+
+    /**
+     * Writes a bulk error message to the client.
+     *
+     * @param prefix  the prefix of the error message
+     * @param content the content of the error message
+     * @param <T>     the type of the prefix
+     */
+    @Override
+    public <T> void writeBulkError(T prefix, String content) {
+        String error = String.format("%s %s", prefix, content);
+        ByteBuf buf = Unpooled.buffer().alloc().buffer(error.length());
+        buf.writeBytes(error.getBytes());
+        messages.add(new FullBulkStringRedisMessage(buf));
     }
 
     /**

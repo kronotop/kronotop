@@ -20,9 +20,13 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 
@@ -239,6 +243,35 @@ public class RespResponse implements Response {
     @Override
     public <T> void writeError(T prefix, String content) {
         ctx.writeAndFlush(new ErrorRedisMessage(String.format("%s %s", prefix, content)));
+    }
+
+    /**
+     * Writes a bulk error message to the client.
+     *
+     * @param content the content of the error message
+     * @throws NullPointerException if the content is null
+     */
+    @Override
+    public void writeBulkError(String content) {
+        this.writeBulkError(RESPError.ERR, content);
+    }
+
+    /**
+     * Writes a bulk error message with a prefix to the client.
+     *
+     * @param prefix  the prefix of the error message
+     * @param content the content of the error message
+     * @param <T>     the type of the prefix
+     * @param prefix  the content to be written before the error message
+     * @param content the content of the error message
+     * @throws NullPointerException if the prefix or content is null
+     */
+    @Override
+    public <T> void writeBulkError(T prefix, String content) {
+        String error = String.format("%s %s", prefix, content);
+        ByteBuf buf = Unpooled.buffer().alloc().buffer(error.length());
+        buf.writeBytes(error.getBytes());
+        ctx.writeAndFlush(new FullBulkErrorStringRedisMessage(buf));
     }
 
     /**
