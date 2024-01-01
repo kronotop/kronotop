@@ -23,6 +23,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * The RespResponse class is an implementation of the Response interface.
@@ -70,6 +71,17 @@ public class RespResponse implements Response {
     }
 
     /**
+     * Writes a double value as a Redis response message to the client.
+     *
+     * @param value the double value to be written
+     * @throws NullPointerException if the value is null
+     */
+    @Override
+    public void writeDouble(long value) {
+        ctx.writeAndFlush(new DoubleRedisMessage(value));
+    }
+
+    /**
      * Writes an array of Redis messages as a response message to the client.
      * <p>
      * This method is used to write an array of Redis messages to the client as a response.
@@ -82,6 +94,21 @@ public class RespResponse implements Response {
     @Override
     public void writeArray(List<RedisMessage> children) {
         ctx.writeAndFlush(new ArrayRedisMessage(children));
+    }
+
+    /**
+     * Writes a map of Redis messages as a response message to the client.
+     * <p>
+     * This method is used to write a map of Redis messages to the client as a response.
+     * Each key-value pair in the map represents a Redis message, where both the key and value are instances of the RedisMessage interface.
+     * The map of Redis messages is represented by a Map<RedisMessage, RedisMessage>.
+     *
+     * @param children the map of Redis messages to be written
+     * @throws NullPointerException if the children map is null
+     */
+    @Override
+    public void writeMap(Map<RedisMessage, RedisMessage> children) {
+        ctx.writeAndFlush(new MapRedisMessage(children));
     }
 
     /**
@@ -115,6 +142,35 @@ public class RespResponse implements Response {
     @Override
     public void writeFullBulkString(FullBulkStringRedisMessage msg) {
         ctx.writeAndFlush(msg);
+    }
+
+    /**
+     * Writes a NULL Redis message to the client.
+     * <p>
+     * This method is used to write a NULL message to the client as a response.
+     * It calls the {@link ChannelHandlerContext#writeAndFlush(Object)} method with the {@link NullRedisMessage#INSTANCE}.
+     */
+    @Override
+    public void writeNULL() {
+        ctx.writeAndFlush(NullRedisMessage.INSTANCE);
+    }
+
+    /**
+     * Writes a boolean value as a Redis response message to the client.
+     * <p>
+     * This method is used to write a boolean value as a Redis response message to the client.
+     * If the value is true, it writes the BooleanRedisMessage.TRUE message to the client.
+     * If the value is false, it writes the BooleanRedisMessage.FALSE message to the client.
+     *
+     * @param value the boolean value to be written
+     */
+    @Override
+    public void writeBoolean(boolean value) {
+        if (value) {
+            ctx.writeAndFlush(BooleanRedisMessage.TRUE);
+        } else {
+            ctx.writeAndFlush(BooleanRedisMessage.FALSE);
+        }
     }
 
     /**

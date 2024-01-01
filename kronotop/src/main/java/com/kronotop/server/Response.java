@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * The `Response` interface represents a response message for the Redis protocol.
@@ -49,6 +50,13 @@ public interface Response {
     void writeInteger(long value);
 
     /**
+     * Writes a double value as a Redis response message to the client.
+     *
+     * @param value the double value to be written
+     */
+    void writeDouble(long value);
+
+    /**
      * Writes an array of Redis messages as a response message to the client.
      * <p>
      * This method is used to write an array of Redis messages to the client as a response.
@@ -59,6 +67,7 @@ public interface Response {
      */
     void writeArray(List<RedisMessage> children);
 
+    void writeMap(Map<RedisMessage, RedisMessage> children);
     /**
      * Writes a simple string message to the client.
      *
@@ -95,6 +104,20 @@ public interface Response {
      * @param msg the FullBulkStringRedisMessage to be written
      */
     void writeFullBulkString(FullBulkStringRedisMessage msg);
+
+    /**
+     * Writes a NULL Redis response message to the client.
+     * <p>
+     * The method does not return a value.
+     */
+    void writeNULL();
+
+    /**
+     * Writes a boolean value as a Redis response message to the client.
+     *
+     * @param value the boolean value to be written
+     */
+    void writeBoolean(boolean value);
 
     /**
      * Flushes the response messages to the client.

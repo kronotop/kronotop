@@ -51,6 +51,6 @@ class GetReadVersionHandler implements Handler {
         Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
         Transaction tr = transactionAttr.get();
         Long readVersion = tr.getReadVersion().join();
-        response.writeInteger(readVersion);
+        response.writeDouble(readVersion);
     }
 }

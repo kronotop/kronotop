@@ -17,6 +17,7 @@
 package com.kronotop.foundationdb;
 
 import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.server.resp3.DoubleRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -51,8 +52,8 @@ public class GetReadVersionHandlerTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(IntegerRedisMessage.class, response);
-            IntegerRedisMessage actualMessage = (IntegerRedisMessage) response;
+            assertInstanceOf(DoubleRedisMessage.class, response);
+            DoubleRedisMessage actualMessage = (DoubleRedisMessage) response;
             assertTrue(actualMessage.value() > 0);
         }
     }

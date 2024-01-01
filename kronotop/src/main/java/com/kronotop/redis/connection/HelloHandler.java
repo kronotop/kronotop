@@ -126,8 +126,7 @@ public class HelloHandler extends BaseHandler implements Handler {
         map.put(new SimpleStringRedisMessage("mode"), new SimpleStringRedisMessage("cluster"));
         map.put(new SimpleStringRedisMessage("role"), new SimpleStringRedisMessage("master"));
         map.put(new SimpleStringRedisMessage("modules"), new ArrayRedisMessage(new ArrayList<>()));
-        MapRedisMessage mapRedisMessage = new MapRedisMessage(map);
-        response.getContext().writeAndFlush(mapRedisMessage);
+        response.writeMap(map);
     }
 
     private void resp2Response(Response response) {

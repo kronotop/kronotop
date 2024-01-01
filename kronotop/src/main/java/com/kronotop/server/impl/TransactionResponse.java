@@ -24,6 +24,7 @@ import io.netty.channel.ChannelHandlerContext;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The TransactionResponse class represents a response message for a Redis transaction.
@@ -67,6 +68,16 @@ public class TransactionResponse implements Response {
     }
 
     /**
+     * Writes a double value as a Redis response message to the client.
+     *
+     * @param value the double value to be written
+     */
+    @Override
+    public void writeDouble(long value) {
+        messages.add(new DoubleRedisMessage(value));
+    }
+
+    /**
      * Writes an array of Redis messages as a response message to the client.
      *
      * This method is used to write an array of Redis messages to the client as a response.
@@ -80,6 +91,11 @@ public class TransactionResponse implements Response {
     @Override
     public void writeArray(List<RedisMessage> children) {
         messages.add(new ArrayRedisMessage(children));
+    }
+
+    @Override
+    public void writeMap(Map<RedisMessage, RedisMessage> children) {
+        messages.add(new MapRedisMessage(children));
     }
 
     /**
@@ -110,6 +126,34 @@ public class TransactionResponse implements Response {
     @Override
     public void writeFullBulkString(FullBulkStringRedisMessage msg) {
         messages.add(msg);
+    }
+
+    /**
+     * Adds a NULL Redis response message to the list of response messages.
+     * <p>
+     * The method does not return a value.
+     */
+    @Override
+    public void writeNULL() {
+        messages.add(NullRedisMessage.INSTANCE);
+    }
+
+    /**
+     * Writes a boolean value as a Redis response message to the client.
+     * <p>
+     * If the value is true, it adds BooleanRedisMessage.TRUE to the list of response messages.
+     * If the value is false, it adds BooleanRedisMessage.FALSE to the list of response messages.
+     *
+     * @param value the boolean value to be written
+     * @see BooleanRedisMessage
+     */
+    @Override
+    public void writeBoolean(boolean value) {
+        if (value) {
+            messages.add(BooleanRedisMessage.TRUE);
+        } else {
+            messages.add(BooleanRedisMessage.FALSE);
+        }
     }
 
     /**
