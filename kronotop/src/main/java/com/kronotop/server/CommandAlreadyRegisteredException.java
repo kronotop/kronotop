@@ -18,6 +18,9 @@ package com.kronotop.server;
 
 import com.kronotop.common.KronotopException;
 
+/**
+ * Exception thrown when attempting to register a command that is already registered.
+ */
 public class CommandAlreadyRegisteredException extends KronotopException {
     public CommandAlreadyRegisteredException(String content) {
         super(content);

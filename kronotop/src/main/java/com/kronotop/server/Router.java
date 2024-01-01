@@ -50,6 +50,16 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * Handle a command from the client.
+ *
+ * <p>This method is called for each Redis message received by the server. Its purpose is to handle the command and
+ * generate the response.</p>
+ *
+ * @param ctx the {@link ChannelHandlerContext} of the handler
+ * @param msg the message received by the handler
+ * @throws Exception if an error occurs during command handling
+ */
 public class Router extends ChannelDuplexHandler {
     static final String execCommand = "EXEC";
     static final String discardCommand = "DISCARD";

@@ -32,6 +32,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 
+/**
+ * RespRequest represents a request in the Redis protocol.
+ * It extends the DefaultAttributeMap class for attribute management and implements the Request interface.
+ */
 public class RespRequest extends DefaultAttributeMap implements Request {
     private final RedisMessage msg;
     private final ChannelHandlerContext ctx;
@@ -43,6 +47,12 @@ public class RespRequest extends DefaultAttributeMap implements Request {
         this.ctx = ctx;
     }
 
+    /**
+     * Retrieves the Redis command from the RedisMessage.
+     *
+     * @return the Redis command as a string
+     * @throws CodecException if the RedisMessage is unknown or corrupt
+     */
     public String getCommand() {
         if (command != null) {
             return command;
@@ -61,6 +71,11 @@ public class RespRequest extends DefaultAttributeMap implements Request {
         throw new CodecException("unknown or corrupt message: " + msg);
     }
 
+    /**
+     * Returns the parameters of the Redis command represented by this RespRequest.
+     *
+     * @return the parameters of the Redis command
+     */
     public ArrayList<ByteBuf> getParams() {
         if (params != null) {
             return params;
@@ -83,10 +98,20 @@ public class RespRequest extends DefaultAttributeMap implements Request {
         return params;
     }
 
+    /**
+     * Retrieves the Redis message associated with the Request.
+     *
+     * @return the RedisMessage object associated with the Request
+     */
     public RedisMessage getRedisMessage() {
         return msg;
     }
 
+    /**
+     * Retrieves the ChannelHandlerContext associated with the Request.
+     *
+     * @return the ChannelHandlerContext associated with the Request
+     */
     public ChannelHandlerContext getContext() {
         return ctx;
     }

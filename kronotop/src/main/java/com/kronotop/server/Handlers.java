@@ -21,6 +21,10 @@ import com.kronotop.common.Preconditions;
 import java.util.HashMap;
 import java.util.Set;
 
+/**
+ * The Handlers class represents a collection of registered command handlers.
+ * It allows registering handlers for specific commands, retrieving the registered handler for a command, and retrieving the set of registered commands.
+ */
 public class Handlers {
     private final HashMap<String, Handler> handlers;
 
@@ -28,6 +32,13 @@ public class Handlers {
         handlers = new HashMap<>();
     }
 
+    /**
+     * Registers a command handler with a specified command.
+     *
+     * @param command the command to register
+     * @param handler the handler for the command
+     * @throws CommandAlreadyRegisteredException if the command is already registered
+     */
     public void register(String command, Handler handler) throws CommandAlreadyRegisteredException {
         Preconditions.checkNotNull(handler, "handler cannot be null");
         if (handlers.containsKey(command)) {
@@ -36,6 +47,13 @@ public class Handlers {
         handlers.put(command, handler);
     }
 
+    /**
+     * Retrieves the registered handler for the given command.
+     *
+     * @param command the command for which to retrieve the handler
+     * @return the registered handler
+     * @throws CommandNotFoundException if the command is not registered
+     */
     public Handler get(String command) throws CommandNotFoundException {
         Handler handler = handlers.get(command);
         if (handler == null) {
@@ -44,6 +62,11 @@ public class Handlers {
         return handler;
     }
 
+    /**
+     * Retrieves the set of registered commands.
+     *
+     * @return the Set of registered commands
+     */
     public Set<String> getCommands() {
         return handlers.keySet();
     }

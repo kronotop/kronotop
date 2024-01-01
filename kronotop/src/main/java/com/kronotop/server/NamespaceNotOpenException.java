@@ -19,6 +19,9 @@ package com.kronotop.server;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 
+/**
+ * Exception thrown when a namespace is not open.
+ */
 public class NamespaceNotOpenException extends KronotopException {
     public NamespaceNotOpenException(String content) {
         super(RESPError.NAMESPACENOTOPEN, content);

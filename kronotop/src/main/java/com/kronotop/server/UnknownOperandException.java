@@ -18,6 +18,9 @@ package com.kronotop.server;
 
 import com.kronotop.common.KronotopException;
 
+/**
+ * Exception thrown when an unknown operand is encountered.
+ */
 public class UnknownOperandException extends KronotopException {
     public UnknownOperandException(String content) {
         super(content);

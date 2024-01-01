@@ -18,6 +18,9 @@ package com.kronotop.server;
 
 import com.kronotop.common.KronotopException;
 
+/**
+ * Exception thrown when a wrong number of arguments is provided.
+ */
 public class WrongNumberOfArgumentsException extends KronotopException {
     public WrongNumberOfArgumentsException(String content) {
         super(content);

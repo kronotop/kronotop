@@ -18,6 +18,12 @@ package com.kronotop.server;
 
 import java.util.List;
 
+/**
+ * The KronotopMessage interface represents a message in the Kronotop system.
+ * It provides methods to retrieve the key(s) associated with the message.
+ *
+ * @param <K> The type of the key(s)
+ */
 public interface KronotopMessage<K> {
     K getKey();
 

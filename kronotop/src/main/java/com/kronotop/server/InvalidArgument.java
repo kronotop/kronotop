@@ -18,6 +18,9 @@ package com.kronotop.server;
 
 import com.kronotop.common.KronotopException;
 
+/**
+ * Custom exception class for invalid arguments.
+ */
 public class InvalidArgument extends KronotopException {
     public InvalidArgument(String content) {
         super(content);

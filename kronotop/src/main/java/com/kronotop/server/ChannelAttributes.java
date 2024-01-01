@@ -25,6 +25,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * The ChannelAttributes class defines static final AttributeKey objects to be used as attribute keys in the ChannelHandlerContext.
+ * These attributes represent different properties or values associated with a channel.
+ */
 public class ChannelAttributes {
     public static final AttributeKey<Boolean> AUTH = AttributeKey.valueOf("auth");
 

@@ -19,6 +19,10 @@ package com.kronotop.server;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 
+/**
+ * NoProtoException is a custom exception class that is thrown when an unsupported protocol version is encountered.
+ * It is a subclass of KronotopException.
+ */
 public class NoProtoException extends KronotopException {
     public NoProtoException() {
         super(RESPError.NOPROTO, RESPError.UNSUPPORTED_PROTOCOL_VERSION);

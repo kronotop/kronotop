@@ -33,6 +33,10 @@ import com.kronotop.redis.string.protocol.*;
 import com.kronotop.redis.transactions.protocol.*;
 import io.netty.util.AttributeKey;
 
+/**
+ * The MessageTypes class contains constants representing various message types used in a system.
+ * Each constant represents a specific message type and has an associated AttributeKey.
+ */
 public class MessageTypes {
     public static final AttributeKey<SetMessage> SET = AttributeKey.valueOf(SetMessage.COMMAND);
     public static final AttributeKey<SetNXMessage> SETNX = AttributeKey.valueOf(SetNXMessage.COMMAND);

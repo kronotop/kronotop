@@ -19,16 +19,45 @@ package com.kronotop.server;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * The Handler interface represents a handler for processing Redis requests.
+ */
 public interface Handler {
+    /**
+     * Checks if the handler is watchable.
+     *
+     * @return true if the handler is watchable, false otherwise
+     */
     default boolean isWatchable() {
         return false;
     }
 
+    /**
+     * Retrieves the list of keys associated with a given request.
+     *
+     * @param request the Redis request object
+     * @return the list of keys associated with the request
+     */
     default List<String> getKeys(Request request) {
         return Collections.emptyList();
     }
 
+    /**
+     * Executes the necessary operations before executing a Redis request.
+     *
+     * @param request the Redis request object
+     */
     void beforeExecute(Request request);
 
+    /**
+     * Executes the given Redis request.
+     * <p>
+     * This method is used to execute a Redis request. It takes a Request object and a Response object as parameters.
+     * The response object is used to write the response messages back to the client.
+     *
+     * @param request the Redis request object to be executed
+     * @param response the Response object used to write response messages back to the client
+     * @throws Exception if an error occurs during execution
+     */
     void execute(Request request, Response response) throws Exception;
 }

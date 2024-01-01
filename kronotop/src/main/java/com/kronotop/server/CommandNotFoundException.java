@@ -18,6 +18,9 @@ package com.kronotop.server;
 
 import com.kronotop.common.KronotopException;
 
+/**
+ * Represents an exception that is thrown when a command is not found.
+ */
 public class CommandNotFoundException extends KronotopException {
     public CommandNotFoundException(String content) {
         super(content);

@@ -23,12 +23,36 @@ import io.netty.util.AttributeMap;
 
 import java.util.ArrayList;
 
+/**
+ * The Request interface represents a request in the Redis protocol.
+ * It extends the AttributeMap interface for attribute management.
+ */
 public interface Request extends AttributeMap {
+    /**
+     * Retrieves the command associated with the Request.
+     *
+     * @return the command associated with the Request
+     */
     String getCommand();
 
+    /**
+     * Retrieves the list of parameters associated with the Request.
+     *
+     * @return the list of parameters as an ArrayList of ByteBuf objects
+     */
     ArrayList<ByteBuf> getParams();
 
+    /**
+     * Retrieves the Redis message associated with the Request.
+     *
+     * @return the RedisMessage object associated with the Request
+     */
     RedisMessage getRedisMessage();
 
+    /**
+     * Retrieves the ChannelHandlerContext associated with the Request.
+     *
+     * @return the ChannelHandlerContext associated with the Request
+     */
     ChannelHandlerContext getContext();
 }
