@@ -22,6 +22,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * The Commands annotation is used to mark a class as a command.
+ * It is used in conjunction with the Command annotation to define a set of commands that a class can handle.
+ *
+ * @see Command
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface Commands {

@@ -35,7 +35,7 @@ public interface Response {
 
     /**
      * Writes a "QUEUED" Redis response message to the client.
-     *
+     * <p>
      * This method is used to write a "QUEUED" message to the client as part of a Redis transaction.
      * It should be called after adding a request to the queued commands and before flushing the response.
      */

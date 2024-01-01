@@ -18,6 +18,9 @@ package com.kronotop.server.annotation;
 
 import java.lang.annotation.*;
 
+/**
+ * Annotation that specifies the maximum number of parameters allowed for a class or interface.
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Documented

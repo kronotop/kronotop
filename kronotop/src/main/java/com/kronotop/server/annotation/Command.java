@@ -18,6 +18,13 @@ package com.kronotop.server.annotation;
 
 import java.lang.annotation.*;
 
+/**
+ * Represents an annotation used to mark a class as a command.
+ *
+ * @Retention(RetentionPolicy.RUNTIME)
+ * @Target(ElementType.TYPE)
+ * @Repeatable(Commands.class)
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Repeatable(Commands.class)

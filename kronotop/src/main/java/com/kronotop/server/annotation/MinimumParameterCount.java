@@ -18,6 +18,9 @@ package com.kronotop.server.annotation;
 
 import java.lang.annotation.*;
 
+/**
+ * Custom annotation to specify the minimum number of parameters required for a class.
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Documented
