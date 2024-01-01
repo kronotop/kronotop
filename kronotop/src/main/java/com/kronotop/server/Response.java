@@ -21,6 +21,7 @@ import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 
@@ -118,6 +119,29 @@ public interface Response {
      * @param value the boolean value to be written
      */
     void writeBoolean(boolean value);
+
+    /**
+     * Writes a BigInteger value as a Redis response message to the client.
+     *
+     * @param value the BigInteger value to be written
+     */
+    void writeBigNumber(BigInteger value);
+
+    /**
+     * Writes a BigInteger value as a Redis response message to the client.
+     *
+     * @param value the BigInteger value to be written
+     */
+    void writeBigNumber(String value);
+
+    /**
+     * Writes a byte array as a Redis response message to the client.
+     *
+     * @param value the byte array value to be written
+     *
+     * @throws NullPointerException if the value is null
+     */
+    void writeBigNumber(byte[] value);
 
     /**
      * Flushes the response messages to the client.

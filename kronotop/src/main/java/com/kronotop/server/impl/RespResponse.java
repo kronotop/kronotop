@@ -22,6 +22,7 @@ import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 
@@ -171,6 +172,38 @@ public class RespResponse implements Response {
         } else {
             ctx.writeAndFlush(BooleanRedisMessage.FALSE);
         }
+    }
+
+    /**
+     * Writes a big number as a Redis response message to the client.
+     *
+     * @param value the big number value to be written
+     * @throws NullPointerException if the value is null
+     */
+    @Override
+    public void writeBigNumber(BigInteger value) {
+        ctx.writeAndFlush(new BigNumberRedisMessage(value));
+    }
+
+    /**
+     * Writes a big number as a Redis response message to the client.
+     *
+     * @param value the big number value to be written as a string
+     * @throws NullPointerException if the value is null
+     */
+    @Override
+    public void writeBigNumber(String value) {
+        ctx.writeAndFlush(new BigNumberRedisMessage(value));
+    }
+
+    /**
+     * Writes a big number as a Redis response message to the client.
+     *
+     * @param value the big number value to be written as a byte array
+     * @throws NullPointerException if the value is null
+     */
+    public void writeBigNumber(byte[] value) {
+        ctx.writeAndFlush(new BigNumberRedisMessage(value));
     }
 
     /**

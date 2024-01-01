@@ -22,6 +22,7 @@ import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -154,6 +155,38 @@ public class TransactionResponse implements Response {
         } else {
             messages.add(BooleanRedisMessage.FALSE);
         }
+    }
+
+    /**
+     * Adds a BigInteger value as a Redis response message to the list of response messages.
+     *
+     * @param value the BigInteger value to be added
+     */
+    @Override
+    public void writeBigNumber(BigInteger value) {
+        messages.add(new BigNumberRedisMessage(value));
+    }
+
+    /**
+     * Writes a big number value as a Redis response message to the client.
+     *
+     * @param value the big number value to be written
+     */
+    @Override
+    public void writeBigNumber(String value) {
+        messages.add(new BigNumberRedisMessage(value));
+    }
+
+    /**
+     * Writes a byte array value as a Redis response message to the client.
+     * This method creates a BigNumberRedisMessage object with the given byte array value and adds it to the list of messages.
+     *
+     * @param value the byte array value to be written
+     * @see BigNumberRedisMessage
+     */
+    @Override
+    public void writeBigNumber(byte[] value) {
+        messages.add(new BigNumberRedisMessage(value));
     }
 
     /**
