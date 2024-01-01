@@ -19,7 +19,6 @@ package com.kronotop.core;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;
 import com.apple.foundationdb.FDBException;
-import com.apple.foundationdb.JNIUtil;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import org.slf4j.Logger;
