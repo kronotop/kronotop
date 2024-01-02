@@ -24,6 +24,7 @@ import io.netty.channel.ChannelHandlerContext;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The `Response` interface represents a response message for the Redis protocol.
@@ -165,6 +166,15 @@ public interface Response {
      * @param content the content to be written as a verbatim string
      */
     void writeVerbatimString(ByteBuf content);
+
+    /**
+     * Writes a set of Redis messages as a response message to the client.
+     * <p>
+     * This method is used to write a set of Redis messages to the client as a response.
+     *
+     * @param children the set of Redis messages to be written
+     */
+    void writeSet(Set<RedisMessage> children);
 
     /**
      * Flushes the response messages to the client.

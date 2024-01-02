@@ -26,6 +26,7 @@ import io.netty.channel.ChannelHandlerContext;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The RespResponse class is an implementation of the Response interface.
@@ -221,6 +222,17 @@ public class RespResponse implements Response {
     @Override
     public void writeVerbatimString(ByteBuf content) {
         ctx.writeAndFlush(new FullBulkVerbatimStringRedisMessage(content));
+    }
+
+    /**
+     * Writes a set of Redis messages as a response message to the client.
+     *
+     * @param children the set of Redis messages to be written
+     * @throws NullPointerException if the children set is null
+     */
+    @Override
+    public void writeSet(Set<RedisMessage> children) {
+        ctx.writeAndFlush(new SetRedisMessage(children));
     }
 
     /**

@@ -27,6 +27,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The TransactionResponse class represents a response message for a Redis transaction.
@@ -258,6 +259,20 @@ public class TransactionResponse implements Response {
     @Override
     public void writeVerbatimString(ByteBuf content) {
         messages.add(new FullBulkVerbatimStringRedisMessage(content));
+    }
+
+    /**
+     * Adds a SetRedisMessage to the list of messages.
+     * <p>
+     * This method is used to write a SetRedisMessage to the client. The SetRedisMessage contains a set of RedisMessage objects.
+     *
+     * @param children the set of RedisMessage objects to be written
+     * @see SetRedisMessage
+     * @see RedisMessage
+     */
+    @Override
+    public void writeSet(Set<RedisMessage> children) {
+        messages.add(new SetRedisMessage(children));
     }
 
     /**

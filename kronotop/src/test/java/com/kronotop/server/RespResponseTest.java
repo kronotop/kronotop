@@ -29,13 +29,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RespResponseTest {
 
@@ -138,7 +134,7 @@ public class RespResponseTest {
 
         RedisMessage message = mapRedisMessage.children().get(key);
         SimpleStringRedisMessage receivedValue = (SimpleStringRedisMessage) message;
-        assertEquals(receivedValue.content(), receivedValue.content());
+        assertEquals(receivedValue.content(), value.content());
     }
 
     @Test
@@ -149,7 +145,7 @@ public class RespResponseTest {
             RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
             assertInstanceOf(BooleanRedisMessage.class, redisMessage);
             BooleanRedisMessage booleanRedisMessage = (BooleanRedisMessage) redisMessage;
-            assertEquals(true, booleanRedisMessage.value());
+            assertTrue(booleanRedisMessage.value());
         }
 
         {
@@ -157,7 +153,7 @@ public class RespResponseTest {
             RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
             assertInstanceOf(BooleanRedisMessage.class, redisMessage);
             BooleanRedisMessage booleanRedisMessage = (BooleanRedisMessage) redisMessage;
-            assertEquals(false, booleanRedisMessage.value());
+            assertFalse(booleanRedisMessage.value());
         }
     }
 
@@ -305,5 +301,20 @@ public class RespResponseTest {
         byte[] data = new byte[fullBulkStringRedisMessage.content().readableBytes()];
         fullBulkStringRedisMessage.content().readBytes(data);
         assertEquals("message", new String(data));
+    }
+
+    @Test
+    public void test_writeSet() {
+        RespResponse response = new RespResponse(ctx);
+
+        Set<RedisMessage> set = new HashSet<>();
+        set.add(new SimpleStringRedisMessage("foobar"));
+        response.writeSet(set);
+
+        RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
+        assertInstanceOf(SetRedisMessage.class, redisMessage);
+        SetRedisMessage setRedisMessage = (SetRedisMessage) redisMessage;
+        SimpleStringRedisMessage message = (SimpleStringRedisMessage) setRedisMessage.children().iterator().next();
+        assertEquals("foobar", message.content());
     }
 }
