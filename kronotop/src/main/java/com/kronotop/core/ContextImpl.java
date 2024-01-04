@@ -21,13 +21,16 @@ import com.google.common.util.concurrent.Striped;
 import com.kronotop.MissingConfigException;
 import com.kronotop.common.KronotopException;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.core.commands.CommandMetadata;
 import com.kronotop.core.journal.Journal;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -44,6 +47,8 @@ public class ContextImpl implements Context {
     private final LogicalDatabase logicalDatabase;
     private final Striped<ReadWriteLock> stripedReadWriteLock = Striped.readWriteLock(3);
     private final Journal journal;
+    private final ConcurrentHashMap<String, CommandMetadata> commandMetadata = new ConcurrentHashMap<>();
+    private final Map<String, CommandMetadata> unmodifiableCommandMetadata = Collections.unmodifiableMap(commandMetadata);
 
     public ContextImpl(Config config, Member member, Database database) {
         if (config.hasPath("cluster.name")) {
@@ -110,5 +115,15 @@ public class ContextImpl implements Context {
     @Override
     public Journal getJournal() {
         return journal;
+    }
+
+    @Override
+    public void registerCommandMetadata(String command, CommandMetadata metadata) {
+        commandMetadata.put(command, metadata);
+    }
+
+    @Override
+    public Map<String, CommandMetadata> getCommandMetadata() {
+        return unmodifiableCommandMetadata;
     }
 }

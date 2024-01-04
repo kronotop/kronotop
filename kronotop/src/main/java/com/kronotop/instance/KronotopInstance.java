@@ -27,7 +27,6 @@ import com.kronotop.core.cluster.Member;
 import com.kronotop.core.cluster.MembershipService;
 import com.kronotop.core.cluster.coordinator.CoordinatorService;
 import com.kronotop.core.cluster.sharding.ShardingService;
-import com.kronotop.core.commands.CommandDefinitions;
 import com.kronotop.core.network.Address;
 import com.kronotop.core.network.AddressUtil;
 import com.kronotop.core.watcher.Watcher;
@@ -113,9 +112,6 @@ public class KronotopInstance {
 
         ZMapService zmapService = new ZMapService(context, handlers);
         context.registerService(ZMapService.NAME, zmapService);
-
-        CommandDefinitions commandDefinitions = new CommandDefinitions(handlers);
-        context.registerService(CommandDefinitions.NAME, commandDefinitions);
     }
 
     /**

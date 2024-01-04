@@ -25,6 +25,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.cluster.MembershipService;
@@ -47,9 +48,10 @@ import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.string.*;
 import com.kronotop.redis.transactions.*;
-import com.kronotop.server.*;
-import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.Commands;
+import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.CommandAlreadyRegisteredException;
+import com.kronotop.server.Handlers;
+import com.kronotop.server.Request;
 import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
@@ -63,13 +65,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class RedisService implements KronotopService {
+public class RedisService extends CommandHandlerService implements KronotopService {
     public static final String REDIS_VERSION = "7.0.8";
     public static final String NAME = "Redis";
     private static final Logger logger = LoggerFactory.getLogger(RedisService.class);
     public final int NUM_HASH_SLOTS = 16384;
-    private final Handlers handlers;
-    private final Context context;
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
     private final MembershipService membershipService;
@@ -81,8 +81,7 @@ public class RedisService implements KronotopService {
     private final List<ShardMaintenanceWorker> shardMaintenanceWorkers = new ArrayList<>();
 
     public RedisService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
-        this.handlers = handlers;
-        this.context = context;
+        super(context, handlers);
         this.watcher = context.getService(Watcher.NAME);
         this.numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
         this.membershipService = context.getService(MembershipService.NAME);
@@ -180,20 +179,6 @@ public class RedisService implements KronotopService {
 
     public int getNumberOfShards() {
         return numberOfShards;
-    }
-
-    private void registerHandler(Handler... handlers) throws CommandAlreadyRegisteredException {
-        for (Handler handler : handlers) {
-            Commands commands = handler.getClass().getAnnotation(Commands.class);
-            if (commands != null) {
-                for (Command command : commands.value()) {
-                    this.handlers.register(command.value().toUpperCase(), handler);
-                }
-            } else {
-                Command command = handler.getClass().getAnnotation(Command.class);
-                this.handlers.register(command.value().toUpperCase(), handler);
-            }
-        }
     }
 
     /**

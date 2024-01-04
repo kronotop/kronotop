@@ -21,25 +21,22 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
-import com.kronotop.server.CommandAlreadyRegisteredException;
-import com.kronotop.server.Handler;
 import com.kronotop.server.Handlers;
-import com.kronotop.server.annotation.Command;
 
 import java.util.List;
 
-public class FoundationDBService implements KronotopService {
+/**
+ * The FoundationDBService class is an implementation of the KronotopService interface that represents a service for
+ * interacting with the FoundationDB database.
+ */
+public class FoundationDBService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "FoundationDB";
-    private final Database database;
-    private final Context context;
-    private final Handlers commands;
 
-    public FoundationDBService(Context context, Handlers commands) {
-        this.context = context;
-        this.commands = commands;
-        this.database = context.getFoundationDB();
+    public FoundationDBService(Context context, Handlers handlers) {
+        super(context, handlers);
 
         // Register handlers here
         registerHandler(new BeginHandler(this));
@@ -50,6 +47,7 @@ public class FoundationDBService implements KronotopService {
         registerHandler(new GetReadVersionHandler(this));
         registerHandler(new GetApproximateSizeHandler(this));
 
+        Database database = context.getFoundationDB();
         DirectoryLayer directoryLayer = new DirectoryLayer();
         List<String> root = DirectoryLayout.Builder.clusterName(context.getClusterName()).namespaces().asList();
         DirectorySubspace rootSubspace = database.run(tr -> directoryLayer.createOrOpen(tr, root).join());
@@ -59,13 +57,6 @@ public class FoundationDBService implements KronotopService {
             );
         }
 
-    }
-
-    private void registerHandler(Handler... handlers) throws CommandAlreadyRegisteredException {
-        for (Handler handler : handlers) {
-            Command annotation = handler.getClass().getAnnotation(Command.class);
-            commands.register(annotation.value().toUpperCase(), handler);
-        }
     }
 
     @Override

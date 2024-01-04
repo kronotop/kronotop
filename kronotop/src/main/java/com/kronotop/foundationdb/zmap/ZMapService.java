@@ -16,22 +16,17 @@
 
 package com.kronotop.foundationdb.zmap;
 
+import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
-import com.kronotop.server.CommandAlreadyRegisteredException;
-import com.kronotop.server.Handler;
 import com.kronotop.server.Handlers;
-import com.kronotop.server.annotation.Command;
 
-public class ZMapService implements KronotopService {
+public class ZMapService extends CommandHandlerService implements KronotopService {
     public static final byte SubspaceMagic = 0x01;
     public static final String NAME = "ZMap";
-    private final Context context;
-    private final Handlers commands;
 
-    public ZMapService(Context context, Handlers commands) {
-        this.context = context;
-        this.commands = commands;
+    public ZMapService(Context context, Handlers handlers) {
+        super(context, handlers);
 
         registerHandler(new ZPutHandler(this));
         registerHandler(new ZGetHandler(this));
@@ -42,13 +37,6 @@ public class ZMapService implements KronotopService {
         registerHandler(new ZGetKeyHandler(this));
         registerHandler(new ZMutateHandler(this));
         registerHandler(new ZGetRangeSizeHandler(this));
-    }
-
-    private void registerHandler(Handler... handlers) throws CommandAlreadyRegisteredException {
-        for (Handler handler : handlers) {
-            Command annotation = handler.getClass().getAnnotation(Command.class);
-            commands.register(annotation.value().toUpperCase(), handler);
-        }
     }
 
     @Override

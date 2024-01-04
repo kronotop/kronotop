@@ -19,12 +19,14 @@ package com.kronotop.core;
 import com.apple.foundationdb.Database;
 import com.google.common.util.concurrent.Striped;
 import com.kronotop.core.cluster.Member;
+import com.kronotop.core.commands.CommandMetadata;
 import com.kronotop.core.journal.Journal;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 
 /**
@@ -105,4 +107,8 @@ public interface Context {
      * @return The Journal object.
      */
     Journal getJournal();
+
+    void registerCommandMetadata(String command, CommandMetadata metadata);
+
+    Map<String, CommandMetadata> getCommandMetadata();
 }

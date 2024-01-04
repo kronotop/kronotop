@@ -20,13 +20,18 @@ import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class CommandMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "COMMAND";
-    public static final String COUNT_OPERAND = "COUNT";
+    public static final String SUBCOMMAND_COUNT = "COUNT";
+    public static final String SUBCOMMAND_INFO = "INFO";
+    public static final String SUBCOMMAND_DOCS = "DOCS";
+    private final List<String> commands = new ArrayList<>();
     private final Request request;
-    private String operand;
+    private String subcommand;
+    private boolean hasSubcommand;
 
     public CommandMessage(Request request) {
         this.request = request;
@@ -39,20 +44,44 @@ public class CommandMessage implements KronotopMessage<Void> {
         return new String(rawItem);
     }
 
+    private void parseCommands() {
+        if (request.getParams().size() <= 1) {
+            return;
+        }
+        for (int i = 1; i < request.getParams().size(); i++) {
+            byte[] rawCommand = new byte[request.getParams().get(i).readableBytes()];
+            request.getParams().get(i).readBytes(rawCommand);
+            String command = new String(rawCommand);
+            commands.add(command);
+        }
+    }
+
     private void parse() {
-        if (request.getParams().size() == 0) {
+        if (request.getParams().isEmpty()) {
             return;
         }
 
-        byte[] rawOperand = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawOperand);
-        operand = new String(rawOperand);
-
-        if (operand.equalsIgnoreCase("DOCS")) {
-            rawOperand = new byte[request.getParams().get(1).readableBytes()];
-            request.getParams().get(1).readBytes(rawOperand);
-            String two = new String(rawOperand);
+        hasSubcommand = true;
+        byte[] rawSubcommand = new byte[request.getParams().get(0).readableBytes()];
+        request.getParams().get(0).readBytes(rawSubcommand);
+        subcommand = new String(rawSubcommand).toUpperCase();
+        if (subcommand.equals(SUBCOMMAND_INFO) || subcommand.equals(SUBCOMMAND_DOCS)) {
+            parseCommands();
+        } else if (subcommand.equals(SUBCOMMAND_COUNT)) {
+            return;
         }
+    }
+
+    public boolean hasSubcommand() {
+        return hasSubcommand;
+    }
+
+    public String getSubcommand() {
+        return subcommand;
+    }
+
+    public List<String> getCommands() {
+        return commands;
     }
 
     @Override
@@ -64,6 +93,4 @@ public class CommandMessage implements KronotopMessage<Void> {
     public List<Void> getKeys() {
         return null;
     }
-
-
 }

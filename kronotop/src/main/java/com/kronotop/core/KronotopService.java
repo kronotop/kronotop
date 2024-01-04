@@ -16,10 +16,27 @@
 
 package com.kronotop.core;
 
+/**
+ * KronotopService is an interface that represents a service in the Kronotop database system.
+ * It provides methods to get the service name, the global context, and to get shutdown the service.
+ */
 public interface KronotopService {
+    /**
+     * Retrieves the name of the service.
+     *
+     * @return the name of the service
+     */
     String getName();
 
+    /**
+     * Retrieves the context associated with the KronotopService.
+     *
+     * @return the context associated with the KronotopService
+     */
     Context getContext();
 
+    /**
+     * Shuts down the Kronotop instance.
+     */
     void shutdown();
 }
