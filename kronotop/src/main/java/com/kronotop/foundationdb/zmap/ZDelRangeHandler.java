@@ -19,6 +19,7 @@ package com.kronotop.foundationdb.zmap;
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.subspace.Subspace;
+import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.ZDelRangeMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -31,8 +32,8 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 @Command(ZDelRangeMessage.COMMAND)
 @MinimumParameterCount(ZDelRangeMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZDelRangeMessage.MAXIMUM_PARAMETER_COUNT)
-class ZDelRangeHandler extends BaseZMapHandler implements Handler {
-    public ZDelRangeHandler(ZMapService service) {
+public class ZDelRangeHandler extends BaseZMapHandler implements Handler {
+    public ZDelRangeHandler(FoundationDBService service) {
         super(service);
     }
 

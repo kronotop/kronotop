@@ -22,6 +22,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.RangeKeySelector;
 import com.kronotop.foundationdb.zmap.protocol.ZGetRangeMessage;
 import com.kronotop.server.Handler;
@@ -45,8 +46,8 @@ import java.util.concurrent.ExecutionException;
 @Command(ZGetRangeMessage.COMMAND)
 @MinimumParameterCount(ZGetRangeMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZGetRangeMessage.MAXIMUM_PARAMETER_COUNT)
-class ZGetRangeHandler extends BaseZMapHandler implements Handler {
-    public ZGetRangeHandler(ZMapService service) {
+public class ZGetRangeHandler extends BaseZMapHandler implements Handler {
+    public ZGetRangeHandler(FoundationDBService service) {
         super(service);
     }
 

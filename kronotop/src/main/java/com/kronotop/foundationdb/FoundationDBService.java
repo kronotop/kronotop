@@ -24,6 +24,7 @@ import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
+import com.kronotop.foundationdb.zmap.*;
 import com.kronotop.server.Handlers;
 
 import java.util.List;
@@ -46,6 +47,15 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
         registerHandler(new SnapshotReadHandler(this));
         registerHandler(new GetReadVersionHandler(this));
         registerHandler(new GetApproximateSizeHandler(this));
+        registerHandler(new ZPutHandler(this));
+        registerHandler(new ZGetHandler(this));
+        registerHandler(new ZDelHandler(this));
+        registerHandler(new ZDelRangeHandler(this));
+        registerHandler(new ZDelPrefixHandler(this));
+        registerHandler(new ZGetRangeHandler(this));
+        registerHandler(new ZGetKeyHandler(this));
+        registerHandler(new ZMutateHandler(this));
+        registerHandler(new ZGetRangeSizeHandler(this));
 
         Database database = context.getFoundationDB();
         DirectoryLayer directoryLayer = new DirectoryLayer();

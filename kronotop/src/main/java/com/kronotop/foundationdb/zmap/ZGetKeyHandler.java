@@ -19,6 +19,7 @@ package com.kronotop.foundationdb.zmap;
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.subspace.Subspace;
+import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.RangeKeySelector;
 import com.kronotop.foundationdb.zmap.protocol.ZGetKeyMessage;
 import com.kronotop.server.Handler;
@@ -38,8 +39,8 @@ import java.util.concurrent.ExecutionException;
 @Command(ZGetKeyMessage.COMMAND)
 @MinimumParameterCount(ZGetKeyMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZGetKeyMessage.MAXIMUM_PARAMETER_COUNT)
-class ZGetKeyHandler extends BaseZMapHandler implements Handler {
-    public ZGetKeyHandler(ZMapService service) {
+public class ZGetKeyHandler extends BaseZMapHandler implements Handler {
+    public ZGetKeyHandler(FoundationDBService service) {
         super(service);
     }
 

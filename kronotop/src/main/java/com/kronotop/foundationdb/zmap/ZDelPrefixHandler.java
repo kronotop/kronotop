@@ -18,6 +18,7 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
+import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.ZDelPrefixMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -32,8 +33,8 @@ import java.util.concurrent.ExecutionException;
 @Command(ZDelPrefixMessage.COMMAND)
 @MinimumParameterCount(ZDelPrefixMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZDelPrefixMessage.MAXIMUM_PARAMETER_COUNT)
-class ZDelPrefixHandler extends BaseZMapHandler implements Handler {
-    public ZDelPrefixHandler(ZMapService service) {
+public class ZDelPrefixHandler extends BaseZMapHandler implements Handler {
+    public ZDelPrefixHandler(FoundationDBService service) {
         super(service);
     }
 

@@ -18,6 +18,7 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.subspace.Subspace;
+import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.ZGetMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -35,8 +36,8 @@ import java.util.concurrent.CompletableFuture;
 @Command(ZGetMessage.COMMAND)
 @MinimumParameterCount(ZGetMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZGetMessage.MAXIMUM_PARAMETER_COUNT)
-class ZGetHandler extends BaseZMapHandler implements Handler {
-    public ZGetHandler(ZMapService service) {
+public class ZGetHandler extends BaseZMapHandler implements Handler {
+    public ZGetHandler(FoundationDBService service) {
         super(service);
     }
 

@@ -18,6 +18,7 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.subspace.Subspace;
+import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.ZMutateMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -33,8 +34,8 @@ import java.util.List;
 @Command(ZMutateMessage.COMMAND)
 @MinimumParameterCount(ZMutateMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZMutateMessage.MAXIMUM_PARAMETER_COUNT)
-class ZMutateHandler extends BaseZMapHandler implements Handler {
-    public ZMutateHandler(ZMapService service) {
+public class ZMutateHandler extends BaseZMapHandler implements Handler {
+    public ZMutateHandler(FoundationDBService service) {
         super(service);
     }
 

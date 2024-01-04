@@ -31,7 +31,6 @@ import com.kronotop.core.network.Address;
 import com.kronotop.core.network.AddressUtil;
 import com.kronotop.core.watcher.Watcher;
 import com.kronotop.foundationdb.FoundationDBService;
-import com.kronotop.foundationdb.zmap.ZMapService;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.persistence.DataStructure;
@@ -110,9 +109,6 @@ public class KronotopInstance {
         RedisService redisService = new RedisService(context, handlers);
         context.registerService(RedisService.NAME, redisService);
         redisService.start();
-
-        ZMapService zmapService = new ZMapService(context, handlers);
-        context.registerService(ZMapService.NAME, zmapService);
 
         SqlService sqlService = new SqlService(context, handlers);
         context.registerService(SqlService.NAME, sqlService);

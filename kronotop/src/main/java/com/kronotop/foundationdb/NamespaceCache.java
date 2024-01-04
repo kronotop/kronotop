@@ -19,7 +19,6 @@ package com.kronotop.foundationdb;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.foundationdb.zmap.ZMapService;
 import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.Response;
 import io.netty.util.Attribute;
@@ -28,6 +27,9 @@ import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 
 class NamespaceCache {
+    // TODO: This should be removed
+    private static final byte SubspaceMagic = 0x01;
+
     synchronized static void add(Response response, List<String> subpath, DirectorySubspace directorySubspace) {
         String namespace = String.join(".", subpath);
         Attribute<ConcurrentMap<String, DirectorySubspace>> openNamespacesAttr = response.
@@ -36,7 +38,7 @@ class NamespaceCache {
                 attr(ChannelAttributes.OPEN_NAMESPACES);
         openNamespacesAttr.get().putIfAbsent(namespace, directorySubspace);
 
-        Subspace zmapSubspace = directorySubspace.subspace(Tuple.from(ZMapService.SubspaceMagic));
+        Subspace zmapSubspace = directorySubspace.subspace(Tuple.from(SubspaceMagic));
         Attribute<ConcurrentMap<String, Subspace>> zmapSubspaceAttr = response.
                 getContext().
                 channel().

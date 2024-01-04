@@ -19,6 +19,7 @@ package com.kronotop.foundationdb.zmap;
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.subspace.Subspace;
+import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.ZGetRangeSizeMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -33,8 +34,8 @@ import java.util.concurrent.CompletableFuture;
 @Command(ZGetRangeSizeMessage.COMMAND)
 @MinimumParameterCount(ZGetRangeSizeMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZGetRangeSizeMessage.MAXIMUM_PARAMETER_COUNT)
-class ZGetRangeSizeHandler extends BaseZMapHandler implements Handler {
-    public ZGetRangeSizeHandler(ZMapService service) {
+public class ZGetRangeSizeHandler extends BaseZMapHandler implements Handler {
+    public ZGetRangeSizeHandler(FoundationDBService service) {
         super(service);
     }
 
