@@ -36,6 +36,7 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.server.Handlers;
+import com.kronotop.sql.SqlService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.slf4j.Logger;
@@ -112,6 +113,9 @@ public class KronotopInstance {
 
         ZMapService zmapService = new ZMapService(context, handlers);
         context.registerService(ZMapService.NAME, zmapService);
+
+        SqlService sqlService = new SqlService(context, handlers);
+        context.registerService(SqlService.NAME, sqlService);
     }
 
     /**
