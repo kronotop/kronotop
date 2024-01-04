@@ -20,13 +20,14 @@ import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class InfoMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "INFO";
     private final Request request;
+    private final List<String> sections = new ArrayList<>();
     private String message;
-    private List<String> sections;
 
     public InfoMessage(Request request) {
         this.request = request;

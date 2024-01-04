@@ -42,14 +42,16 @@ public class InfoHandler implements Handler {
     public void execute(Request request, Response response) {
         InfoResponse infoResponse = new InfoResponse();
         infoResponse.append("# Server");
+        infoResponse.append(String.format("kronotop_version:%s", getClass().getPackage().getImplementationVersion()));
         infoResponse.append(String.format("redis_version:%s", RedisService.REDIS_VERSION));
-        infoResponse.append(String.format("os:%s %s",
+        infoResponse.append("redis_mode:cluster");
+        infoResponse.append(String.format("os:%s %s %s",
                 System.getProperty("os.name"),
+                System.getProperty("os.version"),
                 System.getProperty("os.arch")
         ));
-        infoResponse.append("redis_mode:cluster");
 
-        infoResponse.append("# Server");
+        infoResponse.append("# Cluster");
         infoResponse.append("cluster_enabled:1");
         FullBulkStringRedisMessage fb = new FullBulkStringRedisMessage(
                 Unpooled.buffer().writeBytes(infoResponse.toString().getBytes())
