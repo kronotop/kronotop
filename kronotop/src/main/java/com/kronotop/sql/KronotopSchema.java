@@ -16,27 +16,46 @@
 
 package com.kronotop.sql;
 
+import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.schema.impl.AbstractSchema;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Represents a Kronotop schema.
+ */
 public class KronotopSchema extends AbstractSchema {
-    private final String schemaName;
-    private final Map<String, Table> tableMap;
+    private final String name;
+    private final ConcurrentHashMap<String, Table> tableMap;
+    private final ConcurrentHashMap<String, Schema> subSchemas = new ConcurrentHashMap<>();
 
-    private KronotopSchema(String schemaName, Map<String, Table> tableMap) {
-        this.schemaName = schemaName;
+    public KronotopSchema(String name, ConcurrentHashMap<String, Table> tableMap) {
+        this.name = name;
         this.tableMap = tableMap;
     }
 
-    public static Builder newBuilder(String schemaName) {
-        return new Builder(schemaName);
+    public static Builder newBuilder(String name) {
+        return new Builder(name);
     }
 
-    public String getSchemaName() {
-        return schemaName;
+    public String getName() {
+        return name;
+    }
+
+    public void setSubSchema(String name, KronotopSchema schema) {
+        subSchemas.compute(name, (n, s) -> {
+            if (s != null) {
+                throw new IllegalArgumentException("SubSchema has already been registered: " + name);
+            }
+            return schema;
+        });
+    }
+
+    @Override
+    protected Map<String, Schema> getSubSchemaMap() {
+        return subSchemas;
     }
 
     @Override
@@ -45,25 +64,21 @@ public class KronotopSchema extends AbstractSchema {
     }
 
     public static final class Builder {
-
         private final String schemaName;
-        private final Map<String, Table> tableMap = new HashMap<>();
+        private final ConcurrentHashMap<String, Table> tableMap = new ConcurrentHashMap<>();
 
         private Builder(String schemaName) {
             if (schemaName == null || schemaName.isEmpty()) {
                 throw new IllegalArgumentException("Schema name cannot be null or empty");
             }
-
             this.schemaName = schemaName;
         }
 
         public Builder addTable(KronotopTable table) {
             if (tableMap.containsKey(table.getTableName())) {
-                throw new IllegalArgumentException("Table already defined: " + table.getTableName());
+                throw new IllegalArgumentException("Table has already already defined: " + table.getTableName());
             }
-
             tableMap.put(table.getTableName(), table);
-
             return this;
         }
 

@@ -20,6 +20,7 @@ import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.output.CommandOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
+import io.lettuce.core.protocol.ProtocolKeyword;
 
 public class BaseKronotopCommandBuilder<K, V> {
 
@@ -29,26 +30,26 @@ public class BaseKronotopCommandBuilder<K, V> {
         this.codec = codec;
     }
 
-    protected <T> Command<K, V, T> createCommand(CommandType type, CommandOutput<K, V, T> output) {
+    protected <T> Command<K, V, T> createCommand(ProtocolKeyword type, CommandOutput<K, V, T> output) {
         return createCommand(type, output, (CommandArgs<K, V>) null);
     }
 
-    protected <T> Command<K, V, T> createCommand(CommandType type, CommandOutput<K, V, T> output, K key) {
+    protected <T> Command<K, V, T> createCommand(ProtocolKeyword type, CommandOutput<K, V, T> output, K key) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).addKey(key);
         return createCommand(type, output, args);
     }
 
-    protected <T> Command<K, V, T> createCommand(CommandType type, CommandOutput<K, V, T> output, K key, V value) {
+    protected <T> Command<K, V, T> createCommand(ProtocolKeyword type, CommandOutput<K, V, T> output, K key, V value) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).addKey(key).addValue(value);
         return createCommand(type, output, args);
     }
 
-    protected <T> Command<K, V, T> createCommand(CommandType type, CommandOutput<K, V, T> output, K key, V[] values) {
+    protected <T> Command<K, V, T> createCommand(ProtocolKeyword type, CommandOutput<K, V, T> output, K key, V[] values) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).addKey(key).addValues(values);
         return createCommand(type, output, args);
     }
 
-    protected <T> Command<K, V, T> createCommand(CommandType type, CommandOutput<K, V, T> output, CommandArgs<K, V> args) {
+    protected <T> Command<K, V, T> createCommand(ProtocolKeyword type, CommandOutput<K, V, T> output, CommandArgs<K, V> args) {
         return new Command<>(type, output, args);
     }
 }

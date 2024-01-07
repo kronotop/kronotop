@@ -49,6 +49,20 @@ public class RespResponseTest {
     }
 
     @Test
+    public void test_writeRedisMessage() {
+        // Create a RespResponse object and associate it with the channel
+        RespResponse response = new RespResponse(ctx);
+
+        // Call the writeOK() method to add a simple 'OK' string to the response
+        response.writeRedisMessage(new SimpleStringRedisMessage("Hello!"));
+
+        RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
+        assertInstanceOf(SimpleStringRedisMessage.class, redisMessage);
+        SimpleStringRedisMessage simpleStringRedisMessage = (SimpleStringRedisMessage) redisMessage;
+        assertEquals("Hello!", simpleStringRedisMessage.content());
+    }
+
+    @Test
     public void test_writeOK() {
         // Create a RespResponse object and associate it with the channel
         RespResponse response = new RespResponse(ctx);

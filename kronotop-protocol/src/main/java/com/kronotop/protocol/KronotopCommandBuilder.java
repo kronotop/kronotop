@@ -18,10 +18,7 @@
 package com.kronotop.protocol;
 
 import io.lettuce.core.codec.RedisCodec;
-import io.lettuce.core.output.ArrayOutput;
-import io.lettuce.core.output.IntegerOutput;
-import io.lettuce.core.output.StatusOutput;
-import io.lettuce.core.output.ValueOutput;
+import io.lettuce.core.output.*;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 
@@ -214,5 +211,20 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
 
     public Command<K, V, Long> getreadversion() {
         return createCommand(CommandType.GETREADVERSION, new IntegerOutput<>(codec));
+    }
+
+    public Command<K, V, Object> sql(String query) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(query);
+        return createCommand(CommandType.SQL, new ObjectOutput<>(codec), args);
+    }
+
+    public Command<K, V, String> sqlSetSchema(String schema) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(schema);
+        return createCommand(SqlCommandType.SQLSETSCHEMA, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, List<Object>> sqlGetSchema() {
+        CommandArgs<K, V> args = new CommandArgs<>(codec);
+        return createCommand(SqlCommandType.SQLGETSCHEMA, new ArrayOutput<>(codec), args);
     }
 }

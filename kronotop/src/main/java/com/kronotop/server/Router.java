@@ -66,6 +66,7 @@ public class Router extends ChannelDuplexHandler {
     static final String multiCommand = "MULTI";
     static final String watchCommand = "WATCH";
     private static final Logger logger = LoggerFactory.getLogger(Router.class);
+    private final Context context;
     private final ReadWriteLock redisTransactionLock = new ReentrantReadWriteLock(true);
     private final Watcher watcher;
     private final RedisService redisService;
@@ -73,6 +74,7 @@ public class Router extends ChannelDuplexHandler {
     Boolean authEnabled = false;
 
     public Router(Context context, Handlers commands) {
+        this.context = context;
         this.commands = commands;
         this.watcher = context.getService(Watcher.NAME);
         this.redisService = context.getService(RedisService.NAME);
@@ -126,6 +128,15 @@ public class Router extends ChannelDuplexHandler {
 
         Attribute<Long> clientID = ctx.channel().attr(ChannelAttributes.CLIENT_ID);
         clientID.set(ClientIDGenerator.getAndIncrement());
+
+        Attribute<List<String>> currentSchema = ctx.channel().attr(ChannelAttributes.CURRENT_SCHEMA);
+
+        if (context.getConfig().hasPath("sql.default_schema")) {
+            currentSchema.set(context.getConfig().getStringList("sql.default_schema"));
+        } else {
+            // TODO: Read the default schema name from somewhere else
+            currentSchema.set(List.of("public"));
+        }
 
         super.channelRegistered(ctx);
     }

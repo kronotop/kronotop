@@ -186,4 +186,19 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     public StatefulConnection<K, V> getUnderlyingConnection() {
         return connection;
     }
+
+    @Override
+    public RedisFuture<Object> sql(String query) {
+        return dispatch(commandBuilder.sql(query));
+    }
+
+    @Override
+    public RedisFuture<String> sqlSetSchema(String schema) {
+        return dispatch(commandBuilder.sqlSetSchema(schema));
+    }
+
+    @Override
+    public RedisFuture<List<Object>> sqlGetSchema() {
+        return dispatch(commandBuilder.sqlGetSchema());
+    }
 }

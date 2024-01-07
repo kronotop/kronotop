@@ -16,15 +16,26 @@
 
 package com.kronotop.sql;
 
+import com.kronotop.common.resp.RESPError;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
+import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.sql.backend.Executor;
 import com.kronotop.sql.protocol.SqlMessage;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParseException;
+
+import java.util.List;
 
 @Command(SqlMessage.COMMAND)
-public class SqlHandler implements Handler {
+public class SqlHandler extends BaseSqlHandler implements Handler {
+
+    public SqlHandler(SqlService service) {
+        super(service);
+    }
 
     @Override
     public void beforeExecute(Request request) {
@@ -34,6 +45,24 @@ public class SqlHandler implements Handler {
     @Override
     public void execute(Request request, Response response) throws Exception {
         SqlMessage sqlMessage = request.attr(MessageTypes.SQL).get();
-        response.writeSimpleString(sqlMessage.getQuery());
+        try {
+            SqlNode sqlTree = Parser.parse(sqlMessage.getQuery());
+
+            // DDL Commands
+            RedisMessage result;
+            Executor<SqlNode> executor = service.ddlExecutors.get(sqlTree.getKind());
+            if (executor != null) {
+                result = executor.execute(sqlTree);
+            } else {
+                response.writeError(RESPError.SQL, String.format("Unknown SQL command: %s", sqlTree.getKind()));
+                return;
+            }
+            response.writeRedisMessage(result);
+        } catch (SqlParseException e) {
+            // redis-cli has a problem with bulk errors:
+            // Error: Protocol error, got "!" as reply type byte
+            List<String> messages = List.of(e.getMessage().split("\n"));
+            response.writeError(RESPError.SQL, messages.get(0));
+        }
     }
 }

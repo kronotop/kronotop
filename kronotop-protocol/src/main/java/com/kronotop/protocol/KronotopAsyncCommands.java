@@ -79,4 +79,10 @@ public interface KronotopAsyncCommands<K, V> {
     RedisFuture<Long> getreadversion();
 
     StatefulConnection<K, V> getUnderlyingConnection();
+
+    RedisFuture<Object> sql(String query);
+
+    RedisFuture<String> sqlSetSchema(String schema);
+
+    RedisFuture<List<Object>> sqlGetSchema();
 }

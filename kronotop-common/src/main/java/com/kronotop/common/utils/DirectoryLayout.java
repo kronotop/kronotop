@@ -88,8 +88,28 @@ public class DirectoryLayout {
         return this;
     }
 
+    public DirectoryLayout sql() {
+        items.add("sql");
+        return this;
+    }
+
+    public DirectoryLayout metadata() {
+        items.add("metadata");
+        return this;
+    }
+
+    public DirectoryLayout schemas() {
+        items.add("schemas");
+        return this;
+    }
+
     public DirectoryLayout addAll(List<String> list) {
         items.addAll(list);
+        return this;
+    }
+
+    public DirectoryLayout add(String item) {
+        items.add(item);
         return this;
     }
 
@@ -149,6 +169,22 @@ public class DirectoryLayout {
 
         public static DirectoryLayout journals() {
             return new DirectoryLayout().journals();
+        }
+
+        public static DirectoryLayout sql() {
+            return new DirectoryLayout().sql();
+        }
+
+        public static DirectoryLayout metadata() {
+            return new DirectoryLayout().metadata();
+        }
+
+        public static DirectoryLayout schemas() {
+            return new DirectoryLayout().schemas();
+        }
+
+        public static DirectoryLayout add(String item) {
+            return new DirectoryLayout().add(item);
         }
 
         public static DirectoryLayout addAll(List<String> list) {

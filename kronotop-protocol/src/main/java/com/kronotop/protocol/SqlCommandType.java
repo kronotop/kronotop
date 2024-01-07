@@ -20,30 +20,14 @@ import io.lettuce.core.protocol.ProtocolKeyword;
 
 import java.nio.charset.StandardCharsets;
 
-public enum CommandType implements ProtocolKeyword {
-    AUTH,
-    BEGIN,
-    ROLLBACK,
-    COMMIT,
-    NAMESPACE,
-    ZPUT,
-    ZGET,
-    ZDEL,
-    ZDELPREFIX,
-    ZDELRANGE,
-    ZGETRANGE,
-    ZGETKEY,
-    SNAPSHOT_READ,
-    ZMUTATE,
-    ZGETRANGESIZE,
-    GETAPPROXIMATESIZE,
-    GETREADVERSION,
-    SQL;
+public enum SqlCommandType implements ProtocolKeyword {
+    SQLSETSCHEMA("SQL.SET-SCHEMA"),
+    SQLGETSCHEMA("SQL.GET-SCHEMA");
 
     public final byte[] bytes;
 
-    CommandType() {
-        bytes = name().getBytes(StandardCharsets.US_ASCII);
+    SqlCommandType(String command) {
+        bytes = command.getBytes(StandardCharsets.US_ASCII);
     }
 
     @Override

@@ -42,11 +42,21 @@ public class TransactionResponse implements Response {
     }
 
     /**
+     * Adds a Redis message to the list of messages to be written.
+     *
+     * @param redisMessage the Redis message to be added
+     */
+    @Override
+    public void writeRedisMessage(RedisMessage redisMessage) {
+        messages.add(redisMessage);
+    }
+
+    /**
      * Writes an "OK" Redis response message to the client.
      */
     @Override
     public void writeOK() {
-        writeSimpleString("OK");
+        writeSimpleString(Response.OK);
     }
 
     /**
@@ -57,7 +67,7 @@ public class TransactionResponse implements Response {
      */
     @Override
     public void writeQUEUED() {
-        writeSimpleString("QUEUED");
+        writeSimpleString(Response.QUEUED);
     }
 
     /**

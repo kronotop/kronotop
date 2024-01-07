@@ -20,16 +20,29 @@ import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
 import com.kronotop.server.Handlers;
+import com.kronotop.sql.backend.Executor;
+import com.kronotop.sql.backend.ddl.CreateSchema;
+import com.kronotop.sql.backend.ddl.CreateTable;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
+
+import java.util.HashMap;
 
 public class SqlService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "SQL";
+    protected final HashMap<SqlKind, Executor<SqlNode>> ddlExecutors = new HashMap<>();
     private final Context context;
 
     public SqlService(Context context, Handlers handlers) {
         super(context, handlers);
         this.context = context;
 
-        registerHandler(new SqlHandler());
+        ddlExecutors.put(SqlKind.CREATE_SCHEMA, new CreateSchema(this));
+        ddlExecutors.put(SqlKind.CREATE_TABLE, new CreateTable(this));
+
+        registerHandler(new SqlHandler(this));
+        registerHandler(new SqlSetSchemaHandler(this));
+        registerHandler(new SqlGetSchemaHandler(this));
     }
 
     @Override

@@ -40,6 +40,17 @@ public class RespResponse implements Response {
     }
 
     /**
+     * Writes a Redis message to the client.
+     *
+     * @param message the Redis message to be written
+     * @throws NullPointerException if the message is null
+     */
+    @Override
+    public void writeRedisMessage(RedisMessage message) {
+        ctx.writeAndFlush(message);
+    }
+
+    /**
      * Writes an "OK" Redis response message to the client.
      * <p>
      * This method is used to write an "OK" message to the client.
@@ -47,7 +58,7 @@ public class RespResponse implements Response {
      */
     @Override
     public void writeOK() {
-        writeSimpleString("OK");
+        writeSimpleString(Response.OK);
     }
 
     /**
@@ -58,7 +69,7 @@ public class RespResponse implements Response {
      */
     @Override
     public void writeQUEUED() {
-        ctx.write(new SimpleStringRedisMessage("QUEUED"));
+        ctx.write(new SimpleStringRedisMessage(Response.QUEUED));
     }
 
     /**

@@ -55,4 +55,6 @@ public class ChannelAttributes {
     public static final AttributeKey<HashMap<String, Long>> WATCHED_KEYS = AttributeKey.valueOf("watched_keys");
 
     public static final AttributeKey<Long> CLIENT_ID = AttributeKey.valueOf("client_id");
+
+    public static final AttributeKey<List<String>> CURRENT_SCHEMA = AttributeKey.valueOf("current_schema");
 }

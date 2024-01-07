@@ -74,4 +74,10 @@ public interface KronotopCommands<K, V> {
     Long getapproximatesize();
 
     Long getreadversion();
+
+    Object sql();
+
+    String setSqlSchema(String schema);
+
+    List<String> getSqlSchema();
 }

@@ -14,40 +14,27 @@
  * limitations under the License.
  */
 
-package com.kronotop.protocol;
+package com.kronotop.sql.protocol;
 
-import io.lettuce.core.protocol.ProtocolKeyword;
+import com.kronotop.server.KronotopMessage;
 
-import java.nio.charset.StandardCharsets;
+import java.util.List;
 
-public enum CommandType implements ProtocolKeyword {
-    AUTH,
-    BEGIN,
-    ROLLBACK,
-    COMMIT,
-    NAMESPACE,
-    ZPUT,
-    ZGET,
-    ZDEL,
-    ZDELPREFIX,
-    ZDELRANGE,
-    ZGETRANGE,
-    ZGETKEY,
-    SNAPSHOT_READ,
-    ZMUTATE,
-    ZGETRANGESIZE,
-    GETAPPROXIMATESIZE,
-    GETREADVERSION,
-    SQL;
+public class SqlGetSchemaMessage implements KronotopMessage<Void> {
+    public static final String COMMAND = "SQL.GET-SCHEMA";
+    public static final int MINIMUM_PARAMETER_COUNT = 0;
+    public static final int MAXIMUM_PARAMETER_COUNT = 0;
 
-    public final byte[] bytes;
-
-    CommandType() {
-        bytes = name().getBytes(StandardCharsets.US_ASCII);
+    public SqlGetSchemaMessage() {
     }
 
     @Override
-    public byte[] getBytes() {
-        return bytes;
+    public Void getKey() {
+        return null;
+    }
+
+    @Override
+    public List<Void> getKeys() {
+        return null;
     }
 }

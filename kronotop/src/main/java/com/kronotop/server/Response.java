@@ -31,6 +31,16 @@ import java.util.Set;
  * It provides methods to write different types of Redis messages.
  */
 public interface Response {
+    String OK = "OK";
+    String QUEUED = "QUEUED";
+
+    /**
+     * Writes a Redis message to the client.
+     *
+     * @param message the RedisMessage to be written
+     */
+    void writeRedisMessage(RedisMessage message);
+
     /**
      * Writes an "OK" Redis response message to the client.
      */
