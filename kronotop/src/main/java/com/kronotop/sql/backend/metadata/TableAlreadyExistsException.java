@@ -14,28 +14,14 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster;
+package com.kronotop.sql.backend.metadata;
 
 /**
- * Represents a broadcast event that can be published to the cluster's journal.
+ * The TableAlreadyExistsException class is an exception that is thrown when an attempt is made to create a table
+ * that already exists in a database.
  */
-public class BroadcastEvent {
-    private EventTypes type;
-    private String payload;
-
-    private BroadcastEvent() {
-    }
-
-    public BroadcastEvent(EventTypes type, String payload) {
-        this.type = type;
-        this.payload = payload;
-    }
-
-    public EventTypes getType() {
-        return type;
-    }
-
-    public String getPayload() {
-        return payload;
+public class TableAlreadyExistsException extends Exception {
+    public TableAlreadyExistsException(String table) {
+        super(String.format("Table '%s' already exists", table));
     }
 }

@@ -21,13 +21,26 @@ import org.apache.calcite.sql.SqlKind;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * The CreateTableModel class represents the model for creating a table.
+ * It contains information about the table schema, the table name, the SQL query, column definitions, and other properties.
+ */
 public class CreateTableModel {
     private SqlKind operator;
-    private List<String> names;
+    private List<String> schema;
+    private String table;
     private String query;
     private List<ColumnModel> columnList = new ArrayList<>();
     private Boolean replace = false;
     private Boolean ifNotExists = false;
+
+    public String getTable() {
+        return table;
+    }
+
+    public void setTable(String table) {
+        this.table = table;
+    }
 
     public SqlKind getOperator() {
         return operator;
@@ -37,12 +50,12 @@ public class CreateTableModel {
         this.operator = operator;
     }
 
-    public List<String> getNames() {
-        return names;
+    public List<String> getSchema() {
+        return schema;
     }
 
-    public void setNames(List<String> names) {
-        this.names = names;
+    public void setSchema(List<String> schema) {
+        this.schema = schema;
     }
 
     public String getQuery() {

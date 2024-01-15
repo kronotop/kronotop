@@ -16,26 +16,39 @@
 
 package com.kronotop.sql;
 
+import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
 import com.kronotop.server.Handlers;
-import com.kronotop.sql.backend.Executor;
 import com.kronotop.sql.backend.ddl.CreateSchema;
 import com.kronotop.sql.backend.ddl.CreateTable;
+import com.kronotop.sql.backend.metadata.SqlMetadataService;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
 import java.util.HashMap;
+import java.util.List;
 
+/*
+Imagination is more important than knowledge. Knowledge is limited. Imagination encircles the world.
+
+-- Albert Einstein, in Saturday Evening Post 26 October 1929
+ */
+
+/**
+ * SqlService represents a service that handles SQL commands in the Kronotop database system.
+ */
 public class SqlService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "SQL";
     protected final HashMap<SqlKind, Executor<SqlNode>> ddlExecutors = new HashMap<>();
     private final Context context;
+    private final SqlMetadataService metadataService;
 
     public SqlService(Context context, Handlers handlers) {
         super(context, handlers);
         this.context = context;
+        this.metadataService = context.getService(SqlMetadataService.NAME);
 
         ddlExecutors.put(SqlKind.CREATE_SCHEMA, new CreateSchema(this));
         ddlExecutors.put(SqlKind.CREATE_TABLE, new CreateTable(this));
@@ -43,6 +56,10 @@ public class SqlService extends CommandHandlerService implements KronotopService
         registerHandler(new SqlHandler(this));
         registerHandler(new SqlSetSchemaHandler(this));
         registerHandler(new SqlGetSchemaHandler(this));
+    }
+
+    public SqlMetadataService getMetadataService() {
+        return metadataService;
     }
 
     @Override

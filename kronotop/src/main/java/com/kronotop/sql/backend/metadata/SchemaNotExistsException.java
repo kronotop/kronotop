@@ -14,28 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster;
+package com.kronotop.sql.backend.metadata;
 
 /**
- * Represents a broadcast event that can be published to the cluster's journal.
+ * A custom exception class indicating that a schema does not exist.
  */
-public class BroadcastEvent {
-    private EventTypes type;
-    private String payload;
-
-    private BroadcastEvent() {
-    }
-
-    public BroadcastEvent(EventTypes type, String payload) {
-        this.type = type;
-        this.payload = payload;
-    }
-
-    public EventTypes getType() {
-        return type;
-    }
-
-    public String getPayload() {
-        return payload;
+public class SchemaNotExistsException extends Exception {
+    public SchemaNotExistsException(String schema) {
+        super(String.format("Schema '%s' not exists", schema));
     }
 }

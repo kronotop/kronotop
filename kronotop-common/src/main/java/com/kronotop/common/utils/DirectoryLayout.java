@@ -103,6 +103,11 @@ public class DirectoryLayout {
         return this;
     }
 
+    public DirectoryLayout tables() {
+        items.add("tables");
+        return this;
+    }
+
     public DirectoryLayout addAll(List<String> list) {
         items.addAll(list);
         return this;
@@ -181,6 +186,10 @@ public class DirectoryLayout {
 
         public static DirectoryLayout schemas() {
             return new DirectoryLayout().schemas();
+        }
+
+        public static DirectoryLayout tables() {
+            return new DirectoryLayout().tables();
         }
 
         public static DirectoryLayout add(String item) {

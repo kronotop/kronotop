@@ -84,4 +84,5 @@ public class CreateSchemaTest extends BaseHandlerTest {
             assertEquals("Schema 'foobar' already exists", actualMessage.content());
         }
     }
+    // TODO: Add test for IF NOT EXISTS keyword
 }

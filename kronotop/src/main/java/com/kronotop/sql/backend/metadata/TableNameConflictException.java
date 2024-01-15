@@ -14,28 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster;
+package com.kronotop.sql.backend.metadata;
 
-/**
- * Represents a broadcast event that can be published to the cluster's journal.
- */
-public class BroadcastEvent {
-    private EventTypes type;
-    private String payload;
+import java.util.List;
 
-    private BroadcastEvent() {
-    }
-
-    public BroadcastEvent(EventTypes type, String payload) {
-        this.type = type;
-        this.payload = payload;
-    }
-
-    public EventTypes getType() {
-        return type;
-    }
-
-    public String getPayload() {
-        return payload;
+public class TableNameConflictException extends Exception {
+    public TableNameConflictException(String table, List<String> schema) {
+        super(String.format("Table name '%s' conflicts with schema name '%s'", table, String.join(".", schema)));
     }
 }

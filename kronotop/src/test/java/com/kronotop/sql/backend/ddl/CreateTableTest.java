@@ -18,6 +18,7 @@ package com.kronotop.sql.backend.ddl;
 
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
+import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.BaseHandlerTest;
 import io.lettuce.core.codec.StringCodec;
@@ -42,5 +43,33 @@ public class CreateTableTest extends BaseHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
         assertEquals(Response.OK, actualMessage.content());
+    }
+
+    @Test
+    public void test_tableAlreadyExists() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        String query = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql(query).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql(query).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(ErrorRedisMessage.class, response);
+            ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+            assertEquals("SQL Table 'users' already exists", actualMessage.content());
+        }
     }
 }

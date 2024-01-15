@@ -80,12 +80,6 @@ public class MembershipService implements KronotopService {
 
         ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("kr.membership-%d").build();
         this.scheduler = new ScheduledThreadPoolExecutor(2, namedThreadFactory);
-
-        context.getFoundationDB().run(tr -> {
-            byte[] key = context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.clusterEvents());
-            this.lastClusterEventsVersionstamp.set(key);
-            return null;
-        });
     }
 
     public void waitUntilBootstrapped() throws InterruptedException {
@@ -241,6 +235,9 @@ public class MembershipService implements KronotopService {
      * then initiates all background tasks.
      */
     public void start() {
+        byte[] key = context.getFoundationDB().run(tr -> context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.clusterEvents()));
+        this.lastClusterEventsVersionstamp.set(key);
+
         // Register the member on both FoundationDB and the local consistent hash ring.
         initialize();
 
@@ -382,7 +379,7 @@ public class MembershipService implements KronotopService {
         currentWatcher.get().cancel(true);
         scheduler.shutdownNow();
         try {
-            if (!scheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
                 LOGGER.warn("MembershipService cannot be stopped gracefully");
             }
         } catch (InterruptedException e) {
@@ -468,8 +465,7 @@ public class MembershipService implements KronotopService {
             while (true) {
                 // Try to consume the latest event.
                 Event event = context.getJournal().getConsumer().consumeNext(tr, JournalName.clusterEvents(), lastClusterEventsVersionstamp.get());
-                if (event == null)
-                    return null;
+                if (event == null) return null;
 
                 ObjectMapper objectMapper = new ObjectMapper();
                 try {
@@ -493,7 +489,7 @@ public class MembershipService implements KronotopService {
                         LOGGER.debug("Routing table has been updated");
                     }
                 } catch (Exception e) {
-                    LOGGER.error("Failed to process a broadcast event", e);
+                    LOGGER.error("Failed to process a broadcast event, passing it", e);
                 }
 
                 // Processed the event successfully. Forward the offset.

@@ -14,28 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster;
+package com.kronotop.sql.backend.metadata.events;
 
 /**
- * Represents a broadcast event that can be published to the cluster's journal.
+ * The EventTypes enum represents different types of events.
+ * <p>
+ * This enum provides constants for the different types of events that can occur in the system.
+ * Each constant represents a specific type of event.
+ * <p>
+ * It is used as a parameter in the constructor of {@link BaseMetadataEvent} class to specify the type of event.
  */
-public class BroadcastEvent {
-    private EventTypes type;
-    private String payload;
-
-    private BroadcastEvent() {
-    }
-
-    public BroadcastEvent(EventTypes type, String payload) {
-        this.type = type;
-        this.payload = payload;
-    }
-
-    public EventTypes getType() {
-        return type;
-    }
-
-    public String getPayload() {
-        return payload;
-    }
+public enum EventTypes {
+    SCHEMA_CREATED,
+    TABLE_CREATED
 }

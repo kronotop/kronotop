@@ -17,16 +17,13 @@
 package com.kronotop.sql;
 
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.sql.backend.Executor;
 import com.kronotop.sql.protocol.SqlMessage;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.sql.validate.SqlValidatorException;
 
 import java.util.List;
 
@@ -49,10 +46,14 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
             SqlNode sqlTree = Parser.parse(sqlMessage.getQuery());
 
             // DDL Commands
+            ExecutionContext executionContext = new ExecutionContext();
+            List<String> currentSchema = request.getContext().channel().attr(ChannelAttributes.CURRENT_SCHEMA).get();
+            executionContext.setNames(currentSchema);
+
             RedisMessage result;
             Executor<SqlNode> executor = service.ddlExecutors.get(sqlTree.getKind());
             if (executor != null) {
-                result = executor.execute(sqlTree);
+                result = executor.execute(executionContext, sqlTree);
             } else {
                 response.writeError(RESPError.SQL, String.format("Unknown SQL command: %s", sqlTree.getKind()));
                 return;
@@ -63,6 +64,11 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
             // Error: Protocol error, got "!" as reply type byte
             List<String> messages = List.of(e.getMessage().split("\n"));
             response.writeError(RESPError.SQL, messages.get(0));
+        } catch (SqlValidatorException e) {
+            response.writeError(RESPError.SQL, String.format("%s %s", e.getMessage(), e.getCause().getMessage()));
+        } catch (RuntimeException e) {
+            // Generic error, something went wrong, and we cannot catch it.
+            response.writeError(e.getMessage());
         }
     }
 }

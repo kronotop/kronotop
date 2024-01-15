@@ -19,10 +19,14 @@ package com.kronotop.sql.optimizer;
 import com.kronotop.sql.KronotopSchema;
 import com.kronotop.sql.KronotopTable;
 import com.kronotop.sql.Parser;
+import com.kronotop.sql.backend.ddl.model.ColumnModel;
+import com.kronotop.sql.backend.ddl.model.CreateTableModel;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -31,11 +35,15 @@ public class OptimizerUnitTest {
 
     @BeforeAll
     static void setUp() {
-        KronotopTable mytable = KronotopTable.newBuilder("mytable")
-                .addField("myfield", SqlTypeName.DECIMAL)
-                .withRowCount(60_000L)
-                .build();
+        CreateTableModel createTableModel = new CreateTableModel();
+        createTableModel.setSchema(List.of("myschema"));
+        createTableModel.setTable("mytable");
+        ColumnModel columnModel = new ColumnModel();
+        columnModel.setNames(List.of("myfield"));
+        columnModel.setDataType(SqlTypeName.DECIMAL);
+        createTableModel.setColumnList(List.of(columnModel));
 
+        KronotopTable mytable = new KronotopTable(createTableModel);
         KronotopSchema schema = KronotopSchema.newBuilder("myschema").addTable(mytable).build();
         optimizer = new Optimizer(schema);
     }

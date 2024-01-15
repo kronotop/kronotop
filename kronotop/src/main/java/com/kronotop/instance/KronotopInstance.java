@@ -36,6 +36,7 @@ import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.server.Handlers;
 import com.kronotop.sql.SqlService;
+import com.kronotop.sql.backend.metadata.SqlMetadataService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.slf4j.Logger;
@@ -46,6 +47,16 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
+
+/*
+It can scarcely be denied that the supreme goal of all theory is to make the irreducible basic elements as simple and as
+few as possible without having to surrender the adequate representation of a single datum of experience.
+
+Often quoted as ‘Everything should be made as simple as possible, but not simpler’
+
+-- Albert Einstein, ‘On the Method of Theoretical Physics’, lecture delivered at Oxford, 10 June 1933
+ */
+
 
 /**
  * The KronotopInstance class represents a running instance of Kronotop.
@@ -109,6 +120,10 @@ public class KronotopInstance {
         RedisService redisService = new RedisService(context, handlers);
         context.registerService(RedisService.NAME, redisService);
         redisService.start();
+
+        SqlMetadataService sqlMetadataService = new SqlMetadataService(context);
+        context.registerService(SqlMetadataService.NAME, sqlMetadataService);
+        sqlMetadataService.start();
 
         SqlService sqlService = new SqlService(context, handlers);
         context.registerService(SqlService.NAME, sqlService);

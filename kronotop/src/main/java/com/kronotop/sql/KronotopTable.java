@@ -16,54 +16,55 @@
 
 package com.kronotop.sql;
 
+import com.kronotop.sql.backend.ddl.model.ColumnModel;
+import com.kronotop.sql.backend.ddl.model.CreateTableModel;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.rel.type.*;
+import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.schema.ScannableTable;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.impl.AbstractTable;
-import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class KronotopTable extends AbstractTable implements ScannableTable {
-    private final String tableName;
-    private final List<String> fieldNames;
-    private final List<SqlTypeName> fieldTypes;
+    private final CreateTableModel createTableModel;
     private final KronotopTableStatistic statistic;
 
     private RelDataType rowType;
 
-    private KronotopTable(String tableName, List<String> fieldNames, List<SqlTypeName> fieldTypes, KronotopTableStatistic statistic) {
-        this.tableName = tableName;
-        this.fieldNames = fieldNames;
-        this.fieldTypes = fieldTypes;
-        this.statistic = statistic;
+    public KronotopTable(CreateTableModel model) {
+        this.createTableModel = model;
+        // TODO:
+        this.statistic = new KronotopTableStatistic(0);
     }
 
-    public static Builder newBuilder(String tableName) {
-        return new Builder(tableName);
+    public String getName() {
+        return createTableModel.getTable();
     }
 
-    public String getTableName() {
-        return tableName;
+    public List<String> getSchema() {
+        return createTableModel.getSchema();
     }
 
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
         if (rowType == null) {
-            List<RelDataTypeField> fields = new ArrayList<>(fieldNames.size());
-
-            for (int i = 0; i < fieldNames.size(); i++) {
-                RelDataType fieldType = typeFactory.createSqlType(fieldTypes.get(i));
-                RelDataTypeField field = new RelDataTypeFieldImpl(fieldNames.get(i), i, fieldType);
+            List<RelDataTypeField> fields = new ArrayList<>();
+            int index = 0;
+            for (ColumnModel columnModel : createTableModel.getColumnList()) {
+                RelDataType fieldType = typeFactory.createSqlType(columnModel.getDataType());
+                if (columnModel.getStrategy() == ColumnStrategy.NULLABLE) {
+                    fieldType = typeFactory.createTypeWithNullability(fieldType, true);
+                }
+                RelDataTypeField field = new RelDataTypeFieldImpl(columnModel.getNames().get(0), index, fieldType);
                 fields.add(field);
+                index++;
             }
-
             rowType = new RelRecordType(StructKind.PEEK_FIELDS, fields, false);
         }
-
         return rowType;
     }
 
@@ -75,54 +76,5 @@ public class KronotopTable extends AbstractTable implements ScannableTable {
     @Override
     public Enumerable<Object[]> scan(DataContext root) {
         throw new UnsupportedOperationException("Not implemented");
-    }
-
-    public static final class Builder {
-
-        private final String tableName;
-        private final List<String> fieldNames = new ArrayList<>();
-        private final List<SqlTypeName> fieldTypes = new ArrayList<>();
-        private long rowCount;
-
-        private Builder(String tableName) {
-            if (tableName == null || tableName.isEmpty()) {
-                throw new IllegalArgumentException("Table name cannot be null or empty");
-            }
-
-            this.tableName = tableName;
-        }
-
-        public Builder addField(String name, SqlTypeName typeName) {
-            if (name == null || name.isEmpty()) {
-                throw new IllegalArgumentException("Field name cannot be null or empty");
-            }
-
-            if (fieldNames.contains(name)) {
-                throw new IllegalArgumentException("Field already defined: " + name);
-            }
-
-            fieldNames.add(name);
-            fieldTypes.add(typeName);
-
-            return this;
-        }
-
-        public Builder withRowCount(long rowCount) {
-            this.rowCount = rowCount;
-
-            return this;
-        }
-
-        public KronotopTable build() {
-            if (fieldNames.isEmpty()) {
-                throw new IllegalStateException("Table must have at least one field");
-            }
-
-            if (rowCount == 0L) {
-                throw new IllegalStateException("Table must have positive row count");
-            }
-
-            return new KronotopTable(tableName, fieldNames, fieldTypes, new KronotopTableStatistic(rowCount));
-        }
     }
 }

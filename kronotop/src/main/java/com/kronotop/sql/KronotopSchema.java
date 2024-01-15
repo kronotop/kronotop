@@ -75,10 +75,10 @@ public class KronotopSchema extends AbstractSchema {
         }
 
         public Builder addTable(KronotopTable table) {
-            if (tableMap.containsKey(table.getTableName())) {
-                throw new IllegalArgumentException("Table has already already defined: " + table.getTableName());
+            if (tableMap.containsKey(table.getName())) {
+                throw new IllegalArgumentException("Table has already already defined: " + table.getName());
             }
-            tableMap.put(table.getTableName(), table);
+            tableMap.put(table.getName(), table);
             return this;
         }
 

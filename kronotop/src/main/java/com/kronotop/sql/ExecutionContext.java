@@ -14,28 +14,18 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster;
+package com.kronotop.sql;
 
-/**
- * Represents a broadcast event that can be published to the cluster's journal.
- */
-public class BroadcastEvent {
-    private EventTypes type;
-    private String payload;
+import java.util.List;
 
-    private BroadcastEvent() {
+public class ExecutionContext {
+    private List<String> names;
+
+    public List<String> getNames() {
+        return names;
     }
 
-    public BroadcastEvent(EventTypes type, String payload) {
-        this.type = type;
-        this.payload = payload;
-    }
-
-    public EventTypes getType() {
-        return type;
-    }
-
-    public String getPayload() {
-        return payload;
+    public void setNames(List<String> names) {
+        this.names = names;
     }
 }

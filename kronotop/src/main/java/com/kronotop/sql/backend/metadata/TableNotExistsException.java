@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.sql.backend;
+package com.kronotop.sql.backend.metadata;
 
-import com.kronotop.server.resp3.RedisMessage;
-
-public interface Executor<T> {
-    RedisMessage execute(T node);
+/**
+ * Exception thrown when a table does not exist in the database.
+ */
+public class TableNotExistsException extends Exception {
+    public TableNotExistsException(String table) {
+        super(String.format("Table '%s' not exists", table));
+    }
 }

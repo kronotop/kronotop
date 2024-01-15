@@ -33,7 +33,8 @@ class CreateTableModelTest {
     public void encode_then_decode() throws JsonProcessingException {
         CreateTableModel createTableModel = new CreateTableModel();
         createTableModel.setOperator(SqlKind.CREATE_TABLE);
-        createTableModel.setNames(List.of("users"));
+        createTableModel.setSchema(List.of("public"));
+        createTableModel.setTable("users");
 
         ColumnModel columnModel = new ColumnModel();
         columnModel.setNames(List.of("id"));

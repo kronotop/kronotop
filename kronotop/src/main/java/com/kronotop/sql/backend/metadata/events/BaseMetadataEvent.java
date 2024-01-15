@@ -14,28 +14,36 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster;
+package com.kronotop.sql.backend.metadata.events;
+
+import java.time.Instant;
 
 /**
- * Represents a broadcast event that can be published to the cluster's journal.
+ * The BaseMetadataEvent class represents a base event for metadata.
+ * <p>
+ * This class provides the basic functionality to create a metadata event,
+ * such as setting the event type and the creation timestamp.
+ * <p>
+ * It is important to note that the BaseMetadataEvent class is meant to be extended
+ * by specific event classes according to the type of metadata event being represented.
  */
-public class BroadcastEvent {
+public class BaseMetadataEvent {
     private EventTypes type;
-    private String payload;
+    private long createdAt;
 
-    private BroadcastEvent() {
+    BaseMetadataEvent() {
     }
 
-    public BroadcastEvent(EventTypes type, String payload) {
+    public BaseMetadataEvent(EventTypes type) {
         this.type = type;
-        this.payload = payload;
+        this.createdAt = Instant.now().toEpochMilli();
     }
 
     public EventTypes getType() {
         return type;
     }
 
-    public String getPayload() {
-        return payload;
+    public long getCreatedAt() {
+        return createdAt;
     }
 }

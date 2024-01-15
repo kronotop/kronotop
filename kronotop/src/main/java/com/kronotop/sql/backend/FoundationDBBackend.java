@@ -16,10 +16,12 @@
 
 package com.kronotop.sql.backend;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.sql.SqlService;
 
 public class FoundationDBBackend {
     protected final SqlService service;
+    protected ObjectMapper objectMapper = new ObjectMapper();
 
     public FoundationDBBackend(SqlService service) {
         this.service = service;

@@ -14,21 +14,25 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster;
+package com.kronotop.sql.backend.metadata.events;
 
-/**
- * Represents a broadcast event that can be published to the cluster's journal.
- */
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class BroadcastEvent {
     private EventTypes type;
     private String payload;
 
-    private BroadcastEvent() {
+    BroadcastEvent() {
     }
 
-    public BroadcastEvent(EventTypes type, String payload) {
+    public BroadcastEvent(EventTypes type, BaseMetadataEvent event) {
         this.type = type;
-        this.payload = payload;
+        try {
+            this.payload = new ObjectMapper().writeValueAsString(event);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public EventTypes getType() {

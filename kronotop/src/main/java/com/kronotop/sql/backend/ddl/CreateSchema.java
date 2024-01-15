@@ -21,13 +21,18 @@ import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.core.journal.JournalName;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.sql.ExecutionContext;
+import com.kronotop.sql.Executor;
 import com.kronotop.sql.SqlService;
-import com.kronotop.sql.backend.Executor;
 import com.kronotop.sql.backend.FoundationDBBackend;
+import com.kronotop.sql.backend.metadata.events.BroadcastEvent;
+import com.kronotop.sql.backend.metadata.events.EventTypes;
+import com.kronotop.sql.backend.metadata.events.SchemaCreatedEvent;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.ddl.SqlCreateSchema;
 
@@ -45,7 +50,7 @@ public class CreateSchema extends FoundationDBBackend implements Executor<SqlNod
         super(service);
     }
 
-    private RedisMessage createDirectory(Transaction tr, List<String> names, boolean ifNotExists) {
+    private RedisMessage createSchemaHierarchy(Transaction tr, List<String> names, boolean ifNotExists) {
         List<String> subpath = DirectoryLayout.
                 Builder.
                 clusterName(service.getContext().getClusterName()).
@@ -65,13 +70,18 @@ public class CreateSchema extends FoundationDBBackend implements Executor<SqlNod
             }
             throw new KronotopException(e);
         }
+
+        // Trigger the other nodes
+        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.SCHEMA_CREATED, new SchemaCreatedEvent(names));
+        service.getContext().getJournal().getPublisher().publish(tr, JournalName.sqlMetadataEvents(), broadcastEvent);
+
         return new SimpleStringRedisMessage(Response.OK);
     }
 
     @Override
-    public RedisMessage execute(SqlNode node) {
+    public RedisMessage execute(ExecutionContext context, SqlNode node) {
         SqlCreateSchema createSchema = (SqlCreateSchema) node;
         List<String> names = new ArrayList<>(createSchema.name.names);
-        return service.getContext().getFoundationDB().run(tr -> createDirectory(tr, names, createSchema.ifNotExists));
+        return service.getContext().getFoundationDB().run(tr -> createSchemaHierarchy(tr, names, createSchema.ifNotExists));
     }
 }

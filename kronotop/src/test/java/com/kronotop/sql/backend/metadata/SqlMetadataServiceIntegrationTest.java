@@ -1,0 +1,108 @@
+/*
+ * Copyright (c) 2023 Kronotop
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.kronotop.sql.backend.metadata;
+
+import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.server.Response;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.sql.BaseHandlerTest;
+import io.lettuce.core.codec.StringCodec;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
+
+    @Test
+    public void test_createSchemaSuccessfully() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.sql("CREATE SCHEMA public.foobar.barfoo").encode(buf);
+        channel.writeInbound(buf);
+        Object response = channel.readOutbound();
+
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+        assertEquals(Response.OK, actualMessage.content());
+
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            try {
+                sqlMetadataService.findSchema(List.of("public", "foobar", "barfoo"));
+            } catch (SchemaNotExistsException e) {
+                return false;
+            }
+            return true;
+        });
+    }
+
+    @Test
+    public void test_findSchema_SchemaNotExistsException() {
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        assertThrows(SchemaNotExistsException.class, () -> {
+            sqlMetadataService.findSchema(List.of("public", "foobar", "barfoo"));
+        });
+    }
+
+    @Test
+    public void test_createTableSuccessfully() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.sql("CREATE TABLE public.users (age INTEGER)").encode(buf);
+        channel.writeInbound(buf);
+        Object response = channel.readOutbound();
+
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+        assertEquals(Response.OK, actualMessage.content());
+
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            try {
+                VersionedTableMetadata versionedTableMetadata = sqlMetadataService.findTable(List.of("public"), "users");
+                assertNotNull(versionedTableMetadata);
+            } catch (SchemaNotExistsException | TableNotExistsException e) {
+                return false;
+            }
+            return true;
+        });
+    }
+
+    @Test
+    public void test_findTable_SchemaNotExistsException() {
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        assertThrows(SchemaNotExistsException.class, () -> {
+            sqlMetadataService.findTable(List.of("public", "foobar"), "users");
+        });
+    }
+
+    @Test
+    public void test_findTable_TableNotExistsException() {
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        assertThrows(TableNotExistsException.class, () -> {
+            sqlMetadataService.findTable(List.of("public"), "users");
+        });
+    }
+}
