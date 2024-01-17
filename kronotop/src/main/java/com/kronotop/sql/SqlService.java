@@ -16,19 +16,19 @@
 
 package com.kronotop.sql;
 
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
 import com.kronotop.server.Handlers;
 import com.kronotop.sql.backend.ddl.CreateSchema;
 import com.kronotop.sql.backend.ddl.CreateTable;
+import com.kronotop.sql.backend.ddl.DropSchema;
+import com.kronotop.sql.backend.ddl.DropTable;
 import com.kronotop.sql.backend.metadata.SqlMetadataService;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
 import java.util.HashMap;
-import java.util.List;
 
 /*
 Imagination is more important than knowledge. Knowledge is limited. Imagination encircles the world.
@@ -52,6 +52,8 @@ public class SqlService extends CommandHandlerService implements KronotopService
 
         ddlExecutors.put(SqlKind.CREATE_SCHEMA, new CreateSchema(this));
         ddlExecutors.put(SqlKind.CREATE_TABLE, new CreateTable(this));
+        ddlExecutors.put(SqlKind.DROP_SCHEMA, new DropSchema(this));
+        ddlExecutors.put(SqlKind.DROP_TABLE, new DropTable(this));
 
         registerHandler(new SqlHandler(this));
         registerHandler(new SqlSetSchemaHandler(this));

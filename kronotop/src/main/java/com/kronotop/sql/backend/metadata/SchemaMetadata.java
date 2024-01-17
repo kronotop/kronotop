@@ -18,18 +18,12 @@ package com.kronotop.sql.backend.metadata;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * The SchemaMetadata class represents a metadata store for schemas, where each schema is associated with its metadata.
- * The class provides methods to add, retrieve, remove, and check the existence of schemas.
- * <p>
- * This class uses a ReentrantReadWriteLock to provide thread-safety when accessing and modifying the schema metadata.
- * The lock is used to ensure that only one thread can modify the metadata at a time, while allowing multiple threads
- * to read the metadata concurrently.
+ * The SchemaMetadata class represents the metadata for schemas in a database.
+ * It provides methods to add, retrieve, remove, and check for the existence of schemas.
  */
 public class SchemaMetadata {
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final Map<String, SchemaMetadata> schemas = new HashMap<>();
     private final TableMetadata tables = new TableMetadata();
 
@@ -41,15 +35,10 @@ public class SchemaMetadata {
      * @throws SchemaAlreadyExistsException if the schema already exists in the metadata store
      */
     public void put(String schema, SchemaMetadata metadata) throws SchemaAlreadyExistsException {
-        lock.writeLock().lock();
-        try {
-            if (schemas.containsKey(schema)) {
-                throw new SchemaAlreadyExistsException(schema);
-            }
-            schemas.put(schema, metadata);
-        } finally {
-            lock.writeLock().unlock();
+        if (schemas.containsKey(schema)) {
+            throw new SchemaAlreadyExistsException(schema);
         }
+        schemas.put(schema, metadata);
     }
 
     /**
@@ -59,16 +48,11 @@ public class SchemaMetadata {
      * @return the SchemaMetadata object associated with the schema name, or null if the schema does not exist
      */
     public SchemaMetadata get(String schema) throws SchemaNotExistsException {
-        lock.readLock().lock();
-        try {
-            SchemaMetadata metadata = schemas.get(schema);
-            if (metadata == null) {
-                throw new SchemaNotExistsException(schema);
-            }
-            return metadata;
-        } finally {
-            lock.readLock().unlock();
+        SchemaMetadata metadata = schemas.get(schema);
+        if (metadata == null) {
+            throw new SchemaNotExistsException(schema);
         }
+        return metadata;
     }
 
     /**
@@ -78,15 +62,11 @@ public class SchemaMetadata {
      * @throws SchemaNotExistsException if the specified schema does not exist in the metadata store
      */
     public void remove(String schema) throws SchemaNotExistsException {
-        lock.writeLock().lock();
-        try {
-            if (!schemas.containsKey(schema)) {
-                throw new SchemaNotExistsException(schema);
-            }
-            schemas.remove(schema);
-        } finally {
-            lock.writeLock().unlock();
+        if (!schemas.containsKey(schema)) {
+            throw new SchemaNotExistsException(schema);
         }
+        schemas.remove(schema);
+
     }
 
     /**
@@ -96,12 +76,7 @@ public class SchemaMetadata {
      * @return true if the schema exists, false otherwise
      */
     public boolean has(String schema) {
-        lock.readLock().lock();
-        try {
-            return schemas.containsKey(schema);
-        } finally {
-            lock.readLock().unlock();
-        }
+        return schemas.containsKey(schema);
     }
 
     /**

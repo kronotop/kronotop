@@ -20,6 +20,7 @@ import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.BaseHandlerTest;
+import com.kronotop.sql.KronotopTable;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -81,8 +82,8 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try {
-                VersionedTableMetadata versionedTableMetadata = sqlMetadataService.findTable(List.of("public"), "users");
-                assertNotNull(versionedTableMetadata);
+                KronotopTable kronotopTable = sqlMetadataService.findTable(List.of("public"), "users");
+                assertNotNull(kronotopTable);
             } catch (SchemaNotExistsException | TableNotExistsException e) {
                 return false;
             }
@@ -104,5 +105,99 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         assertThrows(TableNotExistsException.class, () -> {
             sqlMetadataService.findTable(List.of("public"), "users");
         });
+    }
+
+    @Test
+    public void test_dropSchemaSuccessfully() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("CREATE SCHEMA public.foobar.barfoo").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+
+            SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+            await().atMost(5, TimeUnit.SECONDS).until(() -> {
+                try {
+                    sqlMetadataService.findSchema(List.of("public", "foobar", "barfoo"));
+                } catch (SchemaNotExistsException e) {
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("DROP SCHEMA public.foobar.barfoo").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+
+            SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+            await().atMost(5, TimeUnit.SECONDS).until(() -> {
+                try {
+                    sqlMetadataService.findSchema(List.of("public", "foobar", "barfoo"));
+                } catch (SchemaNotExistsException e) {
+                    return true;
+                }
+                return false;
+            });
+        }
+    }
+
+    @Test
+    public void test_dropTableSuccessfully() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("CREATE TABLE users (age INTEGER)").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+
+            SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+            await().atMost(5, TimeUnit.SECONDS).until(() -> {
+                try {
+                    sqlMetadataService.findTable(List.of("public"), "users");
+                } catch (TableNotExistsException e) {
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("DROP TABLE users").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+
+            SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+            await().atMost(5, TimeUnit.SECONDS).until(() -> {
+                try {
+                    System.out.println(sqlMetadataService.findTable(List.of("public"), "users"));
+                } catch (TableNotExistsException e) {
+                    return true;
+                }
+                return false;
+            });
+        }
     }
 }

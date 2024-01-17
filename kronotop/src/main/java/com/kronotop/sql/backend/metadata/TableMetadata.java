@@ -18,14 +18,12 @@ package com.kronotop.sql.backend.metadata;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * The TableMetadata class represents the metadata for tables in a database.
  * It provides methods to add, retrieve, remove, and check for the existence of tables.
  */
 public class TableMetadata {
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final Map<String, VersionedTableMetadata> tables = new HashMap<>();
 
     /**
@@ -36,15 +34,10 @@ public class TableMetadata {
      * @throws TableAlreadyExistsException if a table with the same name already exists in the TableMetadata
      */
     public void put(String table, VersionedTableMetadata metadata) throws TableAlreadyExistsException {
-        lock.writeLock().lock();
-        try {
-            if (tables.containsKey(table)) {
-                throw new TableAlreadyExistsException(table);
-            }
-            tables.put(table, metadata);
-        } finally {
-            lock.writeLock().unlock();
+        if (tables.containsKey(table)) {
+            throw new TableAlreadyExistsException(table);
         }
+        tables.put(table, metadata);
     }
 
     /**
@@ -55,16 +48,11 @@ public class TableMetadata {
      * @throws TableNotExistsException if the table does not exist in the TableMetadata
      */
     public VersionedTableMetadata get(String table) throws TableNotExistsException {
-        lock.readLock().lock();
-        try {
-            VersionedTableMetadata versionedTableMetadata = tables.get(table);
-            if (versionedTableMetadata == null) {
-                throw new TableNotExistsException(table);
-            }
-            return versionedTableMetadata;
-        } finally {
-            lock.readLock().unlock();
+        VersionedTableMetadata versionedTableMetadata = tables.get(table);
+        if (versionedTableMetadata == null) {
+            throw new TableNotExistsException(table);
         }
+        return versionedTableMetadata;
     }
 
     /**
@@ -74,18 +62,13 @@ public class TableMetadata {
      * @return The VersionedTableMetadata object for the specified table.
      */
     public VersionedTableMetadata getOrCreate(String table) {
-        lock.readLock().lock();
-        try {
-            VersionedTableMetadata versionedTableMetadata = tables.get(table);
-            if (versionedTableMetadata != null) {
-                return versionedTableMetadata;
-            }
-            VersionedTableMetadata next = new VersionedTableMetadata();
-            tables.put(table, next);
-            return next;
-        } finally {
-            lock.readLock().unlock();
+        VersionedTableMetadata versionedTableMetadata = tables.get(table);
+        if (versionedTableMetadata != null) {
+            return versionedTableMetadata;
         }
+        VersionedTableMetadata next = new VersionedTableMetadata();
+        tables.put(table, next);
+        return next;
     }
 
     /**
@@ -95,15 +78,10 @@ public class TableMetadata {
      * @throws TableNotExistsException if the table does not exist in the TableMetadata
      */
     public void remove(String table) throws TableNotExistsException {
-        lock.writeLock().lock();
-        try {
-            if (tables.containsKey(table)) {
-                throw new TableNotExistsException(table);
-            }
-            tables.remove(table);
-        } finally {
-            lock.writeLock().unlock();
+        if (!tables.containsKey(table)) {
+            throw new TableNotExistsException(table);
         }
+        tables.remove(table);
     }
 
     /**
@@ -113,11 +91,6 @@ public class TableMetadata {
      * @return true if the table exists in the TableMetadata, false otherwise
      */
     public boolean has(String table) {
-        lock.readLock().lock();
-        try {
-            return tables.containsKey(table);
-        } finally {
-            lock.readLock().unlock();
-        }
+        return tables.containsKey(table);
     }
 }

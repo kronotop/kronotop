@@ -66,9 +66,6 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
             response.writeError(RESPError.SQL, messages.get(0));
         } catch (SqlValidatorException e) {
             response.writeError(RESPError.SQL, String.format("%s %s", e.getMessage(), e.getCause().getMessage()));
-        } catch (RuntimeException e) {
-            // Generic error, something went wrong, and we cannot catch it.
-            response.writeError(e.getMessage());
         }
     }
 }

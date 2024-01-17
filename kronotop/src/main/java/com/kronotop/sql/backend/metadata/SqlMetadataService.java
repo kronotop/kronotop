@@ -37,10 +37,7 @@ import com.kronotop.core.journal.Event;
 import com.kronotop.core.journal.JournalName;
 import com.kronotop.sql.KronotopTable;
 import com.kronotop.sql.backend.ddl.model.CreateTableModel;
-import com.kronotop.sql.backend.metadata.events.BroadcastEvent;
-import com.kronotop.sql.backend.metadata.events.EventTypes;
-import com.kronotop.sql.backend.metadata.events.SchemaCreatedEvent;
-import com.kronotop.sql.backend.metadata.events.TableCreatedEvent;
+import com.kronotop.sql.backend.metadata.events.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,10 +46,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class SqlMetadataService implements KronotopService {
     public static final String NAME = "SQL Metadata";
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlMetadataService.class);
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final Context context;
     private final AtomicReference<CompletableFuture<Void>> currentWatcher = new AtomicReference<>();
     private final AtomicReference<byte[]> lastSqlMetadataVersionstamp = new AtomicReference<>();
@@ -89,6 +88,9 @@ public class SqlMetadataService implements KronotopService {
     }
 
     public DirectoryLayout getSchemaLayout(List<String> schema) {
+        if (schema.isEmpty()) {
+            throw new IllegalArgumentException("schema cannot be empty");
+        }
         return DirectoryLayout.
                 Builder.
                 clusterName(context.getClusterName()).
@@ -180,22 +182,50 @@ public class SqlMetadataService implements KronotopService {
     }
 
     /**
-     * Finds the VersionedTableMetadata object for a given schema and table in the metadata store.
+     * Finds the VersionedTableMetadata object representing the metadata for a versioned table in a database based on the given schema and table name.
      *
-     * @param schema The list of names representing the hierarchy to search for the schema.
+     * @param schema The list of names representing the hierarchy of the schema.
      * @param table  The name of the table to search for.
-     * @return The VersionedTableMetadata object representing the found table.
-     * @throws SchemaNotExistsException If the schema does not exist in the metadata store.
-     * @throws TableNotExistsException  If the table does not exist in the metadata store.
+     * @return The VersionedTableMetadata object representing the found table metadata.
+     * @throws SchemaNotExistsException if the schema does not exist in the schema metadata store.
+     * @throws TableNotExistsException  if the table does not exist in the metadata store.
      */
-    public VersionedTableMetadata findTable(List<String> schema, String table) throws SchemaNotExistsException, TableNotExistsException {
+    private VersionedTableMetadata findVersionedTableMetadata(List<String> schema, String table) throws SchemaNotExistsException, TableNotExistsException {
         SchemaMetadata current = root;
         for (String name : schema) {
             current = current.get(name);
         }
-
         TableMetadata tableMetadata = current.getTables();
         return tableMetadata.get(table);
+    }
+
+    /**
+     * Finds the KronotopTable object with the given schema, table, and version.
+     *
+     * @param schema  the list of names representing the hierarchy of the schema
+     * @param table   the name of the table to search for
+     * @param version the version of the table
+     * @return the KronotopTable object representing the found table
+     * @throws SchemaNotExistsException if the schema does not exist in the schema metadata store
+     * @throws TableNotExistsException  if the table does not exist in the metadata store
+     */
+    public KronotopTable findTable(List<String> schema, String table, String version) throws SchemaNotExistsException, TableNotExistsException {
+        VersionedTableMetadata versionedTableMetadata = findVersionedTableMetadata(schema, table);
+        return versionedTableMetadata.get(version);
+    }
+
+    /**
+     * Finds the latest version of KronotopTable object representing the metadata for a table in a database based on the given schema and table name.
+     *
+     * @param schema The list of names representing the hierarchy of the schema.
+     * @param table  The name of the table to search for.
+     * @return The KronotopTable object representing the found table metadata.
+     * @throws SchemaNotExistsException if the schema does not exist in the schema metadata store.
+     * @throws TableNotExistsException  if the table does not exist in the metadata store.
+     */
+    public KronotopTable findTable(List<String> schema, String table) throws SchemaNotExistsException, TableNotExistsException {
+        VersionedTableMetadata versionedTableMetadata = findVersionedTableMetadata(schema, table);
+        return versionedTableMetadata.getLatest();
     }
 
     private boolean isSchemaExistOnFDB(Transaction tr, List<String> names) {
@@ -229,15 +259,7 @@ public class SqlMetadataService implements KronotopService {
         return current;
     }
 
-    /**
-     * Loads the schema hierarchy based on the given list of names.
-     *
-     * @param names the list of names representing the hierarchy to load
-     * @return the SchemaMetadata object representing the hierarchy
-     * @throws SchemaNotExistsException if a schema does not exist in the metadata store
-     */
-    private synchronized SchemaMetadata loadSchemaHierarchy(List<String> names) throws SchemaNotExistsException {
-        // This should be the ONLY way to load schema hierarchy in a Kronotop instance.
+    private SchemaMetadata loadSchemaHierarchy_internal(List<String> names) throws SchemaNotExistsException {
         SchemaMetadata current = root;
         List<String> cursor = new ArrayList<>();
         for (String name : names) {
@@ -249,6 +271,62 @@ public class SqlMetadataService implements KronotopService {
             }
         }
         return current;
+    }
+
+    /**
+     * Loads the schema hierarchy based on the given list of names.
+     *
+     * @param names the list of names representing the hierarchy of the schema
+     * @throws SchemaNotExistsException if the schema does not exist
+     */
+    private void loadSchemaHierarchy(List<String> names) throws SchemaNotExistsException {
+        lock.writeLock().lock();
+        try {
+            loadSchemaHierarchy_internal(names);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Removes the schema hierarchy from the metadata store based on the given list of names.
+     *
+     * @param names the list of names representing the hierarchy of the schema to remove
+     * @throws SchemaNotExistsException if the schema does not exist in the metadata store
+     */
+    private void removeSchemaHierarchy(List<String> names) throws SchemaNotExistsException {
+        lock.writeLock().lock();
+        try {
+            SchemaMetadata current = root;
+            for (int i = 0; i < names.size() - 1; i++) {
+                String schema = names.get(i);
+                current = current.get(schema);
+            }
+            current.remove(names.get(names.size() - 1));
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Removes a table from the schema hierarchy in the metadata store.
+     *
+     * @param names the list of names representing the hierarchy of the schema
+     * @param table the name of the table to remove
+     * @throws SchemaNotExistsException if the schema does not exist in the metadata store
+     * @throws TableNotExistsException  if the table does not exist in the metadata store
+     */
+    private void removeTable(List<String> names, String table) throws SchemaNotExistsException, TableNotExistsException {
+        lock.writeLock().lock();
+        try {
+            SchemaMetadata current = root;
+            for (String schema : names) {
+                current = current.get(schema);
+            }
+            current.getTables().remove(table);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     private DirectoryLayout getTableLayout(List<String> schema, String table) {
@@ -287,16 +365,20 @@ public class SqlMetadataService implements KronotopService {
      * @throws SchemaNotExistsException           If the schema does not exist in the schema metadata store.
      * @throws TableVersionAlreadyExistsException If the table version already exists in the metadata store.
      */
-    private synchronized void addTableVersion(KronotopTable table, byte[] versionstamp) throws SchemaNotExistsException, TableVersionAlreadyExistsException {
-        // This should be the ONLY way to create a new table version in a Kronotop instance.
-        SchemaMetadata schemaMetadata = loadSchemaHierarchy(table.getSchema());
-        VersionedTableMetadata versionedTableMetadata = schemaMetadata.getTables().getOrCreate(table.getName());
-        String version = BaseEncoding.base64().encode(versionstamp);
-        versionedTableMetadata.put(version, table);
+    private void addTableVersion(KronotopTable table, byte[] versionstamp) throws SchemaNotExistsException, TableVersionAlreadyExistsException {
+        lock.writeLock().lock();
+        try {
+            SchemaMetadata schemaMetadata = loadSchemaHierarchy_internal(table.getSchema());
+            VersionedTableMetadata versionedTableMetadata = schemaMetadata.getTables().getOrCreate(table.getName());
+            String version = BaseEncoding.base64().encode(versionstamp);
+            versionedTableMetadata.put(version, table);
 
-        List<String> names = new ArrayList<>(table.getSchema());
-        names.add(table.getName());
-        LOGGER.info("New version: {} has been added for table: {}", version, String.join(".", names));
+            List<String> names = new ArrayList<>(table.getSchema());
+            names.add(table.getName());
+            LOGGER.info("New version: {} has been added for table: {}", version, String.join(".", names));
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     /**
@@ -333,6 +415,24 @@ public class SqlMetadataService implements KronotopService {
         loadSchemaHierarchy(schemaCreatedEvent.getSchema());
     }
 
+    private void processSchemaDroppedEvent(BroadcastEvent broadcastEvent) throws JsonProcessingException {
+        SchemaDroppedEvent schemaDroppedEvent = objectMapper.readValue(broadcastEvent.getPayload(), SchemaDroppedEvent.class);
+        try {
+            removeSchemaHierarchy(schemaDroppedEvent.getSchema());
+        } catch (SchemaNotExistsException e) {
+            // Ignore it.
+        }
+    }
+
+    private void processTableDroppedEvent(BroadcastEvent broadcastEvent) throws JsonProcessingException {
+        TableDroppedEvent tableDroppedEvent = objectMapper.readValue(broadcastEvent.getPayload(), TableDroppedEvent.class);
+        try {
+            removeTable(tableDroppedEvent.getSchema(), tableDroppedEvent.getTable());
+        } catch (SchemaNotExistsException | TableNotExistsException e) {
+            // Ignore it.
+        }
+    }
+
     /**
      * Fetches SQL metadata by consuming events from a journal and processing them.
      */
@@ -350,6 +450,10 @@ public class SqlMetadataService implements KronotopService {
                         processSchemaCreatedEvent(broadcastEvent);
                     } else if (broadcastEvent.getType().equals(EventTypes.TABLE_CREATED)) {
                         processTableCreatedEvent(tr, broadcastEvent);
+                    } else if (broadcastEvent.getType().equals(EventTypes.SCHEMA_DROPPED)) {
+                        processSchemaDroppedEvent(broadcastEvent);
+                    } else if (broadcastEvent.getType().equals(EventTypes.TABLE_DROPPED)) {
+                        processTableDroppedEvent(broadcastEvent);
                     } else {
                         LOGGER.error("Unknown {} event: {}, passing it", NAME, broadcastEvent.getType());
                     }

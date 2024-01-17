@@ -23,14 +23,12 @@ import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * The VersionedTableMetadata class represents the metadata for a versioned table in a database.
  * It provides methods to add metadata for a specific version, retrieve the metadata for a version, and retrieve the latest metadata.
  */
 public class VersionedTableMetadata {
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final Map<String, KronotopTable> versions = new HashMap<>();
     private final SortedSet<String> sorted = new TreeSet<>();
     private final AtomicReference<KronotopTable> latest = new AtomicReference<>();
@@ -45,18 +43,13 @@ public class VersionedTableMetadata {
      * @throws TableVersionAlreadyExistsException If the version already exists in the table's metadata.
      */
     public void put(String version, KronotopTable metadata) throws TableVersionAlreadyExistsException {
-        lock.writeLock().lock();
-        try {
-            if (versions.containsKey(version)) {
-                throw new TableVersionAlreadyExistsException("Version already exists");
-            }
-            versions.put(version, metadata);
-            sorted.add(version);
-            String latestVersion = sorted.last();
-            latest.set(versions.get(latestVersion));
-        } finally {
-            lock.writeLock().unlock();
+        if (versions.containsKey(version)) {
+            throw new TableVersionAlreadyExistsException("Version already exists");
         }
+        versions.put(version, metadata);
+        sorted.add(version);
+        String latestVersion = sorted.last();
+        latest.set(versions.get(latestVersion));
     }
 
     /**
@@ -67,12 +60,7 @@ public class VersionedTableMetadata {
      * @return The metadata for the specified version, or null if the version does not exist.
      */
     public KronotopTable get(String version) {
-        lock.readLock().lock();
-        try {
-            return versions.get(version);
-        } finally {
-            lock.readLock().unlock();
-        }
+        return versions.get(version);
     }
 
     /**

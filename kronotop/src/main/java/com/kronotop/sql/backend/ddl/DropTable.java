@@ -17,8 +17,8 @@
 package com.kronotop.sql.backend.ddl;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.common.KronotopException;
 import com.kronotop.core.journal.JournalName;
 import com.kronotop.server.Response;
@@ -29,50 +29,57 @@ import com.kronotop.sql.ExecutionContext;
 import com.kronotop.sql.Executor;
 import com.kronotop.sql.SqlService;
 import com.kronotop.sql.backend.FoundationDBBackend;
+import com.kronotop.sql.backend.metadata.TableNotExistsException;
 import com.kronotop.sql.backend.metadata.events.BroadcastEvent;
 import com.kronotop.sql.backend.metadata.events.EventTypes;
-import com.kronotop.sql.backend.metadata.events.SchemaCreatedEvent;
+import com.kronotop.sql.backend.metadata.events.TableDroppedEvent;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.ddl.SqlCreateSchema;
+import org.apache.calcite.sql.ddl.SqlDropTable;
+import org.apache.calcite.sql.validate.SqlValidatorException;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
-/**
- * The CreateSchema class is responsible for creating a schema directory in FoundationDB.
- * It extends the FoundationDBBackend class and implements the Executor<SqlNode> interface.
- */
-public class CreateSchema extends FoundationDBBackend implements Executor<SqlNode> {
+public class DropTable extends FoundationDBBackend implements Executor<SqlNode> {
 
-    public CreateSchema(SqlService service) {
+    public DropTable(SqlService service) {
         super(service);
     }
 
-    private RedisMessage createSchemaHierarchy(Transaction tr, List<String> names, boolean ifNotExists) {
-        List<String> subpath = service.getMetadataService().getSchemaLayout(names).asList();
+    private RedisMessage dropTable(Transaction tr, List<String> names, String table, boolean ifExists) {
+        List<String> subpath = service.getMetadataService().getSchemaLayout(names).tables().add(table).asList();
         try {
-            DirectoryLayer.getDefault().create(tr, subpath).join();
+            DirectoryLayer.getDefault().remove(tr, subpath).join();
         } catch (CompletionException e) {
-            if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                if (!ifNotExists) {
-                    return new ErrorRedisMessage(String.format("Schema '%s' already exists", String.join(".", names)));
+            if (e.getCause() instanceof NoSuchDirectoryException) {
+                if (ifExists) {
+                    return new SimpleStringRedisMessage(Response.OK);
+                } else {
+                    Throwable throwable = new TableNotExistsException(table);
+                    return new ErrorRedisMessage(throwable.getMessage());
                 }
             }
             throw new KronotopException(e);
         }
 
         // Trigger the other nodes
-        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.SCHEMA_CREATED, new SchemaCreatedEvent(names));
+        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_DROPPED, new TableDroppedEvent(names, table));
         service.getContext().getJournal().getPublisher().publish(tr, JournalName.sqlMetadataEvents(), broadcastEvent);
 
         return new SimpleStringRedisMessage(Response.OK);
     }
 
     @Override
-    public RedisMessage execute(ExecutionContext context, SqlNode node) {
-        SqlCreateSchema createSchema = (SqlCreateSchema) node;
-        List<String> names = new ArrayList<>(createSchema.name.names);
-        return service.getContext().getFoundationDB().run(tr -> createSchemaHierarchy(tr, names, createSchema.ifNotExists));
+    public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException {
+        SqlDropTable dropTable = (SqlDropTable) node;
+        List<String> names = new ArrayList<>(dropTable.name.names);
+        List<String> schema = names.subList(0, names.size() - 1);
+        if (schema.isEmpty()) {
+            schema = context.getNames();
+        }
+        String table = names.get(names.size() - 1);
+        List<String> finalSchema = schema;
+        return service.getContext().getFoundationDB().run(tr -> dropTable(tr, finalSchema, table, dropTable.ifExists));
     }
 }

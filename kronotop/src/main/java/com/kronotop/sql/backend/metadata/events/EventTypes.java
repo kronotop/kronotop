@@ -26,5 +26,7 @@ package com.kronotop.sql.backend.metadata.events;
  */
 public enum EventTypes {
     SCHEMA_CREATED,
-    TABLE_CREATED
+    TABLE_CREATED,
+    SCHEMA_DROPPED,
+    TABLE_DROPPED
 }
