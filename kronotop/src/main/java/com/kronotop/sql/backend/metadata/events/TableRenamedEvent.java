@@ -25,15 +25,17 @@ public class TableRenamedEvent extends BaseMetadataEvent {
     private List<String> schema;
     private String oldName;
     private String newName;
+    private byte[] versionstamp;
 
     TableRenamedEvent() {
     }
 
-    public TableRenamedEvent(List<String> schema, String oldName, String newName) {
+    public TableRenamedEvent(List<String> schema, String oldName, String newName, byte[] versionstamp) {
         super(EventTypes.TABLE_RENAMED);
         this.schema = schema;
         this.oldName = oldName;
         this.newName = newName;
+        this.versionstamp = versionstamp;
     }
 
     public List<String> getSchema() {
@@ -46,5 +48,9 @@ public class TableRenamedEvent extends BaseMetadataEvent {
 
     public String getNewName() {
         return newName;
+    }
+
+    public byte[] getVersionstamp() {
+        return versionstamp;
     }
 }
