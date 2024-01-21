@@ -43,7 +43,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -372,7 +371,7 @@ public class SqlMetadataService implements KronotopService {
      * @param versionBytes the versionstamp of the table metadata
      * @return the CreateTableModel object representing the table metadata
      */
-    private CreateTableModel loadTableMetadataWithVersionstamp(Transaction tr, List<String> schema, String table, byte[] versionBytes) {
+    private CreateTableModel loadTableMetadataWithVersionstamp(Transaction tr, List<String> schema, String table, byte[] versionBytes) throws IOException {
         List<String> subpath = getTableLayout(schema, table).asList();
         DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
         Versionstamp versionstamp = Versionstamp.fromBytes(versionBytes);
@@ -383,11 +382,7 @@ public class SqlMetadataService implements KronotopService {
         }
 
         KeyValue next = iterator.next();
-        try {
-            return objectMapper.readValue(next.getValue(), CreateTableModel.class);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return objectMapper.readValue(next.getValue(), CreateTableModel.class);
     }
 
     /**
@@ -456,7 +451,14 @@ public class SqlMetadataService implements KronotopService {
             } catch (TableNotExistsException e) {
                 // Edge case, but it happens during the tests. If the time gap between CREATE TABLE and ALTER TABLE events is too small,
                 // the table may be renamed before adding the old one to in-memory metadata. In this case, we fetch the new table instead of renaming the existing one.
-                CreateTableModel createTableModel = context.getFoundationDB().run(tr -> loadTableMetadataWithVersionstamp(tr, tableRenamedEvent.getSchema(), tableRenamedEvent.getNewName(), tableRenamedEvent.getVersionstamp()));
+                CreateTableModel createTableModel = context.getFoundationDB().run(tr -> {
+                    try {
+                        return loadTableMetadataWithVersionstamp(tr, tableRenamedEvent.getSchema(), tableRenamedEvent.getNewName(), tableRenamedEvent.getVersionstamp());
+                    } catch (IOException ex) {
+                        LOGGER.error("Failed to load table with versionstamp: {}, {}", tableRenamedEvent.getNewName(), BaseEncoding.base64().encode(tableRenamedEvent.getVersionstamp()));
+                        throw new RuntimeException(ex);
+                    }
+                });
                 addTableVersion(createTableModel, tableRenamedEvent.getVersionstamp());
             }
         } catch (SchemaNotExistsException | TableAlreadyExistsException | TableVersionAlreadyExistsException e) {

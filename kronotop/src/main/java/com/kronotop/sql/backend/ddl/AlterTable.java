@@ -49,6 +49,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
+/**
+ * AlterTable is a class that represents an ALTER TABLE statement in the Kronotop database system.
+ * <p>
+ * This class extends the FoundationDBBackend class and implements the Executor<SqlNode> interface.
+ * It allows for the execution of ALTER TABLE statements in the database.
+ */
 public class AlterTable extends FoundationDBBackend implements Executor<SqlNode> {
     public AlterTable(SqlService service) {
         super(service);
