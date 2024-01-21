@@ -28,5 +28,6 @@ public enum EventTypes {
     SCHEMA_CREATED,
     TABLE_CREATED,
     SCHEMA_DROPPED,
-    TABLE_DROPPED
+    TABLE_DROPPED,
+    TABLE_RENAMED
 }

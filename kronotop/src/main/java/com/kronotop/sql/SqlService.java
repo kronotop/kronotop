@@ -16,19 +16,19 @@
 
 package com.kronotop.sql;
 
+import com.google.common.collect.ImmutableList;
+import com.kronotop.common.resp.RESPError;
 import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
 import com.kronotop.server.Handlers;
-import com.kronotop.sql.backend.ddl.CreateSchema;
-import com.kronotop.sql.backend.ddl.CreateTable;
-import com.kronotop.sql.backend.ddl.DropSchema;
-import com.kronotop.sql.backend.ddl.DropTable;
+import com.kronotop.sql.backend.ddl.*;
 import com.kronotop.sql.backend.metadata.SqlMetadataService;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
 import java.util.HashMap;
+import java.util.List;
 
 /*
 Imagination is more important than knowledge. Knowledge is limited. Imagination encircles the world.
@@ -54,10 +54,46 @@ public class SqlService extends CommandHandlerService implements KronotopService
         ddlExecutors.put(SqlKind.CREATE_TABLE, new CreateTable(this));
         ddlExecutors.put(SqlKind.DROP_SCHEMA, new DropSchema(this));
         ddlExecutors.put(SqlKind.DROP_TABLE, new DropTable(this));
+        ddlExecutors.put(SqlKind.ALTER_TABLE, new AlterTable(this));
 
         registerHandler(new SqlHandler(this));
         registerHandler(new SqlSetSchemaHandler(this));
         registerHandler(new SqlGetSchemaHandler(this));
+    }
+
+    /**
+     * Retrieves the schema names from the given list of names. It assumes that if the provided {@link ImmutableList <String>}
+     * only has one item, this item is the table name.
+     *
+     * <p>
+     * If the number of names is equal to 1, returns the schema list from the provided {@link ExecutionContext} object.
+     * Otherwise, returns a sublist of names without the last element.
+     * </p>
+     *
+     * @param context the execution context object containing the schema list
+     * @param names   the list of names representing the hierarchy to search for the schema
+     * @return the list of schema names
+     */
+    public List<String> getSchemaFromNames(ExecutionContext context, ImmutableList<String> names) {
+        if (names.size() == 1) {
+            return context.getSchema();
+        } else {
+            return names.subList(0, names.size() - 1);
+        }
+    }
+
+    /**
+     * Retrieves the table name from the given list of names. It assumes that the last element in the list is the table name.
+     *
+     * @param names the list of names representing the hierarchy to search for the table
+     * @return the table name
+     */
+    public String getTableNameFromNames(ImmutableList<String> names) {
+        return names.get(names.size() - 1);
+    }
+
+    public String formatErrorMessage(String message) {
+        return String.format("%s %s", RESPError.SQL, message);
     }
 
     public SqlMetadataService getMetadataService() {

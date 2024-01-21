@@ -85,6 +85,27 @@ public class TableMetadata {
     }
 
     /**
+     * Renames a table in the TableMetadata.
+     * If a table with the old name doesn't exist, a TableNotExistsException is thrown.
+     * If a table with the new name already exists, a TableAlreadyExistsException is thrown.
+     *
+     * @param oldName The current name of the table.
+     * @param newName The new name for the table.
+     * @throws TableNotExistsException    If a table with the old name doesn't exist.
+     * @throws TableAlreadyExistsException If a table with the new name already exists.
+     */
+    public void rename(String oldName, String newName) throws TableNotExistsException, TableAlreadyExistsException {
+        if (!tables.containsKey(oldName)) {
+            throw new TableNotExistsException(oldName);
+        }
+        if (tables.containsKey(newName)) {
+            throw new TableAlreadyExistsException(newName);
+        }
+        VersionedTableMetadata versionedTableMetadata = tables.remove(oldName);
+        tables.put(newName, versionedTableMetadata);
+    }
+
+    /**
      * Checks if a table exists in the TableMetadata.
      *
      * @param table the name of the table to check

@@ -200,4 +200,42 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             });
         }
     }
+
+    @Test
+    public void test_alterTable_renameTable() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("CREATE TABLE public.users (age INTEGER)").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("ALTER TABLE public.users RENAME TO foobar").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            try {
+                KronotopTable kronotopTable = sqlMetadataService.findTable(List.of("public"), "foobar");
+                assertNotNull(kronotopTable);
+            } catch (SchemaNotExistsException | TableNotExistsException e) {
+                return false;
+            }
+            return true;
+        });
+    }
 }

@@ -16,11 +16,11 @@
 
 package com.kronotop.sql;
 
+import com.kronotop.sql.calcite.parser.KronotopSqlParser;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.sql.parser.ddl.SqlDdlParserImpl;
 
 /**
  * The Parser class provides methods for parsing SQL queries and returning the corresponding SqlNode.
@@ -30,7 +30,7 @@ public class Parser {
 
     private static SqlParser.Config getParserConfig() {
         SqlParser.Config parserConfig = SqlParser.config().
-                withParserFactory(SqlDdlParserImpl.FACTORY);
+                withParserFactory(KronotopSqlParser.FACTORY);
         return SqlDialect.DatabaseProduct.POSTGRESQL.getDialect().configureParser(parserConfig);
     }
 

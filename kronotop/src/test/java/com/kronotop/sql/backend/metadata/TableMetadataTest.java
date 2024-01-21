@@ -60,4 +60,17 @@ public class TableMetadataTest {
         VersionedTableMetadata fetchedMetadata = assertDoesNotThrow(() -> tableMetadata.get(existingTable));
         assertEquals(versionedTableMetadata, fetchedMetadata);
     }
+
+    @Test
+    public void testRename() {
+        TableMetadata tableMetadata = new TableMetadata();
+        VersionedTableMetadata versionedTableMetadata = new VersionedTableMetadata();
+        String tableName = "table";
+        String nextName = "table2";
+        assertDoesNotThrow(() -> tableMetadata.put(tableName, versionedTableMetadata));
+        assertDoesNotThrow(() -> tableMetadata.rename(tableName, nextName));
+
+        assertFalse(tableMetadata.has(tableName));
+        assertTrue(tableMetadata.has(nextName));
+    }
 }

@@ -14,18 +14,37 @@
  * limitations under the License.
  */
 
-package com.kronotop.sql;
+package com.kronotop.sql.backend.metadata.events;
 
 import java.util.List;
 
-public class ExecutionContext {
+/**
+ * The TableRenamedEvent class represents an event that occurs when a table is renamed.
+ */
+public class TableRenamedEvent extends BaseMetadataEvent {
     private List<String> schema;
+    private String oldName;
+    private String newName;
+
+    TableRenamedEvent() {
+    }
+
+    public TableRenamedEvent(List<String> schema, String oldName, String newName) {
+        super(EventTypes.TABLE_RENAMED);
+        this.schema = schema;
+        this.oldName = oldName;
+        this.newName = newName;
+    }
 
     public List<String> getSchema() {
         return schema;
     }
 
-    public void setSchema(List<String> schema) {
-        this.schema = schema;
+    public String getOldName() {
+        return oldName;
+    }
+
+    public String getNewName() {
+        return newName;
     }
 }

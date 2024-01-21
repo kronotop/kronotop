@@ -76,7 +76,7 @@ public class DropTable extends FoundationDBBackend implements Executor<SqlNode> 
         List<String> names = new ArrayList<>(dropTable.name.names);
         List<String> schema = names.subList(0, names.size() - 1);
         if (schema.isEmpty()) {
-            schema = context.getNames();
+            schema = context.getSchema();
         }
         String table = names.get(names.size() - 1);
         List<String> finalSchema = schema;

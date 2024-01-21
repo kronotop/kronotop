@@ -174,11 +174,16 @@ public class SqlMetadataService implements KronotopService {
      * @throws SchemaNotExistsException if the schema does not exist in the schema metadata store
      */
     public SchemaMetadata findSchema(List<String> names) throws SchemaNotExistsException {
-        SchemaMetadata current = root;
-        for (String name : names) {
-            current = current.get(name);
+        lock.readLock().lock();
+        try {
+            SchemaMetadata current = root;
+            for (String name : names) {
+                current = current.get(name);
+            }
+            return current;
+        } finally {
+            lock.readLock().unlock();
         }
-        return current;
     }
 
     /**
@@ -191,12 +196,17 @@ public class SqlMetadataService implements KronotopService {
      * @throws TableNotExistsException  if the table does not exist in the metadata store.
      */
     private VersionedTableMetadata findVersionedTableMetadata(List<String> schema, String table) throws SchemaNotExistsException, TableNotExistsException {
-        SchemaMetadata current = root;
-        for (String name : schema) {
-            current = current.get(name);
+        lock.readLock().lock();
+        try {
+            SchemaMetadata current = root;
+            for (String name : schema) {
+                current = current.get(name);
+            }
+            TableMetadata tableMetadata = current.getTables();
+            return tableMetadata.get(table);
+        } finally {
+            lock.readLock().unlock();
         }
-        TableMetadata tableMetadata = current.getTables();
-        return tableMetadata.get(table);
     }
 
     /**
@@ -226,6 +236,32 @@ public class SqlMetadataService implements KronotopService {
     public KronotopTable findTable(List<String> schema, String table) throws SchemaNotExistsException, TableNotExistsException {
         VersionedTableMetadata versionedTableMetadata = findVersionedTableMetadata(schema, table);
         return versionedTableMetadata.getLatest();
+    }
+
+    /**
+     * Renames a table in the schema metadata store.
+     *
+     * @param schema  the list of names representing the hierarchy of the schema
+     * @param oldName the current name of the table to be renamed
+     * @param newName the new name for the table
+     * @throws SchemaNotExistsException     if the schema does not exist in the schema metadata store
+     * @throws TableNotExistsException      if the table does not exist with the old name in the metadata store
+     * @throws TableAlreadyExistsException  if a table with the new name already exists in the metadata store
+     */
+    private void renameTable(List<String> schema, String oldName, String newName) throws SchemaNotExistsException, TableNotExistsException, TableAlreadyExistsException {
+        lock.writeLock().lock();
+        try {
+            // Load the schema hierarchy first, it may load metadata from FDB if required.
+            loadSchemaHierarchy_internal(schema);
+            SchemaMetadata current = root;
+            for (String name : schema) {
+                current = current.get(name);
+            }
+            TableMetadata tableMetadata = current.getTables();
+            tableMetadata.rename(oldName, newName);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     private boolean isSchemaExistOnFDB(Transaction tr, List<String> names) {
@@ -420,7 +456,7 @@ public class SqlMetadataService implements KronotopService {
         try {
             removeSchemaHierarchy(schemaDroppedEvent.getSchema());
         } catch (SchemaNotExistsException e) {
-            // Ignore it.
+            LOGGER.debug("Failed to process {}", EventTypes.SCHEMA_DROPPED, e);
         }
     }
 
@@ -429,7 +465,16 @@ public class SqlMetadataService implements KronotopService {
         try {
             removeTable(tableDroppedEvent.getSchema(), tableDroppedEvent.getTable());
         } catch (SchemaNotExistsException | TableNotExistsException e) {
-            // Ignore it.
+            LOGGER.debug("Failed to process {}", EventTypes.TABLE_DROPPED, e);
+        }
+    }
+
+    private void processTableRenamedEvent(BroadcastEvent broadcastEvent) throws JsonProcessingException {
+        TableRenamedEvent tableRenamedEvent = objectMapper.readValue(broadcastEvent.getPayload(), TableRenamedEvent.class);
+        try {
+            renameTable(tableRenamedEvent.getSchema(), tableRenamedEvent.getOldName(), tableRenamedEvent.getNewName());
+        } catch (SchemaNotExistsException | TableNotExistsException | TableAlreadyExistsException e) {
+            LOGGER.debug("Failed to process {}", EventTypes.TABLE_RENAMED, e);
         }
     }
 
@@ -454,6 +499,8 @@ public class SqlMetadataService implements KronotopService {
                         processSchemaDroppedEvent(broadcastEvent);
                     } else if (broadcastEvent.getType().equals(EventTypes.TABLE_DROPPED)) {
                         processTableDroppedEvent(broadcastEvent);
+                    } else if (broadcastEvent.getType().equals(EventTypes.TABLE_RENAMED)) {
+                        processTableRenamedEvent(broadcastEvent);
                     } else {
                         LOGGER.error("Unknown {} event: {}, passing it", NAME, broadcastEvent.getType());
                     }

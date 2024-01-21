@@ -23,8 +23,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class SqlHandlerTest extends BaseHandlerTest {
     @Test
@@ -38,6 +37,7 @@ public class SqlHandlerTest extends BaseHandlerTest {
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+        // javacc-maven-plugin > 2.4 breaks the parser's error handling. This check added here to control it.
         assertEquals("SQL Incorrect syntax near the keyword 'SCHEMA' at line 1, column 8.", actualMessage.content());
     }
 }

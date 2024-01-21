@@ -17,6 +17,7 @@
 package com.kronotop.sql.optimizer;
 
 import com.kronotop.sql.KronotopSchema;
+import com.kronotop.sql.calcite.parser.KronotopSqlParser;
 import org.apache.calcite.avatica.util.Casing;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.config.CalciteConnectionConfigImpl;
@@ -36,7 +37,6 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.sql.parser.ddl.SqlDdlParserImpl;
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
@@ -124,7 +124,7 @@ public class Optimizer {
 
     private SqlParser.Config getParserConfig() {
         SqlParser.Config parserConfig = SqlParser.config().
-                withParserFactory(SqlDdlParserImpl.FACTORY);
+                withParserFactory(KronotopSqlParser.FACTORY);
         return SqlDialect.DatabaseProduct.POSTGRESQL.getDialect().configureParser(parserConfig);
     }
 
