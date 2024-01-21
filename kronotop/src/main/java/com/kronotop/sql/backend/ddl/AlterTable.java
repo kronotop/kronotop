@@ -119,7 +119,8 @@ public class AlterTable extends FoundationDBBackend implements Executor<SqlNode>
         String oldTableName = service.getTableNameFromNames(sqlAlterTable.name.names);
         String newTableName = sqlAlterTable.newTableName.getSimple();
         byte[] versionstamp = result.getVersionstamp().join();
-        TableRenamedEvent tableRenamedEvent = new TableRenamedEvent(schema, oldTableName, newTableName, versionstamp);
+        byte[] tableVersion = Versionstamp.complete(versionstamp).getBytes();
+        TableRenamedEvent tableRenamedEvent = new TableRenamedEvent(schema, oldTableName, newTableName, tableVersion);
         BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_RENAMED, tableRenamedEvent);
         service.getContext().getJournal().getPublisher().publish(JournalName.sqlMetadataEvents(), broadcastEvent);
     }
