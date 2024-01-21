@@ -91,14 +91,15 @@ public class SqlMetadataService implements KronotopService {
         if (schema.isEmpty()) {
             throw new IllegalArgumentException("schema cannot be empty");
         }
-        return DirectoryLayout.
-                Builder.
-                clusterName(context.getClusterName()).
-                internal().
-                sql().
-                metadata().
-                schemas().
-                addAll(schema);
+        return DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().sql().metadata().schemas().addAll(schema);
+    }
+
+    private boolean isSchemaExistOnFDB(Transaction tr, List<String> names) {
+        return DirectoryLayer.getDefault().exists(tr, getSchemaLayout(names).asList()).join();
+    }
+
+    private DirectoryLayout getTableLayout(List<String> schema, String table) {
+        return DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().sql().metadata().schemas().addAll(schema).tables().add(table);
     }
 
     /**
@@ -244,9 +245,9 @@ public class SqlMetadataService implements KronotopService {
      * @param schema  the list of names representing the hierarchy of the schema
      * @param oldName the current name of the table to be renamed
      * @param newName the new name for the table
-     * @throws SchemaNotExistsException     if the schema does not exist in the schema metadata store
-     * @throws TableNotExistsException      if the table does not exist with the old name in the metadata store
-     * @throws TableAlreadyExistsException  if a table with the new name already exists in the metadata store
+     * @throws SchemaNotExistsException    if the schema does not exist in the schema metadata store
+     * @throws TableNotExistsException     if the table does not exist with the old name in the metadata store
+     * @throws TableAlreadyExistsException if a table with the new name already exists in the metadata store
      */
     private void renameTable(List<String> schema, String oldName, String newName) throws SchemaNotExistsException, TableNotExistsException, TableAlreadyExistsException {
         lock.writeLock().lock();
@@ -262,10 +263,6 @@ public class SqlMetadataService implements KronotopService {
         } finally {
             lock.writeLock().unlock();
         }
-    }
-
-    private boolean isSchemaExistOnFDB(Transaction tr, List<String> names) {
-        return DirectoryLayer.getDefault().exists(tr, getSchemaLayout(names).asList()).join();
     }
 
     /**
@@ -365,8 +362,23 @@ public class SqlMetadataService implements KronotopService {
         }
     }
 
-    private DirectoryLayout getTableLayout(List<String> schema, String table) {
-        return DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().sql().metadata().schemas().addAll(schema).tables().add(table);
+    private TableWithVersion getLatestTableVersion(Transaction tr, List<String> schema, String table) {
+        List<String> subpath = getTableLayout(schema, table).asList();
+        DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
+
+        AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(), 1, true).iterator();
+        if (!iterator.hasNext()) {
+            throw new KronotopException(String.format("Table '%s' exists but no version found", table));
+        }
+
+        KeyValue next = iterator.next();
+        byte[] versionstamp = subspace.unpack(next.getKey()).getVersionstamp(0).getBytes();
+        try {
+            CreateTableModel createTableModel = objectMapper.readValue(next.getValue(), CreateTableModel.class);
+            return new TableWithVersion(createTableModel, versionstamp);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -396,12 +408,13 @@ public class SqlMetadataService implements KronotopService {
     /**
      * Adds a new version for a table in the schema metadata store.
      *
-     * @param table        The table object to add a new version for.
-     * @param versionstamp The versionstamp of the new table version.
-     * @throws SchemaNotExistsException           If the schema does not exist in the schema metadata store.
-     * @throws TableVersionAlreadyExistsException If the table version already exists in the metadata store.
+     * @param createTableModel The table metadata for the new version.
+     * @param versionstamp     The versionstamp of the table metadata.
+     * @throws SchemaNotExistsException           if the schema does not exist in the schema metadata store.
+     * @throws TableVersionAlreadyExistsException if the table version already exists in the metadata store.
      */
-    private void addTableVersion(KronotopTable table, byte[] versionstamp) throws SchemaNotExistsException, TableVersionAlreadyExistsException {
+    private void addTableVersion(CreateTableModel createTableModel, byte[] versionstamp) throws SchemaNotExistsException, TableVersionAlreadyExistsException {
+        KronotopTable table = new KronotopTable(createTableModel);
         lock.writeLock().lock();
         try {
             SchemaMetadata schemaMetadata = loadSchemaHierarchy_internal(table.getSchema());
@@ -417,35 +430,17 @@ public class SqlMetadataService implements KronotopService {
         }
     }
 
-    /**
-     * Processes a TableCreatedEvent by loading the table metadata and adding a new version for the table.
-     *
-     * @param tr             the FDB transaction
-     * @param broadcastEvent the broadcast event containing the TableCreatedEvent
-     * @throws IOException                        if there is an error reading the table metadata or processing the event payload
-     * @throws SchemaNotExistsException           if the schema does not exist in the schema metadata store
-     * @throws TableVersionAlreadyExistsException if the table version already exists in the metadata store
-     * @throws KronotopException                  if there is an error adding the new table version
-     */
     private void processTableCreatedEvent(Transaction tr, BroadcastEvent broadcastEvent) throws IOException {
         TableCreatedEvent tableCreatedEvent = objectMapper.readValue(broadcastEvent.getPayload(), TableCreatedEvent.class);
         CreateTableModel createTableModel = loadTableMetadataWithVersionstamp(tr, tableCreatedEvent.getSchema(), tableCreatedEvent.getTable(), tableCreatedEvent.getVersionstamp());
-        KronotopTable table = new KronotopTable(createTableModel);
         try {
-            addTableVersion(table, tableCreatedEvent.getVersionstamp());
+            addTableVersion(createTableModel, tableCreatedEvent.getVersionstamp());
         } catch (SchemaNotExistsException | TableVersionAlreadyExistsException e) {
             LOGGER.error("Failed to add new table version: {}", e.getMessage());
             throw new KronotopException(e);
         }
     }
 
-    /**
-     * Processes a SchemaCreatedEvent by loading the schema hierarchy.
-     *
-     * @param broadcastEvent the broadcast event containing the SchemaCreatedEvent
-     * @throws JsonProcessingException  if there is an error processing the event payload
-     * @throws SchemaNotExistsException if a schema does not exist in the metadata store
-     */
     private void processSchemaCreatedEvent(BroadcastEvent broadcastEvent) throws JsonProcessingException, SchemaNotExistsException {
         SchemaCreatedEvent schemaCreatedEvent = objectMapper.readValue(broadcastEvent.getPayload(), SchemaCreatedEvent.class);
         loadSchemaHierarchy(schemaCreatedEvent.getSchema());
@@ -472,8 +467,15 @@ public class SqlMetadataService implements KronotopService {
     private void processTableRenamedEvent(BroadcastEvent broadcastEvent) throws JsonProcessingException {
         TableRenamedEvent tableRenamedEvent = objectMapper.readValue(broadcastEvent.getPayload(), TableRenamedEvent.class);
         try {
-            renameTable(tableRenamedEvent.getSchema(), tableRenamedEvent.getOldName(), tableRenamedEvent.getNewName());
-        } catch (SchemaNotExistsException | TableNotExistsException | TableAlreadyExistsException e) {
+            try {
+                renameTable(tableRenamedEvent.getSchema(), tableRenamedEvent.getOldName(), tableRenamedEvent.getNewName());
+            } catch (TableNotExistsException e) {
+                // Edge case, but it happens during the tests. If the time gap between CREATE TABLE and ALTER TABLE events is too small,
+                // the table may be renamed before adding the old one to in-memory metadata. In this case, we fetch the new table instead of renaming the existing one.
+                TableWithVersion tableWithVersion = context.getFoundationDB().run(tr -> getLatestTableVersion(tr, tableRenamedEvent.getSchema(), tableRenamedEvent.getNewName()));
+                addTableVersion(tableWithVersion.getCreateTableModel(), tableWithVersion.getVersionstamp());
+            }
+        } catch (SchemaNotExistsException | TableAlreadyExistsException | TableVersionAlreadyExistsException e) {
             LOGGER.debug("Failed to process {}", EventTypes.TABLE_RENAMED, e);
         }
     }
