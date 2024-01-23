@@ -22,10 +22,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The CreateTableModel class represents the model for creating a table.
- * It contains information about the table schema, the table name, the SQL query, column definitions, and other properties.
+ * The TableModel class represents a table model that contains information about a SQL table.
+ * It includes details such as the operator type, schema, table name, query, column list, and other flags.
  */
-public class CreateTableModel {
+public class TableModel {
     private SqlKind operator;
     private List<String> schema;
     private String table;

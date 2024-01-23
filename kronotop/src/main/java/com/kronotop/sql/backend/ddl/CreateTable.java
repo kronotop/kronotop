@@ -37,7 +37,7 @@ import com.kronotop.sql.SqlService;
 import com.kronotop.sql.TransactionResult;
 import com.kronotop.sql.backend.FoundationDBBackend;
 import com.kronotop.sql.backend.ddl.model.ColumnModel;
-import com.kronotop.sql.backend.ddl.model.CreateTableModel;
+import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.backend.metadata.SchemaNotExistsException;
 import com.kronotop.sql.backend.metadata.TableAlreadyExistsException;
 import com.kronotop.sql.backend.metadata.TableNameConflictException;
@@ -66,14 +66,14 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
     }
 
     /**
-     * Prepares a CreateTableModel object to represent a table creation operation.
+     * Prepares a TableModel object to represent a table creation operation.
      *
      * @param context        The ExecutionContext object containing the names of the context.
      * @param sqlCreateTable The SqlCreateTable object representing the table creation operation.
-     * @return The CreateTableModel object containing information about the table schema, name, query, column definitions, and other properties.
+     * @return TableModel object containing information about the table schema, name, query, column definitions, and other properties.
      */
-    private CreateTableModel prepareCreateTableModel(ExecutionContext context, SqlCreateTable sqlCreateTable) {
-        CreateTableModel createTableModel = new CreateTableModel();
+    private TableModel prepareTableModel(ExecutionContext context, SqlCreateTable sqlCreateTable) {
+        TableModel tableModel = new TableModel();
 
         List<String> names = new ArrayList<>();
         if (sqlCreateTable.name.names.size() == 1) {
@@ -82,12 +82,12 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
         }
         names.addAll(sqlCreateTable.name.names);
 
-        createTableModel.setSchema(names.subList(0, names.size() - 1));
-        createTableModel.setTable(names.get(names.size() - 1));
-        createTableModel.setOperator(sqlCreateTable.getOperator().kind);
-        createTableModel.setQuery(sqlCreateTable.toString());
-        createTableModel.setReplace(sqlCreateTable.getReplace());
-        createTableModel.setIfNotExists(sqlCreateTable.ifNotExists);
+        tableModel.setSchema(names.subList(0, names.size() - 1));
+        tableModel.setTable(names.get(names.size() - 1));
+        tableModel.setOperator(sqlCreateTable.getOperator().kind);
+        tableModel.setQuery(sqlCreateTable.toString());
+        tableModel.setReplace(sqlCreateTable.getReplace());
+        tableModel.setIfNotExists(sqlCreateTable.ifNotExists);
 
         List<ColumnModel> columnList = new ArrayList<>();
         for (int i = 0; i < Objects.requireNonNull(sqlCreateTable.columnList).size(); i++) {
@@ -104,25 +104,25 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
             }
             columnList.add(columnModel);
         }
-        createTableModel.setColumnList(columnList);
-        return createTableModel;
+        tableModel.setColumnList(columnList);
+        return tableModel;
     }
 
     /**
      * Checks for any conflict between the table name and schema name.
      *
      * @param tr               The transaction to use for the operation.
-     * @param createTableModel The model representing the table to create.
+     * @param tableModel The model representing the table to create.
      *                         It contains information about the table schema, the table name, the SQL query,
      *                         column definitions, and other properties.
      * @throws TableNameConflictException If the table name conflicts with the schema name.
      */
-    private void checkSchemaNameConflict(Transaction tr, CreateTableModel createTableModel) throws TableNameConflictException {
-        DirectoryLayout schemaLayout = service.getMetadataService().getSchemaLayout(createTableModel.getSchema());
-        if (DirectoryLayer.getDefault().exists(tr, schemaLayout.add(createTableModel.getTable()).asList()).join()) {
-            List<String> conflictSchema = new ArrayList<>(createTableModel.getSchema());
-            conflictSchema.add(createTableModel.getTable());
-            throw new TableNameConflictException(createTableModel.getTable(), conflictSchema);
+    private void checkSchemaNameConflict(Transaction tr, TableModel tableModel) throws TableNameConflictException {
+        DirectoryLayout schemaLayout = service.getMetadataService().getSchemaLayout(tableModel.getSchema());
+        if (DirectoryLayer.getDefault().exists(tr, schemaLayout.add(tableModel.getTable()).asList()).join()) {
+            List<String> conflictSchema = new ArrayList<>(tableModel.getSchema());
+            conflictSchema.add(tableModel.getTable());
+            throw new TableNameConflictException(tableModel.getTable(), conflictSchema);
         }
     }
 
@@ -130,34 +130,34 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
      * Creates a table in the FoundationDB.
      *
      * @param tr               The transaction to use for the operation.
-     * @param createTableModel The model representing the table to create.
+     * @param tableModel The model representing the table to create.
      *                         It contains information about the table schema, the table name, the SQL query,
      *                         column definitions, and other properties.
      * @return The result of the transaction, containing the version stamp and the result message.
-     * @throws SchemaNotExistsException    If the schema specified by the createTableModel does not exist.
+     * @throws SchemaNotExistsException    If the schema specified by the tableModel does not exist.
      *                                     The schema is checked using the DirectoryLayout.
      * @throws TableAlreadyExistsException If a table with the same name already exists in the database
-     *                                     and the "ifNotExists" flag in the createTableModel is set to false.
+     *                                     and the "ifNotExists" flag in the tableModel is set to false.
      * @throws TableNameConflictException  If the table name conflicts with the schema name.
      */
-    private RedisMessage createTableOnFDB(Transaction tr, CreateTableModel createTableModel) throws SchemaNotExistsException, TableAlreadyExistsException, TableNameConflictException {
-        DirectoryLayout schemaLayout = service.getMetadataService().getSchemaLayout(createTableModel.getSchema());
+    private RedisMessage createTableOnFDB(Transaction tr, TableModel tableModel) throws SchemaNotExistsException, TableAlreadyExistsException, TableNameConflictException {
+        DirectoryLayout schemaLayout = service.getMetadataService().getSchemaLayout(tableModel.getSchema());
         if (!DirectoryLayer.getDefault().exists(tr, schemaLayout.asList()).join()) {
-            throw new SchemaNotExistsException(String.join(".", createTableModel.getSchema()));
+            throw new SchemaNotExistsException(String.join(".", tableModel.getSchema()));
         }
 
-        checkSchemaNameConflict(tr, createTableModel);
+        checkSchemaNameConflict(tr, tableModel);
 
         try {
-            List<String> subpath = schemaLayout.tables().add(createTableModel.getTable()).asList();
-            byte[] data = objectMapper.writeValueAsBytes(createTableModel);
+            List<String> subpath = schemaLayout.tables().add(tableModel.getTable()).asList();
+            byte[] data = objectMapper.writeValueAsBytes(tableModel);
             DirectorySubspace subspace = DirectoryLayer.getDefault().create(tr, subpath).join();
             Tuple tuple = Tuple.from(Versionstamp.incomplete(), 1);
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), data);
         } catch (CompletionException | JsonProcessingException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                if (!createTableModel.getIfNotExists()) {
-                    throw new TableAlreadyExistsException(createTableModel.getTable());
+                if (!tableModel.getIfNotExists()) {
+                    throw new TableAlreadyExistsException(tableModel.getTable());
                 }
             }
             throw new KronotopException(e);
@@ -169,12 +169,12 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
      * Creates a table in the FoundationDB.
      *
      * @param tr               The transaction to use for the operation.
-     * @param createTableModel The model representing the table to create.
+     * @param tableModel The model representing the table to create.
      * @return The result of the transaction, containing the version stamp and the result message.
      */
-    private TransactionResult createTable(Transaction tr, CreateTableModel createTableModel) {
+    private TransactionResult createTable(Transaction tr, TableModel tableModel) {
         try {
-            RedisMessage result = createTableOnFDB(tr, createTableModel);
+            RedisMessage result = createTableOnFDB(tr, tableModel);
             return new TransactionResult(tr.getVersionstamp(), result);
         } catch (SchemaNotExistsException | TableAlreadyExistsException | TableNameConflictException e) {
             String message = service.formatErrorMessage(e.getMessage());
@@ -186,12 +186,12 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
      * Publishes a table created event to the SQL metadata events journal.
      *
      * @param result           The result of the transaction, containing the version stamp.
-     * @param createTableModel The model representing the table that was created.
+     * @param tableModel The model representing the table that was created.
      */
-    private void publishTableCreatedEvent(TransactionResult result, CreateTableModel createTableModel) {
+    private void publishTableCreatedEvent(TransactionResult result, TableModel tableModel) {
         byte[] versionstamp = result.getVersionstamp().join();
         byte[] tableVersion = Versionstamp.complete(versionstamp).getBytes();
-        TableCreatedEvent tableCreatedEvent = new TableCreatedEvent(createTableModel.getSchema(), createTableModel.getTable(), tableVersion);
+        TableCreatedEvent tableCreatedEvent = new TableCreatedEvent(tableModel.getSchema(), tableModel.getTable(), tableVersion);
         BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_CREATED, tableCreatedEvent);
         service.getContext().getJournal().getPublisher().publish(JournalName.sqlMetadataEvents(), broadcastEvent);
     }
@@ -203,11 +203,11 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
             return new ErrorRedisMessage("Column list cannot be empty.");
         }
 
-        CreateTableModel createTableModel = prepareCreateTableModel(context, sqlCreateTable);
-        TransactionResult result = service.getContext().getFoundationDB().run(tr -> createTable(tr, createTableModel));
+        TableModel tableModel = prepareTableModel(context, sqlCreateTable);
+        TransactionResult result = service.getContext().getFoundationDB().run(tr -> createTable(tr, tableModel));
 
         if (result.getVersionstamp() != null) {
-            publishTableCreatedEvent(result, createTableModel);
+            publishTableCreatedEvent(result, tableModel);
         }
         return result.getResult();
     }

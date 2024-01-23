@@ -17,7 +17,7 @@
 package com.kronotop.sql;
 
 import com.kronotop.sql.backend.ddl.model.ColumnModel;
-import com.kronotop.sql.backend.ddl.model.CreateTableModel;
+import com.kronotop.sql.backend.ddl.model.TableModel;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.rel.type.*;
@@ -30,23 +30,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KronotopTable extends AbstractTable implements ScannableTable {
-    private final CreateTableModel createTableModel;
+    private final TableModel tableModel;
     private final KronotopTableStatistic statistic;
 
     private RelDataType rowType;
 
-    public KronotopTable(CreateTableModel model) {
-        this.createTableModel = model;
+    public KronotopTable(TableModel model) {
+        this.tableModel = model;
         // TODO:
         this.statistic = new KronotopTableStatistic(0);
     }
 
     public String getName() {
-        return createTableModel.getTable();
+        return tableModel.getTable();
     }
 
     public List<String> getSchema() {
-        return createTableModel.getSchema();
+        return tableModel.getSchema();
     }
 
     @Override
@@ -54,7 +54,7 @@ public class KronotopTable extends AbstractTable implements ScannableTable {
         if (rowType == null) {
             List<RelDataTypeField> fields = new ArrayList<>();
             int index = 0;
-            for (ColumnModel columnModel : createTableModel.getColumnList()) {
+            for (ColumnModel columnModel : tableModel.getColumnList()) {
                 RelDataType fieldType = typeFactory.createSqlType(columnModel.getDataType());
                 if (columnModel.getStrategy() == ColumnStrategy.NULLABLE) {
                     fieldType = typeFactory.createTypeWithNullability(fieldType, true);

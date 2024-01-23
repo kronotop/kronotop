@@ -14,21 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.sql.backend.metadata.events;
+package com.kronotop.sql.backend.ddl;
 
-/**
- * The EventTypes enum represents different types of events.
- * <p>
- * This enum provides constants for the different types of events that can occur in the system.
- * Each constant represents a specific type of event.
- * <p>
- * It is used as a parameter in the constructor of {@link BaseMetadataEvent} class to specify the type of event.
- */
-public enum EventTypes {
-    SCHEMA_CREATED,
-    TABLE_CREATED,
-    SCHEMA_DROPPED,
-    TABLE_DROPPED,
-    TABLE_RENAMED,
-    TABLE_ALTERED
+public class ColumnAlreadyExistsException extends Exception {
+    public ColumnAlreadyExistsException(String column, String table) {
+        super(String.format("column '%s' of table '%s' already exists", column, table));
+    }
 }

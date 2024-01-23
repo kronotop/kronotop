@@ -16,19 +16,31 @@
 
 package com.kronotop.sql.backend.metadata.events;
 
-/**
- * The EventTypes enum represents different types of events.
- * <p>
- * This enum provides constants for the different types of events that can occur in the system.
- * Each constant represents a specific type of event.
- * <p>
- * It is used as a parameter in the constructor of {@link BaseMetadataEvent} class to specify the type of event.
- */
-public enum EventTypes {
-    SCHEMA_CREATED,
-    TABLE_CREATED,
-    SCHEMA_DROPPED,
-    TABLE_DROPPED,
-    TABLE_RENAMED,
-    TABLE_ALTERED
+import java.util.List;
+
+public class TableAlteredEvent extends BaseMetadataEvent {
+    private List<String> schema;
+    private String table;
+    private byte[] versionstamp;
+
+    TableAlteredEvent() {}
+
+    public TableAlteredEvent(List<String> schema, String table, byte[] versionstamp) {
+        super(EventTypes.TABLE_ALTERED);
+        this.schema = schema;
+        this.table = table;
+        this.versionstamp = versionstamp;
+    }
+
+    public List<String> getSchema() {
+        return schema;
+    }
+
+    public String getTable() {
+        return table;
+    }
+
+    public byte[] getVersionstamp() {
+        return versionstamp;
+    }
 }

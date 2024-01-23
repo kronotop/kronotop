@@ -16,11 +16,13 @@
 
 package com.kronotop.sql.backend.metadata;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.BaseHandlerTest;
 import com.kronotop.sql.KronotopTable;
+import com.kronotop.sql.backend.ddl.model.ColumnModel;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -236,6 +238,47 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
                 return false;
             }
             return true;
+        });
+    }
+
+    @Test
+    public void test_alterTable_addColumn() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("CREATE TABLE public.users (age INTEGER)").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("ALTER TABLE public.users ADD COLUMN username VARCHAR(30)").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users");
+                System.out.println(tableWithVersion);
+                for (ColumnModel columnModel : tableWithVersion.getTableModel().getColumnList()) {
+                    if (columnModel.getNames().get(0).equals("username")) {
+                        return true;
+                    }
+                }
+                return false;
+            }
         });
     }
 }

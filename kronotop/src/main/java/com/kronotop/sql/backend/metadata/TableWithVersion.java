@@ -16,14 +16,14 @@
 
 package com.kronotop.sql.backend.metadata;
 
-import com.kronotop.sql.backend.ddl.model.CreateTableModel;
+import com.kronotop.sql.backend.ddl.model.TableModel;
 
 public class TableWithVersion {
-    private final CreateTableModel createTableModel;
+    private final TableModel tableModel;
     private final  byte[] versionstamp;
 
-    public TableWithVersion(CreateTableModel createTableModel, byte[] versionstamp) {
-        this.createTableModel = createTableModel;
+    public TableWithVersion(TableModel tableModel, byte[] versionstamp) {
+        this.tableModel = tableModel;
         this.versionstamp = versionstamp;
     }
 
@@ -31,7 +31,7 @@ public class TableWithVersion {
         return versionstamp;
     }
 
-    public CreateTableModel getCreateTableModel() {
-        return createTableModel;
+    public TableModel getTableModel() {
+        return tableModel;
     }
 }

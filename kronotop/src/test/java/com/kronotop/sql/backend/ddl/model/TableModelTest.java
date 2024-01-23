@@ -28,24 +28,24 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class CreateTableModelTest {
+class TableModelTest {
     @Test
     public void encode_then_decode() throws JsonProcessingException {
-        CreateTableModel createTableModel = new CreateTableModel();
-        createTableModel.setOperator(SqlKind.CREATE_TABLE);
-        createTableModel.setSchema(List.of("public"));
-        createTableModel.setTable("users");
+        TableModel tableModel = new TableModel();
+        tableModel.setOperator(SqlKind.CREATE_TABLE);
+        tableModel.setSchema(List.of("public"));
+        tableModel.setTable("users");
 
         ColumnModel columnModel = new ColumnModel();
         columnModel.setNames(List.of("id"));
         columnModel.setDataType(SqlTypeName.INTEGER);
         columnModel.setStrategy(ColumnStrategy.NULLABLE);
         List<ColumnModel> columnList = new ArrayList<>(List.of(columnModel));
-        createTableModel.setColumnList(columnList);
+        tableModel.setColumnList(columnList);
 
         ObjectMapper objectMapper = new ObjectMapper();
-        String encoded = objectMapper.writeValueAsString(createTableModel);
-        CreateTableModel decoded = objectMapper.readValue(encoded, CreateTableModel.class);
-        assertThat(createTableModel).usingRecursiveComparison().isEqualTo(decoded);
+        String encoded = objectMapper.writeValueAsString(tableModel);
+        TableModel decoded = objectMapper.readValue(encoded, TableModel.class);
+        assertThat(tableModel).usingRecursiveComparison().isEqualTo(decoded);
     }
 }

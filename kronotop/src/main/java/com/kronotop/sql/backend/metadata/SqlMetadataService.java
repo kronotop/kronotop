@@ -25,8 +25,6 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
@@ -35,19 +33,23 @@ import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.journal.Event;
 import com.kronotop.core.journal.JournalName;
+import com.kronotop.sql.JSONUtils;
 import com.kronotop.sql.KronotopTable;
-import com.kronotop.sql.backend.ddl.model.CreateTableModel;
+import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.backend.metadata.events.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * SqlMetadataService is a class that extends KronotopService and provides methods to retrieve and manipulate
+ * SQL metadata in the Kronotop database system.
+ */
 public class SqlMetadataService implements KronotopService {
     public static final String NAME = "SQL Metadata";
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlMetadataService.class);
@@ -58,7 +60,6 @@ public class SqlMetadataService implements KronotopService {
     private final ExecutorService executor;
     private final CountDownLatch latch = new CountDownLatch(1);
     private final SchemaMetadata root = new SchemaMetadata();
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private volatile boolean isShutdown;
 
     public SqlMetadataService(Context context) {
@@ -91,7 +92,14 @@ public class SqlMetadataService implements KronotopService {
         if (schema.isEmpty()) {
             throw new IllegalArgumentException("schema cannot be empty");
         }
-        return DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().sql().metadata().schemas().addAll(schema);
+        return DirectoryLayout.
+                Builder.
+                clusterName(context.getClusterName()).
+                internal().
+                sql().
+                metadata().
+                schemas().
+                addAll(schema);
     }
 
     private boolean isSchemaExistOnFDB(Transaction tr, List<String> names) {
@@ -99,7 +107,16 @@ public class SqlMetadataService implements KronotopService {
     }
 
     private DirectoryLayout getTableLayout(List<String> schema, String table) {
-        return DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().sql().metadata().schemas().addAll(schema).tables().add(table);
+        return DirectoryLayout.
+                Builder.
+                clusterName(context.getClusterName()).
+                internal().
+                sql().
+                metadata().
+                schemas().
+                addAll(schema).
+                tables().
+                add(table);
     }
 
     /**
@@ -165,6 +182,30 @@ public class SqlMetadataService implements KronotopService {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Retrieves the latest version of a table from the metadata store.
+     *
+     * @param tr The FDB transaction.
+     * @param schema The list of names representing the hierarchy of the schema.
+     * @param table The name of the table to retrieve the latest version for.
+     * @return The TableWithVersion object representing the table with the latest version.
+     * @throws KronotopException If the table exists but no version is found.
+     */
+    public TableWithVersion getLatestTableVersion(Transaction tr, List<String> schema, String table) {
+        List<String> subpath = getTableLayout(schema, table).asList();
+        DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
+
+        AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(), 1, true).iterator();
+        if (!iterator.hasNext()) {
+            throw new KronotopException(String.format("Table '%s' exists but no version found", table));
+        }
+
+        KeyValue next = iterator.next();
+        byte[] versionstamp = subspace.unpack(next.getKey()).getVersionstamp(0).getBytes();
+        TableModel tableModel = JSONUtils.readValue(next.getValue(), TableModel.class);
+        return new TableWithVersion(tableModel, versionstamp);
     }
 
     /**
@@ -293,6 +334,7 @@ public class SqlMetadataService implements KronotopService {
     }
 
     private SchemaMetadata loadSchemaHierarchy_internal(List<String> names) throws SchemaNotExistsException {
+        // This method is not thread-safe.
         SchemaMetadata current = root;
         List<String> cursor = new ArrayList<>();
         for (String name : names) {
@@ -363,38 +405,39 @@ public class SqlMetadataService implements KronotopService {
     }
 
     /**
-     * Loads the table metadata with the given versionstamp.
+     * Loads the table from FoundationDB with the given versionstamp.
      *
      * @param tr           the FDB transaction
      * @param schema       the list of names representing the hierarchy to search for the schema
      * @param table        the name of the table to search for
      * @param versionBytes the versionstamp of the table metadata
-     * @return the CreateTableModel object representing the table metadata
+     * @return TableModel object representing the table metadata
      */
-    private CreateTableModel loadTableMetadataWithVersionstamp(Transaction tr, List<String> schema, String table, byte[] versionBytes) throws IOException {
+    private TableModel loadTableMetadataWithVersionstamp(Transaction tr, List<String> schema, String table, byte[] versionBytes)
+            throws TableNotExistsException {
         List<String> subpath = getTableLayout(schema, table).asList();
         DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
         Versionstamp versionstamp = Versionstamp.fromBytes(versionBytes);
 
         AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(Tuple.from(versionstamp)), 1).iterator();
         if (!iterator.hasNext()) {
-            LOGGER.error("No table found with the given version: {}, {}", table, BaseEncoding.base64().encode(versionBytes));
+            throw new TableNotExistsException(table);
         }
 
         KeyValue next = iterator.next();
-        return objectMapper.readValue(next.getValue(), CreateTableModel.class);
+        return JSONUtils.readValue(next.getValue(), TableModel.class);
     }
 
     /**
      * Adds a new version for a table in the schema metadata store.
      *
-     * @param createTableModel The table metadata for the new version.
-     * @param versionstamp     The versionstamp of the table metadata.
+     * @param tableModel   The table metadata for the new version.
+     * @param versionstamp The versionstamp of the table metadata.
      * @throws SchemaNotExistsException           if the schema does not exist in the schema metadata store.
      * @throws TableVersionAlreadyExistsException if the table version already exists in the metadata store.
      */
-    private void addTableVersion(CreateTableModel createTableModel, byte[] versionstamp) throws SchemaNotExistsException, TableVersionAlreadyExistsException {
-        KronotopTable table = new KronotopTable(createTableModel);
+    private void addTableVersion(TableModel tableModel, byte[] versionstamp) throws SchemaNotExistsException, TableVersionAlreadyExistsException {
+        KronotopTable table = new KronotopTable(tableModel);
         lock.writeLock().lock();
         try {
             SchemaMetadata schemaMetadata = loadSchemaHierarchy_internal(table.getSchema());
@@ -409,60 +452,70 @@ public class SqlMetadataService implements KronotopService {
         }
     }
 
-    private void processTableCreatedEvent(Transaction tr, BroadcastEvent broadcastEvent) throws IOException {
-        TableCreatedEvent tableCreatedEvent = objectMapper.readValue(broadcastEvent.getPayload(), TableCreatedEvent.class);
-        CreateTableModel createTableModel = loadTableMetadataWithVersionstamp(tr, tableCreatedEvent.getSchema(), tableCreatedEvent.getTable(), tableCreatedEvent.getVersionstamp());
+    private void processTableCreatedEvent(Transaction tr, BroadcastEvent broadcastEvent) {
+        TableCreatedEvent event = JSONUtils.readValue(broadcastEvent.getPayload(), TableCreatedEvent.class);
         try {
-            addTableVersion(createTableModel, tableCreatedEvent.getVersionstamp());
-        } catch (SchemaNotExistsException | TableVersionAlreadyExistsException e) {
+            TableModel tableModel = loadTableMetadataWithVersionstamp(tr, event.getSchema(), event.getTable(), event.getVersionstamp());
+            addTableVersion(tableModel, event.getVersionstamp());
+        } catch (TableNotExistsException | SchemaNotExistsException | TableVersionAlreadyExistsException e) {
             LOGGER.error("Failed to add new table version: {}", e.getMessage());
             throw new KronotopException(e);
         }
     }
 
-    private void processSchemaCreatedEvent(BroadcastEvent broadcastEvent) throws JsonProcessingException, SchemaNotExistsException {
-        SchemaCreatedEvent schemaCreatedEvent = objectMapper.readValue(broadcastEvent.getPayload(), SchemaCreatedEvent.class);
-        loadSchemaHierarchy(schemaCreatedEvent.getSchema());
+    private void processSchemaCreatedEvent(BroadcastEvent broadcastEvent) throws SchemaNotExistsException {
+        SchemaCreatedEvent event = JSONUtils.readValue(broadcastEvent.getPayload(), SchemaCreatedEvent.class);
+        loadSchemaHierarchy(event.getSchema());
     }
 
-    private void processSchemaDroppedEvent(BroadcastEvent broadcastEvent) throws JsonProcessingException {
-        SchemaDroppedEvent schemaDroppedEvent = objectMapper.readValue(broadcastEvent.getPayload(), SchemaDroppedEvent.class);
+    private void processSchemaDroppedEvent(BroadcastEvent broadcastEvent) {
+        SchemaDroppedEvent event = JSONUtils.readValue(broadcastEvent.getPayload(), SchemaDroppedEvent.class);
         try {
-            removeSchemaHierarchy(schemaDroppedEvent.getSchema());
+            removeSchemaHierarchy(event.getSchema());
         } catch (SchemaNotExistsException e) {
             LOGGER.debug("Failed to process {}", EventTypes.SCHEMA_DROPPED, e);
         }
     }
 
-    private void processTableDroppedEvent(BroadcastEvent broadcastEvent) throws JsonProcessingException {
-        TableDroppedEvent tableDroppedEvent = objectMapper.readValue(broadcastEvent.getPayload(), TableDroppedEvent.class);
+    private void processTableDroppedEvent(BroadcastEvent broadcastEvent) {
+        TableDroppedEvent event = JSONUtils.readValue(broadcastEvent.getPayload(), TableDroppedEvent.class);
         try {
-            removeTable(tableDroppedEvent.getSchema(), tableDroppedEvent.getTable());
+            removeTable(event.getSchema(), event.getTable());
         } catch (SchemaNotExistsException | TableNotExistsException e) {
             LOGGER.debug("Failed to process {}", EventTypes.TABLE_DROPPED, e);
         }
     }
 
-    private void processTableRenamedEvent(BroadcastEvent broadcastEvent) throws JsonProcessingException {
-        TableRenamedEvent tableRenamedEvent = objectMapper.readValue(broadcastEvent.getPayload(), TableRenamedEvent.class);
+    private void processTableRenamedEvent(BroadcastEvent broadcastEvent) {
+        TableRenamedEvent event = JSONUtils.readValue(broadcastEvent.getPayload(), TableRenamedEvent.class);
         try {
             try {
-                renameTable(tableRenamedEvent.getSchema(), tableRenamedEvent.getOldName(), tableRenamedEvent.getNewName());
+                renameTable(event.getSchema(), event.getOldName(), event.getNewName());
             } catch (TableNotExistsException e) {
                 // Edge case, but it happens during the tests. If the time gap between CREATE TABLE and ALTER TABLE events is too small,
                 // the table may be renamed before adding the old one to in-memory metadata. In this case, we fetch the new table instead of renaming the existing one.
-                CreateTableModel createTableModel = context.getFoundationDB().run(tr -> {
+                TableModel tableModel = context.getFoundationDB().run(tr -> {
                     try {
-                        return loadTableMetadataWithVersionstamp(tr, tableRenamedEvent.getSchema(), tableRenamedEvent.getNewName(), tableRenamedEvent.getVersionstamp());
-                    } catch (IOException ex) {
-                        LOGGER.error("Failed to load table with versionstamp: {}, {}", tableRenamedEvent.getNewName(), BaseEncoding.base64().encode(tableRenamedEvent.getVersionstamp()));
+                        return loadTableMetadataWithVersionstamp(tr, event.getSchema(), event.getNewName(), event.getVersionstamp());
+                    } catch (TableNotExistsException ex) {
+                        LOGGER.error("Failed to load table with versionstamp: {}, {}", event.getNewName(), BaseEncoding.base64().encode(event.getVersionstamp()));
                         throw new RuntimeException(ex);
                     }
                 });
-                addTableVersion(createTableModel, tableRenamedEvent.getVersionstamp());
+                addTableVersion(tableModel, event.getVersionstamp());
             }
         } catch (SchemaNotExistsException | TableAlreadyExistsException | TableVersionAlreadyExistsException e) {
             LOGGER.debug("Failed to process {}", EventTypes.TABLE_RENAMED, e);
+        }
+    }
+
+    private void processTableAlteredEvent(Transaction tr, BroadcastEvent broadcastEvent) {
+        TableAlteredEvent event = JSONUtils.readValue(broadcastEvent.getPayload(), TableAlteredEvent.class);
+        try {
+            TableModel tableModel = loadTableMetadataWithVersionstamp(tr, event.getSchema(), event.getTable(), event.getVersionstamp());
+            addTableVersion(tableModel, event.getVersionstamp());
+        } catch (SchemaNotExistsException | TableVersionAlreadyExistsException | TableNotExistsException e) {
+            LOGGER.debug("Failed to process {}", EventTypes.TABLE_ALTERED, e);
         }
     }
 
@@ -477,20 +530,29 @@ public class SqlMetadataService implements KronotopService {
                 if (event == null) return null;
 
                 try {
-                    BroadcastEvent broadcastEvent = objectMapper.readValue(event.getValue(), BroadcastEvent.class);
+                    BroadcastEvent broadcastEvent = JSONUtils.readValue(event.getValue(), BroadcastEvent.class);
                     LOGGER.debug("{} event has been received", broadcastEvent.getType());
-                    if (broadcastEvent.getType().equals(EventTypes.SCHEMA_CREATED)) {
-                        processSchemaCreatedEvent(broadcastEvent);
-                    } else if (broadcastEvent.getType().equals(EventTypes.TABLE_CREATED)) {
-                        processTableCreatedEvent(tr, broadcastEvent);
-                    } else if (broadcastEvent.getType().equals(EventTypes.SCHEMA_DROPPED)) {
-                        processSchemaDroppedEvent(broadcastEvent);
-                    } else if (broadcastEvent.getType().equals(EventTypes.TABLE_DROPPED)) {
-                        processTableDroppedEvent(broadcastEvent);
-                    } else if (broadcastEvent.getType().equals(EventTypes.TABLE_RENAMED)) {
-                        processTableRenamedEvent(broadcastEvent);
-                    } else {
-                        LOGGER.error("Unknown {} event: {}, passing it", NAME, broadcastEvent.getType());
+                    switch (broadcastEvent.getType()) {
+                        case SCHEMA_CREATED:
+                            processSchemaCreatedEvent(broadcastEvent);
+                            break;
+                        case TABLE_CREATED:
+                            processTableCreatedEvent(tr, broadcastEvent);
+                            break;
+                        case SCHEMA_DROPPED:
+                            processSchemaDroppedEvent(broadcastEvent);
+                            break;
+                        case TABLE_DROPPED:
+                            processTableDroppedEvent(broadcastEvent);
+                            break;
+                        case TABLE_RENAMED:
+                            processTableRenamedEvent(broadcastEvent);
+                            break;
+                        case TABLE_ALTERED:
+                            processTableAlteredEvent(tr, broadcastEvent);
+                            break;
+                        default:
+                            LOGGER.error("Unknown {} event: {}, passing it", NAME, broadcastEvent.getType());
                     }
                 } catch (Exception e) {
                     LOGGER.error("Failed to process a SQL metadata event, passing it", e);
