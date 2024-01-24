@@ -16,13 +16,24 @@
 
 package com.kronotop.sql;
 
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.async.AsyncIterator;
+import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.collect.ImmutableList;
+import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
+import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
 import com.kronotop.server.Handlers;
 import com.kronotop.sql.backend.ddl.*;
+import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.backend.metadata.SqlMetadataService;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -98,6 +109,26 @@ public class SqlService extends CommandHandlerService implements KronotopService
 
     public SqlMetadataService getMetadataService() {
         return metadataService;
+    }
+
+    public DirectorySubspace openTableSubspace(Transaction tr, List<String> schema, String table) {
+        DirectoryLayout tableLayout = metadataService.getSchemaLayout(schema).tables().add(table);
+        return DirectoryLayer.getDefault().open(tr, tableLayout.asList()).join();
+    }
+
+    public TableModel getLatestTableModel(Transaction tr, DirectorySubspace subspace) {
+        AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(), 1, true).iterator();
+        if (!iterator.hasNext()) {
+            throw new KronotopException("No data found for this table range");
+        }
+        KeyValue next = iterator.next();
+        return JSONUtils.readValue(next.getValue(), TableModel.class);
+    }
+
+    public void saveTableModel(Transaction tr, TableModel tableModel, DirectorySubspace subspace) {
+        byte[] data = JSONUtils.writeValueAsBytes(tableModel);
+        Tuple tuple = Tuple.from(Versionstamp.incomplete(), 1);
+        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), data);
     }
 
     @Override

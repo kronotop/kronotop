@@ -16,8 +16,8 @@
 
 package com.kronotop.sql;
 
-public class SqlValidationException extends Exception {
-    public SqlValidationException(String content) {
-        super(content);
+public class SqlExecutionException extends Exception {
+    public SqlExecutionException(Throwable cause) {
+        super(cause);
     }
 }

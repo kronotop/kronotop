@@ -23,16 +23,13 @@ import com.apple.foundationdb.async.AsyncIterator;
 import com.apple.foundationdb.directory.*;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.journal.JournalName;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.sql.ExecutionContext;
-import com.kronotop.sql.SqlService;
-import com.kronotop.sql.TransactionResult;
+import com.kronotop.sql.*;
 import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.backend.metadata.TableAlreadyExistsException;
 import com.kronotop.sql.backend.metadata.TableNotExistsException;
@@ -41,7 +38,6 @@ import com.kronotop.sql.backend.metadata.events.EventTypes;
 import com.kronotop.sql.backend.metadata.events.TableRenamedEvent;
 import com.kronotop.sql.parser.SqlAlterTable;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
@@ -50,30 +46,25 @@ import java.util.concurrent.CompletionException;
  */
 public class RenameTable implements AlterType {
     private final SqlService service;
-    private final ObjectMapper objectMapper;
 
-    public RenameTable(SqlService service, ObjectMapper objectMapper) {
+    public RenameTable(SqlService service) {
         this.service = service;
-        this.objectMapper = objectMapper;
     }
 
     /**
      * Renames a table in the database.
      *
-     * @param tr            the transaction object used to perform the operation
-     * @param context       the execution context object containing the schema information
-     * @param sqlAlterTable the SqlAlterTable object representing the ALTER TABLE command
-     * @return a RedisMessage indicating the success or failure of the operation
-     * @throws TableNotExistsException       if the table does not exist in the database
-     * @throws TableAlreadyExistsException   if the new table name already exists in the database
-     * @throws KronotopException            if there is an error during the operation
+     * @param tr              The current transaction object.
+     * @param context         The execution context object containing the schema list.
+     * @param sqlAlterTable   The object containing information for the ALTER TABLE command.
+     * @return A RedisMessage indicating the success or failure of the operation.
+     * @throws SqlExecutionException if there is an error during the execution of the SQL statement.
      */
-    public RedisMessage alter(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable)
-            throws TableNotExistsException, TableAlreadyExistsException {
+    public RedisMessage alter(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable) throws SqlExecutionException {
         String table = service.getTableNameFromNames(sqlAlterTable.name.names);
         String newTable = sqlAlterTable.newTableName.getSimple();
         if (table.equals(newTable)) {
-            throw new TableAlreadyExistsException(newTable);
+            throw new SqlExecutionException(new TableAlreadyExistsException(newTable));
         }
 
         List<String> schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
@@ -91,23 +82,20 @@ public class RenameTable implements AlterType {
                 throw new KronotopException(String.format("Table '%s' exists but no version found", table));
             }
             KeyValue next = iterator.next();
-            TableModel tableModel = objectMapper.readValue(next.getValue(), TableModel.class);
+            TableModel tableModel = JSONUtils.readValue(next.getValue(), TableModel.class);
             tableModel.setTable(newTable);
-            byte[] data = objectMapper.writeValueAsBytes(tableModel);
+            byte[] data = JSONUtils.writeValueAsBytes(tableModel);
             Tuple tuple = Tuple.from(Versionstamp.incomplete(), 1);
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), data);
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new TableNotExistsException(table);
+                throw new SqlExecutionException(new TableNotExistsException(table));
             } else if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                throw new TableAlreadyExistsException(newTable);
+                throw new SqlExecutionException(new TableAlreadyExistsException(newTable));
             } else if (e.getCause() instanceof DirectoryMoveException) {
-                // TODO: Better error message is needed here.
                 throw new KronotopException("Invalid move location is specified: " + e.getCause().getMessage());
             }
             throw new KronotopException(e.getCause().getMessage());
-        } catch (IOException e) {
-            throw new KronotopException(e.getMessage());
         }
         return new SimpleStringRedisMessage(Response.OK);
     }

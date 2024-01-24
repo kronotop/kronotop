@@ -187,4 +187,41 @@ public class AlterTableTest extends BaseHandlerTest {
         assertNull(ageColumn.getExpression());
         assertEquals(ColumnStrategy.NOT_NULLABLE, ageColumn.getStrategy());
     }
+
+    @Test
+    public void test_DROP_COLUMN() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        executeSqlQueryReturnsOK(cmd, createTableQuery);
+
+        String alterTableQuery = "ALTER TABLE public.users DROP COLUMN username";
+        executeSqlQueryReturnsOK(cmd, alterTableQuery);
+
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr ->
+                sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users"));
+
+        List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
+        System.out.println(columns);
+        assertEquals(1, columns.size());
+        ColumnModel idColumn = columns.get(0);
+        assertEquals(List.of("id"), idColumn.getNames());
+        assertEquals(SqlTypeName.INTEGER, idColumn.getDataType());
+        assertNull(idColumn.getExpression());
+        assertEquals(ColumnStrategy.NULLABLE, idColumn.getStrategy());
+    }
+
+    @Test
+    public void test_DROP_COLUMN_not_exists() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        executeSqlQueryReturnsOK(cmd, createTableQuery);
+
+        String alterTableQuery = "ALTER TABLE public.users DROP COLUMN foobar";
+        ErrorRedisMessage message = executeSqlQueryReturnsError(cmd, alterTableQuery);
+
+        assertEquals("SQL column 'foobar' of table 'users' does not exist", message.content());
+    }
 }

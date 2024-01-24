@@ -16,10 +16,14 @@
 
 package com.kronotop.sql;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 
+/**
+ * The JSONUtils class provides utility methods for reading and writing JSON data using the Jackson ObjectMapper.
+ */
 public class JSONUtils {
     public static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -35,6 +39,14 @@ public class JSONUtils {
         try {
             return objectMapper.readValue(content, valueType);
         } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static byte[] writeValueAsBytes(Object value) {
+        try {
+            return objectMapper.writeValueAsBytes(value);
+        } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }

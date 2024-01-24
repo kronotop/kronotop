@@ -25,34 +25,34 @@ import com.kronotop.sql.ExecutionContext;
 import com.kronotop.sql.SqlExecutionException;
 import com.kronotop.sql.SqlService;
 import com.kronotop.sql.TransactionResult;
-import com.kronotop.sql.backend.ddl.ColumnAlreadyExistsException;
+import com.kronotop.sql.backend.ddl.ColumnNotExistsException;
 import com.kronotop.sql.backend.ddl.model.ColumnModel;
 import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.parser.SqlAlterTable;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.ddl.SqlColumnDeclaration;
-import org.apache.calcite.sql.type.SqlTypeName;
 
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 
-/**
- * AddColumn is a class that represents the ALTER TABLE operation to add a column to a table in the database.
- */
-public class AddColumn extends BaseAlterType implements AlterType {
+public class DropColumn extends BaseAlterType implements AlterType {
 
-    public AddColumn(SqlService service) {
+    public DropColumn(SqlService service) {
         super(service);
     }
 
-    /**
-     * Adds a column to the specified table in the database.
-     *
-     * @param tr            the transaction object used to perform the operation
-     * @param context       the execution context object containing the schema information
-     * @param sqlAlterTable the SqlAlterTable object representing the ALTER TABLE command
-     * @return a RedisMessage indicating the success or failure of the operation
-     */
+    private int findColumnIndex(String droppedColumnName, TableModel tableModel) throws SqlExecutionException {
+        for (int index = 0; index < tableModel.getColumnList().size(); index++) {
+            ColumnModel column = tableModel.getColumnList().get(index);
+            String columnName = column.getNames().get(0);
+            if (droppedColumnName.equals(columnName)) {
+                return index;
+            }
+        }
+        throw new SqlExecutionException(new ColumnNotExistsException(droppedColumnName, tableModel.getTable()));
+    }
+
+    @Override
     public RedisMessage alter(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable) throws SqlExecutionException {
         assert sqlAlterTable.columnList != null;
 
@@ -61,36 +61,22 @@ public class AddColumn extends BaseAlterType implements AlterType {
         DirectorySubspace subspace = service.openTableSubspace(tr, schema, table);
         TableModel tableModel = service.getLatestTableModel(tr, subspace);
 
-        LinkedHashMap<String, ColumnModel> columns = new LinkedHashMap<>();
+        List<Integer> indexes = new ArrayList<>();
         for (SqlNode column : sqlAlterTable.columnList.getList()) {
-            SqlColumnDeclaration columnDeclaration = (SqlColumnDeclaration) column;
-            assert columnDeclaration != null;
-
-            ColumnModel columnModel = new ColumnModel();
-            columnModel.setNames(columnDeclaration.name.names);
-            SqlTypeName dataType = SqlTypeName.valueOf(columnDeclaration.dataType.getTypeName().names.get(0));
-            columnModel.setDataType(dataType);
-            columnModel.setStrategy(columnDeclaration.strategy);
-            if (columnDeclaration.expression != null) {
-                columnModel.setExpression(columnDeclaration.expression.toString());
-            }
-            columns.put(columnModel.getNames().get(0), columnModel);
+            SqlIdentifier identifier = (SqlIdentifier) column;
+            assert identifier != null;
+            int index = findColumnIndex(identifier.getSimple(), tableModel);
+            indexes.add(index);
         }
-
-        for (ColumnModel column : tableModel.getColumnList()) {
-            String columnName = column.getNames().get(0);
-            if (columns.containsKey(columnName)) {
-                throw new SqlExecutionException(new ColumnAlreadyExistsException(columnName, table));
-            }
-        }
-        for (ColumnModel column : columns.values()) {
-            tableModel.getColumnList().add(column);
+        for (int index : indexes) {
+            tableModel.getColumnList().remove(index);
         }
 
         service.saveTableModel(tr, tableModel, subspace);
         return new SimpleStringRedisMessage(Response.OK);
     }
 
+    @Override
     public void notifyCluster(TransactionResult result, ExecutionContext context, SqlAlterTable sqlAlterTable) {
         publishTableAlteredEvent(result, context, sqlAlterTable);
     }

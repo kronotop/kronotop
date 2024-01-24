@@ -28,7 +28,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
@@ -271,13 +273,51 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
                 TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users");
-                System.out.println(tableWithVersion);
                 for (ColumnModel columnModel : tableWithVersion.getTableModel().getColumnList()) {
                     if (columnModel.getNames().get(0).equals("username")) {
                         return true;
                     }
                 }
                 return false;
+            }
+        });
+    }
+
+    @Test
+    public void test_alterTable_dropColumn() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("CREATE TABLE public.users (age INTEGER, username VARCHAR)").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("ALTER TABLE public.users DROP COLUMN username").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users");
+                Set<String> columns = new HashSet<>();
+                for (ColumnModel columnModel : tableWithVersion.getTableModel().getColumnList()) {
+                    columns.add(columnModel.getNames().get(0));
+                }
+                return !columns.contains("username");
             }
         });
     }

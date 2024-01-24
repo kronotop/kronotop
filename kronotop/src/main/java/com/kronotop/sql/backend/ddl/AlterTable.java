@@ -20,16 +20,12 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.common.KronotopException;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.sql.ExecutionContext;
-import com.kronotop.sql.Executor;
-import com.kronotop.sql.SqlService;
-import com.kronotop.sql.TransactionResult;
+import com.kronotop.sql.*;
 import com.kronotop.sql.backend.FoundationDBBackend;
 import com.kronotop.sql.backend.ddl.altertable.AddColumn;
 import com.kronotop.sql.backend.ddl.altertable.AlterType;
+import com.kronotop.sql.backend.ddl.altertable.DropColumn;
 import com.kronotop.sql.backend.ddl.altertable.RenameTable;
-import com.kronotop.sql.backend.metadata.TableAlreadyExistsException;
-import com.kronotop.sql.backend.metadata.TableNotExistsException;
 import com.kronotop.sql.parser.SqlAlterTable;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidatorException;
@@ -43,11 +39,13 @@ import org.apache.calcite.sql.validate.SqlValidatorException;
 public class AlterTable extends FoundationDBBackend implements Executor<SqlNode> {
     private final AlterType renameTable;
     private final AlterType addColumn;
+    private final AlterType dropColumn;
 
     public AlterTable(SqlService service) {
         super(service);
-        this.renameTable = new RenameTable(service, objectMapper);
-        this.addColumn = new AddColumn(service, objectMapper);
+        this.renameTable = new RenameTable(service);
+        this.addColumn = new AddColumn(service);
+        this.dropColumn = new DropColumn(service);
     }
 
     private TransactionResult alterTable(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable) {
@@ -60,13 +58,20 @@ public class AlterTable extends FoundationDBBackend implements Executor<SqlNode>
                 case ADD_COLUMN:
                     redisMessage = addColumn.alter(tr, context, sqlAlterTable);
                     break;
+                case DROP_COLUMN:
+                    redisMessage = dropColumn.alter(tr, context, sqlAlterTable);
+                    break;
                 default:
                     throw new KronotopException("Unknown ALTER type: " + sqlAlterTable.alterType);
             }
             return new TransactionResult(tr.getVersionstamp(), redisMessage);
-        } catch (TableNotExistsException | TableAlreadyExistsException | ColumnAlreadyExistsException |
-                 KronotopException e) {
-            String message = service.formatErrorMessage(e.getMessage());
+        } catch (SqlExecutionException | KronotopException e) {
+            String message;
+            if (e instanceof SqlExecutionException) {
+                message = service.formatErrorMessage(e.getCause().getMessage());
+            } else {
+                message = service.formatErrorMessage(e.getMessage());
+            }
             return new TransactionResult(new ErrorRedisMessage(message));
         }
     }
@@ -83,6 +88,9 @@ public class AlterTable extends FoundationDBBackend implements Executor<SqlNode>
                     break;
                 case ADD_COLUMN:
                     addColumn.notifyCluster(result, context, sqlAlterTable);
+                    break;
+                case DROP_COLUMN:
+                    dropColumn.notifyCluster(result, context, sqlAlterTable);
                     break;
                 default:
                     throw new KronotopException("Unknown ALTER type: " + sqlAlterTable.alterType);

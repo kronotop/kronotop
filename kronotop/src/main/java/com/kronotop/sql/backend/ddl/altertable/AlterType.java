@@ -19,10 +19,8 @@ package com.kronotop.sql.backend.ddl.altertable;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.sql.ExecutionContext;
+import com.kronotop.sql.SqlExecutionException;
 import com.kronotop.sql.TransactionResult;
-import com.kronotop.sql.backend.ddl.ColumnAlreadyExistsException;
-import com.kronotop.sql.backend.metadata.TableAlreadyExistsException;
-import com.kronotop.sql.backend.metadata.TableNotExistsException;
 import com.kronotop.sql.parser.SqlAlterTable;
 
 /**
@@ -30,8 +28,8 @@ import com.kronotop.sql.parser.SqlAlterTable;
  * as part of an ALTER TABLE command.
  */
 public interface AlterType {
-    RedisMessage alter(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable)
-            throws TableNotExistsException, TableAlreadyExistsException, ColumnAlreadyExistsException;
+
+    RedisMessage alter(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable) throws SqlExecutionException;
 
     void notifyCluster(TransactionResult result, ExecutionContext context, SqlAlterTable sqlAlterTable);
 }
