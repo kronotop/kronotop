@@ -321,4 +321,43 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             }
         });
     }
+
+    @Test
+    public void test_alterTable_renameColumn() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("CREATE TABLE public.users (age INTEGER, username VARCHAR)").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("ALTER TABLE public.users RENAME COLUMN username TO renamedcolumn").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users");
+                Set<String> columns = new HashSet<>();
+                for (ColumnModel columnModel : tableWithVersion.getTableModel().getColumnList()) {
+                    columns.add(columnModel.getNames().get(0));
+                }
+                return columns.contains("renamedcolumn");
+            }
+        });
+    }
 }

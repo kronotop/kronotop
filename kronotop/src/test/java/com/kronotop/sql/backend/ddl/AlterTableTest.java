@@ -203,7 +203,6 @@ public class AlterTableTest extends BaseHandlerTest {
                 sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users"));
 
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
-        System.out.println(columns);
         assertEquals(1, columns.size());
         ColumnModel idColumn = columns.get(0);
         assertEquals(List.of("id"), idColumn.getNames());
@@ -222,6 +221,41 @@ public class AlterTableTest extends BaseHandlerTest {
         String alterTableQuery = "ALTER TABLE public.users DROP COLUMN foobar";
         ErrorRedisMessage message = executeSqlQueryReturnsError(cmd, alterTableQuery);
 
+        assertEquals("SQL column 'foobar' of table 'users' does not exist", message.content());
+    }
+
+    @Test
+    public void test_RENAME_COLUMN() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        executeSqlQueryReturnsOK(cmd, createTableQuery);
+
+        String alterTableQuery = "ALTER TABLE public.users RENAME COLUMN username TO renamedcolumn";
+        executeSqlQueryReturnsOK(cmd, alterTableQuery);
+
+        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
+        TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr ->
+                sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users"));
+
+        List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
+        assertEquals(2, columns.size());
+        ColumnModel username2Column = columns.get(1);
+        assertEquals(List.of("renamedcolumn"), username2Column.getNames());
+        assertEquals(SqlTypeName.VARCHAR, username2Column.getDataType());
+        assertNull(username2Column.getExpression());
+        assertEquals(ColumnStrategy.NULLABLE, username2Column.getStrategy());
+    }
+
+    @Test
+    public void test_RENAME_COLUMN_not_exists() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        executeSqlQueryReturnsOK(cmd, createTableQuery);
+
+        String alterTableQuery = "ALTER TABLE public.users RENAME COLUMN foobar TO renamedcolumn";
+        ErrorRedisMessage message = executeSqlQueryReturnsError(cmd, alterTableQuery);
         assertEquals("SQL column 'foobar' of table 'users' does not exist", message.content());
     }
 }

@@ -54,9 +54,9 @@ public class RenameTable implements AlterType {
     /**
      * Renames a table in the database.
      *
-     * @param tr              The current transaction object.
-     * @param context         The execution context object containing the schema list.
-     * @param sqlAlterTable   The object containing information for the ALTER TABLE command.
+     * @param tr            The current transaction object.
+     * @param context       The execution context object containing the schema list.
+     * @param sqlAlterTable The object containing information for the ALTER TABLE command.
      * @return A RedisMessage indicating the success or failure of the operation.
      * @throws SqlExecutionException if there is an error during the execution of the SQL statement.
      */

@@ -22,10 +22,7 @@ import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.sql.*;
 import com.kronotop.sql.backend.FoundationDBBackend;
-import com.kronotop.sql.backend.ddl.altertable.AddColumn;
-import com.kronotop.sql.backend.ddl.altertable.AlterType;
-import com.kronotop.sql.backend.ddl.altertable.DropColumn;
-import com.kronotop.sql.backend.ddl.altertable.RenameTable;
+import com.kronotop.sql.backend.ddl.altertable.*;
 import com.kronotop.sql.parser.SqlAlterTable;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidatorException;
@@ -40,12 +37,14 @@ public class AlterTable extends FoundationDBBackend implements Executor<SqlNode>
     private final AlterType renameTable;
     private final AlterType addColumn;
     private final AlterType dropColumn;
+    private final AlterType renameColumn;
 
     public AlterTable(SqlService service) {
         super(service);
         this.renameTable = new RenameTable(service);
         this.addColumn = new AddColumn(service);
         this.dropColumn = new DropColumn(service);
+        this.renameColumn = new RenameColumn(service);
     }
 
     private TransactionResult alterTable(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable) {
@@ -60,6 +59,9 @@ public class AlterTable extends FoundationDBBackend implements Executor<SqlNode>
                     break;
                 case DROP_COLUMN:
                     redisMessage = dropColumn.alter(tr, context, sqlAlterTable);
+                    break;
+                case RENAME_COLUMN:
+                    redisMessage = renameColumn.alter(tr, context, sqlAlterTable);
                     break;
                 default:
                     throw new KronotopException("Unknown ALTER type: " + sqlAlterTable.alterType);
@@ -91,6 +93,9 @@ public class AlterTable extends FoundationDBBackend implements Executor<SqlNode>
                     break;
                 case DROP_COLUMN:
                     dropColumn.notifyCluster(result, context, sqlAlterTable);
+                    break;
+                case RENAME_COLUMN:
+                    renameColumn.notifyCluster(result, context, sqlAlterTable);
                     break;
                 default:
                     throw new KronotopException("Unknown ALTER type: " + sqlAlterTable.alterType);

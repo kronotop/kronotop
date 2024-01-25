@@ -25,39 +25,28 @@ import com.kronotop.sql.ExecutionContext;
 import com.kronotop.sql.SqlExecutionException;
 import com.kronotop.sql.SqlService;
 import com.kronotop.sql.TransactionResult;
+import com.kronotop.sql.backend.ddl.model.ColumnModel;
 import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.parser.SqlAlterTable;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class DropColumn extends BaseAlterType implements AlterType {
+public class RenameColumn extends BaseAlterType implements AlterType {
 
-    public DropColumn(SqlService service) {
+    public RenameColumn(SqlService service) {
         super(service);
     }
 
     @Override
     public RedisMessage alter(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable) throws SqlExecutionException {
-        assert sqlAlterTable.columnList != null;
-
         String table = service.getTableNameFromNames(sqlAlterTable.name.names);
         List<String> schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
         DirectorySubspace subspace = service.openTableSubspace(tr, schema, table);
         TableModel tableModel = service.getLatestTableModel(tr, subspace);
 
-        List<Integer> indexes = new ArrayList<>();
-        for (SqlNode column : sqlAlterTable.columnList.getList()) {
-            SqlIdentifier identifier = (SqlIdentifier) column;
-            assert identifier != null;
-            int index = findColumnIndex(identifier.getSimple(), tableModel);
-            indexes.add(index);
-        }
-        for (int index : indexes) {
-            tableModel.getColumnList().remove(index);
-        }
+        int index = findColumnIndex(sqlAlterTable.columnName.getSimple(), tableModel);
+        ColumnModel column = tableModel.getColumnList().get(index);
+        column.setNames(List.of(sqlAlterTable.newColumnName.getSimple()));
 
         service.saveTableModel(tr, tableModel, subspace);
         return new SimpleStringRedisMessage(Response.OK);

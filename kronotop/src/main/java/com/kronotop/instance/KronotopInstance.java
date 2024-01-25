@@ -240,7 +240,8 @@ public class KronotopInstance {
      */
     public synchronized void shutdown() {
         if (status.equals(KronotopInstanceStatus.STOPPED)) {
-            throw new IllegalStateException("Kronotop instance is already stopped");
+            // Kronotop instance is already stopped
+            return;
         }
 
         try {

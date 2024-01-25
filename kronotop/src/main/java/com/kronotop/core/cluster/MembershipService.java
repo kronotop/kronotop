@@ -92,13 +92,7 @@ public class MembershipService implements KronotopService {
         }
     }
 
-    /**
-     * Unregisters a member from the cluster.
-     *
-     * @param member the member to unregister
-     */
-    private void unregisterMember(Member member) {
-        Address address = member.getAddress();
+    private void removeMemberOnFDB(Address address) {
         List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(address.toString())).asList();
         try {
             context.getFoundationDB().run(tr -> DirectoryLayer.getDefault().remove(tr, subpath).join());
@@ -109,9 +103,15 @@ public class MembershipService implements KronotopService {
             }
             throw new KronotopException(e);
         }
-
+    }
+    /**
+     * Unregisters a member from the cluster.
+     *
+     * @param member the member to unregister
+     */
+    private void unregisterMember(Member member) {
+        removeMemberOnFDB(member.getAddress());
         MemberLeftEvent memberLeftEvent = new MemberLeftEvent(member.getAddress().getHost(), member.getAddress().getPort(), member.getProcessId());
-
         try {
             BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.MEMBER_LEFT, new ObjectMapper().writeValueAsString(memberLeftEvent));
             context.getJournal().getPublisher().publish(JournalName.clusterEvents(), broadcastEvent);
@@ -120,7 +120,7 @@ public class MembershipService implements KronotopService {
             throw new KronotopException(e);
         }
 
-        LOGGER.info("{} has been unregistered", address);
+        LOGGER.info("{} has been unregistered", member.getAddress());
     }
 
     /**
@@ -163,7 +163,20 @@ public class MembershipService implements KronotopService {
         coordinatorService.addMember(context.getMember());
 
         Address address = context.getMember().getAddress();
-        registerMember(address);
+        try {
+            if (context.getConfig().hasPath("cluster.force_register")) {
+                if (context.getConfig().getBoolean("cluster.force_register")) {
+                    removeMemberOnFDB(address);
+                }
+            }
+            registerMember(address);
+        } catch (MemberAlreadyRegisteredException e) {
+            LOGGER.warn("Kronotop failed at initialization because {} is already registered by a different cluster member.", context.getMember().getAddress());
+            LOGGER.warn("If {} is a dead member, the cluster coordinator will eventually remove it from the cluster after a grace period.", context.getMember().getAddress());
+            LOGGER.warn("If you want to remove {} from the cluster yourself, set JVM property -Dcluster.force_register=true and start the process again.", context.getMember().getAddress());
+            LOGGER.warn("But this can be risky, you have been warned.");
+            throw e;
+        }
 
         scheduler.execute(new ClusterEventsJournalWatcher());
         scheduler.execute(new HeartbeatTask());
@@ -376,7 +389,12 @@ public class MembershipService implements KronotopService {
     @Override
     public void shutdown() {
         isShutdown = true;
-        currentWatcher.get().cancel(true);
+        currentWatcher.getAndUpdate(current -> {
+            if (current != null) {
+                current.cancel(true);
+            }
+            return current;
+        });
         scheduler.shutdownNow();
         try {
             if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {

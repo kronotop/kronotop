@@ -68,6 +68,9 @@ public class BaseHandlerTest {
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
+        if (response instanceof ErrorRedisMessage) {
+            System.out.println(((ErrorRedisMessage) response).content());
+        }
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
         assertEquals(Response.OK, actualMessage.content());
