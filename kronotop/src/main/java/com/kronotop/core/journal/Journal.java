@@ -80,8 +80,12 @@ public class Journal {
      * @return An instance of {@link JournalMetadata} representing the metadata of the journal.
      * @throws ExecutionException if an error occurs while retrieving the metadata.
      */
-    public JournalMetadata getJournalMetadata(String journal) throws ExecutionException {
-        return journalMetadataCache.get(journal);
+    public JournalMetadata getJournalMetadata(String journal) {
+        try {
+            return journalMetadataCache.get(journal);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

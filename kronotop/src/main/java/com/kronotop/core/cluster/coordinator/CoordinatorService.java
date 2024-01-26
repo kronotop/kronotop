@@ -27,6 +27,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
 import com.kronotop.core.ClusterLayout;
 import com.kronotop.core.Context;
+import com.kronotop.core.KeyWatcher;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.cluster.Member;
 import com.kronotop.core.cluster.MembershipService;
@@ -64,7 +65,8 @@ public class CoordinatorService implements KronotopService {
     private final Context context;
     private final Consistent consistent;
     private final RoutingTable routingTable = new RoutingTable();
-    private final AtomicReference<CompletableFuture<Void>> currentWatcher = new AtomicReference<>();
+    //private final AtomicReference<CompletableFuture<Void>> currentWatcher = new AtomicReference<>();
+    private final KeyWatcher keyWatcher = new KeyWatcher();
     private final AtomicReference<byte[]> latestCoordinatorEventsEventKey = new AtomicReference<>();
     private final HashMap<Integer, DirectorySubspace> shardsSubspaces = new HashMap<>();
     private final ScheduledThreadPoolExecutor scheduler;
@@ -188,10 +190,7 @@ public class CoordinatorService implements KronotopService {
     @Override
     public void shutdown() {
         isShutdown = true;
-        CompletableFuture<Void> watcher = currentWatcher.get();
-        if (watcher != null) {
-            watcher.cancel(true);
-        }
+        keyWatcher.unwatch(context.getJournal().getJournalMetadata(JournalName.coordinatorEvents()).getTrigger());
         scheduler.shutdownNow();
         try {
             if (!scheduler.awaitTermination(1, TimeUnit.SECONDS)) {
@@ -559,9 +558,8 @@ public class CoordinatorService implements KronotopService {
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 JournalMetadata journalMetadata = context.getJournal().getJournalMetadata(JournalName.coordinatorEvents());
-                CompletableFuture<Void> watcher = tr.watch(journalMetadata.getTrigger());
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, journalMetadata.getTrigger());
                 tr.commit().join();
-                currentWatcher.set(watcher);
                 latch.countDown();
                 try {
                     // Try to fetch the latest events before start waiting

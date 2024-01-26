@@ -32,6 +32,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.ByteUtils;
 import com.kronotop.core.ClusterLayout;
 import com.kronotop.core.Context;
+import com.kronotop.core.KeyWatcher;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.cluster.coordinator.CoordinatorService;
 import com.kronotop.core.cluster.coordinator.RoutingTable;
@@ -58,7 +59,7 @@ public class MembershipService implements KronotopService {
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipService.class);
     private final Context context;
     private final ScheduledThreadPoolExecutor scheduler;
-    private final AtomicReference<CompletableFuture<Void>> currentWatcher = new AtomicReference<>();
+    private final KeyWatcher keyWatcher = new KeyWatcher();
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
     private final CoordinatorService coordinatorService;
     private final ShardingService shardingService;
@@ -389,12 +390,7 @@ public class MembershipService implements KronotopService {
     @Override
     public void shutdown() {
         isShutdown = true;
-        currentWatcher.getAndUpdate(current -> {
-            if (current != null) {
-                current.cancel(true);
-            }
-            return current;
-        });
+        keyWatcher.unwatch(context.getJournal().getJournalMetadata(JournalName.clusterEvents()).getTrigger());
         scheduler.shutdownNow();
         try {
             if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
@@ -599,9 +595,8 @@ public class MembershipService implements KronotopService {
             }
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = tr.watch(context.getJournal().getJournalMetadata(JournalName.clusterEvents()).getTrigger());
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.clusterEvents()).getTrigger());
                 tr.commit().join();
-                currentWatcher.set(watcher);
                 try {
                     // Try to fetch the latest events before start waiting
                     fetchClusterEvents();

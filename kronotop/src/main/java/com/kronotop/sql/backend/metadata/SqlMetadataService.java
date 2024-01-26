@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.Context;
+import com.kronotop.core.KeyWatcher;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.journal.Event;
 import com.kronotop.core.journal.JournalName;
@@ -55,7 +56,7 @@ public class SqlMetadataService implements KronotopService {
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlMetadataService.class);
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final Context context;
-    private final AtomicReference<CompletableFuture<Void>> currentWatcher = new AtomicReference<>();
+    private final KeyWatcher keyWatcher = new KeyWatcher();
     private final AtomicReference<byte[]> lastSqlMetadataVersionstamp = new AtomicReference<>();
     private final ExecutorService executor;
     private final CountDownLatch latch = new CountDownLatch(1);
@@ -173,7 +174,7 @@ public class SqlMetadataService implements KronotopService {
             return;
         }
         isShutdown = true;
-        currentWatcher.get().cancel(true);
+        keyWatcher.unwatch(context.getJournal().getJournalMetadata(JournalName.sqlMetadataEvents()).getTrigger());
         executor.shutdownNow();
         try {
             if (!executor.awaitTermination(6, TimeUnit.SECONDS)) {
@@ -574,9 +575,8 @@ public class SqlMetadataService implements KronotopService {
             if (isShutdown) return;
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = tr.watch(context.getJournal().getJournalMetadata(JournalName.sqlMetadataEvents()).getTrigger());
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.sqlMetadataEvents()).getTrigger());
                 tr.commit().join();
-                currentWatcher.set(watcher);
                 latch.countDown();
                 try {
                     fetchSqlMetadata();

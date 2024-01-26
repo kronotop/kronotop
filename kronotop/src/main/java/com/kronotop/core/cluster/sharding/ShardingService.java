@@ -24,6 +24,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.core.Context;
+import com.kronotop.core.KeyWatcher;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.cluster.coordinator.Route;
 import com.kronotop.core.cluster.coordinator.RoutingTable;
@@ -63,7 +64,7 @@ public class ShardingService implements KronotopService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ShardingService.class);
     private final Context context;
     private final AtomicReference<byte[]> latestShardEventsVersionstamp = new AtomicReference<>();
-    private final AtomicReference<CompletableFuture<Void>> currentWatcher = new AtomicReference<>();
+    private final KeyWatcher keyWatcher = new KeyWatcher();
     private final ExecutorService executor;
     private final CountDownLatch latch = new CountDownLatch(1);
     private volatile boolean isShutdown;
@@ -106,7 +107,7 @@ public class ShardingService implements KronotopService {
     @Override
     public void shutdown() {
         isShutdown = true;
-        currentWatcher.get().cancel(true);
+        keyWatcher.unwatch(context.getJournal().getJournalMetadata(JournalName.shardEvents(context.getMember())).getTrigger());
         executor.shutdownNow();
         try {
             if (!executor.awaitTermination(6, TimeUnit.SECONDS)) {
@@ -286,9 +287,8 @@ public class ShardingService implements KronotopService {
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 JournalMetadata journalMetadata = context.getJournal().getJournalMetadata(JournalName.shardEvents(context.getMember()));
-                CompletableFuture<Void> watcher = tr.watch(journalMetadata.getTrigger());
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, journalMetadata.getTrigger());
                 tr.commit().join();
-                currentWatcher.set(watcher);
                 latch.countDown();
                 try {
                     processShardingTask();
