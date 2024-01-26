@@ -105,6 +105,7 @@ public class MembershipService implements KronotopService {
             throw new KronotopException(e);
         }
     }
+
     /**
      * Unregisters a member from the cluster.
      *

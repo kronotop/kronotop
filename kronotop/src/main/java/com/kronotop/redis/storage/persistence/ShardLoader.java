@@ -20,15 +20,12 @@ import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.Context;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.WrongTypeException;
 
@@ -43,14 +40,13 @@ import java.util.concurrent.CompletionException;
  * It provides methods to load string values and hash values from the subspace into the Shard.
  */
 public final class ShardLoader {
-    private final DirectoryLayer directoryLayer = new DirectoryLayer();
-    private final List<String> rootPath;
+    private final Context context;
     private final Shard shard;
     private Range range;
 
     public ShardLoader(Context context, Shard shard) {
+        this.context = context;
         this.shard = shard;
-        this.rootPath = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().redis().persistence().asList();
     }
 
     /**
@@ -138,26 +134,19 @@ public final class ShardLoader {
      * @param dataStructure the data structure from which values are loaded
      */
     public void load(Transaction tr, DataStructure dataStructure) {
-        List<String> subpath = new ArrayList<>(rootPath);
-        subpath.add(LogicalDatabase.NAME);
-        subpath.add(shard.getId().toString());
-        subpath.add(dataStructure.name().toLowerCase());
-
-        DirectorySubspace subspace;
         try {
-            subspace = directoryLayer.open(tr, subpath).join();
+            DirectorySubspace subspace = context.getDirectoryLayer().openDataStructure(shard.getId(), dataStructure);
+            if (dataStructure.equals(DataStructure.STRING)) {
+                loadStringValues(tr, subspace);
+            } else if (dataStructure.equals(DataStructure.HASH)) {
+                loadHashValues(tr, subspace);
+            }
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
                 return;
             }
             throw new RuntimeException(e);
         }
-        if (dataStructure.equals(DataStructure.STRING)) {
-            loadStringValues(tr, subspace);
-        } else if (dataStructure.equals(DataStructure.HASH)) {
-            loadHashValues(tr, subspace);
-        }
-
         range = null;
     }
 }

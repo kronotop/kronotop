@@ -17,9 +17,7 @@
 package com.kronotop.redis.server;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.storage.BaseStorageTest;
 import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.DataStructure;
@@ -31,8 +29,6 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -100,11 +96,9 @@ public class FlushAllHandlerTest extends BaseStorageTest {
         {
             Database database = context.getFoundationDB();
             database.run(tr -> {
-                for (int i = 0; i < 5; i++) {
-                    List<String> subspace = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().redis().persistence().logicalDatabase(Integer.toString(i)).dataStructure(DataStructure.STRING.name().toLowerCase()).asList();
-                    DirectoryLayer directoryLayer = new DirectoryLayer();
-                    DirectorySubspace directorySubspace = directoryLayer.createOrOpen(tr, subspace).join();
-                    byte[] value = tr.get(directorySubspace.pack("mykey")).join();
+                for (int shardId = 0; shardId < 5; shardId++) {
+                    DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(shardId, DataStructure.STRING);
+                    byte[] value = tr.get(subspace.pack("mykey")).join();
                     assertNull(value);
                 }
                 return null;

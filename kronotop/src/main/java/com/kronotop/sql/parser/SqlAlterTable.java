@@ -60,6 +60,7 @@ public class SqlAlterTable extends SqlDdl {
     public final SqlIdentifier columnName;
     public final SqlIdentifier newColumnName;
     public @Nullable SqlNodeList columnList;
+
     public SqlAlterTable(SqlParserPos pos,
                          SqlIdentifier name,
                          AlterType alterType,

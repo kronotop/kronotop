@@ -17,14 +17,11 @@
 package com.kronotop.redis.storage.persistence;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.Context;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.TransactionSizeLimitExceeded;
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Shard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,23 +56,14 @@ public class Persistence {
         this.context = context;
         this.shard = shard;
 
+        // TODO: Do we need this?
         ReadWriteLock readWriteLock = context.getStripedReadWriteLock().get(PERSISTENCE_LAYOUT_KEY);
         readWriteLock.writeLock().lock();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try {
             for (DataStructure dataStructure : DataStructure.values()) {
-                List<String> subpath = DirectoryLayout.Builder.
-                        clusterName(context.getClusterName()).
-                        internal().
-                        redis().
-                        persistence().
-                        logicalDatabase(LogicalDatabase.NAME).
-                        shardId(shard.getId().toString()).
-                        dataStructure(dataStructure.name().toLowerCase()).
-                        asList();
-                DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
+                DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(shard.getId(), dataStructure);
                 layout.put(dataStructure, new Node(subspace));
             }
-            tr.commit().join();
         } finally {
             readWriteLock.writeLock().unlock();
         }

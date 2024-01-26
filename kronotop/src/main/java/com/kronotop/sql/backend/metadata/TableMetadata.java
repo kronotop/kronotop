@@ -91,7 +91,7 @@ public class TableMetadata {
      *
      * @param oldName The current name of the table.
      * @param newName The new name for the table.
-     * @throws TableNotExistsException    If a table with the old name doesn't exist.
+     * @throws TableNotExistsException     If a table with the old name doesn't exist.
      * @throws TableAlreadyExistsException If a table with the new name already exists.
      */
     public void rename(String oldName, String newName) throws TableNotExistsException, TableAlreadyExistsException {

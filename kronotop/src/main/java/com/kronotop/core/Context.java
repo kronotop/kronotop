@@ -111,4 +111,6 @@ public interface Context {
     void registerCommandMetadata(String command, CommandMetadata metadata);
 
     Map<String, CommandMetadata> getCommandMetadata();
+
+    KronotopDirectoryLayer getDirectoryLayer();
 }

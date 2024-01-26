@@ -20,7 +20,7 @@ import com.kronotop.sql.backend.ddl.model.TableModel;
 
 public class TableWithVersion {
     private final TableModel tableModel;
-    private final  byte[] versionstamp;
+    private final byte[] versionstamp;
 
     public TableWithVersion(TableModel tableModel, byte[] versionstamp) {
         this.tableModel = tableModel;

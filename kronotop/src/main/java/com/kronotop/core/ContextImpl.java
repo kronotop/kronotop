@@ -49,6 +49,7 @@ public class ContextImpl implements Context {
     private final Journal journal;
     private final ConcurrentHashMap<String, CommandMetadata> commandMetadata = new ConcurrentHashMap<>();
     private final Map<String, CommandMetadata> unmodifiableCommandMetadata = Collections.unmodifiableMap(commandMetadata);
+    private final KronotopDirectoryLayer kronotopDirectoryLayer;
 
     public ContextImpl(Config config, Member member, Database database) {
         if (config.hasPath("cluster.name")) {
@@ -62,6 +63,7 @@ public class ContextImpl implements Context {
         this.database = database;
         this.logicalDatabase = new LogicalDatabase();
         this.journal = new Journal(config, database);
+        this.kronotopDirectoryLayer = new KronotopDirectoryLayer(database, clusterName);
     }
 
     @Override
@@ -125,5 +127,10 @@ public class ContextImpl implements Context {
     @Override
     public Map<String, CommandMetadata> getCommandMetadata() {
         return unmodifiableCommandMetadata;
+    }
+
+    @Override
+    public KronotopDirectoryLayer getDirectoryLayer() {
+        return kronotopDirectoryLayer;
     }
 }

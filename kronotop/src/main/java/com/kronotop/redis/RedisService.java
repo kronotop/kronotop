@@ -24,7 +24,6 @@ import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
@@ -41,7 +40,6 @@ import com.kronotop.redis.hash.*;
 import com.kronotop.redis.server.CommandHandler;
 import com.kronotop.redis.server.FlushAllHandler;
 import com.kronotop.redis.server.FlushDBHandler;
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.ShardMaintenanceWorker;
 import com.kronotop.redis.storage.persistence.DataStructure;
@@ -233,17 +231,8 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 context.getLogicalDatabase().getShards().values().forEach(shard -> {
                     for (DataStructure dataStructure : DataStructure.values()) {
-                        List<String> subpath = DirectoryLayout.Builder.
-                                clusterName(context.getClusterName()).
-                                internal().
-                                redis().
-                                persistence().
-                                logicalDatabase(LogicalDatabase.NAME).
-                                shardId(shard.getId().toString()).
-                                dataStructure(dataStructure.name().toLowerCase()).
-                                asList();
                         try {
-                            DirectorySubspace shardSubspace = directoryLayer.open(tr, subpath).join();
+                            DirectorySubspace shardSubspace = context.getDirectoryLayer().openDataStructure(shard.getId(), dataStructure);
                             tr.clear(Range.startsWith(shardSubspace.pack()));
                         } catch (CompletionException e) {
                             if (e.getCause() instanceof NoSuchDirectoryException) {

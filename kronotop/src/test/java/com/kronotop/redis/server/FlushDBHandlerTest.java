@@ -17,11 +17,9 @@
 package com.kronotop.redis.server;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.BaseStorageTest;
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.Shard;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
@@ -32,8 +30,6 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -84,20 +80,13 @@ public class FlushDBHandlerTest extends BaseStorageTest {
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
         }
 
+        RedisService service = context.getService(RedisService.NAME);
+        Shard shard = service.findShard("mykey");
         {
             Database database = context.getFoundationDB();
             database.run(tr -> {
-                List<String> subspace = DirectoryLayout.Builder.
-                        clusterName(context.getClusterName()).
-                        internal().
-                        redis().
-                        persistence().
-                        logicalDatabase(LogicalDatabase.NAME).
-                        dataStructure(DataStructure.STRING.name().toLowerCase()).
-                        asList();
-                DirectoryLayer directoryLayer = new DirectoryLayer();
-                DirectorySubspace directorySubspace = directoryLayer.createOrOpen(tr, subspace).join();
-                byte[] value = tr.get(directorySubspace.pack("mykey")).join();
+                DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(shard.getId(), DataStructure.STRING);
+                byte[] value = tr.get(subspace.pack("mykey")).join();
                 assertNull(value);
                 return null;
             });

@@ -23,7 +23,8 @@ public class TableAlteredEvent extends BaseMetadataEvent {
     private String table;
     private byte[] versionstamp;
 
-    TableAlteredEvent() {}
+    TableAlteredEvent() {
+    }
 
     public TableAlteredEvent(List<String> schema, String table, byte[] versionstamp) {
         super(EventTypes.TABLE_ALTERED);

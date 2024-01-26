@@ -188,9 +188,9 @@ public class SqlMetadataService implements KronotopService {
     /**
      * Retrieves the latest version of a table from the metadata store.
      *
-     * @param tr The FDB transaction.
+     * @param tr     The FDB transaction.
      * @param schema The list of names representing the hierarchy of the schema.
-     * @param table The name of the table to retrieve the latest version for.
+     * @param table  The name of the table to retrieve the latest version for.
      * @return The TableWithVersion object representing the table with the latest version.
      * @throws KronotopException If the table exists but no version is found.
      */

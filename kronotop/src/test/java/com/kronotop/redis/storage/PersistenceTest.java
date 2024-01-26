@@ -16,10 +16,8 @@
 
 package com.kronotop.redis.storage;
 
-import com.apple.foundationdb.Database;
-import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapShardImpl;
@@ -30,7 +28,7 @@ import com.kronotop.redis.storage.persistence.StringKey;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -47,23 +45,8 @@ public class PersistenceTest extends BaseStorageTest {
         persistence.run();
         assertTrue(persistence.isQueueEmpty());
 
-        String subspaceName = DirectoryLayout.Builder.
-                clusterName(context.getClusterName()).
-                internal().
-                redis().
-                persistence().
-                logicalDatabase(LogicalDatabase.NAME).
-                shardId("0").
-                dataStructure(DataStructure.STRING.toString().toLowerCase()).
-                toString();
-
-        Database database = context.getFoundationDB();
-        DirectorySubspace subspace;
-        try (Transaction tr = database.createTransaction()) {
-            subspace = directoryLayer.createOrOpen(tr, Arrays.asList(subspaceName.split("\\."))).join();
-            tr.commit().join();
-        }
-        database.run(tr -> {
+        DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(0, DataStructure.STRING);
+        context.getFoundationDB().run(tr -> {
             byte[] rawValue = tr.get(subspace.pack("key-1")).join();
             assertNotNull(rawValue);
 
@@ -94,24 +77,12 @@ public class PersistenceTest extends BaseStorageTest {
         persistence.run();
         assertTrue(persistence.isQueueEmpty());
 
-        List<String> subpath = DirectoryLayout.Builder.
-                clusterName(context.getClusterName()).
-                internal().
-                redis().
-                persistence().
-                logicalDatabase(LogicalDatabase.NAME).
-                shardId("0").
-                dataStructure(DataStructure.HASH.toString().toLowerCase()).
-                addAll(List.of(hashKey.getKey())).asList();
-
-        Database database = context.getFoundationDB();
-        DirectorySubspace subspace;
-        try (Transaction tr = database.createTransaction()) {
-            subspace = directoryLayer.createOrOpen(tr, subpath).join();
-            tr.commit().join();
-        }
-        database.run(tr -> {
-            byte[] rawValue = tr.get(subspace.pack(hashKey.getField())).join();
+        DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(0, DataStructure.HASH);
+        context.getFoundationDB().run(tr -> {
+            List<String> hashpath = new ArrayList<>(subspace.getPath());
+            hashpath.add(hashKey.getKey());
+            DirectorySubspace hashSubspace = DirectoryLayer.getDefault().createOrOpen(tr, hashpath).join();
+            byte[] rawValue = tr.get(hashSubspace.pack(hashKey.getField())).join();
             assertNotNull(rawValue);
             assertArrayEquals("value".getBytes(), rawValue);
             return null;

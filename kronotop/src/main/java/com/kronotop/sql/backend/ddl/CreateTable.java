@@ -111,10 +111,10 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
     /**
      * Checks for any conflict between the table name and schema name.
      *
-     * @param tr               The transaction to use for the operation.
+     * @param tr         The transaction to use for the operation.
      * @param tableModel The model representing the table to create.
-     *                         It contains information about the table schema, the table name, the SQL query,
-     *                         column definitions, and other properties.
+     *                   It contains information about the table schema, the table name, the SQL query,
+     *                   column definitions, and other properties.
      * @throws TableNameConflictException If the table name conflicts with the schema name.
      */
     private void checkSchemaNameConflict(Transaction tr, TableModel tableModel) throws TableNameConflictException {
@@ -129,10 +129,10 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
     /**
      * Creates a table in the FoundationDB.
      *
-     * @param tr               The transaction to use for the operation.
+     * @param tr         The transaction to use for the operation.
      * @param tableModel The model representing the table to create.
-     *                         It contains information about the table schema, the table name, the SQL query,
-     *                         column definitions, and other properties.
+     *                   It contains information about the table schema, the table name, the SQL query,
+     *                   column definitions, and other properties.
      * @return The result of the transaction, containing the version stamp and the result message.
      * @throws SchemaNotExistsException    If the schema specified by the tableModel does not exist.
      *                                     The schema is checked using the DirectoryLayout.
@@ -168,7 +168,7 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
     /**
      * Creates a table in the FoundationDB.
      *
-     * @param tr               The transaction to use for the operation.
+     * @param tr         The transaction to use for the operation.
      * @param tableModel The model representing the table to create.
      * @return The result of the transaction, containing the version stamp and the result message.
      */
@@ -185,7 +185,7 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
     /**
      * Publishes a table created event to the SQL metadata events journal.
      *
-     * @param result           The result of the transaction, containing the version stamp.
+     * @param result     The result of the transaction, containing the version stamp.
      * @param tableModel The model representing the table that was created.
      */
     private void publishTableCreatedEvent(TransactionResult result, TableModel tableModel) {

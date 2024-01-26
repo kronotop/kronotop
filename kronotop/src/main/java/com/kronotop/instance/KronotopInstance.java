@@ -17,11 +17,8 @@
 package com.kronotop.instance;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.common.KronotopException;
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.*;
 import com.kronotop.core.cluster.Member;
 import com.kronotop.core.cluster.MembershipService;
@@ -32,8 +29,6 @@ import com.kronotop.core.network.AddressUtil;
 import com.kronotop.core.watcher.Watcher;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.storage.LogicalDatabase;
-import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.server.Handlers;
 import com.kronotop.sql.SqlService;
 import com.kronotop.sql.backend.metadata.SqlMetadataService;
@@ -44,9 +39,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletionException;
 
 /*
 It can scarcely be denied that the supreme goal of all theory is to make the irreducible basic elements as simple and as
@@ -146,50 +138,6 @@ public class KronotopInstance {
         this.member = new Member(address, processID);
     }
 
-    private void initializeClusterLayout() {
-        database.run(tr -> {
-            int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
-
-            List<String> shardParent = ClusterLayout.getShards(context).asList();
-            for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                List<String> shardPath = new ArrayList<>(shardParent);
-                shardPath.add(Integer.toString(shardId));
-                try {
-                    DirectoryLayer.getDefault().create(tr, shardPath).join();
-                } catch (CompletionException e) {
-                    if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                        continue;
-                    }
-                    LOGGER.error("Failed to create path: {}: {}", shardPath, e.getMessage());
-                    throw new KronotopException(e);
-                }
-
-                for (DataStructure dataStructure : DataStructure.values()) {
-                    List<String> dataStructurePath = DirectoryLayout.Builder.
-                            clusterName(context.getClusterName()).
-                            internal().
-                            redis().
-                            persistence().
-                            logicalDatabase(LogicalDatabase.NAME).
-                            shardId(Integer.toString(shardId)).
-                            dataStructure(dataStructure.name().toLowerCase()).
-                            asList();
-                    try {
-                        DirectoryLayer.getDefault().create(tr, dataStructurePath).join();
-                    } catch (CompletionException e) {
-                        if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                            continue;
-                        }
-                        LOGGER.error("Failed to create path: {}: {}", dataStructurePath, e.getMessage());
-                        throw new KronotopException(e);
-                    }
-                }
-            }
-
-            return null;
-        });
-    }
-
     /**
      * Starts the Kronotop instance.
      *
@@ -215,7 +163,6 @@ public class KronotopInstance {
         try {
             initializeMember();
             context = new ContextImpl(config, member, database);
-            initializeClusterLayout();
             registerKronotopServices();
             setStatus(KronotopInstanceStatus.RUNNING);
         } catch (Exception e) {
