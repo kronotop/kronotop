@@ -17,6 +17,7 @@
 package com.kronotop.core;
 
 import com.apple.foundationdb.Transaction;
+import com.google.common.io.BaseEncoding;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,7 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * It allows registering a key to be watched and cancelling the watch on a key.
  */
 public class KeyWatcher {
-    private final ConcurrentHashMap<byte[], CompletableFuture<Void>> watchers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CompletableFuture<Void>> watchers = new ConcurrentHashMap<>();
+
+    private String stringifyKey(byte[] key) {
+        return BaseEncoding.base64().encode(key);
+    }
 
     /**
      * Watches a key in the transaction and returns a CompletableFuture that completes when the key changes or is deleted.
@@ -37,7 +42,7 @@ public class KeyWatcher {
      * @return a CompletableFuture that completes when the key changes or is deleted
      */
     public CompletableFuture<Void> watch(Transaction tr, byte[] key) {
-        return watchers.compute(key, (k, watcher) -> {
+        return watchers.compute(stringifyKey(key), (k, watcher) -> {
             if (watcher != null) {
                 watcher.cancel(true);
             }
@@ -51,7 +56,7 @@ public class KeyWatcher {
      * @param key the key to unwatch
      */
     public void unwatch(byte[] key) {
-        watchers.computeIfPresent(key, (k, watcher) -> {
+        watchers.computeIfPresent(stringifyKey(key), (k, watcher) -> {
             watcher.cancel(true);
             return null;
         });
