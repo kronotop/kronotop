@@ -45,7 +45,7 @@ public class KronotopInstanceStarter {
             kronotopInstance.start();
             greeting(kronotopInstance.getMember());
         } catch (Exception e) {
-            LOGGER.error("Failed to run Kronotop instance", e);
+            LOGGER.error("Failed to start Kronotop instance", e);
             System.exit(1);
         }
     }

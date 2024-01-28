@@ -190,9 +190,14 @@ public class KronotopInstance {
             // Kronotop instance is already stopped
             return;
         }
+        LOGGER.info("Shutting down Kronotop");
+        if (context == null) {
+            // Even context has not been set. Quit now. There is nothing to do. Possible error:
+            // com.apple.foundationdb.FDBException: No cluster file found in current directory or default location
+            return;
+        }
 
         try {
-            LOGGER.info("Shutting down Kronotop");
             for (KronotopService service : context.getServices()) {
                 try {
                     service.shutdown();
