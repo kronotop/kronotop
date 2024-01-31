@@ -259,14 +259,13 @@ public class SqlMetadataService implements KronotopService {
     }
 
     /**
-     * Checks if the specified schema exists in the metadata store. If it exists, returns the corresponding SchemaMetadata object.
-     * If it does not exist, throws a SchemaNotExistsException.
+     * Checks if a schema exists in the metadata store and loads its metadata if it does.
      *
      * @param schema The name of the schema to check and load.
-     * @return The SchemaMetadata object representing the found schema metadata.
+     * @return The SchemaMetadata object representing the metadata for the schema.
      * @throws SchemaNotExistsException If the schema does not exist in the metadata store.
      */
-    private SchemaMetadata checkAndLoadSchema(String schema) throws SchemaNotExistsException {
+    public SchemaMetadata checkAndLoadSchema(String schema) throws SchemaNotExistsException {
         // this method is not thread safe
         if (!metadata.has(schema)) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {

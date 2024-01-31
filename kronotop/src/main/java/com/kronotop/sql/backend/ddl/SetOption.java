@@ -24,6 +24,7 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.ExecutionContext;
 import com.kronotop.sql.Executor;
 import com.kronotop.sql.SqlService;
+import com.kronotop.sql.backend.metadata.SchemaNotExistsException;
 import io.netty.util.Attribute;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -39,13 +40,18 @@ public class SetOption implements Executor<SqlNode> {
 
     private RedisMessage setSessionScope(ExecutionContext context, SqlSetOption sqlSetOption) {
         SqlIdentifier value = (SqlIdentifier) sqlSetOption.getValue();
-        if (value == null) {
+        if (value == null || value.names.isEmpty()) {
             return new ErrorRedisMessage(service.formatErrorMessage("value cannot be empty"));
         }
 
         String key = String.join(".", sqlSetOption.getName().names);
         if (key.equalsIgnoreCase(Key.SCHEMA.toString())) {
-            context.getResponse().getContext().channel().attr(ChannelAttributes.SCHEMA).set(String.join(".", value.names));
+            try {
+                service.getMetadataService().checkAndLoadSchema(value.getSimple());
+            } catch (SchemaNotExistsException e) {
+                return new ErrorRedisMessage(e.getMessage());
+            }
+            context.getResponse().getContext().channel().attr(ChannelAttributes.SCHEMA).set(value.getSimple());
         } else {
             return new ErrorRedisMessage("Unknown key: " + key);
         }

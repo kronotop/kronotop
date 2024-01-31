@@ -25,12 +25,27 @@ import com.kronotop.sql.BaseHandlerTest;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class SetOptionTest extends BaseHandlerTest {
+
+    @BeforeEach
+    public void createSchema() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.sql("CREATE SCHEMA foobar").encode(buf);
+        channel.writeInbound(buf);
+        Object response = channel.readOutbound();
+
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+        assertEquals(Response.OK, actualMessage.content());
+    }
 
     @Test
     public void test_ALTER_SESSION_SET_schema() {
@@ -46,6 +61,22 @@ class SetOptionTest extends BaseHandlerTest {
         assertEquals(Response.OK, actualMessage.content());
 
         assertEquals("foobar", channel.attr(ChannelAttributes.SCHEMA).get());
+    }
+
+    @Test
+    public void test_ALTER_SESSION_SET_non_existing_schema() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.sql("ALTER SESSION SET schema = barfoo").encode(buf);
+        channel.writeInbound(buf);
+        Object response = channel.readOutbound();
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+        assertEquals("Schema 'barfoo' not exists", actualMessage.content());
+
+        assertEquals("public", channel.attr(ChannelAttributes.SCHEMA).get());
     }
 
     @Test
