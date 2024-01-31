@@ -50,11 +50,9 @@ public class ChannelAttributes {
 
     public static final AttributeKey<Boolean> REDIS_MULTI_DISCARDED = AttributeKey.valueOf("corrupt_redis_multi");
 
-    public static final AttributeKey<KronotopMessage<?>> CURRENT_KRONOTOP_MESSAGE = AttributeKey.valueOf("current_kronotop_message");
-
     public static final AttributeKey<HashMap<String, Long>> WATCHED_KEYS = AttributeKey.valueOf("watched_keys");
 
     public static final AttributeKey<Long> CLIENT_ID = AttributeKey.valueOf("client_id");
 
-    public static final AttributeKey<List<String>> CURRENT_SCHEMA = AttributeKey.valueOf("current_schema");
+    public static final AttributeKey<String> SCHEMA = AttributeKey.valueOf("schema");
 }

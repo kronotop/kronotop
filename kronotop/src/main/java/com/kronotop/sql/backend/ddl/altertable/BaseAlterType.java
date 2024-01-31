@@ -30,8 +30,6 @@ import com.kronotop.sql.backend.metadata.events.EventTypes;
 import com.kronotop.sql.backend.metadata.events.TableAlteredEvent;
 import com.kronotop.sql.parser.SqlAlterTable;
 
-import java.util.List;
-
 class BaseAlterType {
     protected final SqlService service;
 
@@ -59,7 +57,7 @@ class BaseAlterType {
      * @param sqlAlterTable the SQL ALTER TABLE object representing the table alteration
      */
     void publishTableAlteredEvent(TransactionResult result, ExecutionContext context, SqlAlterTable sqlAlterTable) {
-        List<String> schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
+        String schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
         String table = service.getTableNameFromNames(sqlAlterTable.name.names);
         byte[] versionstamp = result.getVersionstamp().join();
         byte[] tableVersion = Versionstamp.complete(versionstamp).getBytes();

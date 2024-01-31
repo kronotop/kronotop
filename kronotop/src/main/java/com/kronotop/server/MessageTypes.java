@@ -31,9 +31,7 @@ import com.kronotop.redis.server.protocol.FlushAllMessage;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
 import com.kronotop.redis.string.protocol.*;
 import com.kronotop.redis.transactions.protocol.*;
-import com.kronotop.sql.protocol.SqlGetSchemaMessage;
 import com.kronotop.sql.protocol.SqlMessage;
-import com.kronotop.sql.protocol.SqlSetSchemaMessage;
 import io.netty.util.AttributeKey;
 
 /**
@@ -111,6 +109,4 @@ public class MessageTypes {
     public static final AttributeKey<HMGetMessage> HMGET = AttributeKey.valueOf(HMGetMessage.COMMAND);
 
     public static final AttributeKey<SqlMessage> SQL = AttributeKey.valueOf(SqlMessage.COMMAND);
-    public static final AttributeKey<SqlSetSchemaMessage> SQLSETSCHEMA = AttributeKey.valueOf(SqlSetSchemaMessage.COMMAND);
-    public static final AttributeKey<SqlGetSchemaMessage> SQLGETSCHEMA = AttributeKey.valueOf(SqlGetSchemaMessage.COMMAND);
 }

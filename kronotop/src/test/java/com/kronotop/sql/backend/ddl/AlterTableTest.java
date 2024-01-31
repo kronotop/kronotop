@@ -51,10 +51,10 @@ public class AlterTableTest extends BaseHandlerTest {
 
         SqlMetadataService metadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
-            List<String> oldTablePath = metadataService.getSchemaLayout(List.of("public")).tables().add("users").asList();
+            List<String> oldTablePath = metadataService.getSchemaLayout("public").tables().add("users").asList();
             assertFalse(DirectoryLayer.getDefault().exists(tr, oldTablePath).join());
 
-            List<String> newTablePath = metadataService.getSchemaLayout(List.of("public")).tables().add("foobar").asList();
+            List<String> newTablePath = metadataService.getSchemaLayout("public").tables().add("foobar").asList();
             assertTrue(DirectoryLayer.getDefault().exists(tr, newTablePath).join());
         }
     }
@@ -114,7 +114,7 @@ public class AlterTableTest extends BaseHandlerTest {
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr ->
-                sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users"));
+                sqlMetadataService.getLatestTableVersion(tr, "public", "users"));
 
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
         Map<String, ColumnModel> items = new HashMap<>();
@@ -167,7 +167,7 @@ public class AlterTableTest extends BaseHandlerTest {
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr ->
-                sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users"));
+                sqlMetadataService.getLatestTableVersion(tr, "public", "users"));
 
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
         Map<String, ColumnModel> items = new HashMap<>();
@@ -200,7 +200,7 @@ public class AlterTableTest extends BaseHandlerTest {
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr ->
-                sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users"));
+                sqlMetadataService.getLatestTableVersion(tr, "public", "users"));
 
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
         assertEquals(1, columns.size());
@@ -236,7 +236,7 @@ public class AlterTableTest extends BaseHandlerTest {
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr ->
-                sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users"));
+                sqlMetadataService.getLatestTableVersion(tr, "public", "users"));
 
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
         assertEquals(2, columns.size());

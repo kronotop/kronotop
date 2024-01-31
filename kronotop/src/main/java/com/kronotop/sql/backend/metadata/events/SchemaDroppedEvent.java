@@ -16,8 +16,6 @@
 
 package com.kronotop.sql.backend.metadata.events;
 
-import java.util.List;
-
 /**
  * The SchemaDroppedEvent class represents an event that occurs when a schema is dropped.
  * <p>
@@ -28,17 +26,17 @@ import java.util.List;
  * @see BaseMetadataEvent
  */
 public class SchemaDroppedEvent extends BaseMetadataEvent {
-    private List<String> schema;
+    private String schema;
 
     SchemaDroppedEvent() {
     }
 
-    public SchemaDroppedEvent(List<String> schema) {
+    public SchemaDroppedEvent(String schema) {
         super(EventTypes.SCHEMA_DROPPED);
         this.schema = schema;
     }
 
-    public List<String> getSchema() {
+    public String getSchema() {
         return schema;
     }
 }

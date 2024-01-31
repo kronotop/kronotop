@@ -14,27 +14,24 @@
  * limitations under the License.
  */
 
-package com.kronotop.sql.protocol;
+package com.kronotop.sql.backend.dml;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.sql.ExecutionContext;
+import com.kronotop.sql.Executor;
+import com.kronotop.sql.SqlService;
+import com.kronotop.sql.backend.FoundationDBBackend;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.validate.SqlValidatorException;
 
-import java.util.List;
+public class InsertInto extends FoundationDBBackend implements Executor<SqlNode> {
 
-public class SqlGetSchemaMessage implements KronotopMessage<Void> {
-    public static final String COMMAND = "SQL.GET-SCHEMA";
-    public static final int MINIMUM_PARAMETER_COUNT = 0;
-    public static final int MAXIMUM_PARAMETER_COUNT = 0;
-
-    public SqlGetSchemaMessage() {
+    public InsertInto(SqlService service) {
+        super(service);
     }
 
     @Override
-    public Void getKey() {
-        return null;
-    }
-
-    @Override
-    public List<Void> getKeys() {
+    public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException {
         return null;
     }
 }

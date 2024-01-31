@@ -27,7 +27,7 @@ import java.util.List;
  */
 public class TableModel {
     private SqlKind operator;
-    private List<String> schema;
+    private String schema;
     private String table;
     private String query;
     private List<ColumnModel> columnList = new ArrayList<>();
@@ -50,11 +50,11 @@ public class TableModel {
         this.operator = operator;
     }
 
-    public List<String> getSchema() {
+    public String getSchema() {
         return schema;
     }
 
-    public void setSchema(List<String> schema) {
+    public void setSchema(String schema) {
         this.schema = schema;
     }
 

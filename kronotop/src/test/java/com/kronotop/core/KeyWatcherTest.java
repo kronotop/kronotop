@@ -20,7 +20,10 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
@@ -44,7 +47,7 @@ class KeyWatcherTest extends BaseFoundationDBTest {
             @Override
             public void run() {
                 try (Transaction tr = database.createTransaction()) {
-                    tr.set (key, "foobar".getBytes());
+                    tr.set(key, "foobar".getBytes());
                     tr.commit().join();
                 }
             }

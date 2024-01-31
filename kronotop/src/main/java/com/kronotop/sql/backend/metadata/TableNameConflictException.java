@@ -16,10 +16,8 @@
 
 package com.kronotop.sql.backend.metadata;
 
-import java.util.List;
-
 public class TableNameConflictException extends Exception {
-    public TableNameConflictException(String table, List<String> schema) {
-        super(String.format("Table name '%s' conflicts with schema name '%s'", table, String.join(".", schema)));
+    public TableNameConflictException(String table, String schema) {
+        super(String.format("Table name '%s' conflicts with schema name '%s'", table, schema));
     }
 }

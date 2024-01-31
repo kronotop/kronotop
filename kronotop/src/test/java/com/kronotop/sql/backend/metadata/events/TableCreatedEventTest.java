@@ -20,14 +20,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 public class TableCreatedEventTest {
     @Test
     public void encode_decode_success() throws JsonProcessingException {
-        List<String> schema = List.of("foobar", "barfoo");
+        String schema = "foobar";
         String table = "mytable";
         byte[] versionstamp = new byte[]{1, 2, 3};
         TableCreatedEvent schemaCreatedEvent = new TableCreatedEvent(schema, table, versionstamp);

@@ -44,7 +44,7 @@ public class DropColumn extends BaseAlterType implements AlterType {
         assert sqlAlterTable.columnList != null;
 
         String table = service.getTableNameFromNames(sqlAlterTable.name.names);
-        List<String> schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
+        String schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
         DirectorySubspace subspace = service.openTableSubspace(tr, schema, table);
         TableModel tableModel = service.getLatestTableModel(tr, subspace);
 

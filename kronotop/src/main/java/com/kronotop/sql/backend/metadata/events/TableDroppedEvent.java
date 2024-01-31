@@ -16,8 +16,6 @@
 
 package com.kronotop.sql.backend.metadata.events;
 
-import java.util.List;
-
 /**
  * The TableDroppedEvent class represents an event that occurs when a table is dropped from a schema.
  * It extends the BaseMetadataEvent class to inherit basic event functionality.
@@ -27,19 +25,19 @@ import java.util.List;
  * It provides methods to retrieve the schema and table name associated with the event.
  */
 public class TableDroppedEvent extends BaseMetadataEvent {
-    private List<String> schema;
+    private String schema;
     private String table;
 
     TableDroppedEvent() {
     }
 
-    public TableDroppedEvent(List<String> schema, String name) {
+    public TableDroppedEvent(String schema, String name) {
         super(EventTypes.TABLE_DROPPED);
         this.schema = schema;
         this.table = name;
     }
 
-    public List<String> getSchema() {
+    public String getSchema() {
         return schema;
     }
 

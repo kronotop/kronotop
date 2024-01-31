@@ -75,15 +75,10 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
     private TableModel prepareTableModel(ExecutionContext context, SqlCreateTable sqlCreateTable) {
         TableModel tableModel = new TableModel();
 
-        List<String> names = new ArrayList<>();
-        if (sqlCreateTable.name.names.size() == 1) {
-            // No schema in names
-            names.addAll(context.getSchema());
-        }
-        names.addAll(sqlCreateTable.name.names);
-
-        tableModel.setSchema(names.subList(0, names.size() - 1));
-        tableModel.setTable(names.get(names.size() - 1));
+        String schema = service.getSchemaFromNames(context, sqlCreateTable.name.names);
+        String table = service.getTableNameFromNames(sqlCreateTable.name.names);
+        tableModel.setSchema(schema);
+        tableModel.setTable(table);
         tableModel.setOperator(sqlCreateTable.getOperator().kind);
         tableModel.setQuery(sqlCreateTable.toString());
         tableModel.setReplace(sqlCreateTable.getReplace());
@@ -120,9 +115,7 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
     private void checkSchemaNameConflict(Transaction tr, TableModel tableModel) throws TableNameConflictException {
         DirectoryLayout schemaLayout = service.getMetadataService().getSchemaLayout(tableModel.getSchema());
         if (DirectoryLayer.getDefault().exists(tr, schemaLayout.add(tableModel.getTable()).asList()).join()) {
-            List<String> conflictSchema = new ArrayList<>(tableModel.getSchema());
-            conflictSchema.add(tableModel.getTable());
-            throw new TableNameConflictException(tableModel.getTable(), conflictSchema);
+            throw new TableNameConflictException(tableModel.getTable(), tableModel.getSchema());
         }
     }
 

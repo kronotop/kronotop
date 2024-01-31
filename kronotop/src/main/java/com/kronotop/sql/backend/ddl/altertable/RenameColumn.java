@@ -40,7 +40,7 @@ public class RenameColumn extends BaseAlterType implements AlterType {
     @Override
     public RedisMessage alter(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable) throws SqlExecutionException {
         String table = service.getTableNameFromNames(sqlAlterTable.name.names);
-        List<String> schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
+        String schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
         DirectorySubspace subspace = service.openTableSubspace(tr, schema, table);
         TableModel tableModel = service.getLatestTableModel(tr, subspace);
 

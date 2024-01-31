@@ -37,7 +37,6 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.ddl.SqlDropTable;
 import org.apache.calcite.sql.validate.SqlValidatorException;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
@@ -47,8 +46,8 @@ public class DropTable extends FoundationDBBackend implements Executor<SqlNode> 
         super(service);
     }
 
-    private RedisMessage dropTable(Transaction tr, List<String> names, String table, boolean ifExists) {
-        List<String> subpath = service.getMetadataService().getSchemaLayout(names).tables().add(table).asList();
+    private RedisMessage dropTable(Transaction tr, String schema, String table, boolean ifExists) {
+        List<String> subpath = service.getMetadataService().getSchemaLayout(schema).tables().add(table).asList();
         try {
             DirectoryLayer.getDefault().remove(tr, subpath).join();
         } catch (CompletionException e) {
@@ -64,7 +63,7 @@ public class DropTable extends FoundationDBBackend implements Executor<SqlNode> 
         }
 
         // Trigger the other nodes
-        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_DROPPED, new TableDroppedEvent(names, table));
+        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_DROPPED, new TableDroppedEvent(schema, table));
         service.getContext().getJournal().getPublisher().publish(tr, JournalName.sqlMetadataEvents(), broadcastEvent);
 
         return new SimpleStringRedisMessage(Response.OK);
@@ -73,13 +72,8 @@ public class DropTable extends FoundationDBBackend implements Executor<SqlNode> 
     @Override
     public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException {
         SqlDropTable dropTable = (SqlDropTable) node;
-        List<String> names = new ArrayList<>(dropTable.name.names);
-        List<String> schema = names.subList(0, names.size() - 1);
-        if (schema.isEmpty()) {
-            schema = context.getSchema();
-        }
-        String table = names.get(names.size() - 1);
-        List<String> finalSchema = schema;
-        return service.getContext().getFoundationDB().run(tr -> dropTable(tr, finalSchema, table, dropTable.ifExists));
+        String schema = service.getSchemaFromNames(context, dropTable.name.names);
+        String table = dropTable.name.names.get(dropTable.name.names.size() - 1);
+        return service.getContext().getFoundationDB().run(tr -> dropTable(tr, schema, table, dropTable.ifExists));
     }
 }

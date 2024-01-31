@@ -53,9 +53,9 @@ public class CreateSchemaTest extends BaseHandlerTest {
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
-        assertInstanceOf(SimpleStringRedisMessage.class, response);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-        assertEquals(Response.OK, actualMessage.content());
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+        assertEquals("SQL Sub-schemas are not allowed", actualMessage.content());
     }
 
     @Test

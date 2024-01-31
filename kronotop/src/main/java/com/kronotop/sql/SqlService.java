@@ -39,7 +39,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
 import java.util.HashMap;
-import java.util.List;
 
 /*
 Imagination is more important than knowledge. Knowledge is limited. Imagination encircles the world.
@@ -66,10 +65,9 @@ public class SqlService extends CommandHandlerService implements KronotopService
         ddlExecutors.put(SqlKind.DROP_SCHEMA, new DropSchema(this));
         ddlExecutors.put(SqlKind.DROP_TABLE, new DropTable(this));
         ddlExecutors.put(SqlKind.ALTER_TABLE, new AlterTable(this));
+        ddlExecutors.put(SqlKind.SET_OPTION, new SetOption(this));
 
         registerHandler(new SqlHandler(this));
-        registerHandler(new SqlSetSchemaHandler(this));
-        registerHandler(new SqlGetSchemaHandler(this));
     }
 
     /**
@@ -85,11 +83,11 @@ public class SqlService extends CommandHandlerService implements KronotopService
      * @param names   the list of names representing the hierarchy to search for the schema
      * @return the list of schema names
      */
-    public List<String> getSchemaFromNames(ExecutionContext context, ImmutableList<String> names) {
+    public String getSchemaFromNames(ExecutionContext context, ImmutableList<String> names) {
         if (names.size() == 1) {
             return context.getSchema();
         } else {
-            return names.subList(0, names.size() - 1);
+            return names.get(0);
         }
     }
 
@@ -111,7 +109,7 @@ public class SqlService extends CommandHandlerService implements KronotopService
         return metadataService;
     }
 
-    public DirectorySubspace openTableSubspace(Transaction tr, List<String> schema, String table) {
+    public DirectorySubspace openTableSubspace(Transaction tr, String schema, String table) {
         DirectoryLayout tableLayout = metadataService.getSchemaLayout(schema).tables().add(table);
         return DirectoryLayer.getDefault().open(tr, tableLayout.asList()).join();
     }

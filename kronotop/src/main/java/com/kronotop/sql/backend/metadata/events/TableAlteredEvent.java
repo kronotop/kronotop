@@ -16,24 +16,22 @@
 
 package com.kronotop.sql.backend.metadata.events;
 
-import java.util.List;
-
 public class TableAlteredEvent extends BaseMetadataEvent {
-    private List<String> schema;
+    private String schema;
     private String table;
     private byte[] versionstamp;
 
     TableAlteredEvent() {
     }
 
-    public TableAlteredEvent(List<String> schema, String table, byte[] versionstamp) {
+    public TableAlteredEvent(String schema, String table, byte[] versionstamp) {
         super(EventTypes.TABLE_ALTERED);
         this.schema = schema;
         this.table = table;
         this.versionstamp = versionstamp;
     }
 
-    public List<String> getSchema() {
+    public String getSchema() {
         return schema;
     }
 

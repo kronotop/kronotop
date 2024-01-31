@@ -36,7 +36,7 @@ public class OptimizerUnitTest {
     @BeforeAll
     static void setUp() {
         TableModel tableModel = new TableModel();
-        tableModel.setSchema(List.of("myschema"));
+        tableModel.setSchema("myschema");
         tableModel.setTable("mytable");
         ColumnModel columnModel = new ColumnModel();
         columnModel.setNames(List.of("myfield"));

@@ -35,7 +35,6 @@ import com.kronotop.sql.backend.metadata.events.SchemaCreatedEvent;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.ddl.SqlCreateSchema;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
@@ -49,21 +48,21 @@ public class CreateSchema extends FoundationDBBackend implements Executor<SqlNod
         super(service);
     }
 
-    private RedisMessage createSchemaHierarchy(Transaction tr, List<String> names, boolean ifNotExists) {
-        List<String> subpath = service.getMetadataService().getSchemaLayout(names).asList();
+    private RedisMessage createSchemaHierarchy(Transaction tr, String schema, boolean ifNotExists) {
+        List<String> subpath = service.getMetadataService().getSchemaLayout(schema).asList();
         try {
             DirectoryLayer.getDefault().create(tr, subpath).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
                 if (!ifNotExists) {
-                    return new ErrorRedisMessage(String.format("Schema '%s' already exists", String.join(".", names)));
+                    return new ErrorRedisMessage(String.format("Schema '%s' already exists", schema));
                 }
             }
             throw new KronotopException(e);
         }
 
         // Trigger the other nodes
-        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.SCHEMA_CREATED, new SchemaCreatedEvent(names));
+        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.SCHEMA_CREATED, new SchemaCreatedEvent(schema));
         service.getContext().getJournal().getPublisher().publish(tr, JournalName.sqlMetadataEvents(), broadcastEvent);
 
         return new SimpleStringRedisMessage(Response.OK);
@@ -72,7 +71,13 @@ public class CreateSchema extends FoundationDBBackend implements Executor<SqlNod
     @Override
     public RedisMessage execute(ExecutionContext context, SqlNode node) {
         SqlCreateSchema createSchema = (SqlCreateSchema) node;
-        List<String> names = new ArrayList<>(createSchema.name.names);
-        return service.getContext().getFoundationDB().run(tr -> createSchemaHierarchy(tr, names, createSchema.ifNotExists));
+        if (createSchema.name.names.isEmpty()) {
+            return new ErrorRedisMessage(service.formatErrorMessage("schema is not defined"));
+        }
+        if (createSchema.name.names.size() > 1) {
+            return new ErrorRedisMessage(service.formatErrorMessage("Sub-schemas are not allowed"));
+        }
+        String schema = createSchema.name.names.get(0);
+        return service.getContext().getFoundationDB().run(tr -> createSchemaHierarchy(tr, schema, createSchema.ifNotExists));
     }
 }

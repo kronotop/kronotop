@@ -16,16 +16,33 @@
 
 package com.kronotop.sql;
 
-import java.util.List;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 
 public class ExecutionContext {
-    private List<String> schema;
+    private final Request request;
+    private final Response response;
+    private String schema;
 
-    public List<String> getSchema() {
+    public ExecutionContext(Request request, Response response) {
+        this.request = request;
+        this.response = response;
+    }
+
+    public String getSchema() {
+        // TODO: Remove this
         return schema;
     }
 
-    public void setSchema(List<String> schema) {
+    public void setSchema(String schema) {
         this.schema = schema;
+    }
+
+    public Response getResponse() {
+        return response;
+    }
+
+    public Request getRequest() {
+        return request;
     }
 }

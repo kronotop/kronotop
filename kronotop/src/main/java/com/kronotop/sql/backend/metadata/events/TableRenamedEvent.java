@@ -16,13 +16,11 @@
 
 package com.kronotop.sql.backend.metadata.events;
 
-import java.util.List;
-
 /**
  * The TableRenamedEvent class represents an event that occurs when a table is renamed.
  */
 public class TableRenamedEvent extends BaseMetadataEvent {
-    private List<String> schema;
+    private String schema;
     private String oldName;
     private String newName;
     private byte[] versionstamp;
@@ -30,7 +28,7 @@ public class TableRenamedEvent extends BaseMetadataEvent {
     TableRenamedEvent() {
     }
 
-    public TableRenamedEvent(List<String> schema, String oldName, String newName, byte[] versionstamp) {
+    public TableRenamedEvent(String schema, String oldName, String newName, byte[] versionstamp) {
         super(EventTypes.TABLE_RENAMED);
         this.schema = schema;
         this.oldName = oldName;
@@ -38,7 +36,7 @@ public class TableRenamedEvent extends BaseMetadataEvent {
         this.versionstamp = versionstamp;
     }
 
-    public List<String> getSchema() {
+    public String getSchema() {
         return schema;
     }
 

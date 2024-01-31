@@ -45,7 +45,7 @@ public class KronotopTable extends AbstractTable implements ScannableTable {
         return tableModel.getTable();
     }
 
-    public List<String> getSchema() {
+    public String getSchema() {
         return tableModel.getSchema();
     }
 

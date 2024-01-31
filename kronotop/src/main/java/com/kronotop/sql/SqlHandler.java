@@ -46,9 +46,9 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
             SqlNode sqlTree = Parser.parse(sqlMessage.getQuery());
 
             // DDL Commands
-            ExecutionContext executionContext = new ExecutionContext();
-            List<String> currentSchema = request.getContext().channel().attr(ChannelAttributes.CURRENT_SCHEMA).get();
-            executionContext.setSchema(currentSchema);
+            ExecutionContext executionContext = new ExecutionContext(request, response);
+            String schema = request.getContext().channel().attr(ChannelAttributes.SCHEMA).get();
+            executionContext.setSchema(schema);
 
             RedisMessage result;
             Executor<SqlNode> executor = service.ddlExecutors.get(sqlTree.getKind());

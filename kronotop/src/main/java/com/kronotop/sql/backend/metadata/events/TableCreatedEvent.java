@@ -16,8 +16,6 @@
 
 package com.kronotop.sql.backend.metadata.events;
 
-import java.util.List;
-
 /**
  * The TableCreatedEvent class represents an event that is triggered when a table is created in the system.
  * <p>
@@ -25,21 +23,21 @@ import java.util.List;
  * It contains information about the schema, table name, and versionstamp of the created table.
  */
 public class TableCreatedEvent extends BaseMetadataEvent {
-    private List<String> schema;
+    private String schema;
     private String table;
     private byte[] versionstamp;
 
     TableCreatedEvent() {
     }
 
-    public TableCreatedEvent(List<String> schema, String name, byte[] versionstamp) {
+    public TableCreatedEvent(String schema, String name, byte[] versionstamp) {
         super(EventTypes.TABLE_CREATED);
         this.schema = schema;
         this.table = name;
         this.versionstamp = versionstamp;
     }
 
-    public List<String> getSchema() {
+    public String getSchema() {
         return schema;
     }
 

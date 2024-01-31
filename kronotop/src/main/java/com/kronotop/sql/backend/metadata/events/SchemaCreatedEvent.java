@@ -17,8 +17,6 @@
 package com.kronotop.sql.backend.metadata.events;
 
 
-import java.util.List;
-
 /**
  * The SchemaCreatedEvent class represents an event that is triggered when a schema is created.
  * <p>
@@ -29,17 +27,17 @@ import java.util.List;
  * The event type is set to EventTypes.SCHEMA_CREATED.
  */
 public class SchemaCreatedEvent extends BaseMetadataEvent {
-    private List<String> schema;
+    private String schema;
 
     SchemaCreatedEvent() {
     }
 
-    public SchemaCreatedEvent(List<String> schema) {
+    public SchemaCreatedEvent(String schema) {
         super(EventTypes.SCHEMA_CREATED);
         this.schema = schema;
     }
 
-    public List<String> getSchema() {
+    public String getSchema() {
         return schema;
     }
 }

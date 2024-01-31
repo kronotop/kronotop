@@ -37,7 +37,6 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.ddl.SqlDropSchema;
 import org.apache.calcite.sql.validate.SqlValidatorException;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
@@ -51,8 +50,8 @@ public class DropSchema extends FoundationDBBackend implements Executor<SqlNode>
         super(service);
     }
 
-    private RedisMessage dropSchemaHierarchy(Transaction tr, List<String> names, boolean ifExists) {
-        List<String> subpath = service.getMetadataService().getSchemaLayout(names).asList();
+    private RedisMessage dropSchemaHierarchy(Transaction tr, String schema, boolean ifExists) {
+        List<String> subpath = service.getMetadataService().getSchemaLayout(schema).asList();
         try {
             DirectoryLayer.getDefault().remove(tr, subpath).join();
         } catch (CompletionException e) {
@@ -60,7 +59,7 @@ public class DropSchema extends FoundationDBBackend implements Executor<SqlNode>
                 if (ifExists) {
                     return new SimpleStringRedisMessage(Response.OK);
                 } else {
-                    Throwable throwable = new SchemaNotExistsException(String.join(".", names));
+                    Throwable throwable = new SchemaNotExistsException(schema);
                     return new ErrorRedisMessage(throwable.getMessage());
                 }
             }
@@ -68,7 +67,7 @@ public class DropSchema extends FoundationDBBackend implements Executor<SqlNode>
         }
 
         // Trigger the other nodes
-        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.SCHEMA_DROPPED, new SchemaDroppedEvent(names));
+        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.SCHEMA_DROPPED, new SchemaDroppedEvent(schema));
         service.getContext().getJournal().getPublisher().publish(tr, JournalName.sqlMetadataEvents(), broadcastEvent);
 
         return new SimpleStringRedisMessage(Response.OK);
@@ -77,7 +76,13 @@ public class DropSchema extends FoundationDBBackend implements Executor<SqlNode>
     @Override
     public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException {
         SqlDropSchema dropSchema = (SqlDropSchema) node;
-        List<String> names = new ArrayList<>(dropSchema.name.names);
-        return service.getContext().getFoundationDB().run(tr -> dropSchemaHierarchy(tr, names, dropSchema.ifExists));
+        if (dropSchema.name.names.isEmpty()) {
+            return new ErrorRedisMessage(service.formatErrorMessage("schema is not defined"));
+        }
+        if (dropSchema.name.names.size() > 1) {
+            return new ErrorRedisMessage(service.formatErrorMessage("Sub-schemas are not allowed"));
+        }
+        String schema = dropSchema.name.names.get(0);
+        return service.getContext().getFoundationDB().run(tr -> dropSchemaHierarchy(tr, schema, dropSchema.ifExists));
     }
 }

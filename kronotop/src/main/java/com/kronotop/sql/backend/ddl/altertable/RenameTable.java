@@ -38,7 +38,6 @@ import com.kronotop.sql.backend.metadata.events.EventTypes;
 import com.kronotop.sql.backend.metadata.events.TableRenamedEvent;
 import com.kronotop.sql.parser.SqlAlterTable;
 
-import java.util.List;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -67,7 +66,7 @@ public class RenameTable implements AlterType {
             throw new SqlExecutionException(new TableAlreadyExistsException(newTable));
         }
 
-        List<String> schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
+        String schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
         DirectoryLayout oldTableLayout = service.getMetadataService().getSchemaLayout(schema).tables().add(table);
         DirectoryLayout nextTableLayout = service.getMetadataService().getSchemaLayout(schema).tables().add(newTable);
 
@@ -101,7 +100,7 @@ public class RenameTable implements AlterType {
     }
 
     public void notifyCluster(TransactionResult result, ExecutionContext context, SqlAlterTable sqlAlterTable) {
-        List<String> schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
+        String schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
         String oldTableName = service.getTableNameFromNames(sqlAlterTable.name.names);
         String newTableName = sqlAlterTable.newTableName.getSimple();
         byte[] versionstamp = result.getVersionstamp().join();

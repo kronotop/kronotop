@@ -34,7 +34,6 @@ import org.apache.calcite.sql.ddl.SqlColumnDeclaration;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 
 /**
  * AddColumn is a class that represents the ALTER TABLE operation to add a column to a table in the database.
@@ -57,7 +56,7 @@ public class AddColumn extends BaseAlterType implements AlterType {
         assert sqlAlterTable.columnList != null;
 
         String table = service.getTableNameFromNames(sqlAlterTable.name.names);
-        List<String> schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
+        String schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
         DirectorySubspace subspace = service.openTableSubspace(tr, schema, table);
         TableModel tableModel = service.getLatestTableModel(tr, subspace);
 

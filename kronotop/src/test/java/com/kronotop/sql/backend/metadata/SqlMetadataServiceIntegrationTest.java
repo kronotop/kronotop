@@ -29,7 +29,6 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -43,7 +42,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("CREATE SCHEMA public.foobar.barfoo").encode(buf);
+        cmd.sql("CREATE SCHEMA foobar").encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -54,7 +53,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try {
-                sqlMetadataService.findSchema(List.of("public", "foobar", "barfoo"));
+                sqlMetadataService.findSchema("foobar");
             } catch (SchemaNotExistsException e) {
                 return false;
             }
@@ -66,7 +65,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     public void test_findSchema_SchemaNotExistsException() {
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         assertThrows(SchemaNotExistsException.class, () -> {
-            sqlMetadataService.findSchema(List.of("public", "foobar", "barfoo"));
+            sqlMetadataService.findSchema("barfoo");
         });
     }
 
@@ -86,7 +85,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try {
-                KronotopTable kronotopTable = sqlMetadataService.findTable(List.of("public"), "users");
+                KronotopTable kronotopTable = sqlMetadataService.findTable("public", "users");
                 assertNotNull(kronotopTable);
             } catch (SchemaNotExistsException | TableNotExistsException e) {
                 return false;
@@ -99,7 +98,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     public void test_findTable_SchemaNotExistsException() {
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         assertThrows(SchemaNotExistsException.class, () -> {
-            sqlMetadataService.findTable(List.of("public", "foobar"), "users");
+            sqlMetadataService.findTable("foobar", "users");
         });
     }
 
@@ -107,7 +106,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     public void test_findTable_TableNotExistsException() {
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         assertThrows(TableNotExistsException.class, () -> {
-            sqlMetadataService.findTable(List.of("public"), "users");
+            sqlMetadataService.findTable("public", "users");
         });
     }
 
@@ -115,9 +114,10 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     public void test_dropSchemaSuccessfully() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
+        // public schema is created automatically because it's the default schema in test.conf
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE SCHEMA public.foobar.barfoo").encode(buf);
+            cmd.sql("DROP SCHEMA public").encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -128,28 +128,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
                 try {
-                    sqlMetadataService.findSchema(List.of("public", "foobar", "barfoo"));
-                } catch (SchemaNotExistsException e) {
-                    return false;
-                }
-                return true;
-            });
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.sql("DROP SCHEMA public.foobar.barfoo").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
-
-            SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
-            await().atMost(5, TimeUnit.SECONDS).until(() -> {
-                try {
-                    sqlMetadataService.findSchema(List.of("public", "foobar", "barfoo"));
+                    sqlMetadataService.findSchema("public");
                 } catch (SchemaNotExistsException e) {
                     return true;
                 }
@@ -175,7 +154,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
                 try {
-                    sqlMetadataService.findTable(List.of("public"), "users");
+                    sqlMetadataService.findTable("public", "users");
                 } catch (TableNotExistsException e) {
                     return false;
                 }
@@ -196,7 +175,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
                 try {
-                    System.out.println(sqlMetadataService.findTable(List.of("public"), "users"));
+                    System.out.println(sqlMetadataService.findTable("public", "users"));
                 } catch (TableNotExistsException e) {
                     return true;
                 }
@@ -234,7 +213,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try {
-                KronotopTable kronotopTable = sqlMetadataService.findTable(List.of("public"), "foobar");
+                KronotopTable kronotopTable = sqlMetadataService.findTable("public", "foobar");
                 assertNotNull(kronotopTable);
             } catch (SchemaNotExistsException | TableNotExistsException e) {
                 return false;
@@ -272,7 +251,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
-                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users");
+                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, "public", "users");
                 for (ColumnModel columnModel : tableWithVersion.getTableModel().getColumnList()) {
                     if (columnModel.getNames().get(0).equals("username")) {
                         return true;
@@ -312,7 +291,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
-                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users");
+                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, "public", "users");
                 Set<String> columns = new HashSet<>();
                 for (ColumnModel columnModel : tableWithVersion.getTableModel().getColumnList()) {
                     columns.add(columnModel.getNames().get(0));
@@ -351,7 +330,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
-                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, List.of("public"), "users");
+                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, "public", "users");
                 Set<String> columns = new HashSet<>();
                 for (ColumnModel columnModel : tableWithVersion.getTableModel().getColumnList()) {
                     columns.add(columnModel.getNames().get(0));
