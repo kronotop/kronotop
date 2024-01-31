@@ -47,7 +47,7 @@ public class SetOption implements Executor<SqlNode> {
         String key = String.join(".", sqlSetOption.getName().names);
         if (key.equalsIgnoreCase(Key.SCHEMA.toString())) {
             try {
-                service.getMetadataService().checkAndLoadSchema(value.getSimple());
+                service.getMetadataService().findOrLoadSchema(value.getSimple());
             } catch (SchemaNotExistsException e) {
                 return new ErrorRedisMessage(e.getMessage());
             }
