@@ -16,7 +16,6 @@
 
 package com.kronotop.sql;
 
-import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.schema.impl.AbstractSchema;
 
@@ -29,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class KronotopSchema extends AbstractSchema {
     private final String name;
     private final ConcurrentHashMap<String, Table> tableMap;
-    private final ConcurrentHashMap<String, Schema> subSchemas = new ConcurrentHashMap<>();
 
     public KronotopSchema(String name, ConcurrentHashMap<String, Table> tableMap) {
         this.name = name;
@@ -42,20 +40,6 @@ public class KronotopSchema extends AbstractSchema {
 
     public String getName() {
         return name;
-    }
-
-    public void setSubSchema(String name, KronotopSchema schema) {
-        subSchemas.compute(name, (n, s) -> {
-            if (s != null) {
-                throw new IllegalArgumentException("SubSchema has already been registered: " + name);
-            }
-            return schema;
-        });
-    }
-
-    @Override
-    protected Map<String, Schema> getSubSchemaMap() {
-        return subSchemas;
     }
 
     @Override

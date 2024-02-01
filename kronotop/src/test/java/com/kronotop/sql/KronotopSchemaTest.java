@@ -21,12 +21,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Test cases for {@link KronotopSchema} class.
- * This class contains tests for the {@link KronotopSchema#setSubSchema(String, KronotopSchema)} method.
+ *
  */
 public class KronotopSchemaTest {
 
@@ -35,27 +34,10 @@ public class KronotopSchemaTest {
      * setSubSchema should add the provided schema to the map of subSchemas and no exceptions should be thrown.
      */
     @Test
-    void setSubSchema_validParameters_succeeds() {
+    void test_KronotopSchema() {
         ConcurrentHashMap<String, Table> tableMap = new ConcurrentHashMap<>();
         KronotopSchema schema = new KronotopSchema("TestSchema", tableMap);
-        KronotopSchema subSchema = new KronotopSchema("SubTestSchema", tableMap);
-
-        assertDoesNotThrow(() -> schema.setSubSchema("SubTestSchema", subSchema));
+        assertEquals("TestSchema", schema.getName());
+        assertNotNull(schema.getTableMap());
     }
-
-    /**
-     * Test scenario where the method is called with a name that is already in use.
-     * IllegalArgumentException should be thrown.
-     */
-    @Test
-    void setSubSchema_existingName_throwsIllegalArgumentException() {
-        ConcurrentHashMap<String, Table> tableMap = new ConcurrentHashMap<>();
-        KronotopSchema schema = new KronotopSchema("TestSchema", tableMap);
-        KronotopSchema subSchema = new KronotopSchema("SubTestSchema", tableMap);
-
-        schema.setSubSchema("SubTestSchema", subSchema);
-
-        assertThrows(IllegalArgumentException.class, () -> schema.setSubSchema("SubTestSchema", subSchema));
-    }
-
 }
