@@ -146,7 +146,8 @@ public class SqlMetadataService implements KronotopService {
             try {
                 addTableVersion(tableModel, versionstamp.getBytes());
             } catch (TableVersionAlreadyExistsException | SchemaNotExistsException e) {
-                LOGGER.error(e.getMessage());
+                LOGGER.error("Error while loading table '{}' from FoundationDB",
+                        String.join(".", List.of(tableModel.getTable(), tableModel.getTable())), e);
             }
         }
     }
@@ -164,10 +165,14 @@ public class SqlMetadataService implements KronotopService {
                 try {
                     metadata.put(schema, new SchemaMetadata());
                 } catch (SchemaAlreadyExistsException e) {
-                    // This should not be possible
-                    throw new IllegalStateException(e);
+                    // Ignore this
                 }
+
                 List<String> tableLayout = getSchemaLayout(schema).tables().asList();
+                boolean hasTablesDir = DirectoryLayer.getDefault().exists(tr, tableLayout).join();
+                if (!hasTablesDir) {
+                    continue;
+                }
                 List<String> tables = DirectoryLayer.getDefault().list(tr, tableLayout).join();
                 for (String table : tables) {
                     loadTableFromFDB(tr, schema, table);
@@ -179,6 +184,9 @@ public class SqlMetadataService implements KronotopService {
     }
 
     public void start() {
+        byte[] key = context.getFoundationDB().run(tr -> context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.sqlMetadataEvents()));
+        this.lastSqlMetadataVersionstamp.set(key);
+
         String defaultSchemaHierarchy = context.getConfig().getString("sql.default_schema");
         try {
             initializeDefaultSchema(defaultSchemaHierarchy);
@@ -188,9 +196,6 @@ public class SqlMetadataService implements KronotopService {
         }
 
         initialize();
-
-        byte[] key = context.getFoundationDB().run(tr -> context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.sqlMetadataEvents()));
-        this.lastSqlMetadataVersionstamp.set(key);
 
         executor.execute(new Watcher());
         try {
