@@ -130,14 +130,64 @@ public class SqlMetadataService implements KronotopService {
         }
     }
 
+    /**
+     * Loads the table from FoundationDB with the given schema and table names.
+     *
+     * @param tr     The FDB transaction.
+     * @param schema The name of the schema to search for.
+     * @param table  The name of the table to search for.
+     */
+    private void loadTableFromFDB(Transaction tr, String schema, String table) {
+        List<String> tableLayout = getTableLayout(schema, table).asList();
+        DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, tableLayout).join();
+        for (KeyValue keyValue : tr.getRange(subspace.range())) {
+            Versionstamp versionstamp = subspace.unpack(keyValue.getKey()).getVersionstamp(0);
+            TableModel tableModel = JSONUtils.readValue(keyValue.getValue(), TableModel.class);
+            try {
+                addTableVersion(tableModel, versionstamp.getBytes());
+            } catch (TableVersionAlreadyExistsException | SchemaNotExistsException e) {
+                LOGGER.error(e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Initializes the SqlMetadataService instance by loading the schemas and tables from FoundationDB.
+     * This method creates the schema hierarchy in the metadata store and loads the tables associated with each schema.
+     */
+    private void initialize() {
+        long start = System.currentTimeMillis();
+        List<String> schemasLayout = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().sql().metadata().schemas().asList();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<String> schemas = DirectoryLayer.getDefault().list(tr, schemasLayout).join();
+            for (String schema : schemas) {
+                try {
+                    metadata.put(schema, new SchemaMetadata());
+                } catch (SchemaAlreadyExistsException e) {
+                    // This should not be possible
+                    throw new IllegalStateException(e);
+                }
+                List<String> tableLayout = getSchemaLayout(schema).tables().asList();
+                List<String> tables = DirectoryLayer.getDefault().list(tr, tableLayout).join();
+                for (String table : tables) {
+                    loadTableFromFDB(tr, schema, table);
+                }
+            }
+        }
+        long end = System.currentTimeMillis();
+        LOGGER.info("SQL metadata has been loaded from FoundationDB cluster in {} ms", end - start);
+    }
+
     public void start() {
         String defaultSchemaHierarchy = context.getConfig().getString("sql.default_schema");
         try {
             initializeDefaultSchema(defaultSchemaHierarchy);
         } catch (SchemaNotExistsException e) {
             // This should not be possible
-            throw new KronotopException(e);
+            throw new IllegalStateException(e);
         }
+
+        initialize();
 
         byte[] key = context.getFoundationDB().run(tr -> context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.sqlMetadataEvents()));
         this.lastSqlMetadataVersionstamp.set(key);
@@ -397,7 +447,7 @@ public class SqlMetadataService implements KronotopService {
             VersionedTableMetadata versionedTableMetadata = schemaMetadata.getTables().getOrCreate(table.getName());
             String version = BaseEncoding.base64().encode(versionstamp);
             versionedTableMetadata.put(version, table);
-            LOGGER.info("New version: {} has been added for table: {}", version, table.getSchema());
+            LOGGER.debug("Table version: {} has been loaded for: {}", version, String.join(".", List.of(table.getSchema(), table.getName())));
         } finally {
             lock.writeLock().unlock();
         }
