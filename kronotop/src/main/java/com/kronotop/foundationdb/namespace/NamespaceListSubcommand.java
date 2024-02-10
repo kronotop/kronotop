@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-package com.kronotop.foundationdb;
+package com.kronotop.foundationdb.namespace;
 
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.common.KronotopException;
-import com.kronotop.common.resp.RESPError;
-import com.kronotop.foundationdb.protocol.NamespaceMessage;
+import com.kronotop.core.Context;
+import com.kronotop.core.TransactionUtils;
+import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -28,38 +32,41 @@ import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
-public class NamespaceListOperand extends BaseNamespaceOperand implements CommandOperand {
-    NamespaceListOperand(FoundationDBService service, NamespaceMessage namespaceMessage, Response response) {
-        super(service, namespaceMessage, response);
+class NamespaceListSubcommand extends BaseNamespaceSubcommand implements NamespaceSubcommandExecutor {
+
+    NamespaceListSubcommand(Context context) {
+        super(context);
     }
 
     @Override
-    public void execute() {
-        NamespaceMessage.ListMessage listMessage = namespaceMessage.getListMessage();
+    public void execute(Request request, Response response) {
+        NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
+        NamespaceMessage.ListMessage listMessage = message.getListMessage();
+
+        Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
         List<String> subpath = getBaseSubpath().addAll(listMessage.getSubpath()).asList();
         CompletableFuture<List<String>> future;
-        if (subpath.size() == 0) {
-            future = directoryLayer.list(transaction);
+        if (subpath.isEmpty()) {
+            future = directoryLayer.list(tr);
         } else {
-            future = directoryLayer.list(transaction, subpath);
+            future = directoryLayer.list(tr, subpath);
         }
-        future.handle((result, ex) -> {
-            if (ex != null) {
-                if (ex.getCause() instanceof NoSuchDirectoryException) {
-                    String message = NamespaceUtil.NoSuchNamespaceMessage(service.getContext(), ex.getCause());
-                    response.writeError(RESPError.NOSUCHNAMESPACE, message);
-                } else {
-                    throw new KronotopException(ex);
-                }
-            }
+
+        try {
+            List<String> result = future.join();
             List<RedisMessage> children = new ArrayList<>();
             for (String namespace : result) {
-                ByteBuf buf = response.getContext().alloc().buffer();
+                ByteBuf buf = response.getChannelContext().alloc().buffer();
                 children.add(new FullBulkStringRedisMessage(buf.writeBytes(namespace.getBytes())));
             }
             response.writeArray(children);
-            return null;
-        }).join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NoSuchDirectoryException) {
+                throw new NoSuchNamespaceException(String.join(".", listMessage.getSubpath()));
+            }
+            throw new KronotopException(e.getCause());
+        }
     }
 }

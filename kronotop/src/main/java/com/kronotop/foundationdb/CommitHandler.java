@@ -18,6 +18,7 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.common.resp.RESPError;
+import com.kronotop.core.NamespaceUtils;
 import com.kronotop.foundationdb.protocol.CommitMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -45,7 +46,7 @@ class CommitHandler implements Handler {
         // Validates the request
         CommitMessage commitMessage = request.attr(MessageTypes.COMMIT).get();
 
-        Channel channel = response.getContext().channel();
+        Channel channel = response.getChannelContext().channel();
         Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
         if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
@@ -67,15 +68,16 @@ class CommitHandler implements Handler {
                 response.writeInteger(committedVersion);
             } else if (operand.equalsIgnoreCase(CommitMessage.GET_VERSIONSTAMP_OPERAND)) {
                 byte[] versionstamp = tr.getVersionstamp().join();
-                ByteBuf buf = response.getContext().alloc().buffer();
+                ByteBuf buf = response.getChannelContext().alloc().buffer();
                 buf.writeBytes(versionstamp);
                 response.write(buf);
             } else {
-                throw new UnknownOperandException(String.format("unknown operand: %s", operand));
+                throw new UnknownSubcommandException(operand);
             }
         } finally {
             beginAttr.set(false);
             transactionAttr.set(null);
+            NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
         }
     }
 }

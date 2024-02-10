@@ -26,10 +26,9 @@ import java.util.Locale;
 
 public class ZMutateMessage implements KronotopMessage<byte[]> {
     public static final String COMMAND = "ZMUTATE";
-    public static final int MINIMUM_PARAMETER_COUNT = 4;
-    public static final int MAXIMUM_PARAMETER_COUNT = 4;
+    public static final int MINIMUM_PARAMETER_COUNT = 3;
+    public static final int MAXIMUM_PARAMETER_COUNT = 3;
     private final Request request;
-    private byte[] namespace;
     private byte[] key;
     private byte[] param;
     private MutationType mutationType;
@@ -40,24 +39,17 @@ public class ZMutateMessage implements KronotopMessage<byte[]> {
     }
 
     private void parse() {
-        namespace = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(namespace);
+        key = new byte[request.getParams().get(0).readableBytes()];
+        request.getParams().get(0).readBytes(key);
 
-        key = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(key);
+        param = new byte[request.getParams().get(1).readableBytes()];
+        request.getParams().get(1).readBytes(param);
 
-        param = new byte[request.getParams().get(2).readableBytes()];
-        request.getParams().get(2).readBytes(param);
-
-        ByteBuf buf = request.getParams().get(3);
+        ByteBuf buf = request.getParams().get(2);
         byte[] rawItem = new byte[buf.readableBytes()];
         buf.readBytes(rawItem);
         String mt = new String(rawItem);
         mutationType = ZMutationType.getMutationType(ZMutationType.valueOf(mt.toUpperCase(Locale.ROOT)));
-    }
-
-    public String getNamespace() {
-        return new String(namespace);
     }
 
     public byte[] getKey() {

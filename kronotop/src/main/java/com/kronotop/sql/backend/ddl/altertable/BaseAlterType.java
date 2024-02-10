@@ -40,7 +40,7 @@ class BaseAlterType {
     protected int findColumnIndex(String targetColumnName, TableModel tableModel) throws SqlExecutionException {
         for (int index = 0; index < tableModel.getColumnList().size(); index++) {
             ColumnModel column = tableModel.getColumnList().get(index);
-            String columnName = column.getNames().get(0);
+            String columnName = column.getName();
             if (targetColumnName.equals(columnName)) {
                 return index;
             }

@@ -39,12 +39,12 @@ public class OptimizerUnitTest {
         tableModel.setSchema("myschema");
         tableModel.setTable("mytable");
         ColumnModel columnModel = new ColumnModel();
-        columnModel.setNames(List.of("myfield"));
+        columnModel.setName("myfield");
         columnModel.setDataType(SqlTypeName.DECIMAL);
         tableModel.setColumnList(List.of(columnModel));
 
-        KronotopTable mytable = new KronotopTable(tableModel);
-        KronotopSchema schema = KronotopSchema.newBuilder("myschema").addTable(mytable).build();
+        KronotopSchema schema = new KronotopSchema("myschema");
+        schema.getTableMap().put(tableModel.getTable(), new KronotopTable(tableModel));
         optimizer = new Optimizer(schema);
     }
 

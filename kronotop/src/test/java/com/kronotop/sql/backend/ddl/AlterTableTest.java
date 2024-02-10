@@ -119,7 +119,7 @@ public class AlterTableTest extends BaseHandlerTest {
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
         Map<String, ColumnModel> items = new HashMap<>();
         for (ColumnModel column : columns) {
-            String columnName = column.getNames().get(0);
+            String columnName = column.getName();
             if (columnName.equals("age") || columnName.equals("name")) {
                 items.put(columnName, column);
             }
@@ -131,13 +131,13 @@ public class AlterTableTest extends BaseHandlerTest {
 
         // TODO: How do we can test expression?
         ColumnModel ageColumn = items.get("age");
-        assertEquals(List.of("age"), ageColumn.getNames());
+        assertEquals("age", ageColumn.getName());
         assertEquals(SqlTypeName.INTEGER, ageColumn.getDataType());
         assertNull(ageColumn.getExpression());
         assertEquals(ColumnStrategy.NULLABLE, ageColumn.getStrategy());
 
         ColumnModel nameColumn = items.get("name");
-        assertEquals(List.of("name"), nameColumn.getNames());
+        assertEquals("name", nameColumn.getName());
         assertEquals(SqlTypeName.VARCHAR, nameColumn.getDataType());
         assertNull(nameColumn.getExpression());
         assertEquals(ColumnStrategy.NULLABLE, nameColumn.getStrategy());
@@ -172,7 +172,7 @@ public class AlterTableTest extends BaseHandlerTest {
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
         Map<String, ColumnModel> items = new HashMap<>();
         for (ColumnModel column : columns) {
-            String columnName = column.getNames().get(0);
+            String columnName = column.getName();
             if (columnName.equals("age")) {
                 items.put(columnName, column);
             }
@@ -182,7 +182,7 @@ public class AlterTableTest extends BaseHandlerTest {
         assertTrue(items.containsKey("age"));
 
         ColumnModel ageColumn = items.get("age");
-        assertEquals(List.of("age"), ageColumn.getNames());
+        assertEquals("age", ageColumn.getName());
         assertEquals(SqlTypeName.INTEGER, ageColumn.getDataType());
         assertNull(ageColumn.getExpression());
         assertEquals(ColumnStrategy.NOT_NULLABLE, ageColumn.getStrategy());
@@ -205,7 +205,7 @@ public class AlterTableTest extends BaseHandlerTest {
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
         assertEquals(1, columns.size());
         ColumnModel idColumn = columns.get(0);
-        assertEquals(List.of("id"), idColumn.getNames());
+        assertEquals("id", idColumn.getName());
         assertEquals(SqlTypeName.INTEGER, idColumn.getDataType());
         assertNull(idColumn.getExpression());
         assertEquals(ColumnStrategy.NULLABLE, idColumn.getStrategy());
@@ -241,7 +241,7 @@ public class AlterTableTest extends BaseHandlerTest {
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
         assertEquals(2, columns.size());
         ColumnModel username2Column = columns.get(1);
-        assertEquals(List.of("renamedcolumn"), username2Column.getNames());
+        assertEquals("renamedcolumn", username2Column.getName());
         assertEquals(SqlTypeName.VARCHAR, username2Column.getDataType());
         assertNull(username2Column.getExpression());
         assertEquals(ColumnStrategy.NULLABLE, username2Column.getStrategy());

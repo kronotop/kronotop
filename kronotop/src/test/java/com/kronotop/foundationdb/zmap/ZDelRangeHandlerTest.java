@@ -34,26 +34,15 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class ZDelRangeHandlerTest extends BaseHandlerTest {
     @Test
-    public void testZDELRANGE() {
+    public void test_ZDELRANGE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
-        {
-            // Create it
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreateOrOpen(namespace, null).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
-
-        // ZPUT
+        // ZSET
         {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
-                cmd.zput(namespace, String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
+                cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
                 channel.writeInbound(buf);
                 Object response = channel.readOutbound();
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -62,11 +51,11 @@ public class ZDelRangeHandlerTest extends BaseHandlerTest {
             }
         }
 
-        // ZDELRANGE
+        // ZDELRANGE key-0 key-5
         {
             ByteBuf buf = Unpooled.buffer();
             ZDelRangeArgs args = ZDelRangeArgs.Builder.begin("key-0".getBytes()).end("key-5".getBytes());
-            cmd.zdelrange(namespace, args).encode(buf);
+            cmd.zdelrange(args).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -78,7 +67,7 @@ public class ZDelRangeHandlerTest extends BaseHandlerTest {
         {
             for (int i = 0; i < 5; i++) {
                 ByteBuf buf = Unpooled.buffer();
-                cmd.zget(namespace, String.format("key-%d", i)).encode(buf);
+                cmd.zget(String.format("key-%d", i)).encode(buf);
                 channel.writeInbound(buf);
                 Object response = channel.readOutbound();
                 assertInstanceOf(FullBulkStringRedisMessage.class, response);
@@ -91,7 +80,121 @@ public class ZDelRangeHandlerTest extends BaseHandlerTest {
         {
             for (int i = 5; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
-                cmd.zget(namespace, String.format("key-%d", i)).encode(buf);
+                cmd.zget(String.format("key-%d", i)).encode(buf);
+                channel.writeInbound(buf);
+                Object response = channel.readOutbound();
+                assertInstanceOf(FullBulkStringRedisMessage.class, response);
+                FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
+                assertEquals(String.format("value-%d", i), actualMessage.content().toString(StandardCharsets.US_ASCII));
+            }
+        }
+    }
+
+    @Test
+    public void test_ZDELRANGE_begin_asterisk() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        // ZSET
+        {
+            for (int i = 0; i < 10; i++) {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
+                channel.writeInbound(buf);
+                Object response = channel.readOutbound();
+                assertInstanceOf(SimpleStringRedisMessage.class, response);
+                SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+                assertEquals("OK", actualMessage.content());
+            }
+        }
+
+        // ZDELRANGE * key-5
+        {
+            ByteBuf buf = Unpooled.buffer();
+            ZDelRangeArgs args = ZDelRangeArgs.Builder.begin("*".getBytes()).end("key-5".getBytes());
+            cmd.zdelrange(args).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals("OK", actualMessage.content());
+        }
+
+        // ZGET - nil
+        {
+            for (int i = 0; i < 5; i++) {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.zget(String.format("key-%d", i)).encode(buf);
+                channel.writeInbound(buf);
+                Object response = channel.readOutbound();
+                assertInstanceOf(FullBulkStringRedisMessage.class, response);
+                FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
+                assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
+            }
+        }
+
+        // ZGET
+        {
+            for (int i = 5; i < 10; i++) {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.zget(String.format("key-%d", i)).encode(buf);
+                channel.writeInbound(buf);
+                Object response = channel.readOutbound();
+                assertInstanceOf(FullBulkStringRedisMessage.class, response);
+                FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
+                assertEquals(String.format("value-%d", i), actualMessage.content().toString(StandardCharsets.US_ASCII));
+            }
+        }
+    }
+
+    @Test
+    public void test_ZDELRANGE_end_asterisk() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        // ZSET
+        {
+            for (int i = 0; i < 10; i++) {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
+                channel.writeInbound(buf);
+                Object response = channel.readOutbound();
+                assertInstanceOf(SimpleStringRedisMessage.class, response);
+                SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+                assertEquals("OK", actualMessage.content());
+            }
+        }
+
+        // ZDELRANGE key-5 *
+        {
+            ByteBuf buf = Unpooled.buffer();
+            ZDelRangeArgs args = ZDelRangeArgs.Builder.begin("key-5".getBytes()).end("*".getBytes());
+            cmd.zdelrange(args).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals("OK", actualMessage.content());
+        }
+
+        // ZGET - nil
+        {
+            for (int i = 5; i < 10; i++) {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.zget(String.format("key-%d", i)).encode(buf);
+                channel.writeInbound(buf);
+                Object response = channel.readOutbound();
+                assertInstanceOf(FullBulkStringRedisMessage.class, response);
+                FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
+                assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
+            }
+        }
+
+        // ZGET
+        {
+            for (int i = 0; i < 5; i++) {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.zget(String.format("key-%d", i)).encode(buf);
                 channel.writeInbound(buf);
                 Object response = channel.readOutbound();
                 assertInstanceOf(FullBulkStringRedisMessage.class, response);

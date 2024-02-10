@@ -203,5 +203,5 @@ public interface Response {
      *
      * @return the ChannelHandlerContext associated with this Response object
      */
-    ChannelHandlerContext getContext();
+    ChannelHandlerContext getChannelContext();
 }

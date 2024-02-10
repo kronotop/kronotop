@@ -91,7 +91,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
         }
 
         shard.getPersistenceQueue().add(new StringKey(incrByFloatMessage.getKey()));
-        ByteBuf buf = response.getContext().alloc().buffer();
+        ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(result.get().toString().getBytes());
         response.write(buf);
     }

@@ -30,23 +30,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class GetApproximateSizeHandlerTest extends BaseHandlerTest {
     @Test
-    public void testGETAPPROXIMATESIZE() {
+    public void test_GETAPPROXIMATESIZE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
         {
-            // Create it
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreateOrOpen(namespace, null).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
-
-        {
-            // Create it
+            // Create a new transaction
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
             channel.writeInbound(buf);
@@ -57,11 +45,11 @@ public class GetApproximateSizeHandlerTest extends BaseHandlerTest {
             assertEquals("OK", actualMessage.content());
         }
 
-        // ZPUT
+        // ZSET
         {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
-                cmd.zput(namespace, String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
+                cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
                 channel.writeInbound(buf);
                 Object response = channel.readOutbound();
                 assertInstanceOf(SimpleStringRedisMessage.class, response);

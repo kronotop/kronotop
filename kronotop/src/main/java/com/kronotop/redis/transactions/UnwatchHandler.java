@@ -43,7 +43,7 @@ public class UnwatchHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        service.getWatcher().cleanupChannelHandlerContext(request.getContext());
+        service.getWatcher().cleanupChannelHandlerContext(request.getChannelContext());
         response.writeOK();
     }
 }

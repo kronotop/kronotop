@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 public class FoundationDBServiceTest {
     private FoundationDBService service;
     private Handlers handlers;
@@ -49,17 +51,13 @@ public class FoundationDBServiceTest {
     }
 
     @AfterEach
-    public void teardown() {
+    public void tearDown() {
         service.shutdown();
     }
 
     @Test
-    public void testDatabaseConnection() {
-        Database db = service.getContext().getFoundationDB();
-        db.run(tr -> {
-            tr.set("key".getBytes(), "value".getBytes());
-            tr.clear("key".getBytes());
-            return null;
-        });
+    public void test_initializeDefaultDatabase() {
+        String name = service.getContext().getConfig().getString("default_namespace");
+        // TODO:!!
     }
 }

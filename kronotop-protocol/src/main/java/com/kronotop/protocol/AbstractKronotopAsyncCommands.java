@@ -74,28 +74,13 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     }
 
     @Override
-    public RedisFuture<String> namespaceCreateOrOpen(K namespace) {
-        return dispatch(commandBuilder.namespaceCreateOrOpen(namespace, null));
-    }
-
-    @Override
-    public RedisFuture<String> namespaceCreateOrOpen(K namespace, NamespaceArgs args) {
-        return dispatch(commandBuilder.namespaceCreateOrOpen(namespace, args));
+    public RedisFuture<String> namespaceUse(K namespace) {
+        return dispatch(commandBuilder.namespaceUse(namespace));
     }
 
     @Override
     public RedisFuture<List<Object>> namespaceList(K namespace) {
         return dispatch(commandBuilder.namespaceList(namespace));
-    }
-
-    @Override
-    public RedisFuture<List<Object>> namespaceListOpen(K namespace) {
-        return dispatch(commandBuilder.namespaceListOpen(namespace));
-    }
-
-    @Override
-    public RedisFuture<String> namespaceOpen(K namespace) {
-        return dispatch(commandBuilder.namespaceOpen(namespace));
     }
 
     @Override
@@ -114,18 +99,23 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     }
 
     @Override
-    public RedisFuture<String> zput(String namespace, K key, V value) {
-        return dispatch(commandBuilder.zput(namespace, key, value));
+    public RedisFuture<String> namespaceCurrent() {
+        return dispatch(commandBuilder.namespaceCurrent());
     }
 
     @Override
-    public RedisFuture<V> zget(String namespace, K key) {
-        return dispatch(commandBuilder.zget(namespace, key));
+    public RedisFuture<String> zset(K key, V value) {
+        return dispatch(commandBuilder.zset(key, value));
     }
 
     @Override
-    public RedisFuture<String> zdel(String namespace, K key) {
-        return dispatch(commandBuilder.zdel(namespace, key));
+    public RedisFuture<V> zget(K key) {
+        return dispatch(commandBuilder.zget(key));
+    }
+
+    @Override
+    public RedisFuture<String> zdel(K key) {
+        return dispatch(commandBuilder.zdel(key));
     }
 
     @Override
@@ -134,18 +124,18 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     }
 
     @Override
-    public RedisFuture<String> zdelrange(String namespace, ZDelRangeArgs args) {
-        return dispatch(commandBuilder.zdelrange(namespace, args));
+    public RedisFuture<String> zdelrange(ZDelRangeArgs args) {
+        return dispatch(commandBuilder.zdelrange(args));
     }
 
     @Override
-    public RedisFuture<List<Object>> zgetrange(String namespace, ZGetRangeArgs args) {
-        return dispatch(commandBuilder.zgetrange(namespace, args));
+    public RedisFuture<List<Object>> zgetrange(ZGetRangeArgs args) {
+        return dispatch(commandBuilder.zgetrange(args));
     }
 
     @Override
-    public RedisFuture<V> zgetkey(String namespace, ZGetKeyArgs args) {
-        return dispatch(commandBuilder.zgetkey(namespace, args));
+    public RedisFuture<V> zgetkey(ZGetKeyArgs args) {
+        return dispatch(commandBuilder.zgetkey(args));
     }
 
     @Override
@@ -154,13 +144,13 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     }
 
     @Override
-    public RedisFuture<String> zmutate(String namespace, K key, V param, ZMutateArgs args) {
-        return dispatch(commandBuilder.zmutate(namespace, key, param, args));
+    public RedisFuture<String> zmutate(K key, V param, ZMutateArgs args) {
+        return dispatch(commandBuilder.zmutate(key, param, args));
     }
 
     @Override
-    public RedisFuture<Long> zgetrangesize(String namespace, ZGetRangeSizeArgs args) {
-        return dispatch(commandBuilder.zgetrangesize(namespace, args));
+    public RedisFuture<Long> zgetrangesize(ZGetRangeSizeArgs args) {
+        return dispatch(commandBuilder.zgetrangesize(args));
     }
 
     @Override

@@ -54,7 +54,7 @@ public class HelloHandler extends BaseHandler implements Handler {
 
     private void authAttrSet(Response response) {
         Attribute<Boolean> authAttr = response.
-                getContext().
+                getChannelContext().
                 channel().
                 attr(ChannelAttributes.AUTH);
         authAttr.set(true);
@@ -96,7 +96,7 @@ public class HelloHandler extends BaseHandler implements Handler {
         }
 
         if (msg.hasSetName()) {
-            Attribute<Long> clientID = response.getContext().channel().attr(ChannelAttributes.CLIENT_ID);
+            Attribute<Long> clientID = response.getChannelContext().channel().attr(ChannelAttributes.CLIENT_ID);
             Client client = new Client();
             client.setName(msg.getClientName());
             Clients.setClient(clientID.get(), client);
@@ -124,7 +124,7 @@ public class HelloHandler extends BaseHandler implements Handler {
         map.put(new SimpleStringRedisMessage("version"), getVersion());
         map.put(new SimpleStringRedisMessage("proto"), new IntegerRedisMessage(HelloMessage.RESP_VERSION_THREE));
 
-        Attribute<Long> clientID = response.getContext().channel().attr(ChannelAttributes.CLIENT_ID);
+        Attribute<Long> clientID = response.getChannelContext().channel().attr(ChannelAttributes.CLIENT_ID);
         map.put(new SimpleStringRedisMessage("id"), new IntegerRedisMessage(clientID.get()));
         map.put(new SimpleStringRedisMessage("mode"), new SimpleStringRedisMessage("cluster"));
         map.put(new SimpleStringRedisMessage("role"), new SimpleStringRedisMessage("master"));
@@ -144,7 +144,7 @@ public class HelloHandler extends BaseHandler implements Handler {
         result.add(new IntegerRedisMessage(HelloMessage.RESP_VERSION_TWO));
         result.add(new SimpleStringRedisMessage("id"));
 
-        Attribute<Long> clientID = response.getContext().channel().attr(ChannelAttributes.CLIENT_ID);
+        Attribute<Long> clientID = response.getChannelContext().channel().attr(ChannelAttributes.CLIENT_ID);
         result.add(new IntegerRedisMessage(clientID.get()));
 
         // The cluster mode is the default mode.

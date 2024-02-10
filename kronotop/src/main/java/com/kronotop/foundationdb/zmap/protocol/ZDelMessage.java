@@ -23,10 +23,9 @@ import java.util.List;
 
 public class ZDelMessage implements KronotopMessage<byte[]> {
     public static final String COMMAND = "ZDEL";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_PARAMETER_COUNT = 1;
     private final Request request;
-    private byte[] namespace;
     private byte[] key;
 
     public ZDelMessage(Request request) {
@@ -35,15 +34,8 @@ public class ZDelMessage implements KronotopMessage<byte[]> {
     }
 
     private void parse() {
-        namespace = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(namespace);
-
-        key = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(key);
-    }
-
-    public String getNamespace() {
-        return new String(namespace);
+        key = new byte[request.getParams().get(0).readableBytes()];
+        request.getParams().get(0).readBytes(key);
     }
 
     @Override

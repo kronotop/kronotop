@@ -30,6 +30,7 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
+import com.kronotop.core.JSONUtils;
 import com.kronotop.core.KronotopService;
 import com.kronotop.server.Handlers;
 import com.kronotop.sql.backend.ddl.*;
@@ -38,6 +39,7 @@ import com.kronotop.sql.backend.metadata.SqlMetadataService;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 
 /*
@@ -51,7 +53,8 @@ Imagination is more important than knowledge. Knowledge is limited. Imagination 
  */
 public class SqlService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "SQL";
-    protected final HashMap<SqlKind, Executor<SqlNode>> ddlExecutors = new HashMap<>();
+    protected final EnumSet<SqlKind> statements;
+    protected final HashMap<SqlKind, Executor<SqlNode>> executors = new HashMap<>();
     private final Context context;
     private final SqlMetadataService metadataService;
 
@@ -60,12 +63,14 @@ public class SqlService extends CommandHandlerService implements KronotopService
         this.context = context;
         this.metadataService = context.getService(SqlMetadataService.NAME);
 
-        ddlExecutors.put(SqlKind.CREATE_SCHEMA, new CreateSchema(this));
-        ddlExecutors.put(SqlKind.CREATE_TABLE, new CreateTable(this));
-        ddlExecutors.put(SqlKind.DROP_SCHEMA, new DropSchema(this));
-        ddlExecutors.put(SqlKind.DROP_TABLE, new DropTable(this));
-        ddlExecutors.put(SqlKind.ALTER_TABLE, new AlterTable(this));
-        ddlExecutors.put(SqlKind.SET_OPTION, new SetOption(this));
+        this.statements = EnumSet.of(SqlKind.INSERT);
+
+        this.executors.put(SqlKind.CREATE_SCHEMA, new CreateSchema(this));
+        this.executors.put(SqlKind.CREATE_TABLE, new CreateTable(this));
+        this.executors.put(SqlKind.DROP_SCHEMA, new DropSchema(this));
+        this.executors.put(SqlKind.DROP_TABLE, new DropTable(this));
+        this.executors.put(SqlKind.ALTER_TABLE, new AlterTable(this));
+        this.executors.put(SqlKind.SET_OPTION, new SetOption(this));
 
         registerHandler(new SqlHandler(this));
     }

@@ -21,30 +21,30 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class SchemaMetadataUnitTest {
-    SchemaMetadata root;
+public class MetadataTest {
+    protected Metadata root;
+    protected String testSchema = "TestSchema";
 
     @BeforeEach
     public void setUp() {
-        root = new SchemaMetadata();
+        root = new Metadata();
     }
 
     @Test
     public void testPut() {
-        String testSchema = "TestSchema";
-        SchemaMetadata testMetadata = new SchemaMetadata();
+        SchemaMetadata testMetadata = new SchemaMetadata(testSchema);
 
         // Testing regular flow of function
         assertDoesNotThrow(() -> root.put(testSchema, testMetadata));
 
         // Testing if SchemaAlreadyExistsException is thrown when a schema is inserted that already exists in metadata store
-        SchemaMetadata duplicateMetadata = new SchemaMetadata();
+        SchemaMetadata duplicateMetadata = new SchemaMetadata(testSchema);
         assertThrows(SchemaAlreadyExistsException.class, () -> root.put(testSchema, duplicateMetadata));
     }
 
     @Test
     public void testGet_existingSchemaMetadata() throws SchemaAlreadyExistsException, SchemaNotExistsException {
-        SchemaMetadata metadata = new SchemaMetadata();
+        SchemaMetadata metadata = new SchemaMetadata(testSchema);
         String schema = "test";
         root.put(schema, metadata);
         assertEquals(metadata, root.get(schema));
@@ -69,7 +69,7 @@ public class SchemaMetadataUnitTest {
         String schemaToRemove = "foobar";
 
         // Add a schema to the metadata store
-        root.put(schemaToRemove, new SchemaMetadata());
+        root.put(schemaToRemove, new SchemaMetadata(testSchema));
 
         // Assert that the schema was added to the metadata store
         assertTrue(root.has(schemaToRemove));
@@ -83,7 +83,7 @@ public class SchemaMetadataUnitTest {
 
     @Test
     public void testHasExistingSchema() throws SchemaAlreadyExistsException {
-        root.put("test_schema", new SchemaMetadata());
+        root.put("test_schema", new SchemaMetadata(testSchema));
 
         assertTrue(root.has("test_schema"));
     }
@@ -95,7 +95,7 @@ public class SchemaMetadataUnitTest {
 
     @Test
     public void testHasRemovedSchema() throws SchemaAlreadyExistsException, SchemaNotExistsException {
-        root.put("test_schema", new SchemaMetadata());
+        root.put("test_schema", new SchemaMetadata(testSchema));
         root.remove("test_schema");
 
         assertFalse(root.has("test_schema"));

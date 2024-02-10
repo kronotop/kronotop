@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop.foundationdb;
+package com.kronotop.foundationdb.namespace;
 
-public interface CommandOperand {
-    void execute();
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
+
+interface NamespaceSubcommandExecutor {
+    void execute(Request request, Response response);
 }

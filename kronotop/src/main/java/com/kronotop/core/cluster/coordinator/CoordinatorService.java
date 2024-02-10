@@ -65,7 +65,6 @@ public class CoordinatorService implements KronotopService {
     private final Context context;
     private final Consistent consistent;
     private final RoutingTable routingTable = new RoutingTable();
-    //private final AtomicReference<CompletableFuture<Void>> currentWatcher = new AtomicReference<>();
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final AtomicReference<byte[]> latestCoordinatorEventsEventKey = new AtomicReference<>();
     private final HashMap<Integer, DirectorySubspace> shardsSubspaces = new HashMap<>();

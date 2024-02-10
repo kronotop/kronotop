@@ -73,7 +73,7 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
         Shard shard = service.getShard(shardId);
         try {
             String randomKey = shard.getIndex().random();
-            ByteBuf buf = response.getContext().alloc().buffer();
+            ByteBuf buf = response.getChannelContext().alloc().buffer();
             buf.writeBytes(randomKey.getBytes());
             response.write(buf);
         } catch (NoSuchElementException e) {

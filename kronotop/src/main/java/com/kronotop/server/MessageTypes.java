@@ -16,6 +16,7 @@
 
 package com.kronotop.server;
 
+import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.foundationdb.protocol.*;
 import com.kronotop.foundationdb.zmap.protocol.*;
 import com.kronotop.redis.cluster.protocol.ClusterMessage;
@@ -92,7 +93,7 @@ public class MessageTypes {
     public static final AttributeKey<ZGetRangeMessage> ZGETRANGE = AttributeKey.valueOf(ZGetRangeMessage.COMMAND);
     public static final AttributeKey<ZGetRangeSizeMessage> ZGETRANGESIZE = AttributeKey.valueOf(ZGetRangeSizeMessage.COMMAND);
     public static final AttributeKey<ZMutateMessage> ZMUTATE = AttributeKey.valueOf(ZMutateMessage.COMMAND);
-    public static final AttributeKey<ZPutMessage> ZPUT = AttributeKey.valueOf(ZPutMessage.COMMAND);
+    public static final AttributeKey<ZSetMessage> ZSET = AttributeKey.valueOf(ZSetMessage.COMMAND);
     public static final AttributeKey<HDelMessage> HDEL = AttributeKey.valueOf(HDelMessage.COMMAND);
     public static final AttributeKey<HExistsMessage> HEXISTS = AttributeKey.valueOf(HExistsMessage.COMMAND);
     public static final AttributeKey<HGetAllMessage> HGETALL = AttributeKey.valueOf(HGetAllMessage.COMMAND);

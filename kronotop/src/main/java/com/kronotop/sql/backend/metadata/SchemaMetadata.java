@@ -16,67 +16,24 @@
 
 package com.kronotop.sql.backend.metadata;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.kronotop.sql.KronotopSchema;
 
 /**
  * The SchemaMetadata class represents the metadata for schemas in a database.
  * It provides methods to add, retrieve, remove, and check for the existence of schemas.
  */
 public class SchemaMetadata {
-    private final Map<String, SchemaMetadata> schemas = new HashMap<>();
+    private final String name;
     private final TableMetadata tables = new TableMetadata();
+    private final KronotopSchema kronotopSchema;
 
-    /**
-     * Inserts a schema and its corresponding metadata into the schema metadata store.
-     *
-     * @param schema   the name of the schema
-     * @param metadata the metadata associated with the schema
-     * @throws SchemaAlreadyExistsException if the schema already exists in the metadata store
-     */
-    public void put(String schema, SchemaMetadata metadata) throws SchemaAlreadyExistsException {
-        if (schemas.containsKey(schema)) {
-            throw new SchemaAlreadyExistsException(schema);
-        }
-        schemas.put(schema, metadata);
+    public SchemaMetadata(String name) {
+        this.name = name;
+        this.kronotopSchema = new KronotopSchema(name);
     }
 
-    /**
-     * Retrieves the metadata associated with the specified schema name.
-     *
-     * @param schema the name of the schema
-     * @return the SchemaMetadata object associated with the schema name, or null if the schema does not exist
-     */
-    public SchemaMetadata get(String schema) throws SchemaNotExistsException {
-        SchemaMetadata metadata = schemas.get(schema);
-        if (metadata == null) {
-            throw new SchemaNotExistsException(schema);
-        }
-        return metadata;
-    }
-
-    /**
-     * Removes the specified schema from the schema metadata store.
-     *
-     * @param schema the name of the schema to be removed
-     * @throws SchemaNotExistsException if the specified schema does not exist in the metadata store
-     */
-    public void remove(String schema) throws SchemaNotExistsException {
-        if (!schemas.containsKey(schema)) {
-            throw new SchemaNotExistsException(schema);
-        }
-        schemas.remove(schema);
-
-    }
-
-    /**
-     * Checks if the specified schema exists in the schema metadata store.
-     *
-     * @param schema the name of the schema to check
-     * @return true if the schema exists, false otherwise
-     */
-    public boolean has(String schema) {
-        return schemas.containsKey(schema);
+    public String getName() {
+        return name;
     }
 
     /**
@@ -86,5 +43,14 @@ public class SchemaMetadata {
      */
     public TableMetadata getTables() {
         return tables;
+    }
+
+    /**
+     * Retrieves the KronotopSchema object associated with the SchemaMetadata instance.
+     *
+     * @return the KronotopSchema object representing a Kronotop schema.
+     */
+    public KronotopSchema getKronotopSchema() {
+        return kronotopSchema;
     }
 }

@@ -40,9 +40,11 @@ import com.kronotop.core.cluster.sharding.ShardingService;
 import com.kronotop.core.journal.Event;
 import com.kronotop.core.journal.JournalName;
 import com.kronotop.core.network.Address;
+import com.kronotop.core.JSONUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.net.UnknownHostException;
 import java.util.Comparator;
 import java.util.List;
@@ -428,19 +430,13 @@ public class MembershipService implements KronotopService {
      * @param event the MemberEvent to process
      * @throws UnknownHostException if there is an error with the host address
      */
-    private void processMemberEvent(BroadcastEvent event) throws UnknownHostException {
-        ObjectMapper objectMapper = new ObjectMapper();
+    private void processMemberEvent(@Nonnull BroadcastEvent event) throws UnknownHostException {
         MemberEvent memberEvent;
 
-        try {
-            if (event.getType().equals(EventTypes.MEMBER_JOIN)) {
-                memberEvent = objectMapper.readValue(event.getPayload(), MemberJoinEvent.class);
-            } else {
-                memberEvent = objectMapper.readValue(event.getPayload(), MemberLeftEvent.class);
-            }
-        } catch (JsonProcessingException e) {
-            LOGGER.error("Error while reading an event with type: {}", event.getType());
-            throw new KronotopException(e);
+        if (event.getType().equals(EventTypes.MEMBER_JOIN)) {
+            memberEvent = JSONUtils.readValue(event.getPayload(), MemberJoinEvent.class);
+        } else {
+            memberEvent = JSONUtils.readValue(event.getPayload(), MemberLeftEvent.class);
         }
 
         Address address = new Address(memberEvent.getHost(), memberEvent.getPort());
@@ -472,6 +468,22 @@ public class MembershipService implements KronotopService {
         }
     }
 
+    private void processUpdateRoutingTable(@Nonnull BroadcastEvent broadcastEvent) {
+        RoutingTable newRoutingTable = JSONUtils.readValue(broadcastEvent.getPayload(), RoutingTable.class);
+        if (!isBootstrapped.get()) {
+            isBootstrapped.set(true);
+            LOGGER.info("Bootstrapped by the cluster coordinator: {}", newRoutingTable.getCoordinator());
+            synchronized (isBootstrapped) {
+                isBootstrapped.notifyAll();
+            }
+        }
+        RoutingTable oldRoutingTable = routingTable.get();
+        shardingService.makeShardsOperable(oldRoutingTable, newRoutingTable);
+        routingTable.set(newRoutingTable);
+        shardingService.dropPreviouslyOwnedShards(oldRoutingTable, newRoutingTable);
+        LOGGER.debug("Routing table has been updated");
+    }
+
     /**
      * fetchClusterEvents tries to fetch the latest events from the cluster's global journal and processes them.
      */
@@ -482,26 +494,20 @@ public class MembershipService implements KronotopService {
                 Event event = context.getJournal().getConsumer().consumeNext(tr, JournalName.clusterEvents(), lastClusterEventsVersionstamp.get());
                 if (event == null) return null;
 
-                ObjectMapper objectMapper = new ObjectMapper();
                 try {
-                    BroadcastEvent broadcastEvent = objectMapper.readValue(event.getValue(), BroadcastEvent.class);
+                    BroadcastEvent broadcastEvent = JSONUtils.readValue(event.getValue(), BroadcastEvent.class);
                     LOGGER.debug("Received broadcast event: {}", broadcastEvent.getType());
-                    if (broadcastEvent.getType().equals(EventTypes.MEMBER_JOIN) || broadcastEvent.getType().equals(EventTypes.MEMBER_LEFT)) {
-                        processMemberEvent(broadcastEvent);
-                    } else if (broadcastEvent.getType().equals(EventTypes.UPDATE_ROUTING_TABLE)) {
-                        RoutingTable newRoutingTable = objectMapper.readValue(broadcastEvent.getPayload(), RoutingTable.class);
-                        if (!isBootstrapped.get()) {
-                            isBootstrapped.set(true);
-                            LOGGER.info("Bootstrapped by the cluster coordinator: {}", newRoutingTable.getCoordinator());
-                            synchronized (isBootstrapped) {
-                                isBootstrapped.notifyAll();
-                            }
-                        }
-                        RoutingTable oldRoutingTable = routingTable.get();
-                        shardingService.makeShardsOperable(oldRoutingTable, newRoutingTable);
-                        routingTable.set(newRoutingTable);
-                        shardingService.dropPreviouslyOwnedShards(oldRoutingTable, newRoutingTable);
-                        LOGGER.debug("Routing table has been updated");
+
+                    switch (broadcastEvent.getType()) {
+                        case MEMBER_JOIN:
+                        case MEMBER_LEFT:
+                            processMemberEvent(broadcastEvent);
+                            break;
+                        case UPDATE_ROUTING_TABLE:
+                            processUpdateRoutingTable(broadcastEvent);
+                            break;
+                        default:
+                            LOGGER.error("Unknown broadcast event type: {}", broadcastEvent.getType());
                     }
                 } catch (Exception e) {
                     LOGGER.error("Failed to process a broadcast event, passing it", e);

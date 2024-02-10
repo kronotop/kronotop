@@ -16,18 +16,22 @@
 
 package com.kronotop.foundationdb;
 
-import com.apple.foundationdb.Database;
+import com.apple.foundationdb.FDBException;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
+import com.kronotop.foundationdb.namespace.NamespaceHandler;
 import com.kronotop.foundationdb.zmap.*;
 import com.kronotop.server.Handlers;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 /**
  * The FoundationDBService class is an implementation of the KronotopService interface that represents a service for
@@ -35,9 +39,11 @@ import java.util.List;
  */
 public class FoundationDBService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "FoundationDB";
+    private final String defaultNamespaceName;
 
     public FoundationDBService(Context context, Handlers handlers) {
         super(context, handlers);
+        defaultNamespaceName = context.getConfig().getString("default_namespace");
 
         // Register handlers here
         registerHandler(new BeginHandler(this));
@@ -47,7 +53,7 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
         registerHandler(new SnapshotReadHandler(this));
         registerHandler(new GetReadVersionHandler(this));
         registerHandler(new GetApproximateSizeHandler(this));
-        registerHandler(new ZPutHandler(this));
+        registerHandler(new ZSetHandler(this));
         registerHandler(new ZGetHandler(this));
         registerHandler(new ZDelHandler(this));
         registerHandler(new ZDelRangeHandler(this));
@@ -57,16 +63,26 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
         registerHandler(new ZMutateHandler(this));
         registerHandler(new ZGetRangeSizeHandler(this));
 
-        Database database = context.getFoundationDB();
-        DirectoryLayer directoryLayer = new DirectoryLayer();
-        List<String> root = DirectoryLayout.Builder.clusterName(context.getClusterName()).namespaces().asList();
-        DirectorySubspace rootSubspace = database.run(tr -> directoryLayer.createOrOpen(tr, root).join());
-        if (!root.equals(rootSubspace.getPath())) {
-            throw new KronotopException(
-                    String.format("Unexpected root subspace: %s", String.join(".", rootSubspace.getPath()))
-            );
-        }
+        initializeDefaultNamespace();
+    }
 
+    private void initializeDefaultNamespace() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<String> namespacePath = new ArrayList<>();
+            Collections.addAll(namespacePath, defaultNamespaceName.split("\\."));
+            List<String> subpath = DirectoryLayout.Builder.clusterName(context.getClusterName()).namespaces().addAll(namespacePath).asList();
+            DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
+            tr.commit().join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException) {
+                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                if (((FDBException) e.getCause()).getCode() == 1020) {
+                    // retry
+                    initializeDefaultNamespace();
+                }
+            }
+            throw new KronotopException(e);
+        }
     }
 
     @Override

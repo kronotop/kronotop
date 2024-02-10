@@ -18,13 +18,12 @@ package com.kronotop.server;
 
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.subspace.Subspace;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.core.Context;
 import com.kronotop.core.network.ClientIDGenerator;
 import com.kronotop.core.watcher.Watcher;
+import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.redis.RedisService;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -45,20 +44,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * Handle a command from the client.
- *
- * <p>This method is called for each Redis message received by the server. Its purpose is to handle the command and
- * generate the response.</p>
- *
- * @param ctx the {@link ChannelHandlerContext} of the handler
- * @param msg the message received by the handler
- * @throws Exception if an error occurs during command handling
+ * Router class that extends ChannelDuplexHandler for handling commands.
  */
 public class Router extends ChannelDuplexHandler {
     static final String execCommand = "EXEC";
@@ -70,6 +60,7 @@ public class Router extends ChannelDuplexHandler {
     private final ReadWriteLock redisTransactionLock = new ReentrantReadWriteLock(true);
     private final Watcher watcher;
     private final RedisService redisService;
+    private final String defaultNamespace;
     Handlers commands;
     Boolean authEnabled = false;
 
@@ -81,6 +72,11 @@ public class Router extends ChannelDuplexHandler {
 
         if (context.getConfig().hasPath("auth.requirepass") || context.getConfig().hasPath("auth.users")) {
             authEnabled = true;
+        }
+
+        defaultNamespace = context.getConfig().getString("default_namespace");
+        if (defaultNamespace.isEmpty() || defaultNamespace.isBlank()) {
+            throw new IllegalArgumentException("default namespace is empty or blank");
         }
     }
 
@@ -108,11 +104,8 @@ public class Router extends ChannelDuplexHandler {
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        Attribute<ConcurrentMap<String, DirectorySubspace>> openNamespaces = ctx.channel().attr(ChannelAttributes.OPEN_NAMESPACES);
-        openNamespaces.set(new ConcurrentHashMap<>());
-
-        Attribute<ConcurrentMap<String, Subspace>> zmapSubspaces = ctx.channel().attr(ChannelAttributes.ZMAP_SUBSPACES);
-        zmapSubspaces.set(new ConcurrentHashMap<>());
+        ctx.channel().attr(ChannelAttributes.OPEN_NAMESPACES).set(new HashMap<>());
+        ctx.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).set(defaultNamespace);
 
         Attribute<Boolean> oneOffTransaction = ctx.channel().attr(ChannelAttributes.ONE_OFF_TRANSACTION);
         oneOffTransaction.set(false);
@@ -221,7 +214,7 @@ public class Router extends ChannelDuplexHandler {
     private void executeCommand(Handler handler, Request request, Response response) {
         try {
             if (authEnabled) {
-                Attribute<Boolean> authAttr = response.getContext().channel().attr(ChannelAttributes.AUTH);
+                Attribute<Boolean> authAttr = response.getChannelContext().channel().attr(ChannelAttributes.AUTH);
                 if (Boolean.TRUE.equals(authAttr.get())) {
                     // Already authenticated
                     execute(handler, request, response);
@@ -291,13 +284,13 @@ public class Router extends ChannelDuplexHandler {
                 Handler handler = commands.get(request.getCommand());
                 beforeExecute(handler, request);
             } catch (Exception e) {
-                Attribute<Boolean> redisMultiDiscarded = response.getContext().channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED);
+                Attribute<Boolean> redisMultiDiscarded = response.getChannelContext().channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED);
                 redisMultiDiscarded.set(true);
                 exceptionToRespError(request, response, e);
                 return;
             }
 
-            Attribute<List<Request>> queuedCommands = response.getContext().channel().attr(ChannelAttributes.QUEUED_COMMANDS);
+            Attribute<List<Request>> queuedCommands = response.getChannelContext().channel().attr(ChannelAttributes.QUEUED_COMMANDS);
             queuedCommands.get().add(request);
             response.writeQUEUED();
             response.flush();

@@ -18,7 +18,7 @@ package com.kronotop.foundationdb.protocol;
 
 import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
-import com.kronotop.server.UnknownOperandException;
+import com.kronotop.server.UnknownSubcommandException;
 
 import java.util.List;
 
@@ -36,7 +36,7 @@ public class CommitMessage implements KronotopMessage<Void> {
     }
 
     private void parse() {
-        if (request.getParams().size() > 0) {
+        if (!request.getParams().isEmpty()) {
             byte[] rawOperand = new byte[request.getParams().get(0).readableBytes()];
             request.getParams().get(0).readBytes(rawOperand);
             operand = new String(rawOperand);
@@ -45,7 +45,7 @@ public class CommitMessage implements KronotopMessage<Void> {
             } else if (GET_VERSIONSTAMP_OPERAND.equalsIgnoreCase(operand)) {
                 operand = GET_VERSIONSTAMP_OPERAND;
             } else {
-                throw new UnknownOperandException(String.format("unknown operand: %s", operand));
+                throw new UnknownSubcommandException(operand);
             }
         }
     }

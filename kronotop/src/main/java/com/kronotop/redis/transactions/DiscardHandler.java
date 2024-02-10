@@ -42,7 +42,7 @@ public class DiscardHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        ChannelHandlerContext ctx = response.getContext();
+        ChannelHandlerContext ctx = response.getChannelContext();
         Attribute<Boolean> redisMulti = ctx.channel().attr(ChannelAttributes.REDIS_MULTI);
         if (!Boolean.TRUE.equals(redisMulti.get())) {
             response.writeError("DISCARD without MULTI");

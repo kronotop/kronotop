@@ -47,7 +47,7 @@ public class ScanHandler extends BaseHandler implements Handler {
 
     private List<RedisMessage> prepareResponse(Response response, long cursor, List<RedisMessage> children) {
         List<RedisMessage> parent = new ArrayList<>();
-        ByteBuf buf = response.getContext().alloc().buffer();
+        ByteBuf buf = response.getChannelContext().alloc().buffer();
         parent.add(new FullBulkStringRedisMessage(buf.writeBytes(Long.toString(cursor).getBytes())));
         parent.add(new ArrayRedisMessage(children));
         return parent;
@@ -103,7 +103,7 @@ public class ScanHandler extends BaseHandler implements Handler {
             }
             for (String key : projection.getKeys()) {
                 if (shard.containsKey(key)) {
-                    ByteBuf buf = response.getContext().alloc().buffer();
+                    ByteBuf buf = response.getChannelContext().alloc().buffer();
                     buf.writeBytes(key.getBytes());
                     children.add(new FullBulkStringRedisMessage(buf));
                 }

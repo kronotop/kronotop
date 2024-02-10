@@ -12,18 +12,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
-package com.kronotop.server;
+package com.kronotop.foundationdb.namespace.protocol;
 
-import com.kronotop.common.KronotopException;
-import com.kronotop.common.resp.RESPError;
-
-/**
- * Exception thrown when a namespace is not open.
- */
-public class NamespaceNotOpenException extends KronotopException {
-    public NamespaceNotOpenException(String content) {
-        super(RESPError.NAMESPACENOTOPEN, content);
-    }
+public enum NamespaceSubcommand {
+    CREATE,
+    USE,
+    LIST,
+    MOVE,
+    REMOVE,
+    EXISTS,
+    CURRENT,
 }

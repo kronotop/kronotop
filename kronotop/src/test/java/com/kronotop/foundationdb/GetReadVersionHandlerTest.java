@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class GetReadVersionHandlerTest extends BaseHandlerTest {
     @Test
-    public void testGETREADVERSION() {
+    public void test_GETREADVERSION() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
@@ -58,7 +58,7 @@ public class GetReadVersionHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testGETREADVERSION_NoTransactionInProgress() {
+    public void test_GETREADVERSION_NoTransactionInProgress() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 

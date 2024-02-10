@@ -54,7 +54,7 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
 
     private FullBulkStringRedisMessage prepareBulkReply(Response response, HashValue hashValue) {
         String field = getRandomSetElement(hashValue.keySet());
-        ByteBuf buf = response.getContext().alloc().buffer();
+        ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(field.getBytes());
         return new FullBulkStringRedisMessage(buf);
     }
@@ -76,12 +76,12 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
                 }
             }
             set.add(field);
-            ByteBuf fieldBuf = response.getContext().alloc().buffer();
+            ByteBuf fieldBuf = response.getChannelContext().alloc().buffer();
             fieldBuf.writeBytes(field.getBytes());
             upperList.add(new FullBulkStringRedisMessage(fieldBuf));
 
             if (hrandfieldMessage.getWithValues()) {
-                ByteBuf valueBuf = response.getContext().alloc().buffer();
+                ByteBuf valueBuf = response.getChannelContext().alloc().buffer();
                 valueBuf.writeBytes(hashValue.get(field));
                 upperList.add(new FullBulkStringRedisMessage(valueBuf));
             }

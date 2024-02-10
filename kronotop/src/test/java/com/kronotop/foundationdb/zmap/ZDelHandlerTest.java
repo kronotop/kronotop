@@ -31,26 +31,14 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class ZDelHandlerTest extends BaseHandlerTest {
     @Test
-    public void testZDEL() {
+    public void test_ZDEL() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
-        {
-            // Create it
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreateOrOpen(namespace, null).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
-
-        // ZPUT
+        // ZSET
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.zput(namespace, "key", "value").encode(buf);
+            cmd.zset("key", "value").encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -61,7 +49,7 @@ public class ZDelHandlerTest extends BaseHandlerTest {
         // ZDEL
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.zdel(namespace, "key").encode(buf);
+            cmd.zdel("key").encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -72,7 +60,7 @@ public class ZDelHandlerTest extends BaseHandlerTest {
         // ZGET
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.zget(namespace, "key").encode(buf);
+            cmd.zget("key").encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(FullBulkStringRedisMessage.class, response);
@@ -83,31 +71,17 @@ public class ZDelHandlerTest extends BaseHandlerTest {
 
 
     @Test
-    public void testZDEL_NotExists() {
+    public void test_ZDEL_KeyNotExists() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        {
-            // Create and open a new namespace
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreateOrOpen(namespace, null).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
-
         // ZDEL
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.zdel(namespace, "key").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zdel("key").encode(buf);
+        channel.writeInbound(buf);
+        Object response = channel.readOutbound();
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+        assertEquals("OK", actualMessage.content());
     }
 }

@@ -22,10 +22,9 @@ import java.nio.charset.StandardCharsets;
 
 public enum NamespaceKeywords implements ProtocolKeyword {
     CREATE,
-    CREATE_OR_OPEN,
+    USE,
+    CURRENT,
     LIST,
-    LIST_OPEN,
-    OPEN,
     MOVE,
     REMOVE,
     EXISTS,

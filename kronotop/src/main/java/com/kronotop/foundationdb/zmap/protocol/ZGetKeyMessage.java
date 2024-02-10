@@ -25,13 +25,12 @@ import java.util.Locale;
 
 public class ZGetKeyMessage implements KronotopMessage<byte[]> {
     public static final String COMMAND = "ZGETKEY";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 4;
+    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_PARAMETER_COUNT = 3;
     public static final String KEY_SELECTOR_KEYWORD = "KEY_SELECTOR";
     public static final RangeKeySelector DEFAULT_KEY_SELECTOR = RangeKeySelector.FIRST_GREATER_OR_EQUAL;
 
     private final Request request;
-    private byte[] namespace;
     private byte[] key;
     private RangeKeySelector keySelector = DEFAULT_KEY_SELECTOR;
 
@@ -40,7 +39,6 @@ public class ZGetKeyMessage implements KronotopMessage<byte[]> {
         parse();
     }
 
-
     private String readStringFromByteBuf(ByteBuf buf) {
         byte[] rawItem = new byte[buf.readableBytes()];
         buf.readBytes(rawItem);
@@ -48,14 +46,11 @@ public class ZGetKeyMessage implements KronotopMessage<byte[]> {
     }
 
     private void parse() {
-        namespace = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(namespace);
+        key = new byte[request.getParams().get(0).readableBytes()];
+        request.getParams().get(0).readBytes(key);
 
-        key = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(key);
-
-        if (request.getParams().size() >= 2) {
-            for (int i = 2; i < request.getParams().size(); i++) {
+        if (request.getParams().size() > 1) {
+            for (int i = 1; i < request.getParams().size(); i++) {
                 String keyword = readStringFromByteBuf(request.getParams().get(i));
                 if (keyword.equalsIgnoreCase(KEY_SELECTOR_KEYWORD)) {
                     String enumVal = readStringFromByteBuf(request.getParams().get(i + 1));
@@ -64,10 +59,6 @@ public class ZGetKeyMessage implements KronotopMessage<byte[]> {
                 }
             }
         }
-    }
-
-    public String getNamespace() {
-        return new String(namespace);
     }
 
     @Override
@@ -79,7 +70,6 @@ public class ZGetKeyMessage implements KronotopMessage<byte[]> {
     public List<byte[]> getKeys() {
         return null;
     }
-
 
     public RangeKeySelector getKeySelector() {
         return keySelector;

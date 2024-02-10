@@ -31,8 +31,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class ZDelPrefixHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testZDELRANGE() {
+    public void test_ZDELPREFIX() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
         String prefix = "my-prefix";
@@ -51,7 +52,7 @@ public class ZDelPrefixHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceOpen(namespace).encode(buf);
+            cmd.namespaceUse(namespace).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -60,11 +61,11 @@ public class ZDelPrefixHandlerTest extends BaseHandlerTest {
             assertEquals("OK", actualMessage.content());
         }
 
-        // ZPUT
+        // ZSET
         {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
-                cmd.zput(namespace, String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
+                cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
                 channel.writeInbound(buf);
                 Object response = channel.readOutbound();
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -88,7 +89,7 @@ public class ZDelPrefixHandlerTest extends BaseHandlerTest {
         {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
-                cmd.zget(namespace, String.format("key-%d", i)).encode(buf);
+                cmd.zget(String.format("key-%d", i)).encode(buf);
                 channel.writeInbound(buf);
                 Object response = channel.readOutbound();
                 assertInstanceOf(FullBulkStringRedisMessage.class, response);

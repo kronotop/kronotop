@@ -27,15 +27,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class KronotopSchema extends AbstractSchema {
     private final String name;
-    private final ConcurrentHashMap<String, Table> tableMap;
+    private final ConcurrentHashMap<String, Table> tableMap = new ConcurrentHashMap<>();
 
-    public KronotopSchema(String name, ConcurrentHashMap<String, Table> tableMap) {
+    public KronotopSchema(String name) {
         this.name = name;
-        this.tableMap = tableMap;
-    }
-
-    public static Builder newBuilder(String name) {
-        return new Builder(name);
     }
 
     public String getName() {
@@ -45,29 +40,5 @@ public class KronotopSchema extends AbstractSchema {
     @Override
     public Map<String, Table> getTableMap() {
         return tableMap;
-    }
-
-    public static final class Builder {
-        private final String schemaName;
-        private final ConcurrentHashMap<String, Table> tableMap = new ConcurrentHashMap<>();
-
-        private Builder(String schemaName) {
-            if (schemaName == null || schemaName.isEmpty()) {
-                throw new IllegalArgumentException("Schema name cannot be null or empty");
-            }
-            this.schemaName = schemaName;
-        }
-
-        public Builder addTable(KronotopTable table) {
-            if (tableMap.containsKey(table.getName())) {
-                throw new IllegalArgumentException("Table has already already defined: " + table.getName());
-            }
-            tableMap.put(table.getName(), table);
-            return this;
-        }
-
-        public KronotopSchema build() {
-            return new KronotopSchema(schemaName, tableMap);
-        }
     }
 }

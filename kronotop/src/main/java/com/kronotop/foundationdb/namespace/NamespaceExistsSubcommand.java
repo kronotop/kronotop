@@ -14,25 +14,31 @@
  * limitations under the License.
  */
 
-package com.kronotop.foundationdb;
+package com.kronotop.foundationdb.namespace;
 
-import com.kronotop.foundationdb.protocol.NamespaceMessage;
+import com.apple.foundationdb.Transaction;
+import com.kronotop.core.Context;
+import com.kronotop.core.TransactionUtils;
+import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
-public class NamespaceExistsOperand extends BaseNamespaceOperand implements CommandOperand {
-    NamespaceExistsOperand(FoundationDBService service, NamespaceMessage namespaceMessage, Response response) {
-        super(service, namespaceMessage, response);
+class NamespaceExistsSubcommand extends BaseNamespaceSubcommand implements NamespaceSubcommandExecutor {
+    NamespaceExistsSubcommand(Context context) {
+        super(context);
     }
 
     @Override
-    public void execute() {
-        NamespaceMessage.ExistsMessage existsMessage = namespaceMessage.getExistsMessage();
+    public void execute(Request request, Response response) {
+        NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
+        NamespaceMessage.ExistsMessage existsMessage = message.getExistsMessage();
+
+        Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
         List<String> subpath = getBaseSubpath().addAll(existsMessage.getPath()).asList();
-        CompletableFuture<Boolean> future = directoryLayer.exists(transaction, subpath);
-        Boolean exists = future.join();
+        Boolean exists = directoryLayer.exists(tr, subpath).join();
         if (exists) {
             response.writeInteger(1);
             return;

@@ -35,27 +35,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class ZGetRangeHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testZGETRANGE() {
+    public void test_ZGETRANGE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
-        {
-            // Create it
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreateOrOpen(namespace, null).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
-
-        // ZPUT
+        // ZSET
         {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
-                cmd.zput(namespace, String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
+                cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
                 channel.writeInbound(buf);
                 Object response = channel.readOutbound();
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -64,11 +54,11 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
             }
         }
 
-        // ZDELRANGE <namespace> key-0 key-5
+        // ZGETRANGE key-0 key-5
         {
             ByteBuf buf = Unpooled.buffer();
             ZGetRangeArgs args = ZGetRangeArgs.Builder.begin("key-0".getBytes()).end("key-5".getBytes());
-            cmd.zgetrange(namespace, args).encode(buf);
+            cmd.zgetrange(args).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(ArrayRedisMessage.class, response);
@@ -92,7 +82,7 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
             }
         }
 
-        // ZDELRANGE <namespace> key-0 key-5 LIMIT 3
+        // ZGETRANGE key-0 key-5 LIMIT 3
         {
             int expectedLimit = 3;
             ByteBuf buf = Unpooled.buffer();
@@ -100,7 +90,7 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
                     begin("key-0".getBytes()).
                     end("key-5".getBytes()).
                     limit(expectedLimit);
-            cmd.zgetrange(namespace, args).encode(buf);
+            cmd.zgetrange(args).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(ArrayRedisMessage.class, response);
@@ -125,7 +115,7 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
             assertEquals(expectedLimit, i);
         }
 
-        // ZDELRANGE <namespace> key-0 key-5 LIMIT 3 REVERSE
+        // ZGETRANGE key-0 key-5 LIMIT 3 REVERSE
         {
             int expectedLimit = 3;
             ByteBuf buf = Unpooled.buffer();
@@ -134,7 +124,7 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
                     end("key-5".getBytes()).
                     limit(expectedLimit).
                     reverse();
-            cmd.zgetrange(namespace, args).encode(buf);
+            cmd.zgetrange(args).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(ArrayRedisMessage.class, response);
@@ -158,13 +148,13 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
             }
         }
 
-        // ZDELRANGE <namespace> * *
+        // ZGETRANGE * *
         {
             ByteBuf buf = Unpooled.buffer();
             ZGetRangeArgs args = ZGetRangeArgs.Builder.
                     begin("*".getBytes()).
                     end("*".getBytes());
-            cmd.zgetrange(namespace, args).encode(buf);
+            cmd.zgetrange(args).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(ArrayRedisMessage.class, response);
@@ -195,7 +185,7 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
             ZGetRangeArgs args = ZGetRangeArgs.Builder.
                     begin("key-2".getBytes()).
                     end("*".getBytes());
-            cmd.zgetrange(namespace, args).encode(buf);
+            cmd.zgetrange(args).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(ArrayRedisMessage.class, response);
@@ -220,14 +210,14 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
             assertEquals(10, i);
         }
 
-        // ZDELRANGE <namespace> key-2 * begin_key_selector first_greater_than
+        // ZGETRANGE key-2 * begin_key_selector first_greater_than
         {
             ByteBuf buf = Unpooled.buffer();
             ZGetRangeArgs args = ZGetRangeArgs.Builder.
                     begin("key-2".getBytes()).
                     end("*".getBytes()).
                     beginKeySelector("first_greater_than");
-            cmd.zgetrange(namespace, args).encode(buf);
+            cmd.zgetrange(args).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(ArrayRedisMessage.class, response);

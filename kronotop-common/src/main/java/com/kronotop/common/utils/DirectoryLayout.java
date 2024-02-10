@@ -17,6 +17,7 @@
 package com.kronotop.common.utils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class DirectoryLayout {
@@ -110,6 +111,11 @@ public class DirectoryLayout {
 
     public DirectoryLayout addAll(List<String> list) {
         items.addAll(list);
+        return this;
+    }
+
+    public DirectoryLayout addAll(String[] elements) {
+        items.addAll(Arrays.asList(elements));
         return this;
     }
 

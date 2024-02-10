@@ -58,16 +58,16 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.COMMIT, new ValueOutput<>(codec), args);
     }
 
-    public Command<K, V, String> namespaceOpen(K namespace) {
+    public Command<K, V, String> namespaceRemove(K namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(NamespaceKeywords.OPEN).
+                add(NamespaceKeywords.REMOVE).
                 addKey(namespace);
         return createCommand(CommandType.NAMESPACE, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, String> namespaceRemove(K namespace) {
+    public Command<K, V, String> namespaceUse(K namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(NamespaceKeywords.REMOVE).
+                add(NamespaceKeywords.USE).
                 addKey(namespace);
         return createCommand(CommandType.NAMESPACE, new StatusOutput<>(codec), args);
     }
@@ -88,13 +88,6 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.NAMESPACE, new ArrayOutput<>(codec), args);
     }
 
-    public Command<K, V, List<Object>> namespaceListOpen(K namespace) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(NamespaceKeywords.LIST_OPEN).
-                addKey(namespace);
-        return createCommand(CommandType.NAMESPACE, new ArrayOutput<>(codec), args);
-    }
-
     public Command<K, V, String> namespaceCreate(K namespace, NamespaceArgs namespaceArgs) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(NamespaceKeywords.CREATE).
@@ -112,34 +105,27 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.NAMESPACE, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, String> namespaceCreateOrOpen(K namespace, NamespaceArgs namespaceArgs) {
+    public Command<K, V, String> namespaceCurrent() {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(NamespaceKeywords.CREATE_OR_OPEN).
-                addKey(namespace);
-        if (namespaceArgs != null) {
-            namespaceArgs.build(args);
-        }
+                add(NamespaceKeywords.CURRENT);
         return createCommand(CommandType.NAMESPACE, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, String> zput(String namespace, K key, V value) {
+    public Command<K, V, String> zset(K key, V value) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(namespace).
                 addKey(key).
                 addValue(value);
-        return createCommand(CommandType.ZPUT, new StatusOutput<>(codec), args);
+        return createCommand(CommandType.ZSET, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, V> zget(String namespace, K key) {
+    public Command<K, V, V> zget(K key) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(namespace).
                 addKey(key);
         return createCommand(CommandType.ZGET, new ValueOutput<>(codec), args);
     }
 
-    public Command<K, V, String> zdel(String namespace, K key) {
+    public Command<K, V, String> zdel(K key) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(namespace).
                 addKey(key);
         return createCommand(CommandType.ZDEL, new StatusOutput<>(codec), args);
     }
@@ -150,27 +136,24 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.ZDELPREFIX, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, String> zdelrange(String namespace, ZDelRangeArgs zDelRangeArgs) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(namespace);
+    public Command<K, V, String> zdelrange(ZDelRangeArgs zDelRangeArgs) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec);
         if (zDelRangeArgs != null) {
             zDelRangeArgs.build(args);
         }
         return createCommand(CommandType.ZDELRANGE, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, List<Object>> zgetrange(String namespace, ZGetRangeArgs zGetRangeArgs) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(namespace);
+    public Command<K, V, List<Object>> zgetrange(ZGetRangeArgs zGetRangeArgs) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec);
         if (zGetRangeArgs != null) {
             zGetRangeArgs.build(args);
         }
         return createCommand(CommandType.ZGETRANGE, new ArrayOutput<>(codec), args);
     }
 
-    public Command<K, V, V> zgetkey(String namespace, ZGetKeyArgs zGetKeyArgs) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(namespace);
+    public Command<K, V, V> zgetkey(ZGetKeyArgs zGetKeyArgs) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec);
         if (zGetKeyArgs != null) {
             zGetKeyArgs.build(args);
         }
@@ -185,9 +168,8 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.SNAPSHOT_READ, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, String> zmutate(String namespace, K key, V param, ZMutateArgs zMutateArgs) {
+    public Command<K, V, String> zmutate(K key, V param, ZMutateArgs zMutateArgs) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(namespace).
                 addKey(key).
                 addValue(param);
         if (zMutateArgs != null) {
@@ -196,9 +178,8 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.ZMUTATE, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, Long> zgetrangesize(String namespace, ZGetRangeSizeArgs zGetRangeSizeArgs) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(namespace);
+    public Command<K, V, Long> zgetrangesize(ZGetRangeSizeArgs zGetRangeSizeArgs) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec);
         if (zGetRangeSizeArgs != null) {
             zGetRangeSizeArgs.build(args);
         }

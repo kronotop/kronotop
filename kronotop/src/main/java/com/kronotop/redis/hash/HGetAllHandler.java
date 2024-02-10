@@ -69,12 +69,12 @@ public class HGetAllHandler extends BaseHandler implements Handler {
             Enumeration<String> fields = hashValue.keys();
             while (fields.hasMoreElements()) {
                 String field = fields.nextElement();
-                ByteBuf fieldBuf = response.getContext().alloc().buffer();
+                ByteBuf fieldBuf = response.getChannelContext().alloc().buffer();
                 fieldBuf.writeBytes(field.getBytes());
                 result.add(new FullBulkStringRedisMessage(fieldBuf));
 
                 byte[] value = hashValue.get(field);
-                ByteBuf valueBuf = response.getContext().alloc().buffer();
+                ByteBuf valueBuf = response.getChannelContext().alloc().buffer();
                 valueBuf.writeBytes(value);
                 result.add(new FullBulkStringRedisMessage(valueBuf));
             }

@@ -86,7 +86,7 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
         }
 
         StringValue stringValue = (StringValue) result.get();
-        ByteBuf buf = response.getContext().alloc().buffer();
+        ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(stringValue.getValue());
         shard.getPersistenceQueue().add(new StringKey(getSetMessage.getKey()));
         response.write(buf);

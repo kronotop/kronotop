@@ -17,9 +17,12 @@
 package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.subspace.Subspace;
+import com.kronotop.core.NamespaceUtils;
+import com.kronotop.core.TransactionUtils;
+import com.kronotop.foundationdb.BaseHandler;
 import com.kronotop.foundationdb.FoundationDBService;
-import com.kronotop.foundationdb.zmap.protocol.ZPutMessage;
+import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.foundationdb.zmap.protocol.ZSetMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -31,11 +34,11 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import java.util.Collections;
 import java.util.List;
 
-@Command(ZPutMessage.COMMAND)
-@MinimumParameterCount(ZPutMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(ZPutMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZPutHandler extends BaseZMapHandler implements Handler {
-    public ZPutHandler(FoundationDBService service) {
+@Command(ZSetMessage.COMMAND)
+@MinimumParameterCount(ZSetMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumParameterCount(ZSetMessage.MAXIMUM_PARAMETER_COUNT)
+public class ZSetHandler extends BaseHandler implements Handler {
+    public ZSetHandler(FoundationDBService service) {
         super(service);
     }
 
@@ -46,24 +49,24 @@ public class ZPutHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.ZPUT).set(new ZPutMessage(request));
+        request.attr(MessageTypes.ZSET).set(new ZSetMessage(request));
     }
 
     @Override
     public List<String> getKeys(Request request) {
-        return Collections.singletonList(new String(request.attr(MessageTypes.ZPUT).get().getKey()));
+        return Collections.singletonList(new String(request.attr(MessageTypes.ZSET).get().getKey()));
     }
 
     @Override
     public void execute(Request request, Response response) {
-        ZPutMessage zPutMessage = request.attr(MessageTypes.ZPUT).get();
-        Subspace subspace = getSubspace(response, zPutMessage.getNamespace());
+        ZSetMessage zSetMessage = request.attr(MessageTypes.ZSET).get();
 
-        Transaction transaction = getOrCreateTransaction(response);
-        transaction.set(subspace.pack(zPutMessage.getKey()), zPutMessage.getValue());
-        if (isOneOff(response)) {
-            transaction.commit().join();
-        }
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
+        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+
+        tr.set(namespace.getZMap().pack(zSetMessage.getKey()), zSetMessage.getValue());
+        TransactionUtils.commitIfOneOff(tr, request.getChannelContext());
+
         response.writeOK();
     }
 }

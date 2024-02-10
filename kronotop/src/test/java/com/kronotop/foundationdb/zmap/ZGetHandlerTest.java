@@ -32,20 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class ZGetHandlerTest extends BaseHandlerTest {
     @Test
-    public void testZGet() {
+    public void test_ZGET() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-        {
-            // Create it
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreateOrOpen(namespace, null).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
 
         {
             ByteBuf buf = Unpooled.buffer();
@@ -59,7 +48,7 @@ public class ZGetHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.zput(namespace, "key", "value").encode(buf);
+            cmd.zset("key", "value").encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -89,7 +78,7 @@ public class ZGetHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.zget(namespace, "key").encode(buf);
+            cmd.zget("key").encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(FullBulkStringRedisMessage.class, response);
@@ -99,29 +88,17 @@ public class ZGetHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testZGET_Nil() {
+    public void test_ZGET_Nil() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreateOrOpen(namespace, null).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.zget(namespace, "key").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-            assertInstanceOf(FullBulkStringRedisMessage.class, response);
-            FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
-            assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
-        }
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zget("key").encode(buf);
+        channel.writeInbound(buf);
+        Object response = channel.readOutbound();
+        assertInstanceOf(FullBulkStringRedisMessage.class, response);
+        FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
+        assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
     }
 }

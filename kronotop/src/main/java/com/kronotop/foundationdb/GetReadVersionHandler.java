@@ -41,7 +41,7 @@ class GetReadVersionHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getContext().channel();
+        Channel channel = response.getChannelContext().channel();
         Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
         if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");

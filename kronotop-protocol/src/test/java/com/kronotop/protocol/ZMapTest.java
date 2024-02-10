@@ -24,20 +24,19 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ZMapTest {
+
     @Test
-    public void testZSET() {
+    public void test_ZSET() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.zput("foobar.barfoo", "key", "value").encode(buf);
+        cmd.zset("key", "value").encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*4").
+                append("*3").
                 append("$4").
-                append("ZPUT").
-                append("$13").
-                append("foobar.barfoo").
+                append("ZSET").
                 append("$3").
                 append("key").
                 append("$5").
@@ -46,45 +45,41 @@ public class ZMapTest {
     }
 
     @Test
-    public void testZGET() {
+    public void test_ZGET() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.zget("foobar.barfoo", "key").encode(buf);
+        cmd.zget("key").encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*3").
+                append("*2").
                 append("$4").
                 append("ZGET").
-                append("$13").
-                append("foobar.barfoo").
                 append("$3").
                 append("key");
         assertEquals(expectedCommand.toString(), new String(command));
     }
 
     @Test
-    public void testZDEL() {
+    public void test_ZDEL() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.zdel("foobar.barfoo", "key").encode(buf);
+        cmd.zdel("key").encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*3").
+                append("*2").
                 append("$4").
                 append("ZDEL").
-                append("$13").
-                append("foobar.barfoo").
                 append("$3").
                 append("key");
         assertEquals(expectedCommand.toString(), new String(command));
     }
 
     @Test
-    public void testZDELPREFIX() {
+    public void test_ZDELPREFIX() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.zdelprefix("prefix".getBytes()).encode(buf);
@@ -101,20 +96,18 @@ public class ZMapTest {
     }
 
     @Test
-    public void testZDELRANGE() {
+    public void test_ZDELRANGE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         ZDelRangeArgs zDelRangeArgs = ZDelRangeArgs.Builder.begin("begin".getBytes()).end("end".getBytes());
-        cmd.zdelrange("foobar.barfoo", zDelRangeArgs).encode(buf);
+        cmd.zdelrange(zDelRangeArgs).encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*4").
+                append("*3").
                 append("$9").
                 append("ZDELRANGE").
-                append("$13").
-                append("foobar.barfoo").
                 append("$5").
                 append("begin").
                 append("$3").
@@ -123,20 +116,18 @@ public class ZMapTest {
     }
 
     @Test
-    public void testZGETRANGE() {
+    public void test_ZGETRANGE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         ZGetRangeArgs zGetRangeArgs = ZGetRangeArgs.Builder.begin("begin".getBytes()).end("end".getBytes());
-        cmd.zgetrange("foobar.barfoo", zGetRangeArgs).encode(buf);
+        cmd.zgetrange(zGetRangeArgs).encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*4").
+                append("*3").
                 append("$9").
                 append("ZGETRANGE").
-                append("$13").
-                append("foobar.barfoo").
                 append("$5").
                 append("begin").
                 append("$3").
@@ -145,7 +136,7 @@ public class ZMapTest {
     }
 
     @Test
-    public void testZGETRANGE_Arguments() {
+    public void test_ZGETRANGE_Arguments() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         ZGetRangeArgs zGetRangeArgs = ZGetRangeArgs.Builder.
@@ -155,16 +146,14 @@ public class ZMapTest {
                 reverse().
                 beginKeySelector("FIRST_GREATER_THAN")
                 .endKeySelector("LAST_LESS_OR_EQUAL");
-        cmd.zgetrange("foobar.barfoo", zGetRangeArgs).encode(buf);
+        cmd.zgetrange(zGetRangeArgs).encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*11").
+                append("*10").
                 append("$9").
                 append("ZGETRANGE").
-                append("$13").
-                append("foobar.barfoo").
                 append("$5").
                 append("begin").
                 append("$3").
@@ -187,20 +176,18 @@ public class ZMapTest {
     }
 
     @Test
-    public void testZGETKEY() {
+    public void test_ZGETKEY() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         ZGetKeyArgs zGetKeyArgs = ZGetKeyArgs.Builder.key("key".getBytes()).keySelector("last_less_than");
-        cmd.zgetkey("foobar.barfoo", zGetKeyArgs).encode(buf);
+        cmd.zgetkey(zGetKeyArgs).encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*5").
+                append("*4").
                 append("$7").
                 append("ZGETKEY").
-                append("$13").
-                append("foobar.barfoo").
                 append("$3").
                 append("key").
                 append("$12").
@@ -211,21 +198,19 @@ public class ZMapTest {
     }
 
     @Test
-    public void testZMUTATE() {
+    public void test_ZMUTATE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.add();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -238,16 +223,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.bitAnd();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -260,16 +243,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.bitOr();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -282,16 +263,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.bitXor();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -304,16 +283,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.appendIfFits();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -326,16 +303,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.max();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -348,16 +323,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.min();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -370,16 +343,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.setVersionStampedKey();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -392,16 +363,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.setVersionStampedValue();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -414,16 +383,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.byteMin();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -436,16 +403,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.byteMax();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -458,16 +423,14 @@ public class ZMapTest {
         {
             ByteBuf buf = Unpooled.buffer();
             ZMutateArgs zMutateArgs = ZMutateArgs.Builder.compareAndClear();
-            cmd.zmutate("foobar.barfoo", "key", "param", zMutateArgs).encode(buf);
+            cmd.zmutate("key", "param", zMutateArgs).encode(buf);
 
             byte[] command = new byte[buf.readableBytes()];
             buf.readBytes(command);
             RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                    append("*5").
+                    append("*4").
                     append("$7").
                     append("ZMUTATE").
-                    append("$13").
-                    append("foobar.barfoo").
                     append("$3").
                     append("key").
                     append("$5").
@@ -479,20 +442,18 @@ public class ZMapTest {
     }
 
     @Test
-    public void testZGETRANGESIZE() {
+    public void test_ZGETRANGESIZE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         ZGetRangeSizeArgs zGetRangeSizeArgs = ZGetRangeSizeArgs.Builder.begin("begin".getBytes()).end("end".getBytes());
-        cmd.zgetrangesize("foobar.barfoo", zGetRangeSizeArgs).encode(buf);
+        cmd.zgetrangesize(zGetRangeSizeArgs).encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*4").
+                append("*3").
                 append("$13").
                 append("ZGETRANGESIZE").
-                append("$13").
-                append("foobar.barfoo").
                 append("$5").
                 append("begin").
                 append("$3").
@@ -501,7 +462,7 @@ public class ZMapTest {
     }
 
     @Test
-    public void testGETAPPROXIMATESIZE() {
+    public void test_GETAPPROXIMATESIZE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.getapproximatesize().encode(buf);
@@ -516,7 +477,7 @@ public class ZMapTest {
     }
 
     @Test
-    public void testGETREADVERSION() {
+    public void test_GETREADVERSION() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.getreadversion().encode(buf);

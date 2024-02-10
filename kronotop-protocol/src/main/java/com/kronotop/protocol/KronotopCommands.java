@@ -35,39 +35,35 @@ public interface KronotopCommands<K, V> {
 
     String namespaceCreate(K namespace, NamespaceArgs args);
 
-    String namespaceCreateOrOpen(K namespace);
-
-    String namespaceCreateOrOpen(K namespace, NamespaceArgs args);
-
     List<String> namespaceList(K namespace);
 
     List<String> namespaceMove(K oldNamespace, K newNamespace);
 
-    List<String> namespaceListOpen(K namespace);
-
-    String namespaceOpen(K namespace);
-
     String namespaceRemove(K namespace);
+
+    String namespaceUse(K namespace);
 
     Long namespaceExists(K namespace);
 
-    String zput(String namespace, K key, V value);
+    String namespaceCurrent();
+
+    String zset(K key, V value);
 
     V zget(String namespace, K key);
 
-    String zdel(String namespace, K key);
+    String zdel(K key);
 
     String zdelprefix(byte[] key);
 
     String zdelprefix(String namespace, ZDelRangeArgs args);
 
-    List<Object> zgetrange(String namespace, ZGetRangeArgs args);
+    List<Object> zgetrange(ZGetRangeArgs args);
 
     V zgetkey(String namespace, ZGetKeyArgs args);
 
     String snapshotRead(SnapshotReadArgs args);
 
-    String zmutate(String namespace, K key, V param, ZMutateArgs args);
+    String zmutate(K key, V param, ZMutateArgs args);
 
     Long zgetrangesize(String namespace, ZGetRangeSizeArgs args);
 

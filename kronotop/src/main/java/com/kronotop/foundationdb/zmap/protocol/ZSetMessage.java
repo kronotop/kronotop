@@ -21,33 +21,25 @@ import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class ZPutMessage implements KronotopMessage<byte[]> {
-    public static final String COMMAND = "ZPUT";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+public class ZSetMessage implements KronotopMessage<byte[]> {
+    public static final String COMMAND = "ZSET";
+    public static final int MINIMUM_PARAMETER_COUNT = 2;
+    public static final int MAXIMUM_PARAMETER_COUNT = 2;
     private final Request request;
-    private byte[] namespace;
     private byte[] key;
     private byte[] value;
 
-    public ZPutMessage(Request request) {
+    public ZSetMessage(Request request) {
         this.request = request;
         parse();
     }
 
     private void parse() {
-        namespace = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(namespace);
+        key = new byte[request.getParams().get(0).readableBytes()];
+        request.getParams().get(0).readBytes(key);
 
-        key = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(key);
-
-        value = new byte[request.getParams().get(2).readableBytes()];
-        request.getParams().get(2).readBytes(value);
-    }
-
-    public String getNamespace() {
-        return new String(namespace);
+        value = new byte[request.getParams().get(1).readableBytes()];
+        request.getParams().get(1).readBytes(value);
     }
 
     @Override
@@ -59,7 +51,6 @@ public class ZPutMessage implements KronotopMessage<byte[]> {
     public List<byte[]> getKeys() {
         return null;
     }
-
 
     public byte[] getValue() {
         return value;

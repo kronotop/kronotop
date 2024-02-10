@@ -112,7 +112,7 @@ public class RespRequest extends DefaultAttributeMap implements Request {
      *
      * @return the ChannelHandlerContext associated with the Request
      */
-    public ChannelHandlerContext getContext() {
+    public ChannelHandlerContext getChannelContext() {
         return ctx;
     }
 }

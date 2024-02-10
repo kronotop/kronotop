@@ -68,7 +68,7 @@ public class HValsHandler extends BaseHandler implements Handler {
             HashValue hashValue = (HashValue) retrieved;
             Collection<byte[]> values = hashValue.values();
             for (byte[] value : values) {
-                ByteBuf buf = response.getContext().alloc().buffer();
+                ByteBuf buf = response.getChannelContext().alloc().buffer();
                 buf.writeBytes(value);
                 result.add(new FullBulkStringRedisMessage(buf));
             }

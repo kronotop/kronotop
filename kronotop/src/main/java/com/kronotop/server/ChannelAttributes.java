@@ -17,13 +17,12 @@
 package com.kronotop.server;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.subspace.Subspace;
+import com.kronotop.foundationdb.namespace.Namespace;
 import io.netty.util.AttributeKey;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ConcurrentMap;
+import java.util.Map;
 
 /**
  * The ChannelAttributes class defines static final AttributeKey objects to be used as attribute keys in the ChannelHandlerContext.
@@ -40,9 +39,9 @@ public class ChannelAttributes {
 
     public static final AttributeKey<Transaction> TRANSACTION = AttributeKey.valueOf("transaction");
 
-    public static final AttributeKey<ConcurrentMap<String, DirectorySubspace>> OPEN_NAMESPACES = AttributeKey.valueOf("open_namespaces");
+    public static final AttributeKey<String> CURRENT_NAMESPACE = AttributeKey.valueOf("current_namespace");
 
-    public static final AttributeKey<ConcurrentMap<String, Subspace>> ZMAP_SUBSPACES = AttributeKey.valueOf("ZMAP_SUBSPACES");
+    public static final AttributeKey<Map<String, Namespace>> OPEN_NAMESPACES = AttributeKey.valueOf("open_namespaces");
 
     public static final AttributeKey<List<Request>> QUEUED_COMMANDS = AttributeKey.valueOf("queued_commands");
 

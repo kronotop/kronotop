@@ -66,18 +66,18 @@ public class AddColumn extends BaseAlterType implements AlterType {
             assert columnDeclaration != null;
 
             ColumnModel columnModel = new ColumnModel();
-            columnModel.setNames(columnDeclaration.name.names);
+            columnModel.setName(columnDeclaration.name.getSimple());
             SqlTypeName dataType = SqlTypeName.valueOf(columnDeclaration.dataType.getTypeName().names.get(0));
             columnModel.setDataType(dataType);
             columnModel.setStrategy(columnDeclaration.strategy);
             if (columnDeclaration.expression != null) {
                 columnModel.setExpression(columnDeclaration.expression.toString());
             }
-            columns.put(columnModel.getNames().get(0), columnModel);
+            columns.put(columnModel.getName(), columnModel);
         }
 
         for (ColumnModel column : tableModel.getColumnList()) {
-            String columnName = column.getNames().get(0);
+            String columnName = column.getName();
             if (columns.containsKey(columnName)) {
                 throw new SqlExecutionException(new ColumnAlreadyExistsException(columnName, table));
             }

@@ -66,7 +66,7 @@ import java.util.concurrent.TimeUnit;
 public class RedisService extends CommandHandlerService implements KronotopService {
     public static final String REDIS_VERSION = "7.0.8";
     public static final String NAME = "Redis";
-    private static final Logger logger = LoggerFactory.getLogger(RedisService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedisService.class);
     public final int NUM_HASH_SLOTS = 16384;
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
@@ -295,7 +295,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * The persistence process retrieves the latest values for each key from the shard and persists them to the FoundationDB cluster.
      */
     private void drainPersistenceQueues() {
-        logger.info("Draining persistence queue of Redis logical database");
+        LOGGER.info("Draining persistence queue of Redis logical database");
         for (Shard shard : context.getLogicalDatabase().getShards().values()) {
             if (shard.getPersistenceQueue().size() > 0) {
                 Persistence persistence = new Persistence(context, shard);
@@ -312,9 +312,9 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         try {
             boolean result = scheduledExecutorService.awaitTermination(6, TimeUnit.SECONDS);
             if (result) {
-                logger.debug("Persistence executor has been terminated");
+                LOGGER.debug("Persistence executor has been terminated");
             } else {
-                logger.debug("Persistence executor has been terminated due to the timeout");
+                LOGGER.debug("Persistence executor has been terminated due to the timeout");
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

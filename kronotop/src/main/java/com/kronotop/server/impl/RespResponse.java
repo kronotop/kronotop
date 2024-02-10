@@ -252,7 +252,7 @@ public class RespResponse implements Response {
      * @return the ChannelHandlerContext associated with this Response object
      */
     @Override
-    public ChannelHandlerContext getContext() {
+    public ChannelHandlerContext getChannelContext() {
         return this.ctx;
     }
 

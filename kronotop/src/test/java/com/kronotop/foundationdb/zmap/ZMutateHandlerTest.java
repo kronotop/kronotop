@@ -32,14 +32,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class ZMutateHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testZMutate() {
+    public void test_ZMUTATE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
+
         {
-            // Create it
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreateOrOpen(namespace, null).encode(buf);
+            cmd.zset("my-key", "my-value").encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -50,7 +51,7 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.zput(namespace, "my-key", "my-value").encode(buf);
+            cmd.zmutate("my-key", "my-value", ZMutateArgs.Builder.compareAndClear()).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -61,18 +62,7 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.zmutate(namespace, "my-key", "my-value", ZMutateArgs.Builder.compareAndClear()).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.zget(namespace, "my-key").encode(buf);
+            cmd.zget("my-key").encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(FullBulkStringRedisMessage.class, response);
@@ -82,18 +72,30 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testZMUTATE_NAMESPACENOTOPEN() {
+    public void test_ZMUTATE_NOSUCHNAMESPACE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
+        {
+            // Use it
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceUse("foobar").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals("OK", actualMessage.content());
+        }
+
         ByteBuf buf = Unpooled.buffer();
         ZMutateArgs zMutateArgs = ZMutateArgs.Builder.max();
-        cmd.zmutate(namespace, "my-key", "my-value", zMutateArgs).encode(buf);
+        cmd.zmutate("my-key", "my-value", zMutateArgs).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals(String.format("NAMESPACENOTOPEN namespace '%s' not open", namespace), actualMessage.content());
+        assertEquals("NOSUCHNAMESPACE No such namespace: foobar", actualMessage.content());
     }
 }

@@ -90,7 +90,7 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
             SqlColumnDeclaration column = (SqlColumnDeclaration) sqlNode;
 
             ColumnModel columnModel = new ColumnModel();
-            columnModel.setNames(column.name.names);
+            columnModel.setName(column.name.getSimple());
             columnModel.setStrategy(column.strategy);
             SqlTypeName dataType = SqlTypeName.valueOf(column.dataType.getTypeName().names.get(0));
             columnModel.setDataType(dataType);

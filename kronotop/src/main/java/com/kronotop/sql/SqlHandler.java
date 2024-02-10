@@ -19,12 +19,22 @@ package com.kronotop.sql;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
+import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.sql.optimizer.Optimizer;
+import com.kronotop.sql.optimizer.Rules;
+import com.kronotop.sql.optimizer.enumerable.EnumerableConvention;
 import com.kronotop.sql.protocol.SqlMessage;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.externalize.RelWriterImpl;
+import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.validate.SqlValidatorException;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.List;
 
 @Command(SqlMessage.COMMAND)
@@ -47,16 +57,25 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
 
             // DDL Commands
             ExecutionContext executionContext = new ExecutionContext(request, response);
-            String schema = request.getContext().channel().attr(ChannelAttributes.SCHEMA).get();
+            String schema = request.getChannelContext().channel().attr(ChannelAttributes.SCHEMA).get();
             executionContext.setSchema(schema);
 
             RedisMessage result;
-            Executor<SqlNode> executor = service.ddlExecutors.get(sqlTree.getKind());
-            if (executor != null) {
-                result = executor.execute(executionContext, sqlTree);
+            if (service.statements.contains(sqlTree.getKind())) {
+                KronotopSchema kronotopSchema = service.getMetadataService().findSchemaMetadata(schema).getKronotopSchema();
+                Optimizer optimizer = new Optimizer(kronotopSchema);
+                SqlNode validatedSqlTree = optimizer.validate(sqlTree);
+                RelNode relTree = optimizer.convert(validatedSqlTree);
+                RelNode optimizerRelTree = optimizer.optimize(relTree, relTree.getTraitSet().plus(EnumerableConvention.INSTANCE), Rules.rules);
+                print("After Optimization", optimizerRelTree);
+                result = new SimpleStringRedisMessage("OK");
             } else {
-                response.writeError(RESPError.SQL, String.format("Unknown SQL command: %s", sqlTree.getKind()));
-                return;
+                Executor<SqlNode> executor = service.executors.get(sqlTree.getKind());
+                if (executor != null) {
+                    result = executor.execute(executionContext, sqlTree);
+                } else {
+                    result = new ErrorRedisMessage(service.formatErrorMessage(String.format("Unknown SQL command: %s", sqlTree.getKind())));
+                }
             }
             response.writeRedisMessage(result);
         } catch (SqlParseException e) {
@@ -67,5 +86,17 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
         } catch (SqlValidatorException e) {
             response.writeError(RESPError.SQL, String.format("%s %s", e.getMessage(), e.getCause().getMessage()));
         }
+    }
+
+    private void print(String header, RelNode relTree) {
+        StringWriter sw = new StringWriter();
+
+        sw.append(header).append(":").append("\n");
+
+        RelWriterImpl relWriter = new RelWriterImpl(new PrintWriter(sw), SqlExplainLevel.ALL_ATTRIBUTES, true);
+
+        relTree.explain(relWriter);
+
+        System.out.println(sw);
     }
 }

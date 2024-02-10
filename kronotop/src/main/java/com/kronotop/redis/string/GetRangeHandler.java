@@ -42,7 +42,7 @@ public class GetRangeHandler extends BaseStringHandler implements Handler {
     }
 
     private void emptyResponse(Response response) {
-        ByteBuf buf = response.getContext().alloc().buffer();
+        ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes("".getBytes());
         response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
     }
@@ -98,7 +98,7 @@ public class GetRangeHandler extends BaseStringHandler implements Handler {
 
         try {
             byte[] data = Arrays.copyOfRange(value.getValue(), start, end);
-            ByteBuf buf = response.getContext().alloc().buffer();
+            ByteBuf buf = response.getChannelContext().alloc().buffer();
             buf.writeBytes(data);
             response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
         } catch (IllegalArgumentException e) {

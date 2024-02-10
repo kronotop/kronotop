@@ -81,7 +81,7 @@ public class GetDelHandler extends BaseStringHandler implements Handler {
             throw new WrongTypeException();
         }
         StringValue stringValue = (StringValue) retrieved;
-        ByteBuf buf = response.getContext().alloc().buffer();
+        ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(stringValue.getValue());
         shard.getPersistenceQueue().add(new StringKey(getDelMessage.getKey()));
         response.write(buf);

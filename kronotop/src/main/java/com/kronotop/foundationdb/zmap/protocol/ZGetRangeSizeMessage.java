@@ -23,10 +23,9 @@ import java.util.List;
 
 public class ZGetRangeSizeMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "ZGETRANGESIZE";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_PARAMETER_COUNT = 2;
+    public static final int MAXIMUM_PARAMETER_COUNT = 2;
     private final Request request;
-    private byte[] namespace;
     private byte[] begin;
     private byte[] end;
 
@@ -36,18 +35,11 @@ public class ZGetRangeSizeMessage implements KronotopMessage<Void> {
     }
 
     private void parse() {
-        namespace = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(namespace);
+        begin = new byte[request.getParams().get(0).readableBytes()];
+        request.getParams().get(0).readBytes(begin);
 
-        begin = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(begin);
-
-        end = new byte[request.getParams().get(2).readableBytes()];
-        request.getParams().get(2).readBytes(end);
-    }
-
-    public String getNamespace() {
-        return new String(namespace);
+        end = new byte[request.getParams().get(1).readableBytes()];
+        request.getParams().get(1).readBytes(end);
     }
 
     public byte[] getBegin() {

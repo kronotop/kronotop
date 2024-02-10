@@ -18,8 +18,12 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.subspace.Subspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.kronotop.core.NamespaceUtils;
+import com.kronotop.core.TransactionUtils;
+import com.kronotop.foundationdb.BaseHandler;
 import com.kronotop.foundationdb.FoundationDBService;
+import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZDelRangeMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -29,10 +33,12 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
+import java.util.Arrays;
+
 @Command(ZDelRangeMessage.COMMAND)
 @MinimumParameterCount(ZDelRangeMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZDelRangeMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZDelRangeHandler extends BaseZMapHandler implements Handler {
+public class ZDelRangeHandler extends BaseHandler implements Handler {
     public ZDelRangeHandler(FoundationDBService service) {
         super(service);
     }
@@ -49,18 +55,29 @@ public class ZDelRangeHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        // Validates the request
         ZDelRangeMessage zDelRangeMessage = request.attr(MessageTypes.ZDELRANGE).get();
 
-        Subspace subspace = getSubspace(response, zDelRangeMessage.getNamespace());
-        Transaction transaction = getOrCreateTransaction(response);
-        byte[] begin = subspace.pack(zDelRangeMessage.getBegin());
-        byte[] end = subspace.pack(zDelRangeMessage.getEnd());
-        Range range = new Range(begin, end);
-        transaction.clear(range);
-        if (isOneOff(response)) {
-            transaction.commit().join();
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
+        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+
+        byte[] begin;
+        byte[] end;
+        if (Arrays.equals(zDelRangeMessage.getBegin(), ZDelRangeMessage.ASTERISK)) {
+            begin = namespace.getZMap().pack();
+        } else {
+            begin = namespace.getZMap().pack(zDelRangeMessage.getBegin());
         }
+
+        if (Arrays.equals(zDelRangeMessage.getEnd(), ZDelRangeMessage.ASTERISK)) {
+            end = ByteArrayUtil.strinc(namespace.getZMap().pack());
+        } else {
+            end = namespace.getZMap().pack(zDelRangeMessage.getEnd());
+        }
+
+        Range range = new Range(begin, end);
+        tr.clear(range);
+        TransactionUtils.commitIfOneOff(tr, request.getChannelContext());
+
         response.writeOK();
     }
 }

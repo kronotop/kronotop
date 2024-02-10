@@ -34,7 +34,7 @@ import com.kronotop.core.KeyWatcher;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.journal.Event;
 import com.kronotop.core.journal.JournalName;
-import com.kronotop.sql.JSONUtils;
+import com.kronotop.core.JSONUtils;
 import com.kronotop.sql.KronotopTable;
 import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.backend.metadata.events.*;
@@ -60,7 +60,7 @@ public class SqlMetadataService implements KronotopService {
     private final AtomicReference<byte[]> lastSqlMetadataVersionstamp = new AtomicReference<>();
     private final ExecutorService executor;
     private final CountDownLatch latch = new CountDownLatch(1);
-    private final SchemaMetadata metadata = new SchemaMetadata();
+    private final Metadata metadata = new Metadata();
     private volatile boolean isShutdown;
 
     public SqlMetadataService(Context context) {
@@ -114,7 +114,7 @@ public class SqlMetadataService implements KronotopService {
             List<String> schema = getSchemaLayout(defaultSchema).asList();
             DirectoryLayer.getDefault().create(tr, schema).join();
             tr.commit().join();
-            findOrLoadSchema(defaultSchema);
+            findOrLoadSchemaMetadata(defaultSchema); // thread-safe
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
                 // Already exists
@@ -138,6 +138,7 @@ public class SqlMetadataService implements KronotopService {
      * @param table  The name of the table to search for.
      */
     private void loadTableFromFDB(Transaction tr, String schema, String table) {
+        // This method is not thread-safe.
         List<String> tableLayout = getTableLayout(schema, table).asList();
         DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, tableLayout).join();
         for (KeyValue keyValue : tr.getRange(subspace.range())) {
@@ -153,31 +154,63 @@ public class SqlMetadataService implements KronotopService {
     }
 
     /**
+     * Adds the provided schema to the metadata collection and initializes an associated KronotopSchema and Optimizer.
+     * This method is not thread-safe.
+     *
+     * @param schema The schema to be added.
+     * @return The SchemaMetadata object associated with the added schema.
+     * @throws SchemaAlreadyExistsException If the provided schema already exists in the metadata collection.
+     */
+    private SchemaMetadata addSchemaMetadata(String schema) throws SchemaAlreadyExistsException {
+        // This method is not thread-safe.
+        SchemaMetadata schemaMetadata = new SchemaMetadata(schema);
+        metadata.put(schema, schemaMetadata);
+        return schemaMetadata;
+    }
+
+    /**
+     * Loads the schema from the FoundationDB transaction and processes the specified schema.
+     * This method is not thread-safe.
+     *
+     * @param tr     The FoundationDB transaction.
+     * @param schema The schema to load.
+     */
+    private void loadSchemaFromFDB(Transaction tr, String schema) {
+        // This method is not thread-safe.
+        if (!metadata.has(schema)) {
+            try {
+                addSchemaMetadata(schema);
+            } catch (SchemaAlreadyExistsException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+        List<String> tableLayout = getSchemaLayout(schema).tables().asList();
+        boolean hasTablesDir = DirectoryLayer.getDefault().exists(tr, tableLayout).join();
+        if (!hasTablesDir) {
+            // Nothing to do
+            return;
+        }
+        List<String> tables = DirectoryLayer.getDefault().list(tr, tableLayout).join();
+        for (String table : tables) {
+            loadTableFromFDB(tr, schema, table);
+        }
+    }
+
+    /**
      * Initializes the SqlMetadataService instance by loading the schemas and tables from FoundationDB.
      * This method creates the schema hierarchy in the metadata store and loads the tables associated with each schema.
      */
     private void initialize() {
         long start = System.currentTimeMillis();
+        lock.writeLock().lock();
         List<String> schemasLayout = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().sql().metadata().schemas().asList();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             List<String> schemas = DirectoryLayer.getDefault().list(tr, schemasLayout).join();
             for (String schema : schemas) {
-                try {
-                    metadata.put(schema, new SchemaMetadata());
-                } catch (SchemaAlreadyExistsException e) {
-                    // Ignore this
-                }
-
-                List<String> tableLayout = getSchemaLayout(schema).tables().asList();
-                boolean hasTablesDir = DirectoryLayer.getDefault().exists(tr, tableLayout).join();
-                if (!hasTablesDir) {
-                    continue;
-                }
-                List<String> tables = DirectoryLayer.getDefault().list(tr, tableLayout).join();
-                for (String table : tables) {
-                    loadTableFromFDB(tr, schema, table);
-                }
+                loadSchemaFromFDB(tr, schema);
             }
+        } finally {
+            lock.writeLock().unlock();
         }
         long end = System.currentTimeMillis();
         LOGGER.info("SQL metadata has been loaded from FoundationDB cluster in {} ms", end - start);
@@ -255,7 +288,7 @@ public class SqlMetadataService implements KronotopService {
      * @return The SchemaMetadata object representing the metadata for the schema.
      * @throws SchemaNotExistsException If the specified schema does not exist in the metadata store.
      */
-    public SchemaMetadata findSchema(String schema) throws SchemaNotExistsException {
+    public SchemaMetadata findSchemaMetadata(String schema) throws SchemaNotExistsException {
         lock.readLock().lock();
         try {
             return metadata.get(schema);
@@ -271,7 +304,7 @@ public class SqlMetadataService implements KronotopService {
      * @return The SchemaMetadata object representing the metadata for the schema.
      * @throws SchemaNotExistsException If the specified schema does not exist in the metadata store.
      */
-    public SchemaMetadata findOrLoadSchema(String schema) throws SchemaNotExistsException {
+    public SchemaMetadata findOrLoadSchemaMetadata(String schema) throws SchemaNotExistsException {
         lock.writeLock().lock();
         try {
             return getOrLoadSchema(schema);
@@ -340,23 +373,26 @@ public class SqlMetadataService implements KronotopService {
      */
     private SchemaMetadata getOrLoadSchema(String schema) throws SchemaNotExistsException {
         // this method is not thread safe
+
+        // Check the existing records first.
         if (metadata.has(schema)) {
             return metadata.get(schema);
         }
 
+        // Check the schema name on FDB.
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             if (!isSchemaExistOnFDB(tr, schema)) {
                 throw new SchemaNotExistsException(schema);
             }
         }
-        SchemaMetadata current = new SchemaMetadata();
+
+        // Create the record and initialize the optimizer for this root schema.
         try {
-            metadata.put(schema, current);
+            return addSchemaMetadata(schema);
         } catch (SchemaAlreadyExistsException e) {
             // This should not be possible
             throw new IllegalStateException(e);
         }
-        return current;
     }
 
     /**
@@ -369,12 +405,18 @@ public class SqlMetadataService implements KronotopService {
      * @throws TableNotExistsException     If the table with the old name does not exist.
      * @throws TableAlreadyExistsException If a table with the new name already exists.
      */
-    private void renameTable(String schema, String oldName, String newName) throws SchemaNotExistsException, TableNotExistsException, TableAlreadyExistsException {
+    private void renameTable(String schema, String oldName, String newName)
+            throws SchemaNotExistsException, TableNotExistsException, TableAlreadyExistsException {
         lock.writeLock().lock();
         try {
             SchemaMetadata schemaMetadata = getOrLoadSchema(schema);
             TableMetadata tableMetadata = schemaMetadata.getTables();
             tableMetadata.rename(oldName, newName);
+
+            // Update KronotopSchema
+            VersionedTableMetadata versionedTableMetadata = tableMetadata.get(newName);
+            schemaMetadata.getKronotopSchema().getTableMap().put(newName, versionedTableMetadata.getLatest());
+            schemaMetadata.getKronotopSchema().getTableMap().remove(oldName);
         } finally {
             lock.writeLock().unlock();
         }
@@ -408,6 +450,8 @@ public class SqlMetadataService implements KronotopService {
         try {
             SchemaMetadata current = metadata.get(schema);
             current.getTables().remove(table);
+            // Update KronotopSchema
+            current.getKronotopSchema().getTableMap().remove(table);
         } finally {
             lock.writeLock().unlock();
         }
@@ -422,7 +466,8 @@ public class SqlMetadataService implements KronotopService {
      * @param versionBytes the versionstamp of the table metadata
      * @return TableModel object representing the table metadata
      */
-    private TableModel loadTableMetadataWithVersionstamp(Transaction tr, String schema, String table, byte[] versionBytes) throws TableNotExistsException {
+    private TableModel loadTableMetadataWithVersionstamp(Transaction tr, String schema, String table, byte[] versionBytes)
+            throws TableNotExistsException {
         List<String> subpath = getTableLayout(schema, table).asList();
         DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
         Versionstamp versionstamp = Versionstamp.fromBytes(versionBytes);
@@ -437,41 +482,46 @@ public class SqlMetadataService implements KronotopService {
     }
 
     /**
-     * Adds a new version for a table in the schema metadata store.
+     * Adds a version of the table to the schema metadata.
      *
-     * @param tableModel   The table metadata for the new version.
-     * @param versionstamp The versionstamp of the table metadata.
-     * @throws SchemaNotExistsException           if the schema does not exist in the schema metadata store.
-     * @throws TableVersionAlreadyExistsException if the table version already exists in the metadata store.
+     * @param tableModel   The table model.
+     * @param versionstamp The version stamp.
+     * @throws SchemaNotExistsException           If the schema does not exist in the metadata.
+     * @throws TableVersionAlreadyExistsException If the table version already exists in the metadata.
      */
-    private void addTableVersion(TableModel tableModel, byte[] versionstamp) throws SchemaNotExistsException, TableVersionAlreadyExistsException {
+    private void addTableVersion(TableModel tableModel, byte[] versionstamp)
+            throws SchemaNotExistsException, TableVersionAlreadyExistsException {
+        // This method is not thread safe.
         KronotopTable table = new KronotopTable(tableModel);
-        lock.writeLock().lock();
-        try {
-            SchemaMetadata schemaMetadata = getOrLoadSchema(table.getSchema());
-            VersionedTableMetadata versionedTableMetadata = schemaMetadata.getTables().getOrCreate(table.getName());
-            String version = BaseEncoding.base64().encode(versionstamp);
-            versionedTableMetadata.put(version, table);
-            LOGGER.debug("Table version: {} has been loaded for: {}", version, String.join(".", List.of(table.getSchema(), table.getName())));
-        } finally {
-            lock.writeLock().unlock();
-        }
+        SchemaMetadata schemaMetadata = getOrLoadSchema(table.getSchema());
+        VersionedTableMetadata versionedTableMetadata = schemaMetadata.getTables().getOrCreate(table.getName());
+        String version = BaseEncoding.base64().encode(versionstamp);
+        versionedTableMetadata.put(version, table);
+
+        // Update KronotopSchema
+        schemaMetadata.getKronotopSchema().getTableMap().put(tableModel.getTable(), versionedTableMetadata.getLatest());
+        LOGGER.debug("Table: {} version: {} has been loaded", String.join(".", List.of(table.getSchema(), table.getName())), version);
     }
 
     private void processTableCreatedEvent(Transaction tr, BroadcastEvent broadcastEvent) {
         TableCreatedEvent event = JSONUtils.readValue(broadcastEvent.getPayload(), TableCreatedEvent.class);
         try {
             TableModel tableModel = loadTableMetadataWithVersionstamp(tr, event.getSchema(), event.getTable(), event.getVersionstamp());
-            addTableVersion(tableModel, event.getVersionstamp());
+            lock.writeLock().lock();
+            try {
+                addTableVersion(tableModel, event.getVersionstamp());
+            } finally {
+                lock.writeLock().unlock();
+            }
         } catch (TableNotExistsException | SchemaNotExistsException | TableVersionAlreadyExistsException e) {
-            LOGGER.error("Failed to add new table version: {}", e.getMessage());
+            LOGGER.error("Error while processing {} event, schema: {}, table: {}", EventTypes.TABLE_CREATED, event.getSchema(), event.getTable(), e);
             throw new KronotopException(e);
         }
     }
 
     private void processSchemaCreatedEvent(BroadcastEvent broadcastEvent) throws SchemaNotExistsException {
         SchemaCreatedEvent event = JSONUtils.readValue(broadcastEvent.getPayload(), SchemaCreatedEvent.class);
-        findOrLoadSchema(event.getSchema());
+        findOrLoadSchemaMetadata(event.getSchema());
     }
 
     private void processSchemaDroppedEvent(BroadcastEvent broadcastEvent) {
@@ -508,10 +558,15 @@ public class SqlMetadataService implements KronotopService {
                         throw new RuntimeException(ex);
                     }
                 });
-                addTableVersion(tableModel, event.getVersionstamp());
+                lock.writeLock().lock();
+                try {
+                    addTableVersion(tableModel, event.getVersionstamp());
+                } finally {
+                    lock.writeLock().unlock();
+                }
             }
         } catch (SchemaNotExistsException | TableAlreadyExistsException | TableVersionAlreadyExistsException e) {
-            LOGGER.debug("Failed to process {}", EventTypes.TABLE_RENAMED, e);
+            LOGGER.error("Error while processing {} event, schema: {}, table: {}", EventTypes.TABLE_RENAMED, event.getSchema(), event.getOldName(), e);
         }
     }
 
@@ -519,9 +574,14 @@ public class SqlMetadataService implements KronotopService {
         TableAlteredEvent event = JSONUtils.readValue(broadcastEvent.getPayload(), TableAlteredEvent.class);
         try {
             TableModel tableModel = loadTableMetadataWithVersionstamp(tr, event.getSchema(), event.getTable(), event.getVersionstamp());
-            addTableVersion(tableModel, event.getVersionstamp());
+            lock.writeLock().lock();
+            try {
+                addTableVersion(tableModel, event.getVersionstamp());
+            } finally {
+                lock.writeLock().unlock();
+            }
         } catch (SchemaNotExistsException | TableVersionAlreadyExistsException | TableNotExistsException e) {
-            LOGGER.debug("Failed to process {}", EventTypes.TABLE_ALTERED, e);
+            LOGGER.error("Error while processing {} event, schema: {}, table: {}", EventTypes.TABLE_ALTERED, event.getSchema(), event.getTable(), e);
         }
     }
 

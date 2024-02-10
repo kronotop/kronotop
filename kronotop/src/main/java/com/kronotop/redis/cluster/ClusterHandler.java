@@ -82,7 +82,7 @@ public class ClusterHandler extends BaseHandler implements Handler {
             List<RedisMessage> children = new ArrayList<>();
             IntegerRedisMessage beginSection = new IntegerRedisMessage(r.begin);
             IntegerRedisMessage endSection = new IntegerRedisMessage(r.end);
-            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getContext(), r.owner));
+            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getChannelContext(), r.owner));
             children.add(beginSection);
             children.add(endSection);
             children.add(ownerSection);

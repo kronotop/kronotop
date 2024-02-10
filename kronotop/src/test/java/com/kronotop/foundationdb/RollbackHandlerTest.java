@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class RollbackHandlerTest extends BaseHandlerTest {
     @Test
-    public void testROLLBACK() {
+    public void test_ROLLBACK() {
         TestTransaction tt = new TestTransaction(channel);
         tt.begin();
         tt.cancel();
@@ -37,7 +37,7 @@ public class RollbackHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testROLLBACK_NoTransactionInProgress() {
+    public void test_ROLLBACK_NoTransactionInProgress() {
         TestTransaction tt = new TestTransaction(channel);
 
         // Start a new transaction

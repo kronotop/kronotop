@@ -98,7 +98,7 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
         }
 
         persistence(shard, hincrbyfloatMessage.getKey(), hincrbyfloatMessage.getFieldValuePairs());
-        ByteBuf buf = response.getContext().alloc().buffer();
+        ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(Double.toString(newValue).getBytes());
         response.write(buf);
     }

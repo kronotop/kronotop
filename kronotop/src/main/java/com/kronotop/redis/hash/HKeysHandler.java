@@ -68,7 +68,7 @@ public class HKeysHandler extends BaseHandler implements Handler {
             HashValue hashValue = (HashValue) retrieved;
             Enumeration<String> keys = hashValue.keys();
             while (keys.hasMoreElements()) {
-                ByteBuf buf = response.getContext().alloc().buffer();
+                ByteBuf buf = response.getChannelContext().alloc().buffer();
                 buf.writeBytes(keys.nextElement().getBytes());
                 fields.add(new FullBulkStringRedisMessage(buf));
             }

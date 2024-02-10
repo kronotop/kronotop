@@ -16,16 +16,13 @@
 
 package com.kronotop.sql;
 
-import org.apache.calcite.schema.Table;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.ConcurrentHashMap;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Test cases for {@link KronotopSchema} class.
- *
  */
 public class KronotopSchemaTest {
 
@@ -35,8 +32,7 @@ public class KronotopSchemaTest {
      */
     @Test
     void test_KronotopSchema() {
-        ConcurrentHashMap<String, Table> tableMap = new ConcurrentHashMap<>();
-        KronotopSchema schema = new KronotopSchema("TestSchema", tableMap);
+        KronotopSchema schema = new KronotopSchema("TestSchema");
         assertEquals("TestSchema", schema.getName());
         assertNotNull(schema.getTableMap());
     }

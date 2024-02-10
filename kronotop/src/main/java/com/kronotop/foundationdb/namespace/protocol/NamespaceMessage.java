@@ -15,11 +15,11 @@
  *
  */
 
-package com.kronotop.foundationdb.protocol;
+package com.kronotop.foundationdb.namespace.protocol;
 
 import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
-import com.kronotop.server.UnknownOperandException;
+import com.kronotop.server.UnknownSubcommandException;
 import com.kronotop.server.WrongNumberOfArgumentsException;
 import io.netty.buffer.ByteBuf;
 
@@ -30,21 +30,14 @@ import java.util.ListIterator;
 public class NamespaceMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "NAMESPACE";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final String CREATE_OPERAND = "CREATE";
-    public static final String CREATE_OR_OPEN_OPERAND = "CREATE_OR_OPEN";
-    public static final String OPEN_OPERAND = "OPEN";
-    public static final String LIST_OPERAND = "LIST";
-    public static final String LIST_OPEN_OPERAND = "LIST_OPEN";
-    public static final String MOVE_OPERAND = "MOVE";
-    public static final String REMOVE_OPERAND = "REMOVE";
-    public static final String EXISTS_OPERAND = "EXISTS";
     private final Request request;
-    private String operand;
+    private NamespaceSubcommand subcommand;
     private CreateMessage createMessage;
     private ListMessage listMessage;
     private MoveMessage moveMessage;
     private RemoveMessage removeMessage;
     private ExistsMessage existsMessage;
+    private UseMessage useMessage;
 
     public NamespaceMessage(Request request) {
         this.request = request;
@@ -78,9 +71,9 @@ public class NamespaceMessage implements KronotopMessage<Void> {
                 continue;
             }
 
-            if (createMessage.getSubpath().size() > 0) {
+            if (!createMessage.getSubpath().isEmpty()) {
                 throw new WrongNumberOfArgumentsException(
-                        String.format("wrong number of arguments for '%s %s' command", request.getCommand(), operand.toUpperCase())
+                        String.format("wrong number of arguments for '%s %s' command", request.getCommand(), subcommand)
                 );
             }
 
@@ -89,9 +82,9 @@ public class NamespaceMessage implements KronotopMessage<Void> {
             }
         }
 
-        if (createMessage.getSubpath().size() == 0) {
+        if (createMessage.getSubpath().isEmpty()) {
             throw new WrongNumberOfArgumentsException(
-                    String.format("wrong number of arguments for '%s %s' command", request.getCommand(), operand.toUpperCase())
+                    String.format("wrong number of arguments for '%s %s' command", request.getCommand(), subcommand)
             );
         }
     }
@@ -129,7 +122,7 @@ public class NamespaceMessage implements KronotopMessage<Void> {
 
     private void parseRemoveCommand() {
         if (request.getParams().size() != 2) {
-            throw new WrongNumberOfArgumentsException(String.format("wrong number of arguments for '%s %s' command", request.getCommand(), operand.toUpperCase()));
+            throw new WrongNumberOfArgumentsException(String.format("wrong number of arguments for '%s %s' command", request.getCommand(), subcommand));
         }
 
         removeMessage = new RemoveMessage();
@@ -142,7 +135,7 @@ public class NamespaceMessage implements KronotopMessage<Void> {
 
     private void parseExistsCommand() {
         if (request.getParams().size() <= 1) {
-            throw new WrongNumberOfArgumentsException(String.format("wrong number of arguments for '%s %s' command", request.getCommand(), operand.toUpperCase()));
+            throw new WrongNumberOfArgumentsException(String.format("wrong number of arguments for '%s %s' command", request.getCommand(), subcommand));
         }
 
         existsMessage = new ExistsMessage();
@@ -153,27 +146,61 @@ public class NamespaceMessage implements KronotopMessage<Void> {
         }
     }
 
-    private void parse() {
-        byte[] rawOperand = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawOperand);
-        operand = new String(rawOperand);
-        if (CREATE_OPERAND.equalsIgnoreCase(operand)
-                || CREATE_OR_OPEN_OPERAND.equalsIgnoreCase(operand)
-                || OPEN_OPERAND.equalsIgnoreCase(operand)) {
-            parseCreateCommand();
-        } else if (LIST_OPERAND.equalsIgnoreCase(operand)) {
-            parseListCommand();
-        } else if (MOVE_OPERAND.equalsIgnoreCase(operand)) {
-            parseMoveCommand();
-        } else if (REMOVE_OPERAND.equalsIgnoreCase(operand)) {
-            parseRemoveCommand();
-        } else if (EXISTS_OPERAND.equalsIgnoreCase(operand)) {
-            parseExistsCommand();
-        } else {
-            if (!LIST_OPEN_OPERAND.equalsIgnoreCase(operand)) {
-                throw new UnknownOperandException(String.format("unknown operand: %s", operand));
-            }
+    private void parseUseCommand() {
+        if (request.getParams().size() <= 1) {
+            throw new WrongNumberOfArgumentsException(String.format("wrong number of arguments for '%s %s' command", request.getCommand(), subcommand));
         }
+
+        useMessage = new UseMessage();
+        ByteBuf path = request.getParams().get(1);
+        String pathStr = readFromByteBuf(path);
+        for (String sb : pathStr.split("\\.")) {
+            useMessage.addToPath(sb);
+        }
+    }
+
+    private void parse() {
+        byte[] rawSubcommand = new byte[request.getParams().get(0).readableBytes()];
+        request.getParams().get(0).readBytes(rawSubcommand);
+
+        String preSubcommand = new String(rawSubcommand).trim().toUpperCase();
+        if (preSubcommand.isEmpty() || preSubcommand.isBlank()) {
+            throw new IllegalArgumentException("invalid subcommand given");
+        }
+
+        try {
+            subcommand = NamespaceSubcommand.valueOf(preSubcommand);
+        } catch (IllegalArgumentException e) {
+            throw new UnknownSubcommandException(preSubcommand);
+        }
+        switch (subcommand) {
+            case CREATE:
+                parseCreateCommand();
+                break;
+            case LIST:
+                parseListCommand();
+                break;
+            case MOVE:
+                parseMoveCommand();
+                break;
+            case REMOVE:
+                parseRemoveCommand();
+                break;
+            case EXISTS:
+                parseExistsCommand();
+                break;
+            case CURRENT:
+                break;
+            case USE:
+                parseUseCommand();
+                break;
+            default:
+                throw new UnknownSubcommandException(subcommand.toString());
+        }
+    }
+
+    public UseMessage getUseMessage() {
+        return useMessage;
     }
 
     public ExistsMessage getExistsMessage() {
@@ -196,8 +223,8 @@ public class NamespaceMessage implements KronotopMessage<Void> {
         return createMessage;
     }
 
-    public String getOperand() {
-        return operand;
+    public NamespaceSubcommand getSubcommand() {
+        return subcommand;
     }
 
     @Override
@@ -208,6 +235,18 @@ public class NamespaceMessage implements KronotopMessage<Void> {
     @Override
     public List<Void> getKeys() {
         return null;
+    }
+
+    public static class UseMessage {
+        private final List<String> path = new ArrayList<>();
+
+        private void addToPath(String item) {
+            path.add(item);
+        }
+
+        public List<String> getPath() {
+            return path;
+        }
     }
 
     public static class ExistsMessage {

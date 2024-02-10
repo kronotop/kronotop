@@ -67,7 +67,7 @@ public class HGetHandler extends BaseHandler implements Handler {
                 return;
             }
 
-            ByteBuf buf = response.getContext().alloc().buffer();
+            ByteBuf buf = response.getChannelContext().alloc().buffer();
             buf.writeBytes(value);
             response.write(buf);
         } finally {

@@ -48,7 +48,7 @@ public class WatchHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getContext().channel();
+        Channel channel = response.getChannelContext().channel();
         Attribute<HashMap<String, Long>> watchedKeysAttr = channel.attr(ChannelAttributes.WATCHED_KEYS);
         HashMap<String, Long> watchedKeys = watchedKeysAttr.get();
         if (watchedKeys == null) {

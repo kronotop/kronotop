@@ -17,8 +17,11 @@
 package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.subspace.Subspace;
+import com.kronotop.core.NamespaceUtils;
+import com.kronotop.core.TransactionUtils;
+import com.kronotop.foundationdb.BaseHandler;
 import com.kronotop.foundationdb.FoundationDBService;
+import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZGetMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -36,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
 @Command(ZGetMessage.COMMAND)
 @MinimumParameterCount(ZGetMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZGetMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZGetHandler extends BaseZMapHandler implements Handler {
+public class ZGetHandler extends BaseHandler implements Handler {
     public ZGetHandler(FoundationDBService service) {
         super(service);
     }
@@ -57,15 +60,16 @@ public class ZGetHandler extends BaseZMapHandler implements Handler {
     public void execute(Request request, Response response) {
         ZGetMessage zGetMessage = request.attr(MessageTypes.ZGET).get();
 
-        Subspace subspace = getSubspace(response, zGetMessage.getNamespace());
-        Transaction tr = getOrCreateTransaction(response);
-        CompletableFuture<byte[]> future = get(tr, subspace.pack(zGetMessage.getKey()), isSnapshotRead(response));
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
+        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+
+        CompletableFuture<byte[]> future = get(tr, namespace.getZMap().pack(zGetMessage.getKey()), TransactionUtils.isSnapshotRead(request.getChannelContext()));
         byte[] result = future.join();
         if (result == null) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }
-        ByteBuf buf = response.getContext().alloc().buffer();
+        ByteBuf buf = response.getChannelContext().alloc().buffer();
         try {
             buf.writeBytes(result);
             response.write(buf);

@@ -17,8 +17,11 @@
 package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.subspace.Subspace;
+import com.kronotop.core.NamespaceUtils;
+import com.kronotop.core.TransactionUtils;
+import com.kronotop.foundationdb.BaseHandler;
 import com.kronotop.foundationdb.FoundationDBService;
+import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZDelMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -35,7 +38,7 @@ import java.util.concurrent.ExecutionException;
 @Command(ZDelMessage.COMMAND)
 @MinimumParameterCount(ZDelMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZDelMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZDelHandler extends BaseZMapHandler implements Handler {
+public class ZDelHandler extends BaseHandler implements Handler {
     public ZDelHandler(FoundationDBService service) {
         super(service);
     }
@@ -58,12 +61,13 @@ public class ZDelHandler extends BaseZMapHandler implements Handler {
     @Override
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
         ZDelMessage zDelMessage = request.attr(MessageTypes.ZDEL).get();
-        Subspace subspace = getSubspace(response, zDelMessage.getNamespace());
-        Transaction transaction = getOrCreateTransaction(response);
-        transaction.clear(subspace.pack(zDelMessage.getKey()));
-        if (isOneOff(response)) {
-            transaction.commit().join();
-        }
+
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
+        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+
+        tr.clear(namespace.getZMap().pack(zDelMessage.getKey()));
+        TransactionUtils.commitIfOneOff(tr, request.getChannelContext());
+
         response.writeOK();
     }
 }

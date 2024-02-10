@@ -37,7 +37,7 @@ public class KronotopTable extends AbstractTable implements ScannableTable {
 
     public KronotopTable(TableModel model) {
         this.tableModel = model;
-        // TODO:
+        // TODO: ??
         this.statistic = new KronotopTableStatistic(0);
     }
 
@@ -47,6 +47,11 @@ public class KronotopTable extends AbstractTable implements ScannableTable {
 
     public String getSchema() {
         return tableModel.getSchema();
+    }
+
+
+    public TableModel getTableModel() {
+        return tableModel;
     }
 
     @Override
@@ -59,7 +64,7 @@ public class KronotopTable extends AbstractTable implements ScannableTable {
                 if (columnModel.getStrategy() == ColumnStrategy.NULLABLE) {
                     fieldType = typeFactory.createTypeWithNullability(fieldType, true);
                 }
-                RelDataTypeField field = new RelDataTypeFieldImpl(columnModel.getNames().get(0), index, fieldType);
+                RelDataTypeField field = new RelDataTypeFieldImpl(columnModel.getName(), index, fieldType);
                 fields.add(field);
                 index++;
             }

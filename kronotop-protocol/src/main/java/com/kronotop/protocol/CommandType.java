@@ -26,7 +26,7 @@ public enum CommandType implements ProtocolKeyword {
     ROLLBACK,
     COMMIT,
     NAMESPACE,
-    ZPUT,
+    ZSET,
     ZGET,
     ZDEL,
     ZDELPREFIX,

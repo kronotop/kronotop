@@ -143,25 +143,6 @@ public class KronotopCommandBuilderTest {
     }
 
     @Test
-    public void testNamespaceListOpen() {
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-        ByteBuf buf = Unpooled.buffer();
-        cmd.namespaceListOpen("my-namespace").encode(buf);
-
-        byte[] command = new byte[buf.readableBytes()];
-        buf.readBytes(command);
-        RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*3").
-                append("$9").
-                append("NAMESPACE").
-                append("$9").
-                append("LIST_OPEN").
-                append("$12").
-                append("my-namespace");
-        assertEquals(expectedCommand.toString(), new String(command));
-    }
-
-    @Test
     public void testNamespaceCreate() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
@@ -186,53 +167,6 @@ public class KronotopCommandBuilderTest {
                 append("PREFIX").
                 append("$9").
                 append("my-prefix");
-        assertEquals(expectedCommand.toString(), new String(command));
-    }
-
-    @Test
-    public void testNamespaceCreateOrOpen() {
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-        ByteBuf buf = Unpooled.buffer();
-        NamespaceArgs args = NamespaceArgs.Builder.layer("my-layer".getBytes()).prefix("my-prefix".getBytes());
-        cmd.namespaceCreateOrOpen("my-namespace", args).encode(buf);
-
-        byte[] command = new byte[buf.readableBytes()];
-        buf.readBytes(command);
-        RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*7").
-                append("$9").
-                append("NAMESPACE").
-                append("$14").
-                append("CREATE_OR_OPEN").
-                append("$12").
-                append("my-namespace").
-                append("$5").
-                append("LAYER").
-                append("$8").
-                append("my-layer").
-                append("$6").
-                append("PREFIX").
-                append("$9").
-                append("my-prefix");
-        assertEquals(expectedCommand.toString(), new String(command));
-    }
-
-    @Test
-    public void testNamespaceOpen() {
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-        ByteBuf buf = Unpooled.buffer();
-        cmd.namespaceOpen("my-namespace").encode(buf);
-
-        byte[] command = new byte[buf.readableBytes()];
-        buf.readBytes(command);
-        RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*3").
-                append("$9").
-                append("NAMESPACE").
-                append("$4").
-                append("OPEN").
-                append("$12").
-                append("my-namespace");
         assertEquals(expectedCommand.toString(), new String(command));
     }
 

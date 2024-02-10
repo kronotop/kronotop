@@ -18,6 +18,8 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
+import com.kronotop.core.TransactionUtils;
+import com.kronotop.foundationdb.BaseHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.ZDelPrefixMessage;
 import com.kronotop.server.Handler;
@@ -33,7 +35,7 @@ import java.util.concurrent.ExecutionException;
 @Command(ZDelPrefixMessage.COMMAND)
 @MinimumParameterCount(ZDelPrefixMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZDelPrefixMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZDelPrefixHandler extends BaseZMapHandler implements Handler {
+public class ZDelPrefixHandler extends BaseHandler implements Handler {
     public ZDelPrefixHandler(FoundationDBService service) {
         super(service);
     }
@@ -50,15 +52,15 @@ public class ZDelPrefixHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        // Validates the request
         ZDelPrefixMessage zDelPrefixMessage = request.attr(MessageTypes.ZDELPREFIX).get();
 
-        Transaction transaction = getOrCreateTransaction(response);
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
+        //Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+
         Range range = Range.startsWith(zDelPrefixMessage.getPrefix());
-        transaction.clear(range);
-        if (isOneOff(response)) {
-            transaction.commit().join();
-        }
+        tr.clear(range);
+        TransactionUtils.commitIfOneOff(tr, request.getChannelContext());
+
         response.writeOK();
     }
 }

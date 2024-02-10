@@ -17,8 +17,11 @@
 package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.subspace.Subspace;
+import com.kronotop.core.NamespaceUtils;
+import com.kronotop.core.TransactionUtils;
+import com.kronotop.foundationdb.BaseHandler;
 import com.kronotop.foundationdb.FoundationDBService;
+import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZMutateMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -34,7 +37,7 @@ import java.util.List;
 @Command(ZMutateMessage.COMMAND)
 @MinimumParameterCount(ZMutateMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZMutateMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZMutateHandler extends BaseZMapHandler implements Handler {
+public class ZMutateHandler extends BaseHandler implements Handler {
     public ZMutateHandler(FoundationDBService service) {
         super(service);
     }
@@ -56,15 +59,14 @@ public class ZMutateHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        // Validates the request
         ZMutateMessage zMutateMessage = request.attr(MessageTypes.ZMUTATE).get();
-        Subspace subspace = getSubspace(response, zMutateMessage.getNamespace());
 
-        Transaction tr = getOrCreateTransaction(response);
-        tr.mutate(zMutateMessage.getMutationType(), subspace.pack(zMutateMessage.getKey()), zMutateMessage.getParam());
-        if (isOneOff(response)) {
-            tr.commit().join();
-        }
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
+        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+
+        tr.mutate(zMutateMessage.getMutationType(), namespace.getZMap().pack(zMutateMessage.getKey()), zMutateMessage.getParam());
+        TransactionUtils.commitIfOneOff(tr, request.getChannelContext());
+
         response.writeOK();
     }
 }

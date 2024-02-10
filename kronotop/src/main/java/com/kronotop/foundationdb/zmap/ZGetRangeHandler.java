@@ -20,9 +20,12 @@ import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
-import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.kronotop.core.NamespaceUtils;
+import com.kronotop.core.TransactionUtils;
+import com.kronotop.foundationdb.BaseHandler;
 import com.kronotop.foundationdb.FoundationDBService;
+import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.RangeKeySelector;
 import com.kronotop.foundationdb.zmap.protocol.ZGetRangeMessage;
 import com.kronotop.server.Handler;
@@ -46,7 +49,7 @@ import java.util.concurrent.ExecutionException;
 @Command(ZGetRangeMessage.COMMAND)
 @MinimumParameterCount(ZGetRangeMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZGetRangeMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZGetRangeHandler extends BaseZMapHandler implements Handler {
+public class ZGetRangeHandler extends BaseHandler implements Handler {
     public ZGetRangeHandler(FoundationDBService service) {
         super(service);
     }
@@ -66,40 +69,40 @@ public class ZGetRangeHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        // Validates the request
         ZGetRangeMessage zGetRangeMessage = request.attr(MessageTypes.ZGETRANGE).get();
 
-        Subspace subspace = getSubspace(response, zGetRangeMessage.getNamespace());
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
+        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+
         byte[] begin;
         byte[] end;
         if (Arrays.equals(zGetRangeMessage.getBegin(), ZGetRangeMessage.ASTERISK)) {
-            begin = subspace.pack();
-            end = ByteArrayUtil.strinc(subspace.pack());
+            begin = namespace.getZMap().pack();
+            end = ByteArrayUtil.strinc(namespace.getZMap().pack());
         } else {
-            begin = subspace.pack(zGetRangeMessage.getBegin());
+            begin = namespace.getZMap().pack(zGetRangeMessage.getBegin());
             if (Arrays.equals(zGetRangeMessage.getEnd(), ZGetRangeMessage.ASTERISK)) {
-                end = ByteArrayUtil.strinc(subspace.pack());
+                end = ByteArrayUtil.strinc(namespace.getZMap().pack());
             } else {
-                end = subspace.pack(zGetRangeMessage.getEnd());
+                end = namespace.getZMap().pack(zGetRangeMessage.getEnd());
             }
         }
 
         KeySelector beginKeySelector = RangeKeySelector.getKeySelector(zGetRangeMessage.getBeginKeySelector(), begin);
         KeySelector endKeySelector = RangeKeySelector.getKeySelector(zGetRangeMessage.getEndKeySelector(), end);
 
-        Transaction tr = getOrCreateTransaction(response);
         AsyncIterable<KeyValue> asyncIterable = getRange(
                 tr, beginKeySelector, endKeySelector, zGetRangeMessage.getLimit(),
-                zGetRangeMessage.getReverse(), isSnapshotRead(response));
+                zGetRangeMessage.getReverse(), TransactionUtils.isSnapshotRead(response.getChannelContext()));
 
         List<RedisMessage> upperList = new ArrayList<>();
         for (KeyValue keyValue : asyncIterable) {
-            ByteBuf keyBuf = response.getContext().alloc().buffer();
-            ByteBuf valueBuf = response.getContext().alloc().buffer();
+            ByteBuf keyBuf = response.getChannelContext().alloc().buffer();
+            ByteBuf valueBuf = response.getChannelContext().alloc().buffer();
 
             try {
                 List<RedisMessage> pair = new ArrayList<>();
-                keyBuf.writeBytes(subspace.unpack(keyValue.getKey()).getBytes(0));
+                keyBuf.writeBytes(namespace.getZMap().unpack(keyValue.getKey()).getBytes(0));
                 pair.add(new FullBulkStringRedisMessage(keyBuf));
 
                 valueBuf.writeBytes(keyValue.getValue());

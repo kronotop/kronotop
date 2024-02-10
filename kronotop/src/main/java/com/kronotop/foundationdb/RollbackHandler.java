@@ -18,6 +18,7 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.common.resp.RESPError;
+import com.kronotop.core.NamespaceUtils;
 import com.kronotop.foundationdb.protocol.RollbackMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -41,7 +42,7 @@ class RollbackHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getContext().channel();
+        Channel channel = response.getChannelContext().channel();
 
         Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
         if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
@@ -56,6 +57,7 @@ class RollbackHandler implements Handler {
         } finally {
             beginAttr.set(false);
             transactionAttr.set(null);
+            NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
         }
 
         response.writeOK();

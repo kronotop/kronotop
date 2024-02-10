@@ -37,7 +37,7 @@ class TableModelTest {
         tableModel.setTable("users");
 
         ColumnModel columnModel = new ColumnModel();
-        columnModel.setNames(List.of("id"));
+        columnModel.setName("id");
         columnModel.setDataType(SqlTypeName.INTEGER);
         columnModel.setStrategy(ColumnStrategy.NULLABLE);
         List<ColumnModel> columnList = new ArrayList<>(List.of(columnModel));

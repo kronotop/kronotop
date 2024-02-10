@@ -18,6 +18,7 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.common.resp.RESPError;
+import com.kronotop.core.NamespaceUtils;
 import com.kronotop.foundationdb.protocol.BeginMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -41,7 +42,7 @@ class BeginHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getContext().channel();
+        Channel channel = request.getChannelContext().channel();
         Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
         if (Boolean.TRUE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is already a transaction in progress.");
@@ -49,9 +50,10 @@ class BeginHandler implements Handler {
         }
 
         Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
-        Transaction tx = service.getContext().getFoundationDB().createTransaction();
-        transactionAttr.set(tx);
+        Transaction tr = service.getContext().getFoundationDB().createTransaction();
+        transactionAttr.set(tr);
         beginAttr.set(true);
+        NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
 
         response.writeOK();
     }

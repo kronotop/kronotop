@@ -47,11 +47,11 @@ public class SetOption implements Executor<SqlNode> {
         String key = String.join(".", sqlSetOption.getName().names);
         if (key.equalsIgnoreCase(Key.SCHEMA.toString())) {
             try {
-                service.getMetadataService().findOrLoadSchema(value.getSimple());
+                service.getMetadataService().findOrLoadSchemaMetadata(value.getSimple());
             } catch (SchemaNotExistsException e) {
                 return new ErrorRedisMessage(e.getMessage());
             }
-            context.getResponse().getContext().channel().attr(ChannelAttributes.SCHEMA).set(value.getSimple());
+            context.getResponse().getChannelContext().channel().attr(ChannelAttributes.SCHEMA).set(value.getSimple());
         } else {
             return new ErrorRedisMessage("Unknown key: " + key);
         }
@@ -61,7 +61,7 @@ public class SetOption implements Executor<SqlNode> {
     private RedisMessage resetSessionScope(ExecutionContext context, SqlSetOption sqlSetOption) {
         String key = String.join(".", sqlSetOption.getName().names);
         if (key.equalsIgnoreCase(Key.SCHEMA.toString())) {
-            Attribute<String> schema = context.getResponse().getContext().channel().attr(ChannelAttributes.SCHEMA);
+            Attribute<String> schema = context.getResponse().getChannelContext().channel().attr(ChannelAttributes.SCHEMA);
             if (service.getContext().getConfig().hasPath("sql.default_schema")) {
                 schema.set(service.getContext().getConfig().getString("sql.default_schema"));
             }

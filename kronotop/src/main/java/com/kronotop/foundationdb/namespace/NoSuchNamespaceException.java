@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.server;
+package com.kronotop.foundationdb.namespace;
 
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 
-/**
- * Exception thrown when an unknown operand is encountered.
- */
-public class UnknownOperandException extends KronotopException {
-    public UnknownOperandException(String content) {
-        super(content);
+public class NoSuchNamespaceException extends KronotopException {
+    public NoSuchNamespaceException(String namespace) {
+        super(RESPError.NOSUCHNAMESPACE, String.format("No such namespace: %s", namespace));
     }
 }
-

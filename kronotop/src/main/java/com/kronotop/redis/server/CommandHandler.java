@@ -40,7 +40,7 @@ public class CommandHandler implements Handler {
     }
 
     private FullBulkStringRedisMessage bulkStringReply(Response response, String str) {
-        ByteBuf buf = response.getContext().channel().alloc().buffer();
+        ByteBuf buf = response.getChannelContext().channel().alloc().buffer();
         buf.writeBytes(str.getBytes());
         return new FullBulkStringRedisMessage(buf);
     }

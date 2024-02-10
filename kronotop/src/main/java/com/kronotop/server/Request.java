@@ -54,5 +54,5 @@ public interface Request extends AttributeMap {
      *
      * @return the ChannelHandlerContext associated with the Request
      */
-    ChannelHandlerContext getContext();
+    ChannelHandlerContext getChannelContext();
 }

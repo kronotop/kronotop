@@ -71,7 +71,7 @@ public class HMGetHandler extends BaseHandler implements Handler {
                         continue;
                     }
 
-                    ByteBuf buf = response.getContext().alloc().buffer();
+                    ByteBuf buf = response.getChannelContext().alloc().buffer();
                     buf.writeBytes(value);
                     upperList.add(new FullBulkStringRedisMessage(buf));
                 }

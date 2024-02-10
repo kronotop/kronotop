@@ -22,17 +22,17 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import java.util.List;
 
 public class ColumnModel {
-    private List<String> names;
+    private String name;
     private SqlTypeName dataType;
     private String expression;
     private ColumnStrategy strategy;
 
-    public List<String> getNames() {
-        return names;
+    public String getName() {
+        return name;
     }
 
-    public void setNames(List<String> names) {
-        this.names = names;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public SqlTypeName getDataType() {

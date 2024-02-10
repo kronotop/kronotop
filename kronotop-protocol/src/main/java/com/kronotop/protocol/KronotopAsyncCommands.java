@@ -36,11 +36,7 @@ public interface KronotopAsyncCommands<K, V> {
 
     RedisFuture<List<Object>> namespaceList(K namespace);
 
-    RedisFuture<List<Object>> namespaceListOpen(K namespace);
-
     RedisFuture<Long> namespaceExists(K namespace);
-
-    RedisFuture<String> namespaceOpen(K namespace);
 
     RedisFuture<String> namespaceRemove(K namespace);
 
@@ -48,31 +44,31 @@ public interface KronotopAsyncCommands<K, V> {
 
     RedisFuture<String> namespaceCreate(K namespace);
 
+    RedisFuture<String> namespaceUse(K namespace);
+
+    RedisFuture<String> namespaceCurrent();
+
     RedisFuture<String> namespaceCreate(K namespace, NamespaceArgs args);
 
-    RedisFuture<String> namespaceCreateOrOpen(K namespace);
+    RedisFuture<String> zset(K key, V value);
 
-    RedisFuture<String> namespaceCreateOrOpen(K namespace, NamespaceArgs args);
+    RedisFuture<V> zget(K key);
 
-    RedisFuture<String> zput(String namespace, K key, V value);
-
-    RedisFuture<V> zget(String namespace, K key);
-
-    RedisFuture<String> zdel(String namespace, K key);
+    RedisFuture<String> zdel(K key);
 
     RedisFuture<String> zdelprefix(byte[] key);
 
-    RedisFuture<String> zdelrange(String namespace, ZDelRangeArgs args);
+    RedisFuture<String> zdelrange(ZDelRangeArgs args);
 
-    RedisFuture<List<Object>> zgetrange(String namespace, ZGetRangeArgs args);
+    RedisFuture<List<Object>> zgetrange(ZGetRangeArgs args);
 
-    RedisFuture<V> zgetkey(String namespace, ZGetKeyArgs args);
+    RedisFuture<V> zgetkey(ZGetKeyArgs args);
 
     RedisFuture<String> snapshotRead(SnapshotReadArgs args);
 
-    RedisFuture<String> zmutate(String namespace, K key, V param, ZMutateArgs args);
+    RedisFuture<String> zmutate(K key, V param, ZMutateArgs args);
 
-    RedisFuture<Long> zgetrangesize(String namespace, ZGetRangeSizeArgs args);
+    RedisFuture<Long> zgetrangesize(ZGetRangeSizeArgs args);
 
     RedisFuture<Long> getapproximatesize();
 

@@ -29,58 +29,45 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZPutHandlerTest extends BaseHandlerTest {
+public class ZSetHandlerTest extends BaseHandlerTest {
     @Test
-    public void testZPut() {
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-        EmbeddedChannel channel = getChannel();
-        {
-            // Create it
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(namespace, null).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceOpen(namespace).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.zput(namespace, "my-key", "my-value").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
-        }
-    }
-
-    @Test
-    public void testZPut_NAMESPACENOTOPEN() {
+    public void test_ZSET() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.zput(namespace, "my-key", "my-value").encode(buf);
+        cmd.zset("my-key", "my-value").encode(buf);
+        channel.writeInbound(buf);
+        Object response = channel.readOutbound();
+
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+        assertEquals("OK", actualMessage.content());
+    }
+
+    @Test
+    public void test_ZSET_NOSUCHNAMESPACE() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceUse("foobar").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals("OK", actualMessage.content());
+        }
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zset("my-key", "my-value").encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals(String.format("NAMESPACENOTOPEN namespace '%s' not open", namespace), actualMessage.content());
+        assertEquals("NOSUCHNAMESPACE No such namespace: foobar", actualMessage.content());
     }
 }

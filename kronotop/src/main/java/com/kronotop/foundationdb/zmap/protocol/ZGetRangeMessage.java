@@ -27,8 +27,8 @@ import java.util.Locale;
 
 public class ZGetRangeMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "ZGETRANGE";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 9;
+    public static final int MINIMUM_PARAMETER_COUNT = 2;
+    public static final int MAXIMUM_PARAMETER_COUNT = 8;
     public static final int DEFAULT_LIMIT = 25;
     public static final boolean DEFAULT_REVERSE = false;
     public static final String LIMIT_KEYWORD = "LIMIT";
@@ -40,7 +40,6 @@ public class ZGetRangeMessage implements KronotopMessage<Void> {
 
     public static final byte[] ASTERISK = new byte[]{0x2A};
     private final Request request;
-    private byte[] namespace;
     private byte[] begin;
     private byte[] end;
     private int limit = DEFAULT_LIMIT;
@@ -60,16 +59,13 @@ public class ZGetRangeMessage implements KronotopMessage<Void> {
     }
 
     private void parse() {
-        namespace = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(namespace);
+        begin = new byte[request.getParams().get(0).readableBytes()];
+        request.getParams().get(0).readBytes(begin);
 
-        begin = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(begin);
+        end = new byte[request.getParams().get(1).readableBytes()];
+        request.getParams().get(1).readBytes(end);
 
-        end = new byte[request.getParams().get(2).readableBytes()];
-        request.getParams().get(2).readBytes(end);
-
-        if (request.getParams().size() >= 3) {
+        if (request.getParams().size() >= 2) {
             for (int i = 2; i < request.getParams().size(); i++) {
                 String keyword = readStringFromByteBuf(request.getParams().get(i));
                 if (keyword.equalsIgnoreCase(LIMIT_KEYWORD)) {
@@ -93,10 +89,6 @@ public class ZGetRangeMessage implements KronotopMessage<Void> {
                 }
             }
         }
-    }
-
-    public String getNamespace() {
-        return new String(namespace);
     }
 
     public byte[] getBegin() {
@@ -132,6 +124,4 @@ public class ZGetRangeMessage implements KronotopMessage<Void> {
     public List<Void> getKeys() {
         return null;
     }
-
-
 }

@@ -42,7 +42,7 @@ public class ExecHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getContext().channel();
+        Channel channel = response.getChannelContext().channel();
         Attribute<Boolean> redisMulti = channel.attr(ChannelAttributes.REDIS_MULTI);
         if (!Boolean.TRUE.equals(redisMulti.get())) {
             response.writeError("EXEC without MULTI");

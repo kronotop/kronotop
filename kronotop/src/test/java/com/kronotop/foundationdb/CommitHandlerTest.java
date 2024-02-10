@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class CommitHandlerTest extends BaseHandlerTest {
     @Test
-    public void testCOMMIT() {
+    public void test_COMMIT() {
         TestTransaction tt = new TestTransaction(channel);
         tt.begin();
         tt.commit();
@@ -43,7 +43,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testCOMMIT_NoTransactionInProgress() {
+    public void test_COMMIT_NoTransactionInProgress() {
         TestTransaction tt = new TestTransaction(channel);
 
         // Start a new transaction
@@ -56,7 +56,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testCOMMIT_GET_COMMITTED_VERSION() {
+    public void test_COMMIT_GET_COMMITTED_VERSION() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 

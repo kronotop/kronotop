@@ -46,7 +46,7 @@ public class RenameColumn extends BaseAlterType implements AlterType {
 
         int index = findColumnIndex(sqlAlterTable.columnName.getSimple(), tableModel);
         ColumnModel column = tableModel.getColumnList().get(index);
-        column.setNames(List.of(sqlAlterTable.newColumnName.getSimple()));
+        column.setName(sqlAlterTable.newColumnName.getSimple());
 
         service.saveTableModel(tr, tableModel, subspace);
         return new SimpleStringRedisMessage(Response.OK);
