@@ -31,9 +31,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 
-class NamespaceCreateSubcommand extends BaseNamespaceSubcommand implements NamespaceSubcommandExecutor {
+class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
-    NamespaceCreateSubcommand(Context context) {
+    CreateSubcommand(Context context) {
         super(context);
     }
 

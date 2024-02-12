@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.foundationdb.namespace;
+package com.kronotop.redis.cluster;
 
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
-interface NamespaceSubcommandExecutor {
+interface SubcommandExecutor {
     void execute(Request request, Response response);
 }
+

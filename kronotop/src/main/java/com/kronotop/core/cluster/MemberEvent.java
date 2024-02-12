@@ -73,7 +73,7 @@ public class MemberEvent {
                 type,
                 host,
                 port,
-                BaseEncoding.base64().encode(processID.getBytes()),
+                ProcessIdUtils.base64Encode(processID),
                 createdAt
         );
     }

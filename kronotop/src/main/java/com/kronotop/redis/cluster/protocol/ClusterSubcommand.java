@@ -14,16 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop.server;
+package com.kronotop.redis.cluster.protocol;
 
-import com.kronotop.common.KronotopException;
-
-/**
- * Exception thrown when an unknown subcommand is encountered.
- */
-public class UnknownSubcommandException extends KronotopException {
-    public UnknownSubcommandException(String command) {
-        super(String.format("unknown subcommand: '%s'", command));
-    }
+public enum ClusterSubcommand {
+    NODES,
+    SLOTS,
+    MYID,
+    KEYSLOT
 }
-

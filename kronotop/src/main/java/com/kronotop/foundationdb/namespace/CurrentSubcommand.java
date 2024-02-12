@@ -22,9 +22,9 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 
-class NamespaceCurrentSubcommand extends BaseNamespaceSubcommand implements NamespaceSubcommandExecutor {
+class CurrentSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
-    NamespaceCurrentSubcommand(Context context) {
+    CurrentSubcommand(Context context) {
         super(context);
     }
 

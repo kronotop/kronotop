@@ -23,9 +23,9 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
-class NamespaceUseSubcommand extends BaseNamespaceSubcommand implements NamespaceSubcommandExecutor {
+class UseSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
-    NamespaceUseSubcommand(Context context) {
+    UseSubcommand(Context context) {
         super(context);
     }
 

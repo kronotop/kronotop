@@ -25,48 +25,32 @@ import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import io.netty.buffer.ByteBuf;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-class NamespaceListSubcommand extends BaseNamespaceSubcommand implements NamespaceSubcommandExecutor {
+class RemoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
-    NamespaceListSubcommand(Context context) {
+    RemoveSubcommand(Context context) {
         super(context);
     }
 
     @Override
     public void execute(Request request, Response response) {
         NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
-        NamespaceMessage.ListMessage listMessage = message.getListMessage();
+        NamespaceMessage.RemoveMessage removeMessage = message.getRemoveMessage();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
-        List<String> subpath = getBaseSubpath().addAll(listMessage.getSubpath()).asList();
-        CompletableFuture<List<String>> future;
-        if (subpath.isEmpty()) {
-            future = directoryLayer.list(tr);
-        } else {
-            future = directoryLayer.list(tr, subpath);
-        }
-
+        List<String> subpath = getBaseSubpath().addAll(removeMessage.getSubpath()).asList();
         try {
-            List<String> result = future.join();
-            List<RedisMessage> children = new ArrayList<>();
-            for (String namespace : result) {
-                ByteBuf buf = response.getChannelContext().alloc().buffer();
-                children.add(new FullBulkStringRedisMessage(buf.writeBytes(namespace.getBytes())));
-            }
-            response.writeArray(children);
+            directoryLayer.remove(tr, subpath).join();
+            tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new NoSuchNamespaceException(String.join(".", listMessage.getSubpath()));
+                throw new NoSuchNamespaceException(String.join(".", removeMessage.getSubpath()));
             }
             throw new KronotopException(e.getCause());
         }
+        response.writeOK();
     }
 }

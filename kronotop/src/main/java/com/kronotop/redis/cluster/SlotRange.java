@@ -14,16 +14,30 @@
  * limitations under the License.
  */
 
-package com.kronotop.server;
 
-import com.kronotop.common.KronotopException;
+package com.kronotop.redis.cluster;
 
-/**
- * Exception thrown when an unknown subcommand is encountered.
- */
-public class UnknownSubcommandException extends KronotopException {
-    public UnknownSubcommandException(String command) {
-        super(String.format("unknown subcommand: '%s'", command));
+import com.kronotop.core.cluster.Member;
+
+class SlotRange {
+    int begin;
+    int end;
+    Member owner;
+
+    public SlotRange(int begin) {
+        this.begin = begin;
+    }
+
+    public void setOwner(Member owner) {
+        this.owner = owner;
+    }
+
+    public void setEnd(int end) {
+        this.end = end;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("SlotRange {begin=%d end=%d owner=%s}", begin, end, owner);
     }
 }
-

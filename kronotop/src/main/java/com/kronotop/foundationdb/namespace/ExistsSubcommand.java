@@ -17,9 +17,6 @@
 package com.kronotop.foundationdb.namespace;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
-import com.apple.foundationdb.directory.NoSuchDirectoryException;
-import com.kronotop.common.KronotopException;
 import com.kronotop.core.Context;
 import com.kronotop.core.TransactionUtils;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
@@ -28,34 +25,24 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
 import java.util.List;
-import java.util.concurrent.CompletionException;
 
-class NamespaceMoveSubcommand extends BaseNamespaceSubcommand implements NamespaceSubcommandExecutor {
-
-    NamespaceMoveSubcommand(Context context) {
+class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
+    ExistsSubcommand(Context context) {
         super(context);
     }
 
     @Override
     public void execute(Request request, Response response) {
         NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
-        NamespaceMessage.MoveMessage moveMessage = message.getMoveMessage();
-
-        List<String> oldPath = getBaseSubpath().addAll(moveMessage.getOldPath()).asList();
-        List<String> newPath = getBaseSubpath().addAll(moveMessage.getNewPath()).asList();
+        NamespaceMessage.ExistsMessage existsMessage = message.getExistsMessage();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
-        try {
-            directoryLayer.move(tr, oldPath, newPath).join();
-            tr.commit().join();
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new NoSuchNamespaceException(String.join(".", moveMessage.getOldPath()));
-            } else if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                throw new NamespaceAlreadyExistsException(String.join(".", moveMessage.getNewPath()));
-            }
-            throw new KronotopException(e.getCause());
+        List<String> subpath = getBaseSubpath().addAll(existsMessage.getPath()).asList();
+        Boolean exists = directoryLayer.exists(tr, subpath).join();
+        if (exists) {
+            response.writeInteger(1);
+            return;
         }
-        response.writeOK();
+        response.writeInteger(0);
     }
 }

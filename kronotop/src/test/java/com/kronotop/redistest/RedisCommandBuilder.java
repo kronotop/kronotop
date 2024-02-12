@@ -718,7 +718,7 @@ public class RedisCommandBuilder<K, V> extends BaseRedisCommandBuilder<K, V> {
         return createCommand(CLUSTER, new StatusOutput<>(codec), args);
     }
 
-    Command<K, V, Long> clusterKeyslot(K key) {
+    public Command<K, V, Long> clusterKeyslot(K key) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(KEYSLOT).addKey(key);
         return createCommand(CLUSTER, new IntegerOutput<>(codec), args);
     }
@@ -731,13 +731,13 @@ public class RedisCommandBuilder<K, V> extends BaseRedisCommandBuilder<K, V> {
         return createCommand(CLUSTER, new StatusOutput<>(codec), args);
     }
 
-    Command<K, V, String> clusterMyId() {
+    public Command<K, V, String> clusterMyId() {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(MYID);
 
         return createCommand(CLUSTER, new StatusOutput<>(codec), args);
     }
 
-    Command<K, V, String> clusterNodes() {
+    public Command<K, V, String> clusterNodes() {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(NODES);
 
         return createCommand(CLUSTER, new StatusOutput<>(codec), args);
@@ -818,7 +818,7 @@ public class RedisCommandBuilder<K, V> extends BaseRedisCommandBuilder<K, V> {
         return createCommand(CLUSTER, new StringListOutput<>(codec), args);
     }
 
-    Command<K, V, List<Object>> clusterSlots() {
+    public Command<K, V, List<Object>> clusterSlots() {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(SLOTS);
         return createCommand(CLUSTER, new ArrayOutput<>(codec), args);
     }

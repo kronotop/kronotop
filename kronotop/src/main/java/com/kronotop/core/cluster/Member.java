@@ -84,7 +84,7 @@ public class Member {
                 "Member {id=%s address=%s processId=%s}",
                 id,
                 address,
-                BaseEncoding.base64().encode(processId.getBytes())
+                ProcessIdUtils.base64Encode(processId)
         );
     }
 }

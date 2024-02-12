@@ -14,16 +14,14 @@
  * limitations under the License.
  */
 
-package com.kronotop.server;
+package com.kronotop.core.cluster;
 
-import com.kronotop.common.KronotopException;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.io.BaseEncoding;
 
-/**
- * Exception thrown when an unknown subcommand is encountered.
- */
-public class UnknownSubcommandException extends KronotopException {
-    public UnknownSubcommandException(String command) {
-        super(String.format("unknown subcommand: '%s'", command));
+public class ProcessIdUtils {
+
+    public static String base64Encode(Versionstamp processId) {
+        return BaseEncoding.base64().encode(processId.getBytes());
     }
 }
-

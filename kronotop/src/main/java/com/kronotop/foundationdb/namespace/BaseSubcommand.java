@@ -22,11 +22,11 @@ import com.kronotop.core.Context;
 
 import java.util.List;
 
-class BaseNamespaceSubcommand {
+class BaseSubcommand {
     final Context context;
     final DirectoryLayer directoryLayer = new DirectoryLayer(true);
 
-    BaseNamespaceSubcommand(Context context) {
+    BaseSubcommand(Context context) {
         this.context = context;
     }
 

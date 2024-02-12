@@ -313,7 +313,7 @@ public class MembershipService implements KronotopService {
                 byte[] processIDKey = directorySubspace.pack(Keys.PROCESS_ID.toString());
                 byte[] rawProcessID = tr.get(processIDKey).join();
                 if (!processId.equals(Versionstamp.fromBytes(rawProcessID))) {
-                    throw new NoSuchMemberException(String.format("No such member: %s with processId: %s", address, BaseEncoding.base64().encode(processId.getBytes())));
+                    throw new NoSuchMemberException(String.format("No such member: %s with processId: %s", address, ProcessIdUtils.base64Encode(processId)));
                 }
                 return new Member(address, processId);
             });
@@ -333,7 +333,7 @@ public class MembershipService implements KronotopService {
      *
      * @return sorted set of registered cluster members.
      */
-    private TreeSet<Member> getSortedMembers() {
+    public TreeSet<Member> getSortedMembers() {
         List<String> addresses = getMembers();
         TreeSet<Member> members = new TreeSet<>(Comparator.comparing(Member::getProcessId));
         for (String hostPort : addresses) {

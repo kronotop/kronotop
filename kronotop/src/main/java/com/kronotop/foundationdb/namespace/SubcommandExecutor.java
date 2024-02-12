@@ -14,16 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop.server;
+package com.kronotop.foundationdb.namespace;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 
-/**
- * Exception thrown when an unknown subcommand is encountered.
- */
-public class UnknownSubcommandException extends KronotopException {
-    public UnknownSubcommandException(String command) {
-        super(String.format("unknown subcommand: '%s'", command));
-    }
+interface SubcommandExecutor {
+    void execute(Request request, Response response);
 }
-
