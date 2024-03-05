@@ -30,7 +30,9 @@ import com.kronotop.core.journal.JournalName;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.sql.*;
+import com.kronotop.sql.ExecutionContext;
+import com.kronotop.sql.SqlExecutionException;
+import com.kronotop.sql.SqlService;
 import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.backend.metadata.TableAlreadyExistsException;
 import com.kronotop.sql.backend.metadata.TableNotExistsException;
@@ -39,6 +41,7 @@ import com.kronotop.sql.backend.metadata.events.EventTypes;
 import com.kronotop.sql.backend.metadata.events.TableRenamedEvent;
 import com.kronotop.sql.parser.SqlAlterTable;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -85,7 +88,7 @@ public class RenameTable implements AlterType {
             TableModel tableModel = JSONUtils.readValue(next.getValue(), TableModel.class);
             tableModel.setTable(newTable);
             byte[] data = JSONUtils.writeValueAsBytes(tableModel);
-            Tuple tuple = Tuple.from(Versionstamp.incomplete(), 1);
+            Tuple tuple = Tuple.from(Versionstamp.incomplete());
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), data);
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
@@ -100,11 +103,11 @@ public class RenameTable implements AlterType {
         return new SimpleStringRedisMessage(Response.OK);
     }
 
-    public void notifyCluster(TransactionResult result, ExecutionContext context, SqlAlterTable sqlAlterTable) {
+    public void notifyCluster(CompletableFuture<byte[]> versionstampFuture, ExecutionContext context, SqlAlterTable sqlAlterTable) {
         String schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
         String oldTableName = service.getTableNameFromNames(sqlAlterTable.name.names);
         String newTableName = sqlAlterTable.newTableName.getSimple();
-        byte[] versionstamp = result.getVersionstamp().join();
+        byte[] versionstamp = versionstampFuture.join();
         byte[] tableVersion = Versionstamp.complete(versionstamp).getBytes();
         TableRenamedEvent tableRenamedEvent = new TableRenamedEvent(schema, oldTableName, newTableName, tableVersion);
         BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_RENAMED, tableRenamedEvent);

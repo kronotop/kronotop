@@ -18,7 +18,7 @@ package com.kronotop.redis.cluster;
 
 import com.kronotop.core.cluster.Member;
 import com.kronotop.core.cluster.MembershipService;
-import com.kronotop.core.cluster.ProcessIdUtils;
+import com.kronotop.core.VersionstampUtils;
 import com.kronotop.redis.RedisService;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -46,7 +46,7 @@ class NodesSubcommand implements SubcommandExecutor {
                     " " +
                     member.getAddress() +
                     " " +
-                    ProcessIdUtils.base64Encode(member.getProcessId());
+                    VersionstampUtils.base64Encode(member.getProcessId());
             result.add(stringBuilder);
         }
         ByteBuf buf = response.getChannelContext().alloc().buffer();

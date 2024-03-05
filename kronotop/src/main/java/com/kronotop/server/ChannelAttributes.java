@@ -17,6 +17,7 @@
 package com.kronotop.server;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.core.CommitHook;
 import com.kronotop.foundationdb.namespace.Namespace;
 import io.netty.util.AttributeKey;
 
@@ -38,6 +39,10 @@ public class ChannelAttributes {
     public static final AttributeKey<Boolean> ONE_OFF_TRANSACTION = AttributeKey.valueOf("one_off_transaction");
 
     public static final AttributeKey<Transaction> TRANSACTION = AttributeKey.valueOf("transaction");
+
+    public static final AttributeKey<List<CommitHook>> POST_COMMIT_HOOKS = AttributeKey.valueOf("post_commit_hooks");
+
+    public static final AttributeKey<Integer> TRANSACTION_USER_VERSION = AttributeKey.valueOf("transaction_user_version");
 
     public static final AttributeKey<String> CURRENT_NAMESPACE = AttributeKey.valueOf("current_namespace");
 

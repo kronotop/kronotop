@@ -20,4 +20,8 @@ public class SqlExecutionException extends Exception {
     public SqlExecutionException(Throwable cause) {
         super(cause);
     }
+
+    public SqlExecutionException(String content) {
+        super(content);
+    }
 }

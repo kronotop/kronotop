@@ -19,7 +19,7 @@ package com.kronotop.core.cluster;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.google.common.io.BaseEncoding;
+import com.kronotop.core.VersionstampUtils;
 
 import java.time.Instant;
 
@@ -73,7 +73,7 @@ public class MemberEvent {
                 type,
                 host,
                 port,
-                ProcessIdUtils.base64Encode(processID),
+                VersionstampUtils.base64Encode(processID),
                 createdAt
         );
     }

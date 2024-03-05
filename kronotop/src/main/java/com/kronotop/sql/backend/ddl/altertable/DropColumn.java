@@ -24,7 +24,6 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.ExecutionContext;
 import com.kronotop.sql.SqlExecutionException;
 import com.kronotop.sql.SqlService;
-import com.kronotop.sql.TransactionResult;
 import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.parser.SqlAlterTable;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -32,6 +31,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class DropColumn extends BaseAlterType implements AlterType {
 
@@ -64,7 +64,7 @@ public class DropColumn extends BaseAlterType implements AlterType {
     }
 
     @Override
-    public void notifyCluster(TransactionResult result, ExecutionContext context, SqlAlterTable sqlAlterTable) {
-        publishTableAlteredEvent(result, context, sqlAlterTable);
+    public void notifyCluster(CompletableFuture<byte[]> versionstampFuture, ExecutionContext context, SqlAlterTable sqlAlterTable) {
+        publishTableAlteredEvent(versionstampFuture, context, sqlAlterTable);
     }
 }

@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package com.kronotop.sql;
+package com.kronotop.sql.plan;
+
+import com.kronotop.sql.Plan;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -25,15 +27,19 @@ import java.util.concurrent.ConcurrentHashMap;
  * It uses a ConcurrentHashMap to store the plans in memory.
  */
 public class PlanCache {
-    private static final int MAX_CACHE_SIZE = 10_000;
+    private static final int DEFAULT_CACHE_SIZE = 10_000;
     private final int maxCacheSize;
     ConcurrentHashMap<String, Cache> schemas = new ConcurrentHashMap<>();
+
+    public PlanCache() {
+        this(0);
+    }
 
     public PlanCache(int maxCacheSize) {
         if (maxCacheSize > 0) {
             this.maxCacheSize = maxCacheSize;
         } else {
-            this.maxCacheSize = MAX_CACHE_SIZE;
+            this.maxCacheSize = DEFAULT_CACHE_SIZE;
         }
     }
 
@@ -65,7 +71,7 @@ public class PlanCache {
 
     /**
      * Shrink the cache if its size exceeds the maximum cache size.
-     * The cache entries will be ordered by the last accessed time and a portion of the entries will be removed.
+     * The cache entries will be ordered by the last accessed time, and a portion of the entries will be removed.
      *
      * @param cache The cache to be checked and potentially shrunken
      */

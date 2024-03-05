@@ -23,7 +23,6 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.core.Context;
 import com.kronotop.core.network.ClientIDGenerator;
 import com.kronotop.core.watcher.Watcher;
-import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.redis.RedisService;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;

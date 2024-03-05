@@ -21,6 +21,13 @@ import com.kronotop.core.cluster.Member;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/*
+What Des-Cartes [sic] did was a good step. You have added much several ways, & especially in taking the colours of thin
+plates into philosophical consideration. If I have seen further it is by standing on the shoulders of Giants.
+
+-- Isaac Newton, Letter to Robert Hooke, 5 February 1675.
+ */
+
 /**
  * The KronotopInstanceStarter class is responsible for starting and shutting down a KronotopInstance.
  */

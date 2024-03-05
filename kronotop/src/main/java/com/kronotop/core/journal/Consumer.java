@@ -101,12 +101,12 @@ public class Consumer {
             JournalMetadata journalMetadata = cache.get(journal);
             Subspace subspace = journalMetadata.getEventsSubspace();
 
-            AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(Tuple.from(versionstamp)), 1).iterator();
-            if (!iterator.hasNext()) {
+            byte[] key = subspace.pack(Tuple.from(versionstamp));
+            byte[] value = tr.get(key).join();
+            if (value == null) {
                 return null;
             }
-            KeyValue next = iterator.next();
-            return new Event(next.getKey(), next.getValue());
+            return new Event(key, value);
         } catch (ExecutionException e) {
             // Possible problem in loading JournalMetadata from FoundationDB
             LOGGER.error(e.getCause().getMessage());

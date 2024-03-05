@@ -21,6 +21,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.BaseHandlerTest;
+import com.kronotop.sql.backend.AssertResponse;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -39,9 +40,9 @@ public class CreateSchemaTest extends BaseHandlerTest {
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
-        assertInstanceOf(SimpleStringRedisMessage.class, response);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-        assertEquals(Response.OK, actualMessage.content());
+        AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+        SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+        assertEquals(Response.OK, message.content());
     }
 
     @Test
@@ -53,9 +54,9 @@ public class CreateSchemaTest extends BaseHandlerTest {
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
-        assertInstanceOf(ErrorRedisMessage.class, response);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals("SQL Sub-schemas are not allowed", actualMessage.content());
+        AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
+        ErrorRedisMessage message = assertResponse.getMessage(response, 0, 1);
+        assertEquals("SQL Sub-schemas are not allowed", message.content());
     }
 
     @Test
@@ -68,9 +69,9 @@ public class CreateSchemaTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         {
@@ -79,9 +80,9 @@ public class CreateSchemaTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(ErrorRedisMessage.class, response);
-            ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-            assertEquals("Schema 'foobar' already exists", actualMessage.content());
+            AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
+            ErrorRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals("SQL Schema 'foobar' already exists", message.content());
         }
     }
     // TODO: Add test for IF NOT EXISTS keyword

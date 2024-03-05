@@ -20,6 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
+import com.kronotop.core.TransactionUtils;
 import com.kronotop.core.journal.JournalName;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -48,22 +50,32 @@ public class CreateSchema extends FoundationDBBackend implements Executor<SqlNod
         super(service);
     }
 
-    private RedisMessage createSchemaHierarchy(Transaction tr, String schema, boolean ifNotExists) {
+    private RedisMessage createSchemaHierarchy(ExecutionContext context, Transaction tr, SqlCreateSchema createSchema) {
+        if (createSchema.name.names.isEmpty()) {
+            return new ErrorRedisMessage(RESPError.SQL, "Schema is not defined");
+        }
+        if (createSchema.name.names.size() > 1) {
+            return new ErrorRedisMessage(RESPError.SQL, "Sub-schemas are not allowed");
+        }
+
+        String schema = createSchema.name.names.get(0);
         List<String> subpath = service.getMetadataService().getSchemaLayout(schema).asList();
         try {
             DirectoryLayer.getDefault().create(tr, subpath).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                if (!ifNotExists) {
-                    return new ErrorRedisMessage(String.format("Schema '%s' already exists", schema));
+                if (!createSchema.ifNotExists) {
+                    return new ErrorRedisMessage(RESPError.SQL, String.format("Schema '%s' already exists", schema));
                 }
             }
             throw new KronotopException(e);
         }
 
-        // Trigger the other nodes
-        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.SCHEMA_CREATED, new SchemaCreatedEvent(schema));
-        service.getContext().getJournal().getPublisher().publish(tr, JournalName.sqlMetadataEvents(), broadcastEvent);
+        TransactionUtils.addPostCommitHook(() -> {
+            // Trigger the other nodes
+            BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.SCHEMA_CREATED, new SchemaCreatedEvent(schema));
+            service.getContext().getJournal().getPublisher().publish(JournalName.sqlMetadataEvents(), broadcastEvent);
+        }, context.getRequest().getChannelContext());
 
         return new SimpleStringRedisMessage(Response.OK);
     }
@@ -71,13 +83,9 @@ public class CreateSchema extends FoundationDBBackend implements Executor<SqlNod
     @Override
     public RedisMessage execute(ExecutionContext context, SqlNode node) {
         SqlCreateSchema createSchema = (SqlCreateSchema) node;
-        if (createSchema.name.names.isEmpty()) {
-            return new ErrorRedisMessage(service.formatErrorMessage("schema is not defined"));
-        }
-        if (createSchema.name.names.size() > 1) {
-            return new ErrorRedisMessage(service.formatErrorMessage("Sub-schemas are not allowed"));
-        }
-        String schema = createSchema.name.names.get(0);
-        return service.getContext().getFoundationDB().run(tr -> createSchemaHierarchy(tr, schema, createSchema.ifNotExists));
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), context.getRequest().getChannelContext());
+        RedisMessage result = createSchemaHierarchy(context, tr, createSchema);
+        TransactionUtils.commitIfOneOff(tr, context.getRequest().getChannelContext());
+        return result;
     }
 }

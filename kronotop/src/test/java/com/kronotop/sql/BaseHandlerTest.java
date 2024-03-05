@@ -16,52 +16,17 @@
 
 package com.kronotop.sql;
 
-import com.kronotop.ConfigTestUtil;
-import com.kronotop.KronotopTestInstance;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.typesafe.config.Config;
+import com.kronotop.sql.backend.AssertResponse;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.embedded.EmbeddedChannel;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-
-import java.net.UnknownHostException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class BaseHandlerTest {
-    protected KronotopTestInstance kronotopInstance;
-    protected EmbeddedChannel channel;
-
-    protected EmbeddedChannel newChannel() {
-        return kronotopInstance.newChannel();
-    }
-
-    protected void setupCommon(Config config) throws UnknownHostException, InterruptedException {
-        kronotopInstance = new KronotopTestInstance(config);
-        kronotopInstance.start();
-        channel = kronotopInstance.getChannel();
-    }
-
-    @BeforeEach
-    public void setup() throws UnknownHostException, InterruptedException {
-        Config config = ConfigTestUtil.load("test.conf");
-        setupCommon(config);
-    }
-
-    @AfterEach
-    public void tearDown() {
-        if (kronotopInstance == null) {
-            return;
-        }
-        kronotopInstance.shutdown();
-    }
-
+public class BaseHandlerTest extends BaseSqlTest {
     protected void executeSqlQueryReturnsOK(KronotopCommandBuilder<String, String> cmd, String query) {
         ByteBuf buf = Unpooled.buffer();
         cmd.sql(query).encode(buf);
@@ -71,9 +36,10 @@ public class BaseHandlerTest {
         if (response instanceof ErrorRedisMessage) {
             System.out.println(((ErrorRedisMessage) response).content());
         }
-        assertInstanceOf(SimpleStringRedisMessage.class, response);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-        assertEquals(Response.OK, actualMessage.content());
+
+        AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+        SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+        assertEquals(Response.OK, message.content());
     }
 
     protected ErrorRedisMessage executeSqlQueryReturnsError(KronotopCommandBuilder<String, String> cmd, String query) {
@@ -82,7 +48,7 @@ public class BaseHandlerTest {
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
-        assertInstanceOf(ErrorRedisMessage.class, response);
-        return (ErrorRedisMessage) response;
+        AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
+        return assertResponse.getMessage(response, 0, 1);
     }
 }

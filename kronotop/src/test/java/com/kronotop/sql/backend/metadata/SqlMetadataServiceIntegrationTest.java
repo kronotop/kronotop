@@ -22,6 +22,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.BaseHandlerTest;
 import com.kronotop.sql.KronotopTable;
+import com.kronotop.sql.backend.AssertResponse;
 import com.kronotop.sql.backend.ddl.model.ColumnModel;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -41,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
     @Test
-    public void test_createSchemaSuccessfully() {
+    public void test_SqlMetadata_CREATE_SCHEMA() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -49,9 +50,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
-        assertInstanceOf(SimpleStringRedisMessage.class, response);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-        assertEquals(Response.OK, actualMessage.content());
+        AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+        SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+        assertEquals(Response.OK, message.content());
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
@@ -73,7 +74,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_createTableSuccessfully() {
+    public void test_SqlMetadata_CREATE_TABLE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -81,9 +82,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
-        assertInstanceOf(SimpleStringRedisMessage.class, response);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-        assertEquals(Response.OK, actualMessage.content());
+        AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+        SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+        assertEquals(Response.OK, message.content());
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
@@ -114,7 +115,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_dropSchemaSuccessfully() {
+    public void test_DROP_SCHEMA_successfully() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         // public schema is created automatically because it's the default schema in test.conf
@@ -124,9 +125,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
 
             SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
@@ -141,7 +142,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_dropTableSuccessfully() {
+    public void test_DROP_TABLE_successfully() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
@@ -150,9 +151,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
 
             SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
@@ -171,9 +172,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
 
             SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
@@ -188,7 +189,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_alterTable_renameTable() {
+    public void test_ALTER_TABLE_then_RENAME_TABLE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
@@ -197,9 +198,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         {
@@ -208,9 +209,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
@@ -226,7 +227,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_alterTable_addColumn() {
+    public void test_ALTER_TABLE_and_ADD_COLUMN() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
@@ -235,9 +236,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         {
@@ -246,9 +247,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
@@ -266,7 +267,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_alterTable_dropColumn() {
+    public void test_ALTER_TABLE_and_DROP_COLUMN() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
@@ -275,9 +276,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         {
@@ -286,9 +287,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
@@ -305,7 +306,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_alterTable_renameColumn() {
+    public void test_ALTER_TABLE_and_RENAME_COLUMN() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
@@ -314,9 +315,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         {
@@ -325,9 +326,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
@@ -344,7 +345,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_KronotopSchema_create() {
+    public void test_SqlMetadata_CREATE_TABLE_KronotopSchema_has_table() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
@@ -353,9 +354,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
@@ -365,7 +366,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_KronotopSchema_drop() {
+    public void test_SqlMetadata_DROP_TABLE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
@@ -374,9 +375,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         {
@@ -385,9 +386,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
@@ -397,7 +398,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_KronotopSchema_alter() {
+    public void test_SqlMetadata_ALTER_TABLE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
@@ -406,9 +407,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         {
@@ -417,9 +418,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);

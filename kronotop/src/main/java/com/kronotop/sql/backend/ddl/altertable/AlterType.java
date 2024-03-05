@@ -20,8 +20,9 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.sql.ExecutionContext;
 import com.kronotop.sql.SqlExecutionException;
-import com.kronotop.sql.TransactionResult;
 import com.kronotop.sql.parser.SqlAlterTable;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The AlterType interface represents an operation that can be performed on a database table
@@ -31,5 +32,5 @@ public interface AlterType {
 
     RedisMessage alter(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable) throws SqlExecutionException;
 
-    void notifyCluster(TransactionResult result, ExecutionContext context, SqlAlterTable sqlAlterTable);
+    void notifyCluster(CompletableFuture<byte[]> versionstampFuture, ExecutionContext context, SqlAlterTable sqlAlterTable);
 }

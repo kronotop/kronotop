@@ -20,6 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
+import com.kronotop.core.TransactionUtils;
 import com.kronotop.core.journal.JournalName;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -41,7 +43,7 @@ import java.util.List;
 import java.util.concurrent.CompletionException;
 
 /**
- * DropSchema is a class that represents the execution of a DROP SCHEMA statement in a SQL service.
+ * DropSchema is a class that represents the execution of a DROP SCHEMA statement in an SQL service.
  * DropSchema class extends the FoundationDBBackend class and implements the Executor<SqlNode> interface.
  */
 public class DropSchema extends FoundationDBBackend implements Executor<SqlNode> {
@@ -50,25 +52,34 @@ public class DropSchema extends FoundationDBBackend implements Executor<SqlNode>
         super(service);
     }
 
-    private RedisMessage dropSchemaHierarchy(Transaction tr, String schema, boolean ifExists) {
+    private RedisMessage dropSchemaHierarchy(ExecutionContext context, Transaction tr, SqlDropSchema dropSchema) {
+        if (dropSchema.name.names.isEmpty()) {
+            return new ErrorRedisMessage(RESPError.SQL, "schema is not defined");
+        }
+        if (dropSchema.name.names.size() > 1) {
+            return new ErrorRedisMessage(RESPError.SQL, "sub-schemas are not allowed");
+        }
+
+        String schema = dropSchema.name.names.get(0);
         List<String> subpath = service.getMetadataService().getSchemaLayout(schema).asList();
         try {
             DirectoryLayer.getDefault().remove(tr, subpath).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
-                if (ifExists) {
+                if (dropSchema.ifExists) {
                     return new SimpleStringRedisMessage(Response.OK);
                 } else {
                     Throwable throwable = new SchemaNotExistsException(schema);
-                    return new ErrorRedisMessage(throwable.getMessage());
+                    return new ErrorRedisMessage(RESPError.SQL, throwable.getMessage());
                 }
             }
             throw new KronotopException(e);
         }
 
-        // Trigger the other nodes
-        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.SCHEMA_DROPPED, new SchemaDroppedEvent(schema));
-        service.getContext().getJournal().getPublisher().publish(tr, JournalName.sqlMetadataEvents(), broadcastEvent);
+        TransactionUtils.addPostCommitHook(() -> {
+            BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.SCHEMA_DROPPED, new SchemaDroppedEvent(schema));
+            service.getContext().getJournal().getPublisher().publish(JournalName.sqlMetadataEvents(), broadcastEvent);
+        }, context.getRequest().getChannelContext());
 
         return new SimpleStringRedisMessage(Response.OK);
     }
@@ -76,13 +87,11 @@ public class DropSchema extends FoundationDBBackend implements Executor<SqlNode>
     @Override
     public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException {
         SqlDropSchema dropSchema = (SqlDropSchema) node;
-        if (dropSchema.name.names.isEmpty()) {
-            return new ErrorRedisMessage(service.formatErrorMessage("schema is not defined"));
-        }
-        if (dropSchema.name.names.size() > 1) {
-            return new ErrorRedisMessage(service.formatErrorMessage("Sub-schemas are not allowed"));
-        }
-        String schema = dropSchema.name.names.get(0);
-        return service.getContext().getFoundationDB().run(tr -> dropSchemaHierarchy(tr, schema, dropSchema.ifExists));
+
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), context.getRequest().getChannelContext());
+        RedisMessage result = dropSchemaHierarchy(context, tr, dropSchema);
+
+        TransactionUtils.commitIfOneOff(tr, context.getRequest().getChannelContext());
+        return result;
     }
 }

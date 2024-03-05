@@ -79,6 +79,7 @@ public class ConsumerTest extends BaseJournalTest {
         Consumer consumer = journal.getConsumer();
         try (Transaction tr = database.createTransaction()) {
             Event firstEvent = consumer.consumeByVersionstamp(tr, testJournal, first);
+            assertNotNull(firstEvent);
             Event nextEvent = consumer.consumeNext(tr, testJournal, firstEvent.getKey());
             assertArrayEquals(expectedValue.getBytes(), nextEvent.getValue());
         }

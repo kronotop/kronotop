@@ -18,7 +18,7 @@ package com.kronotop.redis.cluster;
 
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.core.cluster.MembershipService;
-import com.kronotop.core.cluster.ProcessIdUtils;
+import com.kronotop.core.VersionstampUtils;
 import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -91,7 +91,7 @@ class ClusterHandlerTest extends BaseHandlerTest {
             assertNotNull(instance);
             assertEquals(instance.getContext().getMember().getId(), member[0]);
             assertEquals(instance.getContext().getMember().getAddress().toString(), member[1]);
-            assertEquals(ProcessIdUtils.base64Encode(instance.getContext().getMember().getProcessId()), member[2]);
+            assertEquals(VersionstampUtils.base64Encode(instance.getContext().getMember().getProcessId()), member[2]);
         }
     }
 

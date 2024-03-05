@@ -15,6 +15,7 @@
 
 package com.kronotop.server.resp3;
 
+import com.kronotop.common.resp.RESPError;
 import io.netty.util.internal.UnstableApi;
 
 /**
@@ -32,4 +33,7 @@ public final class ErrorRedisMessage extends AbstractStringRedisMessage {
         super(content);
     }
 
+    public ErrorRedisMessage(RESPError prefix, String content) {
+        super(String.format("%s %s", prefix, content));
+    }
 }

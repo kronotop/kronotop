@@ -16,6 +16,9 @@
 
 package com.kronotop.sql.backend.metadata;
 
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.io.BaseEncoding;
+import com.kronotop.core.VersionstampUtils;
 import com.kronotop.sql.KronotopTable;
 
 import java.util.HashMap;
@@ -30,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class VersionedTableMetadata {
     private final Map<String, KronotopTable> versions = new HashMap<>();
-    private final SortedSet<String> sorted = new TreeSet<>();
+    private final SortedSet<Versionstamp> sorted = new TreeSet<>();
     private final AtomicReference<KronotopTable> latest = new AtomicReference<>();
 
     /**
@@ -47,9 +50,16 @@ public class VersionedTableMetadata {
             throw new TableVersionAlreadyExistsException("Version already exists");
         }
         versions.put(version, metadata);
-        sorted.add(version);
-        String latestVersion = sorted.last();
+        Versionstamp versionstamp = VersionstampUtils.base64Decode(version);
+        sorted.add(versionstamp);
+
+        Versionstamp latestVersionstamp = sorted.last();
+        String latestVersion = VersionstampUtils.base64Encode(latestVersionstamp);
         latest.set(versions.get(latestVersion));
+    }
+
+    public String getLatestVersion() {
+        return BaseEncoding.base64().encode(sorted.last().getBytes());
     }
 
     /**

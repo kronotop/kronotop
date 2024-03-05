@@ -18,7 +18,9 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.common.resp.RESPError;
+import com.kronotop.core.CommitHook;
 import com.kronotop.core.NamespaceUtils;
+import com.kronotop.core.TransactionUtils;
 import com.kronotop.foundationdb.protocol.CommitMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -26,6 +28,9 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
+
+import java.util.LinkedList;
+import java.util.List;
 
 @Command(CommitMessage.COMMAND)
 @MaximumParameterCount(CommitMessage.MAXIMUM_PARAMETER_COUNT)
@@ -57,6 +62,8 @@ class CommitHandler implements Handler {
         try (Transaction tr = transactionAttr.get()) {
             tr.commit().join();
 
+            TransactionUtils.runPostCommitHooks(request.getChannelContext());
+
             String operand = commitMessage.getOperand();
             if (operand == null) {
                 response.writeOK();
@@ -77,6 +84,8 @@ class CommitHandler implements Handler {
         } finally {
             beginAttr.set(false);
             transactionAttr.set(null);
+            channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
+            channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
             NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
         }
     }

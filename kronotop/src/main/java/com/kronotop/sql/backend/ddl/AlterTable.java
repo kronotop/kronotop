@@ -18,14 +18,21 @@ package com.kronotop.sql.backend.ddl;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
+import com.kronotop.core.TransactionUtils;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.sql.*;
+import com.kronotop.sql.ExecutionContext;
+import com.kronotop.sql.Executor;
+import com.kronotop.sql.SqlExecutionException;
+import com.kronotop.sql.SqlService;
 import com.kronotop.sql.backend.FoundationDBBackend;
 import com.kronotop.sql.backend.ddl.altertable.*;
 import com.kronotop.sql.parser.SqlAlterTable;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidatorException;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * AlterTable is a class that represents an ALTER TABLE statement in the Kronotop database system.
@@ -47,60 +54,42 @@ public class AlterTable extends FoundationDBBackend implements Executor<SqlNode>
         this.renameColumn = new RenameColumn(service);
     }
 
-    private TransactionResult alterTable(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable) {
-        RedisMessage redisMessage;
+    private RedisMessage alterTable(Transaction tr, ExecutionContext context, SqlAlterTable sqlAlterTable) {
         try {
-            switch (sqlAlterTable.alterType) {
-                case RENAME_TABLE:
-                    redisMessage = renameTable.alter(tr, context, sqlAlterTable);
-                    break;
-                case ADD_COLUMN:
-                    redisMessage = addColumn.alter(tr, context, sqlAlterTable);
-                    break;
-                case DROP_COLUMN:
-                    redisMessage = dropColumn.alter(tr, context, sqlAlterTable);
-                    break;
-                case RENAME_COLUMN:
-                    redisMessage = renameColumn.alter(tr, context, sqlAlterTable);
-                    break;
-                default:
-                    throw new KronotopException("Unknown ALTER type: " + sqlAlterTable.alterType);
-            }
-            return new TransactionResult(tr.getVersionstamp(), redisMessage);
+            RedisMessage redisMessage = switch (sqlAlterTable.alterType) {
+                case RENAME_TABLE -> renameTable.alter(tr, context, sqlAlterTable);
+                case ADD_COLUMN -> addColumn.alter(tr, context, sqlAlterTable);
+                case DROP_COLUMN -> dropColumn.alter(tr, context, sqlAlterTable);
+                case RENAME_COLUMN -> renameColumn.alter(tr, context, sqlAlterTable);
+                default -> new ErrorRedisMessage(RESPError.SQL, "Unknown ALTER type: " + sqlAlterTable.alterType);
+            };
+
+            CompletableFuture<byte[]> versionstampFuture = tr.getVersionstamp();
+            TransactionUtils.addPostCommitHook(() -> {
+                switch (sqlAlterTable.alterType) {
+                    case RENAME_TABLE -> renameTable.notifyCluster(versionstampFuture, context, sqlAlterTable);
+                    case ADD_COLUMN -> addColumn.notifyCluster(versionstampFuture, context, sqlAlterTable);
+                    case DROP_COLUMN -> dropColumn.notifyCluster(versionstampFuture, context, sqlAlterTable);
+                    case RENAME_COLUMN -> renameColumn.notifyCluster(versionstampFuture, context, sqlAlterTable);
+                }
+            }, context.getRequest().getChannelContext());
+            return redisMessage;
         } catch (SqlExecutionException | KronotopException e) {
-            String message;
             if (e instanceof SqlExecutionException) {
-                message = service.formatErrorMessage(e.getCause().getMessage());
-            } else {
-                message = service.formatErrorMessage(e.getMessage());
+                return new ErrorRedisMessage(RESPError.SQL, e.getCause().getMessage());
             }
-            return new TransactionResult(new ErrorRedisMessage(message));
+            return new ErrorRedisMessage(RESPError.SQL, e.getMessage());
         }
     }
 
     @Override
     public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException {
         SqlAlterTable sqlAlterTable = (SqlAlterTable) node;
-        TransactionResult result = service.getContext().getFoundationDB().run(tr -> alterTable(tr, context, sqlAlterTable));
 
-        if (result.getVersionstamp() != null) {
-            switch (sqlAlterTable.alterType) {
-                case RENAME_TABLE:
-                    renameTable.notifyCluster(result, context, sqlAlterTable);
-                    break;
-                case ADD_COLUMN:
-                    addColumn.notifyCluster(result, context, sqlAlterTable);
-                    break;
-                case DROP_COLUMN:
-                    dropColumn.notifyCluster(result, context, sqlAlterTable);
-                    break;
-                case RENAME_COLUMN:
-                    renameColumn.notifyCluster(result, context, sqlAlterTable);
-                    break;
-                default:
-                    throw new KronotopException("Unknown ALTER type: " + sqlAlterTable.alterType);
-            }
-        }
-        return result.getResult();
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), context.getRequest().getChannelContext());
+        RedisMessage result = alterTable(tr, context, sqlAlterTable);
+
+        TransactionUtils.commitIfOneOff(tr, context.getRequest().getChannelContext());
+        return result;
     }
 }

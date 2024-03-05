@@ -26,6 +26,8 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
+import java.util.LinkedList;
+
 @Command(BeginMessage.COMMAND)
 @MaximumParameterCount(BeginMessage.MAXIMUM_PARAMETER_COUNT)
 class BeginHandler implements Handler {
@@ -49,9 +51,10 @@ class BeginHandler implements Handler {
             return;
         }
 
-        Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
         Transaction tr = service.getContext().getFoundationDB().createTransaction();
-        transactionAttr.set(tr);
+        channel.attr(ChannelAttributes.TRANSACTION).set(tr);
+        channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
+        channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
         beginAttr.set(true);
         NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
 

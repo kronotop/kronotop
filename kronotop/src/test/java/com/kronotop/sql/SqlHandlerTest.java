@@ -18,13 +18,13 @@ package com.kronotop.sql;
 
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.sql.backend.AssertResponse;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class SqlHandlerTest extends BaseHandlerTest {
     @Test
@@ -36,9 +36,9 @@ public class SqlHandlerTest extends BaseHandlerTest {
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
-        assertInstanceOf(ErrorRedisMessage.class, response);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+        AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
+        ErrorRedisMessage message = assertResponse.getMessage(response, 0, 1);
         // javacc-maven-plugin > 2.4 breaks the parser's error handling. This check added here to control it.
-        assertEquals("SQL Incorrect syntax near the keyword 'SCHEMA' at line 1, column 8.", actualMessage.content());
+        assertEquals("SQL Incorrect syntax near the keyword 'SCHEMA' at line 1, column 8.", message.content());
     }
 }

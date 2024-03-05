@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import com.google.common.io.BaseEncoding;
+import com.kronotop.core.VersionstampUtils;
 import com.kronotop.core.network.Address;
 import io.netty.util.CharsetUtil;
 
@@ -84,7 +84,7 @@ public class Member {
                 "Member {id=%s address=%s processId=%s}",
                 id,
                 address,
-                ProcessIdUtils.base64Encode(processId)
+                VersionstampUtils.base64Encode(processId)
         );
     }
 }

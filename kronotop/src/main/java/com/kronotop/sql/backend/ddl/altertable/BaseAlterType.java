@@ -21,7 +21,6 @@ import com.kronotop.core.journal.JournalName;
 import com.kronotop.sql.ExecutionContext;
 import com.kronotop.sql.SqlExecutionException;
 import com.kronotop.sql.SqlService;
-import com.kronotop.sql.TransactionResult;
 import com.kronotop.sql.backend.ddl.ColumnNotExistsException;
 import com.kronotop.sql.backend.ddl.model.ColumnModel;
 import com.kronotop.sql.backend.ddl.model.TableModel;
@@ -29,6 +28,8 @@ import com.kronotop.sql.backend.metadata.events.BroadcastEvent;
 import com.kronotop.sql.backend.metadata.events.EventTypes;
 import com.kronotop.sql.backend.metadata.events.TableAlteredEvent;
 import com.kronotop.sql.parser.SqlAlterTable;
+
+import java.util.concurrent.CompletableFuture;
 
 class BaseAlterType {
     protected final SqlService service;
@@ -49,17 +50,16 @@ class BaseAlterType {
     }
 
     /**
-     * Publishes a TABLE_ALTERED event to the SQL metadata events journal.
-     * SqlMetadataService loads the latest version of the table when this event gets caught.
+     * Publishes a table altered event to the specified journal.
      *
-     * @param result        the transaction result object
-     * @param context       the execution context object
-     * @param sqlAlterTable the SQL ALTER TABLE object representing the table alteration
+     * @param versionstampFuture The future containing the versionstamp for the event
+     * @param context            The execution context
+     * @param sqlAlterTable      The SqlAlterTable object representing the ALTER TABLE command
      */
-    void publishTableAlteredEvent(TransactionResult result, ExecutionContext context, SqlAlterTable sqlAlterTable) {
+    void publishTableAlteredEvent(CompletableFuture<byte[]> versionstampFuture, ExecutionContext context, SqlAlterTable sqlAlterTable) {
         String schema = service.getSchemaFromNames(context, sqlAlterTable.name.names);
         String table = service.getTableNameFromNames(sqlAlterTable.name.names);
-        byte[] versionstamp = result.getVersionstamp().join();
+        byte[] versionstamp = versionstampFuture.join();
         byte[] tableVersion = Versionstamp.complete(versionstamp).getBytes();
         TableAlteredEvent columnAddedEvent = new TableAlteredEvent(schema, table, tableVersion);
         BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_ALTERED, columnAddedEvent);

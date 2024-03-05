@@ -44,7 +44,7 @@ public class OptimizerUnitTest {
         tableModel.setColumnList(List.of(columnModel));
 
         KronotopSchema schema = new KronotopSchema("myschema");
-        schema.getTableMap().put(tableModel.getTable(), new KronotopTable(tableModel));
+        schema.getTableMap().put(tableModel.getTable(), new KronotopTable(tableModel, new byte[]{0}));
         optimizer = new Optimizer(schema);
     }
 

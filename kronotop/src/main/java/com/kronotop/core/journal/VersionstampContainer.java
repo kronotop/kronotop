@@ -21,25 +21,10 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The VersionstampContainer class represents a container for a Versionstamp and user version.
- * It is used to hold the versionstamp and user version of a published event.
+ * VersionstampContainer is a container class that holds a CompletableFuture of a byte array,
+ * representing a versionstamp, and an integer representing the user version.
  */
-public class VersionstampContainer {
-    private final CompletableFuture<byte[]> versionstamp;
-    private final int userVersion;
-
-    public VersionstampContainer(CompletableFuture<byte[]> versionstamp, int userVersion) {
-        this.versionstamp = versionstamp;
-        this.userVersion = userVersion;
-    }
-
-    public CompletableFuture<byte[]> getVersionstamp() {
-        return versionstamp;
-    }
-
-    public int getUserVersion() {
-        return userVersion;
-    }
+public record VersionstampContainer(CompletableFuture<byte[]> versionstamp, int userVersion) {
 
     /**
      * This method completes the Versionstamp by joining the versionstamp CompletableFuture

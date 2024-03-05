@@ -26,21 +26,16 @@ import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.ByteUtils;
-import com.kronotop.core.ClusterLayout;
-import com.kronotop.core.Context;
-import com.kronotop.core.KeyWatcher;
-import com.kronotop.core.KronotopService;
+import com.kronotop.core.*;
 import com.kronotop.core.cluster.coordinator.CoordinatorService;
 import com.kronotop.core.cluster.coordinator.RoutingTable;
 import com.kronotop.core.cluster.sharding.ShardingService;
 import com.kronotop.core.journal.Event;
 import com.kronotop.core.journal.JournalName;
 import com.kronotop.core.network.Address;
-import com.kronotop.core.JSONUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -313,7 +308,7 @@ public class MembershipService implements KronotopService {
                 byte[] processIDKey = directorySubspace.pack(Keys.PROCESS_ID.toString());
                 byte[] rawProcessID = tr.get(processIDKey).join();
                 if (!processId.equals(Versionstamp.fromBytes(rawProcessID))) {
-                    throw new NoSuchMemberException(String.format("No such member: %s with processId: %s", address, ProcessIdUtils.base64Encode(processId)));
+                    throw new NoSuchMemberException(String.format("No such member: %s with processId: %s", address, VersionstampUtils.base64Encode(processId)));
                 }
                 return new Member(address, processId);
             });

@@ -36,6 +36,8 @@ import com.kronotop.server.Handlers;
 import com.kronotop.sql.backend.ddl.*;
 import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.backend.metadata.SqlMetadataService;
+import com.kronotop.sql.plan.PlanCache;
+import com.kronotop.sql.plan.PlanExecutor;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
@@ -45,7 +47,7 @@ import java.util.HashMap;
 /*
 Imagination is more important than knowledge. Knowledge is limited. Imagination encircles the world.
 
--- Albert Einstein, in Saturday Evening Post 26 October 1929
+-- Albert Einstein, in Saturday Evening Post, 26 October 1929
  */
 
 /**
@@ -55,15 +57,25 @@ public class SqlService extends CommandHandlerService implements KronotopService
     public static final String NAME = "SQL";
     protected final EnumSet<SqlKind> statements;
     protected final HashMap<SqlKind, Executor<SqlNode>> executors = new HashMap<>();
+    protected final SqlMetadataService metadataService;
+    // TODO: Invalidate the plan cache if a schema has changed.
+    protected final PlanCache planCache = new PlanCache();
+    protected final PlanExecutor planExecutor;
     private final Context context;
-    private final SqlMetadataService metadataService;
 
     public SqlService(Context context, Handlers handlers) {
         super(context, handlers);
         this.context = context;
         this.metadataService = context.getService(SqlMetadataService.NAME);
+        this.planExecutor = new PlanExecutor(context);
 
-        this.statements = EnumSet.of(SqlKind.INSERT);
+        this.statements = EnumSet.of(
+                SqlKind.INSERT,
+                SqlKind.SELECT,
+                SqlKind.ORDER_BY,
+                SqlKind.DELETE,
+                SqlKind.UPDATE
+        );
 
         this.executors.put(SqlKind.CREATE_SCHEMA, new CreateSchema(this));
         this.executors.put(SqlKind.CREATE_TABLE, new CreateTable(this));
@@ -106,10 +118,6 @@ public class SqlService extends CommandHandlerService implements KronotopService
         return names.get(names.size() - 1);
     }
 
-    public String formatErrorMessage(String message) {
-        return String.format("%s %s", RESPError.SQL, message);
-    }
-
     public SqlMetadataService getMetadataService() {
         return metadataService;
     }
@@ -130,7 +138,7 @@ public class SqlService extends CommandHandlerService implements KronotopService
 
     public void saveTableModel(Transaction tr, TableModel tableModel, DirectorySubspace subspace) {
         byte[] data = JSONUtils.writeValueAsBytes(tableModel);
-        Tuple tuple = Tuple.from(Versionstamp.incomplete(), 1);
+        Tuple tuple = Tuple.from(Versionstamp.incomplete());
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), data);
     }
 

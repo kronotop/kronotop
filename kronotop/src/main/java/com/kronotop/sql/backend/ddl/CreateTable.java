@@ -25,7 +25,9 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.core.TransactionUtils;
 import com.kronotop.core.journal.JournalName;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -34,7 +36,6 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.ExecutionContext;
 import com.kronotop.sql.Executor;
 import com.kronotop.sql.SqlService;
-import com.kronotop.sql.TransactionResult;
 import com.kronotop.sql.backend.FoundationDBBackend;
 import com.kronotop.sql.backend.ddl.model.ColumnModel;
 import com.kronotop.sql.backend.ddl.model.TableModel;
@@ -53,6 +54,7 @@ import org.apache.calcite.sql.validate.SqlValidatorException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -145,7 +147,7 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
             List<String> subpath = schemaLayout.tables().add(tableModel.getTable()).asList();
             byte[] data = objectMapper.writeValueAsBytes(tableModel);
             DirectorySubspace subspace = DirectoryLayer.getDefault().create(tr, subpath).join();
-            Tuple tuple = Tuple.from(Versionstamp.incomplete(), 1);
+            Tuple tuple = Tuple.from(Versionstamp.incomplete());
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), data);
         } catch (CompletionException | JsonProcessingException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
@@ -161,47 +163,44 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
     /**
      * Creates a table in the FoundationDB.
      *
+     * @param context    The ExecutionContext object containing the names of the context.
      * @param tr         The transaction to use for the operation.
      * @param tableModel The model representing the table to create.
-     * @return The result of the transaction, containing the version stamp and the result message.
+     *                   It contains information about the table schema, the table name, the SQL query,
+     *                   column definitions, and other properties.
+     * @return RedisMessage object containing the result of the transaction.
      */
-    private TransactionResult createTable(Transaction tr, TableModel tableModel) {
+    private RedisMessage createTable(ExecutionContext context, Transaction tr, TableModel tableModel) {
         try {
             RedisMessage result = createTableOnFDB(tr, tableModel);
-            return new TransactionResult(tr.getVersionstamp(), result);
-        } catch (SchemaNotExistsException | TableAlreadyExistsException | TableNameConflictException e) {
-            String message = service.formatErrorMessage(e.getMessage());
-            return new TransactionResult(new ErrorRedisMessage(message));
-        }
-    }
 
-    /**
-     * Publishes a table created event to the SQL metadata events journal.
-     *
-     * @param result     The result of the transaction, containing the version stamp.
-     * @param tableModel The model representing the table that was created.
-     */
-    private void publishTableCreatedEvent(TransactionResult result, TableModel tableModel) {
-        byte[] versionstamp = result.getVersionstamp().join();
-        byte[] tableVersion = Versionstamp.complete(versionstamp).getBytes();
-        TableCreatedEvent tableCreatedEvent = new TableCreatedEvent(tableModel.getSchema(), tableModel.getTable(), tableVersion);
-        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_CREATED, tableCreatedEvent);
-        service.getContext().getJournal().getPublisher().publish(JournalName.sqlMetadataEvents(), broadcastEvent);
+            CompletableFuture<byte[]> versionstampFuture = tr.getVersionstamp();
+            TransactionUtils.addPostCommitHook(() -> {
+                byte[] versionstamp = versionstampFuture.join();
+                byte[] tableVersion = Versionstamp.complete(versionstamp).getBytes();
+                TableCreatedEvent tableCreatedEvent = new TableCreatedEvent(tableModel.getSchema(), tableModel.getTable(), tableVersion);
+                BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_CREATED, tableCreatedEvent);
+                service.getContext().getJournal().getPublisher().publish(JournalName.sqlMetadataEvents(), broadcastEvent);
+            }, context.getRequest().getChannelContext());
+
+            return result;
+        } catch (SchemaNotExistsException | TableAlreadyExistsException | TableNameConflictException e) {
+            return new ErrorRedisMessage(RESPError.SQL, e.getMessage());
+        }
     }
 
     @Override
     public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException {
         SqlCreateTable sqlCreateTable = (SqlCreateTable) node;
         if (sqlCreateTable.columnList == null) {
-            return new ErrorRedisMessage("Column list cannot be empty.");
+            return new ErrorRedisMessage(RESPError.SQL, "column list cannot be empty");
         }
 
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), context.getRequest().getChannelContext());
         TableModel tableModel = prepareTableModel(context, sqlCreateTable);
-        TransactionResult result = service.getContext().getFoundationDB().run(tr -> createTable(tr, tableModel));
+        RedisMessage result = createTable(context, tr, tableModel);
 
-        if (result.getVersionstamp() != null) {
-            publishTableCreatedEvent(result, tableModel);
-        }
-        return result.getResult();
+        TransactionUtils.commitIfOneOff(tr, context.getRequest().getChannelContext());
+        return result;
     }
 }

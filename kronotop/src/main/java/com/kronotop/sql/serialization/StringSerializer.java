@@ -14,14 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.core.cluster;
+package com.kronotop.sql.serialization;
 
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.google.common.io.BaseEncoding;
-
-public class ProcessIdUtils {
-
-    public static String base64Encode(Versionstamp processId) {
-        return BaseEncoding.base64().encode(processId.getBytes());
+public class StringSerializer {
+    public static byte[] serialize(String data) {
+        return data.getBytes();
     }
 }

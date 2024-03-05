@@ -20,6 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
+import com.kronotop.core.TransactionUtils;
 import com.kronotop.core.journal.JournalName;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -46,25 +48,29 @@ public class DropTable extends FoundationDBBackend implements Executor<SqlNode> 
         super(service);
     }
 
-    private RedisMessage dropTable(Transaction tr, String schema, String table, boolean ifExists) {
+    private RedisMessage dropTable(Transaction tr, ExecutionContext context, SqlDropTable dropTable) {
+        String schema = service.getSchemaFromNames(context, dropTable.name.names);
+        String table = dropTable.name.names.get(dropTable.name.names.size() - 1);
+
         List<String> subpath = service.getMetadataService().getSchemaLayout(schema).tables().add(table).asList();
         try {
             DirectoryLayer.getDefault().remove(tr, subpath).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
-                if (ifExists) {
+                if (dropTable.ifExists) {
                     return new SimpleStringRedisMessage(Response.OK);
                 } else {
                     Throwable throwable = new TableNotExistsException(table);
-                    return new ErrorRedisMessage(throwable.getMessage());
+                    return new ErrorRedisMessage(RESPError.SQL, throwable.getMessage());
                 }
             }
             throw new KronotopException(e);
         }
 
-        // Trigger the other nodes
-        BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_DROPPED, new TableDroppedEvent(schema, table));
-        service.getContext().getJournal().getPublisher().publish(tr, JournalName.sqlMetadataEvents(), broadcastEvent);
+        TransactionUtils.addPostCommitHook(() -> {
+            BroadcastEvent broadcastEvent = new BroadcastEvent(EventTypes.TABLE_DROPPED, new TableDroppedEvent(schema, table));
+            service.getContext().getJournal().getPublisher().publish(JournalName.sqlMetadataEvents(), broadcastEvent);
+        }, context.getRequest().getChannelContext());
 
         return new SimpleStringRedisMessage(Response.OK);
     }
@@ -72,8 +78,11 @@ public class DropTable extends FoundationDBBackend implements Executor<SqlNode> 
     @Override
     public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException {
         SqlDropTable dropTable = (SqlDropTable) node;
-        String schema = service.getSchemaFromNames(context, dropTable.name.names);
-        String table = dropTable.name.names.get(dropTable.name.names.size() - 1);
-        return service.getContext().getFoundationDB().run(tr -> dropTable(tr, schema, table, dropTable.ifExists));
+
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), context.getRequest().getChannelContext());
+        RedisMessage result = dropTable(tr, context, dropTable);
+
+        TransactionUtils.commitIfOneOff(tr, context.getRequest().getChannelContext());
+        return result;
     }
 }

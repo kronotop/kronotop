@@ -70,7 +70,7 @@ public class Publisher {
             int userVersion = userVersions.get(readVersion).getAndIncrement();
 
             Subspace subspace = journalMetadata.getEventsSubspace();
-            Tuple tuple = Tuple.from(Versionstamp.incomplete(), userVersion);
+            Tuple tuple = Tuple.from(Versionstamp.incomplete(userVersion));
 
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), data);
             tr.mutate(MutationType.ADD, journalMetadata.getTrigger(), ByteUtils.fromLong(1L));

@@ -21,13 +21,13 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.BaseHandlerTest;
+import com.kronotop.sql.backend.AssertResponse;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class DropTableTest extends BaseHandlerTest {
     @Test
@@ -41,9 +41,9 @@ public class DropTableTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
 
         {
@@ -52,9 +52,9 @@ public class DropTableTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
+            AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+            SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(Response.OK, message.content());
         }
     }
 
@@ -63,13 +63,13 @@ public class DropTableTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("DROP TABLE foobar.users").encode(buf);
+        cmd.sql("DROP TABLE users").encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
-        assertInstanceOf(ErrorRedisMessage.class, response);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals("Table 'users' not exists", actualMessage.content());
+        AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
+        ErrorRedisMessage message = assertResponse.getMessage(response, 0, 1);
+        assertEquals("SQL Table 'users' not exists", message.content());
     }
 
     @Test
@@ -81,8 +81,8 @@ public class DropTableTest extends BaseHandlerTest {
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
-        assertInstanceOf(SimpleStringRedisMessage.class, response);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-        assertEquals(Response.OK, actualMessage.content());
+        AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+        SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+        assertEquals(Response.OK, message.content());
     }
 }

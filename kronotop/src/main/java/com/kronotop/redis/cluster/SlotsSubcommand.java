@@ -55,6 +55,9 @@ class SlotsSubcommand implements SubcommandExecutor {
         FullBulkStringRedisMessage idMessage = new FullBulkStringRedisMessage(idBuf);
         result.add(idMessage);
 
+        // Replicas, empty.
+        result.add(new ArrayRedisMessage(new ArrayList<>()));
+
         return result;
     }
 
@@ -63,7 +66,7 @@ class SlotsSubcommand implements SubcommandExecutor {
         List<SlotRange> ranges = new ArrayList<>();
         SlotRange currentRange = new SlotRange(0);
         Integer currentShardId = null;
-        int lastHashSlot = 0;
+        int latestHashSlot = 0;
         for (int hashSlot = 0; hashSlot < service.NUM_HASH_SLOTS; hashSlot++) {
             int shardId = service.getHashSlots().get(hashSlot);
             if (currentShardId != null && shardId != currentShardId) {
@@ -74,10 +77,10 @@ class SlotsSubcommand implements SubcommandExecutor {
                 currentRange = new SlotRange(hashSlot);
             }
             currentShardId = shardId;
-            lastHashSlot = hashSlot;
+            latestHashSlot = hashSlot;
         }
+        currentRange.setEnd(latestHashSlot);
 
-        currentRange.setEnd(lastHashSlot + 1);
         Member owner = service.getClusterService().getRoutingTable().getRoute(currentShardId).getMember();
         currentRange.setOwner(owner);
         ranges.add(currentRange);

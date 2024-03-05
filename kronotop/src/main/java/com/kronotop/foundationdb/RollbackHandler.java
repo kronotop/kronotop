@@ -26,6 +26,8 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
+import java.util.LinkedList;
+
 @Command(RollbackMessage.COMMAND)
 @MaximumParameterCount(RollbackMessage.MAXIMUM_PARAMETER_COUNT)
 class RollbackHandler implements Handler {
@@ -57,6 +59,8 @@ class RollbackHandler implements Handler {
         } finally {
             beginAttr.set(false);
             transactionAttr.set(null);
+            channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
+            channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
             NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
         }
 

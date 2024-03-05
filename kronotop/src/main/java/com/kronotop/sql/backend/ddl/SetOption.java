@@ -16,6 +16,7 @@
 
 package com.kronotop.sql.backend.ddl;
 
+import com.kronotop.common.resp.RESPError;
 import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -41,7 +42,7 @@ public class SetOption implements Executor<SqlNode> {
     private RedisMessage setSessionScope(ExecutionContext context, SqlSetOption sqlSetOption) {
         SqlIdentifier value = (SqlIdentifier) sqlSetOption.getValue();
         if (value == null || value.names.isEmpty()) {
-            return new ErrorRedisMessage(service.formatErrorMessage("value cannot be empty"));
+            return new ErrorRedisMessage(RESPError.SQL, "value cannot be empty");
         }
 
         String key = String.join(".", sqlSetOption.getName().names);
@@ -53,7 +54,7 @@ public class SetOption implements Executor<SqlNode> {
             }
             context.getResponse().getChannelContext().channel().attr(ChannelAttributes.SCHEMA).set(value.getSimple());
         } else {
-            return new ErrorRedisMessage("Unknown key: " + key);
+            return new ErrorRedisMessage(RESPError.SQL,"Unknown key: " + key);
         }
         return new SimpleStringRedisMessage(Response.OK);
     }
@@ -76,7 +77,7 @@ public class SetOption implements Executor<SqlNode> {
         SqlSetOption sqlSetOption = (SqlSetOption) node;
         String scope = sqlSetOption.getScope();
 
-        // Default scope is null, set it to SESSION
+        // The default scope is null, set it to SESSION
         if (scope == null) {
             scope = "SESSION";
         }
@@ -90,10 +91,9 @@ public class SetOption implements Executor<SqlNode> {
             } else {
                 return resetSessionScope(context, sqlSetOption);
             }
-        } else {
-            response = new ErrorRedisMessage(service.formatErrorMessage("Unsupported scope: " + scope));
+            return response;
         }
-        return response;
+        return new ErrorRedisMessage(RESPError.SQL, "Unsupported scope: " + scope);
     }
 
     enum Scope {

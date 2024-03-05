@@ -18,13 +18,15 @@ package com.kronotop.sql.protocol;
 
 import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
+import io.netty.buffer.ByteBuf;
 
+import java.util.LinkedList;
 import java.util.List;
 
 public class SqlMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "SQL";
     private final Request request;
-    private String query;
+    private final List<String> queries = new LinkedList<>();
 
     public SqlMessage(Request request) {
         this.request = request;
@@ -32,13 +34,15 @@ public class SqlMessage implements KronotopMessage<Void> {
     }
 
     private void parse() {
-        byte[] rawQuery = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawQuery);
-        query = new String(rawQuery);
+        for (ByteBuf buf : request.getParams()) {
+            byte[] rawQuery = new byte[buf.readableBytes()];
+            buf.readBytes(rawQuery);
+            queries.add(new String(rawQuery));
+        }
     }
 
-    public String getQuery() {
-        return query;
+    public List<String> getQueries() {
+        return queries;
     }
 
     @Override

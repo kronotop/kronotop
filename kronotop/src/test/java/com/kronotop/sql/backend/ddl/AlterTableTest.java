@@ -25,8 +25,6 @@ import com.kronotop.sql.backend.ddl.model.ColumnModel;
 import com.kronotop.sql.backend.metadata.SqlMetadataService;
 import com.kronotop.sql.backend.metadata.TableWithVersion;
 import io.lettuce.core.codec.StringCodec;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.jupiter.api.Test;
@@ -64,14 +62,9 @@ public class AlterTableTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         String query = "ALTER TABLE public.users RENAME TO foobar";
-        ByteBuf buf = Unpooled.buffer();
-        cmd.sql(query).encode(buf);
-        channel.writeInbound(buf);
-        Object response = channel.readOutbound();
 
-        assertInstanceOf(ErrorRedisMessage.class, response);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals("SQL Table 'users' not exists", actualMessage.content());
+        ErrorRedisMessage error = executeSqlQueryReturnsError(cmd, query);
+        assertEquals("SQL Table 'users' not exists", error.content());
     }
 
     @Test

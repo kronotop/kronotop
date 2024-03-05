@@ -35,8 +35,8 @@ public class PublisherTest extends BaseJournalTest {
         VersionstampContainer first = publisher.publish(testJournal, "foo");
         VersionstampContainer second = publisher.publish(testJournal, "bar");
 
-        Versionstamp firstVersionstamp = Versionstamp.complete(first.getVersionstamp().join(), first.getUserVersion());
-        Versionstamp secondVersionstamp = Versionstamp.complete(second.getVersionstamp().join(), second.getUserVersion());
+        Versionstamp firstVersionstamp = Versionstamp.complete(first.versionstamp().join(), first.userVersion());
+        Versionstamp secondVersionstamp = Versionstamp.complete(second.versionstamp().join(), second.userVersion());
         assertTrue(firstVersionstamp.compareTo(secondVersionstamp) < 0);
     }
 
@@ -58,8 +58,8 @@ public class PublisherTest extends BaseJournalTest {
 
         VersionstampContainer first = result.get(0);
         VersionstampContainer second = result.get(1);
-        Versionstamp firstStamp = Versionstamp.complete(first.getVersionstamp().join(), first.getUserVersion());
-        Versionstamp secondStamp = Versionstamp.complete(second.getVersionstamp().join(), second.getUserVersion());
+        Versionstamp firstStamp = Versionstamp.complete(first.versionstamp().join(), first.userVersion());
+        Versionstamp secondStamp = Versionstamp.complete(second.versionstamp().join(), second.userVersion());
         assertTrue(firstStamp.compareTo(secondStamp) < 0);
     }
 }
