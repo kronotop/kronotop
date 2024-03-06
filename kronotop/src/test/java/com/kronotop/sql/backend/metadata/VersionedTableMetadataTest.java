@@ -27,6 +27,9 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class VersionedTableMetadataTest {
 
+    private final String versionStampFirst = "AAAHIvm0lWMAAAAA";
+    private final String versionstampSecond = "AAAHKUwFqL8AAAAA";
+
     /**
      * This test validates the case when a new version is being added.
      * The expected behavior is that the method should simply add the new version without any problems.
@@ -34,7 +37,7 @@ public class VersionedTableMetadataTest {
     @Test
     void testPutNewVersion() {
         VersionedTableMetadata vtm = new VersionedTableMetadata();
-        assertDoesNotThrow(() -> vtm.put("1.0", null));
+        assertDoesNotThrow(() -> vtm.put(versionStampFirst, null));
     }
 
     /**
@@ -44,8 +47,8 @@ public class VersionedTableMetadataTest {
     @Test
     void testPutExistingVersion() {
         VersionedTableMetadata vtm = new VersionedTableMetadata();
-        assertDoesNotThrow(() -> vtm.put("1.0", null));
-        assertThrows(TableVersionAlreadyExistsException.class, () -> vtm.put("1.0", null));
+        assertDoesNotThrow(() -> vtm.put(versionStampFirst, null));
+        assertThrows(TableVersionAlreadyExistsException.class, () -> vtm.put(versionStampFirst, null));
     }
 
     /**
@@ -55,9 +58,9 @@ public class VersionedTableMetadataTest {
     @Test
     void testLatestVersionUpdate() {
         VersionedTableMetadata vtm = new VersionedTableMetadata();
-        assertDoesNotThrow(() -> vtm.put("1.0", null));
+        assertDoesNotThrow(() -> vtm.put(versionStampFirst, null));
         assertNull(vtm.getLatest());
-        assertDoesNotThrow(() -> vtm.put("1.1", null));
+        assertDoesNotThrow(() -> vtm.put(versionstampSecond, null));
         assertNull(vtm.getLatest());
     }
 
@@ -70,16 +73,16 @@ public class VersionedTableMetadataTest {
         VersionedTableMetadata tableMetadata = new VersionedTableMetadata();
 
         //Test case#1: check get when version does not exist.
-        assertNull(tableMetadata.get("1.0.0"));
+        assertNull(tableMetadata.get(versionStampFirst));
 
         //Test case#2: check get when version exists.
         try {
-            tableMetadata.put("1.0.1", null);
+            tableMetadata.put(versionstampSecond, null);
         } catch (TableVersionAlreadyExistsException e) {
             fail("Unexpected exception occurred");
         }
 
-        assertNull(tableMetadata.get("1.0.1"));
+        assertNull(tableMetadata.get(versionstampSecond));
 
         //Test case#3: check get when version is null.
         assertNull(tableMetadata.get(null));
