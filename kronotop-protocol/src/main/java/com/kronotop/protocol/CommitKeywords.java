@@ -21,12 +21,13 @@ import io.lettuce.core.protocol.ProtocolKeyword;
 import java.nio.charset.StandardCharsets;
 
 public enum CommitKeywords implements ProtocolKeyword {
-    GET_COMMITTED_VERSION,
-    GET_VERSIONSTAMP;
+    COMMITTED_VERSION("committed-version"),
+    VERSIONSTAMP("versionstamp");
+
     public final byte[] bytes;
 
-    CommitKeywords() {
-        bytes = name().getBytes(StandardCharsets.US_ASCII);
+    CommitKeywords(String name) {
+        bytes = name.getBytes(StandardCharsets.US_ASCII);
     }
 
     @Override

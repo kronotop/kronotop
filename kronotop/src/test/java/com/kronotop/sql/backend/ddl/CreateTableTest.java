@@ -36,7 +36,7 @@ public class CreateTableTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("CREATE TABLE public.users (id INTEGER, username VARCHAR)").encode(buf);
+        cmd.sql("CREATE TABLE public.users (username VARCHAR)").encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -49,7 +49,7 @@ public class CreateTableTest extends BaseHandlerTest {
     public void test_tableAlreadyExists() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String query = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String query = "CREATE TABLE public.users (username VARCHAR)";
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.sql(query).encode(buf);

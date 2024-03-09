@@ -71,7 +71,7 @@ public interface KronotopCommands<K, V> {
 
     Long getreadversion();
 
-    Object sql();
+    List<Object> sql(String... queries);
 
     String setSqlSchema(String schema);
 

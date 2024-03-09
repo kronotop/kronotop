@@ -21,6 +21,7 @@ import com.kronotop.KronotopTestInstance;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.MockChannelHandlerContext;
 import com.kronotop.server.Response;
+import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.KronotopSchema;
 import com.kronotop.sql.KronotopTable;
@@ -48,7 +49,8 @@ import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class PlanExecutorIntegrationTest {
     protected KronotopTestInstance kronotopInstance;
@@ -103,11 +105,6 @@ class PlanExecutorIntegrationTest {
         } catch (SchemaNotExistsException | SqlParseException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private PlanContext execute(String createTable, String query) {
-        executeSQLQuery(createTable);
-        return execute(query);
     }
 
     private void awaitSchemaMetadataForTable(String schema, String table) {
@@ -350,6 +347,94 @@ class PlanExecutorIntegrationTest {
             PlanContext planContext = execute("INSERT INTO integer_test (integer_column, string_column) values(35, 'some string')");
             assertEquals(planContext.getRows().get(0).get("integer_column").getValueAs(Integer.class), 35);
             assertEquals(planContext.getRows().get(0).get("string_column").getValueAs(String.class), "some string");
+        }
+    }
+
+    @Nested
+    class TestStoredColumns {
+        @Test
+        public void when_id_column_in_CREATE_TABLE() {
+            KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("CREATE TABLE virtual_column_test(id VARCHAR)").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
+            ErrorRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals("SQL Cannot CREATE generated column 'id'", message.content());
+        }
+
+        @Test
+        public void when_id_column_in_ALTER_TABLE_ADD_COLUMN() {
+            KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("ALTER TABLE public.users ADD COLUMN id").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
+            ErrorRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals("SQL Cannot ALTER generated column 'id'", message.content());
+        }
+
+        @Test
+        public void when_id_column_in_ALTER_TABLE_DROP_COLUMN() {
+            KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("ALTER TABLE public.users DROP COLUMN id").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
+            ErrorRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals("SQL Cannot ALTER generated column 'id'", message.content());
+        }
+
+        @Test
+        public void when_id_column_in_ALTER_TABLE_RENAME_COLUMN() {
+            KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+            ByteBuf buf = Unpooled.buffer();
+            cmd.sql("ALTER TABLE public.users RENAME COLUMN id TO foobar").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
+            ErrorRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals("SQL Cannot ALTER generated column 'id'", message.content());
+        }
+
+        @Test
+        public void when_id_column_in_INSERT_INTO() {
+            KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+            {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.sql("CREATE TABLE virtual_column_test(string_column VARCHAR)").encode(buf);
+                channel.writeInbound(buf);
+                Object response = channel.readOutbound();
+
+                AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
+                SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+                assertEquals(Response.OK, message.content());
+            }
+
+            {
+
+                awaitSchemaMetadataForTable("public", "virtual_column_test");
+                ByteBuf buf = Unpooled.buffer();
+                cmd.sql("INSERT INTO virtual_column_test(id, string_column) VALUES('some value', 'other value')").encode(buf);
+                channel.writeInbound(buf);
+                Object response = channel.readOutbound();
+
+                AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
+                ErrorRedisMessage message = assertResponse.getMessage(response, 0, 1);
+                assertEquals("SQL Cannot INSERT into generated column 'id'", message.content());
+            }
         }
     }
 }

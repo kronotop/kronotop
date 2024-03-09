@@ -25,10 +25,8 @@ import java.util.List;
 public class CommitMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "COMMIT";
     public static final int MAXIMUM_PARAMETER_COUNT = 1;
-    public static final String GET_COMMITTED_VERSION_OPERAND = "GET_COMMITTED_VERSION";
-    public static final String GET_VERSIONSTAMP_OPERAND = "GET_VERSIONSTAMP";
     private final Request request;
-    private String operand;
+    private Parameter parameter;
 
     public CommitMessage(Request request) {
         this.request = request;
@@ -37,21 +35,20 @@ public class CommitMessage implements KronotopMessage<Void> {
 
     private void parse() {
         if (!request.getParams().isEmpty()) {
-            byte[] rawOperand = new byte[request.getParams().get(0).readableBytes()];
-            request.getParams().get(0).readBytes(rawOperand);
-            operand = new String(rawOperand);
-            if (GET_COMMITTED_VERSION_OPERAND.equalsIgnoreCase(operand)) {
-                operand = GET_COMMITTED_VERSION_OPERAND;
-            } else if (GET_VERSIONSTAMP_OPERAND.equalsIgnoreCase(operand)) {
-                operand = GET_VERSIONSTAMP_OPERAND;
-            } else {
-                throw new UnknownSubcommandException(operand);
+            byte[] rawParameter = new byte[request.getParams().get(0).readableBytes()];
+            request.getParams().get(0).readBytes(rawParameter);
+
+            String value = new String(rawParameter);
+            try {
+                this.parameter = Parameter.fromValue(value);
+            } catch (IllegalArgumentException e) {
+                throw new UnknownSubcommandException(value);
             }
         }
     }
 
-    public String getOperand() {
-        return operand;
+    public Parameter getParameter() {
+        return parameter;
     }
 
     @Override
@@ -62,5 +59,29 @@ public class CommitMessage implements KronotopMessage<Void> {
     @Override
     public List<Void> getKeys() {
         return null;
+    }
+
+    public enum Parameter {
+        COMMITTED_VERSION("committed-version"),
+        VERSIONSTAMP("versionstamp");
+
+        private final String value;
+
+        Parameter(String value) {
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        public static Parameter fromValue(String value) {
+            for (Parameter parameter : values()) {
+                if (parameter.getValue().equalsIgnoreCase(value)) {
+                    return parameter;
+                }
+            }
+            throw new IllegalArgumentException(value);
+        }
     }
 }

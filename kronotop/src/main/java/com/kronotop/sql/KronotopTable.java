@@ -28,6 +28,7 @@ import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.schema.ScannableTable;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.impl.AbstractTable;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql2rel.InitializerContext;
 import org.apache.calcite.sql2rel.InitializerExpressionFactory;
 import org.apache.calcite.sql2rel.NullInitializerExpressionFactory;
@@ -36,13 +37,18 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * The KronotopTable class represents a table in the Kronotop database.
+ * It extends the AbstractTable class and implements the ScannableTable interface.
+ */
 public class KronotopTable extends AbstractTable implements ScannableTable {
     private final byte[] prefix;
     private final TableModel tableModel;
     private final KronotopTableStatistic statistic;
     private final InitializerExpressionFactory initializerExpressionFactory;
-
     private RelDataType rowType;
+    // ID column is computed and stored. You cannot insert into it.
+    public static StoredColumn IDStoredColumn = new StoredColumn("id", SqlTypeName.VARCHAR, ColumnStrategy.STORED);
 
     public KronotopTable(@Nonnull TableModel model, @Nonnull byte[] prefix) {
         this.prefix = prefix;
@@ -54,7 +60,6 @@ public class KronotopTable extends AbstractTable implements ScannableTable {
 
     @Override
     public <C> C unwrap(Class<C> aClass) {
-        System.out.println(aClass);
         if (aClass.isInstance(initializerExpressionFactory)) {
             return aClass.cast(initializerExpressionFactory);
         } else if (aClass.isInstance(this)) {
@@ -123,19 +128,30 @@ public class KronotopTable extends AbstractTable implements ScannableTable {
 
         @Override
         public RexNode newColumnDefaultValue(RelOptTable table, int iColumn, InitializerContext context) {
+            // TODO: This method should be re-implemented.
             final RelDataTypeField relDataTypeField = table.getRowType().getFieldList().get(iColumn);
             final RexBuilder rexBuilder = context.getRexBuilder();
             final ColumnModel columnModel = tableModel.getColumnList().get(iColumn);
+
+            if (columnModel.getName().equals(IDStoredColumn.name())) {
+                return rexBuilder.makeLiteral("", relDataTypeField.getType(), false);
+            }
 
             Object value = null;
             switch (relDataTypeField.getType().getSqlTypeName()) {
                 case INTEGER -> value = Integer.parseInt(columnModel.getExpression());
                 case VARCHAR, CHAR -> value = columnModel.getExpression();
             }
+
             if (value != null) {
                 return rexBuilder.makeLiteral(value, relDataTypeField.getType(), false);
             }
+
             return null;
         }
+    }
+
+
+    public record StoredColumn(String name, SqlTypeName sqlTypeName, ColumnStrategy columnStrategy) {
     }
 }

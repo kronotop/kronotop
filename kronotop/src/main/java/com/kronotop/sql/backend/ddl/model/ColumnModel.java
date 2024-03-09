@@ -19,8 +19,6 @@ package com.kronotop.sql.backend.ddl.model;
 import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import java.util.List;
-
 public class ColumnModel {
     private String name;
     private SqlTypeName dataType;

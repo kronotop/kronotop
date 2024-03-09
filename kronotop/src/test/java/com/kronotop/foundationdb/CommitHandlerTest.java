@@ -17,6 +17,7 @@
 package com.kronotop.foundationdb;
 
 import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -39,7 +40,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
 
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-        assertEquals("OK", actualMessage.content());
+        assertEquals(Response.OK, actualMessage.content());
     }
 
     @Test
@@ -56,7 +57,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_COMMIT_GET_COMMITTED_VERSION() {
+    public void test_COMMIT_COMMITTED_VERSION() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
@@ -68,7 +69,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {

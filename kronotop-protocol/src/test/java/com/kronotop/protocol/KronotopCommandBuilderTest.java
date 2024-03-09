@@ -101,8 +101,8 @@ public class KronotopCommandBuilderTest {
                 append("*2").
                 append("$6").
                 append("COMMIT").
-                append("$21").
-                append("GET_COMMITTED_VERSION");
+                append("$17").
+                append("committed-version");
         assertEquals(expectedCommand.toString(), new String(command));
     }
 
@@ -118,8 +118,8 @@ public class KronotopCommandBuilderTest {
                 append("*2").
                 append("$6").
                 append("COMMIT").
-                append("$16").
-                append("GET_VERSIONSTAMP");
+                append("$12").
+                append("versionstamp");
         assertEquals(expectedCommand.toString(), new String(command));
     }
 

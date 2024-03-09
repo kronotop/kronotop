@@ -22,14 +22,13 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.core.TransactionUtils;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.sql.ExecutionContext;
-import com.kronotop.sql.Executor;
-import com.kronotop.sql.SqlExecutionException;
-import com.kronotop.sql.SqlService;
+import com.kronotop.sql.*;
 import com.kronotop.sql.backend.FoundationDBBackend;
 import com.kronotop.sql.backend.ddl.altertable.*;
 import com.kronotop.sql.parser.SqlAlterTable;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.ddl.SqlColumnDeclaration;
 import org.apache.calcite.sql.validate.SqlValidatorException;
 
 import java.util.concurrent.CompletableFuture;
@@ -82,9 +81,28 @@ public class AlterTable extends FoundationDBBackend implements Executor<SqlNode>
         }
     }
 
+    private void checkVirtualColumn(SqlIdentifier sqlIdentifier, KronotopTable.StoredColumn virtualColumn) throws SqlExecutionException {
+        if (virtualColumn.name().equals(sqlIdentifier.getSimple())) {
+            throw new SqlExecutionException(String.format("Cannot ALTER generated column '%s'", virtualColumn.name()));
+        }
+    }
+
     @Override
-    public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException {
+    public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException, SqlExecutionException {
         SqlAlterTable sqlAlterTable = (SqlAlterTable) node;
+
+        if (sqlAlterTable.alterType == SqlAlterTable.AlterType.ADD_COLUMN || sqlAlterTable.alterType == SqlAlterTable.AlterType.DROP_COLUMN) {
+            assert sqlAlterTable.columnList != null;
+            for (SqlNode column : sqlAlterTable.columnList.getList()) {
+                if (column instanceof SqlIdentifier sqlIdentifier) {
+                    checkVirtualColumn(sqlIdentifier, KronotopTable.IDStoredColumn);
+                } else if (column instanceof SqlColumnDeclaration sqlColumnDeclaration) {
+                    checkVirtualColumn(sqlColumnDeclaration.name, KronotopTable.IDStoredColumn);
+                }
+            }
+        } else if (sqlAlterTable.alterType == SqlAlterTable.AlterType.RENAME_COLUMN) {
+            checkVirtualColumn(sqlAlterTable.columnName, KronotopTable.IDStoredColumn);
+        }
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), context.getRequest().getChannelContext());
         RedisMessage result = alterTable(tr, context, sqlAlterTable);

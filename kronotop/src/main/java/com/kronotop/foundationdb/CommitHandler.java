@@ -18,7 +18,6 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.core.CommitHook;
 import com.kronotop.core.NamespaceUtils;
 import com.kronotop.core.TransactionUtils;
 import com.kronotop.foundationdb.protocol.CommitMessage;
@@ -30,7 +29,6 @@ import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
 import java.util.LinkedList;
-import java.util.List;
 
 @Command(CommitMessage.COMMAND)
 @MaximumParameterCount(CommitMessage.MAXIMUM_PARAMETER_COUNT)
@@ -64,22 +62,24 @@ class CommitHandler implements Handler {
 
             TransactionUtils.runPostCommitHooks(request.getChannelContext());
 
-            String operand = commitMessage.getOperand();
-            if (operand == null) {
+            CommitMessage.Parameter parameter = commitMessage.getParameter();
+            if (parameter == null) {
                 response.writeOK();
                 return;
             }
 
-            if (operand.equalsIgnoreCase(CommitMessage.GET_COMMITTED_VERSION_OPERAND)) {
-                Long committedVersion = tr.getCommittedVersion();
-                response.writeInteger(committedVersion);
-            } else if (operand.equalsIgnoreCase(CommitMessage.GET_VERSIONSTAMP_OPERAND)) {
-                byte[] versionstamp = tr.getVersionstamp().join();
-                ByteBuf buf = response.getChannelContext().alloc().buffer();
-                buf.writeBytes(versionstamp);
-                response.write(buf);
-            } else {
-                throw new UnknownSubcommandException(operand);
+            switch (parameter) {
+                case COMMITTED_VERSION -> {
+                    Long committedVersion = tr.getCommittedVersion();
+                    response.writeInteger(committedVersion);
+                }
+                case VERSIONSTAMP -> {
+                    byte[] versionstamp = tr.getVersionstamp().join();
+                    ByteBuf buf = response.getChannelContext().alloc().buffer();
+                    buf.writeBytes(versionstamp);
+                    response.write(buf);
+                }
+                default -> throw new UnknownSubcommandException(parameter.getValue());
             }
         } finally {
             beginAttr.set(false);

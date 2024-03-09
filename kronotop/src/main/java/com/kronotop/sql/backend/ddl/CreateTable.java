@@ -33,9 +33,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.sql.ExecutionContext;
-import com.kronotop.sql.Executor;
-import com.kronotop.sql.SqlService;
+import com.kronotop.sql.*;
 import com.kronotop.sql.backend.FoundationDBBackend;
 import com.kronotop.sql.backend.ddl.model.ColumnModel;
 import com.kronotop.sql.backend.ddl.model.TableModel;
@@ -74,7 +72,7 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
      * @param sqlCreateTable The SqlCreateTable object representing the table creation operation.
      * @return TableModel object containing information about the table schema, name, query, column definitions, and other properties.
      */
-    private TableModel prepareTableModel(ExecutionContext context, SqlCreateTable sqlCreateTable) {
+    private TableModel prepareTableModel(ExecutionContext context, SqlCreateTable sqlCreateTable) throws SqlExecutionException {
         TableModel tableModel = new TableModel();
 
         String schema = service.getSchemaFromNames(context, sqlCreateTable.name.names);
@@ -87,9 +85,21 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
         tableModel.setIfNotExists(sqlCreateTable.ifNotExists);
 
         List<ColumnModel> columnList = new ArrayList<>();
+
+        // Create the stored ID column first.
+        ColumnModel idColumn = new ColumnModel();
+        idColumn.setName(KronotopTable.IDStoredColumn.name());
+        idColumn.setStrategy(KronotopTable.IDStoredColumn.columnStrategy());
+        idColumn.setDataType(KronotopTable.IDStoredColumn.sqlTypeName());
+        columnList.add(idColumn);
+
         for (int i = 0; i < Objects.requireNonNull(sqlCreateTable.columnList).size(); i++) {
             SqlNode sqlNode = sqlCreateTable.columnList.get(i);
             SqlColumnDeclaration column = (SqlColumnDeclaration) sqlNode;
+
+            if (column.name.getSimple().equals(KronotopTable.IDStoredColumn.name())) {
+                throw new SqlExecutionException("Cannot CREATE generated column 'id'");
+            }
 
             ColumnModel columnModel = new ColumnModel();
             columnModel.setName(column.name.getSimple());
@@ -190,16 +200,16 @@ public class CreateTable extends FoundationDBBackend implements Executor<SqlNode
     }
 
     @Override
-    public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException {
+    public RedisMessage execute(ExecutionContext context, SqlNode node) throws SqlValidatorException, SqlExecutionException {
         SqlCreateTable sqlCreateTable = (SqlCreateTable) node;
         if (sqlCreateTable.columnList == null) {
             return new ErrorRedisMessage(RESPError.SQL, "column list cannot be empty");
         }
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), context.getRequest().getChannelContext());
+
         TableModel tableModel = prepareTableModel(context, sqlCreateTable);
         RedisMessage result = createTable(context, tr, tableModel);
-
         TransactionUtils.commitIfOneOff(tr, context.getRequest().getChannelContext());
         return result;
     }

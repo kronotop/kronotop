@@ -48,13 +48,13 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
 
     public Command<K, V, Long> commitAndGetCommittedVersion() {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(CommitKeywords.GET_COMMITTED_VERSION);
+                add(CommitKeywords.COMMITTED_VERSION);
         return createCommand(CommandType.COMMIT, new IntegerOutput<>(codec), args);
     }
 
     public Command<K, V, V> commitAndGetVersionstamp() {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(CommitKeywords.GET_VERSIONSTAMP);
+                add(CommitKeywords.VERSIONSTAMP);
         return createCommand(CommandType.COMMIT, new ValueOutput<>(codec), args);
     }
 
@@ -194,18 +194,11 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.GETREADVERSION, new IntegerOutput<>(codec));
     }
 
-    public Command<K, V, Object> sql(String query) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(query);
-        return createCommand(CommandType.SQL, new ObjectOutput<>(codec), args);
-    }
-
-    public Command<K, V, String> sqlSetSchema(String schema) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(schema);
-        return createCommand(SqlCommandType.SQLSETSCHEMA, new StatusOutput<>(codec), args);
-    }
-
-    public Command<K, V, List<Object>> sqlGetSchema() {
+    public Command<K, V, List<Object>> sql(String... queries) {
         CommandArgs<K, V> args = new CommandArgs<>(codec);
-        return createCommand(SqlCommandType.SQLGETSCHEMA, new ArrayOutput<>(codec), args);
+        for (String query: queries) {
+            args.add(query);
+        }
+        return createCommand(CommandType.SQL, new ArrayOutput<>(codec), args);
     }
 }

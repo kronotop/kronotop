@@ -26,7 +26,6 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.collect.ImmutableList;
 import com.kronotop.common.KronotopException;
-import com.kronotop.common.resp.RESPError;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;

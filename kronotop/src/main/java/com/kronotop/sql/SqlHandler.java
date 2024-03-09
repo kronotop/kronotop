@@ -26,6 +26,7 @@ import com.kronotop.sql.plan.PlanContext;
 import com.kronotop.sql.protocol.SqlMessage;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
+import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
@@ -83,9 +84,11 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
             // redis-cli has a problem with bulk errors:
             // Error: Protocol error, got "!" as reply type byte
             List<String> messages = List.of(e.getMessage().split("\n"));
-            return new ErrorRedisMessage(String.format("%s %s", RESPError.SQL, messages.get(0)));
+            return new ErrorRedisMessage(RESPError.SQL, messages.get(0));
+        } catch (SqlExecutionException e) {
+            return new ErrorRedisMessage(RESPError.SQL, e.getMessage());
         } catch (SqlValidatorException e) {
-            return new ErrorRedisMessage(String.format("%s %s %s", RESPError.SQL, e.getMessage(), e.getCause().getMessage()));
+            return new ErrorRedisMessage(RESPError.SQL, String.format("%s %s", e.getMessage(), e.getCause().getMessage()));
         }
     }
 
@@ -95,8 +98,14 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
         String schema = request.getChannelContext().channel().attr(ChannelAttributes.SCHEMA).get();
         List<RedisMessage> responses = new LinkedList<>();
         for (String query : sqlMessage.getQueries()) {
-            RedisMessage result = executeQuery(request, response, schema, query);
-            responses.add(result);
+            try {
+                RedisMessage result = executeQuery(request, response, schema, query);
+                responses.add(result);
+            } catch (CalciteContextException e) {
+                responses.add(new ErrorRedisMessage(RESPError.SQL, e.getCause().getMessage()));
+            } catch (SqlValidatorException | SqlExecutionException e) {
+                responses.add(new ErrorRedisMessage(RESPError.SQL, e.getMessage()));
+            }
         }
         response.writeArray(responses);
     }

@@ -252,10 +252,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             assertEquals(Response.OK, message.content());
         }
 
-        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
-                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, "public", "users");
+                TableWithVersion tableWithVersion = getLatestTableVersion(tr, "public", "users");
                 for (ColumnModel columnModel : tableWithVersion.getTableModel().getColumnList()) {
                     if (columnModel.getName().equals("username")) {
                         return true;
@@ -292,10 +291,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             assertEquals(Response.OK, message.content());
         }
 
-        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
-                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, "public", "users");
+                TableWithVersion tableWithVersion = getLatestTableVersion(tr, "public", "users");
                 Set<String> columns = new HashSet<>();
                 for (ColumnModel columnModel : tableWithVersion.getTableModel().getColumnList()) {
                     columns.add(columnModel.getName());
@@ -331,10 +329,9 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
             assertEquals(Response.OK, message.content());
         }
 
-        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
-                TableWithVersion tableWithVersion = sqlMetadataService.getLatestTableVersion(tr, "public", "users");
+                TableWithVersion tableWithVersion = getLatestTableVersion(tr, "public", "users");
                 Set<String> columns = new HashSet<>();
                 for (ColumnModel columnModel : tableWithVersion.getTableModel().getColumnList()) {
                     columns.add(columnModel.getName());

@@ -25,7 +25,6 @@ import com.kronotop.core.Context;
 import com.kronotop.core.NamespaceUtils;
 import com.kronotop.core.TransactionUtils;
 import com.kronotop.foundationdb.namespace.Namespace;
-import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.KronotopTable;
@@ -99,7 +98,7 @@ public class EnumerableTableModifyVisitor extends BaseVisitor {
         Transaction tr = planContext.getTransaction();
         Namespace namespace = planContext.getNamespace();
 
-        int userVersion = planContext.getUserVersion();
+        int userVersion = planContext.incrementAndGetUserVersion();
 
         // namespace | sql | table-prefix |
         Subspace subspace = namespace.getSql().subspace(Tuple.fromBytes(planContext.getKronotopTable().getPrefix()));

@@ -48,7 +48,7 @@ import java.util.List;
 
 
 /**
- * Class that encapsulates all information associated with a ALTER TABLE DDL
+ * Class that encapsulates all information associated with an ALTER TABLE DDL
  * command.
  */
 public class SqlAlterTable extends SqlDdl {

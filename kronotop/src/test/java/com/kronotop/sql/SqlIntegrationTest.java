@@ -92,7 +92,7 @@ public class SqlIntegrationTest extends BaseSqlTest {
         for (KeyValue item : tr.getRange(subspace.range(), 10)) {
             total++;
         }
-        assertEquals(3, total);
+        assertEquals(4, total);
     }
 
     @Test
@@ -120,6 +120,6 @@ public class SqlIntegrationTest extends BaseSqlTest {
         for (KeyValue item : tr.getRange(subspace.range(), 10)) {
             total++;
         }
-        assertEquals(6, total);
+        assertEquals(8, total);
     }
 }

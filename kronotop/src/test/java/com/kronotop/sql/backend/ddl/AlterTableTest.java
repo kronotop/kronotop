@@ -41,7 +41,7 @@ public class AlterTableTest extends BaseHandlerTest {
     public void test_RENAME_TABLE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String createTableQuery = "CREATE TABLE public.users (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, createTableQuery);
 
         String alterTableQuery = "ALTER TABLE public.users RENAME TO foobar";
@@ -71,7 +71,7 @@ public class AlterTableTest extends BaseHandlerTest {
     public void test_RENAME_TABLE_SameTable() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String createTableQuery = "CREATE TABLE public.users (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, createTableQuery);
 
         String alterTableQuery = "ALTER TABLE public.users RENAME TO users";
@@ -83,10 +83,10 @@ public class AlterTableTest extends BaseHandlerTest {
     public void test_RENAME_TABLE_TableAlreadyExists() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String createTableQuery = "CREATE TABLE public.users (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, createTableQuery);
 
-        String alterTableQuery = "CREATE TABLE public.foobar (id INTEGER, username VARCHAR)";
+        String alterTableQuery = "CREATE TABLE public.foobar (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, alterTableQuery);
 
 
@@ -99,15 +99,13 @@ public class AlterTableTest extends BaseHandlerTest {
     public void test_ADD_COLUMN() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String createTableQuery = "CREATE TABLE public.users (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, createTableQuery);
 
         String alterTableQuery = "ALTER TABLE public.users ADD COLUMN (age INTEGER, name VARCHAR)";
         executeSqlQueryReturnsOK(cmd, alterTableQuery);
 
-        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
-        TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr ->
-                sqlMetadataService.getLatestTableVersion(tr, "public", "users"));
+        TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr -> getLatestTableVersion(tr, "public", "users"));
 
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
         Map<String, ColumnModel> items = new HashMap<>();
@@ -140,7 +138,7 @@ public class AlterTableTest extends BaseHandlerTest {
     public void test_ADD_COLUMN_exists() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String createTableQuery = "CREATE TABLE public.users (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, createTableQuery);
 
         String alterTableQuery = "ALTER TABLE public.users ADD COLUMN username VARCHAR";
@@ -152,15 +150,13 @@ public class AlterTableTest extends BaseHandlerTest {
     public void test_ADD_COLUMN_NOT_NULL() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String createTableQuery = "CREATE TABLE public.users (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, createTableQuery);
 
         String alterTableQuery = "ALTER TABLE public.users ADD COLUMN age INTEGER NOT NULL";
         executeSqlQueryReturnsOK(cmd, alterTableQuery);
 
-        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
-        TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr ->
-                sqlMetadataService.getLatestTableVersion(tr, "public", "users"));
+        TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr -> getLatestTableVersion(tr, "public", "users"));
 
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
         Map<String, ColumnModel> items = new HashMap<>();
@@ -185,20 +181,18 @@ public class AlterTableTest extends BaseHandlerTest {
     public void test_DROP_COLUMN() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String createTableQuery = "CREATE TABLE public.users (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, createTableQuery);
 
         String alterTableQuery = "ALTER TABLE public.users DROP COLUMN username";
         executeSqlQueryReturnsOK(cmd, alterTableQuery);
 
-        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
-        TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr ->
-                sqlMetadataService.getLatestTableVersion(tr, "public", "users"));
+        TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr -> getLatestTableVersion(tr, "public", "users"));
 
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
-        assertEquals(1, columns.size());
-        ColumnModel idColumn = columns.get(0);
-        assertEquals("id", idColumn.getName());
+        assertEquals(2, columns.size());
+        ColumnModel idColumn = columns.get(1);
+        assertEquals("identifier", idColumn.getName());
         assertEquals(SqlTypeName.INTEGER, idColumn.getDataType());
         assertNull(idColumn.getExpression());
         assertEquals(ColumnStrategy.NULLABLE, idColumn.getStrategy());
@@ -208,7 +202,7 @@ public class AlterTableTest extends BaseHandlerTest {
     public void test_DROP_COLUMN_not_exists() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String createTableQuery = "CREATE TABLE public.users (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, createTableQuery);
 
         String alterTableQuery = "ALTER TABLE public.users DROP COLUMN foobar";
@@ -221,19 +215,17 @@ public class AlterTableTest extends BaseHandlerTest {
     public void test_RENAME_COLUMN() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String createTableQuery = "CREATE TABLE public.users (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, createTableQuery);
 
         String alterTableQuery = "ALTER TABLE public.users RENAME COLUMN username TO renamedcolumn";
         executeSqlQueryReturnsOK(cmd, alterTableQuery);
 
-        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
-        TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr ->
-                sqlMetadataService.getLatestTableVersion(tr, "public", "users"));
+        TableWithVersion latestTableVersion = kronotopInstance.getContext().getFoundationDB().run(tr -> getLatestTableVersion(tr, "public", "users"));
 
         List<ColumnModel> columns = latestTableVersion.getTableModel().getColumnList();
-        assertEquals(2, columns.size());
-        ColumnModel username2Column = columns.get(1);
+        assertEquals(3, columns.size());
+        ColumnModel username2Column = columns.get(2);
         assertEquals("renamedcolumn", username2Column.getName());
         assertEquals(SqlTypeName.VARCHAR, username2Column.getDataType());
         assertNull(username2Column.getExpression());
@@ -244,7 +236,7 @@ public class AlterTableTest extends BaseHandlerTest {
     public void test_RENAME_COLUMN_not_exists() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-        String createTableQuery = "CREATE TABLE public.users (id INTEGER, username VARCHAR)";
+        String createTableQuery = "CREATE TABLE public.users (identifier INTEGER, username VARCHAR)";
         executeSqlQueryReturnsOK(cmd, createTableQuery);
 
         String alterTableQuery = "ALTER TABLE public.users RENAME COLUMN foobar TO renamedcolumn";

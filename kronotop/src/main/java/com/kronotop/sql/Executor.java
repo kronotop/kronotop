@@ -20,5 +20,5 @@ import com.kronotop.server.resp3.RedisMessage;
 import org.apache.calcite.sql.validate.SqlValidatorException;
 
 public interface Executor<T> {
-    RedisMessage execute(ExecutionContext context, T node) throws SqlValidatorException;
+    RedisMessage execute(ExecutionContext context, T node) throws SqlValidatorException, SqlExecutionException;
 }

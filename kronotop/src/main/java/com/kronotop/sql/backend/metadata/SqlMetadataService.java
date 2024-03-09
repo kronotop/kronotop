@@ -19,7 +19,6 @@ package com.kronotop.sql.backend.metadata;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.async.AsyncIterator;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -30,11 +29,11 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.core.Context;
+import com.kronotop.core.JSONUtils;
 import com.kronotop.core.KeyWatcher;
 import com.kronotop.core.KronotopService;
 import com.kronotop.core.journal.Event;
 import com.kronotop.core.journal.JournalName;
-import com.kronotop.core.JSONUtils;
 import com.kronotop.sql.KronotopTable;
 import com.kronotop.sql.backend.ddl.model.TableModel;
 import com.kronotop.sql.backend.metadata.events.*;
@@ -42,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -59,7 +57,6 @@ public class SqlMetadataService implements KronotopService {
     private final Context context;
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final AtomicReference<byte[]> lastSqlMetadataVersionstamp = new AtomicReference<>();
-    private final ConcurrentMap<String, DirectorySubspace> tableSubspaceCache = new ConcurrentHashMap<>();
     private final ExecutorService executor;
     private final CountDownLatch latch = new CountDownLatch(1);
     private final Metadata metadata = new Metadata();
@@ -106,22 +103,15 @@ public class SqlMetadataService implements KronotopService {
         return DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().sql().metadata().schemas().add(schema).tables().add(table);
     }
 
-    private DirectorySubspace openTableSubspace(String schema, String table) {
-        String key = String.join(".", schema, table);
-        return tableSubspaceCache.computeIfAbsent(key, (DirectorySubspace) -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                return openTableSubspace(tr, schema, table);
-            }
-        });
+    public DirectorySubspace openTableSubspace(String schema, String table) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return openTableSubspace(tr, schema, table);
+        }
     }
 
-    private DirectorySubspace openTableSubspace(Transaction tr, String schema, String table) {
-        String key = String.join(".", schema, table);
-        return tableSubspaceCache.computeIfAbsent(key, (DirectorySubspace) -> {
-            // DirectorySubspace prefix never changes.
-            List<String> tableLayout = getTableLayout(schema, table).asList();
-            return DirectoryLayer.getDefault().open(tr, tableLayout).join();
-        });
+    public DirectorySubspace openTableSubspace(Transaction tr, String schema, String table) {
+        List<String> tableLayout = getTableLayout(schema, table).asList();
+        return DirectoryLayer.getDefault().open(tr, tableLayout).join();
     }
 
     /**
@@ -222,9 +212,9 @@ public class SqlMetadataService implements KronotopService {
     private void initialize() {
         long start = System.currentTimeMillis();
         lock.writeLock().lock();
-        List<String> schemasLayout = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().sql().metadata().schemas().asList();
+        List<String> schemaLayout = DirectoryLayout.Builder.clusterName(context.getClusterName()).internal().sql().metadata().schemas().asList();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            List<String> schemas = DirectoryLayer.getDefault().list(tr, schemasLayout).join();
+            List<String> schemas = DirectoryLayer.getDefault().list(tr, schemaLayout).join();
             for (String schema : schemas) {
                 loadSchemaFromFDB(tr, schema);
             }
@@ -235,6 +225,13 @@ public class SqlMetadataService implements KronotopService {
         LOGGER.info("SQL metadata has been loaded from FoundationDB cluster in {} ms", end - start);
     }
 
+    /**
+     * Starts the SqlMetadataService by performing the necessary initialization tasks and starting background threads.
+     * Note that this method blocks until all background threads are started or a timeout of 5 seconds occurs.
+     *
+     * @throws IllegalStateException        If an unexpected exception occurs during the initialization of the default schema.
+     * @throws KronotopException             If the thread is interrupted while awaiting the start of the background threads.
+     */
     public void start() {
         byte[] key = context.getFoundationDB().run(tr -> context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.sqlMetadataEvents()));
         this.lastSqlMetadataVersionstamp.set(key);
@@ -277,28 +274,6 @@ public class SqlMetadataService implements KronotopService {
     }
 
     /**
-     * Retrieves the latest version of a table from the metadata store.
-     *
-     * @param tr     The FDB transaction.
-     * @param schema The list of names representing the hierarchy of the schema.
-     * @param table  The name of the table to retrieve the latest version for.
-     * @return The TableWithVersion object representing the table with the latest version.
-     * @throws KronotopException If the table exists but no version is found.
-     */
-    public TableWithVersion getLatestTableVersion(Transaction tr, String schema, String table) {
-        DirectorySubspace subspace = openTableSubspace(tr, schema, table);
-        AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(), 1, true).iterator();
-        if (!iterator.hasNext()) {
-            throw new KronotopException(String.format("Table '%s' exists but no version found", table));
-        }
-
-        KeyValue next = iterator.next();
-        byte[] versionstamp = subspace.unpack(next.getKey()).getVersionstamp(0).getBytes();
-        TableModel tableModel = JSONUtils.readValue(next.getValue(), TableModel.class);
-        return new TableWithVersion(tableModel, versionstamp);
-    }
-
-    /**
      * Finds the metadata for a schema in the metadata store.
      *
      * @param schema The name of the schema to find the metadata for.
@@ -315,7 +290,7 @@ public class SqlMetadataService implements KronotopService {
     }
 
     /**
-     * Finds and loads the schema metadata for the given schema name.
+     * Finds and loads the schema metadata for the given schema name. This method is thread-safe.
      *
      * @param schema The name of the schema to find and load the metadata for.
      * @return The SchemaMetadata object representing the metadata for the schema.
@@ -348,21 +323,6 @@ public class SqlMetadataService implements KronotopService {
         } finally {
             lock.readLock().unlock();
         }
-    }
-
-    /**
-     * Finds the KronotopTable object representing the metadata for a table in the specified schema and table name.
-     *
-     * @param schema  The name of the schema to search in.
-     * @param table   The name of the table to search for.
-     * @param version The version of the table to retrieve.
-     * @return The KronotopTable object representing the found table metadata.
-     * @throws SchemaNotExistsException If the specified schema does not exist.
-     * @throws TableNotExistsException  If the specified table does not exist.
-     */
-    public KronotopTable findTable(String schema, String table, String version) throws SchemaNotExistsException, TableNotExistsException {
-        VersionedTableMetadata versionedTableMetadata = findVersionedTableMetadata(schema, table);
-        return versionedTableMetadata.get(version);
     }
 
     /**

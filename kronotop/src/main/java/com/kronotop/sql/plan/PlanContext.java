@@ -105,7 +105,7 @@ public class PlanContext {
         this.transaction = transaction;
     }
 
-    public Integer getUserVersion() {
+    public Integer incrementAndGetUserVersion() {
         Integer userVersion = channelContext.channel().attr(ChannelAttributes.TRANSACTION_USER_VERSION).get();
         channelContext.channel().attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(userVersion + 1);
         return userVersion;
