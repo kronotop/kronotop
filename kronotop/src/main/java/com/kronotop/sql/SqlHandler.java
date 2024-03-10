@@ -19,6 +19,7 @@ package com.kronotop.sql;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.sql.optimizer.Optimize;
@@ -38,6 +39,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 @Command(SqlMessage.COMMAND)
+@MinimumParameterCount(SqlMessage.MINIMUM_PARAMETER_COUNT)
 public class SqlHandler extends BaseSqlHandler implements Handler {
 
     public SqlHandler(SqlService service) {
