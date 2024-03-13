@@ -17,6 +17,7 @@
 package com.kronotop.sql.backend.ddl;
 
 import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.protocol.SqlArgs;
 import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -38,7 +39,7 @@ class SetOptionTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("CREATE SCHEMA foobar").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("CREATE SCHEMA foobar")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -52,7 +53,7 @@ class SetOptionTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("ALTER SESSION SET schema = foobar").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("ALTER SESSION SET schema = foobar")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -68,7 +69,7 @@ class SetOptionTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("ALTER SESSION SET schema = barfoo").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("ALTER SESSION SET schema = barfoo")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -85,14 +86,14 @@ class SetOptionTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("ALTER SESSION SET schema = foobar").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("ALTER SESSION SET schema = foobar")).encode(buf);
             channel.writeInbound(buf);
             channel.readOutbound();
         }
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("ALTER SESSION RESET schema").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("ALTER SESSION RESET schema")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -110,7 +111,7 @@ class SetOptionTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("ALTER SYSTEM SET schema = foobar").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("ALTER SYSTEM SET schema = foobar")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -124,7 +125,7 @@ class SetOptionTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("SET schema = foobar").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("SET schema = foobar")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -142,14 +143,14 @@ class SetOptionTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("SET schema = foobar").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("SET schema = foobar")).encode(buf);
             channel.writeInbound(buf);
             channel.readOutbound();
         }
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("RESET schema").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("RESET schema")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 

@@ -20,13 +20,16 @@ import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class CommitMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "COMMIT";
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    private static final String RETURNING_ARGUMENT = "RETURNING";
     private final Request request;
-    private Parameter parameter;
+    private final Set<Parameter> returning = new HashSet<>();
 
     public CommitMessage(Request request) {
         this.request = request;
@@ -35,20 +38,33 @@ public class CommitMessage implements KronotopMessage<Void> {
 
     private void parse() {
         if (!request.getParams().isEmpty()) {
-            byte[] rawParameter = new byte[request.getParams().get(0).readableBytes()];
-            request.getParams().get(0).readBytes(rawParameter);
+            byte[] rawReturning = new byte[request.getParams().get(0).readableBytes()];
+            request.getParams().get(0).readBytes(rawReturning);
 
-            String value = new String(rawParameter);
-            try {
-                this.parameter = Parameter.fromValue(value);
-            } catch (IllegalArgumentException e) {
-                throw new UnknownSubcommandException(value);
+            String returning = new String(rawReturning);
+            if (!returning.equalsIgnoreCase(RETURNING_ARGUMENT)) {
+                throw new UnknownSubcommandException(returning);
+            }
+
+            if (request.getParams().size() - 1 <= 0) {
+                throw new IllegalArgumentException("No arguments given for " + returning);
+            }
+
+            for (int i = 1; i < request.getParams().size(); i++) {
+                byte[] rawParameter = new byte[request.getParams().get(i).readableBytes()];
+                request.getParams().get(i).readBytes(rawParameter);
+                String parameter = new String(rawParameter);
+                try {
+                    this.returning.add(Parameter.fromValue(parameter));
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Illegal argument: " + parameter);
+                }
             }
         }
     }
 
-    public Parameter getParameter() {
-        return parameter;
+    public Set<Parameter> getReturning() {
+        return returning;
     }
 
     @Override
@@ -63,16 +79,13 @@ public class CommitMessage implements KronotopMessage<Void> {
 
     public enum Parameter {
         COMMITTED_VERSION("committed-version"),
-        VERSIONSTAMP("versionstamp");
+        VERSIONSTAMP("versionstamp"),
+        FUTURES("futures");
 
         private final String value;
 
         Parameter(String value) {
             this.value = value;
-        }
-
-        public String getValue() {
-            return value;
         }
 
         public static Parameter fromValue(String value) {
@@ -82,6 +95,10 @@ public class CommitMessage implements KronotopMessage<Void> {
                 }
             }
             throw new IllegalArgumentException(value);
+        }
+
+        public String getValue() {
+            return value;
         }
     }
 }

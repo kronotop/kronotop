@@ -46,16 +46,10 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.COMMIT, new StatusOutput<>(codec));
     }
 
-    public Command<K, V, Long> commitAndGetCommittedVersion() {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(CommitKeywords.COMMITTED_VERSION);
-        return createCommand(CommandType.COMMIT, new IntegerOutput<>(codec), args);
-    }
-
-    public Command<K, V, V> commitAndGetVersionstamp() {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(CommitKeywords.VERSIONSTAMP);
-        return createCommand(CommandType.COMMIT, new ValueOutput<>(codec), args);
+    public Command<K, V, List<Object>> commit(CommitArgs commitArgs) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec);
+        commitArgs.build(args);
+        return createCommand(CommandType.COMMIT, new ArrayOutput<>(codec), args);
     }
 
     public Command<K, V, String> namespaceRemove(K namespace) {
@@ -194,11 +188,9 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.GETREADVERSION, new IntegerOutput<>(codec));
     }
 
-    public Command<K, V, List<Object>> sql(String... queries) {
+    public Command<K, V, List<Object>> sql(SqlArgs sqlArgs) {
         CommandArgs<K, V> args = new CommandArgs<>(codec);
-        for (String query: queries) {
-            args.add(query);
-        }
+        sqlArgs.build(args);
         return createCommand(CommandType.SQL, new ArrayOutput<>(codec), args);
     }
 }

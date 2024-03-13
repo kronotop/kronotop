@@ -18,6 +18,7 @@ package com.kronotop.sql.backend.metadata;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.protocol.SqlArgs;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.BaseHandlerTest;
@@ -46,7 +47,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("CREATE SCHEMA foobar").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("CREATE SCHEMA foobar")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -78,7 +79,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("CREATE TABLE public.users (age INTEGER)").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("CREATE TABLE public.users (age INTEGER)")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -121,7 +122,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
         // public schema is created automatically because it's the default schema in test.conf
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("DROP SCHEMA public").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("DROP SCHEMA public")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -147,7 +148,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE TABLE users (age INTEGER)").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE TABLE users (age INTEGER)")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -168,7 +169,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("DROP TABLE users").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("DROP TABLE users")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -194,7 +195,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE TABLE public.users (age INTEGER)").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE TABLE public.users (age INTEGER)")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -205,7 +206,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("ALTER TABLE public.users RENAME TO foobar").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("ALTER TABLE public.users RENAME TO foobar")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -232,7 +233,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE TABLE public.users (age INTEGER)").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE TABLE public.users (age INTEGER)")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -243,7 +244,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("ALTER TABLE public.users ADD COLUMN username VARCHAR(30)").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("ALTER TABLE public.users ADD COLUMN username VARCHAR(30)")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -271,7 +272,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE TABLE public.users (age INTEGER, username VARCHAR)").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE TABLE public.users (age INTEGER, username VARCHAR)")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -282,7 +283,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("ALTER TABLE public.users DROP COLUMN username").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("ALTER TABLE public.users DROP COLUMN username")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -309,7 +310,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE TABLE public.users (age INTEGER, username VARCHAR)").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE TABLE public.users (age INTEGER, username VARCHAR)")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -320,7 +321,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("ALTER TABLE public.users RENAME COLUMN username TO renamedcolumn").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("ALTER TABLE public.users RENAME COLUMN username TO renamedcolumn")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -347,7 +348,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE TABLE public.users (age INTEGER, username VARCHAR)").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE TABLE public.users (age INTEGER, username VARCHAR)")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -368,7 +369,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE TABLE public.users (age INTEGER, username VARCHAR)").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE TABLE public.users (age INTEGER, username VARCHAR)")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -379,7 +380,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("DROP TABLE public.users").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("DROP TABLE public.users")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -400,7 +401,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE TABLE public.users (age INTEGER, username VARCHAR)").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE TABLE public.users (age INTEGER, username VARCHAR)")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -411,7 +412,7 @@ public class SqlMetadataServiceIntegrationTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("ALTER TABLE public.users DROP COLUMN username").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("ALTER TABLE public.users DROP COLUMN username")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 

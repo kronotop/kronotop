@@ -24,9 +24,11 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.core.Context;
 import com.kronotop.core.NamespaceUtils;
 import com.kronotop.core.TransactionUtils;
+import com.kronotop.core.VersionstampUtils;
 import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import com.kronotop.sql.KronotopTable;
 import com.kronotop.sql.SqlExecutionException;
 import com.kronotop.sql.backend.metadata.SchemaNotExistsException;
@@ -37,13 +39,14 @@ import com.kronotop.sql.plan.PlanContext;
 import com.kronotop.sql.plan.Row;
 import com.kronotop.sql.serialization.IntegerSerializer;
 import com.kronotop.sql.serialization.StringSerializer;
+import io.netty.buffer.ByteBuf;
+import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexLiteral;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public class EnumerableTableModifyVisitor extends BaseVisitor {
 
@@ -125,6 +128,75 @@ public class EnumerableTableModifyVisitor extends BaseVisitor {
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), buf.array());
     }
 
+    private void returnResponse(CompletableFuture<byte[]> versionstamp, PlanContext planContext, EnumerableTableModify node) {
+        if (node.getOperation().equals(TableModify.Operation.INSERT)) {
+            if (planContext.getSqlMessage().getReturning().isEmpty()) {
+                // The returning set is empty. Return OK.
+                planContext.setResponse(new SimpleStringRedisMessage(Response.OK));
+                return;
+            }
+
+            Map<RedisMessage, RedisMessage> children = new HashMap<>();
+            for (Row row : planContext.getRows()) {
+                for (RelDataTypeField field : node.getTable().getRowType().getFieldList()) {
+                    if (!planContext.getSqlMessage().getReturning().contains(field.getName())) {
+                        continue;
+                    }
+                    RexLiteral rexLiteral = row.get(field.getName());
+                    if (rexLiteral == null) {
+                        children.put(new SimpleStringRedisMessage(field.getName()), NullRedisMessage.INSTANCE);
+                        continue;
+                    }
+
+                    if (field.getName().equals("id")) {
+                        if (TransactionUtils.isOneOff(planContext.getChannelContext())) {
+                            byte[] versionBytes = versionstamp.join();
+                            Versionstamp id = Versionstamp.complete(versionBytes, planContext.currentUserVersion());
+
+                            ByteBuf buf = planContext.getChannelContext().alloc().buffer();
+                            buf.writeBytes(VersionstampUtils.base64Encode(id).getBytes());
+                            children.put(new SimpleStringRedisMessage(field.getName()), new FullBulkStringRedisMessage(buf));
+                        } else {
+                            LinkedList<Integer> asyncReturning = planContext.getAsyncReturning();
+                            Integer currentUserVersion = planContext.currentUserVersion();
+                            asyncReturning.add(currentUserVersion);
+
+                            ByteBuf buf = planContext.getChannelContext().alloc().buffer();
+                            buf.writeBytes(String.format("$%d", currentUserVersion).getBytes());
+                            children.put(new SimpleStringRedisMessage(field.getName()), new FullBulkStringRedisMessage(buf));
+                        }
+                        continue;
+                    }
+
+                    switch (rexLiteral.getType().getSqlTypeName()) {
+                        case TINYINT -> {
+                            Long value = rexLiteral.getValueAs(Long.class);
+                            assert value != null;
+                            children.put(new SimpleStringRedisMessage(field.getName()), new IntegerRedisMessage(value));
+                        }
+                        case INTEGER -> {
+                            Integer value = rexLiteral.getValueAs(Integer.class);
+                            assert value != null;
+                            children.put(new SimpleStringRedisMessage(field.getName()), new IntegerRedisMessage(value));
+                        }
+                        case CHAR -> {
+                            String value = rexLiteral.getValueAs(String.class);
+                            assert value != null;
+                            ByteBuf buf = planContext.getChannelContext().alloc().buffer();
+                            buf.writeBytes(value.getBytes());
+                            children.put(new SimpleStringRedisMessage(field.getName()), new FullBulkStringRedisMessage(buf));
+                        }
+                    }
+                }
+            }
+            planContext.setResponse(new MapRedisMessage(children));
+            return;
+        }
+
+        // For everything else!
+        planContext.setResponse(new SimpleStringRedisMessage(Response.OK));
+    }
+
     public void visit(PlanContext planContext, EnumerableTableModify node) throws SqlExecutionException {
         Transaction tr = TransactionUtils.getOrCreateTransaction(context, planContext.getChannelContext());
         planContext.setTransaction(tr);
@@ -143,7 +215,8 @@ public class EnumerableTableModifyVisitor extends BaseVisitor {
             }
         }
 
+        CompletableFuture<byte[]> versionstamp = tr.getVersionstamp();
         TransactionUtils.commitIfOneOff(tr, planContext.getChannelContext());
-        planContext.setResponse(new SimpleStringRedisMessage(Response.OK));
+        returnResponse(versionstamp, planContext, node);
     }
 }

@@ -51,8 +51,8 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
         request.attr(MessageTypes.SQL).set(new SqlMessage(request));
     }
 
-    private RedisMessage executeQuery(Request request, Response response, String schema, String query) throws Exception {
-        final PlanContext planContext = new PlanContext(request.getChannelContext());
+    private RedisMessage executeQuery(Request request, Response response, SqlMessage sqlMessage, String schema, String query) throws Exception {
+        final PlanContext planContext = new PlanContext(request.getChannelContext(), sqlMessage);
 
         Plan plan = service.planCache.getPlan(schema, query);
         if (plan != null) {
@@ -99,9 +99,10 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
         SqlMessage sqlMessage = request.attr(MessageTypes.SQL).get();
         String schema = request.getChannelContext().channel().attr(ChannelAttributes.SCHEMA).get();
         List<RedisMessage> responses = new LinkedList<>();
+
         for (String query : sqlMessage.getQueries()) {
             try {
-                RedisMessage result = executeQuery(request, response, schema, query);
+                RedisMessage result = executeQuery(request, response, sqlMessage, schema, query);
                 responses.add(result);
             } catch (CalciteContextException e) {
                 responses.add(new ErrorRedisMessage(RESPError.SQL, e.getCause().getMessage()));

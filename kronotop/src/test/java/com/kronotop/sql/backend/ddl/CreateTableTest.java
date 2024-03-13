@@ -17,6 +17,7 @@
 package com.kronotop.sql.backend.ddl;
 
 import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.protocol.SqlArgs;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -36,7 +37,7 @@ public class CreateTableTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("CREATE TABLE public.users (username VARCHAR)").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("CREATE TABLE public.users (username VARCHAR)")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -52,7 +53,7 @@ public class CreateTableTest extends BaseHandlerTest {
         String query = "CREATE TABLE public.users (username VARCHAR)";
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql(query).encode(buf);
+            cmd.sql(SqlArgs.Builder.queries(query)).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -63,7 +64,7 @@ public class CreateTableTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql(query).encode(buf);
+            cmd.sql(SqlArgs.Builder.queries(query)).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 

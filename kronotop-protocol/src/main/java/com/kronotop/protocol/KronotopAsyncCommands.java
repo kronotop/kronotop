@@ -30,9 +30,7 @@ public interface KronotopAsyncCommands<K, V> {
 
     RedisFuture<String> commit();
 
-    RedisFuture<Long> commitAndGetCommittedVersion();
-
-    RedisFuture<V> commitAndGetVersionstamp();
+    RedisFuture<List<Object>> commit(CommitArgs args);
 
     RedisFuture<List<Object>> namespaceList(K namespace);
 
@@ -76,5 +74,5 @@ public interface KronotopAsyncCommands<K, V> {
 
     StatefulConnection<K, V> getUnderlyingConnection();
 
-    RedisFuture<List<Object>> sql(String... queries);
+    RedisFuture<List<Object>> sql(SqlArgs args);
 }

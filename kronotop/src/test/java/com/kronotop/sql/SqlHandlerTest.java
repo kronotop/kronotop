@@ -17,6 +17,7 @@
 package com.kronotop.sql;
 
 import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.protocol.SqlArgs;
 import com.kronotop.server.MockChannelHandlerContext;
 import com.kronotop.server.Request;
 import com.kronotop.server.impl.RespRequest;
@@ -36,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SqlHandlerTest extends BaseHandlerTest {
 
@@ -44,7 +46,7 @@ public class SqlHandlerTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("CREATE SCHEMA").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("CREATE SCHEMA")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -92,7 +94,7 @@ public class SqlHandlerTest extends BaseHandlerTest {
         assertEquals(1, sqlMessage.getQueries().size());
         assertEquals(2, sqlMessage.getReturning().size());
         assertEquals(query, sqlMessage.getQueries().get(0));
-        assertEquals("id", sqlMessage.getReturning().get(0));
-        assertEquals("integer_column", sqlMessage.getReturning().get(1));
+        assertTrue(sqlMessage.getReturning().contains("id"));
+        assertTrue(sqlMessage.getReturning().contains("integer_column"));
     }
 }

@@ -27,9 +27,11 @@ public interface KronotopCommands<K, V> {
 
     String commit();
 
-    Long commitAndGetCommittedVersion();
+    List<Object> commit(CommitArgs args);
 
-    V commitAndGetVersionstamp();
+    Long commitReturningCommittedVersion();
+
+    V commitReturningVersionstamp();
 
     String namespaceCreate(K namespace);
 

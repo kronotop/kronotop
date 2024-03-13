@@ -22,13 +22,16 @@ import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.sql.KronotopTable;
+import com.kronotop.sql.protocol.SqlMessage;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 public class PlanContext {
     private final ChannelHandlerContext channelContext;
+    private final SqlMessage sqlMessage;
 
     // Plan execution state
     private final List<Row> rows = new ArrayList<>();
@@ -38,12 +41,17 @@ public class PlanContext {
     private String tableVersion;
     private KronotopTable kronotopTable;
 
-    public PlanContext(ChannelHandlerContext channelContext) {
+    public PlanContext(ChannelHandlerContext channelContext, SqlMessage sqlMessage) {
         this.channelContext = channelContext;
+        this.sqlMessage = sqlMessage;
     }
 
     public ChannelHandlerContext getChannelContext() {
         return channelContext;
+    }
+
+    public SqlMessage getSqlMessage() {
+        return sqlMessage;
     }
 
     public List<Row> getRows() {
@@ -109,5 +117,18 @@ public class PlanContext {
         Integer userVersion = channelContext.channel().attr(ChannelAttributes.TRANSACTION_USER_VERSION).get();
         channelContext.channel().attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(userVersion + 1);
         return userVersion;
+    }
+
+    public Integer currentUserVersion() {
+        return channelContext.channel().attr(ChannelAttributes.TRANSACTION_USER_VERSION).get();
+    }
+
+    public LinkedList<Integer> getAsyncReturning() {
+        LinkedList<Integer> asyncReturning = channelContext.channel().attr(ChannelAttributes.ASYNC_RETURNING).get();
+        if (asyncReturning == null) {
+            asyncReturning = new LinkedList<>();
+            channelContext.channel().attr(ChannelAttributes.ASYNC_RETURNING).set(asyncReturning);
+        }
+        return asyncReturning;
     }
 }

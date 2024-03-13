@@ -75,7 +75,7 @@ public class KronotopCommandBuilderTest {
     }
 
     @Test
-    public void testCommit() {
+    public void test_COMMIT() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.commit().encode(buf);
@@ -90,36 +90,82 @@ public class KronotopCommandBuilderTest {
     }
 
     @Test
-    public void testCommitAndGetCommittedVersion() {
+    public void test_COMMIT_RETURNING_COMMITTED_VERSION() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.commitAndGetCommittedVersion().encode(buf);
+        cmd.commit(CommitArgs.Builder.returning(CommitKeyword.COMMITTED_VERSION)).encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*2").
+                append("*3").
                 append("$6").
                 append("COMMIT").
+                append("$9").
+                append("RETURNING").
                 append("$17").
                 append("committed-version");
         assertEquals(expectedCommand.toString(), new String(command));
     }
 
     @Test
-    public void testCommitAndGetVersionstamp() {
+    public void test_COMMIT_RETURNING_VERSIONSTAMP() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.commitAndGetVersionstamp().encode(buf);
+        cmd.commit(CommitArgs.Builder.returning(CommitKeyword.VERSIONSTAMP)).encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*2").
+                append("*3").
                 append("$6").
                 append("COMMIT").
+                append("$9").
+                append("RETURNING").
                 append("$12").
                 append("versionstamp");
+        assertEquals(expectedCommand.toString(), new String(command));
+    }
+
+    @Test
+    public void test_COMMIT_RETURNING_FUTURES() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.commit(CommitArgs.Builder.returning(CommitKeyword.FUTURES)).encode(buf);
+
+        byte[] command = new byte[buf.readableBytes()];
+        buf.readBytes(command);
+        RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
+                append("*3").
+                append("$6").
+                append("COMMIT").
+                append("$9").
+                append("RETURNING").
+                append("$7").
+                append("futures");
+        assertEquals(expectedCommand.toString(), new String(command));
+    }
+
+    @Test
+    public void test_COMMIT_RETURNING_ALL() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.commit(CommitArgs.Builder.returning(CommitKeyword.FUTURES, CommitKeyword.VERSIONSTAMP, CommitKeyword.COMMITTED_VERSION)).encode(buf);
+
+        byte[] command = new byte[buf.readableBytes()];
+        buf.readBytes(command);
+        RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
+                append("*5").
+                append("$6").
+                append("COMMIT").
+                append("$9").
+                append("RETURNING").
+                append("$7").
+                append("futures").
+                append("$12").
+                append("versionstamp").
+                append("$17").
+                append("committed-version");
         assertEquals(expectedCommand.toString(), new String(command));
     }
 

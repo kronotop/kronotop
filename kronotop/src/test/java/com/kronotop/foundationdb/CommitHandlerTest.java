@@ -16,21 +16,22 @@
 
 package com.kronotop.foundationdb;
 
+import com.kronotop.protocol.CommitArgs;
+import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.ErrorRedisMessage;
-import com.kronotop.server.resp3.IntegerRedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
+import com.kronotop.sql.backend.AssertResponse;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CommitHandlerTest extends BaseHandlerTest {
+
     @Test
     public void test_COMMIT() {
         TestTransaction tt = new TestTransaction(channel);
@@ -74,13 +75,95 @@ public class CommitHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.commitAndGetCommittedVersion().encode(buf);
+            cmd.commit(CommitArgs.Builder.returning(CommitKeyword.COMMITTED_VERSION)).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(IntegerRedisMessage.class, response);
-            IntegerRedisMessage actualMessage = (IntegerRedisMessage) response;
-            assertEquals(-1, actualMessage.value());
+            // Read-only transactions do not modify the database when committed and will have a committed version of -1.
+            // Keep in mind that a transaction which reads keys and then sets them to their current values may be optimized
+            // to a read-only transaction.
+            AssertResponse<IntegerRedisMessage> assertResponse = new AssertResponse<>();
+            IntegerRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(-1, message.value());
+        }
+    }
+
+    @Test
+    public void test_COMMIT_VERSIONSTAMP() {
+        EmbeddedChannel channel = getChannel();
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.begin().encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("my-key", "my-value").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.commit(CommitArgs.Builder.returning(CommitKeyword.VERSIONSTAMP)).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            AssertResponse<FullBulkStringRedisMessage> assertResponse = new AssertResponse<>();
+            FullBulkStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertNotNull(message.content());
+        }
+    }
+
+    @Test
+    public void test_COMMIT_RETURNING_FUTURES_when_no_async_row() {
+        EmbeddedChannel channel = getChannel();
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.begin().encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("my-key", "my-value").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.commit(CommitArgs.Builder.returning(CommitKeyword.FUTURES)).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            AssertResponse<MapRedisMessage> assertResponse = new AssertResponse<>();
+            MapRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertNotNull(message);
+            assertEquals(0, message.children().size());
         }
     }
 }

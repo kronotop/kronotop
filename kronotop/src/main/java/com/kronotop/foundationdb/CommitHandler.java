@@ -17,18 +17,24 @@
 package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.core.NamespaceUtils;
 import com.kronotop.core.TransactionUtils;
+import com.kronotop.core.VersionstampUtils;
 import com.kronotop.foundationdb.protocol.CommitMessage;
+import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
-import java.util.LinkedList;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 @Command(CommitMessage.COMMAND)
 @MaximumParameterCount(CommitMessage.MAXIMUM_PARAMETER_COUNT)
@@ -58,29 +64,59 @@ class CommitHandler implements Handler {
 
         Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
         try (Transaction tr = transactionAttr.get()) {
+            CompletableFuture<byte[]> versionstamp;
+            if (commitMessage.getReturning().contains(CommitMessage.Parameter.VERSIONSTAMP)) {
+                versionstamp = tr.getVersionstamp();
+            } else if (commitMessage.getReturning().contains(CommitMessage.Parameter.FUTURES)) {
+                versionstamp = tr.getVersionstamp();
+            } else {
+                // Effectively final
+                versionstamp = null;
+            }
+
             tr.commit().join();
 
             TransactionUtils.runPostCommitHooks(request.getChannelContext());
 
-            CommitMessage.Parameter parameter = commitMessage.getParameter();
-            if (parameter == null) {
+            if (commitMessage.getReturning().isEmpty()) {
                 response.writeOK();
                 return;
             }
 
-            switch (parameter) {
-                case COMMITTED_VERSION -> {
-                    Long committedVersion = tr.getCommittedVersion();
-                    response.writeInteger(committedVersion);
+            List<RedisMessage> children = new ArrayList<>();
+            commitMessage.getReturning().forEach(parameter -> {
+                switch (parameter) {
+                    case COMMITTED_VERSION -> {
+                        Long committedVersion = tr.getCommittedVersion();
+                        children.add(new IntegerRedisMessage(committedVersion));
+                    }
+                    case VERSIONSTAMP -> {
+                        assert versionstamp != null;
+                        byte[] versionBytes = versionstamp.join();
+                        String encoded = VersionstampUtils.base64Encode(Versionstamp.complete(versionBytes));
+                        ByteBuf buf = response.getChannelContext().alloc().buffer();
+                        buf.writeBytes(encoded.getBytes());
+                        children.add(new FullBulkStringRedisMessage(buf));
+                    }
+                    case FUTURES -> {
+                        assert versionstamp != null;
+                        byte[] versionBytes = versionstamp.join();
+                        Map<RedisMessage, RedisMessage> futures = new HashMap<>();
+                        List<Integer> asyncReturning = request.getChannelContext().channel().attr(ChannelAttributes.ASYNC_RETURNING).get();
+                        if (asyncReturning != null) {
+                            for (Integer userVersion : asyncReturning) {
+                                Versionstamp completed = Versionstamp.complete(versionBytes, userVersion);
+                                ByteBuf buf = request.getChannelContext().alloc().buffer();
+                                buf.writeBytes(VersionstampUtils.base64Encode(completed).getBytes());
+                                futures.put(new SimpleStringRedisMessage(String.format("$%d", userVersion)), new FullBulkStringRedisMessage(buf));
+                            }
+                        }
+                        children.add(new MapRedisMessage(futures));
+                    }
+                    default -> throw new UnknownSubcommandException(parameter.getValue());
                 }
-                case VERSIONSTAMP -> {
-                    byte[] versionstamp = tr.getVersionstamp().join();
-                    ByteBuf buf = response.getChannelContext().alloc().buffer();
-                    buf.writeBytes(versionstamp);
-                    response.write(buf);
-                }
-                default -> throw new UnknownSubcommandException(parameter.getValue());
-            }
+                response.writeArray(children);
+            });
         } finally {
             beginAttr.set(false);
             transactionAttr.set(null);

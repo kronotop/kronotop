@@ -20,15 +20,17 @@ import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 public class SqlMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "SQL";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;
     private final List<String> queries = new LinkedList<>();
-    private final List<String> returning = new LinkedList<>();
+    private final Set<String> returning = new HashSet<>();
 
     public SqlMessage(Request request) {
         this.request = request;
@@ -124,7 +126,7 @@ public class SqlMessage implements KronotopMessage<Void> {
         return queries;
     }
 
-    public List<String> getReturning() {
+    public Set<String> getReturning() {
         return returning;
     }
 

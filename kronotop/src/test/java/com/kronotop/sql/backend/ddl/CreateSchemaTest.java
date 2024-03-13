@@ -17,6 +17,7 @@
 package com.kronotop.sql.backend.ddl;
 
 import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.protocol.SqlArgs;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -36,7 +37,7 @@ public class CreateSchemaTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("CREATE SCHEMA foobar").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("CREATE SCHEMA foobar")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -50,7 +51,7 @@ public class CreateSchemaTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql("CREATE SCHEMA foobar.barfoo").encode(buf);
+        cmd.sql(SqlArgs.Builder.queries("CREATE SCHEMA foobar.barfoo")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -65,7 +66,7 @@ public class CreateSchemaTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE SCHEMA foobar").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE SCHEMA foobar")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -76,7 +77,7 @@ public class CreateSchemaTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE SCHEMA foobar").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE SCHEMA foobar")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 

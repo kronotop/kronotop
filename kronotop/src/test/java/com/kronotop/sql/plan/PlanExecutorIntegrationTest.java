@@ -16,109 +16,24 @@
 
 package com.kronotop.sql.plan;
 
-import com.kronotop.ConfigTestUtil;
-import com.kronotop.KronotopTestInstance;
 import com.kronotop.protocol.KronotopCommandBuilder;
-import com.kronotop.server.MockChannelHandlerContext;
+import com.kronotop.protocol.SqlArgs;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.sql.KronotopSchema;
-import com.kronotop.sql.KronotopTable;
-import com.kronotop.sql.Plan;
 import com.kronotop.sql.backend.AssertResponse;
-import com.kronotop.sql.backend.metadata.SchemaMetadata;
-import com.kronotop.sql.backend.metadata.SchemaNotExistsException;
-import com.kronotop.sql.backend.metadata.SqlMetadataService;
-import com.kronotop.sql.backend.metadata.TableNotExistsException;
-import com.kronotop.sql.optimizer.Optimize;
-import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.embedded.EmbeddedChannel;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.sql.parser.SqlParseException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
-
-import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-class PlanExecutorIntegrationTest {
-    protected KronotopTestInstance kronotopInstance;
-    protected ChannelHandlerContext channelContext;
-    protected EmbeddedChannel channel;
-
-    protected void setupCommon(Config config) throws UnknownHostException, InterruptedException {
-        kronotopInstance = new KronotopTestInstance(config);
-        kronotopInstance.start();
-        channel = kronotopInstance.getChannel();
-        channelContext = new MockChannelHandlerContext(channel);
-    }
-
-    @BeforeEach
-    public void setup() throws UnknownHostException, InterruptedException {
-        Config config = ConfigTestUtil.load("test.conf");
-        setupCommon(config);
-    }
-
-    @AfterEach
-    public void tearDown() {
-        if (kronotopInstance == null) {
-            return;
-        }
-        kronotopInstance.shutdown();
-    }
-
-    private void executeSQLQuery(String query) {
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-
-        ByteBuf buf = Unpooled.buffer();
-        cmd.sql(query).encode(buf);
-        channel.writeInbound(buf);
-        Object response = channel.readOutbound();
-
-        AssertResponse<SimpleStringRedisMessage> assertResponse = new AssertResponse<>();
-        SimpleStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
-        assertEquals(Response.OK, message.content());
-    }
-
-    private PlanContext execute(String query) {
-        PlanExecutor executor = new PlanExecutor(kronotopInstance.getContext());
-        PlanContext planContext = new PlanContext(channelContext);
-        SqlMetadataService sqlMetadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
-        try {
-            SchemaMetadata schemaMetadata = sqlMetadataService.findSchemaMetadata("public");
-            KronotopSchema kronotopSchema = schemaMetadata.getKronotopSchema();
-            RelNode relNode = Optimize.optimize(kronotopSchema, query);
-            Plan plan = new Plan(relNode);
-            executor.execute(planContext, plan);
-            return planContext;
-        } catch (SchemaNotExistsException | SqlParseException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void awaitSchemaMetadataForTable(String schema, String table) {
-        await().atMost(5, TimeUnit.SECONDS).until(() -> {
-            try {
-                SqlMetadataService metadataService = kronotopInstance.getContext().getService(SqlMetadataService.NAME);
-                KronotopTable kronotopTable = metadataService.findTable(schema, table);
-                assertNotNull(kronotopTable);
-            } catch (SchemaNotExistsException | TableNotExistsException e) {
-                return false;
-            }
-            return true;
-        });
-    }
+class PlanExecutorIntegrationTest extends BasePlanIntegrationTest {
 
     @Nested
     class TestPlanContext_SupportedDataTypes {
@@ -357,7 +272,7 @@ class PlanExecutorIntegrationTest {
             KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("CREATE TABLE virtual_column_test(id VARCHAR)").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("CREATE TABLE virtual_column_test(id VARCHAR)")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -371,7 +286,7 @@ class PlanExecutorIntegrationTest {
             KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("ALTER TABLE public.users ADD COLUMN id").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("ALTER TABLE public.users ADD COLUMN id")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -385,7 +300,7 @@ class PlanExecutorIntegrationTest {
             KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("ALTER TABLE public.users DROP COLUMN id").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("ALTER TABLE public.users DROP COLUMN id")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -399,7 +314,7 @@ class PlanExecutorIntegrationTest {
             KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
             ByteBuf buf = Unpooled.buffer();
-            cmd.sql("ALTER TABLE public.users RENAME COLUMN id TO foobar").encode(buf);
+            cmd.sql(SqlArgs.Builder.queries("ALTER TABLE public.users RENAME COLUMN id TO foobar")).encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
@@ -414,7 +329,7 @@ class PlanExecutorIntegrationTest {
 
             {
                 ByteBuf buf = Unpooled.buffer();
-                cmd.sql("CREATE TABLE virtual_column_test(string_column VARCHAR)").encode(buf);
+                cmd.sql(SqlArgs.Builder.queries("CREATE TABLE virtual_column_test(string_column VARCHAR)")).encode(buf);
                 channel.writeInbound(buf);
                 Object response = channel.readOutbound();
 
@@ -427,7 +342,7 @@ class PlanExecutorIntegrationTest {
 
                 awaitSchemaMetadataForTable("public", "virtual_column_test");
                 ByteBuf buf = Unpooled.buffer();
-                cmd.sql("INSERT INTO virtual_column_test(id, string_column) VALUES('some value', 'other value')").encode(buf);
+                cmd.sql(SqlArgs.Builder.queries("INSERT INTO virtual_column_test(id, string_column) VALUES('some value', 'other value')")).encode(buf);
                 channel.writeInbound(buf);
                 Object response = channel.readOutbound();
 

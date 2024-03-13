@@ -54,13 +54,8 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     }
 
     @Override
-    public RedisFuture<Long> commitAndGetCommittedVersion() {
-        return dispatch(commandBuilder.commitAndGetCommittedVersion());
-    }
-
-    @Override
-    public RedisFuture<V> commitAndGetVersionstamp() {
-        return dispatch(commandBuilder.commitAndGetVersionstamp());
+    public RedisFuture<List<Object>> commit(CommitArgs args) {
+        return dispatch(commandBuilder.commit(args));
     }
 
     @Override
@@ -178,7 +173,7 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     }
 
     @Override
-    public RedisFuture<List<Object>> sql(String... queries) {
-        return dispatch(commandBuilder.sql(queries));
+    public RedisFuture<List<Object>> sql(SqlArgs args) {
+        return dispatch(commandBuilder.sql(args));
     }
 }
