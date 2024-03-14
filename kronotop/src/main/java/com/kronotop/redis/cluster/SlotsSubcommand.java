@@ -64,41 +64,18 @@ class SlotsSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        List<SlotRange> ranges = new ArrayList<>();
-        SlotRange currentRange = new SlotRange(0);
-        Integer currentShardId = null;
-        int latestHashSlot = 0;
-        for (int hashSlot = 0; hashSlot < service.NUM_HASH_SLOTS; hashSlot++) {
-            int shardId = service.getHashSlots().get(hashSlot);
-            if (currentShardId != null && shardId != currentShardId) {
-                currentRange.setEnd(hashSlot - 1);
-                Member owner = service.getClusterService().getRoutingTable().getRoute(currentShardId).getMember();
-                currentRange.setOwner(owner);
-                currentRange.setShardId(currentShardId);
-                ranges.add(currentRange);
-                currentRange = new SlotRange(hashSlot);
-            }
-            currentShardId = shardId;
-            latestHashSlot = hashSlot;
-        }
-        currentRange.setEnd(latestHashSlot);
-
-        Member owner = service.getClusterService().getRoutingTable().getRoute(currentShardId).getMember();
-        currentRange.setOwner(owner);
-        ranges.add(currentRange);
-
+        List<SlotRange> slotRanges = service.getSlotRanges();
         List<RedisMessage> root = new ArrayList<>();
-        for (SlotRange range : ranges) {
+        for (SlotRange range : slotRanges) {
             List<RedisMessage> children = new ArrayList<>();
-            IntegerRedisMessage beginSection = new IntegerRedisMessage(range.begin);
-            IntegerRedisMessage endSection = new IntegerRedisMessage(range.end);
-            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getChannelContext(), range.owner));
+            IntegerRedisMessage beginSection = new IntegerRedisMessage(range.getBegin());
+            IntegerRedisMessage endSection = new IntegerRedisMessage(range.getEnd());
+            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getChannelContext(), range.getOwner()));
             children.add(beginSection);
             children.add(endSection);
             children.add(ownerSection);
             root.add(new ArrayRedisMessage(children));
         }
-
         response.writeArray(root);
     }
 }
