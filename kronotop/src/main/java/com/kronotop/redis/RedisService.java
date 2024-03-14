@@ -27,6 +27,7 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.core.CommandHandlerService;
 import com.kronotop.core.Context;
 import com.kronotop.core.KronotopService;
+import com.kronotop.core.cluster.Member;
 import com.kronotop.core.cluster.MembershipService;
 import com.kronotop.core.cluster.coordinator.Route;
 import com.kronotop.core.watcher.Watcher;
@@ -384,7 +385,46 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         return findShard_internal(latestSlot);
     }
 
+    /**
+     * Retrieves a map of hash slots and their corresponding shard IDs.
+     *
+     * @return a map where the key represents the hash slot and the value represents the shard ID
+     */
     public Map<Integer, Integer> getHashSlots() {
         return hashSlots;
+    }
+
+    /**
+     * This method returns a list of SlotRange objects representing the ranges of hash slots in a distributed system.
+     *
+     * @return a list of SlotRange objects
+     */
+    public List<SlotRange> getSlotRanges() {
+        List<SlotRange> ranges = new ArrayList<>();
+
+        SlotRange currentRange = new SlotRange(0);
+        Integer currentShardId = null;
+        int latestHashSlot = 0;
+
+        for (int hashSlot = 0; hashSlot < NUM_HASH_SLOTS; hashSlot++) {
+            int shardId = getHashSlots().get(hashSlot);
+            if (currentShardId != null && shardId != currentShardId) {
+                currentRange.setEnd(hashSlot - 1);
+                Member owner = getClusterService().getRoutingTable().getRoute(currentShardId).getMember();
+                currentRange.setOwner(owner);
+                currentRange.setShardId(currentShardId);
+                ranges.add(currentRange);
+                currentRange = new SlotRange(hashSlot);
+            }
+            currentShardId = shardId;
+            latestHashSlot = hashSlot;
+        }
+
+        currentRange.setEnd(latestHashSlot);
+        Member owner = getClusterService().getRoutingTable().getRoute(currentShardId).getMember();
+        currentRange.setOwner(owner);
+        ranges.add(currentRange);
+
+        return ranges;
     }
 }

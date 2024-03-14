@@ -16,18 +16,19 @@
 
 package com.kronotop.redis.cluster;
 
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 import com.kronotop.core.cluster.Member;
 import com.kronotop.core.cluster.MembershipService;
-import com.kronotop.core.VersionstampUtils;
+import com.kronotop.core.network.Address;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.SlotRange;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TreeSet;
+import java.util.*;
 
 class NodesSubcommand implements SubcommandExecutor {
     private final RedisService service;
@@ -38,19 +39,56 @@ class NodesSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
+        // <id> <ip:port@cport[,hostname]> <flags> <master> <ping-sent> <pong-recv> <config-epoch> <link-state> <slot> <slot> ... <slot>
         List<String> result = new ArrayList<>();
         MembershipService membershipService = service.getContext().getService(MembershipService.NAME);
         TreeSet<Member> members = membershipService.getSortedMembers();
-        for (Member member : members) {
-            String stringBuilder = member.getId() +
-                    " " +
-                    member.getAddress() +
-                    " " +
-                    VersionstampUtils.base64Encode(member.getProcessId());
-            result.add(stringBuilder);
+
+        Map<Member, Long> latestHeartbeats = membershipService.getLatestHeartbeats(members.toArray(new Member[members.size()]));
+
+        List<SlotRange> slotRanges = service.getSlotRanges();
+        for (SlotRange slotRange: slotRanges) {
+            long latestHeartbeat = latestHeartbeats.get(slotRange.getOwner());
+            result.add(getLine(slotRange, latestHeartbeat));
         }
+
         ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(String.join("\n", result).getBytes());
         response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
+    }
+
+    private String getLine(SlotRange range, Long latestHeartbeat) {
+        List<String> items = new ArrayList<>();
+
+        HashCode hashCode = Hashing.sha1().newHasher().
+                putInt(range.getShardId()).
+                hash();
+
+        items.add(hashCode.toString());
+
+        Address address = range.getOwner().getAddress();
+        items.add(String.format("%s:%d@%d,%s",
+                address.getHost(),
+                address.getPort(),
+                address.getPort(),
+                address.getHost())
+        );
+
+        if (range.getOwner().equals(service.getContext().getMember())) {
+            items.add("myself,master");
+        } else {
+            items.add("master");
+        }
+        items.add("-");
+
+        items.add("0");
+
+        items.add(latestHeartbeat.toString());
+        items.add("1");
+
+        items.add("connected");
+        items.add(String.format("%d-%d", range.getBegin(), range.getEnd()));
+
+        return String.join(" ", items);
     }
 }

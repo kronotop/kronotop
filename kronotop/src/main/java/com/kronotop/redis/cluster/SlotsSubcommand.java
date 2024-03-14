@@ -18,6 +18,7 @@ package com.kronotop.redis.cluster;
 
 import com.kronotop.core.cluster.Member;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.SlotRange;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -73,6 +74,7 @@ class SlotsSubcommand implements SubcommandExecutor {
                 currentRange.setEnd(hashSlot - 1);
                 Member owner = service.getClusterService().getRoutingTable().getRoute(currentShardId).getMember();
                 currentRange.setOwner(owner);
+                currentRange.setShardId(currentShardId);
                 ranges.add(currentRange);
                 currentRange = new SlotRange(hashSlot);
             }
@@ -86,11 +88,11 @@ class SlotsSubcommand implements SubcommandExecutor {
         ranges.add(currentRange);
 
         List<RedisMessage> root = new ArrayList<>();
-        for (SlotRange r : ranges) {
+        for (SlotRange range : ranges) {
             List<RedisMessage> children = new ArrayList<>();
-            IntegerRedisMessage beginSection = new IntegerRedisMessage(r.begin);
-            IntegerRedisMessage endSection = new IntegerRedisMessage(r.end);
-            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getChannelContext(), r.owner));
+            IntegerRedisMessage beginSection = new IntegerRedisMessage(range.begin);
+            IntegerRedisMessage endSection = new IntegerRedisMessage(range.end);
+            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getChannelContext(), range.owner));
             children.add(beginSection);
             children.add(endSection);
             children.add(ownerSection);
