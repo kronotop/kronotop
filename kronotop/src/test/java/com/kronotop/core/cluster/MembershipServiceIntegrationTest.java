@@ -48,7 +48,7 @@ public class MembershipServiceIntegrationTest extends BaseClusterTest {
 
     @Test
     public void test_singleKronotopInstance_getKnownCoordinator() {
-        // At the beginning, we already have a running Kronotop instance.
+        // In the beginning, we already have a running Kronotop instance.
         KronotopTestInstance kronotopTestInstance = kronotopInstances.values().iterator().next();
 
         // Check the known coordinator

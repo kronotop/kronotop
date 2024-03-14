@@ -200,7 +200,7 @@ public class MembershipService implements KronotopService {
      * @return The last heartbeat timestamp for the member, or 0 if it has not been set
      * @throws NoSuchMemberException if the member does not exist
      */
-    private long getLastHeartbeat(Transaction tr, Member member) {
+    private long getLatestHeartbeat(Transaction tr, Member member) {
         long lastHeartbeat = 0;
         try {
             DirectorySubspace subspace = memberSubspaces.get(member);
@@ -214,17 +214,22 @@ public class MembershipService implements KronotopService {
         return lastHeartbeat;
     }
 
-    private long getLastHeartbeat(Member member) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return getLastHeartbeat(tr, member);
-        }
+    private long getLatestHeartbeat(Member member) {
+        return getLatestHeartbeats(member).get(member);
     }
 
+    /**
+     * Retrieves the latest heartbeat timestamps for the given members.
+     *
+     * @param members The members for which to retrieve the latest heartbeat timestamps
+     * @return A map containing the members as keys and their latest heartbeat timestamps as values
+     * @throws NoSuchMemberException If a member does not exist
+     */
     public Map<Member, Long> getLatestHeartbeats(Member... members) {
         Map<Member, Long> result = new HashMap<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (Member member : members) {
-                long latestHeartbeat = getLastHeartbeat(tr, member);
+                long latestHeartbeat = getLatestHeartbeat(tr, member);
                 result.put(member, latestHeartbeat);
             }
         }
@@ -267,7 +272,7 @@ public class MembershipService implements KronotopService {
         TreeSet<Member> members = getSortedMembers();
         for (Member member : members) {
             openMemberSubspace(member);
-            long lastHeartbeat = getLastHeartbeat(member);
+            long lastHeartbeat = getLatestHeartbeat(member);
             knownMembers.putIfAbsent(member, new MemberView(lastHeartbeat));
             coordinatorService.addMember(member);
         }
@@ -450,7 +455,7 @@ public class MembershipService implements KronotopService {
             // A new cluster member has joined.
             if (memberEvent instanceof MemberJoinEvent) {
                 openMemberSubspace(member);
-                long lastHeartbeat = getLastHeartbeat(member);
+                long lastHeartbeat = getLatestHeartbeat(member);
                 knownMembers.putIfAbsent(member, new MemberView(lastHeartbeat));
                 coordinatorService.addMember(member);
                 LOGGER.info("Member join: {}", member.getAddress());
@@ -669,7 +674,7 @@ public class MembershipService implements KronotopService {
             boolean isCoordinatorAlive = true;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 for (Member member : knownMembers.keySet()) {
-                    long lastHeartbeat = getLastHeartbeat(tr, member);
+                    long lastHeartbeat = getLatestHeartbeat(tr, member);
                     MemberView view = knownMembers.computeIfPresent(member, (m, memberView) -> {
                         if (memberView.getLastHeartbeat() != lastHeartbeat) {
                             memberView.setLastHeartbeat(lastHeartbeat);
