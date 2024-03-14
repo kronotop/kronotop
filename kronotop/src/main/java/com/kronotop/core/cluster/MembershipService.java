@@ -41,9 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.net.UnknownHostException;
-import java.util.Comparator;
-import java.util.List;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -220,6 +218,17 @@ public class MembershipService implements KronotopService {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return getLastHeartbeat(tr, member);
         }
+    }
+
+    public Map<Member, Long> getLatestHeartbeats(Member... members) {
+        Map<Member, Long> result = new HashMap<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (Member member : members) {
+                long latestHeartbeat = getLastHeartbeat(tr, member);
+                result.put(member, latestHeartbeat);
+            }
+        }
+        return result;
     }
 
     /**

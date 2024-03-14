@@ -15,11 +15,18 @@
  */
 
 
-package com.kronotop.redis.cluster;
+package com.kronotop.redis;
 
 import com.kronotop.core.cluster.Member;
 
-class SlotRange {
+/**
+ * The SlotRange class represents a range of hash slots in a distributed system.
+ * It contains information about the shard ID, beginning slot number, ending slot number,
+ * and the owner of the slot range.
+ */
+
+public class SlotRange {
+    int shardId;
     int begin;
     int end;
     Member owner;
@@ -36,8 +43,28 @@ class SlotRange {
         this.end = end;
     }
 
+    public void setShardId(int shardId) {
+        this.shardId = shardId;
+    }
+
+    public Member getOwner() {
+        return owner;
+    }
+
+    public int getEnd() {
+        return end;
+    }
+
+    public int getBegin() {
+        return begin;
+    }
+
+    public int getShardId() {
+        return shardId;
+    }
+
     @Override
     public String toString() {
-        return String.format("SlotRange {begin=%d end=%d owner=%s}", begin, end, owner);
+        return String.format("SlotRange {begin=%d end=%d shardId=%d owner=%s}", begin, end, shardId, owner);
     }
 }
