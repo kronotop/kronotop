@@ -66,7 +66,7 @@ public class ZDelHandler extends BaseHandler implements Handler {
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
         tr.clear(namespace.getZMap().pack(zDelMessage.getKey()));
-        TransactionUtils.commitIfOneOff(tr, request.getChannelContext());
+        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
 
         response.writeOK();
     }

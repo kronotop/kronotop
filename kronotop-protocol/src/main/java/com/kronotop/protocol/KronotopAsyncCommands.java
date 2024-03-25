@@ -16,6 +16,7 @@
 
 package com.kronotop.protocol;
 
+import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.api.StatefulConnection;
 
@@ -74,5 +75,5 @@ public interface KronotopAsyncCommands<K, V> {
 
     StatefulConnection<K, V> getUnderlyingConnection();
 
-    RedisFuture<List<Object>> sql(SqlArgs args);
+    RedisFuture<List<KeyValue<K, V>>> sql(SqlArgs args);
 }

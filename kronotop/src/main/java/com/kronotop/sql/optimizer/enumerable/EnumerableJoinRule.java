@@ -83,7 +83,7 @@ class EnumerableJoinRule extends ConverterRule {
         if (hasEquiKeys) {
             // Re-arrange condition: first the equi-join elements, then the non-equi-join ones (if any);
             // this is not strictly necessary but it will be useful to avoid spurious errors in the
-            // unit tests when verifying the plan.
+            // unit tests when verifying the executor.
             final RexNode equi = info.getEquiCondition(left, right, rexBuilder);
             final RexNode condition;
             if (info.isEqui()) {

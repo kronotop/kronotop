@@ -20,8 +20,8 @@ import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
+import javax.annotation.Nonnull;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -29,8 +29,8 @@ public class SqlMessage implements KronotopMessage<Void> {
     public static final String COMMAND = "SQL";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;
-    private final List<String> queries = new LinkedList<>();
     private final Set<String> returning = new HashSet<>();
+    private String query;
 
     public SqlMessage(Request request) {
         this.request = request;
@@ -115,19 +115,22 @@ public class SqlMessage implements KronotopMessage<Void> {
             if (isReturning(item)) {
                 parseReturning(i + 1);
                 break;
+            } else if (query == null) {
+                query = new String(item);
+                continue;
             }
 
-            String query = new String(item);
-            queries.add(query);
+            throw new IllegalArgumentException("illegal argument: " + new String(item));
         }
-    }
-
-    public List<String> getQueries() {
-        return queries;
     }
 
     public Set<String> getReturning() {
         return returning;
+    }
+
+    @Nonnull
+    public String getQuery() {
+        return query;
     }
 
     @Override

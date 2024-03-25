@@ -18,21 +18,29 @@ package com.kronotop.sql.optimizer;
 
 import com.kronotop.sql.KronotopSchema;
 import com.kronotop.sql.Parser;
-import com.kronotop.sql.optimizer.enumerable.EnumerableConvention;
+import com.kronotop.sql.optimizer.physical.PhysicalConvention;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 
 public class Optimize {
-    public static RelNode optimize(KronotopSchema schema, String query) throws SqlParseException {
+
+    public static QueryOptimizationResult optimize(KronotopSchema schema, String query) throws SqlParseException {
         SqlNode sqlNode = Parser.parse(query);
         return optimize(schema, sqlNode);
     }
 
-    public static RelNode optimize(KronotopSchema schema, SqlNode sqlNode) {
+    public static QueryOptimizationResult optimize(KronotopSchema schema, SqlNode sqlNode) {
         Optimizer optimizer = new Optimizer(schema);
         SqlNode validatedSqlTree = optimizer.validate(sqlNode);
-        RelNode relTree = optimizer.convert(validatedSqlTree);
-        return optimizer.optimize(relTree, relTree.getTraitSet().plus(EnumerableConvention.INSTANCE), Rules.rules);
+        QueryConvertResult queryConvertResult = optimizer.convert(validatedSqlTree);
+        RelNode convertedRelTree = queryConvertResult.getRel();
+
+        RelNode optimizedRelTree = optimizer.optimize(
+                convertedRelTree,
+                convertedRelTree.getTraitSet().plus(PhysicalConvention.INSTANCE),
+                Rules.rules
+        );
+        return new QueryOptimizationResult(optimizedRelTree, queryConvertResult.getFieldNames());
     }
 }

@@ -17,7 +17,8 @@
 
 package com.kronotop.sql;
 
-import com.kronotop.sql.plan.PlanCache;
+import com.kronotop.sql.executor.Plan;
+import com.kronotop.sql.executor.PlanCache;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;

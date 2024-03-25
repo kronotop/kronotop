@@ -22,11 +22,11 @@ import io.lettuce.core.protocol.CommandArgs;
  * Represents a wrapper class for constructing SQL arguments for a command.
  */
 public class SqlArgs {
-    private String[] queries;
+    private String query;
     private String[] returning;
 
-    public SqlArgs queries(String... queries) {
-        this.queries = queries;
+    public SqlArgs query(String query) {
+        this.query = query;
         return this;
     }
 
@@ -36,10 +36,8 @@ public class SqlArgs {
     }
 
     public <K, V> void build(CommandArgs<K, V> args) {
-        if (queries != null) {
-            for (String query : queries) {
-                args.add(query);
-            }
+        if (query != null) {
+            args.add(query);
         }
 
         if (returning != null) {
@@ -54,8 +52,8 @@ public class SqlArgs {
         private Builder() {
         }
 
-        public static SqlArgs queries(String... queries) {
-            return new SqlArgs().queries(queries);
+        public static SqlArgs query(String query) {
+            return new SqlArgs().query(query);
         }
 
         public static SqlArgs returning(String... field) {

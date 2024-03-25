@@ -106,8 +106,8 @@ public class Router extends ChannelDuplexHandler {
         ctx.channel().attr(ChannelAttributes.OPEN_NAMESPACES).set(new HashMap<>());
         ctx.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).set(defaultNamespace);
 
-        Attribute<Boolean> oneOffTransaction = ctx.channel().attr(ChannelAttributes.ONE_OFF_TRANSACTION);
-        oneOffTransaction.set(false);
+        Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
+        autoCommitAttr.set(false);
 
         Attribute<List<Request>> queuedCommands = ctx.channel().attr(ChannelAttributes.QUEUED_COMMANDS);
         queuedCommands.set(new ArrayList<>());
@@ -145,12 +145,12 @@ public class Router extends ChannelDuplexHandler {
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
         Channel channel = ctx.channel();
-        Attribute<Boolean> oneOffTransactionAttr = ctx.channel().attr(ChannelAttributes.ONE_OFF_TRANSACTION);
-        if (!Boolean.FALSE.equals(oneOffTransactionAttr.get())) {
+        Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
+        if (autoCommitAttr.get() != null && !Boolean.FALSE.equals(autoCommitAttr.get())) {
             Attribute<Transaction> transaction = channel.attr(ChannelAttributes.TRANSACTION);
             transaction.get().close();
         }
-        oneOffTransactionAttr.set(false);
+        autoCommitAttr.set(false);
         super.channelReadComplete(ctx);
     }
 

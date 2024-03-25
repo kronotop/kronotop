@@ -21,7 +21,7 @@ import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
-import com.kronotop.sql.backend.AssertResponse;
+import com.kronotop.sql.AssertResponse;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

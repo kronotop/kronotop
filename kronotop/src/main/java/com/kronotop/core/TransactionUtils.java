@@ -46,7 +46,7 @@ public class TransactionUtils {
             Transaction tr = context.getFoundationDB().createTransaction();
             transactionAttr.set(tr);
             channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
-            channel.attr(ChannelAttributes.ONE_OFF_TRANSACTION).set(true);
+            channel.attr(ChannelAttributes.AUTO_COMMIT).set(true);
             channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
             NamespaceUtils.clearOpenNamespaces(channelContext);
             return tr;
@@ -71,22 +71,25 @@ public class TransactionUtils {
      * @param tr               the transaction to commit
      * @param channelContext   the channel context representing the transaction
      */
-    public static void commitIfOneOff(Transaction tr, ChannelHandlerContext channelContext) {
-        if (isOneOff(channelContext)) {
+    public static void commitIfAutoCommitEnabled(Transaction tr, ChannelHandlerContext channelContext) {
+        if (getAutoCommit(channelContext)) {
             tr.commit().join();
             runPostCommitHooks(channelContext);
         }
     }
 
     /**
-     * Determines if the channel context represents a one-off transaction.
+     * Returns the value of the "auto_commit" attribute associated with the given ChannelHandlerContext.
      *
      * @param channelContext the ChannelHandlerContext object representing the channel context
-     * @return true if the channel context represents a one-off transaction, false otherwise
+     * @return the value of the "auto_commit" attribute, or false if it is null
      */
-    public static Boolean isOneOff(ChannelHandlerContext channelContext) {
-        Attribute<Boolean> oneOffTransactionAttr = channelContext.channel().attr(ChannelAttributes.ONE_OFF_TRANSACTION);
-        return oneOffTransactionAttr.get() != null && !Boolean.FALSE.equals(oneOffTransactionAttr.get());
+    public static Boolean getAutoCommit(ChannelHandlerContext channelContext) {
+        Attribute<Boolean> autoCommitAttr = channelContext.channel().attr(ChannelAttributes.AUTO_COMMIT);
+        if (autoCommitAttr.get() == null) {
+            return false;
+        }
+        return autoCommitAttr.get();
     }
 
     /**

@@ -44,12 +44,12 @@ class NodesSubcommand implements SubcommandExecutor {
         MembershipService membershipService = service.getContext().getService(MembershipService.NAME);
         TreeSet<Member> members = membershipService.getSortedMembers();
 
+        Long configEpoch = membershipService.getRoutingTable().getVersion();
         Map<Member, Long> latestHeartbeats = membershipService.getLatestHeartbeats(members.toArray(new Member[members.size()]));
-
         List<SlotRange> slotRanges = service.getSlotRanges();
         for (SlotRange slotRange: slotRanges) {
             long latestHeartbeat = latestHeartbeats.get(slotRange.getOwner());
-            result.add(getLine(slotRange, latestHeartbeat));
+            result.add(getLine(slotRange, configEpoch, latestHeartbeat));
         }
 
         ByteBuf buf = response.getChannelContext().alloc().buffer();
@@ -57,7 +57,7 @@ class NodesSubcommand implements SubcommandExecutor {
         response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
     }
 
-    private String getLine(SlotRange range, Long latestHeartbeat) {
+    private String getLine(SlotRange range, Long configEpoch, Long latestHeartbeat) {
         List<String> items = new ArrayList<>();
 
         HashCode hashCode = Hashing.sha1().newHasher().
@@ -73,19 +73,15 @@ class NodesSubcommand implements SubcommandExecutor {
                 address.getPort(),
                 address.getHost())
         );
-
         if (range.getOwner().equals(service.getContext().getMember())) {
             items.add("myself,master");
         } else {
             items.add("master");
         }
         items.add("-");
-
         items.add("0");
-
         items.add(latestHeartbeat.toString());
-        items.add("1");
-
+        items.add(configEpoch.toString());
         items.add("connected");
         items.add(String.format("%d-%d", range.getBegin(), range.getEnd()));
 

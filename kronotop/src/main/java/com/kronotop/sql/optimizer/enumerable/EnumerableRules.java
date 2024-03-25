@@ -14,9 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.kronotop.sql.optimizer.enumerable;
 
 import com.google.common.collect.ImmutableList;
+import com.kronotop.sql.optimizer.logical.CalcIntoScanRule;
 import org.apache.calcite.linq4j.function.Experimental;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.logical.LogicalAggregate;
@@ -175,6 +177,7 @@ public class EnumerableRules {
     public static final EnumerableTableScanRule ENUMERABLE_TABLE_SCAN_RULE =
             EnumerableTableScanRule.DEFAULT_CONFIG
                     .toRule(EnumerableTableScanRule.class);
+
     /**
      * Rule that converts a
      * {@link org.apache.calcite.rel.logical.LogicalTableFunctionScan} to

@@ -22,8 +22,11 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.sql.executor.Plan;
+import com.kronotop.sql.executor.PlanContext;
+import com.kronotop.sql.metadata.SchemaNotExistsException;
 import com.kronotop.sql.optimizer.Optimize;
-import com.kronotop.sql.plan.PlanContext;
+import com.kronotop.sql.optimizer.QueryOptimizationResult;
 import com.kronotop.sql.protocol.SqlMessage;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
@@ -51,46 +54,34 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
         request.attr(MessageTypes.SQL).set(new SqlMessage(request));
     }
 
-    private RedisMessage executeQuery(Request request, Response response, SqlMessage sqlMessage, String schema, String query) throws Exception {
+    private RedisMessage executeQuery(Request request, Response response, SqlMessage sqlMessage, String schema, String query)
+            throws SchemaNotExistsException, SqlExecutionException, SqlValidatorException, SqlParseException {
         final PlanContext planContext = new PlanContext(request.getChannelContext(), sqlMessage);
 
         Plan plan = service.planCache.getPlan(schema, query);
         if (plan != null) {
-            print("Retrieved a cached plan", plan.getRelNode());
-            service.planExecutor.execute(planContext, plan);
-            return planContext.getResponse();
+            print("Retrieved a cached executor", plan.getQueryOptimizationResult().getRel());
+            return service.planExecutor.execute(planContext, plan);
         }
 
-        try {
-            SqlNode sqlTree = Parser.parse(query);
-            if (service.statements.contains(sqlTree.getKind())) {
-                KronotopSchema kronotopSchema = service.getMetadataService().findSchemaMetadata(schema).getKronotopSchema();
-                RelNode optimizerRelTree = Optimize.optimize(kronotopSchema, sqlTree);
+        SqlNode sqlTree = Parser.parse(query);
+        if (service.statements.contains(sqlTree.getKind())) {
+            KronotopSchema kronotopSchema = service.getMetadataService().findSchemaMetadata(schema).getKronotopSchema();
+            QueryOptimizationResult result = Optimize.optimize(kronotopSchema, sqlTree);
 
-                print("After Optimization", optimizerRelTree);
-                plan = new Plan(optimizerRelTree);
-                service.planCache.putPlan(schema, query, plan);
-                service.planExecutor.execute(planContext, plan);
-                return planContext.getResponse();
-            } else {
-                // DDL Commands
-                ExecutionContext executionContext = new ExecutionContext(request, response);
-                executionContext.setSchema(schema);
-                Executor<SqlNode> executor = service.executors.get(sqlTree.getKind());
-                if (executor != null) {
-                    return executor.execute(executionContext, sqlTree);
-                }
-                return new ErrorRedisMessage(RESPError.SQL, String.format("Unknown SQL command: %s", sqlTree.getKind()));
+            print("After Optimization", result.getRel());
+            plan = new Plan(result);
+            service.planCache.putPlan(schema, query, plan);
+            return service.planExecutor.execute(planContext, plan);
+        } else {
+            // DDL Commands
+            ExecutionContext executionContext = new ExecutionContext(request, response);
+            executionContext.setSchema(schema);
+            StatementExecutor<SqlNode> executor = service.executors.get(sqlTree.getKind());
+            if (executor != null) {
+                return executor.execute(executionContext, sqlTree);
             }
-        } catch (SqlParseException e) {
-            // redis-cli has a problem with bulk errors:
-            // Error: Protocol error, got "!" as reply type byte
-            List<String> messages = List.of(e.getMessage().split("\n"));
-            return new ErrorRedisMessage(RESPError.SQL, messages.get(0));
-        } catch (SqlExecutionException e) {
-            return new ErrorRedisMessage(RESPError.SQL, e.getMessage());
-        } catch (SqlValidatorException e) {
-            return new ErrorRedisMessage(RESPError.SQL, String.format("%s %s", e.getMessage(), e.getCause().getMessage()));
+            throw new SqlExecutionException(String.format("Unknown SQL command: %s", sqlTree.getKind()));
         }
     }
 
@@ -98,19 +89,22 @@ public class SqlHandler extends BaseSqlHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         SqlMessage sqlMessage = request.attr(MessageTypes.SQL).get();
         String schema = request.getChannelContext().channel().attr(ChannelAttributes.SCHEMA).get();
-        List<RedisMessage> responses = new LinkedList<>();
 
-        for (String query : sqlMessage.getQueries()) {
-            try {
-                RedisMessage result = executeQuery(request, response, sqlMessage, schema, query);
-                responses.add(result);
-            } catch (CalciteContextException e) {
-                responses.add(new ErrorRedisMessage(RESPError.SQL, e.getCause().getMessage()));
-            } catch (SqlValidatorException | SqlExecutionException e) {
-                responses.add(new ErrorRedisMessage(RESPError.SQL, e.getMessage()));
-            }
+        try {
+            RedisMessage result = executeQuery(request, response, sqlMessage, schema, sqlMessage.getQuery());
+            response.writeArray(List.of(result));
+        } catch (SqlParseException e) {
+            // redis-cli has a problem with bulk errors:
+            // Error: Protocol error, got "!" as reply type byte
+            List<String> messages = List.of(e.getMessage().split("\n"));
+            response.writeRedisMessage(new ErrorRedisMessage(RESPError.SQL, messages.get(0)));
+        } catch (CalciteContextException e) {
+            response.writeRedisMessage(new ErrorRedisMessage(RESPError.SQL, e.getCause().getMessage()));
+        } catch (SqlValidatorException e) {
+            response.writeRedisMessage(new ErrorRedisMessage(RESPError.SQL, String.format("%s %s", e.getMessage(), e.getCause().getMessage())));
+        } catch (SqlExecutionException | SchemaNotExistsException e) {
+            response.writeRedisMessage(new ErrorRedisMessage(RESPError.SQL, e.getMessage()));
         }
-        response.writeArray(responses);
     }
 
     private void print(String header, RelNode relTree) {

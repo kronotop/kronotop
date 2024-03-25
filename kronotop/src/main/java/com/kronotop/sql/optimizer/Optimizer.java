@@ -17,7 +17,6 @@
 package com.kronotop.sql.optimizer;
 
 import com.kronotop.sql.KronotopSchema;
-import com.kronotop.sql.calcite.parser.KronotopSqlParser;
 import org.apache.calcite.avatica.util.Casing;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.config.CalciteConnectionConfigImpl;
@@ -32,11 +31,9 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
@@ -45,6 +42,7 @@ import org.apache.calcite.sql2rel.StandardConvertletTable;
 import org.apache.calcite.tools.Program;
 import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RuleSet;
+import org.apache.calcite.util.Pair;
 
 import java.util.Collections;
 import java.util.List;
@@ -55,28 +53,44 @@ import java.util.Properties;
  * It performs various steps such as parsing, validation, and conversion of SQL nodes to relational nodes.
  */
 public class Optimizer {
-    private final CalciteConnectionConfig config;
-    private final SqlValidator validator;
     private final SqlToRelConverter converter;
     private final VolcanoPlanner planner;
-    private final RelDataTypeFactory typeFactory = new JavaTypeFactoryImpl();
-    private final Prepare.CatalogReader catalogReader;
-
+    private final SqlValidator validator;
 
     public Optimizer(KronotopSchema schema) {
-        config = getCalciteConnectionConfig();
-        catalogReader = getCalciteCatalogReader(schema);
-        validator = getSqlValidator();
-        planner = getVolcanoPlanner();
-        converter = getSqlToRelConverter();
-    }
+        Properties configProperties = new Properties();
+        configProperties.put(CalciteConnectionProperty.CASE_SENSITIVE.camelName(), Boolean.TRUE.toString());
+        configProperties.put(CalciteConnectionProperty.UNQUOTED_CASING.camelName(), Casing.UNCHANGED.toString());
+        configProperties.put(CalciteConnectionProperty.QUOTED_CASING.camelName(), Casing.UNCHANGED.toString());
+        CalciteConnectionConfig config = new CalciteConnectionConfigImpl(configProperties);
 
-    private SqlToRelConverter getSqlToRelConverter() {
+        CalciteSchema rootSchema = CalciteSchema.createRootSchema(false, false);
+        rootSchema.add(schema.getName(), schema);
+        RelDataTypeFactory typeFactory = new JavaTypeFactoryImpl();
+        Prepare.CatalogReader catalogReader = new CalciteCatalogReader(
+                rootSchema,
+                Collections.singletonList(schema.getName()),
+                typeFactory,
+                config
+        );
+
+        SqlOperatorTable operatorTable = new ChainedSqlOperatorTable(List.of(SqlStdOperatorTable.instance()));
+        SqlValidator.Config validatorConfig = SqlValidator.Config.DEFAULT
+                .withLenientOperatorLookup(config.lenientOperatorLookup())
+                .withConformance(config.conformance())
+                .withDefaultNullCollation(config.defaultNullCollation())
+                .withIdentifierExpansion(true);
+        validator = SqlValidatorUtil.newValidator(operatorTable, catalogReader, typeFactory, validatorConfig);
+
+        planner = new VolcanoPlanner(RelOptCostImpl.FACTORY, Contexts.of(config));
+        planner.setTopDownOpt(true);
+        planner.addRelTraitDef(ConventionTraitDef.INSTANCE);
+
         RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory));
         SqlToRelConverter.Config converterConfig = SqlToRelConverter.config()
                 .withTrimUnusedFields(true)
                 .withExpand(false); // https://issues.apache.org/jira/browse/CALCITE-1045
-        return new SqlToRelConverter(
+        converter = new SqlToRelConverter(
                 null,
                 validator,
                 catalogReader,
@@ -86,55 +100,14 @@ public class Optimizer {
         );
     }
 
-    private VolcanoPlanner getVolcanoPlanner() {
-        VolcanoPlanner planner = new VolcanoPlanner(RelOptCostImpl.FACTORY, Contexts.of(config));
-        planner.setTopDownOpt(true);
-        planner.addRelTraitDef(ConventionTraitDef.INSTANCE);
-        return planner;
-    }
-
-    private CalciteCatalogReader getCalciteCatalogReader(KronotopSchema schema) {
-        CalciteSchema rootSchema = CalciteSchema.createRootSchema(false, false);
-        rootSchema.add(schema.getName(), schema);
-        return new CalciteCatalogReader(
-                rootSchema,
-                Collections.singletonList(schema.getName()),
-                typeFactory,
-                config
-        );
-    }
-
-    private SqlValidator getSqlValidator() {
-        SqlOperatorTable operatorTable = new ChainedSqlOperatorTable(List.of(SqlStdOperatorTable.instance()));
-        SqlValidator.Config validatorConfig = SqlValidator.Config.DEFAULT
-                .withLenientOperatorLookup(config.lenientOperatorLookup())
-                .withConformance(config.conformance())
-                .withDefaultNullCollation(config.defaultNullCollation())
-                .withIdentifierExpansion(true);
-        return SqlValidatorUtil.newValidator(operatorTable, catalogReader, typeFactory, validatorConfig);
-    }
-
-    private CalciteConnectionConfig getCalciteConnectionConfig() {
-        Properties configProperties = new Properties();
-        configProperties.put(CalciteConnectionProperty.CASE_SENSITIVE.camelName(), Boolean.TRUE.toString());
-        configProperties.put(CalciteConnectionProperty.UNQUOTED_CASING.camelName(), Casing.UNCHANGED.toString());
-        configProperties.put(CalciteConnectionProperty.QUOTED_CASING.camelName(), Casing.UNCHANGED.toString());
-        return new CalciteConnectionConfigImpl(configProperties);
-    }
-
-    private SqlParser.Config getParserConfig() {
-        SqlParser.Config parserConfig = SqlParser.config().
-                withParserFactory(KronotopSqlParser.FACTORY);
-        return SqlDialect.DatabaseProduct.POSTGRESQL.getDialect().configureParser(parserConfig);
-    }
-
     public SqlNode validate(SqlNode node) {
         return validator.validate(node);
     }
 
-    public RelNode convert(SqlNode node) {
+    public QueryConvertResult convert(SqlNode node) {
         RelRoot root = converter.convertQuery(node, false, true);
-        return root.rel;
+        RelNode relNode = CalcRewriterProgram.transformProjectAndFilterIntoCalc(root.rel);
+        return new QueryConvertResult(relNode, Pair.right(root.fields));
     }
 
     public RelNode optimize(RelNode node, RelTraitSet requiredTraitSet, RuleSet rules) {

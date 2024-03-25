@@ -76,7 +76,7 @@ public class ZDelRangeHandler extends BaseHandler implements Handler {
 
         Range range = new Range(begin, end);
         tr.clear(range);
-        TransactionUtils.commitIfOneOff(tr, request.getChannelContext());
+        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
 
         response.writeOK();
     }

@@ -22,7 +22,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalTableScan;
-import org.apache.calcite.schema.QueryableTable;
 import org.apache.calcite.schema.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -55,10 +54,10 @@ public class EnumerableTableScanRule extends ConverterRule {
         // The QueryableTable can only be implemented as ENUMERABLE convention,
         // but some test QueryableTables do not really implement the expressions,
         // just skips the QueryableTable#getExpression invocation and returns early.
-        if (table instanceof QueryableTable || relOptTable.getExpression(Object.class) != null) {
-            return EnumerableTableScan.create(scan.getCluster(), relOptTable);
-        }
+        //if (table instanceof QueryableTable || relOptTable.getExpression(Object.class) != null) {
+        return EnumerableTableScan.create(scan.getCluster(), relOptTable);
+        //}
 
-        return null;
+        //return null;
     }
 }

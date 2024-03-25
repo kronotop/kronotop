@@ -65,7 +65,7 @@ public class ZMutateHandler extends BaseHandler implements Handler {
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
         tr.mutate(zMutateMessage.getMutationType(), namespace.getZMap().pack(zMutateMessage.getKey()), zMutateMessage.getParam());
-        TransactionUtils.commitIfOneOff(tr, request.getChannelContext());
+        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
 
         response.writeOK();
     }

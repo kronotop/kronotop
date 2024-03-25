@@ -16,6 +16,7 @@
 
 package com.kronotop.protocol;
 
+import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.codec.RedisCodec;
@@ -23,6 +24,7 @@ import io.lettuce.core.protocol.AsyncCommand;
 import io.lettuce.core.protocol.RedisCommand;
 
 import java.util.List;
+import java.util.Map;
 
 public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsyncCommands<K, V> {
     private final KronotopCommandBuilder<K, V> commandBuilder;
@@ -173,7 +175,7 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     }
 
     @Override
-    public RedisFuture<List<Object>> sql(SqlArgs args) {
+    public RedisFuture<List<KeyValue<K, V>>> sql(SqlArgs args) {
         return dispatch(commandBuilder.sql(args));
     }
 }

@@ -21,7 +21,6 @@ import com.kronotop.protocol.SqlArgs;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.sql.backend.AssertResponse;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -30,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class BaseHandlerTest extends BaseSqlTest {
     protected void executeSqlQueryReturnsOK(KronotopCommandBuilder<String, String> cmd, String query) {
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql(SqlArgs.Builder.queries(query)).encode(buf);
+        cmd.sql(SqlArgs.Builder.query(query)).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
@@ -45,7 +44,7 @@ public class BaseHandlerTest extends BaseSqlTest {
 
     protected ErrorRedisMessage executeSqlQueryReturnsError(KronotopCommandBuilder<String, String> cmd, String query) {
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql(SqlArgs.Builder.queries(query)).encode(buf);
+        cmd.sql(SqlArgs.Builder.query(query)).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 

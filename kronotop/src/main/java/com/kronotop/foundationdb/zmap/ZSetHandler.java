@@ -65,7 +65,7 @@ public class ZSetHandler extends BaseHandler implements Handler {
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
         tr.set(namespace.getZMap().pack(zSetMessage.getKey()), zSetMessage.getValue());
-        TransactionUtils.commitIfOneOff(tr, request.getChannelContext());
+        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
 
         response.writeOK();
     }

@@ -53,7 +53,7 @@ public interface EnumerableRel
     }
 
     /**
-     * Creates a plan for this expression according to a calling convention.
+     * Creates a executor for this expression according to a calling convention.
      *
      * @param implementor Implementor
      * @param pref        Preferred representation for rows in result expression

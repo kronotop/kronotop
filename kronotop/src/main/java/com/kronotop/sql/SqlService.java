@@ -32,11 +32,11 @@ import com.kronotop.core.Context;
 import com.kronotop.core.JSONUtils;
 import com.kronotop.core.KronotopService;
 import com.kronotop.server.Handlers;
-import com.kronotop.sql.backend.ddl.*;
-import com.kronotop.sql.backend.ddl.model.TableModel;
-import com.kronotop.sql.backend.metadata.SqlMetadataService;
-import com.kronotop.sql.plan.PlanCache;
-import com.kronotop.sql.plan.PlanExecutor;
+import com.kronotop.sql.ddl.*;
+import com.kronotop.sql.ddl.model.TableModel;
+import com.kronotop.sql.metadata.SqlMetadataService;
+import com.kronotop.sql.executor.PlanCache;
+import com.kronotop.sql.executor.PlanExecutor;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
@@ -55,9 +55,9 @@ Imagination is more important than knowledge. Knowledge is limited. Imagination 
 public class SqlService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "SQL";
     protected final EnumSet<SqlKind> statements;
-    protected final HashMap<SqlKind, Executor<SqlNode>> executors = new HashMap<>();
+    protected final HashMap<SqlKind, StatementExecutor<SqlNode>> executors = new HashMap<>();
     protected final SqlMetadataService metadataService;
-    // TODO: Invalidate the plan cache if a schema has changed.
+    // TODO: Invalidate the executor cache if a schema has changed.
     protected final PlanCache planCache = new PlanCache();
     protected final PlanExecutor planExecutor;
     private final Context context;

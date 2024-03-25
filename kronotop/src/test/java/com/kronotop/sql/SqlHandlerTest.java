@@ -25,7 +25,6 @@ import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.sql.backend.AssertResponse;
 import com.kronotop.sql.protocol.SqlMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -36,8 +35,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class SqlHandlerTest extends BaseHandlerTest {
 
@@ -46,34 +44,30 @@ public class SqlHandlerTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sql(SqlArgs.Builder.queries("CREATE SCHEMA")).encode(buf);
+        cmd.sql(SqlArgs.Builder.query("CREATE SCHEMA")).encode(buf);
         channel.writeInbound(buf);
         Object response = channel.readOutbound();
 
-        AssertResponse<ErrorRedisMessage> assertResponse = new AssertResponse<>();
-        ErrorRedisMessage message = assertResponse.getMessage(response, 0, 1);
+        ErrorRedisMessage message = (ErrorRedisMessage) response;
         // javacc-maven-plugin > 2.4 breaks the parser's error handling. This check added here to control it.
         assertEquals("SQL Incorrect syntax near the keyword 'SCHEMA' at line 1, column 8.", message.content());
     }
 
     @Test
-    public void test_SqlMessage_getQueries() {
+    public void test_SqlMessage_getQuery() {
         List<RedisMessage> messages = new ArrayList<>();
-        String queryOne = "INSERT INTO users(integer_column, varchar_column)";
-        String queryTwo = "INSERT INTO users(double_column, varchar_column)";
+        String query = "INSERT INTO users(integer_column, varchar_column)";
 
         messages.add(new FullBulkStringRedisMessage(Unpooled.buffer().writeBytes("SQL".getBytes())));
-        messages.add(new FullBulkStringRedisMessage(Unpooled.buffer().writeBytes(queryOne.getBytes())));
-        messages.add(new FullBulkStringRedisMessage(Unpooled.buffer().writeBytes(queryTwo.getBytes())));
+        messages.add(new FullBulkStringRedisMessage(Unpooled.buffer().writeBytes(query.getBytes())));
 
         ChannelHandlerContext context = new MockChannelHandlerContext(channel);
         Request request = new RespRequest(context, new ArrayRedisMessage(messages));
         SqlMessage sqlMessage = new SqlMessage(request);
 
-        assertEquals(2, sqlMessage.getQueries().size());
+        assertNotNull(sqlMessage.getQuery());
         assertEquals(0, sqlMessage.getReturning().size());
-        assertEquals(queryOne, sqlMessage.getQueries().get(0));
-        assertEquals(queryTwo, sqlMessage.getQueries().get(1));
+        assertEquals(query, sqlMessage.getQuery());
     }
 
     @Test
@@ -91,10 +85,27 @@ public class SqlHandlerTest extends BaseHandlerTest {
         Request request = new RespRequest(context, new ArrayRedisMessage(messages));
         SqlMessage sqlMessage = new SqlMessage(request);
 
-        assertEquals(1, sqlMessage.getQueries().size());
+        assertNotNull(sqlMessage.getQuery());
         assertEquals(2, sqlMessage.getReturning().size());
-        assertEquals(query, sqlMessage.getQueries().get(0));
+        assertEquals(query, sqlMessage.getQuery());
         assertTrue(sqlMessage.getReturning().contains("id"));
         assertTrue(sqlMessage.getReturning().contains("integer_column"));
+    }
+
+    @Test
+    public void test_SqlMessage_IllegalArgumentException() {
+        List<RedisMessage> messages = new ArrayList<>();
+        String query = "INSERT INTO users(integer_column, varchar_column)";
+
+        messages.add(new FullBulkStringRedisMessage(Unpooled.buffer().writeBytes("SQL".getBytes())));
+        messages.add(new FullBulkStringRedisMessage(Unpooled.buffer().writeBytes(query.getBytes())));
+        // Illegal argument
+        messages.add(new FullBulkStringRedisMessage(Unpooled.buffer().writeBytes("foobar".getBytes())));
+
+        ChannelHandlerContext context = new MockChannelHandlerContext(channel);
+        Request request = new RespRequest(context, new ArrayRedisMessage(messages));
+
+        assertThrows(IllegalArgumentException.class, () -> new SqlMessage(request) {
+        });
     }
 }

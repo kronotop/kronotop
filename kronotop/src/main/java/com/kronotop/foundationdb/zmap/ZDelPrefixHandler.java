@@ -59,7 +59,7 @@ public class ZDelPrefixHandler extends BaseHandler implements Handler {
 
         Range range = Range.startsWith(zDelPrefixMessage.getPrefix());
         tr.clear(range);
-        TransactionUtils.commitIfOneOff(tr, request.getChannelContext());
+        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
 
         response.writeOK();
     }

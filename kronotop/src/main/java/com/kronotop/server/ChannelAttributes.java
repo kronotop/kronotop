@@ -34,7 +34,7 @@ public class ChannelAttributes {
 
     public static final AttributeKey<Boolean> SNAPSHOT_READ = AttributeKey.valueOf("snapshot_read");
 
-    public static final AttributeKey<Boolean> ONE_OFF_TRANSACTION = AttributeKey.valueOf("one_off_transaction");
+    public static final AttributeKey<Boolean> AUTO_COMMIT = AttributeKey.valueOf("auto_commit");
 
     public static final AttributeKey<Transaction> TRANSACTION = AttributeKey.valueOf("transaction");
 
