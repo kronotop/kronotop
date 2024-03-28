@@ -32,7 +32,7 @@ public class PhysicalTableScan extends TableScan implements PhysicalRel {
     //private final Class elementType;
 
     /**
-     * Creates an PhysicalTableScan.
+     * Creates a PhysicalTableScan.
      *
      * <p>Use {@link #create} unless you know what you are doing.
      */
@@ -44,7 +44,7 @@ public class PhysicalTableScan extends TableScan implements PhysicalRel {
     }
 
     /**
-     * Creates an PhysicalTableScan.
+     * Creates a PhysicalTableScan.
      */
     public static PhysicalTableScan create(RelOptCluster cluster,
                                            RelOptTable relOptTable) {
