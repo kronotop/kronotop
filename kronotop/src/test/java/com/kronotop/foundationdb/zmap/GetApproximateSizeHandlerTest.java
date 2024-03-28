@@ -61,7 +61,7 @@ public class GetApproximateSizeHandlerTest extends BaseHandlerTest {
         // GETAPPROXIMATESIZE
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.getapproximatesize().encode(buf);
+            cmd.getApproximateSize().encode(buf);
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
             assertInstanceOf(IntegerRedisMessage.class, response);

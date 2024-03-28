@@ -51,7 +51,7 @@ public interface KronotopCommands<K, V> {
 
     String zset(K key, V value);
 
-    V zget(String namespace, K key);
+    V zget(K key);
 
     String zdel(K key);
 
@@ -67,11 +67,11 @@ public interface KronotopCommands<K, V> {
 
     String zmutate(K key, V param, ZMutateArgs args);
 
-    Long zgetrangesize(String namespace, ZGetRangeSizeArgs args);
+    Long zgetRangeSize(String namespace, ZGetRangeSizeArgs args);
 
-    Long getapproximatesize();
+    Long getApproximateSize();
 
-    Long getreadversion();
+    Long getReadVersion();
 
-    List<Object> sql(String... queries);
+    List<Object> sql(SqlArgs args);
 }

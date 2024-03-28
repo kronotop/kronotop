@@ -67,10 +67,9 @@
 
         <dependency>
             <groupId>com.kronotop</groupId>
-            <artifactId>kronotop-protocol</artifactId>
+            <artifactId>kronotop-client</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
-
         <!-- https://mvnrepository.com/artifact/org.foundationdb/fdb-java -->
         <dependency>
             <groupId>org.foundationdb</groupId>

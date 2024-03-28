@@ -35,7 +35,7 @@ public class SqlArgs {
         return this;
     }
 
-    public <K, V> void build(CommandArgs<K, V> args) {
+    protected  <K, V> void build(CommandArgs<K, V> args) {
         if (query != null) {
             args.add(query);
         }

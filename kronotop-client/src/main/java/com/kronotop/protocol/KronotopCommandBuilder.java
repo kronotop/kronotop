@@ -181,7 +181,7 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.ZGETRANGESIZE, new IntegerOutput<>(codec), args);
     }
 
-    public Command<K, V, Long> getapproximatesize() {
+    public Command<K, V, Long> getApproximateSize() {
         return createCommand(CommandType.GETAPPROXIMATESIZE, new IntegerOutput<>(codec));
     }
 
