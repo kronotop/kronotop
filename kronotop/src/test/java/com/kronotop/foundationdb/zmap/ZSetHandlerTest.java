@@ -18,10 +18,8 @@ package com.kronotop.foundationdb.zmap;
 
 import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
-import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import io.lettuce.core.RedisClient;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -32,13 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class ZSetHandlerTest extends BaseHandlerTest {
-
-    @Test
-    public void test_ZSET_JEDIS() {
-        assertEquals(Response.OK, client.zset("my-key", "my-value"));
-        assertEquals("my-value", client.zget("my-key"));
-    }
-
     @Test
     public void test_ZSET() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);

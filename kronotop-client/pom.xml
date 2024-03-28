@@ -8,8 +8,8 @@
         <artifactId>kronotop-root</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
-    <name>Kronotop Protocol</name>
-    <description>Kronotop Protocol based on RESP</description>
+    <name>Kronotop Client</name>
+    <description>Kronotop Client based on Lettuce</description>
     <dependencies>
         <dependency>
             <groupId>io.lettuce</groupId>
