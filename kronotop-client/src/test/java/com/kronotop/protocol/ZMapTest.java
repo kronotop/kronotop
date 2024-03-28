@@ -465,7 +465,7 @@ public class ZMapTest {
     public void test_GETAPPROXIMATESIZE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.getapproximatesize().encode(buf);
+        cmd.getApproximateSize().encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);

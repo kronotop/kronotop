@@ -67,11 +67,11 @@ public interface KronotopAsyncCommands<K, V> {
 
     RedisFuture<String> zmutate(K key, V param, ZMutateArgs args);
 
-    RedisFuture<Long> zgetrangesize(ZGetRangeSizeArgs args);
+    RedisFuture<Long> zgetRangeSize(ZGetRangeSizeArgs args);
 
-    RedisFuture<Long> getapproximatesize();
+    RedisFuture<Long> getApproximateSize();
 
-    RedisFuture<Long> getreadversion();
+    RedisFuture<Long> getReadVersion();
 
     StatefulConnection<K, V> getUnderlyingConnection();
 

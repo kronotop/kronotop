@@ -24,7 +24,6 @@ import io.lettuce.core.protocol.AsyncCommand;
 import io.lettuce.core.protocol.RedisCommand;
 
 import java.util.List;
-import java.util.Map;
 
 public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsyncCommands<K, V> {
     private final KronotopCommandBuilder<K, V> commandBuilder;
@@ -146,17 +145,17 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     }
 
     @Override
-    public RedisFuture<Long> zgetrangesize(ZGetRangeSizeArgs args) {
+    public RedisFuture<Long> zgetRangeSize(ZGetRangeSizeArgs args) {
         return dispatch(commandBuilder.zgetrangesize(args));
     }
 
     @Override
-    public RedisFuture<Long> getapproximatesize() {
-        return dispatch(commandBuilder.getapproximatesize());
+    public RedisFuture<Long> getApproximateSize() {
+        return dispatch(commandBuilder.getApproximateSize());
     }
 
     @Override
-    public RedisFuture<Long> getreadversion() {
+    public RedisFuture<Long> getReadVersion() {
         return dispatch(commandBuilder.getreadversion());
     }
 

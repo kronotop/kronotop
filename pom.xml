@@ -15,7 +15,7 @@
     <modules>
         <module>kronotop</module>
         <module>kronotop-common</module>
-        <module>kronotop-protocol</module>
+        <module>kronotop-client</module>
     </modules>
 
     <developers>
