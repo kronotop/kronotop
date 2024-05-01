@@ -70,7 +70,13 @@ public class FoundationDBFactory {
         // TODO: Add network options.
         FDB fdb = FDB.selectAPIVersion(apiVersion);
         fdb.disableShutdownHook();
-        FoundationDBFactory.database = fdb.open();
+
+        if (!config.hasPath("foundationdb.clusterfile")) {
+            FoundationDBFactory.database = fdb.open();
+        } else {
+            String clusterFile = config.getString("foundationdb.clusterfile");
+            FoundationDBFactory.database = fdb.open(clusterFile);
+        }
         return database;
     }
 
