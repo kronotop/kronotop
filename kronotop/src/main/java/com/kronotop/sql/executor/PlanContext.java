@@ -141,6 +141,9 @@ public class PlanContext {
     }
 
     public Boolean getMutated() {
+        if (mutated == null) {
+            return false;
+        }
         return mutated;
     }
 

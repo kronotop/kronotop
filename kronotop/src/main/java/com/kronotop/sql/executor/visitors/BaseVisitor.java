@@ -45,7 +45,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class BaseVisitor {
-    public static final byte[] RECORD_HEADER_PREFIX = {62};
+    public static final int RECORD_HEADER_INDEX = 0;
     public static final String ID_COLUMN_NAME = "id";
 
     protected final RexLiteral ID_REXLITERAL = RexLiteral.fromJdbcString(
@@ -155,14 +155,14 @@ public class BaseVisitor {
      * @param bitSet      The BitSet indicating the fields that are set in the record.
      */
     protected void setRecordHeader(PlanContext planContext, Subspace subspace, BitSet bitSet) {
-        //                                                       |        THIS IS THE KEY       |
-        // namespace | sql | table-prefix | RECORD_HEADER_PREFIX | $VERSIONSTAMP | $USER_VERSION
+        //                                 |        THIS IS THE KEY        |
+        // namespace | sql | table-prefix | $VERSIONSTAMP | $USER_VERSION | index(always zero)
         byte[] fields = bitSet.toByteArray();
         byte[] tableVersion = planContext.getTableVersion().getBytes();
         ByteBuffer buf = ByteBuffer.allocate(tableVersion.length + fields.length);
         buf.put(tableVersion);
         buf.put(fields);
-        Tuple tuple = Tuple.from(RECORD_HEADER_PREFIX, Versionstamp.incomplete(planContext.getUserVersion()));
+        Tuple tuple = Tuple.from(Versionstamp.incomplete(planContext.getUserVersion()), RECORD_HEADER_INDEX);
 
         Transaction tr = getTransaction(planContext);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), buf.array());

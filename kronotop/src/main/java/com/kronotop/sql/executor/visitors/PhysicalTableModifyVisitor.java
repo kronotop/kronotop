@@ -95,10 +95,10 @@ public class PhysicalTableModifyVisitor extends BaseVisitor {
             if (field == null) {
                 continue;
             }
-
-            bitSet.set(index);
-            Tuple tuple = Tuple.from(Versionstamp.incomplete(userVersion), index);
-            // namespace | sql | table-prefix | $VERSIONSTAMP | $USER_VERSION | $INDEX
+            int fdbIndex = index+1;
+            bitSet.set(fdbIndex);
+            Tuple tuple = Tuple.from(Versionstamp.incomplete(userVersion), fdbIndex);
+            // namespace | sql | table-prefix | $VERSIONSTAMP | $USER_VERSION | $FDB_INDEX
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), field);
         }
 
