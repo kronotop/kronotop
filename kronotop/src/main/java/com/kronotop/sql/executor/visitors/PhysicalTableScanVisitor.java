@@ -21,12 +21,17 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.core.Context;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.sql.KronotopTable;
 import com.kronotop.sql.SqlExecutionException;
 import com.kronotop.sql.optimizer.physical.PhysicalTableScan;
 import com.kronotop.sql.executor.PlanContext;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
 
 public class PhysicalTableScanVisitor extends BaseVisitor {
 
@@ -34,28 +39,36 @@ public class PhysicalTableScanVisitor extends BaseVisitor {
         super(context);
     }
 
+    private void traverseFilters(RexCall root) {
+        for (RexNode operand : root.getOperands()) {
+            if (operand instanceof RexCall child) {
+                traverseFilters(child);
+            } else if (operand instanceof RexInputRef inputRef) {
+                System.out.println("RexInputRef " + inputRef);
+            } else if (operand instanceof RexLiteral rexLiteral) {
+                System.out.println("RexLiteral " + rexLiteral);
+            }
+        }
+    }
+
     public void visit(PlanContext planContext, PhysicalTableScan node) throws SqlExecutionException {
         Transaction tr = getTransaction(planContext);
         Namespace namespace = getNamespace(planContext);
+
         KronotopTable kronotopTable = getLatestKronotopTable(planContext, node);
 
         KronotopTable table = node.getTable().unwrap(KronotopTable.class);
         assert table != null;
 
-        //System.out.println(table.getFilter());
-        //System.out.println(table.getProjects());
-        //System.out.println(node.getRowType().getFieldList().get(0).getIndex());
-
         // namespace | sql | table-prefix | RECORD_HEADER_PREFIX
         Subspace subspace = namespace.getSql().subspace(Tuple.fromBytes(kronotopTable.getPrefix()));
 
         // Casting 'RECORD_HEADER_PREFIX' to 'Object' is not redundant
-        AsyncIterable<KeyValue> iterator = tr.getRange(subspace.range(Tuple.from((Object) RECORD_HEADER_PREFIX)));
+        /*AsyncIterable<KeyValue> iterator = tr.getRange(subspace.range(Tuple.from((Object) RECORD_HEADER_PREFIX)));
         for (KeyValue keyValue : iterator) {
-            System.out.println(keyValue.getValue());
-            System.out.println(Tuple.fromBytes(keyValue.getKey()));
-            //System.out.println(new String(keyValue.getKey()));
-            //System.out.println(new String(keyValue.getValue()));
-        }
+            Tuple fdbKey = Tuple.fromBytes(keyValue.getKey());
+            Versionstamp kronotopKey = (Versionstamp) fdbKey.get(fdbKey.size()-1);
+            byte[] recordHeaderBytes = keyValue.getValue();
+        }*/
     }
 }
