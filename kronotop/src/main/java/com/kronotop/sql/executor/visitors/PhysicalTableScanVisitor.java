@@ -16,59 +16,109 @@
 
 package com.kronotop.sql.executor.visitors;
 
+import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.subspace.Subspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.core.Context;
 import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.server.resp3.IntegerRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.sql.KronotopTable;
 import com.kronotop.sql.SqlExecutionException;
-import com.kronotop.sql.optimizer.physical.PhysicalTableScan;
+import com.kronotop.sql.ddl.model.ColumnModel;
 import com.kronotop.sql.executor.PlanContext;
+import com.kronotop.sql.metadata.*;
+import com.kronotop.sql.optimizer.physical.PhysicalTableScan;
+import com.kronotop.sql.serialization.IntegerSerializer;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.*;
 
 public class PhysicalTableScanVisitor extends BaseVisitor {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PhysicalTableScanVisitor.class);
 
     public PhysicalTableScanVisitor(Context context) {
         super(context);
     }
 
-    private void traverseFilters(RexCall root) {
-        for (RexNode operand : root.getOperands()) {
-            if (operand instanceof RexCall child) {
-                traverseFilters(child);
-            } else if (operand instanceof RexInputRef inputRef) {
-                System.out.println("RexInputRef " + inputRef);
-            } else if (operand instanceof RexLiteral rexLiteral) {
-                System.out.println("RexLiteral " + rexLiteral);
-            }
+    private KronotopTable getVersionedTable(String schema, String table, String version) throws TableNotExistsException, SchemaNotExistsException, TableVersionNotExistsException {
+        SqlMetadataService sqlMetadataService = context.getService(SqlMetadataService.NAME);
+        VersionedTableMetadata versionedTableMetadata = sqlMetadataService.findVersionedTableMetadata(schema, table);
+        KronotopTable versionedTable = versionedTableMetadata.get(version);
+        if (versionedTable == null) {
+            throw new TableVersionNotExistsException(table, version);
         }
+        return versionedTable;
     }
 
     public void visit(PlanContext planContext, PhysicalTableScan node) throws SqlExecutionException {
         Transaction tr = getTransaction(planContext);
         Namespace namespace = getNamespace(planContext);
 
-        KronotopTable kronotopTable = getLatestKronotopTable(planContext, node);
-
         KronotopTable table = node.getTable().unwrap(KronotopTable.class);
         assert table != null;
 
-        // namespace | sql | table-prefix | RECORD_HEADER_PREFIX
-        Subspace subspace = namespace.getSql().subspace(Tuple.fromBytes(kronotopTable.getPrefix()));
+        // namespace | sql | table-prefix
+        Subspace subspace = namespace.getSql().subspace(Tuple.fromBytes(table.getPrefix()));
 
-        // Casting 'RECORD_HEADER_PREFIX' to 'Object' is not redundant
-        /*AsyncIterable<KeyValue> iterator = tr.getRange(subspace.range(Tuple.from((Object) RECORD_HEADER_PREFIX)));
+        // Prepare the key selectors: query boundaries.
+        KeySelector begin = KeySelector.firstGreaterOrEqual(subspace.pack());
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(subspace.pack()));
+
+        Versionstamp currentKey = null;
+        KronotopTable currentTable = null;
+        AsyncIterable<KeyValue> iterator = tr.getRange(begin, end);
         for (KeyValue keyValue : iterator) {
             Tuple fdbKey = Tuple.fromBytes(keyValue.getKey());
-            Versionstamp kronotopKey = (Versionstamp) fdbKey.get(fdbKey.size()-1);
-            byte[] recordHeaderBytes = keyValue.getValue();
-        }*/
+
+            if (fdbKey.getItems().size() != 5) {
+                throw new SqlExecutionException("Key has wrong size: " + fdbKey.getItems().size());
+            }
+
+            long fdbIndex = (long) fdbKey.getItems().get(4);
+
+            if (fdbIndex == 0) {
+                currentKey = (Versionstamp) fdbKey.getItems().get(3);
+                String tableVersion = new String(keyValue.getValue());
+                try {
+                    currentTable = getVersionedTable(table.getSchema(), table.getName(), tableVersion);
+                } catch (TableNotExistsException | SchemaNotExistsException | TableVersionNotExistsException e) {
+                    LOGGER.error("Failed to get versioned table", e);
+                    throw new SqlExecutionException("Invalid table entry: " + e.getMessage());
+                }
+                continue;
+            }
+
+            Map<RedisMessage, RedisMessage> row = new HashMap<>();
+            if (fdbIndex >= 1) {
+                Objects.requireNonNull(currentKey);
+                Objects.requireNonNull(currentTable);
+                List<ColumnModel> columns = currentTable.getTableModel().getColumnList();
+                ColumnModel column = columns.get((int) fdbIndex - 1);
+
+                RedisMessage name = new SimpleStringRedisMessage(column.getName());
+                RedisMessage value = null;
+                switch (column.getDataType()) {
+                    case SqlTypeName.VARCHAR -> value = new SimpleStringRedisMessage(new String(keyValue.getValue()));
+                    case SqlTypeName.INTEGER ->
+                            value = new IntegerRedisMessage(IntegerSerializer.deserialize(keyValue.getValue()));
+                }
+                row.put(name, value);
+            }
+            planContext.getResponse().add(new MapRedisMessage(row));
+        }
     }
 }

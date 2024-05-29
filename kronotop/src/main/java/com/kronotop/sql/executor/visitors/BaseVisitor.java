@@ -155,16 +155,17 @@ public class BaseVisitor {
      * @param bitSet      The BitSet indicating the fields that are set in the record.
      */
     protected void setRecordHeader(PlanContext planContext, Subspace subspace, BitSet bitSet) {
+        // TODO: This will be removed
         //                                 |        THIS IS THE KEY        |
         // namespace | sql | table-prefix | $VERSIONSTAMP | $USER_VERSION | index(always zero)
-        byte[] fields = bitSet.toByteArray();
+        //byte[] fields = bitSet.toByteArray();
         byte[] tableVersion = planContext.getTableVersion().getBytes();
-        ByteBuffer buf = ByteBuffer.allocate(tableVersion.length + fields.length);
-        buf.put(tableVersion);
-        buf.put(fields);
+        //ByteBuffer buf = ByteBuffer.allocate(tableVersion.length + fields.length);
+        //buf.put(tableVersion);
+        //buf.put(fields);
         Tuple tuple = Tuple.from(Versionstamp.incomplete(planContext.getUserVersion()), RECORD_HEADER_INDEX);
 
         Transaction tr = getTransaction(planContext);
-        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), buf.array());
+        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), tableVersion);
     }
 }

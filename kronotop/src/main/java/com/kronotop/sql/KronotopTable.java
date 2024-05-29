@@ -21,6 +21,7 @@ import com.kronotop.sql.ddl.model.TableModel;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.type.*;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.schema.Statistic;
@@ -167,7 +168,7 @@ public class KronotopTable extends AbstractTable {
             final ColumnModel columnModel = tableModel.getColumnList().get(iColumn);
 
             if (columnModel.getName().equals(IDStoredColumn.name())) {
-                return rexBuilder.makeLiteral("", relDataTypeField.getType(), false);
+                return rexBuilder.makeLiteral(null, relDataTypeField.getType(), false);
             }
 
             Object value = null;

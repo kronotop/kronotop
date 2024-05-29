@@ -59,7 +59,7 @@ public class PhysicalCalcVisitor extends BaseVisitor {
                 // Missing NOT NULL field. Check the name.
                 if (outputField.getName().equals(ID_COLUMN_NAME)) {
                     for (Row<RexLiteral> row : planContext.getRexLiterals()) {
-                        row.put(outputField.getName(), outputIndex, ID_REXLITERAL);
+                        row.put(outputField.getName(), outputIndex, null);
                     }
                     continue;
                 }

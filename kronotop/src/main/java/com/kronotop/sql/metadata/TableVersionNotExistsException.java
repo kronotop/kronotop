@@ -14,17 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.sql.executor;
+package com.kronotop.sql.metadata;
 
-import org.junit.jupiter.api.Test;
-
-public class SelectIntegrationTest extends BasePlanIntegrationTest {
-    @Test
-    public void test_SELECT() {
-        executeSQLQuery("CREATE TABLE users (age INTEGER, username VARCHAR)");
-        awaitSchemaMetadataForTable(DEFAULT_SCHEMA, "users");
-
-        executeSQLQuery("INSERT INTO users (age, username) VALUES(35, 'buraksezer')");
-        executeSQLQuery("SELECT * FROM users");
+/**
+ * Exception thrown when a table does not exist in the database.
+ */
+public class TableVersionNotExistsException extends Exception {
+    public TableVersionNotExistsException(String table, String version) {
+        super(String.format("Table '%s' with version '%s' not exists", table, version));
     }
 }

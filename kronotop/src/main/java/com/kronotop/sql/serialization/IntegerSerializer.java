@@ -27,4 +27,17 @@ public class IntegerSerializer {
                 data.byteValue()
         };
     }
+
+    public static Integer deserialize(@Nonnull byte[] data) {
+        if (data.length != 4) {
+            throw new RuntimeException("Size of data received by IntegerDeserializer is not 4");
+        }
+
+        int value = 0;
+        for (byte b : data) {
+            value <<= 8;
+            value |= b & 0xFF;
+        }
+        return value;
+    }
 }

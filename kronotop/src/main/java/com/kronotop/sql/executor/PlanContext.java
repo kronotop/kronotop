@@ -20,6 +20,8 @@ package com.kronotop.sql.executor;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.sql.KronotopTable;
 import com.kronotop.sql.protocol.SqlMessage;
 import io.netty.channel.ChannelHandlerContext;
@@ -29,6 +31,7 @@ import org.apache.calcite.rex.RexLiteral;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -40,6 +43,7 @@ public class PlanContext {
 
     // Plan execution state
     private final List<Row<RexLiteral>> rexLiterals = new ArrayList<>();
+    private final List<RedisMessage> response = new ArrayList<>();
     private RelOptTable table;
     private Transaction transaction;
     private Namespace namespace;
@@ -52,6 +56,10 @@ public class PlanContext {
     public PlanContext(ChannelHandlerContext channelContext, SqlMessage sqlMessage) {
         this.channelContext = channelContext;
         this.sqlMessage = sqlMessage;
+    }
+
+    public List<RedisMessage> getResponse() {
+        return response;
     }
 
     public ChannelHandlerContext getChannelContext() {

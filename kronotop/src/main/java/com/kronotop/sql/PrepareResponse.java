@@ -36,11 +36,6 @@ public class PrepareResponse {
                 if (!planContext.getSqlMessage().getReturning().contains(field.getName())) {
                     continue;
                 }
-                RexLiteral rexLiteral = row.get(field.getName());
-                if (rexLiteral == null) {
-                    children.put(new SimpleStringRedisMessage(field.getName()), NullRedisMessage.INSTANCE);
-                    continue;
-                }
 
                 if (field.getName().equals("id")) {
                     if (TransactionUtils.getAutoCommit(planContext.getChannelContext())) {
@@ -59,6 +54,12 @@ public class PrepareResponse {
                         buf.writeBytes(String.format("$%d", currentUserVersion).getBytes());
                         children.put(new SimpleStringRedisMessage(field.getName()), new FullBulkStringRedisMessage(buf));
                     }
+                    continue;
+                }
+
+                RexLiteral rexLiteral = row.get(field.getName());
+                if (rexLiteral == null) {
+                    children.put(new SimpleStringRedisMessage(field.getName()), NullRedisMessage.INSTANCE);
                     continue;
                 }
 
@@ -91,7 +92,10 @@ public class PrepareResponse {
             return prepareMutationResponse(planContext);
         }
 
-        // For everything else!
-        return new SimpleStringRedisMessage(Response.OK);
+        if (planContext.getResponse().isEmpty()) {
+            return new SimpleStringRedisMessage(Response.OK);
+        }
+
+        return new ArrayRedisMessage(planContext.getResponse());
     }
 }

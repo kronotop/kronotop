@@ -37,7 +37,6 @@ import java.util.BitSet;
 import java.util.List;
 
 public class PhysicalTableModifyVisitor extends BaseVisitor {
-
     public PhysicalTableModifyVisitor(Context context) {
         super(context);
     }
@@ -48,6 +47,7 @@ public class PhysicalTableModifyVisitor extends BaseVisitor {
         for (RelDataTypeField field : node.getTable().getRowType().getFieldList()) {
             RexLiteral rexLiteral = row.get(field.getName());
             if (rexLiteral == null) {
+                // It could be a computed field such as ID or created_at.
                 encodedRow.add(null);
                 continue;
             }
@@ -95,7 +95,7 @@ public class PhysicalTableModifyVisitor extends BaseVisitor {
             if (field == null) {
                 continue;
             }
-            int fdbIndex = index+1;
+            int fdbIndex = index + 1;
             bitSet.set(fdbIndex);
             Tuple tuple = Tuple.from(Versionstamp.incomplete(userVersion), fdbIndex);
             // namespace | sql | table-prefix | $VERSIONSTAMP | $USER_VERSION | $FDB_INDEX
