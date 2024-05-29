@@ -147,24 +147,16 @@ public class BaseVisitor {
     }
 
     /**
-     * Sets the record header for a given PlanContext, Subspace, and BitSet.
-     * The record header is calculated based on the provided BitSet and other metadata from the PlanContext object.
+     * Sets the record header for a given PlanContext and Subspace.
      *
      * @param planContext The PlanContext object containing the execution executor context.
-     * @param subspace    The Subspace representing the table subspace.
-     * @param bitSet      The BitSet indicating the fields that are set in the record.
+     * @param subspace The Subspace representing the table subspace.
      */
-    protected void setRecordHeader(PlanContext planContext, Subspace subspace, BitSet bitSet) {
-        // TODO: This will be removed
+    protected void setRecordHeader(PlanContext planContext, Subspace subspace) {
         //                                 |        THIS IS THE KEY        |
         // namespace | sql | table-prefix | $VERSIONSTAMP | $USER_VERSION | index(always zero)
-        //byte[] fields = bitSet.toByteArray();
         byte[] tableVersion = planContext.getTableVersion().getBytes();
-        //ByteBuffer buf = ByteBuffer.allocate(tableVersion.length + fields.length);
-        //buf.put(tableVersion);
-        //buf.put(fields);
         Tuple tuple = Tuple.from(Versionstamp.incomplete(planContext.getUserVersion()), RECORD_HEADER_INDEX);
-
         Transaction tr = getTransaction(planContext);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), tableVersion);
     }

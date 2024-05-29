@@ -33,7 +33,6 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexLiteral;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.List;
 
 public class PhysicalTableModifyVisitor extends BaseVisitor {
@@ -80,13 +79,13 @@ public class PhysicalTableModifyVisitor extends BaseVisitor {
         // namespace | sql | table-prefix |
         Subspace subspace = openTableSubspace(planContext, namespace);
 
-        BitSet bitSet = new BitSet();
         for (int index = 0; index < encodedRow.size(); index++) {
             byte[] field = encodedRow.get(index);
             if (field == null) {
                 // ID is a computed and stored field.
                 RelDataTypeField dataTypeField = node.getTable().getRowType().getFieldList().get(index);
-                if (dataTypeField.getName().equals("id")) {
+                if (dataTypeField.getName().equals(ID_COLUMN_NAME)) {
+                    // TODO: This will be removed
                     field = new byte[0];
                 }
             }
@@ -96,13 +95,12 @@ public class PhysicalTableModifyVisitor extends BaseVisitor {
                 continue;
             }
             int fdbIndex = index + 1;
-            bitSet.set(fdbIndex);
             Tuple tuple = Tuple.from(Versionstamp.incomplete(userVersion), fdbIndex);
             // namespace | sql | table-prefix | $VERSIONSTAMP | $USER_VERSION | $FDB_INDEX
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), field);
         }
 
-        setRecordHeader(planContext, subspace, bitSet);
+        setRecordHeader(planContext, subspace);
     }
 
     public void visit(PlanContext planContext, PhysicalTableModify node) throws SqlExecutionException {
