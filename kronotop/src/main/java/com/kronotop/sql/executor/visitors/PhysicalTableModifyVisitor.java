@@ -82,11 +82,11 @@ public class PhysicalTableModifyVisitor extends BaseVisitor {
         for (int index = 0; index < encodedRow.size(); index++) {
             byte[] field = encodedRow.get(index);
             if (field == null) {
-                // ID is a computed and stored field.
+                // This could ID, created_at or a similar field.
                 RelDataTypeField dataTypeField = node.getTable().getRowType().getFieldList().get(index);
                 if (dataTypeField.getName().equals(ID_COLUMN_NAME)) {
-                    // TODO: This will be removed
-                    field = new byte[0];
+                    // We don't want to spend a storage space for ID, it is a computed field.
+                    continue;
                 }
             }
 

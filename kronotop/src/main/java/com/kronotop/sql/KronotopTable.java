@@ -21,7 +21,6 @@ import com.kronotop.sql.ddl.model.TableModel;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.type.*;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.schema.Statistic;
@@ -41,8 +40,8 @@ import java.util.List;
  * It extends the AbstractTable class and implements the ScannableTable interface.
  */
 public class KronotopTable extends AbstractTable {
-    // ID column is computed and stored. You cannot insert into it.
-    public static StoredColumn IDStoredColumn = new StoredColumn("id", SqlTypeName.VARCHAR, ColumnStrategy.STORED);
+    // ID column is computed and not stored. You cannot insert into it.
+    public static ColumnDefinition IDColumn = new ColumnDefinition("id", SqlTypeName.VARCHAR, ColumnStrategy.VIRTUAL);
     private final byte[] prefix;
     private final TableModel tableModel;
     private final KronotopTableStatistic statistic;
@@ -130,9 +129,15 @@ public class KronotopTable extends AbstractTable {
             int index = 0;
             for (ColumnModel columnModel : tableModel.getColumnList()) {
                 RelDataType fieldType = typeFactory.createSqlType(columnModel.getDataType());
-                if (columnModel.getStrategy() == ColumnStrategy.NULLABLE) {
+                if (columnModel.getStrategy().equals(ColumnStrategy.NULLABLE)) {
                     fieldType = typeFactory.createTypeWithNullability(fieldType, true);
                 }
+
+                // TODO: This is a workaround for the ID field.
+                if (columnModel.getStrategy().equals(ColumnStrategy.VIRTUAL)) {
+                    fieldType = typeFactory.createTypeWithNullability(fieldType, true);
+                }
+
                 RelDataTypeField field = new RelDataTypeFieldImpl(columnModel.getName(), index, fieldType);
                 fields.add(field);
                 index++;
@@ -167,14 +172,14 @@ public class KronotopTable extends AbstractTable {
             final RexBuilder rexBuilder = context.getRexBuilder();
             final ColumnModel columnModel = tableModel.getColumnList().get(iColumn);
 
-            if (columnModel.getName().equals(IDStoredColumn.name())) {
+            if (columnModel.getName().equals(IDColumn.name())) {
                 return rexBuilder.makeLiteral(null, relDataTypeField.getType(), false);
             }
 
             Object value = null;
             switch (relDataTypeField.getType().getSqlTypeName()) {
                 case INTEGER -> value = Integer.parseInt(columnModel.getExpression());
-                case SMALLINT ->  value = Short.parseShort(columnModel.getExpression());
+                case SMALLINT -> value = Short.parseShort(columnModel.getExpression());
                 case TINYINT -> value = Byte.valueOf(columnModel.getExpression());
                 case VARCHAR, CHAR -> value = columnModel.getExpression();
             }
@@ -187,6 +192,6 @@ public class KronotopTable extends AbstractTable {
         }
     }
 
-    public record StoredColumn(String name, SqlTypeName sqlTypeName, ColumnStrategy columnStrategy) {
+    public record ColumnDefinition(String name, SqlTypeName sqlTypeName, ColumnStrategy columnStrategy) {
     }
 }

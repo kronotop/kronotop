@@ -88,16 +88,16 @@ public class CreateTable extends FoundationDBBackend implements StatementExecuto
 
         // Create the stored ID column first.
         ColumnModel idColumn = new ColumnModel();
-        idColumn.setName(KronotopTable.IDStoredColumn.name());
-        idColumn.setStrategy(KronotopTable.IDStoredColumn.columnStrategy());
-        idColumn.setDataType(KronotopTable.IDStoredColumn.sqlTypeName());
+        idColumn.setName(KronotopTable.IDColumn.name());
+        idColumn.setStrategy(KronotopTable.IDColumn.columnStrategy());
+        idColumn.setDataType(KronotopTable.IDColumn.sqlTypeName());
         columnList.add(idColumn);
 
         for (int i = 0; i < Objects.requireNonNull(sqlCreateTable.columnList).size(); i++) {
             SqlNode sqlNode = sqlCreateTable.columnList.get(i);
             SqlColumnDeclaration column = (SqlColumnDeclaration) sqlNode;
 
-            if (column.name.getSimple().equals(KronotopTable.IDStoredColumn.name())) {
+            if (column.name.getSimple().equals(KronotopTable.IDColumn.name())) {
                 throw new SqlExecutionException("Cannot CREATE generated column 'id'");
             }
 

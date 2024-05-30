@@ -48,11 +48,6 @@ public class BaseVisitor {
     public static final int RECORD_HEADER_INDEX = 0;
     public static final String ID_COLUMN_NAME = "id";
 
-    protected final RexLiteral ID_REXLITERAL = RexLiteral.fromJdbcString(
-            new SqlTypeFactoryImpl(RelDataTypeSystemImpl.DEFAULT).createSqlType(SqlTypeName.CHAR),
-            SqlTypeName.CHAR, ID_COLUMN_NAME
-    );
-
     protected Context context;
     protected SqlMetadataService sqlMetadata;
 

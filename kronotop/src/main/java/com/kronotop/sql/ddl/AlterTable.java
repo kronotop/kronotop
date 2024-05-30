@@ -81,7 +81,7 @@ public class AlterTable extends FoundationDBBackend implements StatementExecutor
         }
     }
 
-    private void checkVirtualColumn(SqlIdentifier sqlIdentifier, KronotopTable.StoredColumn virtualColumn) throws SqlExecutionException {
+    private void checkVirtualColumn(SqlIdentifier sqlIdentifier, KronotopTable.ColumnDefinition virtualColumn) throws SqlExecutionException {
         if (virtualColumn.name().equals(sqlIdentifier.getSimple())) {
             throw new SqlExecutionException(String.format("Cannot ALTER generated column '%s'", virtualColumn.name()));
         }
@@ -95,13 +95,13 @@ public class AlterTable extends FoundationDBBackend implements StatementExecutor
             assert sqlAlterTable.columnList != null;
             for (SqlNode column : sqlAlterTable.columnList.getList()) {
                 if (column instanceof SqlIdentifier sqlIdentifier) {
-                    checkVirtualColumn(sqlIdentifier, KronotopTable.IDStoredColumn);
+                    checkVirtualColumn(sqlIdentifier, KronotopTable.IDColumn);
                 } else if (column instanceof SqlColumnDeclaration sqlColumnDeclaration) {
-                    checkVirtualColumn(sqlColumnDeclaration.name, KronotopTable.IDStoredColumn);
+                    checkVirtualColumn(sqlColumnDeclaration.name, KronotopTable.IDColumn);
                 }
             }
         } else if (sqlAlterTable.alterType == SqlAlterTable.AlterType.RENAME_COLUMN) {
-            checkVirtualColumn(sqlAlterTable.columnName, KronotopTable.IDStoredColumn);
+            checkVirtualColumn(sqlAlterTable.columnName, KronotopTable.IDColumn);
         }
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), context.getRequest().getChannelContext());

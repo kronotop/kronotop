@@ -25,6 +25,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.core.Context;
+import com.kronotop.core.VersionstampUtils;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
@@ -37,15 +38,14 @@ import com.kronotop.sql.executor.PlanContext;
 import com.kronotop.sql.metadata.*;
 import com.kronotop.sql.optimizer.physical.PhysicalTableScan;
 import com.kronotop.sql.serialization.IntegerSerializer;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class PhysicalTableScanVisitor extends BaseVisitor {
     private static final Logger LOGGER = LoggerFactory.getLogger(PhysicalTableScanVisitor.class);
@@ -80,6 +80,7 @@ public class PhysicalTableScanVisitor extends BaseVisitor {
 
         Versionstamp currentKey = null;
         KronotopTable currentTable = null;
+        Map<RedisMessage, RedisMessage> row = new HashMap<>();
         AsyncIterable<KeyValue> iterator = tr.getRange(begin, end);
         for (KeyValue keyValue : iterator) {
             Tuple fdbKey = Tuple.fromBytes(keyValue.getKey());
@@ -91,6 +92,8 @@ public class PhysicalTableScanVisitor extends BaseVisitor {
             long fdbIndex = (long) fdbKey.getItems().get(4);
 
             if (fdbIndex == 0) {
+                planContext.getResponse().add(new MapRedisMessage(row));
+                row = new HashMap<>();
                 currentKey = (Versionstamp) fdbKey.getItems().get(3);
                 String tableVersion = new String(keyValue.getValue());
                 try {
@@ -99,10 +102,13 @@ public class PhysicalTableScanVisitor extends BaseVisitor {
                     LOGGER.error("Failed to get versioned table", e);
                     throw new SqlExecutionException("Invalid table entry: " + e.getMessage());
                 }
+                row.put(
+                        new SimpleStringRedisMessage("id"),
+                        new SimpleStringRedisMessage(VersionstampUtils.base64Encode(currentKey))
+                );
                 continue;
             }
 
-            Map<RedisMessage, RedisMessage> row = new HashMap<>();
             if (fdbIndex >= 1) {
                 Objects.requireNonNull(currentKey);
                 Objects.requireNonNull(currentTable);
@@ -118,7 +124,6 @@ public class PhysicalTableScanVisitor extends BaseVisitor {
                 }
                 row.put(name, value);
             }
-            planContext.getResponse().add(new MapRedisMessage(row));
         }
     }
 }
