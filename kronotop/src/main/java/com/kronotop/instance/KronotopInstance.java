@@ -30,8 +30,6 @@ import com.kronotop.core.watcher.Watcher;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.redis.RedisService;
 import com.kronotop.server.Handlers;
-import com.kronotop.sql.SqlService;
-import com.kronotop.sql.metadata.SqlMetadataService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.slf4j.Logger;
@@ -112,13 +110,6 @@ public class KronotopInstance {
         RedisService redisService = new RedisService(context, handlers);
         context.registerService(RedisService.NAME, redisService);
         redisService.start();
-
-        SqlMetadataService sqlMetadataService = new SqlMetadataService(context);
-        context.registerService(SqlMetadataService.NAME, sqlMetadataService);
-        sqlMetadataService.start();
-
-        SqlService sqlService = new SqlService(context, handlers);
-        context.registerService(SqlService.NAME, sqlService);
     }
 
     /**

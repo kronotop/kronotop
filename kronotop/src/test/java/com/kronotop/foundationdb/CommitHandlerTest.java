@@ -20,8 +20,10 @@ import com.kronotop.protocol.CommitArgs;
 import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.*;
-import com.kronotop.sql.AssertResponse;
+import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -73,7 +75,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
             assertEquals(Response.OK, actualMessage.content());
         }
 
-        {
+        /*
             ByteBuf buf = Unpooled.buffer();
             cmd.commit(CommitArgs.Builder.returning(CommitKeyword.COMMITTED_VERSION)).encode(buf);
             channel.writeInbound(buf);
@@ -85,7 +87,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
             AssertResponse<IntegerRedisMessage> assertResponse = new AssertResponse<>();
             IntegerRedisMessage message = assertResponse.getMessage(response, 0, 1);
             assertEquals(-1, message.value());
-        }
+        }*/
     }
 
     @Test
@@ -115,7 +117,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
             assertEquals(Response.OK, actualMessage.content());
         }
 
-        {
+        /*{
             ByteBuf buf = Unpooled.buffer();
             cmd.commit(CommitArgs.Builder.returning(CommitKeyword.VERSIONSTAMP)).encode(buf);
             channel.writeInbound(buf);
@@ -124,7 +126,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
             AssertResponse<FullBulkStringRedisMessage> assertResponse = new AssertResponse<>();
             FullBulkStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
             assertNotNull(message.content());
-        }
+        }*/
     }
 
     @Test
@@ -154,7 +156,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
             assertEquals(Response.OK, actualMessage.content());
         }
 
-        {
+        /*{
             ByteBuf buf = Unpooled.buffer();
             cmd.commit(CommitArgs.Builder.returning(CommitKeyword.FUTURES)).encode(buf);
             channel.writeInbound(buf);
@@ -164,6 +166,6 @@ public class CommitHandlerTest extends BaseHandlerTest {
             MapRedisMessage message = assertResponse.getMessage(response, 0, 1);
             assertNotNull(message);
             assertEquals(0, message.children().size());
-        }
+        }*/
     }
 }

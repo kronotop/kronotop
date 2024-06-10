@@ -72,6 +72,4 @@ public interface KronotopCommands<K, V> {
     Long getApproximateSize();
 
     Long getReadVersion();
-
-    List<Object> sql(SqlArgs args);
 }

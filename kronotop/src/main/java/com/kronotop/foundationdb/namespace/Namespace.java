@@ -28,18 +28,15 @@ import javax.annotation.Nonnull;
  */
 public class Namespace {
     private static final byte ZMapSubspaceMagic = 0x01;
-    private static final byte SqlSubspaceMagic = 0x02;
     private final String name;
     private final DirectorySubspace root;
     private final Subspace zmap;
-    private final Subspace sql;
     private long lastAccess;
 
     public Namespace(@Nonnull String name, @Nonnull DirectorySubspace root) {
         this.name = name;
         this.root = root;
         this.zmap = root.subspace(Tuple.from(ZMapSubspaceMagic));
-        this.sql = root.subspace(Tuple.from(SqlSubspaceMagic));
         updateLastAccess();
     }
 
@@ -66,18 +63,6 @@ public class Namespace {
     public DirectorySubspace getRoot() {
         updateLastAccess();
         return root;
-    }
-
-    /**
-     * Returns the SQL subspace associated with the namespace.
-     * <p>
-     * This method updates the last access time and returns the Zmap subspace.
-     *
-     * @return The SQL subspace.
-     */
-    public Subspace getSql() {
-        updateLastAccess();
-        return sql;
     }
 
     /**

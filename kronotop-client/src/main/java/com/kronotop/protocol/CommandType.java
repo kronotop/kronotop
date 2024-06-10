@@ -37,8 +37,7 @@ public enum CommandType implements ProtocolKeyword {
     ZMUTATE,
     ZGETRANGESIZE,
     GETAPPROXIMATESIZE,
-    GETREADVERSION,
-    SQL;
+    GETREADVERSION;
 
     public final byte[] bytes;
 

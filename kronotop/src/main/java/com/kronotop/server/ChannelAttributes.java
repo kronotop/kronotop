@@ -58,5 +58,4 @@ public class ChannelAttributes {
 
     public static final AttributeKey<Long> CLIENT_ID = AttributeKey.valueOf("client_id");
 
-    public static final AttributeKey<String> SCHEMA = AttributeKey.valueOf("schema");
 }

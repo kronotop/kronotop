@@ -89,11 +89,6 @@ public class DirectoryLayout {
         return this;
     }
 
-    public DirectoryLayout sql() {
-        items.add("sql");
-        return this;
-    }
-
     public DirectoryLayout metadata() {
         items.add("metadata");
         return this;
@@ -180,10 +175,6 @@ public class DirectoryLayout {
 
         public static DirectoryLayout journals() {
             return new DirectoryLayout().journals();
-        }
-
-        public static DirectoryLayout sql() {
-            return new DirectoryLayout().sql();
         }
 
         public static DirectoryLayout metadata() {

@@ -74,6 +74,4 @@ public interface KronotopAsyncCommands<K, V> {
     RedisFuture<Long> getReadVersion();
 
     StatefulConnection<K, V> getUnderlyingConnection();
-
-    RedisFuture<List<KeyValue<K, V>>> sql(SqlArgs args);
 }

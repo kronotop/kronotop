@@ -188,10 +188,4 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
     public Command<K, V, Long> getreadversion() {
         return createCommand(CommandType.GETREADVERSION, new IntegerOutput<>(codec));
     }
-
-    public Command<K, V, List<KeyValue<K, V>>> sql(SqlArgs sqlArgs) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec);
-        sqlArgs.build(args);
-        return createCommand(CommandType.SQL, new KeyValueListOutput<>(codec), args);
-    }
 }
