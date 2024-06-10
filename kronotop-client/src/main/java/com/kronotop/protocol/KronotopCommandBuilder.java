@@ -17,9 +17,11 @@
 
 package com.kronotop.protocol;
 
-import io.lettuce.core.KeyValue;
 import io.lettuce.core.codec.RedisCodec;
-import io.lettuce.core.output.*;
+import io.lettuce.core.output.ArrayOutput;
+import io.lettuce.core.output.IntegerOutput;
+import io.lettuce.core.output.StatusOutput;
+import io.lettuce.core.output.ValueOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 

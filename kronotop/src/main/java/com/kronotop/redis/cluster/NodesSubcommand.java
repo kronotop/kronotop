@@ -28,7 +28,10 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 
 class NodesSubcommand implements SubcommandExecutor {
     private final RedisService service;
@@ -47,7 +50,7 @@ class NodesSubcommand implements SubcommandExecutor {
         Long configEpoch = membershipService.getRoutingTable().getVersion();
         Map<Member, Long> latestHeartbeats = membershipService.getLatestHeartbeats(members.toArray(new Member[members.size()]));
         List<SlotRange> slotRanges = service.getSlotRanges();
-        for (SlotRange slotRange: slotRanges) {
+        for (SlotRange slotRange : slotRanges) {
             long latestHeartbeat = latestHeartbeats.get(slotRange.getOwner());
             result.add(getLine(slotRange, configEpoch, latestHeartbeat));
         }

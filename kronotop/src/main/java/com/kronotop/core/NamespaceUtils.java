@@ -53,9 +53,9 @@ public class NamespaceUtils {
      * @param channelContext the ChannelHandlerContext object representing the channel context
      * @param tr             the Transaction object representing the transaction to perform
      * @return the Namespace object representing the opened namespace
-     * @throws IllegalArgumentException   if the namespace is not specified in the channel context
-     * @throws NoSuchNamespaceException    if the specified namespace does not exist
-     * @throws KronotopException           if an exception occurs while opening the namespace
+     * @throws IllegalArgumentException if the namespace is not specified in the channel context
+     * @throws NoSuchNamespaceException if the specified namespace does not exist
+     * @throws KronotopException        if an exception occurs while opening the namespace
      */
     public static Namespace open(Context context, ChannelHandlerContext channelContext, Transaction tr) {
         String name = channelContext.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).get();

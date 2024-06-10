@@ -32,7 +32,7 @@ public class CommitArgs {
     public <K, V> void build(CommandArgs<K, V> args) {
         if (keywords != null) {
             args.add("RETURNING");
-            for (CommitKeyword keyword: keywords) {
+            for (CommitKeyword keyword : keywords) {
                 args.add(keyword);
             }
         }

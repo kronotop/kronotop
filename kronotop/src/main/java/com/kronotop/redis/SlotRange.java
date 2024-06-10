@@ -35,24 +35,20 @@ public class SlotRange {
         this.begin = begin;
     }
 
-    public void setOwner(Member owner) {
-        this.owner = owner;
-    }
-
-    public void setEnd(int end) {
-        this.end = end;
-    }
-
-    public void setShardId(int shardId) {
-        this.shardId = shardId;
-    }
-
     public Member getOwner() {
         return owner;
     }
 
+    public void setOwner(Member owner) {
+        this.owner = owner;
+    }
+
     public int getEnd() {
         return end;
+    }
+
+    public void setEnd(int end) {
+        this.end = end;
     }
 
     public int getBegin() {
@@ -61,6 +57,10 @@ public class SlotRange {
 
     public int getShardId() {
         return shardId;
+    }
+
+    public void setShardId(int shardId) {
+        this.shardId = shardId;
     }
 
     @Override

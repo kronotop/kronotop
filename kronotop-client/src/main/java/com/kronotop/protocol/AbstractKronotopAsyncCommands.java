@@ -16,7 +16,6 @@
 
 package com.kronotop.protocol;
 
-import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.codec.RedisCodec;
