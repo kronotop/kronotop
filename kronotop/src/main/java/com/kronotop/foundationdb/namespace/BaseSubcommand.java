@@ -18,7 +18,7 @@ package com.kronotop.foundationdb.namespace;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.common.utils.DirectoryLayout;
-import com.kronotop.core.Context;
+import com.kronotop.Context;
 
 import java.util.List;
 

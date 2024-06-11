@@ -17,7 +17,7 @@
 
 package com.kronotop.redis;
 
-import com.kronotop.core.cluster.Member;
+import com.kronotop.cluster.Member;
 
 /**
  * The SlotRange class represents a range of hash slots in a distributed system.

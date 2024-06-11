@@ -18,8 +18,8 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.Transaction;
-import com.kronotop.core.NamespaceUtils;
-import com.kronotop.core.TransactionUtils;
+import com.kronotop.NamespaceUtils;
+import com.kronotop.TransactionUtils;
 import com.kronotop.foundationdb.BaseHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;

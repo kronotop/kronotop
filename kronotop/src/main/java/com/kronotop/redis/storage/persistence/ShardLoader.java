@@ -23,7 +23,7 @@ import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.kronotop.core.Context;
+import com.kronotop.Context;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.Shard;

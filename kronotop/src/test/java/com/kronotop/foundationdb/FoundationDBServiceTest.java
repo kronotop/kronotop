@@ -18,12 +18,12 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Database;
 import com.kronotop.ConfigTestUtil;
-import com.kronotop.core.Context;
-import com.kronotop.core.ContextImpl;
-import com.kronotop.core.FoundationDBFactory;
-import com.kronotop.core.cluster.Member;
-import com.kronotop.core.cluster.MockProcessIdGeneratorImpl;
-import com.kronotop.core.network.Address;
+import com.kronotop.Context;
+import com.kronotop.ContextImpl;
+import com.kronotop.FoundationDBFactory;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.MockProcessIdGeneratorImpl;
+import com.kronotop.network.Address;
 import com.kronotop.server.Handlers;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;

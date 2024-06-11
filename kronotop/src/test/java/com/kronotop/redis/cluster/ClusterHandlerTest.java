@@ -17,7 +17,7 @@
 package com.kronotop.redis.cluster;
 
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.core.cluster.MembershipService;
+import com.kronotop.cluster.MembershipService;
 import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.resp3.ArrayRedisMessage;

@@ -18,7 +18,7 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
-import com.kronotop.core.TransactionUtils;
+import com.kronotop.TransactionUtils;
 import com.kronotop.foundationdb.BaseHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.ZDelPrefixMessage;

@@ -16,7 +16,7 @@
 
 package com.kronotop.server;
 
-import com.kronotop.core.Context;
+import com.kronotop.Context;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 

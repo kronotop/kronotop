@@ -16,7 +16,7 @@
 
 package com.kronotop.foundationdb.namespace;
 
-import com.kronotop.core.Context;
+import com.kronotop.Context;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.MessageTypes;

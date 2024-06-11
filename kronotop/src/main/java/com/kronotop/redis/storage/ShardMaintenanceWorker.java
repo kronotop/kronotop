@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.core.Context;
+import com.kronotop.Context;
 import com.kronotop.redis.storage.persistence.Persistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -18,7 +18,7 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.core.NamespaceUtils;
+import com.kronotop.NamespaceUtils;
 import com.kronotop.foundationdb.protocol.RollbackMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;

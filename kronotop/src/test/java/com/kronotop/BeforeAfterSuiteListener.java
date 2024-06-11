@@ -16,7 +16,7 @@
 
 package com.kronotop;
 
-import com.kronotop.core.FoundationDBFactory;
+import com.kronotop.FoundationDBFactory;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestPlan;
 

@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.cluster;
 
-import com.kronotop.core.cluster.Member;
+import com.kronotop.cluster.Member;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.SlotRange;
 import com.kronotop.server.Request;

@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.connection;
 
-import com.kronotop.core.network.clients.Client;
-import com.kronotop.core.network.clients.Clients;
+import com.kronotop.network.clients.Client;
+import com.kronotop.network.clients.Clients;
 import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redis.connection.protocol.HelloMessage;
 import com.kronotop.redistest.RedisCommandBuilder;

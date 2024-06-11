@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.server;
 
-import com.kronotop.core.commands.CommandMetadata;
-import com.kronotop.core.commands.KeySpec;
+import com.kronotop.commands.CommandMetadata;
+import com.kronotop.commands.KeySpec;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.server.protocol.CommandMessage;
 import com.kronotop.server.Handler;

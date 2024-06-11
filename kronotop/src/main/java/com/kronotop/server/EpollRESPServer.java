@@ -16,7 +16,7 @@
 
 package com.kronotop.server;
 
-import com.kronotop.core.Context;
+import com.kronotop.Context;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 

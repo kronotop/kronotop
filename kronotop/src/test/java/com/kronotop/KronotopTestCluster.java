@@ -16,7 +16,7 @@
 
 package com.kronotop;
 
-import com.kronotop.core.cluster.Member;
+import com.kronotop.cluster.Member;
 import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

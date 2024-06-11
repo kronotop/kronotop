@@ -16,10 +16,10 @@
 
 package com.kronotop.server;
 
-import com.kronotop.core.Context;
-import com.kronotop.core.KronotopService;
-import com.kronotop.core.cluster.Member;
-import com.kronotop.core.network.Address;
+import com.kronotop.Context;
+import com.kronotop.KronotopService;
+import com.kronotop.cluster.Member;
+import com.kronotop.network.Address;
 import com.kronotop.server.resp3.*;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;

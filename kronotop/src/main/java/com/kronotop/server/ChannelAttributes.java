@@ -17,7 +17,7 @@
 package com.kronotop.server;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.core.CommitHook;
+import com.kronotop.CommitHook;
 import com.kronotop.foundationdb.namespace.Namespace;
 import io.netty.util.AttributeKey;
 

@@ -18,7 +18,7 @@ package com.kronotop.redis.storage.persistence;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.core.Context;
+import com.kronotop.Context;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.TransactionSizeLimitExceeded;
