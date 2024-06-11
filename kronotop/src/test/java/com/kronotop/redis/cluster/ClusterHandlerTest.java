@@ -18,7 +18,6 @@ package com.kronotop.redis.cluster;
 
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.core.cluster.MembershipService;
-import com.kronotop.core.VersionstampUtils;
 import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -35,7 +34,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;

@@ -16,7 +16,6 @@
 
 package com.kronotop.protocol;
 
-import io.lettuce.core.KeyValue;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.codec.RedisCodec;
@@ -171,10 +170,5 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     @Override
     public StatefulConnection<K, V> getUnderlyingConnection() {
         return connection;
-    }
-
-    @Override
-    public RedisFuture<List<KeyValue<K, V>>> sql(SqlArgs args) {
-        return dispatch(commandBuilder.sql(args));
     }
 }

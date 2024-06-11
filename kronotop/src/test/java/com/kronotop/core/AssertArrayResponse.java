@@ -14,14 +14,20 @@
  * limitations under the License.
  */
 
-package com.kronotop.sql.optimizer;
+package com.kronotop.core;
 
-import org.apache.calcite.rel.RelNode;
+import com.kronotop.server.resp3.ArrayRedisMessage;
 
-import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class QueryConvertResult extends BaseOptimizerResult {
-    public QueryConvertResult(RelNode rel, List<String> fieldNames) {
-        super(rel, fieldNames);
+public class AssertArrayResponse<T> {
+
+    @SuppressWarnings("unchecked")
+    public T getMessage(Object response, int index, int size) {
+        assertInstanceOf(ArrayRedisMessage.class, response);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
+        assertEquals(size, actualMessage.children().size());
+        return (T) actualMessage.children().get(index);
     }
 }

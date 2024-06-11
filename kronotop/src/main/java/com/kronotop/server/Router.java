@@ -121,9 +121,6 @@ public class Router extends ChannelDuplexHandler {
         Attribute<Long> clientID = ctx.channel().attr(ChannelAttributes.CLIENT_ID);
         clientID.set(ClientIDGenerator.getAndIncrement());
 
-        Attribute<String> schema = ctx.channel().attr(ChannelAttributes.SCHEMA);
-        schema.set(context.getConfig().getString("sql.default_schema"));
-
         super.channelRegistered(ctx);
     }
 

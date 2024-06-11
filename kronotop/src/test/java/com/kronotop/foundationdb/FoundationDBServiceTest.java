@@ -32,8 +32,6 @@ import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 public class FoundationDBServiceTest {
     private FoundationDBService service;
     private Handlers handlers;

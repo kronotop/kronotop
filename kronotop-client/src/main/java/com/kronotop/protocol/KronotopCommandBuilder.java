@@ -17,9 +17,11 @@
 
 package com.kronotop.protocol;
 
-import io.lettuce.core.KeyValue;
 import io.lettuce.core.codec.RedisCodec;
-import io.lettuce.core.output.*;
+import io.lettuce.core.output.ArrayOutput;
+import io.lettuce.core.output.IntegerOutput;
+import io.lettuce.core.output.StatusOutput;
+import io.lettuce.core.output.ValueOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 
@@ -187,11 +189,5 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
 
     public Command<K, V, Long> getreadversion() {
         return createCommand(CommandType.GETREADVERSION, new IntegerOutput<>(codec));
-    }
-
-    public Command<K, V, List<KeyValue<K, V>>> sql(SqlArgs sqlArgs) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec);
-        sqlArgs.build(args);
-        return createCommand(CommandType.SQL, new KeyValueListOutput<>(codec), args);
     }
 }

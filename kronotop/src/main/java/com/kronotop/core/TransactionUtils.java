@@ -58,8 +58,8 @@ public class TransactionUtils {
     /**
      * Adds a post-commit hook to the specified channel context. The hook will be executed after a transaction is committed.
      *
-     * @param hook            the commit hook to be added
-     * @param channelContext  the channel context to which the hook will be added
+     * @param hook           the commit hook to be added
+     * @param channelContext the channel context to which the hook will be added
      */
     public static void addPostCommitHook(CommitHook hook, ChannelHandlerContext channelContext) {
         channelContext.channel().attr(ChannelAttributes.POST_COMMIT_HOOKS).get().add(hook);
@@ -68,8 +68,8 @@ public class TransactionUtils {
     /**
      * Commits the transaction and executes any post-commit hooks if the channel context represents a one-off transaction.
      *
-     * @param tr               the transaction to commit
-     * @param channelContext   the channel context representing the transaction
+     * @param tr             the transaction to commit
+     * @param channelContext the channel context representing the transaction
      */
     public static void commitIfAutoCommitEnabled(Transaction tr, ChannelHandlerContext channelContext) {
         if (getAutoCommit(channelContext)) {

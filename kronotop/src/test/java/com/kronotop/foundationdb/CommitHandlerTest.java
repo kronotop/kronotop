@@ -16,12 +16,12 @@
 
 package com.kronotop.foundationdb;
 
+import com.kronotop.core.AssertArrayResponse;
 import com.kronotop.protocol.CommitArgs;
 import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
-import com.kronotop.sql.AssertResponse;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -58,37 +58,6 @@ public class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_COMMIT_COMMITTED_VERSION() {
-        EmbeddedChannel channel = getChannel();
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.begin().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.commit(CommitArgs.Builder.returning(CommitKeyword.COMMITTED_VERSION)).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            // Read-only transactions do not modify the database when committed and will have a committed version of -1.
-            // Keep in mind that a transaction which reads keys and then sets them to their current values may be optimized
-            // to a read-only transaction.
-            AssertResponse<IntegerRedisMessage> assertResponse = new AssertResponse<>();
-            IntegerRedisMessage message = assertResponse.getMessage(response, 0, 1);
-            assertEquals(-1, message.value());
-        }
-    }
-
-    @Test
     public void test_COMMIT_VERSIONSTAMP() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
@@ -121,9 +90,40 @@ public class CommitHandlerTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            AssertResponse<FullBulkStringRedisMessage> assertResponse = new AssertResponse<>();
+            AssertArrayResponse<FullBulkStringRedisMessage> assertResponse = new AssertArrayResponse<>();
             FullBulkStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
             assertNotNull(message.content());
+        }
+    }
+
+    @Test
+    public void test_COMMIT_COMMITTED_VERSION() {
+        EmbeddedChannel channel = getChannel();
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.begin().encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.commit(CommitArgs.Builder.returning(CommitKeyword.COMMITTED_VERSION)).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            // Read-only transactions do not modify the database when committed and will have a committed version of -1.
+            // Keep in mind that a transaction which reads keys and then sets them to their current values may be optimized
+            // to a read-only transaction.
+            AssertArrayResponse<IntegerRedisMessage> assertResponse = new AssertArrayResponse<>();
+            IntegerRedisMessage message = assertResponse.getMessage(response, 0, 1);
+            assertEquals(-1, message.value());
         }
     }
 
@@ -160,7 +160,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            AssertResponse<MapRedisMessage> assertResponse = new AssertResponse<>();
+            AssertArrayResponse<MapRedisMessage> assertResponse = new AssertArrayResponse<>();
             MapRedisMessage message = assertResponse.getMessage(response, 0, 1);
             assertNotNull(message);
             assertEquals(0, message.children().size());
