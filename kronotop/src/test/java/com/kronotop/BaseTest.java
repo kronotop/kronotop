@@ -16,16 +16,36 @@
 
 package com.kronotop;
 
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.MockProcessIdGeneratorImpl;
+import com.kronotop.network.Address;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.net.UnknownHostException;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class BaseTest {
     @TempDir
     public File volumesRootPathTempDir;
+
+    private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
+
+
+    protected String getEphemeralTCPPort() {
+        // Ephemeral ports (49152 to 65535), as defined by the Internet Assigned Numbers Authority (IANA).
+        return Integer.toString(ThreadLocalRandom.current().nextInt(49152, 65535));
+    }
+
+    protected Member createMember(String addressString) throws UnknownHostException {
+        Versionstamp processId = processIdGenerator.getProcessID();
+        Address address = Address.parseString(addressString);
+        return new Member(address, processId);
+    }
 
     protected Config loadConfig(String resourceName) {
         System.setProperty("volumes.root_path", volumesRootPathTempDir.getAbsolutePath());

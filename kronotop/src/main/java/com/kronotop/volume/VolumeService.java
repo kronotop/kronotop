@@ -16,7 +16,6 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.common.KronotopException;
@@ -69,10 +68,9 @@ public class VolumeService implements KronotopService {
 
     @Override
     public void shutdown() {
-
     }
 
-    public Volume newVolume(DirectorySubspace subspace) {
-        return new Volume(context, subspace);
+    public Volume newVolume(VolumeConfig config) {
+        return new Volume(context, rootPath, config);
     }
 }

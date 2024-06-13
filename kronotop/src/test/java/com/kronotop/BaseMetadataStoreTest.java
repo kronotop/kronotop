@@ -20,17 +20,19 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.cluster.Member;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.net.UnknownHostException;
 import java.util.List;
 
-public class BaseFoundationDBTest {
+public class BaseMetadataStoreTest extends BaseTest {
     protected Database database;
     protected Config config;
-
+    protected Context context;
 
     protected DirectorySubspace getClusterSubspace(String name) {
         try (Transaction tr = database.createTransaction()) {
@@ -43,9 +45,12 @@ public class BaseFoundationDBTest {
     }
 
     @BeforeEach
-    public void setup() {
-        config = ConfigTestUtil.load("test.conf");
+    public void setup() throws UnknownHostException {
+        String address = String.format("localhost:[%s]", getEphemeralTCPPort());
+        Member member = createMember(address);
+        config = loadConfig("test.conf");
         database = FoundationDBFactory.newDatabase(config);
+        context = new ContextImpl(config, member, database);
     }
 
     @AfterEach

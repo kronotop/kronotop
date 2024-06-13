@@ -17,26 +17,60 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.Database;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 
+import javax.annotation.Nonnull;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Volume {
     private final Context context;
-    private final DirectorySubspace subspace;
+    private final Path rootPath;
+    private final VolumeConfig config;
+    private final Database database;
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private final List<Segment> segments = new ArrayList<>();
 
-    public Volume(Context context, DirectorySubspace subspace) {
+    protected Volume(Context context, Path rootPath, VolumeConfig volumeConfig) {
         this.context = context;
-        this.subspace = subspace;
+        this.rootPath = rootPath;
+        this.config = volumeConfig;
+        this.database = context.getFoundationDB();
     }
 
-    public List<Versionstamp> save(List<byte[]> values) {
-        // 1- Open the latest segment
-        // 2- Save the entries
-        // 3- Associate offsets and entries
-        // 4- Save metadata to FDB using version timestamps.
+    private Segment getLatestSegment(int size) {
+        try {
+            Segment latest = segments.getLast();
+            if (size > latest.getMetadata().getFreeBytes()) {
+                Segment newSegment = new Segment(context, rootPath);
+                segments.add(newSegment);
+                return newSegment;
+            }
+            return latest;
+        } catch (NoSuchElementException e) {
+            Segment newSegment = new Segment(context, rootPath);
+            segments.add(newSegment);
+            return newSegment;
+        }
+    }
+
+    public List<Versionstamp> append(@Nonnull List<byte[]> values) {
+        lock.writeLock().lock();
+        try {
+            int size = 0;
+            for (byte[] value : values) {
+                size += value.length;
+            }
+            Segment segment = getLatestSegment(size);
+        } finally {
+            lock.writeLock().unlock();
+        }
         return null;
     }
 }
