@@ -17,31 +17,37 @@
 package com.kronotop.volume;
 
 public class SegmentMetadata {
-    private final int size;
-    private int freeBytes = 0;
-    private int usedBytes = 0;
+    private final long size;
+    private final long id;
+    private long freeBytes = 0;
+    private long usedBytes = 0;
 
-    public SegmentMetadata(int size) {
+    public SegmentMetadata(long id, long size) {
+        this.id = id;
         this.size = size;
     }
 
-    public int getSize() {
+    public long getId() {
+        return id;
+    }
+
+    public long getSize() {
         return size;
     }
 
-    public int getFreeBytes() {
+    public long getFreeBytes() {
         return freeBytes;
     }
 
-    public void setFreeBytes(int freeBytes) {
+    public void setFreeBytes(long freeBytes) {
         this.freeBytes = freeBytes;
     }
 
-    public int getUsedBytes() {
+    public long getUsedBytes() {
         return usedBytes;
     }
 
-    public void setUsedBytes(int usedBytes) {
+    public void setUsedBytes(long usedBytes) {
         this.usedBytes = usedBytes;
     }
 }

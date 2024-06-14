@@ -26,24 +26,22 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class VolumeService implements KronotopService {
     public static final String NAME = "Volume";
     private static final Logger LOGGER = LoggerFactory.getLogger(VolumeService.class);
     private final Context context;
-    private final Path rootPath;
 
     public VolumeService(Context context) {
         this.context = context;
-        this.rootPath = createOrOpenRootPath();
+        checkAndCreateRootPath();
     }
 
-    private Path createOrOpenRootPath() {
+    private void checkAndCreateRootPath() {
         try {
             String rootPath = context.getConfig().getString("volumes.root_path");
-            return Files.createDirectories(Paths.get(rootPath));
+            Files.createDirectories(Paths.get(rootPath));
         } catch (ConfigException.Missing e) {
             LOGGER.error("volumes.root_path is missing");
             throw new KronotopException(e);
@@ -71,6 +69,6 @@ public class VolumeService implements KronotopService {
     }
 
     public Volume newVolume(VolumeConfig config) {
-        return new Volume(context, rootPath, config);
+        return new Volume(context, config);
     }
 }

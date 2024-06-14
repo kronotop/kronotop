@@ -18,11 +18,15 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Database;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.Context;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -30,33 +34,51 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Volume {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
     private final Context context;
-    private final Path rootPath;
     private final VolumeConfig config;
-    private final Database database;
+    private final VolumeMetadata metadata = new VolumeMetadata();
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final List<Segment> segments = new ArrayList<>();
 
-    protected Volume(Context context, Path rootPath, VolumeConfig volumeConfig) {
+    protected Volume(Context context, VolumeConfig volumeConfig) {
         this.context = context;
-        this.rootPath = rootPath;
         this.config = volumeConfig;
-        this.database = context.getFoundationDB();
+    }
+
+    private Segment createSegment() {
+        // Create a new segment and add it to the metadata
+        long segmentId = metadata.getAndIncrementSegmentId();
+        Segment segment = new Segment(context, segmentId);
+        metadata.addSegment(segmentId);
+
+        // Update the volume metadata on FoundationDB
+        context.getFoundationDB().run(tr -> {
+            try {
+                byte[] value = new ObjectMapper().writeValueAsBytes(metadata);
+                byte[] metadataKey = config.subspace().pack(Tuple.from("volume"));
+                tr.set(metadataKey, value);
+            } catch (JsonProcessingException e) {
+                LOGGER.error("Error writing to JSON", e);
+                throw new RuntimeException(e); // retry
+            }
+            return null;
+        });
+
+        // Make it available for the rest of the Volume.
+        segments.add(segment);
+        return segment;
     }
 
     private Segment getLatestSegment(int size) {
         try {
             Segment latest = segments.getLast();
             if (size > latest.getMetadata().getFreeBytes()) {
-                Segment newSegment = new Segment(context, rootPath);
-                segments.add(newSegment);
-                return newSegment;
+                return createSegment();
             }
             return latest;
         } catch (NoSuchElementException e) {
-            Segment newSegment = new Segment(context, rootPath);
-            segments.add(newSegment);
-            return newSegment;
+            return createSegment();
         }
     }
 
@@ -68,6 +90,7 @@ public class Volume {
                 size += value.length;
             }
             Segment segment = getLatestSegment(size);
+            System.out.println(segment.getMetadata().getId());
         } finally {
             lock.writeLock().unlock();
         }

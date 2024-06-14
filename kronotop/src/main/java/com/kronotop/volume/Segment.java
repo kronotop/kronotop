@@ -18,19 +18,16 @@ package com.kronotop.volume;
 
 import com.kronotop.Context;
 
-import java.nio.file.Path;
-
 public class Segment {
     private final Context context;
     private final SegmentMetadata metadata;
-    private final Path rootPath;
+    private final String rootPath;
 
-    public Segment(Context context, Path rootPath) {
+    public Segment(Context context, long id) {
         this.context = context;
-        this.rootPath = rootPath;
-        int size = context.getConfig().getInt("volumes.segment_size");
-        this.metadata = new SegmentMetadata(size);
-
+        this.rootPath = context.getConfig().getString("volumes.root_path");
+        long size = context.getConfig().getLong("volumes.segment_size");
+        this.metadata = new SegmentMetadata(id, size);
     }
 
     public SegmentMetadata getMetadata() {
