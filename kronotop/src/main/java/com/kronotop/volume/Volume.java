@@ -17,6 +17,8 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -31,6 +33,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -58,7 +61,7 @@ public class Volume {
         context.getFoundationDB().run(tr -> {
             try {
                 byte[] value = new ObjectMapper().writeValueAsBytes(metadata);
-                byte[] metadataKey = config.subspace().pack(Tuple.from("volume"));
+                byte[] metadataKey = config.subspace().pack(Tuple.from("volume-metadata"));
                 tr.set(metadataKey, value);
             } catch (JsonProcessingException e) {
                 LOGGER.error("Error writing to JSON", e);
@@ -123,7 +126,34 @@ public class Volume {
             EntryMetadata entryMetadata = tryAppend(entry);
             entryMetadataList.add(entryMetadata);
         }
-        System.out.println(entryMetadataList);
-        return null;
+
+        // VS-Key -> EntryMetadata | subspace: entries
+        // EntryMetadata -> VS-Key | subspace: entry-metadata
+        CompletableFuture<byte[]> versionstamp = context.getFoundationDB().run(tr -> {
+            for (int i = 0; i < entryMetadataList.size(); i++) {
+                Tuple key = Tuple.from("entries", Versionstamp.incomplete(i));
+                EntryMetadata entryMetadata = entryMetadataList.get(i);
+                byte[] encodedEntryMetadata = entryMetadata.encode().array();
+                tr.mutate(
+                        MutationType.SET_VERSIONSTAMPED_KEY,
+                        config.subspace().packWithVersionstamp(key),
+                        encodedEntryMetadata
+                );
+                Tuple value = Tuple.from("entry-metadata", Versionstamp.incomplete(i));
+                tr.mutate(
+                        MutationType.SET_VERSIONSTAMPED_VALUE,
+                        encodedEntryMetadata,
+                        config.subspace().packWithVersionstamp(value)
+                );
+            }
+            return tr.getVersionstamp();
+        });
+
+        byte[] trVersion = versionstamp.join();
+        List<Versionstamp> result = new ArrayList<>();
+        for (int i = 0; i < entryMetadataList.size(); i++) {
+            result.add(Versionstamp.complete(trVersion, i));
+        }
+        return result;
     }
 }

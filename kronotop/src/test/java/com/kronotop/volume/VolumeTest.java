@@ -19,7 +19,9 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseMetadataStoreTest;
+import com.kronotop.VersionstampUtils;
 import com.kronotop.common.utils.DirectoryLayout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +59,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
                 ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
                 ByteBuffer.allocate(6).put("barfoo".getBytes()).flip()
         };
-        volume.append(entries);
+        for(Versionstamp versionstamp : volume.append(entries)) {
+            System.out.println(VersionstampUtils.base64Encode(versionstamp));
+        }
     }
 }
