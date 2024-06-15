@@ -19,12 +19,13 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.google.common.base.Strings;
 import com.kronotop.BaseMetadataStoreTest;
 import com.kronotop.common.utils.DirectoryLayout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,11 +48,15 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
-    public void append() {
+    public void append() throws IOException {
         VolumeService service = new VolumeService(context);
         DirectorySubspace subspace = getDirectorySubspace();
         VolumeConfig volumeConfig = new VolumeConfig(subspace, "append-test");
         Volume volume = service.newVolume(volumeConfig);
-        volume.append(List.of());
+        ByteBuffer[] entries = {
+                ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip()
+        };
+        volume.append(entries);
     }
 }

@@ -17,8 +17,9 @@
 package com.kronotop.volume;
 
 public class SegmentMetadata {
-    private final long size;
     private final long id;
+    private final long size;
+    private long currentPosition;
     private long freeBytes = 0;
     private long usedBytes = 0;
 
@@ -33,6 +34,14 @@ public class SegmentMetadata {
 
     public long getSize() {
         return size;
+    }
+
+    public long getCurrentPosition() {
+        return currentPosition;
+    }
+
+    public void setCurrentPosition(long currentPosition) {
+        this.currentPosition = currentPosition;
     }
 
     public long getFreeBytes() {

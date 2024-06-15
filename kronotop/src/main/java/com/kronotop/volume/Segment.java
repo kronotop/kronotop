@@ -16,21 +16,76 @@
 
 package com.kronotop.volume;
 
+import com.google.common.base.Strings;
 import com.kronotop.Context;
+import com.kronotop.common.KronotopException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Segment {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
     private final Context context;
     private final SegmentMetadata metadata;
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private final RandomAccessFile segment;
     private final String rootPath;
 
-    public Segment(Context context, long id) {
+    public Segment(Context context, long id) throws IOException {
         this.context = context;
         this.rootPath = context.getConfig().getString("volumes.root_path");
         long size = context.getConfig().getLong("volumes.segment_size");
         this.metadata = new SegmentMetadata(id, size);
+        this.segment = createOrOpenSegmentFile();
+    }
+
+    public String getName() {
+        return Strings.padStart(Long.toString(metadata.getId()), 19, '0');
     }
 
     public SegmentMetadata getMetadata() {
         return metadata;
+    }
+
+    private RandomAccessFile createOrOpenSegmentFile() throws IOException {
+        Path path = Path.of(rootPath, "segments", getName());
+        Files.createDirectories(path.getParent());
+        try {
+            RandomAccessFile file = new RandomAccessFile(path.toFile(), "rw");
+            if (file.length() < metadata.getSize()) {
+                // Do not truncate the file, only extend it.
+                file.setLength(metadata.getSize());
+            }
+            return file;
+        } catch (FileNotFoundException e) {
+            // This should not be possible.
+            throw new KronotopException(e);
+        }
+    }
+
+    public EntryMetadata append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
+        lock.writeLock().lock();
+        try {
+            long position = metadata.getCurrentPosition();
+            if (position + entry.position() > metadata.getSize()) {
+                throw new NotEnoughSpaceException();
+            }
+            int length = segment.getChannel().write(entry, position);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(String.format("%d bytes has been written to segment %s", length, getName()));
+            }
+            metadata.setCurrentPosition(position + length);
+            return new EntryMetadata(getName(), position, length);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 }

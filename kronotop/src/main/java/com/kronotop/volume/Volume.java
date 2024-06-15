@@ -17,7 +17,6 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -27,6 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -38,7 +39,8 @@ public class Volume {
     private final Context context;
     private final VolumeConfig config;
     private final VolumeMetadata metadata = new VolumeMetadata();
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    // segmentsLock protects segments array
+    private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
     private final List<Segment> segments = new ArrayList<>();
 
     protected Volume(Context context, VolumeConfig volumeConfig) {
@@ -46,7 +48,7 @@ public class Volume {
         this.config = volumeConfig;
     }
 
-    private Segment createSegment() {
+    private Segment createSegment() throws IOException {
         // Create a new segment and add it to the metadata
         long segmentId = metadata.getAndIncrementSegmentId();
         Segment segment = new Segment(context, segmentId);
@@ -70,30 +72,58 @@ public class Volume {
         return segment;
     }
 
-    private Segment getLatestSegment(int size) {
+    private Segment getOrCreateLatestSegment(int size) throws IOException {
+        segmentsLock.writeLock().lock();
         try {
+            if (segments.isEmpty()) {
+                return createSegment();
+            }
             Segment latest = segments.getLast();
             if (size > latest.getMetadata().getFreeBytes()) {
                 return createSegment();
             }
             return latest;
-        } catch (NoSuchElementException e) {
-            return createSegment();
+        } finally {
+            segmentsLock.writeLock().unlock();
         }
     }
 
-    public List<Versionstamp> append(@Nonnull List<byte[]> values) {
-        lock.writeLock().lock();
+    private Segment getLatestSegment(int size) throws IOException {
+        segmentsLock.readLock().lock();
         try {
-            int size = 0;
-            for (byte[] value : values) {
-                size += value.length;
+            Segment latest = segments.getLast();
+            if (size < latest.getMetadata().getFreeBytes()) {
+                return latest;
             }
-            Segment segment = getLatestSegment(size);
-            System.out.println(segment.getMetadata().getId());
+        } catch (NoSuchElementException e) {
+            // Ignore it, a new Segment will be created after releasing the read lock.
         } finally {
-            lock.writeLock().unlock();
+            segmentsLock.readLock().unlock();
         }
+        return getOrCreateLatestSegment(size);
+    }
+
+    private EntryMetadata tryAppend(ByteBuffer entry) throws IOException {
+        int size = entry.position();
+        while(true) {
+            Segment segment = getLatestSegment(size);
+            try {
+                return segment.append(entry);
+            } catch (NotEnoughSpaceException e) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Trying to find a new segment with length {}", size);
+                }
+            }
+        }
+    }
+
+    public List<Versionstamp> append(@Nonnull ByteBuffer[] entries) throws IOException {
+        List<EntryMetadata> entryMetadataList = new ArrayList<>();
+        for (ByteBuffer entry : entries) {
+            EntryMetadata entryMetadata = tryAppend(entry);
+            entryMetadataList.add(entryMetadata);
+        }
+        System.out.println(entryMetadataList);
         return null;
     }
 }
