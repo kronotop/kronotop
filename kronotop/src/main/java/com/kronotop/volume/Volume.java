@@ -18,7 +18,7 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.MutationType;
-import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -108,7 +108,7 @@ public class Volume {
 
     private EntryMetadata tryAppend(ByteBuffer entry) throws IOException {
         int size = entry.position();
-        while(true) {
+        while (true) {
             Segment segment = getLatestSegment(size);
             try {
                 return segment.append(entry);
@@ -120,40 +120,46 @@ public class Volume {
         }
     }
 
-    public List<Versionstamp> append(@Nonnull ByteBuffer[] entries) throws IOException {
+    private List<Versionstamp> competeResponse(CompletableFuture<byte[]> versionstamp, int size) {
+        byte[] trVersion = versionstamp.join();
+        List<Versionstamp> result = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            result.add(Versionstamp.complete(trVersion, i));
+        }
+        return result;
+    }
+
+    private CompletableFuture<byte[]> writeMetadata(Transaction tr, List<EntryMetadata> entryMetadataList) {
+        for (int i = 0; i < entryMetadataList.size(); i++) {
+            Tuple key = Tuple.from("entries", Versionstamp.incomplete(i));
+            EntryMetadata entryMetadata = entryMetadataList.get(i);
+            byte[] encodedEntryMetadata = entryMetadata.encode().array();
+            tr.mutate(
+                    MutationType.SET_VERSIONSTAMPED_KEY,
+                    config.subspace().packWithVersionstamp(key),
+                    encodedEntryMetadata
+            );
+            tr.mutate(
+                    MutationType.SET_VERSIONSTAMPED_VALUE,
+                    config.subspace().pack(Tuple.from("entry-metadata", encodedEntryMetadata)),
+                    Tuple.from(Versionstamp.incomplete(i)).packWithVersionstamp()
+            );
+        }
+        return tr.getVersionstamp();
+    }
+
+    private List<EntryMetadata> appendEntries(ByteBuffer[] entries) throws IOException {
         List<EntryMetadata> entryMetadataList = new ArrayList<>();
         for (ByteBuffer entry : entries) {
             EntryMetadata entryMetadata = tryAppend(entry);
             entryMetadataList.add(entryMetadata);
         }
+        return entryMetadataList;
+    }
 
-        // VS-Key -> EntryMetadata | subspace: entries
-        // EntryMetadata -> VS-Key | subspace: entry-metadata
-        CompletableFuture<byte[]> versionstamp = context.getFoundationDB().run(tr -> {
-            for (int i = 0; i < entryMetadataList.size(); i++) {
-                Tuple key = Tuple.from("entries", Versionstamp.incomplete(i));
-                EntryMetadata entryMetadata = entryMetadataList.get(i);
-                byte[] encodedEntryMetadata = entryMetadata.encode().array();
-                tr.mutate(
-                        MutationType.SET_VERSIONSTAMPED_KEY,
-                        config.subspace().packWithVersionstamp(key),
-                        encodedEntryMetadata
-                );
-                Tuple value = Tuple.from("entry-metadata", Versionstamp.incomplete(i));
-                tr.mutate(
-                        MutationType.SET_VERSIONSTAMPED_VALUE,
-                        encodedEntryMetadata,
-                        config.subspace().packWithVersionstamp(value)
-                );
-            }
-            return tr.getVersionstamp();
-        });
-
-        byte[] trVersion = versionstamp.join();
-        List<Versionstamp> result = new ArrayList<>();
-        for (int i = 0; i < entryMetadataList.size(); i++) {
-            result.add(Versionstamp.complete(trVersion, i));
-        }
-        return result;
+    public List<Versionstamp> append(@Nonnull ByteBuffer[] entries) throws IOException {
+        List<EntryMetadata> entryMetadataList = appendEntries(entries);
+        CompletableFuture<byte[]> versionstamp = context.getFoundationDB().run(tr -> writeMetadata(tr, entryMetadataList));
+        return competeResponse(versionstamp, entries.length);
     }
 }

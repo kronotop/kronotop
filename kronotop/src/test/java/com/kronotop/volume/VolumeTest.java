@@ -57,7 +57,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
         Volume volume = service.newVolume(volumeConfig);
         ByteBuffer[] entries = {
                 ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
-                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip()
+                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
         };
         for(Versionstamp versionstamp : volume.append(entries)) {
             System.out.println(VersionstampUtils.base64Encode(versionstamp));
