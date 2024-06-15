@@ -162,4 +162,13 @@ public class Volume {
         CompletableFuture<byte[]> versionstamp = context.getFoundationDB().run(tr -> writeMetadata(tr, entryMetadataList));
         return competeResponse(versionstamp, entries.length);
     }
+
+    public byte[] get(@Nonnull Versionstamp key) throws IOException {
+        context.getFoundationDB().run(tr -> {
+            byte[] value = tr.get(config.subspace().pack(Tuple.from("entries", key))).join();
+            System.out.println(EntryMetadata.decode(ByteBuffer.wrap(value)));
+            return null;
+        });
+        return null;
+    }
 }

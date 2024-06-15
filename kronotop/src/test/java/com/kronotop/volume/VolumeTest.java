@@ -61,6 +61,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
         };
         for(Versionstamp versionstamp : volume.append(entries)) {
             System.out.println(VersionstampUtils.base64Encode(versionstamp));
+            volume.get(versionstamp);
         }
     }
 }

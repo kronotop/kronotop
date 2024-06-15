@@ -33,14 +33,12 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Segment {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
-    private final Context context;
     private final SegmentMetadata metadata;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final RandomAccessFile segment;
     private final String rootPath;
 
     public Segment(Context context, long id) throws IOException {
-        this.context = context;
         this.rootPath = context.getConfig().getString("volumes.root_path");
         long size = context.getConfig().getLong("volumes.segment_size");
         this.metadata = new SegmentMetadata(id, size);
@@ -82,6 +80,7 @@ public class Segment {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(String.format("%d bytes has been written to segment %s", length, getName()));
             }
+            // TODO: Save metadata to disk
             metadata.setCurrentPosition(position + length);
             return new EntryMetadata(getName(), position, length);
         } finally {
