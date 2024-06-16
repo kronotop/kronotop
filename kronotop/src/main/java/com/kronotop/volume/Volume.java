@@ -225,24 +225,32 @@ public class Volume {
         return segment.get(entryMetadata.position(), entryMetadata.length());
     }
 
-    public ByteBuffer get(Transaction tr, @Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
-        byte[] value = tr.get(packEntryKey(key)).join();
-        if (value == null) {
-            return null;
+    public ByteBuffer get(Transaction tr, @Nonnull Versionstamp key, boolean useCache) throws SegmentNotFoundException, IOException {
+        EntryMetadata entryMetadata;
+        if (useCache) {
+            entryMetadata = loadEntryMetadataFromCache(key);
+            if (entryMetadata == null) {
+                return null;
+            }
+        } else {
+            byte[] value = tr.get(packEntryKey(key)).join();
+            if (value == null) {
+                return null;
+            }
+            entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(value));
         }
-        EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(value));
         return getByEntryMetadata(key, entryMetadata);
     }
 
     public ByteBuffer get(@Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
-        EntryMetadata entryMetadata = loadEntryMetadataFromCache(key);
-        if (entryMetadata == null) {
-            return null;
-        }
-        return getByEntryMetadata(key, entryMetadata);
+        return get(null, key, true);
     }
 
-    public DeleteResult delete(Transaction tr, @Nonnull Versionstamp... keys) {
+    public ByteBuffer get(@Nonnull Transaction tr, @Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
+        return get(tr, key, false);
+    }
+
+    public DeleteResult delete(@Nonnull Transaction tr, @Nonnull Versionstamp... keys) {
         DeleteResult result = new DeleteResult(entryMetadataCache::invalidate);
         for (Versionstamp key : keys) {
             byte[] entryKey = packEntryKey(key);
