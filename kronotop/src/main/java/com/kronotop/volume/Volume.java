@@ -31,6 +31,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
@@ -47,6 +48,7 @@ public class Volume {
     // segmentsLock protects segments array
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
     private final List<Segment> segments = new ArrayList<>();
+    private final HashMap<String, Segment> segmentsByName = new HashMap<>();
 
     protected Volume(Context context, VolumeConfig volumeConfig) {
         this.context = context;
@@ -57,8 +59,10 @@ public class Volume {
         // Create a new segment and add it to the metadata
         long segmentId = metadata.getAndIncrementSegmentId();
         Segment segment = new Segment(context, segmentId);
-        metadata.addSegment(segmentId);
 
+        // After this point, the Segment has been created on the physical medium.
+
+        metadata.addSegment(segmentId);
         // Update the volume metadata on FoundationDB
         context.getFoundationDB().run(tr -> {
             try {
@@ -74,6 +78,7 @@ public class Volume {
 
         // Make it available for the rest of the Volume.
         segments.add(segment);
+        segmentsByName.put(segment.getName(), segment);
         return segment;
     }
 
@@ -178,12 +183,34 @@ public class Volume {
         return config.subspace().pack(Tuple.from(ENTRY_PREFIX, key));
     }
 
-    public byte[] get(@Nonnull Versionstamp key) throws IOException {
-        context.getFoundationDB().run(tr -> {
+    private Segment getSegmentByName(String name) throws SegmentNotFoundException {
+        segmentsLock.readLock().lock();
+        try {
+            Segment segment = segmentsByName.get(name);
+            if (segment == null) {
+                throw new SegmentNotFoundException(name);
+            }
+            return segment;
+        } finally {
+            segmentsLock.readLock().unlock();
+        }
+    }
+
+
+    public ByteBuffer get(@Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
+        EntryMetadata entryMetadata = context.getFoundationDB().run(tr -> {
             byte[] value = tr.get(packEntryKey(key)).join();
-            System.out.println(EntryMetadata.decode(ByteBuffer.wrap(value)));
-            return null;
+            if (value == null) {
+                return null;
+            }
+            return EntryMetadata.decode(ByteBuffer.wrap(value));
         });
-        return null;
+
+        if (entryMetadata == null) {
+            return null;
+        }
+
+        Segment segment = getSegmentByName(entryMetadata.segment());
+        return segment.get(entryMetadata.position(), entryMetadata.length());
     }
 }

@@ -87,4 +87,21 @@ public class Segment {
             lock.writeLock().unlock();
         }
     }
+
+    ByteBuffer get(long position, long length) throws IOException {
+        lock.readLock().lock();
+        try {
+            if (position + length > metadata.getSize()) {
+                throw new RuntimeException("metadata mismatch");
+            }
+            ByteBuffer buffer = ByteBuffer.allocate((int) length);
+            int nr = segment.getChannel().read(buffer, position);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(String.format("%d bytes has been read from segment %s", nr, getName()));
+            }
+            return buffer;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
 }

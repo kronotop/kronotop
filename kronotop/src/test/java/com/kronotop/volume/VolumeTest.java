@@ -50,7 +50,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
-    public void append() throws IOException {
+    public void append() throws IOException, SegmentNotFoundException {
         VolumeService service = new VolumeService(context);
         DirectorySubspace subspace = getDirectorySubspace();
         VolumeConfig volumeConfig = new VolumeConfig(subspace, "append-test");
@@ -61,7 +61,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
         };
         for(Versionstamp versionstamp : volume.append(entries)) {
             System.out.println(VersionstampUtils.base64Encode(versionstamp));
-            volume.get(versionstamp);
+            ByteBuffer buffer = volume.get(versionstamp);
+            System.out.println(new String(buffer.array()));
         }
     }
 }
