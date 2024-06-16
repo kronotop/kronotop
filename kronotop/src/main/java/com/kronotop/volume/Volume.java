@@ -209,12 +209,7 @@ public class Volume {
         }
     }
 
-    public ByteBuffer get(@Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
-        EntryMetadata entryMetadata = loadEntryMetadataFromCache(key);
-        if (entryMetadata == null) {
-            return null;
-        }
-
+    private ByteBuffer getByEntryMetadata(Versionstamp key, EntryMetadata entryMetadata) throws SegmentNotFoundException, IOException {
         Segment segment;
         try {
             segment = getSegmentByName(entryMetadata.segment());
@@ -227,6 +222,23 @@ public class Volume {
         }
 
         return segment.get(entryMetadata.position(), entryMetadata.length());
+    }
+
+    public ByteBuffer get(Transaction tr, @Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
+        byte[] value = tr.get(packEntryKey(key)).join();
+        if (value == null) {
+            return null;
+        }
+        EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(value));
+        return getByEntryMetadata(key, entryMetadata);
+    }
+
+    public ByteBuffer get(@Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
+        EntryMetadata entryMetadata = loadEntryMetadataFromCache(key);
+        if (entryMetadata == null) {
+            return null;
+        }
+        return getByEntryMetadata(key, entryMetadata);
     }
 
     public void delete(@Nonnull Versionstamp key) {
