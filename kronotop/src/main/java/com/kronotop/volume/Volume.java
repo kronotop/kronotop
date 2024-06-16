@@ -39,6 +39,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
+    private static final byte ENTRY_PREFIX = 0x01;
     private final Context context;
     private final VolumeConfig config;
     private final VolumeMetadata metadata = new VolumeMetadata();
@@ -131,7 +132,7 @@ public class Volume {
 
     private CompletableFuture<byte[]> writeMetadata(Transaction tr, List<EntryMetadata> entryMetadataList) {
         for (int i = 0; i < entryMetadataList.size(); i++) {
-            Tuple key = Tuple.from("entries", Versionstamp.incomplete(i));
+            Tuple key = Tuple.from(ENTRY_PREFIX, Versionstamp.incomplete(i));
             EntryMetadata entryMetadata = entryMetadataList.get(i);
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
             tr.mutate(
@@ -165,7 +166,7 @@ public class Volume {
 
     public byte[] get(@Nonnull Versionstamp key) throws IOException {
         context.getFoundationDB().run(tr -> {
-            byte[] value = tr.get(config.subspace().pack(Tuple.from("entries", key))).join();
+            byte[] value = tr.get(config.subspace().pack(Tuple.from(ENTRY_PREFIX, key))).join();
             System.out.println(EntryMetadata.decode(ByteBuffer.wrap(value)));
             return null;
         });
