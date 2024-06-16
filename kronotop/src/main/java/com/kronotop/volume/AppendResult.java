@@ -17,38 +17,34 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.google.common.cache.LoadingCache;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 
 public class AppendResult {
     private final CompletableFuture<byte[]> future;
     private final List<EntryMetadata> entryMetadataList;
-    private final LoadingCache<Versionstamp, EntryMetadata> cache;
+    private final BiConsumer<Versionstamp, EntryMetadata> cacheUpdater;
 
-    AppendResult(CompletableFuture<byte[]> future, List<EntryMetadata> entryMetadataList, LoadingCache<Versionstamp, EntryMetadata> cache) {
+    AppendResult(CompletableFuture<byte[]> future, List<EntryMetadata> entryMetadataList, BiConsumer<Versionstamp, EntryMetadata> cacheUpdater) {
         this.future = future;
         this.entryMetadataList = entryMetadataList;
-        this.cache = cache;
-    }
-
-    private void cacheEntryMetadata(List<Versionstamp> versionstampList, List<EntryMetadata> entryMetadataList) {
-        for (int i = 0; i < versionstampList.size(); i++) {
-            Versionstamp key = versionstampList.get(i);
-            EntryMetadata value = entryMetadataList.get(i);
-            cache.put(key, value);
-        }
+        this.cacheUpdater = cacheUpdater;
     }
 
     public List<Versionstamp> getVersionstampedKeys() {
         byte[] trVersion = future.join();
+
+        int userVersion = 0;
         List<Versionstamp> versionstampedKeys = new ArrayList<>();
-        for (int i = 0; i < entryMetadataList.size(); i++) {
-            versionstampedKeys.add(Versionstamp.complete(trVersion, i));
+        for (EntryMetadata entryMetadata : entryMetadataList) {
+            Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
+            cacheUpdater.accept(versionstampedKey, entryMetadata);
+            versionstampedKeys.add(versionstampedKey);
+            userVersion++;
         }
-        cacheEntryMetadata(versionstampedKeys, entryMetadataList);
         return versionstampedKeys;
     }
 }

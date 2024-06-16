@@ -43,6 +43,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.BiFunction;
 
 public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
@@ -177,7 +178,7 @@ public class Volume {
     public AppendResult append(@Nonnull Transaction tr, @Nonnull ByteBuffer... entries) throws IOException {
         List<EntryMetadata> entryMetadataList = appendEntries(entries);
         CompletableFuture<byte[]> future = writeMetadata(tr, entryMetadataList);
-        return new AppendResult(future, entryMetadataList, entryMetadataCache);
+        return new AppendResult(future, entryMetadataList, entryMetadataCache::put);
     }
 
     private byte[] packEntryKey(Versionstamp key) {
