@@ -39,7 +39,6 @@ public class AppendResult {
         if (calledOnce) {
             throw new IllegalStateException("this method was called before once");
         }
-
         byte[] trVersion = future.join();
         calledOnce = true;
         int userVersion = 0;

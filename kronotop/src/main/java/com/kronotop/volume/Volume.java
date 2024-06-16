@@ -248,19 +248,24 @@ public class Volume {
         return getByEntryMetadata(key, entryMetadata);
     }
 
-    public void delete(@Nonnull Versionstamp key) {
-        context.getFoundationDB().run(tr -> {
+    public DeleteResult delete(Transaction tr, @Nonnull Versionstamp... keys) {
+        DeleteResult result = new DeleteResult(entryMetadataCache::invalidate);
+        for (Versionstamp key : keys) {
             byte[] entryKey = packEntryKey(key);
             byte[] encodedEntryMetadata = tr.get(entryKey).join();
             if (encodedEntryMetadata == null) {
                 // Already deleted by a previously committed transaction.
-                return null;
+                continue;
             }
             tr.clear(entryKey);
             tr.clear(packEntryMetadataKey(encodedEntryMetadata));
-            return null;
-        });
-        entryMetadataCache.invalidate(key);
+            result.add(key);
+        }
+        return result;
+    }
+
+    public DeleteResult delete(@Nonnull Versionstamp... keys) {
+        return context.getFoundationDB().run(tr -> delete(tr, keys));
     }
 
     private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {

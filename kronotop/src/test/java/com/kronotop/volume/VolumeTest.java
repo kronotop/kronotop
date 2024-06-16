@@ -80,7 +80,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
         }
 
         for(Versionstamp versionstamp : versionstampList) {
-            volume.delete(versionstamp);
+            DeleteResult deleteResult = volume.delete(versionstamp);
+            deleteResult.complete();
         }
 
         System.out.println("After delete");
