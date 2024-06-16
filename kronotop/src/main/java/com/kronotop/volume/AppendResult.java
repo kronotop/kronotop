@@ -35,18 +35,18 @@ public class AppendResult {
         this.cacheUpdater = cacheUpdater;
     }
 
-    public synchronized List<Versionstamp> getVersionstampedKeys() {
+    public synchronized Versionstamp[] getVersionstampedKeys() {
         if (calledOnce) {
             throw new IllegalStateException("this method was called before once");
         }
         byte[] trVersion = future.join();
         calledOnce = true;
         int userVersion = 0;
-        List<Versionstamp> versionstampedKeys = new ArrayList<>();
+        Versionstamp[] versionstampedKeys = new Versionstamp[entryMetadataList.size()];
         for (EntryMetadata entryMetadata : entryMetadataList) {
             Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
             cacheUpdater.accept(versionstampedKey, entryMetadata);
-            versionstampedKeys.add(versionstampedKey);
+            versionstampedKeys[userVersion] = versionstampedKey;
             userVersion++;
         }
         return versionstampedKeys;

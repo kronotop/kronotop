@@ -65,9 +65,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
             tr.commit().join();
         }
 
-        List<Versionstamp> versionstampList = result.getVersionstampedKeys();
+        Versionstamp[] versionstampList = result.getVersionstampedKeys();
         for (Versionstamp versionstamp : versionstampList) {
-            //System.out.println(VersionstampUtils.base64Encode(versionstamp));
             ByteBuffer buffer = volume.get(versionstamp);
             System.out.println(new String(buffer.array()));
         }
@@ -79,10 +78,12 @@ public class VolumeTest extends BaseMetadataStoreTest {
             System.out.println(new String(buffer.array()));
         }
 
-        for(Versionstamp versionstamp : versionstampList) {
-            DeleteResult deleteResult = volume.delete(versionstamp);
-            deleteResult.complete();
+        DeleteResult deleteResult;
+        try (Transaction tr = database.createTransaction()) {
+            deleteResult = volume.delete(tr, versionstampList);
+            tr.commit().join();
         }
+        deleteResult.complete();
 
         System.out.println("After delete");
 

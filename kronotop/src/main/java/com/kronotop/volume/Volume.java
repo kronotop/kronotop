@@ -182,12 +182,6 @@ public class Volume {
         return new AppendResult(future, entryMetadataList, entryMetadataCache::put);
     }
 
-    public AppendResult append(@Nonnull ByteBuffer... entries) throws IOException {
-        List<EntryMetadata> entryMetadataList = appendEntries(entries);
-        CompletableFuture<byte[]> future = context.getFoundationDB().run(tr -> writeMetadata(tr, entryMetadataList));
-        return new AppendResult(future, entryMetadataList, entryMetadataCache::put);
-    }
-
     private byte[] packEntryKey(Versionstamp key) {
         return config.subspace().pack(Tuple.from(ENTRY_PREFIX, key));
     }
@@ -262,10 +256,6 @@ public class Volume {
             result.add(key);
         }
         return result;
-    }
-
-    public DeleteResult delete(@Nonnull Versionstamp... keys) {
-        return context.getFoundationDB().run(tr -> delete(tr, keys));
     }
 
     private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {
