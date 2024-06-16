@@ -59,8 +59,17 @@ public class VolumeTest extends BaseMetadataStoreTest {
                 ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
                 ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
         };
-        for(Versionstamp versionstamp : volume.append(entries)) {
-            System.out.println(VersionstampUtils.base64Encode(versionstamp));
+
+        List<Versionstamp> versionstamps = volume.append(entries);
+        for(Versionstamp versionstamp : versionstamps) {
+            //System.out.println(VersionstampUtils.base64Encode(versionstamp));
+            ByteBuffer buffer = volume.get(versionstamp);
+            System.out.println(new String(buffer.array()));
+        }
+
+        System.out.println("SECOND");
+
+        for(Versionstamp versionstamp : versionstamps) {
             ByteBuffer buffer = volume.get(versionstamp);
             System.out.println(new String(buffer.array()));
         }

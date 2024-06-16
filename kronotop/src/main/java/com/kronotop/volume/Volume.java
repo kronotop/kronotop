@@ -23,6 +23,9 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +38,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -45,6 +50,7 @@ public class Volume {
     private final Context context;
     private final VolumeConfig config;
     private final VolumeMetadata metadata = new VolumeMetadata();
+    private final LoadingCache<Versionstamp, EntryMetadata> entryMetadataCache;
     // segmentsLock protects segments array
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
     private final List<Segment> segments = new ArrayList<>();
@@ -53,6 +59,9 @@ public class Volume {
     protected Volume(Context context, VolumeConfig volumeConfig) {
         this.context = context;
         this.config = volumeConfig;
+        this.entryMetadataCache = CacheBuilder.newBuilder()
+                .expireAfterAccess(30, TimeUnit.MINUTES)
+                .build(new EntryMetadataLoader());
     }
 
     private Segment createSegment() throws IOException {
@@ -127,15 +136,6 @@ public class Volume {
         }
     }
 
-    private List<Versionstamp> competeResponse(CompletableFuture<byte[]> versionstamp, int size) {
-        byte[] trVersion = versionstamp.join();
-        List<Versionstamp> result = new ArrayList<>();
-        for (int i = 0; i < size; i++) {
-            result.add(Versionstamp.complete(trVersion, i));
-        }
-        return result;
-    }
-
     private byte[] packEntryKeyWithVersionstamp(int userVersion) {
         Tuple key = Tuple.from(ENTRY_PREFIX, Versionstamp.incomplete(userVersion));
         return config.subspace().packWithVersionstamp(key);
@@ -173,10 +173,29 @@ public class Volume {
         return entryMetadataList;
     }
 
+    private List<Versionstamp> competeVersionstamp(CompletableFuture<byte[]> versionstamp, int size) {
+        byte[] trVersion = versionstamp.join();
+        List<Versionstamp> result = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            result.add(Versionstamp.complete(trVersion, i));
+        }
+        return result;
+    }
+
+    private void cacheEntryMetadata(List<Versionstamp> versionstampList, List<EntryMetadata> entryMetadataList) {
+        for (int i = 0; i < versionstampList.size(); i++) {
+            Versionstamp key = versionstampList.get(i);
+            EntryMetadata value = entryMetadataList.get(i);
+            entryMetadataCache.put(key, value);
+        }
+    }
+
     public List<Versionstamp> append(@Nonnull ByteBuffer... entries) throws IOException {
         List<EntryMetadata> entryMetadataList = appendEntries(entries);
         CompletableFuture<byte[]> versionstamp = context.getFoundationDB().run(tr -> writeMetadata(tr, entryMetadataList));
-        return competeResponse(versionstamp, entries.length);
+        List<Versionstamp> versionstampList = competeVersionstamp(versionstamp, entries.length);
+        cacheEntryMetadata(versionstampList, entryMetadataList);
+        return versionstampList;
     }
 
     private byte[] packEntryKey(Versionstamp key) {
@@ -197,19 +216,26 @@ public class Volume {
     }
 
     public ByteBuffer get(@Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
-        EntryMetadata entryMetadata = context.getFoundationDB().run(tr -> {
-            byte[] value = tr.get(packEntryKey(key)).join();
-            if (value == null) {
-                return null;
-            }
-            return EntryMetadata.decode(ByteBuffer.wrap(value));
-        });
-
-        if (entryMetadata == null) {
-            return null;
+        try {
+            EntryMetadata entryMetadata = entryMetadataCache.get(key);
+            Segment segment = getSegmentByName(entryMetadata.segment());
+            return segment.get(entryMetadata.position(), entryMetadata.length());
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
         }
+    }
 
-        Segment segment = getSegmentByName(entryMetadata.segment());
-        return segment.get(entryMetadata.position(), entryMetadata.length());
+    private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {
+        @Override
+        public @Nonnull EntryMetadata load(@Nonnull Versionstamp key) {
+            // See https://github.com/google/guava/wiki/CachesExplained#when-does-cleanup-happen
+            return context.getFoundationDB().run(tr -> {
+                byte[] value = tr.get(packEntryKey(key)).join();
+                if (value == null) {
+                    return null;
+                }
+                return EntryMetadata.decode(ByteBuffer.wrap(value));
+            });
+        }
     }
 }

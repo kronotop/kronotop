@@ -20,10 +20,6 @@ import java.nio.ByteBuffer;
 
 public record EntryMetadata(String segment, long position, long length) {
 
-    public ByteBuffer encode() {
-        return ByteBuffer.allocate(35).put(segment.getBytes()).putLong(position).putLong(length).flip();
-    }
-
     public static EntryMetadata decode(ByteBuffer buffer) {
         byte[] rawSegment = new byte[19];
         buffer.get(rawSegment);
@@ -31,5 +27,9 @@ public record EntryMetadata(String segment, long position, long length) {
         long position = buffer.getLong();
         long length = buffer.getLong();
         return new EntryMetadata(segment, position, length);
+    }
+
+    public ByteBuffer encode() {
+        return ByteBuffer.allocate(35).put(segment.getBytes()).putLong(position).putLong(length).flip();
     }
 }
