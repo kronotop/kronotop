@@ -27,6 +27,7 @@ public class AppendResult {
     private final CompletableFuture<byte[]> future;
     private final List<EntryMetadata> entryMetadataList;
     private final BiConsumer<Versionstamp, EntryMetadata> cacheUpdater;
+    private boolean calledOnce = false;
 
     AppendResult(CompletableFuture<byte[]> future, List<EntryMetadata> entryMetadataList, BiConsumer<Versionstamp, EntryMetadata> cacheUpdater) {
         this.future = future;
@@ -34,9 +35,13 @@ public class AppendResult {
         this.cacheUpdater = cacheUpdater;
     }
 
-    public List<Versionstamp> getVersionstampedKeys() {
-        byte[] trVersion = future.join();
+    public synchronized List<Versionstamp> getVersionstampedKeys() {
+        if (calledOnce) {
+            throw new IllegalStateException("this method was called before once");
+        }
 
+        byte[] trVersion = future.join();
+        calledOnce = true;
         int userVersion = 0;
         List<Versionstamp> versionstampedKeys = new ArrayList<>();
         for (EntryMetadata entryMetadata : entryMetadataList) {

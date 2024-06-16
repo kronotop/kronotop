@@ -43,16 +43,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.BiFunction;
 
 public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
     private static final byte ENTRY_PREFIX = 0x01;
     private static final byte ENTRY_METADATA_PREFIX = 0x02;
+
     private final Context context;
     private final VolumeConfig config;
     private final VolumeMetadata metadata = new VolumeMetadata();
     private final LoadingCache<Versionstamp, EntryMetadata> entryMetadataCache;
+
     // segmentsLock protects segments array
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
     private final List<Segment> segments = new ArrayList<>();
@@ -178,6 +179,12 @@ public class Volume {
     public AppendResult append(@Nonnull Transaction tr, @Nonnull ByteBuffer... entries) throws IOException {
         List<EntryMetadata> entryMetadataList = appendEntries(entries);
         CompletableFuture<byte[]> future = writeMetadata(tr, entryMetadataList);
+        return new AppendResult(future, entryMetadataList, entryMetadataCache::put);
+    }
+
+    public AppendResult append(@Nonnull ByteBuffer... entries) throws IOException {
+        List<EntryMetadata> entryMetadataList = appendEntries(entries);
+        CompletableFuture<byte[]> future = context.getFoundationDB().run(tr -> writeMetadata(tr, entryMetadataList));
         return new AppendResult(future, entryMetadataList, entryMetadataCache::put);
     }
 
