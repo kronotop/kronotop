@@ -173,7 +173,7 @@ public class Volume {
         return entryMetadataList;
     }
 
-    public List<Versionstamp> append(@Nonnull ByteBuffer[] entries) throws IOException {
+    public List<Versionstamp> append(@Nonnull ByteBuffer... entries) throws IOException {
         List<EntryMetadata> entryMetadataList = appendEntries(entries);
         CompletableFuture<byte[]> versionstamp = context.getFoundationDB().run(tr -> writeMetadata(tr, entryMetadataList));
         return competeResponse(versionstamp, entries.length);
@@ -195,7 +195,6 @@ public class Volume {
             segmentsLock.readLock().unlock();
         }
     }
-
 
     public ByteBuffer get(@Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
         EntryMetadata entryMetadata = context.getFoundationDB().run(tr -> {
