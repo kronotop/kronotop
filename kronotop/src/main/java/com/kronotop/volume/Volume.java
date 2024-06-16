@@ -40,6 +40,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
     private static final byte ENTRY_PREFIX = 0x01;
+    private static final byte ENTRY_METADATA_PREFIX = 0x02;
     private final Context context;
     private final VolumeConfig config;
     private final VolumeMetadata metadata = new VolumeMetadata();
@@ -135,6 +136,10 @@ public class Volume {
         return config.subspace().packWithVersionstamp(key);
     }
 
+    private byte[] packEntryMetadataKey(byte[] data) {
+        return config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, data));
+    }
+
     private CompletableFuture<byte[]> writeMetadata(Transaction tr, List<EntryMetadata> entryMetadataList) {
         int userVersion = 0;
         for (EntryMetadata entryMetadata : entryMetadataList) {
@@ -146,7 +151,7 @@ public class Volume {
             );
             tr.mutate(
                     MutationType.SET_VERSIONSTAMPED_VALUE,
-                    config.subspace().pack(Tuple.from("entry-metadata", encodedEntryMetadata)),
+                    packEntryMetadataKey(encodedEntryMetadata),
                     Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp()
             );
             userVersion++;
