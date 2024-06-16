@@ -216,17 +216,35 @@ public class Volume {
         }
     }
 
-    public ByteBuffer get(@Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
+    private EntryMetadata loadEntryMetadataFromCache(Versionstamp key) {
         try {
-            EntryMetadata entryMetadata = entryMetadataCache.get(key);
-            Segment segment = getSegmentByName(entryMetadata.segment());
-            return segment.get(entryMetadata.position(), entryMetadata.length());
+            return entryMetadataCache.get(key);
         } catch (CacheLoader.InvalidCacheLoadException e) {
             // The requested key doesn't exist in this Volume.
             return null;
         } catch (ExecutionException e) {
             throw new KronotopException("Failed to load entry metadata from FoundationDB", e);
         }
+    }
+
+    public ByteBuffer get(@Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
+        EntryMetadata entryMetadata = loadEntryMetadataFromCache(key);
+        if (entryMetadata == null) {
+            return null;
+        }
+
+        Segment segment;
+        try {
+            segment = getSegmentByName(entryMetadata.segment());
+        } catch (SegmentNotFoundException e) {
+            // Invalidate the cache and try again.
+            // It will load the EntryMetadata from FoundationDB.
+            // Possible cause: cleanup up filled segments.
+            entryMetadataCache.invalidate(key);
+            segment = getSegmentByName(entryMetadata.segment());
+        }
+
+        return segment.get(entryMetadata.position(), entryMetadata.length());
     }
 
     public void delete(@Nonnull Versionstamp key) {
