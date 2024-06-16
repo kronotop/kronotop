@@ -18,20 +18,19 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 
-import java.util.LinkedList;
-import java.util.List;
 import java.util.function.Consumer;
 
 public class DeleteResult {
-    private final List<Versionstamp> keys = new LinkedList<>();
+    private final Versionstamp[] keys;
     private final Consumer<Versionstamp> cacheUpdater;
 
-    DeleteResult(Consumer<Versionstamp> cacheUpdater) {
+    DeleteResult(int capacity, Consumer<Versionstamp> cacheUpdater) {
+        this.keys = new Versionstamp[capacity];
         this.cacheUpdater = cacheUpdater;
     }
 
-    void add(Versionstamp key) {
-        keys.add(key);
+    void add(int index, Versionstamp key) {
+        keys[index] = key;
     }
 
     public void complete() {

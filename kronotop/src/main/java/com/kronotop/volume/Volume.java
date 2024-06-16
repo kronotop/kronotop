@@ -148,7 +148,7 @@ public class Volume {
         return config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, data));
     }
 
-    private CompletableFuture<byte[]> writeMetadata(Transaction tr, List<EntryMetadata> entryMetadataList) {
+    private CompletableFuture<byte[]> writeMetadata(Transaction tr, EntryMetadata[] entryMetadataList) {
         int userVersion = 0;
         for (EntryMetadata entryMetadata : entryMetadataList) {
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
@@ -167,17 +167,19 @@ public class Volume {
         return tr.getVersionstamp();
     }
 
-    private List<EntryMetadata> appendEntries(ByteBuffer[] entries) throws IOException {
-        List<EntryMetadata> entryMetadataList = new ArrayList<>();
+    private EntryMetadata[] appendEntries(ByteBuffer[] entries) throws IOException {
+        EntryMetadata[] entryMetadataList = new EntryMetadata[entries.length];
+        int index = 0;
         for (ByteBuffer entry : entries) {
             EntryMetadata entryMetadata = tryAppend(entry);
-            entryMetadataList.add(entryMetadata);
+            entryMetadataList[index] = entryMetadata;
+            index++;
         }
         return entryMetadataList;
     }
 
     public AppendResult append(@Nonnull Transaction tr, @Nonnull ByteBuffer... entries) throws IOException {
-        List<EntryMetadata> entryMetadataList = appendEntries(entries);
+        EntryMetadata[] entryMetadataList = appendEntries(entries);
         CompletableFuture<byte[]> future = writeMetadata(tr, entryMetadataList);
         return new AppendResult(future, entryMetadataList, entryMetadataCache::put);
     }
@@ -251,7 +253,8 @@ public class Volume {
     }
 
     public DeleteResult delete(@Nonnull Transaction tr, @Nonnull Versionstamp... keys) {
-        DeleteResult result = new DeleteResult(entryMetadataCache::invalidate);
+        DeleteResult result = new DeleteResult(keys.length, entryMetadataCache::invalidate);
+        int index = 0;
         for (Versionstamp key : keys) {
             byte[] entryKey = packEntryKey(key);
             byte[] encodedEntryMetadata = tr.get(entryKey).join();
@@ -261,7 +264,8 @@ public class Volume {
             }
             tr.clear(entryKey);
             tr.clear(packEntryMetadataKey(encodedEntryMetadata));
-            result.add(key);
+            result.add(index, key);
+            index++;
         }
         return result;
     }

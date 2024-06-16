@@ -25,11 +25,11 @@ import java.util.function.BiConsumer;
 
 public class AppendResult {
     private final CompletableFuture<byte[]> future;
-    private final List<EntryMetadata> entryMetadataList;
+    private final EntryMetadata[] entryMetadataList;
     private final BiConsumer<Versionstamp, EntryMetadata> cacheUpdater;
     private boolean calledOnce = false;
 
-    AppendResult(CompletableFuture<byte[]> future, List<EntryMetadata> entryMetadataList, BiConsumer<Versionstamp, EntryMetadata> cacheUpdater) {
+    AppendResult(CompletableFuture<byte[]> future, EntryMetadata[] entryMetadataList, BiConsumer<Versionstamp, EntryMetadata> cacheUpdater) {
         this.future = future;
         this.entryMetadataList = entryMetadataList;
         this.cacheUpdater = cacheUpdater;
@@ -42,7 +42,7 @@ public class AppendResult {
         byte[] trVersion = future.join();
         calledOnce = true;
         int userVersion = 0;
-        Versionstamp[] versionstampedKeys = new Versionstamp[entryMetadataList.size()];
+        Versionstamp[] versionstampedKeys = new Versionstamp[entryMetadataList.length];
         for (EntryMetadata entryMetadata : entryMetadataList) {
             Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
             cacheUpdater.accept(versionstampedKey, entryMetadata);
