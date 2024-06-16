@@ -27,6 +27,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
+import com.kronotop.common.KronotopException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -220,9 +221,27 @@ public class Volume {
             EntryMetadata entryMetadata = entryMetadataCache.get(key);
             Segment segment = getSegmentByName(entryMetadata.segment());
             return segment.get(entryMetadata.position(), entryMetadata.length());
+        } catch (CacheLoader.InvalidCacheLoadException e) {
+            // The requested key doesn't exist in this Volume.
+            return null;
         } catch (ExecutionException e) {
-            throw new RuntimeException(e);
+            throw new KronotopException("Failed to load entry metadata from FoundationDB", e);
         }
+    }
+
+    public void delete(@Nonnull Versionstamp key) {
+        context.getFoundationDB().run(tr -> {
+            byte[] entryKey = packEntryKey(key);
+            byte[] encodedEntryMetadata = tr.get(entryKey).join();
+            if (encodedEntryMetadata == null) {
+                // Already deleted by a previously committed transaction.
+                return null;
+            }
+            tr.clear(entryKey);
+            tr.clear(packEntryMetadataKey(encodedEntryMetadata));
+            return null;
+        });
+        entryMetadataCache.invalidate(key);
     }
 
     private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {

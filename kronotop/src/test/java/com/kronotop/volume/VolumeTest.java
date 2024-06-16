@@ -67,11 +67,22 @@ public class VolumeTest extends BaseMetadataStoreTest {
             System.out.println(new String(buffer.array()));
         }
 
-        System.out.println("SECOND");
+        System.out.println("CACHED METADATA");
 
         for(Versionstamp versionstamp : versionstamps) {
             ByteBuffer buffer = volume.get(versionstamp);
             System.out.println(new String(buffer.array()));
+        }
+
+        for(Versionstamp versionstamp : versionstamps) {
+            volume.delete(versionstamp);
+        }
+
+        System.out.println("After delete");
+
+        for(Versionstamp versionstamp : versionstamps) {
+            ByteBuffer buffer = volume.get(versionstamp);
+            System.out.println(buffer);
         }
     }
 }
