@@ -174,29 +174,10 @@ public class Volume {
         return entryMetadataList;
     }
 
-    private List<Versionstamp> competeVersionstamp(CompletableFuture<byte[]> versionstamp, int size) {
-        byte[] trVersion = versionstamp.join();
-        List<Versionstamp> result = new ArrayList<>();
-        for (int i = 0; i < size; i++) {
-            result.add(Versionstamp.complete(trVersion, i));
-        }
-        return result;
-    }
-
-    private void cacheEntryMetadata(List<Versionstamp> versionstampList, List<EntryMetadata> entryMetadataList) {
-        for (int i = 0; i < versionstampList.size(); i++) {
-            Versionstamp key = versionstampList.get(i);
-            EntryMetadata value = entryMetadataList.get(i);
-            entryMetadataCache.put(key, value);
-        }
-    }
-
-    public List<Versionstamp> append(@Nonnull ByteBuffer... entries) throws IOException {
+    public AppendResult append(@Nonnull Transaction tr, @Nonnull ByteBuffer... entries) throws IOException {
         List<EntryMetadata> entryMetadataList = appendEntries(entries);
-        CompletableFuture<byte[]> versionstamp = context.getFoundationDB().run(tr -> writeMetadata(tr, entryMetadataList));
-        List<Versionstamp> versionstampList = competeVersionstamp(versionstamp, entries.length);
-        cacheEntryMetadata(versionstampList, entryMetadataList);
-        return versionstampList;
+        CompletableFuture<byte[]> future = writeMetadata(tr, entryMetadataList);
+        return new AppendResult(future, entryMetadataList, entryMetadataCache);
     }
 
     private byte[] packEntryKey(Versionstamp key) {

@@ -21,7 +21,6 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseMetadataStoreTest;
-import com.kronotop.VersionstampUtils;
 import com.kronotop.common.utils.DirectoryLayout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,8 +59,14 @@ public class VolumeTest extends BaseMetadataStoreTest {
                 ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
         };
 
-        List<Versionstamp> versionstamps = volume.append(entries);
-        for(Versionstamp versionstamp : versionstamps) {
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            result = volume.append(tr, entries);
+            tr.commit().join();
+        }
+
+        List<Versionstamp> versionstampList = result.getVersionstampedKeys();
+        for (Versionstamp versionstamp : versionstampList) {
             //System.out.println(VersionstampUtils.base64Encode(versionstamp));
             ByteBuffer buffer = volume.get(versionstamp);
             System.out.println(new String(buffer.array()));
@@ -69,18 +74,18 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
         System.out.println("CACHED METADATA");
 
-        for(Versionstamp versionstamp : versionstamps) {
+        for(Versionstamp versionstamp : versionstampList) {
             ByteBuffer buffer = volume.get(versionstamp);
             System.out.println(new String(buffer.array()));
         }
 
-        for(Versionstamp versionstamp : versionstamps) {
+        for(Versionstamp versionstamp : versionstampList) {
             volume.delete(versionstamp);
         }
 
         System.out.println("After delete");
 
-        for(Versionstamp versionstamp : versionstamps) {
+        for(Versionstamp versionstamp : versionstampList) {
             ByteBuffer buffer = volume.get(versionstamp);
             System.out.println(buffer);
         }
