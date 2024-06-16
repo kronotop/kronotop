@@ -130,21 +130,26 @@ public class Volume {
         return result;
     }
 
+    private byte[] packEntryKeyWithVersionstamp(int userVersion) {
+        Tuple key = Tuple.from(ENTRY_PREFIX, Versionstamp.incomplete(userVersion));
+        return config.subspace().packWithVersionstamp(key);
+    }
+
     private CompletableFuture<byte[]> writeMetadata(Transaction tr, List<EntryMetadata> entryMetadataList) {
-        for (int i = 0; i < entryMetadataList.size(); i++) {
-            Tuple key = Tuple.from(ENTRY_PREFIX, Versionstamp.incomplete(i));
-            EntryMetadata entryMetadata = entryMetadataList.get(i);
+        int userVersion = 0;
+        for (EntryMetadata entryMetadata : entryMetadataList) {
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
             tr.mutate(
                     MutationType.SET_VERSIONSTAMPED_KEY,
-                    config.subspace().packWithVersionstamp(key),
+                    packEntryKeyWithVersionstamp(userVersion),
                     encodedEntryMetadata
             );
             tr.mutate(
                     MutationType.SET_VERSIONSTAMPED_VALUE,
                     config.subspace().pack(Tuple.from("entry-metadata", encodedEntryMetadata)),
-                    Tuple.from(Versionstamp.incomplete(i)).packWithVersionstamp()
+                    Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp()
             );
+            userVersion++;
         }
         return tr.getVersionstamp();
     }
@@ -164,9 +169,13 @@ public class Volume {
         return competeResponse(versionstamp, entries.length);
     }
 
+    private byte[] packEntryKey(Versionstamp key) {
+        return config.subspace().pack(Tuple.from(ENTRY_PREFIX, key));
+    }
+
     public byte[] get(@Nonnull Versionstamp key) throws IOException {
         context.getFoundationDB().run(tr -> {
-            byte[] value = tr.get(config.subspace().pack(Tuple.from(ENTRY_PREFIX, key))).join();
+            byte[] value = tr.get(packEntryKey(key)).join();
             System.out.println(EntryMetadata.decode(ByteBuffer.wrap(value)));
             return null;
         });
