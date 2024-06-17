@@ -19,11 +19,11 @@ package com.kronotop.volume;
 import java.nio.ByteBuffer;
 
 public class SegmentMetadata {
+    public static final int HEADER_SIZE = 32;
     private final long id;
     private final long size;
     private long currentPosition;
-    private long freeBytes = 0;
-    private long usedBytes = 0;
+    private long wastedBytes;
 
     public SegmentMetadata(long id, long size) {
         this.id = id;
@@ -46,29 +46,20 @@ public class SegmentMetadata {
         this.currentPosition = currentPosition;
     }
 
-    public long getFreeBytes() {
-        return freeBytes;
+    public long getWastedBytes() {
+        return wastedBytes;
     }
 
-    public void setFreeBytes(long freeBytes) {
-        this.freeBytes = freeBytes;
-    }
-
-    public long getUsedBytes() {
-        return usedBytes;
-    }
-
-    public void setUsedBytes(long usedBytes) {
-        this.usedBytes = usedBytes;
+    public void setWastedBytes(long wastedBytes) {
+        this.wastedBytes = wastedBytes;
     }
 
     public ByteBuffer encode() {
-        ByteBuffer buffer = ByteBuffer.allocate(40);
+        ByteBuffer buffer = ByteBuffer.allocate(HEADER_SIZE);
         buffer.putLong(id);
         buffer.putLong(size);
         buffer.putLong(currentPosition);
-        buffer.putLong(freeBytes);
-        buffer.putLong(usedBytes);
+        buffer.putLong(wastedBytes);
         return buffer;
     }
 
@@ -77,8 +68,7 @@ public class SegmentMetadata {
         long size = buffer.getLong();
         SegmentMetadata segmentMetadata = new SegmentMetadata(id, size);
         segmentMetadata.setCurrentPosition(buffer.getLong());
-        segmentMetadata.setFreeBytes(buffer.getLong());
-        segmentMetadata.setUsedBytes(buffer.getLong());
+        segmentMetadata.setWastedBytes(buffer.getLong());
         return segmentMetadata;
     }
 }

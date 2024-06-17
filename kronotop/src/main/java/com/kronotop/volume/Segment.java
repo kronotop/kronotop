@@ -31,33 +31,46 @@ import java.nio.file.Path;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class Segment {
+class Segment {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
-    private final String rootPath;
+    private final Context context;
+    private final String name;
     private final SegmentMetadata metadata;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final RandomAccessFile segment;
-    private final RandomAccessFile metadataFile;
+    private final RandomAccessFile segmentMetadata;
 
-    public Segment(Context context, long id) throws IOException {
-        this.rootPath = context.getConfig().getString("volumes.root_path");
-        long size = context.getConfig().getLong("volumes.segment_size");
-        this.metadata = new SegmentMetadata(id, size);
-        this.segment = createOrOpenSegment();
-        this.metadataFile = createOrOpenSegmentMetadata();
-        System.out.println(this.metadataFile.length());
+    Segment(Context context, long id) throws IOException {
+        this.context = context;
+        this.name = Strings.padStart(Long.toString(id), 19, '0');
+        this.segmentMetadata = createOrOpenSegmentMetadataFile();
+        this.metadata = createOrDecodeSegmentMetadata(id);
+        this.segment = createOrOpenSegmentFile();
     }
 
-    public String getName() {
-        return Strings.padStart(Long.toString(metadata.getId()), 19, '0');
+    String getName() {
+        return name;
     }
 
-    public SegmentMetadata getMetadata() {
+    SegmentMetadata getMetadata() {
         return metadata;
     }
 
-    private RandomAccessFile createOrOpenSegmentMetadata() throws IOException {
-        Path path = Path.of(rootPath, "segments", getName() + ".metadata");
+    private SegmentMetadata createOrDecodeSegmentMetadata(long id) throws IOException {
+        long size = context.getConfig().getLong("volumes.segment_size");
+        if (this.segmentMetadata.getChannel().size() == 0) {
+            // Empty file. Create a new SegmentMetadata.
+            return new SegmentMetadata(id, size);
+        } else {
+            ByteBuffer buffer = ByteBuffer.allocate(SegmentMetadata.HEADER_SIZE);
+            this.segmentMetadata.getChannel().read(buffer);
+            return SegmentMetadata.decode(buffer);
+        }
+    }
+
+    private RandomAccessFile createOrOpenSegmentMetadataFile() throws IOException {
+        String rootPath = context.getConfig().getString("volumes.root_path");
+        Path path = Path.of(rootPath, "segments", name + ".metadata");
         Files.createDirectories(path.getParent());
         try {
             return new RandomAccessFile(path.toFile(), "rw");
@@ -67,7 +80,8 @@ public class Segment {
         }
     }
 
-    private RandomAccessFile createOrOpenSegment() throws IOException {
+    private RandomAccessFile createOrOpenSegmentFile() throws IOException {
+        String rootPath = context.getConfig().getString("volumes.root_path");
         Path path = Path.of(rootPath, "segments", getName());
         Files.createDirectories(path.getParent());
         try {
@@ -83,12 +97,13 @@ public class Segment {
         }
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     private void updateSegmentMetadata() throws IOException {
         ByteBuffer buffer = metadata.encode();
-        metadataFile.getChannel().write(buffer, 0);
+        segmentMetadata.getChannel().write(buffer, 0);
     }
 
-    public EntryMetadata append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
+    EntryMetadata append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
         lock.writeLock().lock();
         try {
             long position = metadata.getCurrentPosition();

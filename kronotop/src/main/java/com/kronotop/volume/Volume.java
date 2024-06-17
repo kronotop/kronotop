@@ -101,7 +101,7 @@ public class Volume {
                 return createSegment();
             }
             Segment latest = segments.getLast();
-            if (size > latest.getMetadata().getFreeBytes()) {
+            if (size > latest.getMetadata().getCurrentPosition()) {
                 return createSegment();
             }
             return latest;
@@ -114,7 +114,7 @@ public class Volume {
         segmentsLock.readLock().lock();
         try {
             Segment latest = segments.getLast();
-            if (size < latest.getMetadata().getFreeBytes()) {
+            if (size < latest.getMetadata().getCurrentPosition()) {
                 return latest;
             }
         } catch (NoSuchElementException e) {
