@@ -24,10 +24,12 @@ public class SegmentMetadata {
     private final long size;
     private long position;
     private long wastedBytes;
+    private final ByteBuffer buffer;
 
     public SegmentMetadata(long id, long size) {
         this.id = id;
         this.size = size;
+        this.buffer = ByteBuffer.allocate(HEADER_SIZE);
     }
 
     public long getId() {
@@ -55,7 +57,7 @@ public class SegmentMetadata {
     }
 
     public ByteBuffer encode() {
-        ByteBuffer buffer = ByteBuffer.allocate(HEADER_SIZE);
+        buffer.clear();
         buffer.putLong(id);
         buffer.putLong(size);
         buffer.putLong(position);
