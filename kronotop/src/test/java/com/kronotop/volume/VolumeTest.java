@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -92,4 +93,50 @@ public class VolumeTest extends BaseMetadataStoreTest {
             System.out.println(buffer);
         }
     }
+
+    @Test
+    public void update() throws IOException, SegmentNotFoundException, KeyNotFoundException {
+        VolumeService service = new VolumeService(context);
+        DirectorySubspace subspace = getDirectorySubspace();
+        VolumeConfig volumeConfig = new VolumeConfig(subspace, "append-test");
+        Volume volume = service.newVolume(volumeConfig);
+
+        ByteBuffer[] entries = {
+                ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
+        };
+
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            result = volume.append(tr, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] versionstampList = result.getVersionstampedKeys();
+        for (Versionstamp versionstamp : versionstampList) {
+            ByteBuffer buffer = volume.get(versionstamp);
+            System.out.println(new String(buffer.array()));
+        }
+
+        {
+            KeyEntry[] e = new KeyEntry[2];
+            int i = 0;
+            for (Versionstamp key : versionstampList) {
+                e[i] = new KeyEntry(key, ByteBuffer.allocate(9).put(String.format("updated-%d",i).getBytes()).flip());
+                i++;
+            }
+            UpdateResult result2;
+            try (Transaction tr = database.createTransaction()) {
+                result2 = volume.update(tr, e);
+                tr.commit().join();
+            }
+            result2.complete();
+
+            for (Versionstamp versionstamp : versionstampList) {
+                ByteBuffer buffer = volume.get(versionstamp);
+                System.out.println(new String(buffer.array()));
+            }
+        }
+    }
+
 }

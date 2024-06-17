@@ -270,6 +270,28 @@ public class Volume {
         return result;
     }
 
+    public UpdateResult update(@Nonnull Transaction tr, @Nonnull KeyEntry... pairs) throws IOException, KeyNotFoundException {
+        ByteBuffer[] entries = new ByteBuffer[pairs.length];
+        for (int i = 0; i < pairs.length; i++) {
+            entries[i] = pairs[i].entry();
+        }
+        EntryMetadata[] entryMetadataList = appendEntries(entries);
+
+        int index = 0;
+        for(KeyEntry keyEntry : pairs) {
+            Versionstamp key = keyEntry.key();
+            byte[] packedKey = packEntryKey(key);
+            byte[] encodedEntryMetadata = tr.get(packedKey).join();
+            if (encodedEntryMetadata == null) {
+                throw new KeyNotFoundException(key);
+            }
+            tr.clear(packEntryMetadataKey(encodedEntryMetadata));
+            tr.set(packedKey, entryMetadataList[index].encode().array());
+            index++;
+        }
+        return new UpdateResult(pairs, entryMetadataCache::invalidate);
+    }
+
     private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {
         @Override
         public @Nonnull EntryMetadata load(@Nonnull Versionstamp key) {
