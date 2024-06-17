@@ -22,7 +22,7 @@ public class SegmentMetadata {
     public static final int HEADER_SIZE = 32;
     private final long id;
     private final long size;
-    private long currentPosition;
+    private long position;
     private long wastedBytes;
 
     public SegmentMetadata(long id, long size) {
@@ -38,12 +38,12 @@ public class SegmentMetadata {
         return size;
     }
 
-    public long getCurrentPosition() {
-        return currentPosition;
+    public long getPosition() {
+        return position;
     }
 
-    public void setCurrentPosition(long currentPosition) {
-        this.currentPosition = currentPosition;
+    public void setPosition(long position) {
+        this.position = position;
     }
 
     public long getWastedBytes() {
@@ -58,7 +58,7 @@ public class SegmentMetadata {
         ByteBuffer buffer = ByteBuffer.allocate(HEADER_SIZE);
         buffer.putLong(id);
         buffer.putLong(size);
-        buffer.putLong(currentPosition);
+        buffer.putLong(position);
         buffer.putLong(wastedBytes);
         return buffer;
     }
@@ -67,7 +67,7 @@ public class SegmentMetadata {
         long id = buffer.getLong();
         long size = buffer.getLong();
         SegmentMetadata segmentMetadata = new SegmentMetadata(id, size);
-        segmentMetadata.setCurrentPosition(buffer.getLong());
+        segmentMetadata.setPosition(buffer.getLong());
         segmentMetadata.setWastedBytes(buffer.getLong());
         return segmentMetadata;
     }
