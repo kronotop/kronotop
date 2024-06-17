@@ -33,16 +33,19 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Segment {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
+    private final String rootPath;
     private final SegmentMetadata metadata;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final RandomAccessFile segment;
-    private final String rootPath;
+    private final RandomAccessFile metadataFile;
 
     public Segment(Context context, long id) throws IOException {
         this.rootPath = context.getConfig().getString("volumes.root_path");
         long size = context.getConfig().getLong("volumes.segment_size");
         this.metadata = new SegmentMetadata(id, size);
-        this.segment = createOrOpenSegmentFile();
+        this.segment = createOrOpenSegment();
+        this.metadataFile = createOrOpenSegmentMetadata();
+        System.out.println(this.metadataFile.length());
     }
 
     public String getName() {
@@ -53,7 +56,18 @@ public class Segment {
         return metadata;
     }
 
-    private RandomAccessFile createOrOpenSegmentFile() throws IOException {
+    private RandomAccessFile createOrOpenSegmentMetadata() throws IOException {
+        Path path = Path.of(rootPath, "segments", getName() + ".metadata");
+        Files.createDirectories(path.getParent());
+        try {
+            return new RandomAccessFile(path.toFile(), "rw");
+        } catch (FileNotFoundException e) {
+            // This should not be possible.
+            throw new KronotopException(e);
+        }
+    }
+
+    private RandomAccessFile createOrOpenSegment() throws IOException {
         Path path = Path.of(rootPath, "segments", getName());
         Files.createDirectories(path.getParent());
         try {
@@ -69,6 +83,11 @@ public class Segment {
         }
     }
 
+    private void updateSegmentMetadata() throws IOException {
+        ByteBuffer buffer = metadata.encode();
+        metadataFile.getChannel().write(buffer, 0);
+    }
+
     public EntryMetadata append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
         lock.writeLock().lock();
         try {
@@ -80,8 +99,8 @@ public class Segment {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(String.format("%d bytes has been written to segment %s", length, getName()));
             }
-            // TODO: Save metadata to disk
             metadata.setCurrentPosition(position + length);
+            updateSegmentMetadata();
             return new EntryMetadata(getName(), position, length);
         } finally {
             lock.writeLock().unlock();

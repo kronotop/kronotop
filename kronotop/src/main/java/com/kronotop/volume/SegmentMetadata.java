@@ -16,6 +16,8 @@
 
 package com.kronotop.volume;
 
+import java.nio.ByteBuffer;
+
 public class SegmentMetadata {
     private final long id;
     private final long size;
@@ -58,5 +60,25 @@ public class SegmentMetadata {
 
     public void setUsedBytes(long usedBytes) {
         this.usedBytes = usedBytes;
+    }
+
+    public ByteBuffer encode() {
+        ByteBuffer buffer = ByteBuffer.allocate(40);
+        buffer.putLong(id);
+        buffer.putLong(size);
+        buffer.putLong(currentPosition);
+        buffer.putLong(freeBytes);
+        buffer.putLong(usedBytes);
+        return buffer;
+    }
+
+    public static SegmentMetadata decode(ByteBuffer buffer) {
+        long id = buffer.getLong();
+        long size = buffer.getLong();
+        SegmentMetadata segmentMetadata = new SegmentMetadata(id, size);
+        segmentMetadata.setCurrentPosition(buffer.getLong());
+        segmentMetadata.setFreeBytes(buffer.getLong());
+        segmentMetadata.setUsedBytes(buffer.getLong());
+        return segmentMetadata;
     }
 }
