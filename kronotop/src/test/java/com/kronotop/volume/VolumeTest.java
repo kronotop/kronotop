@@ -30,6 +30,10 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -248,5 +252,55 @@ public class VolumeTest extends BaseMetadataStoreTest {
         }
 
         assertEquals(2, volume.getStats().getSegments().length);
+    }
+
+    @Test
+    public void test_concurrent_append_then_get_all_versionstamped_keys() throws IOException, InterruptedException {
+        ConcurrentHashMap<Versionstamp, ByteBuffer> pairs = new ConcurrentHashMap<>();
+        int numberOfThreads = Runtime.getRuntime().availableProcessors() * 2;
+        int entriesPerThread = 2;
+        CountDownLatch countDownLatch = new CountDownLatch(numberOfThreads);
+
+        class AppendRunner implements Runnable {
+            private final ByteBuffer[] entries;
+
+            AppendRunner(ByteBuffer[] entries) {
+                this.entries = entries;
+            }
+
+            @Override
+            public void run() {
+                AppendResult result;
+                try (Transaction tr = database.createTransaction()) {
+                    result = volume.append(tr, entries);
+                    tr.commit().join();
+                    Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
+                    for (int i = 0; i < versionstampedKeys.length; i++) {
+                        Versionstamp versionstampedKey = versionstampedKeys[i];
+                        pairs.put(versionstampedKey, entries[i]);
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                countDownLatch.countDown();
+            }
+        }
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads)) {
+            for (int i = 0; i < numberOfThreads; i++) {
+                AppendRunner appendRunner = new AppendRunner(getEntries(entriesPerThread));
+                executor.execute(appendRunner);
+            }
+            countDownLatch.await();
+        }
+
+        assertEquals(numberOfThreads * entriesPerThread, pairs.size());
+
+        try (Transaction tr = database.createTransaction()) {
+            for (Map.Entry<Versionstamp, ByteBuffer> entry : pairs.entrySet()) {
+                ByteBuffer buffer = volume.get(tr, entry.getKey());
+                assertArrayEquals(entry.getValue().array(), buffer.array());
+            }
+        }
     }
 }

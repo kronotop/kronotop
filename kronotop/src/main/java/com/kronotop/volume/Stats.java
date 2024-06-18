@@ -19,11 +19,11 @@ package com.kronotop.volume;
 public class Stats {
     private String[] segments;
 
-    void setSegments(String[] segments) {
-        this.segments = segments;
-    }
-
     public String[] getSegments() {
         return segments;
+    }
+
+    void setSegments(String[] segments) {
+        this.segments = segments;
     }
 }
