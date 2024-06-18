@@ -134,48 +134,43 @@ public class VolumeTest extends BaseMetadataStoreTest {
             assertNull(volume.get(versionstamp));
         }
     }
-
     @Test
     public void update() throws IOException, SegmentNotFoundException, KeyNotFoundException {
-        VolumeService service = new VolumeService(context);
-        DirectorySubspace subspace = getDirectorySubspace();
-        VolumeConfig volumeConfig = new VolumeConfig(subspace, "append-test");
-        Volume volume = service.newVolume(volumeConfig);
+        Versionstamp[] versionstampedKeys;
 
-        ByteBuffer[] entries = {
-                ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
-                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
-        };
-
-        AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
-            result = volume.append(tr, entries);
-            tr.commit().join();
-        }
-
-        Versionstamp[] versionstampList = result.getVersionstampedKeys();
-        for (Versionstamp versionstamp : versionstampList) {
-            ByteBuffer buffer = volume.get(versionstamp);
-            System.out.println(new String(buffer.array()));
+        {
+            ByteBuffer[] entries = {
+                    ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                    ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
+            };
+            AppendResult result;
+            try (Transaction tr = database.createTransaction()) {
+                result = volume.append(tr, entries);
+                tr.commit().join();
+            }
+            versionstampedKeys = result.getVersionstampedKeys();
         }
 
         {
-            KeyEntry[] e = new KeyEntry[2];
-            int i = 0;
-            for (Versionstamp key : versionstampList) {
-                e[i] = new KeyEntry(key, ByteBuffer.allocate(9).put(String.format("updated-%d", i).getBytes()).flip());
-                i++;
-            }
-            UpdateResult result2;
+            KeyEntry[] entries = new KeyEntry[2];
+            entries[0] = new KeyEntry(versionstampedKeys[0], ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
+            entries[1] = new KeyEntry(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
+            UpdateResult result;
             try (Transaction tr = database.createTransaction()) {
-                result2 = volume.update(tr, e);
+                result = volume.update(tr, entries);
                 tr.commit().join();
             }
-            result2.complete();
+            result.complete();
 
-            for (Versionstamp versionstamp : versionstampList) {
-                ByteBuffer buffer = volume.get(versionstamp);
-                System.out.println(new String(buffer.array()));
+            List<ByteBuffer> retrievedEntries = new ArrayList<>();
+            try (Transaction tr = database.createTransaction()) {
+                for (Versionstamp versionstamp: versionstampedKeys) {
+                    ByteBuffer buffer = volume.get(tr, versionstamp);
+                    retrievedEntries.add(buffer);
+                }
+            }
+            for(int i = 0; i < retrievedEntries.size(); i++) {
+                assertArrayEquals(entries[i].entry().array(), retrievedEntries.get(i).array());
             }
         }
     }

@@ -130,6 +130,7 @@ class Segment {
 
     ByteBuffer get(long position, long length) throws IOException {
         if (position + length > metadata.getSize()) {
+            // TODO: add an exception for this
             throw new RuntimeException("metadata mismatch");
         }
         ByteBuffer buffer = ByteBuffer.allocate((int) length);
