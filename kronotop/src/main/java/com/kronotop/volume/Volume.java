@@ -289,6 +289,21 @@ public class Volume {
         return new UpdateResult(pairs, entryMetadataCache::invalidate);
     }
 
+    public void flush() {
+        segmentsLock.readLock().lock();
+        try {
+            for (Map.Entry<String, Segment> entry : segmentsByName.entrySet()) {
+                try {
+                    entry.getValue().flush();
+                } catch (IOException e) {
+                    LOGGER.error("Failed to flush Segment: {}", entry.getKey(), e);
+                }
+            }
+        } finally {
+            segmentsLock.readLock().unlock();
+        }
+    }
+
     public void close() {
         segmentsLock.readLock().lock();
         try {

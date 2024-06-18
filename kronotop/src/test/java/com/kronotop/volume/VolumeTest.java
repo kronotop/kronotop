@@ -139,4 +139,48 @@ public class VolumeTest extends BaseMetadataStoreTest {
         }
     }
 
+    @Test
+    public void reopen() throws IOException, SegmentNotFoundException {
+        VolumeService service = new VolumeService(context);
+        DirectorySubspace subspace = getDirectorySubspace();
+        VolumeConfig volumeConfig = new VolumeConfig(subspace, "append-test");
+
+        {
+            Volume volume = service.newVolume(volumeConfig);
+            ByteBuffer[] entries = {
+                    ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                    ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
+            };
+
+            AppendResult result;
+            try (Transaction tr = database.createTransaction()) {
+                result = volume.append(tr, entries);
+                tr.commit().join();
+            }
+
+            Versionstamp[] versionstampList = result.getVersionstampedKeys();
+            for (Versionstamp versionstamp : versionstampList) {
+                ByteBuffer buffer = volume.get(versionstamp);
+                System.out.println(new String(buffer.array()));
+            }
+            volume.close();
+        }
+
+        {
+            Volume volume = service.newVolume(volumeConfig);
+            ByteBuffer[] entries = {
+                    ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip(),
+                    ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip(),
+            };
+
+            AppendResult result;
+            try (Transaction tr = database.createTransaction()) {
+                result = volume.append(tr, entries);
+                tr.commit().join();
+            }
+
+            Versionstamp[] versionstampList = result.getVersionstampedKeys();
+            volume.close();
+        }
+    }
 }

@@ -26,7 +26,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -129,20 +128,15 @@ class Segment {
     }
 
     ByteBuffer get(long position, long length) throws IOException {
-        lock.readLock().lock();
-        try {
-            if (position + length > metadata.getSize()) {
-                throw new RuntimeException("metadata mismatch");
-            }
-            ByteBuffer buffer = ByteBuffer.allocate((int) length);
-            int nr = segmentFile.getChannel().read(buffer, position);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug(String.format("%d bytes has been read from segment %s", nr, getName()));
-            }
-            return buffer;
-        } finally {
-            lock.readLock().unlock();
+        if (position + length > metadata.getSize()) {
+            throw new RuntimeException("metadata mismatch");
         }
+        ByteBuffer buffer = ByteBuffer.allocate((int) length);
+        int nr = segmentFile.getChannel().read(buffer, position);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(String.format("%d bytes has been read from segment %s", nr, getName()));
+        }
+        return buffer;
     }
 
     void flush() throws IOException {

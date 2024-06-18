@@ -62,10 +62,12 @@ public class SegmentMetadata {
         buffer.putLong(size);
         buffer.putLong(position);
         buffer.putLong(wastedBytes);
+        buffer.flip();
         return buffer;
     }
 
     public static SegmentMetadata decode(ByteBuffer buffer) {
+        buffer.flip();
         long id = buffer.getLong();
         long size = buffer.getLong();
         SegmentMetadata segmentMetadata = new SegmentMetadata(id, size);
