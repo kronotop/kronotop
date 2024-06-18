@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.base.Strings;
 import com.kronotop.BaseMetadataStoreTest;
 import com.kronotop.common.utils.DirectoryLayout;
 import org.junit.jupiter.api.AfterEach;
@@ -61,12 +62,19 @@ public class VolumeTest extends BaseMetadataStoreTest {
         service.shutdown();
     }
 
+    private ByteBuffer[] getEntries(int number) {
+        int capacity = 10;
+        ByteBuffer[] entries = new ByteBuffer[number];
+        for (int i = 0; i < number; i++) {
+            byte[] data = Strings.padStart(Integer.toString(i), capacity, '0').getBytes();
+            entries[i] = ByteBuffer.allocate(capacity).put(data).flip();
+        }
+        return entries;
+    }
+
     @Test
     public void append() throws IOException {
-        ByteBuffer[] entries = {
-                ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
-                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
-        };
+        ByteBuffer[] entries = getEntries(2);
         AppendResult result;
         try (Transaction tr = database.createTransaction()) {
             result = volume.append(tr, entries);
@@ -77,10 +85,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
     @Test
     public void get() throws SegmentNotFoundException, IOException {
-        ByteBuffer[] entries = {
-                ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
-                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
-        };
+        ByteBuffer[] entries = getEntries(3);
+
         AppendResult result;
         try (Transaction tr = database.createTransaction()) {
             result = volume.append(tr, entries);
@@ -102,10 +108,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
     @Test
     public void delete() throws SegmentNotFoundException, IOException {
-        ByteBuffer[] entries = {
-                ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
-                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
-        };
+        ByteBuffer[] entries = getEntries(2);
         AppendResult appendResult;
         try (Transaction tr = database.createTransaction()) {
             appendResult = volume.append(tr, entries);
