@@ -146,7 +146,7 @@ public class Volume {
     }
 
     private EntryMetadata tryAppend(ByteBuffer entry) throws IOException {
-        int size = entry.position();
+        int size = entry.remaining();
         while (true) {
             Segment segment = getLatestSegment(size);
             try {
@@ -337,6 +337,21 @@ public class Volume {
                     LOGGER.error("Failed to close Segment: {}", entry.getKey(), e);
                 }
             }
+        } finally {
+            segmentsLock.readLock().unlock();
+        }
+    }
+
+    public Stats getStats() {
+        segmentsLock.readLock().lock();
+        Stats stats = new Stats();
+        try {
+            String[] segmentNames = new String[segments.size()];
+            for (int i = 0; i < segments.size(); i++) {
+                segmentNames[i] = segments.get(i).getName();
+            }
+            stats.setSegments(segmentNames);
+            return stats;
         } finally {
             segmentsLock.readLock().unlock();
         }

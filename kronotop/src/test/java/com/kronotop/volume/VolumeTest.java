@@ -29,9 +29,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -40,6 +38,13 @@ public class VolumeTest extends BaseMetadataStoreTest {
     VolumeService service;
     Volume volume;
     VolumeConfig volumeConfig;
+    Random random = new Random();
+
+    private ByteBuffer randomBytes(int size) {
+        byte[] b = new byte[size];
+        random.nextBytes(b);
+        return ByteBuffer.wrap(b);
+    }
 
     private DirectorySubspace getDirectorySubspace() {
         try (Transaction tr = database.createTransaction()) {
@@ -76,7 +81,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
-    public void append() throws IOException {
+    public void test_append() throws IOException {
         ByteBuffer[] entries = getEntries(2);
         AppendResult result;
         try (Transaction tr = database.createTransaction()) {
@@ -87,7 +92,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
-    public void get() throws IOException {
+    public void test_get() throws IOException {
         ByteBuffer[] entries = getEntries(3);
 
         AppendResult result;
@@ -99,18 +104,18 @@ public class VolumeTest extends BaseMetadataStoreTest {
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
         List<ByteBuffer> retrievedEntries = new ArrayList<>();
         try (Transaction tr = database.createTransaction()) {
-            for (Versionstamp versionstamp: versionstampedKeys) {
+            for (Versionstamp versionstamp : versionstampedKeys) {
                 ByteBuffer buffer = volume.get(tr, versionstamp);
                 retrievedEntries.add(buffer);
             }
         }
-        for(int i = 0; i < retrievedEntries.size(); i++) {
+        for (int i = 0; i < retrievedEntries.size(); i++) {
             assertArrayEquals(entries[i].array(), retrievedEntries.get(i).array());
         }
     }
 
     @Test
-    public void delete() throws IOException {
+    public void test_delete() throws IOException {
         ByteBuffer[] entries = getEntries(2);
         AppendResult appendResult;
         try (Transaction tr = database.createTransaction()) {
@@ -127,18 +132,19 @@ public class VolumeTest extends BaseMetadataStoreTest {
         deleteResult.complete();
 
         try (Transaction tr = database.createTransaction()) {
-            for (Versionstamp versionstamp: versionstampedKeys) {
+            for (Versionstamp versionstamp : versionstampedKeys) {
                 assertNull(volume.get(tr, versionstamp));
             }
         }
 
         // EntryMetadata cache
-        for (Versionstamp versionstamp: versionstampedKeys) {
+        for (Versionstamp versionstamp : versionstampedKeys) {
             assertNull(volume.get(versionstamp));
         }
     }
+
     @Test
-    public void update() throws IOException, KeyNotFoundException {
+    public void test_update() throws IOException, KeyNotFoundException {
         Versionstamp[] versionstampedKeys;
 
         {
@@ -167,19 +173,19 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = database.createTransaction()) {
-                for (Versionstamp versionstamp: versionstampedKeys) {
+                for (Versionstamp versionstamp : versionstampedKeys) {
                     ByteBuffer buffer = volume.get(tr, versionstamp);
                     retrievedEntries.add(buffer);
                 }
             }
-            for(int i = 0; i < retrievedEntries.size(); i++) {
+            for (int i = 0; i < retrievedEntries.size(); i++) {
                 assertArrayEquals(entries[i].entry().array(), retrievedEntries.get(i).array());
             }
         }
     }
 
     @Test
-    public void flush() {
+    public void test_flush() {
         ByteBuffer[] entries = getEntries(2);
         try (Transaction tr = database.createTransaction()) {
             assertDoesNotThrow(() -> volume.append(tr, entries));
@@ -189,7 +195,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
-    public void close() {
+    public void test_close() {
         ByteBuffer[] entries = getEntries(2);
         try (Transaction tr = database.createTransaction()) {
             assertDoesNotThrow(() -> volume.append(tr, entries));
@@ -199,7 +205,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
-    public void reopen() throws IOException {
+    public void test_reopen() throws IOException {
         Versionstamp[] versionstampedKeys;
         ByteBuffer[] entries = getEntries(2);
         {
@@ -217,14 +223,30 @@ public class VolumeTest extends BaseMetadataStoreTest {
             Volume reopenedVolume = service.newVolume(volumeConfig);
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = database.createTransaction()) {
-                for (Versionstamp versionstamp: versionstampedKeys) {
+                for (Versionstamp versionstamp : versionstampedKeys) {
                     ByteBuffer buffer = reopenedVolume.get(tr, versionstamp);
                     retrievedEntries.add(buffer);
                 }
             }
-            for(int i = 0; i < retrievedEntries.size(); i++) {
+            for (int i = 0; i < retrievedEntries.size(); i++) {
                 assertArrayEquals(entries[i].array(), retrievedEntries.get(i).array());
             }
         }
+    }
+
+    @Test
+    public void test_create_new_segments() throws IOException {
+        long bufferSize = 100480;
+        long segmentSize = context.getConfig().getLong("volumes.segment_size");
+        long numIterations = 2 * (segmentSize / bufferSize);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (int i = 1; i <= numIterations; i++) {
+                volume.append(tr, randomBytes((int) bufferSize));
+            }
+            tr.commit().join();
+        }
+
+        assertEquals(2, volume.getStats().getSegments().length);
     }
 }
