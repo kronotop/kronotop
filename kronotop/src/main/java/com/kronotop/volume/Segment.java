@@ -131,8 +131,8 @@ class Segment {
 
     ByteBuffer get(long position, long length) throws IOException {
         if (position + length > metadata.getSize()) {
-            // TODO: add an exception for this
-            throw new RuntimeException("metadata mismatch");
+            String message = String.format("position: %d, length: %d but size: %d", position, length, metadata.getSize());
+            throw new EntryOutOfBoundException(message);
         }
         ByteBuffer buffer = ByteBuffer.allocate((int) length);
         int nr = segmentFile.getChannel().read(buffer, position);
