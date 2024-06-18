@@ -26,6 +26,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -58,15 +59,6 @@ class Segment {
             return metadata.getSize() - metadata.getPosition();
         } finally {
             lock.readLock().unlock();
-        }
-    }
-
-    void increaseWastedBytes(long delta) {
-        lock.writeLock().lock();
-        try {
-            metadata.setWastedBytes(metadata.getWastedBytes() + delta);
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
@@ -151,5 +143,16 @@ class Segment {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    void flush() throws IOException {
+        segmentFile.getChannel().force(true);
+        metadataFile.getChannel().force(true);
+    }
+
+    void close() throws IOException {
+        flush();
+        segmentFile.close();
+        metadataFile.close();
     }
 }

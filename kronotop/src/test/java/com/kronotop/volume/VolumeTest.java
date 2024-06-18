@@ -27,7 +27,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -55,6 +54,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
         DirectorySubspace subspace = getDirectorySubspace();
         VolumeConfig volumeConfig = new VolumeConfig(subspace, "append-test");
         Volume volume = service.newVolume(volumeConfig);
+
         ByteBuffer[] entries = {
                 ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
                 ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
@@ -74,7 +74,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
         System.out.println("CACHED METADATA");
 
-        for(Versionstamp versionstamp : versionstampList) {
+        for (Versionstamp versionstamp : versionstampList) {
             ByteBuffer buffer = volume.get(versionstamp);
             System.out.println(new String(buffer.array()));
         }
@@ -88,7 +88,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
         System.out.println("After delete");
 
-        for(Versionstamp versionstamp : versionstampList) {
+        for (Versionstamp versionstamp : versionstampList) {
             ByteBuffer buffer = volume.get(versionstamp);
             System.out.println(buffer);
         }
@@ -122,7 +122,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
             KeyEntry[] e = new KeyEntry[2];
             int i = 0;
             for (Versionstamp key : versionstampList) {
-                e[i] = new KeyEntry(key, ByteBuffer.allocate(9).put(String.format("updated-%d",i).getBytes()).flip());
+                e[i] = new KeyEntry(key, ByteBuffer.allocate(9).put(String.format("updated-%d", i).getBytes()).flip());
                 i++;
             }
             UpdateResult result2;

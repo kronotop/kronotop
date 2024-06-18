@@ -34,10 +34,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -278,7 +275,7 @@ public class Volume {
         EntryMetadata[] entryMetadataList = appendEntries(entries);
 
         int index = 0;
-        for(KeyEntry keyEntry : pairs) {
+        for (KeyEntry keyEntry : pairs) {
             Versionstamp key = keyEntry.key();
             byte[] packedKey = packEntryKey(key);
             byte[] encodedEntryMetadata = tr.get(packedKey).join();
@@ -290,6 +287,21 @@ public class Volume {
             index++;
         }
         return new UpdateResult(pairs, entryMetadataCache::invalidate);
+    }
+
+    public void close() {
+        segmentsLock.readLock().lock();
+        try {
+            for (Map.Entry<String, Segment> entry : segmentsByName.entrySet()) {
+                try {
+                    entry.getValue().close();
+                } catch (IOException e) {
+                    LOGGER.error("Failed to close Segment: {}", entry.getKey(), e);
+                }
+            }
+        } finally {
+            segmentsLock.readLock().unlock();
+        }
     }
 
     private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {
