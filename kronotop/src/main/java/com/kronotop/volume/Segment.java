@@ -26,6 +26,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -142,8 +143,16 @@ class Segment {
     }
 
     void flush() throws IOException {
-        segmentFile.getChannel().force(true);
-        metadataFile.getChannel().force(true);
+        try {
+            segmentFile.getChannel().force(true);
+        } catch (ClosedChannelException e) {
+            // Ignore it and continue flushing the other file.
+        }
+        try {
+            metadataFile.getChannel().force(true);
+        } catch (ClosedChannelException e) {
+            // Ignore it.
+        }
     }
 
     void close() throws IOException {

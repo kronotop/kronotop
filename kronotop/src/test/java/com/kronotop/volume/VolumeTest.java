@@ -186,6 +186,16 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
+    public void close() {
+        ByteBuffer[] entries = getEntries(2);
+        try (Transaction tr = database.createTransaction()) {
+            assertDoesNotThrow(() -> volume.append(tr, entries));
+            tr.commit().join();
+        }
+        assertDoesNotThrow(() -> volume.close());
+    }
+
+    @Test
     public void reopen() throws IOException, SegmentNotFoundException {
         VolumeService service = new VolumeService(context);
         DirectorySubspace subspace = getDirectorySubspace();
