@@ -36,8 +36,10 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class VolumeTest extends BaseMetadataStoreTest {
+    DirectorySubspace directorySubspace;
     VolumeService service;
     Volume volume;
+    VolumeConfig volumeConfig;
 
     private DirectorySubspace getDirectorySubspace() {
         try (Transaction tr = database.createTransaction()) {
@@ -50,9 +52,10 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @BeforeEach
-    public void setupVolumeTestEnvironment() {
+    public void setupVolumeTestEnvironment() throws IOException {
+        directorySubspace = getDirectorySubspace();
         service = new VolumeService(context);
-        VolumeConfig volumeConfig = new VolumeConfig(getDirectorySubspace(), "append-test");
+        volumeConfig = new VolumeConfig(directorySubspace, "append-test");
         volume = service.newVolume(volumeConfig);
     }
 
@@ -197,46 +200,31 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
     @Test
     public void reopen() throws IOException {
-        VolumeService service = new VolumeService(context);
-        DirectorySubspace subspace = getDirectorySubspace();
-        VolumeConfig volumeConfig = new VolumeConfig(subspace, "append-test");
-
+        Versionstamp[] versionstampedKeys;
+        ByteBuffer[] entries = getEntries(2);
         {
-            Volume volume = service.newVolume(volumeConfig);
-            ByteBuffer[] entries = {
-                    ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
-                    ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
-            };
-
             AppendResult result;
             try (Transaction tr = database.createTransaction()) {
                 result = volume.append(tr, entries);
                 tr.commit().join();
             }
-
-            Versionstamp[] versionstampList = result.getVersionstampedKeys();
-            for (Versionstamp versionstamp : versionstampList) {
-                ByteBuffer buffer = volume.get(versionstamp);
-                System.out.println(new String(buffer.array()));
-            }
-            volume.close();
+            versionstampedKeys = result.getVersionstampedKeys();
         }
 
+        volume.close();
+
         {
-            Volume volume = service.newVolume(volumeConfig);
-            ByteBuffer[] entries = {
-                    ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip(),
-                    ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip(),
-            };
-
-            AppendResult result;
+            Volume reopenedVolume = service.newVolume(volumeConfig);
+            List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = database.createTransaction()) {
-                result = volume.append(tr, entries);
-                tr.commit().join();
+                for (Versionstamp versionstamp: versionstampedKeys) {
+                    ByteBuffer buffer = reopenedVolume.get(tr, versionstamp);
+                    retrievedEntries.add(buffer);
+                }
             }
-
-            Versionstamp[] versionstampList = result.getVersionstampedKeys();
-            volume.close();
+            for(int i = 0; i < retrievedEntries.size(); i++) {
+                assertArrayEquals(entries[i].array(), retrievedEntries.get(i).array());
+            }
         }
     }
 }

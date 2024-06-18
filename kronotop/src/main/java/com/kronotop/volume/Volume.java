@@ -21,7 +21,6 @@ import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -45,10 +44,11 @@ public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
     private static final byte ENTRY_PREFIX = 0x01;
     private static final byte ENTRY_METADATA_PREFIX = 0x02;
+    private static final String VOLUME_METADATA_KEY = "metadata";
 
     private final Context context;
     private final VolumeConfig config;
-    private final VolumeMetadata metadata = new VolumeMetadata();
+    private final VolumeMetadata metadata;
     private final LoadingCache<Versionstamp, EntryMetadata> entryMetadataCache;
 
     // segmentsLock protects segments array
@@ -56,14 +56,41 @@ public class Volume {
     private final List<Segment> segments = new ArrayList<>();
     private final HashMap<String, Segment> segmentsByName = new HashMap<>();
 
-    protected Volume(Context context, VolumeConfig volumeConfig) {
+    protected Volume(Context context, VolumeConfig volumeConfig) throws IOException {
         this.context = context;
         this.config = volumeConfig;
+        this.metadata = createOrLoadVolumeMetadata();
         this.entryMetadataCache = CacheBuilder.newBuilder()
                 .expireAfterAccess(30, TimeUnit.MINUTES)
                 .build(new EntryMetadataLoader());
+        openSegments();
     }
 
+    private VolumeMetadata createOrLoadVolumeMetadata() throws IOException {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] metadataKey = config.subspace().pack(Tuple.from(VOLUME_METADATA_KEY));
+            byte[] value = tr.get(metadataKey).join();
+            if (value == null) {
+                return new VolumeMetadata();
+            }
+            return new ObjectMapper().readValue(value, VolumeMetadata.class);
+        }
+    }
+
+    private void openSegments() throws IOException {
+        segmentsLock.writeLock().lock();
+        try {
+            for (Long segmentId : metadata.getSegments()) {
+                Segment segment = new Segment(context, segmentId);
+                segments.add(segment);
+                segmentsByName.put(segment.getName(), segment);
+            }
+        } finally {
+            segmentsLock.writeLock().unlock();
+        }
+    }
+
+    // createsSegment protected by segmentsLock
     private Segment createSegment() throws IOException {
         // Create a new segment and add it to the metadata
         long segmentId = metadata.getAndIncrementSegmentId();
@@ -71,19 +98,15 @@ public class Volume {
 
         // After this point, the Segment has been created on the physical medium.
 
-        metadata.addSegment(segmentId);
         // Update the volume metadata on FoundationDB
-        context.getFoundationDB().run(tr -> {
-            try {
-                byte[] value = new ObjectMapper().writeValueAsBytes(metadata);
-                byte[] metadataKey = config.subspace().pack(Tuple.from("volume-metadata"));
-                tr.set(metadataKey, value);
-            } catch (JsonProcessingException e) {
-                LOGGER.error("Error writing to JSON", e);
-                throw new RuntimeException(e); // retry
-            }
-            return null;
-        });
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // TODO: we may need to cleanup this if the transaction fails.
+            metadata.addSegment(segmentId);
+            byte[] value = new ObjectMapper().writeValueAsBytes(metadata);
+            byte[] metadataKey = config.subspace().pack(VOLUME_METADATA_KEY);
+            tr.set(metadataKey, value);
+            tr.commit().join();
+        }
 
         // Make it available for the rest of the Volume.
         segments.add(segment);

@@ -68,7 +68,7 @@ public class VolumeService implements KronotopService {
     public void shutdown() {
     }
 
-    public Volume newVolume(VolumeConfig config) {
+    public Volume newVolume(VolumeConfig config) throws IOException {
         return new Volume(context, config);
     }
 }
