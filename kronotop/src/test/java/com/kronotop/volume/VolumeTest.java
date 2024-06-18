@@ -22,16 +22,22 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseMetadataStoreTest;
 import com.kronotop.common.utils.DirectoryLayout;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 public class VolumeTest extends BaseMetadataStoreTest {
-    protected DirectorySubspace directorySubspace;
+    VolumeService service;
+    Volume volume;
 
     private DirectorySubspace getDirectorySubspace() {
         try (Transaction tr = database.createTransaction()) {
@@ -45,52 +51,53 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
     @BeforeEach
     public void setupVolumeTestEnvironment() {
-        directorySubspace = getDirectorySubspace();
+        service = new VolumeService(context);
+        VolumeConfig volumeConfig = new VolumeConfig(getDirectorySubspace(), "append-test");
+        volume = service.newVolume(volumeConfig);
+    }
+
+    @AfterEach
+    public void tearDownVolumeTest() {
+        volume.close();
+        service.shutdown();
     }
 
     @Test
-    public void append() throws IOException, SegmentNotFoundException {
-        VolumeService service = new VolumeService(context);
-        DirectorySubspace subspace = getDirectorySubspace();
-        VolumeConfig volumeConfig = new VolumeConfig(subspace, "append-test");
-        Volume volume = service.newVolume(volumeConfig);
-
+    public void append() throws IOException {
         ByteBuffer[] entries = {
                 ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
                 ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
         };
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            result = volume.append(tr, entries);
+            tr.commit().join();
+        }
+        assertEquals(2, result.getVersionstampedKeys().length);
+    }
 
+    @Test
+    public void get() throws SegmentNotFoundException, IOException {
+        ByteBuffer[] entries = {
+                ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
+        };
         AppendResult result;
         try (Transaction tr = database.createTransaction()) {
             result = volume.append(tr, entries);
             tr.commit().join();
         }
 
-        Versionstamp[] versionstampList = result.getVersionstampedKeys();
-        for (Versionstamp versionstamp : versionstampList) {
-            ByteBuffer buffer = volume.get(versionstamp);
-            System.out.println(new String(buffer.array()));
-        }
-
-        System.out.println("CACHED METADATA");
-
-        for (Versionstamp versionstamp : versionstampList) {
-            ByteBuffer buffer = volume.get(versionstamp);
-            System.out.println(new String(buffer.array()));
-        }
-
-        DeleteResult deleteResult;
+        Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
+        List<ByteBuffer> retrievedEntries = new ArrayList<>();
         try (Transaction tr = database.createTransaction()) {
-            deleteResult = volume.delete(tr, versionstampList);
-            tr.commit().join();
+            for (Versionstamp versionstamp: versionstampedKeys) {
+                ByteBuffer buffer = volume.get(tr, versionstamp);
+                retrievedEntries.add(buffer);
+            }
         }
-        deleteResult.complete();
-
-        System.out.println("After delete");
-
-        for (Versionstamp versionstamp : versionstampList) {
-            ByteBuffer buffer = volume.get(versionstamp);
-            System.out.println(buffer);
+        for(int i = 0; i < retrievedEntries.size(); i++) {
+            assertArrayEquals(entries[i].array(), retrievedEntries.get(i).array());
         }
     }
 
