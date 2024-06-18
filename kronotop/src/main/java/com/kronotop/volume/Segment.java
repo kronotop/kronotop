@@ -103,28 +103,29 @@ class Segment {
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private void updateSegmentMetadata() throws IOException {
-        ByteBuffer buffer = metadata.encode();
-        metadataFile.getChannel().write(buffer, 0);
-    }
-
-    EntryMetadata append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
+    private long forwardMetadataPosition(int length) throws NotEnoughSpaceException, IOException {
         lock.writeLock().lock();
         try {
             long position = metadata.getPosition();
-            if (position + entry.position() > metadata.getSize()) {
+            if (position + length > metadata.getSize()) {
                 throw new NotEnoughSpaceException();
             }
-            int length = segmentFile.getChannel().write(entry, position);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug(String.format("%d bytes has been written to segment %s", length, getName()));
-            }
             metadata.setPosition(position + length);
-            updateSegmentMetadata();
-            return new EntryMetadata(getName(), position, length);
+            ByteBuffer buffer = metadata.encode();
+            metadataFile.getChannel().write(buffer, 0);
+            return position;
         } finally {
             lock.writeLock().unlock();
         }
+    }
+
+    EntryMetadata append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
+        long position = forwardMetadataPosition(entry.position());
+        int length = segmentFile.getChannel().write(entry, position);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(String.format("%d bytes has been written to segment %s", length, getName()));
+        }
+        return new EntryMetadata(getName(), position, length);
     }
 
     ByteBuffer get(long position, long length) throws IOException {
