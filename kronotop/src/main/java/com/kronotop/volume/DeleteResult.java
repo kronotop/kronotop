@@ -29,7 +29,7 @@ public class DeleteResult {
         this.cacheUpdater = cacheUpdater;
     }
 
-    void add(int index, Versionstamp key) {
+    protected void add(int index, Versionstamp key) {
         keys[index] = key;
     }
 

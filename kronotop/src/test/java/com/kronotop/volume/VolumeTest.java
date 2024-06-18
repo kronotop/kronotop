@@ -32,8 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class VolumeTest extends BaseMetadataStoreTest {
     VolumeService service;
@@ -98,6 +97,38 @@ public class VolumeTest extends BaseMetadataStoreTest {
         }
         for(int i = 0; i < retrievedEntries.size(); i++) {
             assertArrayEquals(entries[i].array(), retrievedEntries.get(i).array());
+        }
+    }
+
+    @Test
+    public void delete() throws SegmentNotFoundException, IOException {
+        ByteBuffer[] entries = {
+                ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
+        };
+        AppendResult appendResult;
+        try (Transaction tr = database.createTransaction()) {
+            appendResult = volume.append(tr, entries);
+            tr.commit().join();
+        }
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+
+        DeleteResult deleteResult;
+        try (Transaction tr = database.createTransaction()) {
+            deleteResult = volume.delete(tr, versionstampedKeys);
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        try (Transaction tr = database.createTransaction()) {
+            for (Versionstamp versionstamp: versionstampedKeys) {
+                assertNull(volume.get(tr, versionstamp));
+            }
+        }
+
+        // EntryMetadata cache
+        for (Versionstamp versionstamp: versionstampedKeys) {
+            assertNull(volume.get(versionstamp));
         }
     }
 
