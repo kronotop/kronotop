@@ -84,7 +84,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
-    public void get() throws SegmentNotFoundException, IOException {
+    public void get() throws IOException {
         ByteBuffer[] entries = getEntries(3);
 
         AppendResult result;
@@ -107,7 +107,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
-    public void delete() throws SegmentNotFoundException, IOException {
+    public void delete() throws IOException {
         ByteBuffer[] entries = getEntries(2);
         AppendResult appendResult;
         try (Transaction tr = database.createTransaction()) {
@@ -135,7 +135,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
         }
     }
     @Test
-    public void update() throws IOException, SegmentNotFoundException, KeyNotFoundException {
+    public void update() throws IOException, KeyNotFoundException {
         Versionstamp[] versionstampedKeys;
 
         {
@@ -196,7 +196,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
-    public void reopen() throws IOException, SegmentNotFoundException {
+    public void reopen() throws IOException {
         VolumeService service = new VolumeService(context);
         DirectorySubspace subspace = getDirectorySubspace();
         VolumeConfig volumeConfig = new VolumeConfig(subspace, "append-test");

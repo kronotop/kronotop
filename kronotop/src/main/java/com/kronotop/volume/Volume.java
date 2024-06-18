@@ -209,7 +209,7 @@ public class Volume {
         }
     }
 
-    private ByteBuffer getByEntryMetadata(Versionstamp key, EntryMetadata entryMetadata) throws SegmentNotFoundException, IOException {
+    private ByteBuffer getByEntryMetadata(Versionstamp key, EntryMetadata entryMetadata) throws IOException {
         Segment segment;
         try {
             segment = getSegmentByName(entryMetadata.segment());
@@ -224,7 +224,7 @@ public class Volume {
         return segment.get(entryMetadata.position(), entryMetadata.length());
     }
 
-    public ByteBuffer get(Transaction tr, @Nonnull Versionstamp key, boolean useCache) throws SegmentNotFoundException, IOException {
+    public ByteBuffer get(Transaction tr, @Nonnull Versionstamp key, boolean useCache) throws IOException {
         EntryMetadata entryMetadata;
         if (useCache) {
             entryMetadata = loadEntryMetadataFromCache(key);
@@ -241,11 +241,11 @@ public class Volume {
         return getByEntryMetadata(key, entryMetadata);
     }
 
-    public ByteBuffer get(@Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
+    public ByteBuffer get(@Nonnull Versionstamp key) throws IOException {
         return get(null, key, true);
     }
 
-    public ByteBuffer get(@Nonnull Transaction tr, @Nonnull Versionstamp key) throws SegmentNotFoundException, IOException {
+    public ByteBuffer get(@Nonnull Transaction tr, @Nonnull Versionstamp key) throws IOException {
         return get(tr, key, false);
     }
 
