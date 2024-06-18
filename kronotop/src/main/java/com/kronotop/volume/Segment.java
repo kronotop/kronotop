@@ -120,7 +120,7 @@ class Segment {
     }
 
     EntryMetadata append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
-        long position = forwardMetadataPosition(entry.position());
+        long position = forwardMetadataPosition(entry.remaining());
         int length = segmentFile.getChannel().write(entry, position);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(String.format("%d bytes has been written to segment %s", length, getName()));
