@@ -251,7 +251,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
             tr.commit().join();
         }
 
-        assertEquals(2, volume.getStats().getSegments().length);
+        assertEquals(2, volume.getStats().getSegments().size());
     }
 
     @Test
@@ -301,6 +301,40 @@ public class VolumeTest extends BaseMetadataStoreTest {
                 ByteBuffer buffer = volume.get(tr, entry.getKey());
                 assertArrayEquals(entry.getValue().array(), buffer.array());
             }
+        }
+    }
+
+    @Test
+    public void test_getStats() throws IOException {
+        ByteBuffer[] entries = getEntries(10);
+        AppendResult appendResult;
+        try (Transaction tr = database.createTransaction()) {
+            appendResult = volume.append(tr, entries);
+            tr.commit().join();
+        }
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+
+        Stats stats = volume.getStats();
+        assertEquals(1, stats.getSegments().size());
+
+        for (Map.Entry<String, Stats.SegmentStats> segmentStats : stats.getSegments().entrySet()) {
+            assertEquals(10, segmentStats.getValue().cardinality());
+            assertTrue(segmentStats.getValue().size() > segmentStats.getValue().freeBytes());
+        }
+
+        DeleteResult deleteResult;
+        try (Transaction tr = database.createTransaction()) {
+            deleteResult = volume.delete(tr, versionstampedKeys);
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        stats = volume.getStats();
+        assertEquals(1, stats.getSegments().size());
+
+        for (Map.Entry<String, Stats.SegmentStats> segmentStats : stats.getSegments().entrySet()) {
+            assertEquals(0, segmentStats.getValue().cardinality());
+            assertTrue(segmentStats.getValue().size() > segmentStats.getValue().freeBytes());
         }
     }
 }

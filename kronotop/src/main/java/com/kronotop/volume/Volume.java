@@ -17,8 +17,11 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,6 +47,9 @@ public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
     private static final byte ENTRY_PREFIX = 0x01;
     private static final byte ENTRY_METADATA_PREFIX = 0x02;
+    private static final byte SEGMENT_CARDINALITY_PREFIX = 0x3;
+    private static final byte[] SEGMENT_CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
+    private static final byte[] SEGMENT_CARDINALITY_DECREASE_DELTA = new byte[]{-1, -1, -1, -1}; // -1, byte order: little-endian
     private static final String VOLUME_METADATA_KEY = "metadata";
 
     private final Context context;
@@ -60,10 +66,17 @@ public class Volume {
         this.context = context;
         this.config = volumeConfig;
         this.metadata = createOrLoadVolumeMetadata();
-        this.entryMetadataCache = CacheBuilder.newBuilder()
-                .expireAfterAccess(30, TimeUnit.MINUTES)
-                .build(new EntryMetadataLoader());
+        this.entryMetadataCache = CacheBuilder.newBuilder().expireAfterAccess(30, TimeUnit.MINUTES).build(new EntryMetadataLoader());
         openSegments();
+    }
+
+    private byte[] packSegmentCardinalityKey(String name) {
+        Tuple key = Tuple.from(SEGMENT_CARDINALITY_PREFIX, name);
+        return config.subspace().pack(key);
+    }
+
+    private int decodeSegmentCardinality(byte[] data) {
+        return ByteBuffer.wrap(data).order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt();
     }
 
     private VolumeMetadata createOrLoadVolumeMetadata() throws IOException {
@@ -172,16 +185,9 @@ public class Volume {
         int userVersion = 0;
         for (EntryMetadata entryMetadata : entryMetadataList) {
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
-            tr.mutate(
-                    MutationType.SET_VERSIONSTAMPED_KEY,
-                    packEntryKeyWithVersionstamp(userVersion),
-                    encodedEntryMetadata
-            );
-            tr.mutate(
-                    MutationType.SET_VERSIONSTAMPED_VALUE,
-                    packEntryMetadataKey(encodedEntryMetadata),
-                    Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp()
-            );
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, packEntryKeyWithVersionstamp(userVersion), encodedEntryMetadata);
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, packEntryMetadataKey(encodedEntryMetadata), Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp());
+            tr.mutate(MutationType.ADD, packSegmentCardinalityKey(entryMetadata.segment()), SEGMENT_CARDINALITY_INCREASE_DELTA);
             userVersion++;
         }
         return tr.getVersionstamp();
@@ -284,6 +290,11 @@ public class Volume {
             }
             tr.clear(entryKey);
             tr.clear(packEntryMetadataKey(encodedEntryMetadata));
+
+            EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
+            byte[] segmentCardinalityKey = packSegmentCardinalityKey(entryMetadata.segment());
+            tr.mutate(MutationType.ADD, segmentCardinalityKey, SEGMENT_CARDINALITY_DECREASE_DELTA);
+
             result.add(index, key);
             index++;
         }
@@ -342,15 +353,32 @@ public class Volume {
         }
     }
 
+    private HashMap<String, Integer> loadSegmentCardinality() {
+        HashMap<String, Integer> cardinality = new HashMap<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Tuple key = Tuple.from(SEGMENT_CARDINALITY_PREFIX);
+            byte[] begin = config.subspace().pack(key);
+            byte[] end = ByteArrayUtil.strinc(begin);
+            Range range = new Range(begin, end);
+            for (KeyValue keyValue : tr.getRange(range)) {
+                String name = (String) config.subspace().unpack(keyValue.getKey()).get(1);
+                cardinality.put(name, decodeSegmentCardinality(keyValue.getValue()));
+            }
+            return cardinality;
+        }
+    }
+
     public Stats getStats() {
         segmentsLock.readLock().lock();
-        Stats stats = new Stats();
         try {
-            String[] segmentNames = new String[segments.size()];
-            for (int i = 0; i < segments.size(); i++) {
-                segmentNames[i] = segments.get(i).getName();
+            Stats stats = new Stats();
+            HashMap<String, Stats.SegmentStats> segmentStats = new HashMap<>();
+            HashMap<String, Integer> cardinality = loadSegmentCardinality();
+            for (Segment segment : segments) {
+                Stats.SegmentStats statsForSegment = new Stats.SegmentStats(segment.getSize(), segment.getFreeBytes(), cardinality.get(segment.getName()));
+                segmentStats.put(segment.getName(), statsForSegment);
             }
-            stats.setSegments(segmentNames);
+            stats.setSegments(segmentStats);
             return stats;
         } finally {
             segmentsLock.readLock().unlock();

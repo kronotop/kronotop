@@ -16,14 +16,21 @@
 
 package com.kronotop.volume;
 
-public class Stats {
-    private String[] segments;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
-    public String[] getSegments() {
-        return segments;
+public class Stats {
+    private HashMap<String, SegmentStats> segments;
+
+    public Map<String, SegmentStats> getSegments() {
+        return Collections.unmodifiableMap(segments);
     }
 
-    void setSegments(String[] segments) {
+    void setSegments(HashMap<String, SegmentStats> segments) {
         this.segments = segments;
+    }
+
+    public record SegmentStats(long size, long freeBytes, int cardinality) {
     }
 }

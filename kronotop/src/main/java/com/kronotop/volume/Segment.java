@@ -62,6 +62,11 @@ class Segment {
         }
     }
 
+    long getSize() {
+        // No need to use lock here. Size is a final property.
+        return metadata.getSize();
+    }
+
     private SegmentMetadata createOrDecodeSegmentMetadata(long id) throws IOException {
         long size = context.getConfig().getLong("volumes.segment_size");
         if (this.metadataFile.getChannel().size() == 0) {
