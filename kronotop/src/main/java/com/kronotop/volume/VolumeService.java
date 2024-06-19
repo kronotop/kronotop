@@ -27,11 +27,16 @@ import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 
 public class VolumeService implements KronotopService {
     public static final String NAME = "Volume";
     private static final Logger LOGGER = LoggerFactory.getLogger(VolumeService.class);
     private final Context context;
+    private final Object volumesLock = new Object();
+    private final HashMap<String, Volume> volumes = new HashMap<>();
+    private volatile boolean isShutdown;
 
     public VolumeService(Context context) {
         this.context = context;
@@ -66,9 +71,26 @@ public class VolumeService implements KronotopService {
 
     @Override
     public void shutdown() {
+        isShutdown = true;
+        synchronized (volumesLock) {
+            for (Map.Entry<String, Volume> entry : volumes.entrySet()) {
+                entry.getValue().close();
+                volumes.remove(entry.getKey());
+            }
+        }
     }
 
     public Volume newVolume(VolumeConfig config) throws IOException {
-        return new Volume(context, config);
+        synchronized (volumesLock) {
+            if (volumes.containsKey(config.name())) {
+                Volume volume = volumes.get(config.name());
+                if (!volume.isClosed()) {
+                    return volume;
+                }
+            }
+            Volume volume = new Volume(context, config);
+            volumes.put(config.name(), volume);
+            return volume;
+        }
     }
 }

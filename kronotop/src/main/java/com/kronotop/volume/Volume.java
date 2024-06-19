@@ -61,6 +61,7 @@ public class Volume {
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
     private final List<Segment> segments = new ArrayList<>();
     private final HashMap<String, Segment> segmentsByName = new HashMap<>();
+    private volatile boolean isClosed;
 
     protected Volume(Context context, VolumeConfig volumeConfig) throws IOException {
         this.context = context;
@@ -339,6 +340,7 @@ public class Volume {
     }
 
     public void close() {
+        isClosed = true;
         segmentsLock.readLock().lock();
         try {
             for (Map.Entry<String, Segment> entry : segmentsByName.entrySet()) {
@@ -351,6 +353,10 @@ public class Volume {
         } finally {
             segmentsLock.readLock().unlock();
         }
+    }
+
+    public boolean isClosed() {
+        return isClosed;
     }
 
     private HashMap<String, Integer> loadSegmentCardinality() {
