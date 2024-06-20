@@ -34,6 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -336,5 +338,32 @@ public class VolumeTest extends BaseMetadataStoreTest {
             assertEquals(0, segmentStats.getValue().cardinality());
             assertTrue(segmentStats.getValue().size() > segmentStats.getValue().freeBytes());
         }
+    }
+
+    @Test
+    public void test_analyze() throws IOException {
+        long bufferSize = 100480;
+        long segmentSize = context.getConfig().getLong("volumes.segment_size");
+        long numIterations = 2 * (segmentSize / bufferSize);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (int i = 1; i <= numIterations; i++) {
+                volume.append(tr, randomBytes((int) bufferSize));
+            }
+            tr.commit().join();
+        }
+
+        Stats stats = volume.getStats();
+        assertEquals(2, stats.getSegments().size());
+
+        List<SegmentAnalysis> analysisList = volume.analyze();
+        SegmentAnalysis analysis = analysisList.getFirst();
+        Stats.SegmentStats segmentStats = stats.getSegments().get(analysis.name());
+
+        assertNotNull(segmentStats);
+        assertEquals(segmentStats.cardinality(), analysis.cardinality());
+        assertEquals(segmentStats.size(), analysis.size());
+        assertEquals(segmentStats.freeBytes(), analysis.size()-analysis.usedBytes());
+        assertTrue(analysis.garbageRatio() > 0);
     }
 }

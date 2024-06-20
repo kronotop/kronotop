@@ -17,10 +17,7 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.KeyValue;
-import com.apple.foundationdb.MutationType;
-import com.apple.foundationdb.Range;
-import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.*;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
@@ -36,8 +33,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -56,6 +55,7 @@ public class Volume {
     private final VolumeConfig config;
     private final VolumeMetadata metadata;
     private final LoadingCache<Versionstamp, EntryMetadata> entryMetadataCache;
+    private final UserVersion userVersion = new UserVersion();
 
     // segmentsLock protects segments array
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
@@ -77,7 +77,7 @@ public class Volume {
     }
 
     private int decodeSegmentCardinality(byte[] data) {
-        return ByteBuffer.wrap(data).order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt();
+        return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
     }
 
     private VolumeMetadata createOrLoadVolumeMetadata() throws IOException {
@@ -99,6 +99,7 @@ public class Volume {
                 segments.add(segment);
                 segmentsByName.put(segment.getName(), segment);
             }
+            segments.sort(Comparator.comparing(Segment::getName));
         } finally {
             segmentsLock.writeLock().unlock();
         }
@@ -124,6 +125,7 @@ public class Volume {
 
         // Make it available for the rest of the Volume.
         segments.add(segment);
+        segments.sort(Comparator.comparing(Segment::getName));
         segmentsByName.put(segment.getName(), segment);
         return segment;
     }
@@ -173,8 +175,8 @@ public class Volume {
         }
     }
 
-    private byte[] packEntryKeyWithVersionstamp(int userVersion) {
-        Tuple key = Tuple.from(ENTRY_PREFIX, Versionstamp.incomplete(userVersion));
+    private byte[] packEntryKeyWithVersionstamp(int version) {
+        Tuple key = Tuple.from(ENTRY_PREFIX, Versionstamp.incomplete(version));
         return config.subspace().packWithVersionstamp(key);
     }
 
@@ -183,13 +185,12 @@ public class Volume {
     }
 
     private CompletableFuture<byte[]> writeMetadata(Transaction tr, EntryMetadata[] entryMetadataList) {
-        int userVersion = 0;
+        int version = userVersion.getAndIncrement();
         for (EntryMetadata entryMetadata : entryMetadataList) {
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, packEntryKeyWithVersionstamp(userVersion), encodedEntryMetadata);
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, packEntryMetadataKey(encodedEntryMetadata), Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp());
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, packEntryKeyWithVersionstamp(version), encodedEntryMetadata);
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, packEntryMetadataKey(encodedEntryMetadata), Tuple.from(Versionstamp.incomplete(version)).packWithVersionstamp());
             tr.mutate(MutationType.ADD, packSegmentCardinalityKey(entryMetadata.segment()), SEGMENT_CARDINALITY_INCREASE_DELTA);
-            userVersion++;
         }
         return tr.getVersionstamp();
     }
@@ -389,6 +390,61 @@ public class Volume {
         } finally {
             segmentsLock.readLock().unlock();
         }
+    }
+
+    private SegmentAnalysis analyze(Segment segment) {
+        long usedBytes = 0;
+        int cardinality = 0;
+        byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
+        byte[] end = ByteArrayUtil.strinc(begin);
+        byte[] latestVersionstampedKey = null;
+
+        while(true) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                Range range = new Range(begin, end);
+                for (KeyValue keyValue : tr.getRange(range)) {
+                    if (latestVersionstampedKey != null && Arrays.equals(latestVersionstampedKey, keyValue.getValue())) {
+                        continue;
+                    }
+                    byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(keyValue.getKey()).get(1);
+                    EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
+                    usedBytes += entryMetadata.length();
+                    cardinality++;
+
+                    begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, keyValue.getKey()));
+                    latestVersionstampedKey = keyValue.getValue();
+                }
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof FDBException fdbException) {
+                    if (fdbException.getCode() == 1007) {
+                        // Transaction is too old to perform reads or be committed
+                        continue;
+                    }
+                }
+            }
+            return new SegmentAnalysis(segment.getName(), segment.getSize(), usedBytes, cardinality);
+        }
+    }
+
+    protected List<SegmentAnalysis> analyze() {
+        // Create a read-only copy of segments to prevent acquiring segmentsLock for a long time.
+        // Read-only access to the segments is not an issue. A segment can only be removed by the Vacuum daemon.
+        List<Segment> readOnlySegments;
+        List<SegmentAnalysis> result = new ArrayList<>();
+        segmentsLock.readLock().lock();
+        try {
+            if (segments.isEmpty() || segments.size() == 1) {
+                return result;
+            }
+            readOnlySegments = new ArrayList<>(segments);
+        } finally {
+            segmentsLock.readLock().unlock();
+        }
+        for (int i = 0; i < readOnlySegments.size() - 1; i++) {
+            Segment segment = readOnlySegments.get(i);
+            result.add(analyze(segment));
+        }
+        return result;
     }
 
     private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {
