@@ -306,13 +306,14 @@ public class Volume {
         return result;
     }
 
-    public UpdateResult update(@Nonnull Transaction tr, @Nonnull KeyEntry... pairs) throws IOException, KeyNotFoundException {
+    public UpdateResult update(@Nonnull Session session, @Nonnull KeyEntry... pairs) throws IOException, KeyNotFoundException {
         ByteBuffer[] entries = new ByteBuffer[pairs.length];
         for (int i = 0; i < pairs.length; i++) {
             entries[i] = pairs[i].entry();
         }
         EntryMetadata[] entryMetadataList = appendEntries(entries);
 
+        Transaction tr = session.getTransaction();
         int index = 0;
         for (KeyEntry keyEntry : pairs) {
             Versionstamp key = keyEntry.key();

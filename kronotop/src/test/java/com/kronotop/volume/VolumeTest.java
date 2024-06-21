@@ -176,7 +176,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
             entries[1] = new KeyEntry(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
             UpdateResult result;
             try (Transaction tr = database.createTransaction()) {
-                result = volume.update(tr, entries);
+                Session session = new Session(tr);
+                result = volume.update(session, entries);
                 tr.commit().join();
             }
             result.complete();
