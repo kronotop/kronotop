@@ -383,4 +383,26 @@ public class VolumeTest extends BaseMetadataStoreTest {
         assertEquals(segmentStats.freeBytes(), analysis.size() - analysis.usedBytes());
         assertTrue(analysis.garbageRatio() > 0);
     }
+
+    @Test
+    public void test_TooManyEntriesException_before_appending() {
+        ByteBuffer[] entries = getEntries(UserVersion.MAX_VALUE + 1);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            assertThrows(TooManyEntriesException.class, () -> volume.append(session, entries));
+        }
+    }
+
+    @Test
+    public void test_TooManyEntriesException_session() throws IOException {
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            for (int i = UserVersion.MIN_VALUE; i<=UserVersion.MAX_VALUE;i++) {
+                ByteBuffer[] entries = getEntries(1);
+                volume.append(session, entries);
+            }
+            ByteBuffer[] entries = getEntries(2);
+            assertThrows(TooManyEntriesException.class, () -> volume.append(session, entries));
+        }
+    }
 }

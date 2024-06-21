@@ -20,17 +20,16 @@ final class UserVersion {
     static final int MIN_VALUE = 0x0;
     static final int MAX_VALUE = 0xffff;
 
-    private int userVersion = 0;
+    private int userVersion = MIN_VALUE;
 
     synchronized int getAndIncrement() {
         try {
+            if (userVersion > MAX_VALUE) {
+                throw new TooManyEntriesException();
+            }
             return userVersion;
         } finally {
-            if (userVersion + 1 > MAX_VALUE) {
-                userVersion = MIN_VALUE;
-            } else {
-                userVersion++;
-            }
+            userVersion++;
         }
     }
 }
