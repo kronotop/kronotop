@@ -110,8 +110,9 @@ public class VolumeTest extends BaseMetadataStoreTest {
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
         List<ByteBuffer> retrievedEntries = new ArrayList<>();
         try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
             for (Versionstamp versionstamp : versionstampedKeys) {
-                ByteBuffer buffer = volume.get(tr, versionstamp);
+                ByteBuffer buffer = volume.get(session, versionstamp);
                 retrievedEntries.add(buffer);
             }
         }
@@ -139,8 +140,9 @@ public class VolumeTest extends BaseMetadataStoreTest {
         deleteResult.complete();
 
         try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
             for (Versionstamp versionstamp : versionstampedKeys) {
-                assertNull(volume.get(tr, versionstamp));
+                assertNull(volume.get(session, versionstamp));
             }
         }
 
@@ -181,8 +183,9 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr);
                 for (Versionstamp versionstamp : versionstampedKeys) {
-                    ByteBuffer buffer = volume.get(tr, versionstamp);
+                    ByteBuffer buffer = volume.get(session, versionstamp);
                     retrievedEntries.add(buffer);
                 }
             }
@@ -234,8 +237,9 @@ public class VolumeTest extends BaseMetadataStoreTest {
             Volume reopenedVolume = service.newVolume(volumeConfig);
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr);
                 for (Versionstamp versionstamp : versionstampedKeys) {
-                    ByteBuffer buffer = reopenedVolume.get(tr, versionstamp);
+                    ByteBuffer buffer = reopenedVolume.get(session, versionstamp);
                     retrievedEntries.add(buffer);
                 }
             }
@@ -306,8 +310,9 @@ public class VolumeTest extends BaseMetadataStoreTest {
         assertEquals(numberOfThreads * entriesPerThread, pairs.size());
 
         try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
             for (Map.Entry<Versionstamp, ByteBuffer> entry : pairs.entrySet()) {
-                ByteBuffer buffer = volume.get(tr, entry.getKey());
+                ByteBuffer buffer = volume.get(session, entry.getKey());
                 assertArrayEquals(entry.getValue().array(), buffer.array());
             }
         }

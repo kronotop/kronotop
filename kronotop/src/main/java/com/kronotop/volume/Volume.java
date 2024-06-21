@@ -258,7 +258,7 @@ public class Volume {
         return segment.get(entryMetadata.position(), entryMetadata.length());
     }
 
-    public ByteBuffer get(Transaction tr, @Nonnull Versionstamp key, boolean useCache) throws IOException {
+    public ByteBuffer get(Session session, @Nonnull Versionstamp key, boolean useCache) throws IOException {
         EntryMetadata entryMetadata;
         if (useCache) {
             entryMetadata = loadEntryMetadataFromCache(key);
@@ -266,7 +266,7 @@ public class Volume {
                 return null;
             }
         } else {
-            byte[] value = tr.get(packEntryKey(key)).join();
+            byte[] value = session.getTransaction().get(packEntryKey(key)).join();
             if (value == null) {
                 return null;
             }
@@ -279,8 +279,8 @@ public class Volume {
         return get(null, key, true);
     }
 
-    public ByteBuffer get(@Nonnull Transaction tr, @Nonnull Versionstamp key) throws IOException {
-        return get(tr, key, false);
+    public ByteBuffer get(@Nonnull Session session, @Nonnull Versionstamp key) throws IOException {
+        return get(session, key, false);
     }
 
     public DeleteResult delete(@Nonnull Transaction tr, @Nonnull Versionstamp... keys) {
