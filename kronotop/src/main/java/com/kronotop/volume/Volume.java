@@ -55,7 +55,6 @@ public class Volume {
     private final VolumeConfig config;
     private final VolumeMetadata metadata;
     private final LoadingCache<Versionstamp, EntryMetadata> entryMetadataCache;
-    private final UserVersion userVersion = new UserVersion();
 
     // segmentsLock protects segments array
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
@@ -184,9 +183,10 @@ public class Volume {
         return config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, data));
     }
 
-    private CompletableFuture<byte[]> writeMetadata(Transaction tr, EntryMetadata[] entryMetadataList) {
-        int version = userVersion.getAndIncrement();
+    private CompletableFuture<byte[]> writeMetadata(Session session, EntryMetadata[] entryMetadataList) {
+        Transaction tr = session.getTransaction();
         for (EntryMetadata entryMetadata : entryMetadataList) {
+            int version = session.getAndIncrementUserVersion();
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, packEntryKeyWithVersionstamp(version), encodedEntryMetadata);
             tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, packEntryMetadataKey(encodedEntryMetadata), Tuple.from(Versionstamp.incomplete(version)).packWithVersionstamp());
@@ -206,9 +206,12 @@ public class Volume {
         return entryMetadataList;
     }
 
-    public AppendResult append(@Nonnull Transaction tr, @Nonnull ByteBuffer... entries) throws IOException {
+    public AppendResult append(@Nonnull Session session, @Nonnull ByteBuffer... entries) throws IOException {
+        if (entries.length > UserVersion.MAX_VALUE) {
+            throw new TooManyEntriesException();
+        }
         EntryMetadata[] entryMetadataList = appendEntries(entries);
-        CompletableFuture<byte[]> future = writeMetadata(tr, entryMetadataList);
+        CompletableFuture<byte[]> future = writeMetadata(session, entryMetadataList);
         return new AppendResult(future, entryMetadataList, entryMetadataCache::put);
     }
 

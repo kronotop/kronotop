@@ -16,24 +16,5 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Transaction;
-
-import javax.annotation.Nonnull;
-
-public class Session {
-    private final Transaction transaction;
-    private final UserVersion userVersion;
-
-    public Session(@Nonnull Transaction tr) {
-        this.transaction = tr;
-        this.userVersion = new UserVersion();
-    }
-
-    public Transaction getTransaction() {
-        return transaction;
-    }
-
-    protected int getAndIncrementUserVersion() {
-        return userVersion.getAndIncrement();
-    }
+public class TooManyEntriesException extends RuntimeException {
 }

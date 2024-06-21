@@ -89,7 +89,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
         ByteBuffer[] entries = getEntries(2);
         AppendResult result;
         try (Transaction tr = database.createTransaction()) {
-            result = volume.append(tr, entries);
+            Session session = new Session(tr);
+            result = volume.append(session, entries);
             tr.commit().join();
         }
         assertEquals(2, result.getVersionstampedKeys().length);
@@ -101,7 +102,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
         AppendResult result;
         try (Transaction tr = database.createTransaction()) {
-            result = volume.append(tr, entries);
+            Session session = new Session(tr);
+            result = volume.append(session, entries);
             tr.commit().join();
         }
 
@@ -123,7 +125,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
         ByteBuffer[] entries = getEntries(2);
         AppendResult appendResult;
         try (Transaction tr = database.createTransaction()) {
-            appendResult = volume.append(tr, entries);
+            Session session = new Session(tr);
+            appendResult = volume.append(session, entries);
             tr.commit().join();
         }
         Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
@@ -158,7 +161,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
             };
             AppendResult result;
             try (Transaction tr = database.createTransaction()) {
-                result = volume.append(tr, entries);
+                Session session = new Session(tr);
+                result = volume.append(session, entries);
                 tr.commit().join();
             }
             versionstampedKeys = result.getVersionstampedKeys();
@@ -192,7 +196,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
     public void test_flush() {
         ByteBuffer[] entries = getEntries(2);
         try (Transaction tr = database.createTransaction()) {
-            assertDoesNotThrow(() -> volume.append(tr, entries));
+            Session session = new Session(tr);
+            assertDoesNotThrow(() -> volume.append(session, entries));
             tr.commit().join();
         }
         assertDoesNotThrow(() -> volume.flush());
@@ -202,7 +207,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
     public void test_close() {
         ByteBuffer[] entries = getEntries(2);
         try (Transaction tr = database.createTransaction()) {
-            assertDoesNotThrow(() -> volume.append(tr, entries));
+            Session session = new Session(tr);
+            assertDoesNotThrow(() -> volume.append(session, entries));
             tr.commit().join();
         }
         assertDoesNotThrow(() -> volume.close());
@@ -215,7 +221,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
         {
             AppendResult result;
             try (Transaction tr = database.createTransaction()) {
-                result = volume.append(tr, entries);
+                Session session = new Session(tr);
+                result = volume.append(session, entries);
                 tr.commit().join();
             }
             versionstampedKeys = result.getVersionstampedKeys();
@@ -246,7 +253,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 1; i <= numIterations; i++) {
-                volume.append(tr, randomBytes((int) bufferSize));
+                Session session = new Session(tr);
+                volume.append(session, randomBytes((int) bufferSize));
             }
             tr.commit().join();
         }
@@ -272,7 +280,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
             public void run() {
                 AppendResult result;
                 try (Transaction tr = database.createTransaction()) {
-                    result = volume.append(tr, entries);
+                    Session session = new Session(tr);
+                    result = volume.append(session, entries);
                     tr.commit().join();
                     Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
                     for (int i = 0; i < versionstampedKeys.length; i++) {
@@ -309,7 +318,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
         ByteBuffer[] entries = getEntries(10);
         AppendResult appendResult;
         try (Transaction tr = database.createTransaction()) {
-            appendResult = volume.append(tr, entries);
+            Session session = new Session(tr);
+            appendResult = volume.append(session, entries);
             tr.commit().join();
         }
         Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
@@ -345,8 +355,9 @@ public class VolumeTest extends BaseMetadataStoreTest {
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Session session = new Session(tr);
             for (int i = 1; i <= numIterations; i++) {
-                volume.append(tr, randomBytes((int) bufferSize));
+                volume.append(session, randomBytes((int) bufferSize));
             }
             tr.commit().join();
         }
