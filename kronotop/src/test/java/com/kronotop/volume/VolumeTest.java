@@ -34,8 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -363,7 +361,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
         assertNotNull(segmentStats);
         assertEquals(segmentStats.cardinality(), analysis.cardinality());
         assertEquals(segmentStats.size(), analysis.size());
-        assertEquals(segmentStats.freeBytes(), analysis.size()-analysis.usedBytes());
+        assertEquals(segmentStats.freeBytes(), analysis.size() - analysis.usedBytes());
         assertTrue(analysis.garbageRatio() > 0);
     }
 }
