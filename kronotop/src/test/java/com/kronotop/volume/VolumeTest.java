@@ -134,7 +134,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
         DeleteResult deleteResult;
         try (Transaction tr = database.createTransaction()) {
-            deleteResult = volume.delete(tr, versionstampedKeys);
+            Session session = new Session(tr);
+            deleteResult = volume.delete(session, versionstampedKeys);
             tr.commit().join();
         }
         deleteResult.complete();
@@ -340,7 +341,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
 
         DeleteResult deleteResult;
         try (Transaction tr = database.createTransaction()) {
-            deleteResult = volume.delete(tr, versionstampedKeys);
+            Session session = new Session(tr);
+            deleteResult = volume.delete(session, versionstampedKeys);
             tr.commit().join();
         }
         deleteResult.complete();

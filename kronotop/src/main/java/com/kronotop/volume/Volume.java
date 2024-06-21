@@ -283,7 +283,8 @@ public class Volume {
         return get(session, key, false);
     }
 
-    public DeleteResult delete(@Nonnull Transaction tr, @Nonnull Versionstamp... keys) {
+    public DeleteResult delete(@Nonnull Session session, @Nonnull Versionstamp... keys) {
+        Transaction tr = session.getTransaction();
         DeleteResult result = new DeleteResult(keys.length, entryMetadataCache::invalidate);
         int index = 0;
         for (Versionstamp key : keys) {
