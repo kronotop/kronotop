@@ -70,6 +70,10 @@ public class Volume {
         openSegments();
     }
 
+    protected VolumeConfig getConfig() {
+        return config;
+    }
+
     private byte[] packSegmentCardinalityKey(String name) {
         Tuple key = Tuple.from(SEGMENT_CARDINALITY_PREFIX, name);
         return config.subspace().pack(key);
@@ -397,7 +401,7 @@ public class Volume {
         }
     }
 
-    private SegmentAnalysis analyze(Segment segment) {
+    private SegmentAnalysis analyze(Segment segment, long readVersion) {
         long usedBytes = 0;
         int cardinality = 0;
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
@@ -406,6 +410,7 @@ public class Volume {
 
         while(true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                tr.setReadVersion(readVersion);
                 Range range = new Range(begin, end);
                 for (KeyValue keyValue : tr.getRange(range)) {
                     if (latestVersionstampedKey != null && Arrays.equals(latestVersionstampedKey, keyValue.getValue())) {
@@ -431,7 +436,7 @@ public class Volume {
         }
     }
 
-    protected List<SegmentAnalysis> analyze() {
+    protected List<SegmentAnalysis> analyze(long readVersion) {
         // Create a read-only copy of segments to prevent acquiring segmentsLock for a long time.
         // Read-only access to the segments is not an issue. A segment can only be removed by the Vacuum daemon.
         List<Segment> readOnlySegments;
@@ -447,7 +452,7 @@ public class Volume {
         }
         for (int i = 0; i < readOnlySegments.size() - 1; i++) {
             Segment segment = readOnlySegments.get(i);
-            result.add(analyze(segment));
+            result.add(analyze(segment, readVersion));
         }
         return result;
     }

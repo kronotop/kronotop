@@ -16,16 +16,39 @@
 
 package com.kronotop.volume;
 
-import com.google.common.util.concurrent.Striped;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 
-import java.util.concurrent.locks.Lock;
+import java.nio.ByteBuffer;
+import java.util.List;
 
 class Vacuum {
     private final Context context;
-    private final Striped<Lock> stripedLock = Striped.lazyWeakLock(271);
+    private final Volume volume;
+    private final long readVersion;
 
-    protected Vacuum(Context context) {
+    protected Vacuum(Context context, Volume volume) {
         this.context = context;
+        this.volume = volume;
+        this.readVersion = getOrLoadReadVersion();
     }
+
+    private long getOrLoadReadVersion() {
+        byte[] readVersionKey = volume.getConfig().subspace().pack(Tuple.from("vacuum", "readVersion"));
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] rawReadVersion = tr.get(readVersionKey).join();
+            if (rawReadVersion == null) {
+                long readVersion = tr.getReadVersion().join();
+                tr.set(readVersionKey, ByteBuffer.allocate(8).putLong(readVersion).array());
+                return readVersion;
+            }
+            return ByteBuffer.wrap(rawReadVersion).getLong();
+        }
+    }
+
+    public List<SegmentAnalysis> analyze() {
+        return volume.analyze(0);
+    }
+
 }

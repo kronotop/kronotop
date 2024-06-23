@@ -373,7 +373,11 @@ public class VolumeTest extends BaseMetadataStoreTest {
         Stats stats = volume.getStats();
         assertEquals(2, stats.getSegments().size());
 
-        List<SegmentAnalysis> analysisList = volume.analyze();
+        long readVersion;
+        try (Transaction tr = database.createTransaction()) {
+            readVersion = tr.getReadVersion().join();
+        }
+        List<SegmentAnalysis> analysisList = volume.analyze(readVersion);
         SegmentAnalysis analysis = analysisList.getFirst();
         Stats.SegmentStats segmentStats = stats.getSegments().get(analysis.name());
 
