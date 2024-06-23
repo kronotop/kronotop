@@ -389,32 +389,6 @@ public class VolumeTest extends BaseMetadataStoreTest {
     }
 
     @Test
-    public void test_evictSegment() throws IOException {
-        long bufferSize = 100480;
-        long segmentSize = context.getConfig().getLong("volumes.segment_size");
-        long numIterations = 2 * (segmentSize / bufferSize);
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Session session = new Session(tr);
-            for (int i = 1; i <= numIterations; i++) {
-                volume.append(session, randomBytes((int) bufferSize));
-            }
-            tr.commit().join();
-        }
-
-        Stats stats = volume.getStats();
-        assertEquals(2, stats.getSegments().size());
-
-        long readVersion;
-        try (Transaction tr = database.createTransaction()) {
-            readVersion = tr.getReadVersion().join();
-        }
-        String firstSegment = stats.getSegments().keySet().iterator().next();
-        volume.evictSegment(firstSegment, readVersion);
-        System.out.println(volume.getStats());
-    }
-
-    @Test
     public void test_TooManyEntriesException_before_appending() {
         ByteBuffer[] entries = getEntries(UserVersion.MAX_VALUE + 1);
         try (Transaction tr = database.createTransaction()) {
@@ -481,6 +455,50 @@ public class VolumeTest extends BaseMetadataStoreTest {
         for (int i = 2; i < 4; i++) {
             Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
             assertEquals(10, segmentStats.getValue().cardinality());
+        }
+    }
+
+    @Test
+    public void test_evictSegment() throws IOException {
+        long bufferSize = 100480;
+        long segmentSize = context.getConfig().getLong("volumes.segment_size");
+        long numIterations = 2 * (segmentSize / bufferSize);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Session session = new Session(tr);
+            for (int i = 1; i <= numIterations; i++) {
+                volume.append(session, randomBytes((int) bufferSize));
+            }
+            tr.commit().join();
+        }
+
+        long readVersion;
+        try (Transaction tr = database.createTransaction()) {
+            readVersion = tr.getReadVersion().join();
+        }
+
+        {
+            Stats stats = volume.getStats();
+            String firstSegment = stats.getSegments().keySet().iterator().next();
+            volume.evictSegment(firstSegment, readVersion);
+        }
+
+        {
+            Stats stats = volume.getStats();
+            assertEquals(3, stats.getSegments().size());
+            Iterator<Map.Entry<String, Stats.SegmentStats>> iterator = stats.getSegments().entrySet().iterator();
+
+            // Cardinality should be zero for the first segment.
+            for (int i = 0; i < 1; i++) {
+                Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
+                assertEquals(0, segmentStats.getValue().cardinality());
+            }
+
+            // All keys moved to the new segments.
+            for (int i = 1; i < 3; i++) {
+                Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
+                assertEquals(10, segmentStats.getValue().cardinality());
+            }
         }
     }
 }

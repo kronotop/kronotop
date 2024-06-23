@@ -27,7 +27,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
-import com.kronotop.redis.storage.persistence.Key;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -420,7 +419,7 @@ public class Volume {
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
         byte[] end = ByteArrayUtil.strinc(begin);
 
-        while(true) {
+        while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 tr.setReadVersion(readVersion);
                 Range range = new Range(begin, end);
@@ -476,7 +475,7 @@ public class Volume {
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
         byte[] end = ByteArrayUtil.strinc(begin);
 
-        while(true) {
+        while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 tr.setReadVersion(readVersion);
                 Range range = new Range(begin, end);
@@ -487,6 +486,7 @@ public class Volume {
                         // begin is inclusive.
                         continue;
                     }
+
                     byte[] value = keyValue.getValue();
                     byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
                     int userVersion = ByteBuffer.wrap(Arrays.copyOfRange(keyValue.getValue(), 11, 13)).getShort();
@@ -514,12 +514,9 @@ public class Volume {
                 if (e.getCause() instanceof FDBException fdbException) {
                     if (fdbException.getCode() == 1007) {
                         // Transaction is too old to perform reads or be committed
-                        continue;
+                        LOGGER.trace("Transaction is too old, retrying");
                     }
                 }
-            } catch (KeyNotFoundException e) {
-                // TODO: This should be handled
-                e.printStackTrace();
             }
         }
     }
