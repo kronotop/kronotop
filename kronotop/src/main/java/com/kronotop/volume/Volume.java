@@ -27,6 +27,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
+import com.kronotop.redis.storage.persistence.Key;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -456,8 +457,59 @@ public class Volume {
         return result;
     }
 
-    protected void evictSegment(String name, long readVersion) {
+    protected void evictSegment(String name, long readVersion) throws IOException {
         Segment segment = getSegmentByName(name);
+        int maxBatchSize = 100;
+
+        byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
+        byte[] end = ByteArrayUtil.strinc(begin);
+
+        while(true) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                tr.setReadVersion(readVersion);
+                Range range = new Range(begin, end);
+                List<KeyEntry> pairs = new ArrayList<>();
+                for (KeyValue keyValue : tr.getRange(range)) {
+                    byte[] key = keyValue.getKey();
+                    if (Arrays.equals(key, begin)) {
+                        // begin is inclusive.
+                        continue;
+                    }
+                    byte[] value = keyValue.getValue();
+                    byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
+                    int userVersion = ByteBuffer.wrap(Arrays.copyOfRange(keyValue.getValue(), 11, 13)).getShort();
+
+                    byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(key).get(1);
+                    EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
+
+                    Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
+                    ByteBuffer buffer = getByEntryMetadata(versionstampedKey, entryMetadata).flip();
+                    pairs.add(new KeyEntry(versionstampedKey, buffer));
+                    if (pairs.size() >= maxBatchSize) {
+                        break;
+                    }
+                    begin = key;
+                }
+                if (pairs.isEmpty()) {
+                    // End of the segment
+                    break;
+                }
+                UpdateResult updateResult = update(new Session(tr), pairs.toArray(new KeyEntry[0]));
+                updateResult.complete();
+                tr.commit().join();
+                break;
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof FDBException fdbException) {
+                    if (fdbException.getCode() == 1007) {
+                        // Transaction is too old to perform reads or be committed
+                        continue;
+                    }
+                }
+            } catch (KeyNotFoundException e) {
+                // TODO: This should be handled
+                e.printStackTrace();
+            }
+        }
     }
 
     private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {

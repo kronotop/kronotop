@@ -30,10 +30,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -386,6 +383,32 @@ public class VolumeTest extends BaseMetadataStoreTest {
         assertEquals(segmentStats.size(), analysis.size());
         assertEquals(segmentStats.freeBytes(), analysis.size() - analysis.usedBytes());
         assertTrue(analysis.garbageRatio() > 0);
+    }
+
+    @Test
+    public void test_evictSegment() throws IOException {
+        long bufferSize = 100480;
+        long segmentSize = context.getConfig().getLong("volumes.segment_size");
+        long numIterations = 2 * (segmentSize / bufferSize);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Session session = new Session(tr);
+            for (int i = 1; i <= numIterations; i++) {
+                volume.append(session, randomBytes((int) bufferSize));
+            }
+            tr.commit().join();
+        }
+
+        Stats stats = volume.getStats();
+        assertEquals(2, stats.getSegments().size());
+
+        long readVersion;
+        try (Transaction tr = database.createTransaction()) {
+            readVersion = tr.getReadVersion().join();
+        }
+        String firstSegment = stats.getSegments().keySet().iterator().next();
+        volume.evictSegment(firstSegment, readVersion);
+        System.out.println(volume.getStats());
     }
 
     @Test

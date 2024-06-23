@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -53,7 +54,7 @@ class Vacuum {
         return volume.analyze(readVersion);
     }
 
-    public void vacuum() {
+    public void vacuum() throws IOException {
         List<SegmentAnalysis> segmentAnalysisList = analyze();
         for (SegmentAnalysis segmentAnalysis : segmentAnalysisList) {
             if (segmentAnalysis.garbageRatio() < volume.getConfig().allowedGarbageRatio()) {
