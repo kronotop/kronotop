@@ -401,28 +401,27 @@ public class Volume {
         }
     }
 
-    private SegmentAnalysis analyze(Segment segment, long readVersion) {
+    protected SegmentAnalysis analyze(Segment segment, long readVersion) {
         long usedBytes = 0;
         int cardinality = 0;
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
         byte[] end = ByteArrayUtil.strinc(begin);
-        byte[] latestVersionstampedKey = null;
 
         while(true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 tr.setReadVersion(readVersion);
                 Range range = new Range(begin, end);
                 for (KeyValue keyValue : tr.getRange(range)) {
-                    if (latestVersionstampedKey != null && Arrays.equals(latestVersionstampedKey, keyValue.getValue())) {
+                    byte[] key = keyValue.getKey();
+                    if (Arrays.equals(key, begin)) {
+                        // begin is inclusive.
                         continue;
                     }
-                    byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(keyValue.getKey()).get(1);
+                    byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(key).get(1);
                     EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
                     usedBytes += entryMetadata.length();
                     cardinality++;
-
-                    begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, keyValue.getKey()));
-                    latestVersionstampedKey = keyValue.getValue();
+                    begin = key;
                 }
             } catch (CompletionException e) {
                 if (e.getCause() instanceof FDBException fdbException) {
@@ -455,6 +454,10 @@ public class Volume {
             result.add(analyze(segment, readVersion));
         }
         return result;
+    }
+
+    protected void evictSegment(String name, long readVersion) {
+        Segment segment = getSegmentByName(name);
     }
 
     private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {

@@ -27,20 +27,22 @@ class Vacuum {
     private final Context context;
     private final Volume volume;
     private final long readVersion;
+    private final byte[] readVersionKey;
 
     protected Vacuum(Context context, Volume volume) {
         this.context = context;
         this.volume = volume;
         this.readVersion = getOrLoadReadVersion();
+        this.readVersionKey = volume.getConfig().subspace().pack(Tuple.from("vacuum", "readVersion"));
     }
 
     private long getOrLoadReadVersion() {
-        byte[] readVersionKey = volume.getConfig().subspace().pack(Tuple.from("vacuum", "readVersion"));
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] rawReadVersion = tr.get(readVersionKey).join();
-            if (rawReadVersion == null) {
+            if (rawReadVersion == null || readVersion <= 0) {
                 long readVersion = tr.getReadVersion().join();
                 tr.set(readVersionKey, ByteBuffer.allocate(8).putLong(readVersion).array());
+                tr.commit().join();
                 return readVersion;
             }
             return ByteBuffer.wrap(rawReadVersion).getLong();
@@ -48,7 +50,23 @@ class Vacuum {
     }
 
     public List<SegmentAnalysis> analyze() {
-        return volume.analyze(0);
+        return volume.analyze(readVersion);
     }
 
+    public void vacuum() {
+        List<SegmentAnalysis> segmentAnalysisList = analyze();
+        for (SegmentAnalysis segmentAnalysis : segmentAnalysisList) {
+            if (segmentAnalysis.garbageRatio() < volume.getConfig().allowedGarbageRatio()) {
+                continue;
+            }
+            volume.evictSegment(segmentAnalysis.name(), readVersion);
+        }
+    }
+
+    public void reset() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            tr.clear(readVersionKey);
+            tr.commit().join();
+        }
+    }
 }

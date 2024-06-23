@@ -3,9 +3,6 @@ package com.kronotop.volume;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class EntryMetadataTest {
     @Test
