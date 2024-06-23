@@ -30,7 +30,10 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -424,12 +427,60 @@ public class VolumeTest extends BaseMetadataStoreTest {
     public void test_TooManyEntriesException_session() throws IOException {
         try (Transaction tr = database.createTransaction()) {
             Session session = new Session(tr);
-            for (int i = UserVersion.MIN_VALUE; i<=UserVersion.MAX_VALUE;i++) {
+            for (int i = UserVersion.MIN_VALUE; i <= UserVersion.MAX_VALUE; i++) {
                 ByteBuffer[] entries = getEntries(1);
                 volume.append(session, entries);
             }
             ByteBuffer[] entries = getEntries(2);
             assertThrows(TooManyEntriesException.class, () -> volume.append(session, entries));
+        }
+    }
+
+    @Test
+    public void test_update_segment_cardinality() throws IOException, KeyNotFoundException {
+        long bufferSize = 100480;
+        long segmentSize = context.getConfig().getLong("volumes.segment_size");
+        long numIterations = 2 * (segmentSize / bufferSize);
+
+        AppendResult result;
+        ByteBuffer[] entries = new ByteBuffer[(int) numIterations];
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (int i = 1; i <= numIterations; i++) {
+                entries[i - 1] = randomBytes((int) bufferSize);
+            }
+            Session session = new Session(tr);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
+        KeyEntry[] pairs = new KeyEntry[versionstampedKeys.length];
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            int index = 0;
+            for (Versionstamp versionstampedKey : versionstampedKeys) {
+                pairs[index] = new KeyEntry(versionstampedKey, randomBytes((int) bufferSize));
+                index++;
+            }
+            Session session = new Session(tr);
+            UpdateResult updateResult = volume.update(session, pairs);
+            tr.commit().join();
+            updateResult.complete();
+        }
+
+        Stats stats = volume.getStats();
+        assertEquals(4, stats.getSegments().size());
+        Iterator<Map.Entry<String, Stats.SegmentStats>> iterator = stats.getSegments().entrySet().iterator();
+
+        // Cardinality should be zero for the first two segments.
+        for (int i = 0; i < 2; i++) {
+            Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
+            assertEquals(0, segmentStats.getValue().cardinality());
+        }
+
+        // All keys moved to the new segments and the first two segments will be vacuumed.
+        for (int i = 2; i < 4; i++) {
+            Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
+            assertEquals(10, segmentStats.getValue().cardinality());
         }
     }
 }

@@ -75,6 +75,11 @@ public class Volume {
         return config;
     }
 
+    private void mutateSegmentCardinality(Transaction tr, String name, byte[] delta) {
+        byte[] segmentCardinalityKey = packSegmentCardinalityKey(name);
+        tr.mutate(MutationType.ADD, segmentCardinalityKey, delta);
+    }
+
     private byte[] packSegmentCardinalityKey(String name) {
         Tuple key = Tuple.from(SEGMENT_CARDINALITY_PREFIX, name);
         return config.subspace().pack(key);
@@ -195,7 +200,7 @@ public class Volume {
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, packEntryKeyWithVersionstamp(version), encodedEntryMetadata);
             tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, packEntryMetadataKey(encodedEntryMetadata), Tuple.from(Versionstamp.incomplete(version)).packWithVersionstamp());
-            tr.mutate(MutationType.ADD, packSegmentCardinalityKey(entryMetadata.segment()), SEGMENT_CARDINALITY_INCREASE_DELTA);
+            mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_INCREASE_DELTA);
         }
         return tr.getVersionstamp();
     }
@@ -303,8 +308,7 @@ public class Volume {
             tr.clear(packEntryMetadataKey(encodedEntryMetadata));
 
             EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
-            byte[] segmentCardinalityKey = packSegmentCardinalityKey(entryMetadata.segment());
-            tr.mutate(MutationType.ADD, segmentCardinalityKey, SEGMENT_CARDINALITY_DECREASE_DELTA);
+            mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_DECREASE_DELTA);
 
             result.add(index, key);
             index++;
@@ -324,12 +328,20 @@ public class Volume {
         for (KeyEntry keyEntry : pairs) {
             Versionstamp key = keyEntry.key();
             byte[] packedKey = packEntryKey(key);
-            byte[] encodedEntryMetadata = tr.get(packedKey).join();
-            if (encodedEntryMetadata == null) {
+            byte[] previousEntryMetadata = tr.get(packedKey).join();
+            if (previousEntryMetadata == null) {
                 throw new KeyNotFoundException(key);
             }
-            tr.clear(packEntryMetadataKey(encodedEntryMetadata));
-            tr.set(packedKey, entryMetadataList[index].encode().array());
+
+            EntryMetadata entryMetadata = entryMetadataList[index];
+            String previousSegmentName = EntryMetadata.decode(ByteBuffer.wrap(previousEntryMetadata)).segment();
+            if (!previousSegmentName.equals(entryMetadata.segment())) {
+                mutateSegmentCardinality(tr, previousSegmentName, SEGMENT_CARDINALITY_DECREASE_DELTA);
+                mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_INCREASE_DELTA);
+            }
+
+            tr.clear(packEntryMetadataKey(previousEntryMetadata));
+            tr.set(packedKey, entryMetadata.encode().array());
             index++;
         }
         return new UpdateResult(pairs, entryMetadataCache::invalidate);
