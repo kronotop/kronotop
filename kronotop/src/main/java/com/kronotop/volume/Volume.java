@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 package com.kronotop.volume;
 
 import com.apple.foundationdb.*;
@@ -43,8 +42,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Volume {
+    protected static final byte ENTRY_PREFIX = 0x01;
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
-    private static final byte ENTRY_PREFIX = 0x01;
     private static final byte ENTRY_METADATA_PREFIX = 0x02;
     private static final byte SEGMENT_CARDINALITY_PREFIX = 0x3;
     private static final byte[] SEGMENT_CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
@@ -253,7 +252,7 @@ public class Volume {
         }
     }
 
-    private ByteBuffer getByEntryMetadata(Versionstamp key, EntryMetadata entryMetadata) throws IOException {
+    protected ByteBuffer getByEntryMetadata(Versionstamp key, EntryMetadata entryMetadata) throws IOException {
         Segment segment;
         try {
             segment = getSegmentByName(entryMetadata.segment());
@@ -412,6 +411,14 @@ public class Volume {
         } finally {
             segmentsLock.readLock().unlock();
         }
+    }
+
+    public Iterable<KeyEntry> getRange(@Nonnull Session session) {
+        return new VolumeIterable(this, session, null, null);
+    }
+
+    public Iterable<KeyEntry> getRange(@Nonnull Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+        return new VolumeIterable(this, session, begin, end);
     }
 
     private SegmentAnalysis analyze(Segment segment, long readVersion) {

@@ -16,9 +16,12 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.Strings;
 import com.kronotop.BaseMetadataStoreTest;
@@ -35,6 +38,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.kronotop.volume.Volume.ENTRY_PREFIX;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class VolumeTest extends BaseMetadataStoreTest {
@@ -498,5 +502,34 @@ public class VolumeTest extends BaseMetadataStoreTest {
                 assertEquals(10, segmentStats.getValue().cardinality());
             }
         }
+    }
+
+    @Test
+    public void test_getRange_full_scan() throws IOException {
+        ByteBuffer[] entries = getEntries(10);
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
+        assertEquals(10, versionstampedKeys.length);
+
+        Versionstamp[] retrievedKeys = new Versionstamp[10];
+        ByteBuffer[] retrievedEntries = new ByteBuffer[10];
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            int index = 0;
+            Iterable<KeyEntry> iterable = volume.getRange(session);
+            for (KeyEntry keyEntry : iterable) {
+                retrievedKeys[index] = keyEntry.key();
+                retrievedEntries[index] = keyEntry.entry();
+                index++;
+            }
+        }
+        assertArrayEquals(versionstampedKeys, retrievedKeys);
+        assertArrayEquals(entries, retrievedEntries);
     }
 }
