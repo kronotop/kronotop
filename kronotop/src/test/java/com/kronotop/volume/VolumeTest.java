@@ -489,10 +489,8 @@ public class VolumeTest extends BaseMetadataStoreTest {
             Iterator<Map.Entry<String, Stats.SegmentStats>> iterator = stats.getSegments().entrySet().iterator();
 
             // Cardinality should be zero for the first segment.
-            for (int i = 0; i < 1; i++) {
-                Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
-                assertEquals(0, segmentStats.getValue().cardinality());
-            }
+            Map.Entry<String, Stats.SegmentStats> firstSegment = iterator.next();
+            assertEquals(0, firstSegment.getValue().cardinality());
 
             // All keys moved to the new segments.
             for (int i = 1; i < 3; i++) {
