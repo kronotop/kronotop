@@ -414,7 +414,7 @@ public class Volume {
         }
     }
 
-    protected SegmentAnalysis analyze(Segment segment, long readVersion) {
+    private SegmentAnalysis analyze(Segment segment, long readVersion) {
         long usedBytes = 0;
         int cardinality = 0;
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
