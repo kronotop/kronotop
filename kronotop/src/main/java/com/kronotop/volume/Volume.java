@@ -20,11 +20,11 @@ import com.apple.foundationdb.*;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
+import com.kronotop.JSONUtils;
 import com.kronotop.common.KronotopException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +95,7 @@ public class Volume {
             if (value == null) {
                 return new VolumeMetadata();
             }
-            return new ObjectMapper().readValue(value, VolumeMetadata.class);
+            return JSONUtils.readValue(value, VolumeMetadata.class);
         }
     }
 
@@ -125,7 +125,7 @@ public class Volume {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // TODO: we may need to cleanup this if the transaction fails.
             metadata.addSegment(segmentId);
-            byte[] value = new ObjectMapper().writeValueAsBytes(metadata);
+            byte[] value = JSONUtils.writeValueAsBytes(metadata);
             byte[] metadataKey = config.subspace().pack(VOLUME_METADATA_KEY);
             tr.set(metadataKey, value);
             tr.commit().join();
