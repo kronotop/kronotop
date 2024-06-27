@@ -58,7 +58,7 @@ class VolumeIterable implements Iterable<KeyEntry> {
         return session.getTransaction().getRange(beginKeySelector, endKeySelector);
     }
 
-    private byte[] packKey(byte[] key) {
+    private byte[] packKey(Versionstamp key) {
         return volume.getConfig().subspace().pack(Tuple.from(ENTRY_PREFIX, key));
     }
 

@@ -1,5 +1,5 @@
 /*
- * VersionstampedKeySelector.java
+ * KeySelector.java
  *
  * This source file is part of the FoundationDB open source project
  *
@@ -23,60 +23,62 @@ package com.kronotop.volume;
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Versionstamp;
+
+// Kronotop authors have modified KeySelector.java file.
 
 /**
  * A {@code VersionstampedKeySelector} identifies a particular key in the database. FoundationDB's
- *  lexicographically ordered data model permits finding keys based on their order (for
- *  example, finding the first key in the database greater than a given key). Key selectors
- *  represent a description of a key in the database that could be resolved to an actual
- *  key by {@code Transaction}'s {@link Transaction#getKey(KeySelector) getKey()}
- *  or used directly as the beginning or end of a range in {@code Transaction}'s
- *  {@link Transaction#getRange(KeySelector, KeySelector) getRange()}.<br>
+ * lexicographically ordered data model permits finding keys based on their order (for
+ * example, finding the first key in the database greater than a given key). Key selectors
+ * represent a description of a key in the database that could be resolved to an actual
+ * key by {@code Transaction}'s {@link Transaction#getKey(KeySelector) getKey()}
+ * or used directly as the beginning or end of a range in {@code Transaction}'s
+ * {@link Transaction#getRange(KeySelector, KeySelector) getRange()}.<br>
  * <br>
  * For more about how key selectors work in practice, see
  * <a href="/foundationdb/developer-guide.html#key-selectors" target="_blank">the VersionstampedKeySelector documentation</a>.
- *  Note that the way the key selectors are resolved is somewhat non-intuitive, so
- *  users who wish to use a key selector other than the default ones described below should
- *  probably consult that documentation before proceeding.
+ * Note that the way the key selectors are resolved is somewhat non-intuitive, so
+ * users who wish to use a key selector other than the default ones described below should
+ * probably consult that documentation before proceeding.
  * <br>
  * <br>
  * Generally one of the following static methods should be used to construct a {@code VersionstampedKeySelector}:
- *  <ul><li>{@link #lastLessThan(byte[]) lastLessThan}</li>
- *  <li>{@link #lastLessOrEqual(byte[]) lastLessOrEqual}</li>
- *  <li>{@link #firstGreaterThan(byte[]) firstGreaterThan}</li>
- *  <li>{@link #firstGreaterOrEqual(byte[]) firstGreaterOrEqual}</li></ul>
- *  <br>
- *  This is an <i>immutable</i> class.  The {@code add(int)} call does not
- *   modify internal state, but returns a new instance.
- *  <br>
+ * <ul><li>{@link #lastLessThan(Versionstamp) lastLessThan}</li>
+ * <li>{@link #lastLessOrEqual(Versionstamp) lastLessOrEqual}</li>
+ * <li>{@link #firstGreaterThan(Versionstamp) firstGreaterThan}</li>
+ * <li>{@link #firstGreaterOrEqual(Versionstamp) firstGreaterOrEqual}</li></ul>
+ * <br>
+ * This is an <i>immutable</i> class.  The {@code add(int)} call does not
+ *  modify internal state, but returns a new instance.
+ * <br>
  */
 public class VersionstampedKeySelector {
-    private final byte[] key;
+    private final Versionstamp key;
     private final boolean orEqual;
     private final int offset;
 
     /**
      * Constructs a new {@code VersionstampedKeySelector} from the given parameters.  Client code
-     *  will not generally call this constructor. A key selector can be used to
-     *  specify a key that will be resolved at runtime based on a starting key and
-     *  an offset. When this is passed as an argument to a {@link Transaction}'s
-     *  {@link Transaction#getKey(KeySelector) getKey()} or
-     *  {@link Transaction#getRange(KeySelector, KeySelector) getRange()}
-     *  methods, the key selector will be resolved to a key within the
-     *  database. This is done in a manner equivalent to finding the last key that is
-     *  less than (or less than or equal to, if {@code orEqual} is
-     *  {@code true}) the base {@code key} specified here and then
-     *  returning the key that is {@code offset} keys greater than that
-     *  key.
+     * will not generally call this constructor. A key selector can be used to
+     * specify a key that will be resolved at runtime based on a starting key and
+     * an offset. When this is passed as an argument to a {@link Transaction}'s
+     * {@link Transaction#getKey(KeySelector) getKey()} or
+     * {@link Transaction#getRange(KeySelector, KeySelector) getRange()}
+     * methods, the key selector will be resolved to a key within the
+     * database. This is done in a manner equivalent to finding the last key that is
+     * less than (or less than or equal to, if {@code orEqual} is
+     * {@code true}) the base {@code key} specified here and then
+     * returning the key that is {@code offset} keys greater than that
+     * key.
      *
-     * @param key the base key to reference
+     * @param key     the base key to reference
      * @param orEqual {@code true} if the key selector should resolve to
      *                {@code key} (if {@code key} is present) before accounting for the offset
-     * @param offset the offset (in number of keys) that the selector will advance after
-     *               resolving to a key based on the {@code key} and {@code orEqual} parameters
+     * @param offset  the offset (in number of keys) that the selector will advance after
+     *                resolving to a key based on the {@code key} and {@code orEqual} parameters
      */
-    VersionstampedKeySelector(byte[] key, boolean orEqual, int offset) {
+    VersionstampedKeySelector(Versionstamp key, boolean orEqual, int offset) {
         this.key = key;
         this.orEqual = orEqual;
         this.offset = offset;
@@ -86,10 +88,9 @@ public class VersionstampedKeySelector {
      * Creates a {@code VersionstampedKeySelector} that picks the last key less than the parameter
      *
      * @param key the key to use as the edge of the edge of selection criteria
-     *
      * @return a newly created {@code VersionstampedKeySelector}
      */
-    public static VersionstampedKeySelector lastLessThan(byte[] key) {
+    public static VersionstampedKeySelector lastLessThan(Versionstamp key) {
         return new VersionstampedKeySelector(key, false, 0);
     }
 
@@ -97,10 +98,9 @@ public class VersionstampedKeySelector {
      * Creates a {@code VersionstampedKeySelector} that picks the last key less than or equal to the parameter
      *
      * @param key the key to use as the edge of the edge of selection criteria
-     *
      * @return a newly created {@code VersionstampedKeySelector}
      */
-    public static VersionstampedKeySelector lastLessOrEqual(byte[] key) {
+    public static VersionstampedKeySelector lastLessOrEqual(Versionstamp key) {
         return new VersionstampedKeySelector(key, true, 0);
     }
 
@@ -108,10 +108,9 @@ public class VersionstampedKeySelector {
      * Creates a {@code VersionstampedKeySelector} that picks the first key greater than the parameter
      *
      * @param key the key to use as the edge of the edge of selection criteria
-     *
      * @return a newly created {@code VersionstampedKeySelector}
      */
-    public static VersionstampedKeySelector firstGreaterThan(byte[] key) {
+    public static VersionstampedKeySelector firstGreaterThan(Versionstamp key) {
         return new VersionstampedKeySelector(key, true, +1);
     }
 
@@ -119,29 +118,27 @@ public class VersionstampedKeySelector {
      * Creates a {@code VersionstampedKeySelector} that picks the first key greater than or equal to the parameter
      *
      * @param key the key to use as the edge of the edge of selection criteria
-     *
      * @return a newly created {@code VersionstampedKeySelector}
      */
-    public static VersionstampedKeySelector firstGreaterOrEqual(byte[] key) {
+    public static VersionstampedKeySelector firstGreaterOrEqual(Versionstamp key) {
         return new VersionstampedKeySelector(key, false, +1);
     }
 
     /**
      * Returns a new {@code VersionstampedKeySelector} offset by a given
-     *  number of keys from this one. For example, an offset of {@code 1} means
-     *  that the new {@code VersionstampedKeySelector} specifies the key in the database
-     *  after the key selected by this {@code VersionstampedKeySelector}. The offset can be negative;
-     *  these will move the selector to previous keys in the database.<br>
+     * number of keys from this one. For example, an offset of {@code 1} means
+     * that the new {@code VersionstampedKeySelector} specifies the key in the database
+     * after the key selected by this {@code VersionstampedKeySelector}. The offset can be negative;
+     * these will move the selector to previous keys in the database.<br>
      * <br>
      * Note that large offsets take time O(offset) to resolve, making them a
-     *  poor choice for iterating through a large range. (Instead, use the keys
-     *  returned from a range query operation
-     *  themselves to create a new beginning {@code VersionstampedKeySelector}.) For more information see
-     *  <a href="/foundationdb/developer-guide.html#key-selectors" target="_blank">the VersionstampedKeySelector documentation</a>.
+     * poor choice for iterating through a large range. (Instead, use the keys
+     * returned from a range query operation
+     * themselves to create a new beginning {@code VersionstampedKeySelector}.) For more information see
+     * <a href="/foundationdb/developer-guide.html#key-selectors" target="_blank">the VersionstampedKeySelector documentation</a>.
      *
      * @param offset the number of keys to offset the {@code VersionstampedKeySelector}. This number can be
-     *  negative.
-     *
+     *               negative.
      * @return a newly created {@code VersionstampedKeySelector} that is offset by a number of keys.
      */
     public VersionstampedKeySelector add(int offset) {
@@ -150,26 +147,27 @@ public class VersionstampedKeySelector {
 
     /**
      * Returns a copy of the key that serves as the anchor for this {@code VersionstampedKeySelector}. This is
-     *  <i>not</i> the key to which this {@code VersionstampedKeySelector} would resolve to. For this
-     *  function see {@link ReadTransaction#getKey(KeySelector)}.
+     * <i>not</i> the key to which this {@code VersionstampedKeySelector} would resolve to. For this
+     * function see {@link ReadTransaction#getKey(KeySelector)}.
      *
      * @return a copy of the "anchor" key for this {@code VersionstampedKeySelector}.
      */
-    public byte[] getKey() {
-        byte[] res = new byte[key.length];
-        System.arraycopy(key, 0, res, 0, key.length);
-        return res;
+    public Versionstamp getKey() {
+        key.getBytes();
+        byte[] res = new byte[key.getBytes().length];
+        System.arraycopy(key.getBytes(), 0, res, 0, res.length);
+        return Versionstamp.fromBytes(res);
     }
 
     @Override
     public String toString() {
         return String.format("(%s, %s, %d)",
-                ByteArrayUtil.printable(getKey()), orEqual(), getOffset());
+                getKey(), orEqual(), getOffset());
     }
 
     /**
      * Returns the orEqual parameter for this {@code VersionstampedKeySelector}. See the
-     * {@link #VersionstampedKeySelector(byte[], boolean, int)} VersionstampedKeySelector constructor}
+     * {@link #VersionstampedKeySelector(Versionstamp, boolean, int)} VersionstampedKeySelector constructor}
      * for more details.
      *
      * @return the {@code or-equal} parameter of this {@code VersionstampedKeySelector}.
@@ -180,8 +178,8 @@ public class VersionstampedKeySelector {
 
     /**
      * Returns the key offset parameter for this {@code VersionstampedKeySelector}. See
-     *  the {@link #VersionstampedKeySelector(byte[], boolean, int) VersionstampedKeySelector constructor}
-     *  for more details.
+     * the {@link #VersionstampedKeySelector(Versionstamp, boolean, int) VersionstampedKeySelector constructor}
+     * for more details.
      *
      * @return the key offset for this {@code VersionstampedKeySelector}
      */

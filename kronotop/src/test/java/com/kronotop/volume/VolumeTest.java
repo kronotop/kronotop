@@ -532,4 +532,43 @@ public class VolumeTest extends BaseMetadataStoreTest {
         assertArrayEquals(versionstampedKeys, retrievedKeys);
         assertArrayEquals(entries, retrievedEntries);
     }
+
+    @Test
+    public void test_getRange_random_range() throws IOException {
+        ByteBuffer[] entries = getEntries(10);
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] expectedKeys = Arrays.copyOfRange(result.getVersionstampedKeys(), 3, 7);
+        ByteBuffer[] expectedEntries = new ByteBuffer[expectedKeys.length];
+
+        for (int i = 0; i < expectedKeys.length; i++) {
+            Versionstamp key = expectedKeys[i];
+            ByteBuffer entry = volume.get(key);
+            expectedEntries[i] = entry;
+        }
+
+        Versionstamp[] retrievedKeys = new Versionstamp[expectedKeys.length];
+        ByteBuffer[] retrievedEntries = new ByteBuffer[expectedKeys.length];
+        try (Transaction tr = database.createTransaction()) {
+            VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(expectedKeys[0]);
+            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(expectedKeys[expectedKeys.length-1]);
+
+            Session session = new Session(tr);
+            Iterable<KeyEntry> iterable = volume.getRange(session, begin, end);
+            int index = 0;
+            for (KeyEntry keyEntry : iterable) {
+                retrievedKeys[index] = keyEntry.key();
+                retrievedEntries[index] = keyEntry.entry();
+                index++;
+            }
+        }
+
+        assertArrayEquals(expectedKeys, retrievedKeys);
+        assertArrayEquals(expectedEntries, retrievedEntries);
+    }
 }
