@@ -401,8 +401,9 @@ public class VolumeTest extends BaseMetadataStoreTest {
     public void test_TooManyEntriesException_session() throws IOException {
         try (Transaction tr = database.createTransaction()) {
             Session session = new Session(tr);
-            for (int i = UserVersion.MIN_VALUE; i <= UserVersion.MAX_VALUE; i++) {
-                ByteBuffer[] entries = getEntries(1);
+            int batchSize = UserVersion.MAX_VALUE / 5;
+            for (int i = 0; i < 5; i++) {
+                ByteBuffer[] entries = getEntries(batchSize);
                 volume.append(session, entries);
             }
             ByteBuffer[] entries = getEntries(2);
