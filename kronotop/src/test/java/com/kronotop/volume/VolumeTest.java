@@ -16,12 +16,9 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.Strings;
 import com.kronotop.BaseMetadataStoreTest;
@@ -38,7 +35,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static com.kronotop.volume.Volume.ENTRY_PREFIX;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class VolumeTest extends BaseMetadataStoreTest {
@@ -209,7 +205,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
             assertDoesNotThrow(() -> volume.append(session, entries));
             tr.commit().join();
         }
-        assertDoesNotThrow(() -> volume.flush());
+        assertDoesNotThrow(() -> volume.flush(true));
     }
 
     @Test
@@ -556,7 +552,7 @@ public class VolumeTest extends BaseMetadataStoreTest {
         ByteBuffer[] retrievedEntries = new ByteBuffer[expectedKeys.length];
         try (Transaction tr = database.createTransaction()) {
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(expectedKeys[0]);
-            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(expectedKeys[expectedKeys.length-1]);
+            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(expectedKeys[expectedKeys.length - 1]);
 
             Session session = new Session(tr);
             Iterable<KeyEntry> iterable = volume.getRange(session, begin, end);

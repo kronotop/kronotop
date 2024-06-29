@@ -88,7 +88,7 @@ public class Volume {
         return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
     }
 
-    private VolumeMetadata createOrLoadVolumeMetadata() throws IOException {
+    private VolumeMetadata createOrLoadVolumeMetadata() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] metadataKey = config.subspace().pack(Tuple.from(VOLUME_METADATA_KEY));
             byte[] value = tr.get(metadataKey).join();
@@ -346,12 +346,12 @@ public class Volume {
         return new UpdateResult(pairs, entryMetadataCache::invalidate);
     }
 
-    public void flush() {
+    public void flush(boolean metaData) {
         segmentsLock.readLock().lock();
         try {
             for (Map.Entry<String, Segment> entry : segmentsByName.entrySet()) {
                 try {
-                    entry.getValue().flush();
+                    entry.getValue().flush(metaData);
                 } catch (IOException e) {
                     LOGGER.error("Failed to flush Segment: {}", entry.getKey(), e);
                 }

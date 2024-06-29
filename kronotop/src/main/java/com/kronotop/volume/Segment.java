@@ -147,21 +147,21 @@ class Segment {
         return buffer;
     }
 
-    void flush() throws IOException {
+    void flush(boolean metaData) throws IOException {
         try {
-            segmentFile.getChannel().force(true);
+            segmentFile.getChannel().force(metaData);
         } catch (ClosedChannelException e) {
             // Ignore it and continue flushing the other file.
         }
         try {
-            metadataFile.getChannel().force(true);
+            metadataFile.getChannel().force(metaData);
         } catch (ClosedChannelException e) {
             // Ignore it.
         }
     }
 
     void close() throws IOException {
-        flush();
+        flush(true);
         segmentFile.close();
         metadataFile.close();
     }
