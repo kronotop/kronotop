@@ -42,8 +42,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Volume {
-    protected static final byte ENTRY_PREFIX = 0x01;
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
+    protected static final byte ENTRY_PREFIX = 0x01;
     private static final byte ENTRY_METADATA_PREFIX = 0x02;
     private static final byte SEGMENT_CARDINALITY_PREFIX = 0x3;
     private static final byte[] SEGMENT_CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
@@ -219,7 +219,15 @@ public class Volume {
         if (entries.length > UserVersion.MAX_VALUE) {
             throw new TooManyEntriesException();
         }
+
         EntryMetadata[] entryMetadataList = appendEntries(entries);
+
+        // Forces any updates to this channel's file to be written to the storage device that contains it.
+        for (EntryMetadata entryMetadata : entryMetadataList) {
+            Segment segment = getSegmentByName(entryMetadata.segment());
+            segment.flush(false);
+        }
+
         CompletableFuture<byte[]> future = writeMetadata(session, entryMetadataList);
         return new AppendResult(future, entryMetadataList, entryMetadataCache::put);
     }

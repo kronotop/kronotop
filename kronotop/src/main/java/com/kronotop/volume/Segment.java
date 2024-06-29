@@ -40,6 +40,7 @@ class Segment {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final RandomAccessFile segmentFile;
     private final RandomAccessFile metadataFile;
+    private volatile boolean flushed = true;
 
     Segment(Context context, long id) throws IOException {
         this.context = context;
@@ -65,6 +66,10 @@ class Segment {
     long getSize() {
         // No need to use lock here. Size is a final property.
         return metadata.getSize();
+    }
+
+    private void setFlushed(boolean flushed) {
+        this.flushed = flushed;
     }
 
     private SegmentMetadata createOrDecodeSegmentMetadata(long id) throws IOException {
@@ -126,12 +131,17 @@ class Segment {
     }
 
     EntryMetadata append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
-        long position = forwardMetadataPosition(entry.remaining());
-        int length = segmentFile.getChannel().write(entry, position);
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(String.format("%d bytes has been written to segment %s", length, getName()));
+        try {
+            long position = forwardMetadataPosition(entry.remaining());
+            int length = segmentFile.getChannel().write(entry, position);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(String.format("%d bytes has been written to segment %s", length, getName()));
+            }
+            return new EntryMetadata(getName(), position, length);
+        } finally {
+            // Now this segment requires a flush.
+            setFlushed(false);
         }
-        return new EntryMetadata(getName(), position, length);
     }
 
     ByteBuffer get(long position, long length) throws IOException {
@@ -147,7 +157,11 @@ class Segment {
         return buffer;
     }
 
-    void flush(boolean metaData) throws IOException {
+    synchronized void flush(boolean metaData) throws IOException {
+        if (flushed) {
+            // Already flushed
+            return;
+        }
         try {
             segmentFile.getChannel().force(metaData);
         } catch (ClosedChannelException e) {
@@ -158,6 +172,7 @@ class Segment {
         } catch (ClosedChannelException e) {
             // Ignore it.
         }
+        setFlushed(true);
     }
 
     void close() throws IOException {
