@@ -32,8 +32,6 @@ import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.handlers.protocol.SegmentRangeMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -53,11 +51,11 @@ public class SegmentRangeHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        SegmentRangeMessage segmentRangeMessage = request.attr(MessageTypes.SEGMENTRANGE).get();
+        SegmentRangeMessage message = request.attr(MessageTypes.SEGMENTRANGE).get();
         try {
-            Volume volume = service.getVolume(segmentRangeMessage.getVolume());
+            Volume volume = service.getVolume(message.getVolume());
             List<RedisMessage> children = new ArrayList<>();
-            ByteBuffer[] entries = volume.getSegmentRange(segmentRangeMessage.getSegment(), segmentRangeMessage.getSegmentRanges());
+            ByteBuffer[] entries = volume.getSegmentRange(message.getSegment(), message.getSegmentRanges());
             for (ByteBuffer entry : entries) {
                 ByteBuf buffer = Unpooled.wrappedBuffer(entry);
                 children.add(new FullBulkStringRedisMessage(buffer));
