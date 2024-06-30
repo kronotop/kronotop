@@ -38,13 +38,13 @@ import java.util.UUID;
 public class BaseVolumeTest extends BaseTest {
     protected KronotopTestInstance kronotopInstance;
     protected EmbeddedChannel channel;
+    protected Database database;
+    protected Volume volume;
+    protected VolumeConfig volumeConfig;
 
-    Database database;
     Context context;
     VolumeService service;
     DirectorySubspace directorySubspace;
-    Volume volume;
-    VolumeConfig volumeConfig;
 
     protected ByteBuffer[] getEntries(int number) {
         int capacity = 10;
@@ -92,9 +92,7 @@ public class BaseVolumeTest extends BaseTest {
 
     @AfterEach
     public void tearDown() {
-        if (kronotopInstance == null) {
-            return;
-        }
+        volume.close();
         kronotopInstance.shutdown();
     }
 }

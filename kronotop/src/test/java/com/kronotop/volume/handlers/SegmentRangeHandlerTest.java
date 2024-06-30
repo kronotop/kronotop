@@ -1,18 +1,32 @@
+/*
+ * Copyright (c) 2023-2024 Kronotop
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kronotop.volume.handlers;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.protocol.InternalCommandBuilder;
 import com.kronotop.cluster.protocol.SegmentRange;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.volume.*;
+import com.kronotop.volume.BaseVolumeTest;
+import com.kronotop.volume.Session;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -22,25 +36,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class SegmentRangeHandlerTest extends BaseVolumeTest {
-    String volumeName = "test_volume";
-    Database database;
-    VolumeService service;
-    DirectorySubspace directorySubspace;
-    Volume volume;
-    VolumeConfig volumeConfig;
-
-    @BeforeEach
-    public void setupVolumeTestEnvironment() throws IOException {
-        database = kronotopInstance.getContext().getFoundationDB();
-        service = kronotopInstance.getContext().getService(VolumeService.NAME);
-        directorySubspace = getDirectorySubspace();
-
-        String rootPath = kronotopInstance.getContext().getConfig().getString("volume_test.volume.root_path");
-        Long segmentSize = kronotopInstance.getContext().getConfig().getLong("volume_test.volume.segment_size");
-        Float allowedGarbageRatio = (float) kronotopInstance.getContext().getConfig().getDouble("volume_test.volume.allowed_garbage_ratio");
-        volumeConfig = new VolumeConfig(directorySubspace, "append-test", rootPath, segmentSize, allowedGarbageRatio);
-        volume = service.newVolume(volumeConfig);
-    }
 
     @Test
     public void test_SEGMENTRANGE() throws IOException {
@@ -63,7 +58,7 @@ class SegmentRangeHandlerTest extends BaseVolumeTest {
                 new SegmentRange(0, 3),
                 new SegmentRange(3, 3),
         };
-        cmd.segmentrange(volumeName, segmentName, ranges).encode(buf);
+        cmd.segmentrange(volumeConfig.name(), segmentName, ranges).encode(buf);
         channel.writeInbound(buf);
 
         Object response = channel.readOutbound();
@@ -92,7 +87,7 @@ class SegmentRangeHandlerTest extends BaseVolumeTest {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentrange(volumeName, "barfoo", new SegmentRange(0, 3)).encode(buf);
+        cmd.segmentrange(volumeConfig.name(), "barfoo", new SegmentRange(0, 3)).encode(buf);
         channel.writeInbound(buf);
 
         Object response = channel.readOutbound();
