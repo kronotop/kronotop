@@ -16,11 +16,13 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.google.common.base.Strings;
 import com.kronotop.BaseTest;
+import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.typesafe.config.Config;
@@ -28,7 +30,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
-import java.net.UnknownHostException;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.UUID;
@@ -37,9 +39,12 @@ public class BaseVolumeTest extends BaseTest {
     protected KronotopTestInstance kronotopInstance;
     protected EmbeddedChannel channel;
 
-    protected EmbeddedChannel newChannel() {
-        return kronotopInstance.newChannel();
-    }
+    Database database;
+    Context context;
+    VolumeService service;
+    DirectorySubspace directorySubspace;
+    Volume volume;
+    VolumeConfig volumeConfig;
 
     protected ByteBuffer[] getEntries(int number) {
         int capacity = 10;
@@ -61,16 +66,28 @@ public class BaseVolumeTest extends BaseTest {
         }
     }
 
-    void setupCommon(Config config) throws UnknownHostException, InterruptedException {
-        kronotopInstance = new KronotopTestInstance(config);
-        kronotopInstance.start();
-        channel = kronotopInstance.getChannel();
+    void setupVolumeTestEnv() throws IOException {
+        database = kronotopInstance.getContext().getFoundationDB();
+        context = kronotopInstance.getContext();
+        service = kronotopInstance.getContext().getService(VolumeService.NAME);
+        directorySubspace = getDirectorySubspace();
+
+        String name = context.getConfig().getString("volume_test.volume.name");
+        String rootPath = context.getConfig().getString("volume_test.volume.root_path");
+        Long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
+        Float allowedGarbageRatio = (float) context.getConfig().getDouble("volume_test.volume.allowed_garbage_ratio");
+        volumeConfig = new VolumeConfig(directorySubspace, name, rootPath, segmentSize, allowedGarbageRatio);
+        volume = service.newVolume(volumeConfig);
+
     }
 
     @BeforeEach
-    public void setup() throws UnknownHostException, InterruptedException {
+    public void setup() throws IOException, InterruptedException {
         Config config = loadConfig("test.conf");
-        setupCommon(config);
+        kronotopInstance = new KronotopTestInstance(config);
+        kronotopInstance.start();
+        channel = kronotopInstance.getChannel();
+        setupVolumeTestEnv();
     }
 
     @AfterEach

@@ -16,16 +16,9 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.google.common.base.Strings;
-import com.kronotop.Context;
-import com.kronotop.common.utils.DirectoryLayout;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -39,33 +32,12 @@ import java.util.concurrent.Executors;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class VolumeTest extends BaseVolumeTest {
-    Database database;
-    Context context;
-    VolumeService service;
-    DirectorySubspace directorySubspace;
-    Volume volume;
-    VolumeConfig volumeConfig;
     Random random = new Random();
 
     private ByteBuffer randomBytes(int size) {
         byte[] b = new byte[size];
         random.nextBytes(b);
         return ByteBuffer.wrap(b);
-    }
-
-    @BeforeEach
-    public void setupVolumeTestEnvironment() throws IOException {
-        database = kronotopInstance.getContext().getFoundationDB();
-        context = kronotopInstance.getContext();
-        service = kronotopInstance.getContext().getService(VolumeService.NAME);
-        directorySubspace = getDirectorySubspace();
-
-        String name = context.getConfig().getString("volume_test.volume.name");
-        String rootPath = context.getConfig().getString("volume_test.volume.root_path");
-        Long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
-        Float allowedGarbageRatio = (float) context.getConfig().getDouble("volume_test.volume.allowed_garbage_ratio");
-        volumeConfig = new VolumeConfig(directorySubspace, name, rootPath, segmentSize, allowedGarbageRatio);
-        volume = service.newVolume(volumeConfig);
     }
 
     @AfterEach
