@@ -17,7 +17,6 @@
 package com.kronotop.volume;
 
 import com.google.common.base.Strings;
-import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +33,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 class Segment {
     private static final Logger LOGGER = LoggerFactory.getLogger(Segment.class);
-    private final Context context;
+    private final SegmentConfig config;
     private final String name;
     private final SegmentMetadata metadata;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
@@ -42,11 +41,11 @@ class Segment {
     private final RandomAccessFile metadataFile;
     private volatile boolean flushed = true;
 
-    Segment(Context context, long id) throws IOException {
-        this.context = context;
-        this.name = Strings.padStart(Long.toString(id), 19, '0');
+    Segment(SegmentConfig config) throws IOException {
+        this.config = config;
+        this.name = Strings.padStart(Long.toString(config.id()), 19, '0');
         this.metadataFile = createOrOpenSegmentMetadataFile();
-        this.metadata = createOrDecodeSegmentMetadata(id);
+        this.metadata = createOrDecodeSegmentMetadata(config.id());
         this.segmentFile = createOrOpenSegmentFile();
     }
 
@@ -73,10 +72,9 @@ class Segment {
     }
 
     private SegmentMetadata createOrDecodeSegmentMetadata(long id) throws IOException {
-        long size = context.getConfig().getLong("volumes.segment_size");
         if (this.metadataFile.getChannel().size() == 0) {
             // Empty file. Create a new SegmentMetadata.
-            return new SegmentMetadata(id, size);
+            return new SegmentMetadata(id, config.size());
         } else {
             ByteBuffer buffer = ByteBuffer.allocate(SegmentMetadata.HEADER_SIZE);
             this.metadataFile.getChannel().read(buffer);
@@ -85,8 +83,7 @@ class Segment {
     }
 
     private RandomAccessFile createOrOpenSegmentMetadataFile() throws IOException {
-        String rootPath = context.getConfig().getString("volumes.root_path");
-        Path path = Path.of(rootPath, "segments", name + ".metadata");
+        Path path = Path.of(config.rootPath(), "segments", name + ".metadata");
         Files.createDirectories(path.getParent());
         try {
             return new RandomAccessFile(path.toFile(), "rw");
@@ -97,8 +94,7 @@ class Segment {
     }
 
     private RandomAccessFile createOrOpenSegmentFile() throws IOException {
-        String rootPath = context.getConfig().getString("volumes.root_path");
-        Path path = Path.of(rootPath, "segments", getName());
+        Path path = Path.of(config.rootPath(), "segments", getName());
         Files.createDirectories(path.getParent());
         try {
             RandomAccessFile file = new RandomAccessFile(path.toFile(), "rw");

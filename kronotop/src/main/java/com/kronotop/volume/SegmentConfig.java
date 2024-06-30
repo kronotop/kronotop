@@ -16,13 +16,5 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.directory.DirectorySubspace;
-
-public record VolumeConfig(
-        DirectorySubspace subspace,
-        String name,
-        String rootPath,
-        Long segmentSize,
-        Float allowedGarbageRatio
-) {
+record SegmentConfig(long id, String rootPath, long size) {
 }

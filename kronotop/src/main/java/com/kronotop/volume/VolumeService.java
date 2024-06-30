@@ -23,7 +23,6 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.Handlers;
 import com.kronotop.volume.handlers.SegmentRangeHandler;
-import com.typesafe.config.ConfigException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,25 +41,8 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
 
     public VolumeService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
         super(context, handlers);
-        checkAndCreateRootPath();
 
         registerHandler(new SegmentRangeHandler(this));
-    }
-
-    private void checkAndCreateRootPath() {
-        try {
-            String rootPath = context.getConfig().getString("volumes.root_path");
-            Files.createDirectories(Paths.get(rootPath));
-        } catch (ConfigException.Missing e) {
-            LOGGER.error("volumes.root_path is missing");
-            throw new KronotopException(e);
-        } catch (FileAlreadyExistsException e) {
-            LOGGER.error("volumes.root_path already exists but is not a directory", e);
-            throw new KronotopException(e);
-        } catch (IOException e) {
-            LOGGER.error("volumes.root_path could not be created", e);
-            throw new KronotopException(e);
-        }
     }
 
     @Override
@@ -83,6 +65,18 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         }
     }
 
+    private void checkAndCreateRootPath(String rootPath) {
+        try {
+            Files.createDirectories(Paths.get(rootPath));
+        } catch (FileAlreadyExistsException e) {
+            LOGGER.error("{} already exists but is not a directory", rootPath, e);
+            throw new KronotopException(e);
+        } catch (IOException e) {
+            LOGGER.error("{} could not be created", rootPath, e);
+            throw new KronotopException(e);
+        }
+    }
+
     public Volume newVolume(VolumeConfig config) throws IOException {
         synchronized (volumesLock) {
             if (volumes.containsKey(config.name())) {
@@ -91,6 +85,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                     return volume;
                 }
             }
+            checkAndCreateRootPath(config.rootPath());
             Volume volume = new Volume(context, config);
             volumes.put(config.name(), volume);
             return volume;

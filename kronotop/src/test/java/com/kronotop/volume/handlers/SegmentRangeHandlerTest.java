@@ -34,7 +34,11 @@ class SegmentRangeHandlerTest extends BaseVolumeTest {
         database = kronotopInstance.getContext().getFoundationDB();
         service = kronotopInstance.getContext().getService(VolumeService.NAME);
         directorySubspace = getDirectorySubspace();
-        volumeConfig = new VolumeConfig(directorySubspace, volumeName);
+
+        String rootPath = kronotopInstance.getContext().getConfig().getString("redis.volume.root_path");
+        Long segmentSize = kronotopInstance.getContext().getConfig().getLong("redis.volume.segment_size");
+        Float allowedGarbageRatio = (float) kronotopInstance.getContext().getConfig().getDouble("redis.volume.allowed_garbage_ratio");
+        volumeConfig = new VolumeConfig(directorySubspace, "append-test", rootPath, segmentSize, allowedGarbageRatio);
         volume = service.newVolume(volumeConfig);
     }
 

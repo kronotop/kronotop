@@ -31,7 +31,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class BaseTest {
     @TempDir
-    public File volumesRootPathTempDir;
+    public File redisVolumeRootPathTempDir;
 
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
 
@@ -48,8 +48,8 @@ public class BaseTest {
     }
 
     protected Config loadConfig(String resourceName) {
-        System.setProperty("volumes.root_path", volumesRootPathTempDir.getAbsolutePath());
         System.setProperty("cluster.name", UUID.randomUUID().toString());
+        System.setProperty("redis.volume.root_path", redisVolumeRootPathTempDir.getAbsolutePath());
         ConfigFactory.invalidateCaches();
         return ConfigFactory.load(resourceName);
     }

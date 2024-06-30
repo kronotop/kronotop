@@ -59,7 +59,11 @@ public class VolumeTest extends BaseVolumeTest {
         context = kronotopInstance.getContext();
         service = kronotopInstance.getContext().getService(VolumeService.NAME);
         directorySubspace = getDirectorySubspace();
-        volumeConfig = new VolumeConfig(directorySubspace, "append-test");
+
+        String rootPath = context.getConfig().getString("redis.volume.root_path");
+        Long segmentSize = context.getConfig().getLong("redis.volume.segment_size");
+        Float allowedGarbageRatio = (float) context.getConfig().getDouble("redis.volume.allowed_garbage_ratio");
+        volumeConfig = new VolumeConfig(directorySubspace, "append-test", rootPath, segmentSize, allowedGarbageRatio);
         volume = service.newVolume(volumeConfig);
     }
 

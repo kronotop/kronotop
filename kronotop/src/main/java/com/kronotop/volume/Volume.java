@@ -103,7 +103,8 @@ public class Volume {
         segmentsLock.writeLock().lock();
         try {
             for (Long segmentId : metadata.getSegments()) {
-                Segment segment = new Segment(context, segmentId);
+                SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
+                Segment segment = new Segment(segmentConfig);
                 segments.add(segment);
                 segmentsByName.put(segment.getName(), segment);
             }
@@ -117,7 +118,8 @@ public class Volume {
     private Segment createSegment() throws IOException {
         // Create a new segment and add it to the metadata
         long segmentId = metadata.getAndIncrementSegmentId();
-        Segment segment = new Segment(context, segmentId);
+        SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
+        Segment segment = new Segment(segmentConfig);
 
         // After this point, the Segment has been created on the physical medium.
 
