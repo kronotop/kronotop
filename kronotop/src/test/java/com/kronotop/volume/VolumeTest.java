@@ -16,12 +16,13 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.Strings;
-import com.kronotop.BaseMetadataStoreTest;
+import com.kronotop.Context;
 import com.kronotop.common.utils.DirectoryLayout;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,9 +38,11 @@ import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class VolumeTest extends BaseMetadataStoreTest {
-    DirectorySubspace directorySubspace;
+public class VolumeTest extends BaseVolumeTest {
+    Database database;
+    Context context;
     VolumeService service;
+    DirectorySubspace directorySubspace;
     Volume volume;
     VolumeConfig volumeConfig;
     Random random = new Random();
@@ -50,20 +53,12 @@ public class VolumeTest extends BaseMetadataStoreTest {
         return ByteBuffer.wrap(b);
     }
 
-    private DirectorySubspace getDirectorySubspace() {
-        try (Transaction tr = database.createTransaction()) {
-            String clusterName = config.getString("cluster.name");
-            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add("volumes-test").add(UUID.randomUUID().toString()).asList();
-            DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
-            tr.commit().join();
-            return subspace;
-        }
-    }
-
     @BeforeEach
     public void setupVolumeTestEnvironment() throws IOException {
+        database = kronotopInstance.getContext().getFoundationDB();
+        context = kronotopInstance.getContext();
+        service = kronotopInstance.getContext().getService(VolumeService.NAME);
         directorySubspace = getDirectorySubspace();
-        service = new VolumeService(context);
         volumeConfig = new VolumeConfig(directorySubspace, "append-test");
         volume = service.newVolume(volumeConfig);
     }
@@ -71,17 +66,6 @@ public class VolumeTest extends BaseMetadataStoreTest {
     @AfterEach
     public void tearDownVolumeTest() {
         volume.close();
-        service.shutdown();
-    }
-
-    private ByteBuffer[] getEntries(int number) {
-        int capacity = 10;
-        ByteBuffer[] entries = new ByteBuffer[number];
-        for (int i = 0; i < number; i++) {
-            byte[] data = Strings.padStart(Integer.toString(i), capacity, '0').getBytes();
-            entries[i] = ByteBuffer.allocate(capacity).put(data).flip();
-        }
-        return entries;
     }
 
     @Test

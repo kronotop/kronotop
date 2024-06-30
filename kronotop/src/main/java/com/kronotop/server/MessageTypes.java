@@ -32,6 +32,7 @@ import com.kronotop.redis.server.protocol.FlushAllMessage;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
 import com.kronotop.redis.string.protocol.*;
 import com.kronotop.redis.transactions.protocol.*;
+import com.kronotop.volume.handlers.protocol.SegmentRangeMessage;
 import io.netty.util.AttributeKey;
 
 /**
@@ -107,4 +108,8 @@ public class MessageTypes {
     public static final AttributeKey<HValsMessage> HVALS = AttributeKey.valueOf(HValsMessage.COMMAND);
     public static final AttributeKey<HRandFieldMessage> HRANDFIELD = AttributeKey.valueOf(HRandFieldMessage.COMMAND);
     public static final AttributeKey<HMGetMessage> HMGET = AttributeKey.valueOf(HMGetMessage.COMMAND);
+
+    // Internal commands
+    public static final AttributeKey<SegmentRangeMessage> SEGMENTRANGE = AttributeKey.valueOf(SegmentRangeMessage.COMMAND);
+
 }

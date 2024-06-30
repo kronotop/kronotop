@@ -300,6 +300,17 @@ public class Volume {
         return get(session, key, false);
     }
 
+    public ByteBuffer[] getSegmentRange(String segmentName, SegmentRange[] segmentRanges) throws IOException {
+        Segment segment = getSegmentByName(segmentName);
+        ByteBuffer[] entries = new ByteBuffer[segmentRanges.length];
+        for (int i = 0; i < segmentRanges.length; i++) {
+            SegmentRange segmentRange = segmentRanges[i];
+            ByteBuffer entry = segment.get(segmentRange.position(), segmentRange.length());
+            entries[i] = entry;
+        }
+        return entries;
+    }
+
     public DeleteResult delete(@Nonnull Session session, @Nonnull Versionstamp... keys) {
         Transaction tr = session.getTransaction();
         DeleteResult result = new DeleteResult(keys.length, entryMetadataCache::invalidate);

@@ -96,7 +96,7 @@ public class KronotopInstance {
         FoundationDBService fdb = new FoundationDBService(context, handlers);
         context.registerService(FoundationDBService.NAME, fdb);
 
-        VolumeService volumeService = new VolumeService(context);
+        VolumeService volumeService = new VolumeService(context, handlers);
         context.registerService(VolumeService.NAME, volumeService);
 
         ShardingService shardingService = new ShardingService(context);

@@ -16,9 +16,13 @@
 
 package com.kronotop.volume;
 
+import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.common.KronotopException;
+import com.kronotop.server.CommandAlreadyRegisteredException;
+import com.kronotop.server.Handlers;
+import com.kronotop.volume.handlers.SegmentRangeHandler;
 import com.typesafe.config.ConfigException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,17 +34,17 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
-public class VolumeService implements KronotopService {
+public class VolumeService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Volume";
     private static final Logger LOGGER = LoggerFactory.getLogger(VolumeService.class);
-    private final Context context;
     private final Object volumesLock = new Object();
     private final HashMap<String, Volume> volumes = new HashMap<>();
-    private volatile boolean isShutdown;
 
-    public VolumeService(Context context) {
-        this.context = context;
+    public VolumeService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
+        super(context, handlers);
         checkAndCreateRootPath();
+
+        registerHandler(new SegmentRangeHandler(this));
     }
 
     private void checkAndCreateRootPath() {
@@ -71,7 +75,6 @@ public class VolumeService implements KronotopService {
 
     @Override
     public void shutdown() {
-        isShutdown = true;
         synchronized (volumesLock) {
             for (Map.Entry<String, Volume> entry : volumes.entrySet()) {
                 entry.getValue().close();
@@ -91,6 +94,19 @@ public class VolumeService implements KronotopService {
             Volume volume = new Volume(context, config);
             volumes.put(config.name(), volume);
             return volume;
+        }
+    }
+
+    public Volume getVolume(String name) {
+        synchronized (volumesLock) {
+            if (volumes.containsKey(name)) {
+                Volume volume = volumes.get(name);
+                if (volume.isClosed()) {
+                    throw new ClosedVolumeException(name);
+                }
+                return volume;
+            }
+            throw new VolumeNotOpenException(name);
         }
     }
 }

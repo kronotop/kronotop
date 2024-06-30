@@ -62,20 +62,20 @@ public class VersionstampedKeySelector {
      * Constructs a new {@code VersionstampedKeySelector} from the given parameters.  Client code
      * will not generally call this constructor. A key selector can be used to
      * specify a key that will be resolved at runtime based on a starting key and
-     * an offset. When this is passed as an argument to a {@link Transaction}'s
+     * an position. When this is passed as an argument to a {@link Transaction}'s
      * {@link Transaction#getKey(KeySelector) getKey()} or
      * {@link Transaction#getRange(KeySelector, KeySelector) getRange()}
      * methods, the key selector will be resolved to a key within the
      * database. This is done in a manner equivalent to finding the last key that is
      * less than (or less than or equal to, if {@code orEqual} is
      * {@code true}) the base {@code key} specified here and then
-     * returning the key that is {@code offset} keys greater than that
+     * returning the key that is {@code position} keys greater than that
      * key.
      *
      * @param key     the base key to reference
      * @param orEqual {@code true} if the key selector should resolve to
-     *                {@code key} (if {@code key} is present) before accounting for the offset
-     * @param offset  the offset (in number of keys) that the selector will advance after
+     *                {@code key} (if {@code key} is present) before accounting for the position
+     * @param offset  the position (in number of keys) that the selector will advance after
      *                resolving to a key based on the {@code key} and {@code orEqual} parameters
      */
     VersionstampedKeySelector(Versionstamp key, boolean orEqual, int offset) {
@@ -125,21 +125,21 @@ public class VersionstampedKeySelector {
     }
 
     /**
-     * Returns a new {@code VersionstampedKeySelector} offset by a given
-     * number of keys from this one. For example, an offset of {@code 1} means
+     * Returns a new {@code VersionstampedKeySelector} position by a given
+     * number of keys from this one. For example, an position of {@code 1} means
      * that the new {@code VersionstampedKeySelector} specifies the key in the database
-     * after the key selected by this {@code VersionstampedKeySelector}. The offset can be negative;
+     * after the key selected by this {@code VersionstampedKeySelector}. The position can be negative;
      * these will move the selector to previous keys in the database.<br>
      * <br>
-     * Note that large offsets take time O(offset) to resolve, making them a
+     * Note that large offsets take time O(position) to resolve, making them a
      * poor choice for iterating through a large range. (Instead, use the keys
      * returned from a range query operation
      * themselves to create a new beginning {@code VersionstampedKeySelector}.) For more information see
      * <a href="/foundationdb/developer-guide.html#key-selectors" target="_blank">the VersionstampedKeySelector documentation</a>.
      *
-     * @param offset the number of keys to offset the {@code VersionstampedKeySelector}. This number can be
+     * @param offset the number of keys to position the {@code VersionstampedKeySelector}. This number can be
      *               negative.
-     * @return a newly created {@code VersionstampedKeySelector} that is offset by a number of keys.
+     * @return a newly created {@code VersionstampedKeySelector} that is position by a number of keys.
      */
     public VersionstampedKeySelector add(int offset) {
         return new VersionstampedKeySelector(getKey(), orEqual(), getOffset() + offset);
@@ -177,11 +177,11 @@ public class VersionstampedKeySelector {
     }
 
     /**
-     * Returns the key offset parameter for this {@code VersionstampedKeySelector}. See
+     * Returns the key position parameter for this {@code VersionstampedKeySelector}. See
      * the {@link #VersionstampedKeySelector(Versionstamp, boolean, int) VersionstampedKeySelector constructor}
      * for more details.
      *
-     * @return the key offset for this {@code VersionstampedKeySelector}
+     * @return the key position for this {@code VersionstampedKeySelector}
      */
     public int getOffset() {
         return offset;
