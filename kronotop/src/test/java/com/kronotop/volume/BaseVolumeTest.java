@@ -14,18 +14,26 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.google.common.base.Strings;
 import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.common.utils.DirectoryLayout;
 import com.typesafe.config.Config;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.UUID;
 
-public class BaseHandlerTest extends BaseTest {
+public class BaseVolumeTest extends BaseTest {
     protected KronotopTestInstance kronotopInstance;
     protected EmbeddedChannel channel;
 
@@ -33,7 +41,27 @@ public class BaseHandlerTest extends BaseTest {
         return kronotopInstance.newChannel();
     }
 
-    protected void setupCommon(Config config) throws UnknownHostException, InterruptedException {
+    protected ByteBuffer[] getEntries(int number) {
+        int capacity = 10;
+        ByteBuffer[] entries = new ByteBuffer[number];
+        for (int i = 0; i < number; i++) {
+            byte[] data = Strings.padStart(Integer.toString(i), capacity, '0').getBytes();
+            entries[i] = ByteBuffer.allocate(capacity).put(data).flip();
+        }
+        return entries;
+    }
+
+    protected DirectorySubspace getDirectorySubspace() {
+        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+            String clusterName = kronotopInstance.getContext().getConfig().getString("cluster.name");
+            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add("volumes-test").add(UUID.randomUUID().toString()).asList();
+            DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
+            tr.commit().join();
+            return subspace;
+        }
+    }
+
+    void setupCommon(Config config) throws UnknownHostException, InterruptedException {
         kronotopInstance = new KronotopTestInstance(config);
         kronotopInstance.start();
         channel = kronotopInstance.getChannel();

@@ -522,7 +522,7 @@ public class MembershipService implements KronotopService {
                     LOGGER.error("Failed to process a broadcast event, passing it", e);
                 }
 
-                // Processed the event successfully. Forward the offset.
+                // Processed the event successfully. Forward the position.
                 lastClusterEventsVersionstamp.set(event.getKey());
             }
         });

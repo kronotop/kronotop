@@ -16,7 +16,6 @@
 
 package com.kronotop.redis.connection;
 
-import com.kronotop.ConfigTestUtil;
 import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -37,7 +36,7 @@ public class HelloHandlerAuthRequirePassTest extends BaseHandlerTest {
     @Override
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
-        Config config = ConfigTestUtil.load("auth-requirepass-test.conf");
+        Config config = loadConfig("auth-requirepass-test.conf");
         setupCommon(config);
     }
 

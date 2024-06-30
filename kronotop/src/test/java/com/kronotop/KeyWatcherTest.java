@@ -27,7 +27,7 @@ import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
-class KeyWatcherTest extends BaseFoundationDBTest {
+class KeyWatcherTest extends BaseMetadataStoreTest {
 
     @Test
     public void test_watch_then_unwatch() throws InterruptedException {

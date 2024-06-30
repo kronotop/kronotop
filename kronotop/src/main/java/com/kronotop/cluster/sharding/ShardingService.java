@@ -266,7 +266,7 @@ public class ShardingService implements KronotopService {
                     throw new RuntimeException(e);
                 }
 
-                // Processed the event successfully. Forward the offset.
+                // Processed the event successfully. Forward the position.
                 latestShardEventsVersionstamp.set(event.getKey());
             }
         });

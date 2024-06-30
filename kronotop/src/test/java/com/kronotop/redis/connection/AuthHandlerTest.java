@@ -37,7 +37,7 @@ public class AuthHandlerTest extends BaseHandlerTest {
     @Override
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
-        Config config = ConfigTestUtil.load("auth-test.conf");
+        Config config = loadConfig("auth-test.conf");
         setupCommon(config);
     }
 

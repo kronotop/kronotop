@@ -26,6 +26,7 @@ import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.cluster.sharding.ShardingService;
 import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
+import com.kronotop.volume.VolumeService;
 import com.kronotop.watcher.Watcher;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.redis.RedisService;
@@ -94,6 +95,9 @@ public class KronotopInstance {
 
         FoundationDBService fdb = new FoundationDBService(context, handlers);
         context.registerService(FoundationDBService.NAME, fdb);
+
+        VolumeService volumeService = new VolumeService(context, handlers);
+        context.registerService(VolumeService.NAME, volumeService);
 
         ShardingService shardingService = new ShardingService(context);
         context.registerService(ShardingService.NAME, shardingService);

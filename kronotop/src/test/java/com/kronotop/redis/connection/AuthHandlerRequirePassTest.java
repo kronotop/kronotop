@@ -20,7 +20,7 @@ public class AuthHandlerRequirePassTest extends BaseHandlerTest {
     @Override
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
-        Config config = ConfigTestUtil.load("auth-requirepass-test.conf");
+        Config config = loadConfig("auth-requirepass-test.conf");
         setupCommon(config);
     }
 

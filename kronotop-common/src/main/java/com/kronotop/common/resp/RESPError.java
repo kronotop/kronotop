@@ -34,6 +34,7 @@ public enum RESPError {
     public final static String TRANSACTION_TOO_OLD_MESSAGE = "Transaction is too old to perform reads or be committed";
     public final static String TRANSACTION_BYTE_LIMIT_MESSAGE = "Transaction exceeds byte limit";
     public final static String WRONGTYPE_MESSAGE = "Operation against a key holding the wrong kind of value";
+    public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_LONG = "value is not a long or out of range";
     public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER = "value is not an integer or out of range";
     public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT = "value is not a valid float";
     public final static String EXECABORT_MESSAGE = "Transaction discarded because of previous errors.";
