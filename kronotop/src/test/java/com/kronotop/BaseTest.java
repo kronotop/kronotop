@@ -49,7 +49,7 @@ public class BaseTest {
 
     protected Config loadConfig(String resourceName) {
         System.setProperty("cluster.name", UUID.randomUUID().toString());
-        System.setProperty("redis.volume.root_path", redisVolumeRootPathTempDir.getAbsolutePath());
+        System.setProperty("volume_test.volume.root_path", redisVolumeRootPathTempDir.getAbsolutePath());
         ConfigFactory.invalidateCaches();
         return ConfigFactory.load(resourceName);
     }

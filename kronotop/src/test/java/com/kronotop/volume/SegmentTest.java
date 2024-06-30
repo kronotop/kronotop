@@ -35,8 +35,8 @@ class SegmentTest extends BaseMetadataStoreTest {
     }
 
     private SegmentConfig getSegmentConfig() {
-        String rootPath = context.getConfig().getString("redis.volume.root_path");
-        long size = context.getConfig().getLong("redis.volume.segment_size");
+        String rootPath = context.getConfig().getString("volume_test.volume.root_path");
+        long size = context.getConfig().getLong("volume_test.volume.segment_size");
         return new SegmentConfig(1, rootPath, size);
     }
 
