@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume;
+package com.kronotop.cluster.protocol;
 
-public class SegmentNotFoundException extends RuntimeException {
-    public SegmentNotFoundException(String name) {
-        super(String.format("Segment: '%s' could not be found", name));
-    }
+public record SegmentRange(long position, long length) {
 }

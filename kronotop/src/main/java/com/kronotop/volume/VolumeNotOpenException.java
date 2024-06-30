@@ -18,6 +18,6 @@ package com.kronotop.volume;
 
 public class VolumeNotOpenException extends RuntimeException {
     public VolumeNotOpenException(String name) {
-        super(String.format("Volume %s not open", name));
+        super(String.format("Volume: '%s' is not open", name));
     }
 }

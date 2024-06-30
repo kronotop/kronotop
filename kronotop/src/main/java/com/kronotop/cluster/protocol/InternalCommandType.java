@@ -14,10 +14,23 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume;
+package com.kronotop.cluster.protocol;
 
-public class SegmentNotFoundException extends RuntimeException {
-    public SegmentNotFoundException(String name) {
-        super(String.format("Segment: '%s' could not be found", name));
+import io.lettuce.core.protocol.ProtocolKeyword;
+
+import java.nio.charset.StandardCharsets;
+
+public enum InternalCommandType implements ProtocolKeyword {
+    SEGMENTRANGE;
+
+    public final byte[] bytes;
+
+    InternalCommandType() {
+        bytes = name().getBytes(StandardCharsets.US_ASCII);
+    }
+
+    @Override
+    public byte[] getBytes() {
+        return bytes;
     }
 }

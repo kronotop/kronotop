@@ -306,7 +306,7 @@ public class Volume {
         for (int i = 0; i < segmentRanges.length; i++) {
             SegmentRange segmentRange = segmentRanges[i];
             ByteBuffer entry = segment.get(segmentRange.position(), segmentRange.length());
-            entries[i] = entry;
+            entries[i] = entry.flip();
         }
         return entries;
     }
