@@ -53,6 +53,7 @@ public class Volume {
     private final Context context;
     private final VolumeConfig config;
     private final VolumeMetadata metadata;
+    private final byte[] metadataKey;
     private final LoadingCache<Versionstamp, EntryMetadata> entryMetadataCache;
 
     // segmentsLock protects segments array
@@ -64,6 +65,7 @@ public class Volume {
     protected Volume(Context context, VolumeConfig volumeConfig) throws IOException {
         this.context = context;
         this.config = volumeConfig;
+        this.metadataKey = config.subspace().pack(VOLUME_METADATA_KEY);
         this.metadata = createOrLoadVolumeMetadata();
         this.entryMetadataCache = CacheBuilder.newBuilder().expireAfterAccess(30, TimeUnit.MINUTES).build(new EntryMetadataLoader());
         openSegments();
@@ -89,7 +91,6 @@ public class Volume {
 
     private VolumeMetadata createOrLoadVolumeMetadata() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] metadataKey = config.subspace().pack(Tuple.from(VOLUME_METADATA_KEY));
             byte[] value = tr.get(metadataKey).join();
             if (value == null) {
                 return new VolumeMetadata();
@@ -126,7 +127,6 @@ public class Volume {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // TODO: we may need to cleanup this if the transaction fails.
             metadata.addSegment(segmentId);
-            byte[] metadataKey = config.subspace().pack(VOLUME_METADATA_KEY);
             tr.set(metadataKey, metadata.toByte());
             tr.commit().join();
         }
@@ -213,6 +213,10 @@ public class Volume {
             index++;
         }
         return entryMetadataList;
+    }
+
+    public VolumeMetadata getMetadata() {
+        return metadata;
     }
 
     public AppendResult append(@Nonnull Session session, @Nonnull ByteBuffer... entries) throws IOException {
@@ -552,6 +556,13 @@ public class Volume {
                 LOGGER.error("Eviction on Segment: {} has failed", segment.getName(), e);
             }
         }
+    }
+
+    protected void saveMetadata() {
+        context.getFoundationDB().run(tr -> {
+            tr.set(metadataKey, metadata.toByte());
+            return null;
+        });
     }
 
     private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {
