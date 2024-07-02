@@ -24,7 +24,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
-import com.kronotop.JSONUtils;
 import com.kronotop.common.KronotopException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +41,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Volume {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
     protected static final byte ENTRY_PREFIX = 0x01;
+    private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
     private static final byte ENTRY_METADATA_PREFIX = 0x02;
     private static final byte SEGMENT_CARDINALITY_PREFIX = 0x3;
     private static final byte[] SEGMENT_CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
@@ -95,7 +94,7 @@ public class Volume {
             if (value == null) {
                 return new VolumeMetadata();
             }
-            return JSONUtils.readValue(value, VolumeMetadata.class);
+            return VolumeMetadata.fromJSON(value);
         }
     }
 
@@ -127,9 +126,8 @@ public class Volume {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // TODO: we may need to cleanup this if the transaction fails.
             metadata.addSegment(segmentId);
-            byte[] value = JSONUtils.writeValueAsBytes(metadata);
             byte[] metadataKey = config.subspace().pack(VOLUME_METADATA_KEY);
-            tr.set(metadataKey, value);
+            tr.set(metadataKey, metadata.toByte());
             tr.commit().join();
         }
 

@@ -24,7 +24,6 @@ import java.net.UnknownHostException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-//         System.out.println(new String(JSONUtils.writeValueAsBytes(volumeMetadata)));
 class VolumeMetadataTest extends BaseTest {
 
     @Test
