@@ -47,6 +47,11 @@ public class BaseTest {
         return new Member(address, processId);
     }
 
+    protected Member createMemberWithEphemeralPort() throws UnknownHostException {
+        String address = String.format("localhost:[%s]", getEphemeralTCPPort());
+        return createMember(address);
+    }
+
     protected Config loadConfig(String resourceName) {
         System.setProperty("cluster.name", UUID.randomUUID().toString());
         System.setProperty("volume_test.volume.root_path", redisVolumeRootPathTempDir.getAbsolutePath());
