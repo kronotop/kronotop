@@ -16,11 +16,9 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kronotop.JSONUtils;
 
 import java.util.*;
@@ -30,14 +28,8 @@ public class VolumeMetadata {
     @JsonIgnore
     private static final String VOLUME_METADATA_KEY = "metadata";
 
-    private final Set<Long> segments = new HashSet<>();
+    private final List<Long> segments = new ArrayList<>();
     private final List<Host> hosts = new ArrayList<>();
-    @JsonProperty("segment_id")
-    private long segmentId = 0;
-
-    public static VolumeMetadata fromJSON(byte[] data) {
-        return JSONUtils.readValue(data, VolumeMetadata.class);
-    }
 
     public static VolumeMetadata load(Transaction tr, DirectorySubspace subspace) {
         byte[] key = subspace.pack(VOLUME_METADATA_KEY);
@@ -62,25 +54,28 @@ public class VolumeMetadata {
         return volumeMetadata;
     }
 
-    @JsonIgnore
-    public long getAndIncrementSegmentId() {
-        try {
-            return segmentId;
-        } finally {
-            segmentId++;
-        }
-    }
-
     public void addSegment(long segmentId) {
+        for (long id : segments) {
+            if (id == segmentId) {
+                throw new IllegalArgumentException("Duplicate segment");
+            }
+        }
         segments.add(segmentId);
+        segments.sort(Comparator.naturalOrder());
     }
 
     public void removeSegment(long segmentId) {
-        segments.remove(segmentId);
+        for (int i = 0; i < segments.size(); i++) {
+            if (segments.get(i) == segmentId) {
+                segments.remove(i);
+                break;
+            }
+        }
+        throw new IllegalArgumentException("No such segment");
     }
 
-    public Set<Long> getSegments() {
-        return Collections.unmodifiableSet(segments);
+    public List<Long> getSegments() {
+        return Collections.unmodifiableList(segments);
     }
 
     @JsonIgnore

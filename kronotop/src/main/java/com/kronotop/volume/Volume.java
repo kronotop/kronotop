@@ -47,13 +47,10 @@ public class Volume {
     private static final byte SEGMENT_CARDINALITY_PREFIX = 0x3;
     private static final byte[] SEGMENT_CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private static final byte[] SEGMENT_CARDINALITY_DECREASE_DELTA = new byte[]{-1, -1, -1, -1}; // -1, byte order: little-endian
-    private static final String VOLUME_METADATA_KEY = "metadata";
     private static final int SEGMENT_EVICTION_BATCH_SIZE = 100;
 
     private final Context context;
     private final VolumeConfig config;
-    private final VolumeMetadata metadata;
-    private final byte[] metadataKey;
     private final LoadingCache<Versionstamp, EntryMetadata> entryMetadataCache;
 
     // segmentsLock protects segments array
@@ -65,8 +62,6 @@ public class Volume {
     protected Volume(Context context, VolumeConfig volumeConfig) throws IOException {
         this.context = context;
         this.config = volumeConfig;
-        this.metadataKey = config.subspace().pack(VOLUME_METADATA_KEY);
-        this.metadata = createOrLoadVolumeMetadata();
         this.entryMetadataCache = CacheBuilder.newBuilder().expireAfterAccess(30, TimeUnit.MINUTES).build(new EntryMetadataLoader());
         openSegments();
     }
@@ -89,19 +84,9 @@ public class Volume {
         return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
     }
 
-    private VolumeMetadata createOrLoadVolumeMetadata() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] value = tr.get(metadataKey).join();
-            if (value == null) {
-                return new VolumeMetadata();
-            }
-            return VolumeMetadata.fromJSON(value);
-        }
-    }
-
     private void openSegments() throws IOException {
         segmentsLock.writeLock().lock();
-        try (Transaction tr = context.getFoundationDB().createTransaction()){
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
             for (Long segmentId : volumeMetadata.getSegments()) {
                 SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
@@ -115,11 +100,20 @@ public class Volume {
         }
     }
 
+    // protected by segmentsLock
+    private long getAndIncreaseSegmentId() {
+        return context.getFoundationDB().run(tr -> {
+            List<Long> availableSegments = VolumeMetadata.load(tr, config.subspace()).getSegments();
+            if (availableSegments.isEmpty()) {
+                return 0L;
+            }
+            return availableSegments.getLast() + 1;
+        });
+    }
+
     // createsSegment protected by segmentsLock
     private Segment createSegment() throws IOException {
-        // TODO: This will be changed
-        // Create a new segment and add it to the metadata
-        long segmentId = metadata.getAndIncrementSegmentId();
+        long segmentId = getAndIncreaseSegmentId();
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
         Segment segment = new Segment(segmentConfig);
 
