@@ -30,7 +30,8 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import static com.kronotop.volume.Volume.ENTRY_PREFIX;
+import static com.kronotop.volume.Prefixes.ENTRY_PREFIX;
+
 
 class VolumeIterable implements Iterable<KeyEntry> {
     private final AsyncIterable<KeyValue> asyncIterable;

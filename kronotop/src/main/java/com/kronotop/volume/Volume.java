@@ -40,11 +40,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import static com.kronotop.volume.Prefixes.*;
+
 public class Volume {
-    protected static final byte ENTRY_PREFIX = 0x01;
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
-    private static final byte ENTRY_METADATA_PREFIX = 0x02;
-    private static final byte SEGMENT_CARDINALITY_PREFIX = 0x3;
     private static final byte[] SEGMENT_CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private static final byte[] SEGMENT_CARDINALITY_DECREASE_DELTA = new byte[]{-1, -1, -1, -1}; // -1, byte order: little-endian
     private static final int SEGMENT_EVICTION_BATCH_SIZE = 100;
