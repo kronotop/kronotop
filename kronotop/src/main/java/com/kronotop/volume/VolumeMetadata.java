@@ -68,7 +68,7 @@ public class VolumeMetadata {
         for (int i = 0; i < segments.size(); i++) {
             if (segments.get(i) == segmentId) {
                 segments.remove(i);
-                break;
+                return;
             }
         }
         throw new IllegalArgumentException("No such segment");

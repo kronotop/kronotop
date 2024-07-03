@@ -25,6 +25,22 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class VolumeMetadataTest extends BaseTest {
+    @Test
+    public void test_addSegment() {
+        VolumeMetadata volumeMetadata = new VolumeMetadata();
+        volumeMetadata.addSegment(1);
+
+        assertThrows(IllegalArgumentException.class, () -> volumeMetadata.addSegment(1));
+    }
+
+    @Test
+    public void test_removeSegment() {
+        VolumeMetadata volumeMetadata = new VolumeMetadata();
+        volumeMetadata.addSegment(1);
+        volumeMetadata.removeSegment(1);
+
+        assertThrows(IllegalArgumentException.class, () -> volumeMetadata.removeSegment(1));
+    }
 
     @Test
     public void test_setOwner() throws UnknownHostException {
