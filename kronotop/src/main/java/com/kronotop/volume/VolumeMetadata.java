@@ -16,15 +16,20 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.ReadTransaction;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kronotop.JSONUtils;
 
 import java.util.*;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 
 public class VolumeMetadata {
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    @JsonIgnore
+    private static final String VOLUME_METADATA_KEY = "metadata";
+
     private final Set<Long> segments = new HashSet<>();
     private final List<Host> hosts = new ArrayList<>();
     @JsonProperty("segment_id")
@@ -34,162 +39,123 @@ public class VolumeMetadata {
         return JSONUtils.readValue(data, VolumeMetadata.class);
     }
 
+    public static VolumeMetadata load(Transaction tr, DirectorySubspace subspace) {
+        byte[] key = subspace.pack(VOLUME_METADATA_KEY);
+        byte[] value = tr.get(key).join();
+        if (value == null) {
+            return new VolumeMetadata();
+        }
+        return JSONUtils.readValue(value, VolumeMetadata.class);
+    }
+
+    public static VolumeMetadata compute(Transaction tr, DirectorySubspace subspace, Consumer<VolumeMetadata> remappingFunction) {
+        byte[] key = subspace.pack(VOLUME_METADATA_KEY);
+        VolumeMetadata volumeMetadata;
+        byte[] value = tr.get(key).join();
+        if (value == null) {
+            volumeMetadata = new VolumeMetadata();
+        } else {
+            volumeMetadata = JSONUtils.readValue(value, VolumeMetadata.class);
+        }
+        remappingFunction.accept(volumeMetadata);
+        tr.set(key, volumeMetadata.toByte());
+        return volumeMetadata;
+    }
+
     @JsonIgnore
     public long getAndIncrementSegmentId() {
-        lock.writeLock().lock();
         try {
             return segmentId;
         } finally {
             segmentId++;
-            lock.writeLock().unlock();
         }
     }
 
     public void addSegment(long segmentId) {
-        lock.writeLock().lock();
-        try {
-            segments.add(segmentId);
-        } finally {
-            lock.writeLock().unlock();
-        }
+        segments.add(segmentId);
     }
 
     public void removeSegment(long segmentId) {
-        lock.writeLock().lock();
-        try {
-            segments.remove(segmentId);
-        } finally {
-            lock.writeLock().unlock();
-        }
+        segments.remove(segmentId);
     }
 
     public Set<Long> getSegments() {
-        lock.readLock().lock();
-        try {
-            return Collections.unmodifiableSet(segments);
-        } finally {
-            lock.readLock().unlock();
-        }
+        return Collections.unmodifiableSet(segments);
     }
 
     @JsonIgnore
     public void setStandby(Host host) {
-        lock.writeLock().lock();
-        try {
-            if (host.role() == Role.OWNER) {
-                throw new IllegalArgumentException("Cannot set an owner host as a standby");
-            }
-            for (Host existing : hosts) {
-                if (existing.equals(host)) {
-                    return;
-                }
-            }
-            hosts.add(host);
-        } finally {
-            lock.writeLock().unlock();
+        if (host.role() == Role.OWNER) {
+            throw new IllegalArgumentException("Cannot set an owner host as a standby");
         }
+        for (Host existing : hosts) {
+            if (existing.equals(host)) {
+                return;
+            }
+        }
+        hosts.add(host);
     }
 
     private void unsetHost(Host host) {
-        lock.writeLock().lock();
-        try {
-            for (int i = 0; i < hosts.size(); i++) {
-                Host existing = hosts.get(i);
-                if (existing.equals(host)) {
-                    hosts.remove(i);
-                    return;
-                }
+        for (int i = 0; i < hosts.size(); i++) {
+            Host existing = hosts.get(i);
+            if (existing.equals(host)) {
+                hosts.remove(i);
+                return;
             }
-            throw new IllegalStateException("Host not found");
-        } finally {
-            lock.writeLock().unlock();
         }
+        throw new IllegalStateException("Host not found");
     }
 
     @JsonIgnore
     public void unsetStandby(Host host) {
-        lock.writeLock().lock();
-        try {
-            if (host.role() == Role.OWNER) {
-                throw new IllegalArgumentException("Host is an owner");
-            }
-            unsetHost(host);
-        } finally {
-            lock.writeLock().unlock();
+        if (host.role() == Role.OWNER) {
+            throw new IllegalArgumentException("Host is an owner");
         }
+        unsetHost(host);
     }
 
     @JsonIgnore
     public List<Host> getStandbyHosts() {
-        lock.readLock().lock();
-        try {
-            return hosts.stream().filter(host -> host.role() == Role.STANDBY).toList();
-        } finally {
-            lock.readLock().unlock();
-        }
+        return hosts.stream().filter(host -> host.role() == Role.STANDBY).toList();
     }
 
     @JsonIgnore
     public Host getOwner() {
-        lock.readLock().lock();
-        try {
-            for (Host host : hosts) {
-                if (host.role() == Role.OWNER) {
-                    return host;
-                }
+        for (Host host : hosts) {
+            if (host.role() == Role.OWNER) {
+                return host;
             }
-            throw new IllegalStateException("No owner host found");
-        } finally {
-            lock.readLock().unlock();
         }
+        throw new IllegalStateException("No owner host found");
     }
 
     @JsonIgnore
     public void setOwner(Host host) {
-        lock.writeLock().lock();
-        try {
-            if (host.role() == Role.STANDBY) {
-                throw new IllegalArgumentException("Cannot set a standby host as a owner");
-            }
-            for (Host existing : hosts) {
-                if (existing.equals(host)) {
-                    return;
-                }
-            }
-            hosts.add(host);
-        } finally {
-            lock.writeLock().unlock();
+        if (host.role() == Role.STANDBY) {
+            throw new IllegalArgumentException("Cannot set a standby host as a owner");
         }
+        for (Host existing : hosts) {
+            if (existing.equals(host)) {
+                return;
+            }
+        }
+        hosts.add(host);
     }
 
     @JsonIgnore
     public void unsetOwner(Host host) {
-        lock.writeLock().lock();
-        try {
-            if (host.role() == Role.STANDBY) {
-                throw new IllegalArgumentException("Host is a standby");
-            }
-            unsetHost(host);
-        } finally {
-            lock.writeLock().unlock();
+        if (host.role() == Role.STANDBY) {
+            throw new IllegalArgumentException("Host is a standby");
         }
+        unsetHost(host);
     }
 
     public List<Host> getHosts() {
-        lock.readLock().lock();
-        try {
-            return Collections.unmodifiableList(hosts);
-        } finally {
-            lock.readLock().unlock();
-        }
+        return Collections.unmodifiableList(hosts);
     }
 
     public byte[] toByte() {
-        lock.readLock().lock();
-        try {
-            return JSONUtils.writeValueAsBytes(this);
-        } finally {
-            lock.readLock().unlock();
-        }
+        return JSONUtils.writeValueAsBytes(this);
     }
 }

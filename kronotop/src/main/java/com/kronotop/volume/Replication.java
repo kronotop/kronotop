@@ -16,6 +16,7 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,19 +34,22 @@ public class Replication {
     }
 
     private void checkStandbyOwnership() {
-        Host owner = volume.getMetadata().getOwner();
-        if (owner.member().getId().equals(context.getMember().getId())) {
-            isClosed = true;
-            throw new IllegalStateException("Volume owner cannot run volume replication");
-        }
-
-        for (Host host : volume.getMetadata().getStandbyHosts()) {
-            if (host.member().getId().equals(context.getMember().getId())) {
-                return;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeMetadata metadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+            Host owner = metadata.getOwner();
+            if (owner.member().getId().equals(context.getMember().getId())) {
+                isClosed = true;
+                throw new IllegalStateException("Volume owner cannot run volume replication");
             }
+
+            for (Host host : metadata.getStandbyHosts()) {
+                if (host.member().getId().equals(context.getMember().getId())) {
+                    return;
+                }
+            }
+            isClosed = true;
+            throw new IllegalStateException("This member is not listed as a standby");
         }
-        isClosed = true;
-        throw new IllegalStateException("This member is not listed as a standby");
     }
 
     public void start() {

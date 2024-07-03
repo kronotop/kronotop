@@ -43,7 +43,6 @@ class VolumeMetadataTest extends BaseTest {
         assertEquals(1, volumeMetadata.getHosts().size());
     }
 
-
     @Test
     public void test_when_no_owner_found() {
         VolumeMetadata volumeMetadata = new VolumeMetadata();

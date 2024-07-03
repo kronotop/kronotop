@@ -101,8 +101,9 @@ public class Volume {
 
     private void openSegments() throws IOException {
         segmentsLock.writeLock().lock();
-        try {
-            for (Long segmentId : metadata.getSegments()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()){
+            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
+            for (Long segmentId : volumeMetadata.getSegments()) {
                 SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
                 Segment segment = new Segment(segmentConfig);
                 segments.add(segment);
@@ -116,6 +117,7 @@ public class Volume {
 
     // createsSegment protected by segmentsLock
     private Segment createSegment() throws IOException {
+        // TODO: This will be changed
         // Create a new segment and add it to the metadata
         long segmentId = metadata.getAndIncrementSegmentId();
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
@@ -124,12 +126,12 @@ public class Volume {
         // After this point, the Segment has been created on the physical medium.
 
         // Update the volume metadata on FoundationDB
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            // TODO: we may need to cleanup this if the transaction fails.
-            metadata.addSegment(segmentId);
-            tr.set(metadataKey, metadata.toByte());
-            tr.commit().join();
-        }
+        context.getFoundationDB().run(tr -> {
+            VolumeMetadata.compute(tr, config.subspace(), (volumeMetadata) -> {
+                volumeMetadata.addSegment(segmentId);
+            });
+            return null;
+        });
 
         // Make it available for the rest of the Volume.
         segments.add(segment);
@@ -213,10 +215,6 @@ public class Volume {
             index++;
         }
         return entryMetadataList;
-    }
-
-    public VolumeMetadata getMetadata() {
-        return metadata;
     }
 
     public AppendResult append(@Nonnull Session session, @Nonnull ByteBuffer... entries) throws IOException {
@@ -556,13 +554,6 @@ public class Volume {
                 LOGGER.error("Eviction on Segment: {} has failed", segment.getName(), e);
             }
         }
-    }
-
-    protected void saveMetadata() {
-        context.getFoundationDB().run(tr -> {
-            tr.set(metadataKey, metadata.toByte());
-            return null;
-        });
     }
 
     private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {

@@ -22,6 +22,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -528,5 +529,22 @@ public class VolumeTest extends BaseVolumeTest {
 
         assertArrayEquals(expectedKeys, retrievedKeys);
         assertArrayEquals(expectedEntries, retrievedEntries);
+    }
+
+    @Test
+    public void test_VolumeMetadata_compute() throws UnknownHostException {
+        Host host = new Host(Role.OWNER, createMemberWithEphemeralPort());
+        try (Transaction tr = database.createTransaction()) {
+            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata)->{
+                volumeMetadata.setOwner(host);
+            });
+            tr.commit().join();
+        }
+
+        try (Transaction tr = database.createTransaction()) {
+            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata)->{
+                assertEquals(host, volumeMetadata.getOwner());
+            });
+        }
     }
 }
