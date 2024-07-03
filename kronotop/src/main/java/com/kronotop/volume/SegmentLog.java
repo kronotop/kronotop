@@ -16,9 +16,8 @@
 
 package com.kronotop.volume;
 
-class Prefixes {
-    protected static final byte ENTRY_PREFIX = 0x01;
-    protected static final byte ENTRY_METADATA_PREFIX = 0x02;
-    protected static final byte SEGMENT_CARDINALITY_PREFIX = 0x3;
-    protected static final byte SEGMENT_LOG_PREFIX = 0x4;
+// SegmentLog
+// <segment-name><versionstamped-key><epoch> = <operation><position><length>
+
+public class SegmentLog {
 }

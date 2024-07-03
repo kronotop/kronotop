@@ -46,7 +46,7 @@ public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
     private static final byte[] SEGMENT_CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private static final byte[] SEGMENT_CARDINALITY_DECREASE_DELTA = new byte[]{-1, -1, -1, -1}; // -1, byte order: little-endian
-    private static final int SEGMENT_EVICTION_BATCH_SIZE = 100;
+    private static final int SEGMENT_VACUUM_BATCH_SIZE = 100;
 
     private final Context context;
     private final VolumeConfig config;
@@ -490,7 +490,7 @@ public class Volume {
         return result;
     }
 
-    protected void evictSegment(String name, long readVersion) throws IOException {
+    protected void vacuumSegment(String name, long readVersion) throws IOException {
         Segment segment = getSegmentByName(name);
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
         byte[] end = ByteArrayUtil.strinc(begin);
@@ -518,7 +518,7 @@ public class Volume {
                     Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
                     ByteBuffer buffer = getByEntryMetadata(versionstampedKey, entryMetadata).flip();
                     pairs.add(new KeyEntry(versionstampedKey, buffer));
-                    if (pairs.size() >= SEGMENT_EVICTION_BATCH_SIZE) {
+                    if (pairs.size() >= SEGMENT_VACUUM_BATCH_SIZE) {
                         break;
                     }
                     begin = key;
@@ -544,7 +544,7 @@ public class Volume {
             } catch (Exception e) {
                 // Catch all exceptions and start from scratch
                 begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
-                LOGGER.error("Eviction on Segment: {} has failed", segment.getName(), e);
+                LOGGER.error("Vacuum on Segment: {} has failed", segment.getName(), e);
             }
         }
     }

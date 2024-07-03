@@ -16,9 +16,29 @@
 
 package com.kronotop.volume;
 
-class Prefixes {
-    protected static final byte ENTRY_PREFIX = 0x01;
-    protected static final byte ENTRY_METADATA_PREFIX = 0x02;
-    protected static final byte SEGMENT_CARDINALITY_PREFIX = 0x3;
-    protected static final byte SEGMENT_LOG_PREFIX = 0x4;
+public enum OperationKind {
+    APPEND((byte) 0x01),
+    DELETE((byte) 0x02),
+    UPDATE((byte) 0x03),
+    VACUUM((byte) 0x04);
+
+    private final byte value;
+
+    OperationKind(byte value) {
+        this.value = value;
+    }
+
+    public byte getValue() {
+        return value;
+    }
+
+    public static OperationKind valueOf(byte value) {
+        return switch (value) {
+            case 0x01 -> APPEND;
+            case 0x02 -> DELETE;
+            case 0x03 -> UPDATE;
+            case 0x04 -> VACUUM;
+            default -> throw new IllegalArgumentException();
+        };
+    }
 }

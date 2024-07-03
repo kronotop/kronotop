@@ -422,7 +422,7 @@ public class VolumeTest extends BaseVolumeTest {
     }
 
     @Test
-    public void test_evictSegment() throws IOException {
+    public void test_vacuumSegment() throws IOException {
         long bufferSize = 100480;
         long segmentSize = context.getConfig().getLong("volumes.segment_size");
         long numIterations = 2 * (segmentSize / bufferSize);
@@ -443,7 +443,7 @@ public class VolumeTest extends BaseVolumeTest {
         {
             Stats stats = volume.getStats();
             String firstSegment = stats.getSegments().keySet().iterator().next();
-            volume.evictSegment(firstSegment, readVersion);
+            volume.vacuumSegment(firstSegment, readVersion);
         }
 
         {

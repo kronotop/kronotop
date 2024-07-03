@@ -60,7 +60,7 @@ class Vacuum {
             if (segmentAnalysis.garbageRatio() < volume.getConfig().allowedGarbageRatio()) {
                 continue;
             }
-            volume.evictSegment(segmentAnalysis.name(), readVersion);
+            volume.vacuumSegment(segmentAnalysis.name(), readVersion);
         }
     }
 

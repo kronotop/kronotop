@@ -16,9 +16,19 @@
 
 package com.kronotop.volume;
 
-class Prefixes {
-    protected static final byte ENTRY_PREFIX = 0x01;
-    protected static final byte ENTRY_METADATA_PREFIX = 0x02;
-    protected static final byte SEGMENT_CARDINALITY_PREFIX = 0x3;
-    protected static final byte SEGMENT_LOG_PREFIX = 0x4;
+import org.junit.jupiter.api.Test;
+
+import java.nio.ByteBuffer;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class SegmentLogEntryTest {
+
+    @Test
+    public void testSegmentLogEntry() {
+        SegmentLogEntry entry = new SegmentLogEntry(OperationKind.APPEND, 999999999, 100);
+        ByteBuffer buffer = entry.encode();
+        SegmentLogEntry decoded = SegmentLogEntry.decode(buffer);
+        assertEquals(entry, decoded);
+    }
 }
