@@ -19,5 +19,34 @@ package com.kronotop.volume;
 // SegmentLog
 // <segment-name><versionstamped-key><epoch> = <operation><position><length>
 
-public class SegmentLog {
+import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.Context;
+
+import java.time.Instant;
+
+import static com.kronotop.volume.Prefixes.SEGMENT_LOG_PREFIX;
+
+class SegmentLog {
+    private final Context context;
+    private final Segment segment;
+    private final VolumeConfig config;
+
+    SegmentLog(Context context, Segment segment, VolumeConfig config) {
+        this.context = context;
+        this.segment = segment;
+        this.config = config;
+    }
+
+    void append(Session session, int userVersion, SegmentLogEntry entry) {
+        Tuple preKey = Tuple.from(
+                SEGMENT_LOG_PREFIX,
+                segment.getName(),
+                Versionstamp.incomplete(userVersion),
+                Instant.now().toEpochMilli()
+        );
+        byte[] key = config.subspace().packWithVersionstamp(preKey);
+        session.getTransaction().mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, entry.encode().array());
+    }
 }

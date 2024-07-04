@@ -16,19 +16,36 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class SegmentLogEntryTest {
+class SegmentLogEntryTest extends BaseVolumeTest {
 
     @Test
-    public void testSegmentLogEntry() {
-        SegmentLogEntry entry = new SegmentLogEntry(OperationKind.APPEND, 999999999, 100);
+    public void test_SegmentLogEntry() {
+        SegmentLogEntry entry = new SegmentLogEntry(OperationKind.APPEND, 0, 100);
         ByteBuffer buffer = entry.encode();
         SegmentLogEntry decoded = SegmentLogEntry.decode(buffer);
         assertEquals(entry, decoded);
+    }
+
+    @Test
+    public void test_append() throws IOException {
+        SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
+        Segment segment = new Segment(segmentConfig);
+        SegmentLog segmentLog = new SegmentLog(context, segment, volumeConfig);
+
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            SegmentLogEntry entry = new SegmentLogEntry(OperationKind.APPEND, 0, 100);
+            assertDoesNotThrow(() -> segmentLog.append(session, 0, entry));
+            tr.commit().join();
+        }
     }
 }
