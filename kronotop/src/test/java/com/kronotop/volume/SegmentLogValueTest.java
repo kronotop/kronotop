@@ -16,7 +16,19 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.tuple.Versionstamp;
+import org.junit.jupiter.api.Test;
 
-public record SegmentLogEntry(Versionstamp key, long timestamp, SegmentLogValue value) {
+import java.nio.ByteBuffer;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class SegmentLogValueTest {
+
+    @Test
+    public void test_SegmentLogValue() {
+        SegmentLogValue value = new SegmentLogValue(OperationKind.APPEND, 0, 100);
+        ByteBuffer buffer = value.encode();
+        SegmentLogValue decoded = SegmentLogValue.decode(buffer);
+        assertEquals(value, decoded);
+    }
 }

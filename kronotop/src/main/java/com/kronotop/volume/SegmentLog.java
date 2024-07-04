@@ -39,7 +39,7 @@ class SegmentLog {
         this.config = config;
     }
 
-    void append(Session session, int userVersion, SegmentLogEntry entry) {
+    void append(Session session, int userVersion, SegmentLogValue value) {
         Tuple preKey = Tuple.from(
                 SEGMENT_LOG_PREFIX,
                 segment.getName(),
@@ -47,6 +47,6 @@ class SegmentLog {
                 Instant.now().toEpochMilli()
         );
         byte[] key = config.subspace().packWithVersionstamp(preKey);
-        session.getTransaction().mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, entry.encode().array());
+        session.getTransaction().mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value.encode().array());
     }
 }

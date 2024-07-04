@@ -23,10 +23,9 @@ import org.slf4j.LoggerFactory;
 
 public class Replication {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replication.class);
-    private volatile boolean isClosed = false;
-
     private final Context context;
     private final Volume volume;
+    private volatile boolean isClosed = false;
 
     public Replication(Context context, Volume volume) {
         this.context = context;

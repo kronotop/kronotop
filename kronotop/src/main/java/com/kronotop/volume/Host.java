@@ -18,7 +18,7 @@ package com.kronotop.volume;
 
 import com.kronotop.cluster.Member;
 
-public record Host(Role role, Member member)  {
+public record Host(Role role, Member member) {
 
     @Override
     public boolean equals(Object obj) {

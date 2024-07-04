@@ -16,19 +16,21 @@
 
 package com.kronotop.volume;
 
-import org.junit.jupiter.api.Test;
-
 import java.nio.ByteBuffer;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+public record SegmentLogValue(OperationKind kind, long position, long length) {
 
-class SegmentLogEntryTest {
+    public static SegmentLogValue decode(ByteBuffer buffer) {
+        byte kind = buffer.get();
+        long position = buffer.getLong();
+        long length = buffer.getLong();
+        return new SegmentLogValue(OperationKind.valueOf(kind), position, length);
+    }
 
-    @Test
-    public void test_SegmentLogEntry() {
-        SegmentLogEntry entry = new SegmentLogEntry(OperationKind.APPEND, 0, 100);
-        ByteBuffer buffer = entry.encode();
-        SegmentLogEntry decoded = SegmentLogEntry.decode(buffer);
-        assertEquals(entry, decoded);
+    public ByteBuffer encode() {
+        // OperationKind: 1 byte
+        // Position: 8 bytes
+        // Length: 8 bytes
+        return ByteBuffer.allocate(17).put(kind.getValue()).putLong(position).putLong(length).flip();
     }
 }

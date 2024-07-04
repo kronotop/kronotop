@@ -17,9 +17,13 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,9 +37,58 @@ class SegmentLogTest extends BaseVolumeTest {
 
         try (Transaction tr = database.createTransaction()) {
             Session session = new Session(tr);
-            SegmentLogEntry entry = new SegmentLogEntry(OperationKind.APPEND, 0, 100);
+            SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, 0, 100);
             assertDoesNotThrow(() -> segmentLog.append(session, 0, entry));
             tr.commit().join();
+        }
+    }
+
+    @Test
+    public void test_SegmentLogIterable() throws IOException {
+        SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
+        Segment segment = new Segment(segmentConfig);
+        SegmentLog segmentLog = new SegmentLog(context, segment, volumeConfig);
+        List<Versionstamp> keys = new ArrayList<>();
+        List<SegmentLogValue> values = new ArrayList<>();
+
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            long start = 0;
+            long length = 100;
+            for (int userVersion = 0; userVersion < 10; userVersion++) {
+                SegmentLogValue value = new SegmentLogValue(OperationKind.APPEND, start, length);
+                values.add(value);
+
+                int finalUserVersion = userVersion;
+                assertDoesNotThrow(() -> segmentLog.append(session, finalUserVersion, value));
+                start += length;
+            }
+            CompletableFuture<byte[]> future = tr.getVersionstamp();
+            tr.commit().join();
+
+            byte[] trVersion = future.join();
+            for (int userVersion = 0; userVersion < 10; userVersion++) {
+                keys.add(Versionstamp.complete(trVersion, userVersion));
+            }
+        }
+
+        List<SegmentLogEntry> entries = new ArrayList<>();
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            SegmentLogIterable iterable = new SegmentLogIterable(volumeConfig, segment.getName(), session, null, null);
+            for (SegmentLogEntry segmentLogEntry : iterable) {
+                entries.add(segmentLogEntry);
+            }
+        }
+        assertEquals(10, entries.size());
+
+        for (int i = 0; i < entries.size(); i++) {
+            SegmentLogEntry entry = entries.get(i);
+            Versionstamp key = keys.get(i);
+            SegmentLogValue value = values.get(i);
+            assertEquals(key, entry.key());
+            assertEquals(value, entry.value());
+            assertTrue(entry.timestamp() > 0);
         }
     }
 }

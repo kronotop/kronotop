@@ -28,10 +28,6 @@ public enum OperationKind {
         this.value = value;
     }
 
-    public byte getValue() {
-        return value;
-    }
-
     public static OperationKind valueOf(byte value) {
         return switch (value) {
             case 0x01 -> APPEND;
@@ -40,5 +36,9 @@ public enum OperationKind {
             case 0x04 -> VACUUM;
             default -> throw new IllegalArgumentException();
         };
+    }
+
+    public byte getValue() {
+        return value;
     }
 }
