@@ -22,21 +22,28 @@ package com.kronotop.volume;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.Context;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.time.Instant;
 
+import static com.kronotop.volume.Prefixes.SEGMENT_LOG_CARDINALITY_PREFIX;
 import static com.kronotop.volume.Prefixes.SEGMENT_LOG_PREFIX;
 
 class SegmentLog {
-    private final Context context;
+    private static final byte[] CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private final Segment segment;
     private final VolumeConfig config;
+    private final byte[] cardinalityKey;
 
-    SegmentLog(Context context, Segment segment, VolumeConfig config) {
-        this.context = context;
+    SegmentLog(Segment segment, VolumeConfig config) {
         this.segment = segment;
         this.config = config;
+        Tuple key = Tuple.from(
+                SEGMENT_LOG_CARDINALITY_PREFIX,
+                segment.getName()
+        );
+        this.cardinalityKey = config.subspace().pack(key);
     }
 
     void append(Session session, int userVersion, SegmentLogValue value) {
@@ -48,5 +55,11 @@ class SegmentLog {
         );
         byte[] key = config.subspace().packWithVersionstamp(preKey);
         session.getTransaction().mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value.encode().array());
+        session.getTransaction().mutate(MutationType.ADD, cardinalityKey, CARDINALITY_INCREASE_DELTA);
+    }
+
+    int getCardinality(Session session) {
+        byte[] data = session.getTransaction().get(cardinalityKey).join();
+        return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
     }
 }

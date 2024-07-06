@@ -33,7 +33,7 @@ class SegmentLogTest extends BaseVolumeTest {
     public void test_append() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(context, segment, volumeConfig);
+        SegmentLog segmentLog = new SegmentLog(segment, volumeConfig);
 
         try (Transaction tr = database.createTransaction()) {
             Session session = new Session(tr);
@@ -47,7 +47,7 @@ class SegmentLogTest extends BaseVolumeTest {
     public void test_SegmentLogIterable() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(context, segment, volumeConfig);
+        SegmentLog segmentLog = new SegmentLog(segment, volumeConfig);
         List<Versionstamp> keys = new ArrayList<>();
         List<SegmentLogValue> values = new ArrayList<>();
 
@@ -96,7 +96,7 @@ class SegmentLogTest extends BaseVolumeTest {
     public void test_SegmentLogIterable_range() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(context, segment, volumeConfig);
+        SegmentLog segmentLog = new SegmentLog(segment, volumeConfig);
         List<Versionstamp> keys = new ArrayList<>();
         List<SegmentLogValue> values = new ArrayList<>();
 
@@ -141,6 +141,29 @@ class SegmentLogTest extends BaseVolumeTest {
             assertEquals(key, entry.key());
             SegmentLogValue value = values.get(i+3);
             assertEquals(value, entry.value());
+        }
+    }
+
+    @Test
+    public void test_getCardinality() throws IOException {
+        SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
+        Segment segment = new Segment(segmentConfig);
+        SegmentLog segmentLog = new SegmentLog(segment, volumeConfig);
+
+        int total = 100;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            for (int userVersion = 0; userVersion < total; userVersion++) {
+                SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, 0, 100);
+                int finalUserVersion = userVersion;
+                assertDoesNotThrow(() -> segmentLog.append(session, finalUserVersion, entry));
+            }
+            tr.commit().join();
+        }
+
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            assertEquals(total, segmentLog.getCardinality(session));
         }
     }
 }

@@ -21,4 +21,5 @@ class Prefixes {
     protected static final byte ENTRY_METADATA_PREFIX = 0x02;
     protected static final byte SEGMENT_CARDINALITY_PREFIX = 0x3;
     protected static final byte SEGMENT_LOG_PREFIX = 0x4;
+    protected static final byte SEGMENT_LOG_CARDINALITY_PREFIX = 0x5;
 }
