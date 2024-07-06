@@ -25,6 +25,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
+import io.netty.buffer.PooledByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +82,32 @@ public class Volume {
 
     private int decodeSegmentCardinality(byte[] data) {
         return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    }
+
+    private byte[] encodeSegmentUsedBytes(long length) {
+        return ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(length).array();
+    }
+
+    private byte[] packSegmentUsedBytesKey(String name) {
+        Tuple key = Tuple.from(SEGMENT_USED_BYTES_PREFIX, name);
+        return config.subspace().pack(key);
+    }
+
+    private void mutateSegmentUsedBytes(Transaction tr, String name, byte[] delta) {
+        byte[] segmentUsedBytesKey = packSegmentUsedBytesKey(name);
+        tr.mutate(MutationType.ADD, segmentUsedBytesKey, delta);
+    }
+
+    private long decodeSegmentUsedBytes(byte[] data) {
+        return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
+    }
+
+    private void flushMutatedSegments(EntryMetadata[] entryMetadataList) throws IOException {
+        // Forces any updates to this channel's file to be written to the storage device that contains it.
+        for (EntryMetadata entryMetadata : entryMetadataList) {
+            Segment segment = getSegmentByName(entryMetadata.segment());
+            segment.flush(false);
+        }
     }
 
     private void openSegments() throws IOException {
@@ -195,6 +222,7 @@ public class Volume {
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, packEntryKeyWithVersionstamp(version), encodedEntryMetadata);
             tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, packEntryMetadataKey(encodedEntryMetadata), Tuple.from(Versionstamp.incomplete(version)).packWithVersionstamp());
             mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_INCREASE_DELTA);
+            mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(entryMetadata.length()));
         }
         return tr.getVersionstamp();
     }
@@ -218,10 +246,7 @@ public class Volume {
         EntryMetadata[] entryMetadataList = appendEntries(entries);
 
         // Forces any updates to this channel's file to be written to the storage device that contains it.
-        for (EntryMetadata entryMetadata : entryMetadataList) {
-            Segment segment = getSegmentByName(entryMetadata.segment());
-            segment.flush(false);
-        }
+        flushMutatedSegments(entryMetadataList);
 
         CompletableFuture<byte[]> future = writeMetadata(session, entryMetadataList);
         return new AppendResult(future, entryMetadataList, entryMetadataCache::put);
@@ -322,6 +347,7 @@ public class Volume {
 
             EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
             mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_DECREASE_DELTA);
+            mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(-1 * entryMetadata.length()));
 
             result.add(index, key);
             index++;
@@ -335,25 +361,30 @@ public class Volume {
             entries[i] = pairs[i].entry();
         }
         EntryMetadata[] entryMetadataList = appendEntries(entries);
+        flushMutatedSegments(entryMetadataList);
 
         Transaction tr = session.getTransaction();
         int index = 0;
         for (KeyEntry keyEntry : pairs) {
             Versionstamp key = keyEntry.key();
             byte[] packedKey = packEntryKey(key);
-            byte[] previousEntryMetadata = tr.get(packedKey).join();
-            if (previousEntryMetadata == null) {
+            byte[] encodedOldEntryMetadata = tr.get(packedKey).join();
+            if (encodedOldEntryMetadata == null) {
                 throw new KeyNotFoundException(key);
             }
 
             EntryMetadata entryMetadata = entryMetadataList[index];
-            String previousSegmentName = EntryMetadata.decode(ByteBuffer.wrap(previousEntryMetadata)).segment();
-            if (!previousSegmentName.equals(entryMetadata.segment())) {
-                mutateSegmentCardinality(tr, previousSegmentName, SEGMENT_CARDINALITY_DECREASE_DELTA);
+            EntryMetadata oldEntryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedOldEntryMetadata));
+            if (!oldEntryMetadata.segment().equals(entryMetadata.segment())) {
+                mutateSegmentCardinality(tr, oldEntryMetadata.segment(), SEGMENT_CARDINALITY_DECREASE_DELTA);
                 mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_INCREASE_DELTA);
+                mutateSegmentUsedBytes(tr, oldEntryMetadata.segment(), encodeSegmentUsedBytes(-1 * oldEntryMetadata.length()));
+            } else {
+                mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(-1 * oldEntryMetadata.length()));
             }
+            mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(entryMetadata.length()));
 
-            tr.clear(packEntryMetadataKey(previousEntryMetadata));
+            tr.clear(packEntryMetadataKey(encodedOldEntryMetadata));
             tr.set(packedKey, entryMetadata.encode().array());
             index++;
         }
@@ -435,37 +466,27 @@ public class Volume {
         return new VolumeIterable(this, session, begin, end);
     }
 
-    private SegmentAnalysis analyze(Segment segment, long readVersion) {
-        long usedBytes = 0;
-        int cardinality = 0;
-        byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
-        byte[] end = ByteArrayUtil.strinc(begin);
+    private int loadSegmentCardinalityByName(String name) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] key = packSegmentCardinalityKey(name);
+            byte[] value = tr.get(key).join();
+            return decodeSegmentCardinality(value);
+        }
+    }
 
-        while (true) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                tr.setReadVersion(readVersion);
-                Range range = new Range(begin, end);
-                for (KeyValue keyValue : tr.getRange(range)) {
-                    byte[] key = keyValue.getKey();
-                    if (Arrays.equals(key, begin)) {
-                        // begin is inclusive.
-                        continue;
-                    }
-                    byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(key).get(1);
-                    EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
-                    usedBytes += entryMetadata.length();
-                    cardinality++;
-                    begin = key;
-                }
-            } catch (CompletionException e) {
-                if (e.getCause() instanceof FDBException fdbException) {
-                    if (fdbException.getCode() == 1007) {
-                        // Transaction is too old to perform reads or be committed
-                        continue;
-                    }
-                }
-            }
-            return new SegmentAnalysis(segment.getName(), segment.getSize(), usedBytes, cardinality);
+    private SegmentAnalysis analyze(Segment segment, long readVersion) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            tr.setReadVersion(readVersion);
+
+            byte[] segmentCardinalityKey = packSegmentCardinalityKey(segment.getName());
+            byte[] segmentCardinalityData = tr.get(segmentCardinalityKey).join();
+            int cardinality = decodeSegmentCardinality(segmentCardinalityData);
+
+            byte[] segmentUsedBytesKey = packSegmentUsedBytesKey(segment.getName());
+            byte[] segmentUsedBytesData = tr.get(segmentUsedBytesKey).join();
+            long usedBytes = decodeSegmentUsedBytes(segmentUsedBytesData);
+
+            return new SegmentAnalysis(segment.getName(),segment.getSize(), usedBytes, cardinality);
         }
     }
 
