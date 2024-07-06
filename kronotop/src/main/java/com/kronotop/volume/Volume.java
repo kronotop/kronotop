@@ -446,9 +446,9 @@ public class Volume {
         try {
             Stats stats = new Stats();
             HashMap<String, Stats.SegmentStats> segmentStats = new HashMap<>();
-            HashMap<String, Integer> cardinality = loadSegmentCardinality();
+            HashMap<String, Integer> cardinalityMap = loadSegmentCardinality();
             for (Segment segment : segments) {
-                Stats.SegmentStats statsForSegment = new Stats.SegmentStats(segment.getSize(), segment.getFreeBytes(), cardinality.get(segment.getName()));
+                Stats.SegmentStats statsForSegment = new Stats.SegmentStats(segment.getSize(), segment.getFreeBytes(), cardinalityMap.get(segment.getName()));
                 segmentStats.put(segment.getName(), statsForSegment);
             }
             stats.setSegments(segmentStats);
@@ -486,7 +486,7 @@ public class Volume {
             byte[] segmentUsedBytesData = tr.get(segmentUsedBytesKey).join();
             long usedBytes = decodeSegmentUsedBytes(segmentUsedBytesData);
 
-            return new SegmentAnalysis(segment.getName(),segment.getSize(), usedBytes, cardinality);
+            return new SegmentAnalysis(segment.getName(),segment.getSize(), usedBytes, segment.getFreeBytes(), cardinality);
         }
     }
 

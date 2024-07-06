@@ -347,7 +347,7 @@ public class VolumeTest extends BaseVolumeTest {
         assertEquals(segmentStats.cardinality(), analysis.cardinality());
         assertEquals(segmentStats.size(), analysis.size());
         assertEquals(segmentStats.freeBytes(), analysis.size() - analysis.usedBytes());
-        assertTrue(analysis.garbageRatio() > 0);
+        assertEquals(0.0, analysis.garbageRatio());
     }
 
     @Test
