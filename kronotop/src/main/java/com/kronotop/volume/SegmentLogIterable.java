@@ -20,6 +20,7 @@ import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.async.AsyncIterator;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
@@ -35,10 +36,10 @@ import static com.kronotop.volume.Prefixes.SEGMENT_LOG_PREFIX;
 class SegmentLogIterable implements Iterable<SegmentLogEntry> {
     private final AsyncIterable<KeyValue> asyncIterable;
     private final String segmentName;
-    private final VolumeConfig config;
+    private final DirectorySubspace subspace;
 
-    SegmentLogIterable(VolumeConfig config, String segmentName, Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
-        this.config = config;
+    SegmentLogIterable(DirectorySubspace subspace, String segmentName, Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+        this.subspace = subspace;
         this.segmentName = segmentName;
         this.asyncIterable = createAsyncIterable(session, begin, end);
     }
@@ -46,7 +47,7 @@ class SegmentLogIterable implements Iterable<SegmentLogEntry> {
     private AsyncIterable<KeyValue> createAsyncIterable(Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
         KeySelector beginKeySelector;
         if (begin == null) {
-            beginKeySelector = KeySelector.firstGreaterOrEqual(config.subspace().pack(Tuple.from(SEGMENT_LOG_PREFIX, segmentName)));
+            beginKeySelector = KeySelector.firstGreaterOrEqual(subspace.pack(Tuple.from(SEGMENT_LOG_PREFIX, segmentName)));
         } else {
             beginKeySelector = new KeySelector(packKey(begin.getKey()), begin.orEqual(), begin.getOffset());
         }
@@ -61,21 +62,21 @@ class SegmentLogIterable implements Iterable<SegmentLogEntry> {
     }
 
     private byte[] packKey(Versionstamp key) {
-        return config.subspace().pack(Tuple.from(SEGMENT_LOG_PREFIX, segmentName, key));
+        return subspace.pack(Tuple.from(SEGMENT_LOG_PREFIX, segmentName, key));
     }
 
     @Nonnull
     @Override
     public Iterator<SegmentLogEntry> iterator() {
-        return new SegmentLogIterator(config, asyncIterable.iterator());
+        return new SegmentLogIterator(subspace, asyncIterable.iterator());
     }
 
     private static class SegmentLogIterator implements Iterator<SegmentLogEntry> {
-        private final VolumeConfig config;
+        private final DirectorySubspace subspace;
         private final AsyncIterator<KeyValue> asyncIterator;
 
-        SegmentLogIterator(VolumeConfig config, AsyncIterator<KeyValue> asyncIterator) {
-            this.config = config;
+        SegmentLogIterator(DirectorySubspace subspace, AsyncIterator<KeyValue> asyncIterator) {
+            this.subspace = subspace;
             this.asyncIterator = asyncIterator;
         }
 
@@ -100,7 +101,7 @@ class SegmentLogIterable implements Iterable<SegmentLogEntry> {
         @Override
         public SegmentLogEntry next() {
             KeyValue keyValue = asyncIterator.next();
-            Tuple unpacked = config.subspace().unpack(keyValue.getKey());
+            Tuple unpacked = subspace.unpack(keyValue.getKey());
             Versionstamp key = (Versionstamp) unpacked.get(2);
             long timestamp = (long) unpacked.get(3);
             return new SegmentLogEntry(key, timestamp, SegmentLogValue.decode(ByteBuffer.wrap(keyValue.getValue())));

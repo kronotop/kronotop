@@ -75,7 +75,7 @@ class SegmentLogTest extends BaseVolumeTest {
         List<SegmentLogEntry> entries = new ArrayList<>();
         try (Transaction tr = database.createTransaction()) {
             Session session = new Session(tr);
-            SegmentLogIterable iterable = new SegmentLogIterable(volumeConfig, segment.getName(), session, null, null);
+            SegmentLogIterable iterable = new SegmentLogIterable(volumeConfig.subspace(), segment.getName(), session, null, null);
             for (SegmentLogEntry segmentLogEntry : iterable) {
                 entries.add(segmentLogEntry);
             }
@@ -89,6 +89,58 @@ class SegmentLogTest extends BaseVolumeTest {
             assertEquals(key, entry.key());
             assertEquals(value, entry.value());
             assertTrue(entry.timestamp() > 0);
+        }
+    }
+
+    @Test
+    public void test_SegmentLogIterable_range() throws IOException {
+        SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
+        Segment segment = new Segment(segmentConfig);
+        SegmentLog segmentLog = new SegmentLog(context, segment, volumeConfig);
+        List<Versionstamp> keys = new ArrayList<>();
+        List<SegmentLogValue> values = new ArrayList<>();
+
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            long start = 0;
+            long length = 100;
+            for (int userVersion = 0; userVersion < 10; userVersion++) {
+                SegmentLogValue value = new SegmentLogValue(OperationKind.APPEND, start, length);
+                values.add(value);
+
+                segmentLog.append(session, userVersion, value);
+                start += length;
+            }
+            CompletableFuture<byte[]> future = tr.getVersionstamp();
+            tr.commit().join();
+
+            byte[] trVersion = future.join();
+            for (int userVersion = 0; userVersion < 10; userVersion++) {
+                keys.add(Versionstamp.complete(trVersion, userVersion));
+            }
+        }
+
+        // [begin, end)
+        VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(keys.get(3));
+        VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(keys.get(7));
+
+        List<SegmentLogEntry> entries = new ArrayList<>();
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            SegmentLogIterable iterable = new SegmentLogIterable(volumeConfig.subspace(), segment.getName(), session, begin, end);
+            for (SegmentLogEntry segmentLogEntry : iterable) {
+                entries.add(segmentLogEntry);
+            }
+        }
+
+        assertEquals(4, entries.size());
+
+        for (int i = 0; i < entries.size(); i++) {
+            SegmentLogEntry entry = entries.get(i);
+            Versionstamp key = keys.get(i+3);
+            assertEquals(key, entry.key());
+            SegmentLogValue value = values.get(i+3);
+            assertEquals(value, entry.value());
         }
     }
 }
