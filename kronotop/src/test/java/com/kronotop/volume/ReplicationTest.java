@@ -18,8 +18,6 @@ package com.kronotop.volume;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 class ReplicationTest extends BaseVolumeTest {
     @Test
     public void test_replication() {

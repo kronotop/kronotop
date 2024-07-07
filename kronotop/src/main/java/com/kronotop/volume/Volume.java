@@ -440,23 +440,6 @@ public class Volume {
         }
     }
 
-    public Stats getStats() {
-        segmentsLock.readLock().lock();
-        try {
-            Stats stats = new Stats();
-            HashMap<String, Stats.SegmentStats> segmentStats = new HashMap<>();
-            HashMap<String, Integer> cardinalityMap = loadSegmentCardinality();
-            for (Segment segment : segments) {
-                Stats.SegmentStats statsForSegment = new Stats.SegmentStats(segment.getSize(), segment.getFreeBytes(), cardinalityMap.get(segment.getName()));
-                segmentStats.put(segment.getName(), statsForSegment);
-            }
-            stats.setSegments(segmentStats);
-            return stats;
-        } finally {
-            segmentsLock.readLock().unlock();
-        }
-    }
-
     public Iterable<KeyEntry> getRange(@Nonnull Session session) {
         return new VolumeIterable(this, session, null, null);
     }

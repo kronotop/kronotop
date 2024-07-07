@@ -227,7 +227,7 @@ public class VolumeTest extends BaseVolumeTest {
             tr.commit().join();
         }
 
-        assertEquals(2, volume.getStats().getSegments().size());
+        assertEquals(2, volume.analyze().size());
     }
 
     @Test
@@ -283,42 +283,6 @@ public class VolumeTest extends BaseVolumeTest {
     }
 
     @Test
-    public void test_getStats() throws IOException {
-        ByteBuffer[] entries = getEntries(10);
-        AppendResult appendResult;
-        try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
-            appendResult = volume.append(session, entries);
-            tr.commit().join();
-        }
-        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
-
-        Stats stats = volume.getStats();
-        assertEquals(1, stats.getSegments().size());
-
-        for (Map.Entry<String, Stats.SegmentStats> segmentStats : stats.getSegments().entrySet()) {
-            assertEquals(10, segmentStats.getValue().cardinality());
-            assertTrue(segmentStats.getValue().size() > segmentStats.getValue().freeBytes());
-        }
-
-        DeleteResult deleteResult;
-        try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
-            deleteResult = volume.delete(session, versionstampedKeys);
-            tr.commit().join();
-        }
-        deleteResult.complete();
-
-        stats = volume.getStats();
-        assertEquals(1, stats.getSegments().size());
-
-        for (Map.Entry<String, Stats.SegmentStats> segmentStats : stats.getSegments().entrySet()) {
-            assertEquals(0, segmentStats.getValue().cardinality());
-            assertTrue(segmentStats.getValue().size() > segmentStats.getValue().freeBytes());
-        }
-    }
-
-    @Test
     public void test_analyze() throws IOException {
         long bufferSize = 100480;
         long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
@@ -332,19 +296,19 @@ public class VolumeTest extends BaseVolumeTest {
             tr.commit().join();
         }
 
-        Stats stats = volume.getStats();
-        assertEquals(2, stats.getSegments().size());
-
         try (Transaction tr = database.createTransaction()) {
-            List<SegmentAnalysis> analysisList = volume.analyze(tr);
-            SegmentAnalysis analysis = analysisList.getFirst();
-            Stats.SegmentStats segmentStats = stats.getSegments().get(analysis.name());
+            List<SegmentAnalysis> segmentAnalysis = volume.analyze(tr);
+            assertEquals(2, segmentAnalysis.size());
 
-            assertNotNull(segmentStats);
-            assertEquals(segmentStats.cardinality(), analysis.cardinality());
-            assertEquals(segmentStats.size(), analysis.size());
-            assertEquals(segmentStats.freeBytes(), analysis.size() - analysis.usedBytes());
-            assertEquals(0.0, analysis.garbageRatio());
+            int cardinality = 0;
+            for (SegmentAnalysis analysis : segmentAnalysis) {
+                assertEquals(0.0, analysis.garbageRatio());
+                assertEquals(segmentSize, analysis.size());
+                assertEquals(analysis.freeBytes(), analysis.size() - analysis.usedBytes());
+                assertTrue(analysis.cardinality() > 0);
+                cardinality += analysis.cardinality();
+            }
+            assertEquals(numIterations, cardinality);
         }
     }
 
@@ -430,20 +394,19 @@ public class VolumeTest extends BaseVolumeTest {
             updateResult.complete();
         }
 
-        Stats stats = volume.getStats();
-        assertEquals(4, stats.getSegments().size());
-        Iterator<Map.Entry<String, Stats.SegmentStats>> iterator = stats.getSegments().entrySet().iterator();
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        assertEquals(4, segmentAnalysis.size());
 
         // Cardinality should be zero for the first two segments.
         for (int i = 0; i < 2; i++) {
-            Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
-            assertEquals(0, segmentStats.getValue().cardinality());
+            SegmentAnalysis analysis = segmentAnalysis.get(i);
+            assertEquals(0, analysis.cardinality());
         }
 
         // All keys moved to the new segments and the first two segments will be vacuumed.
         for (int i = 2; i < 4; i++) {
-            Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
-            assertEquals(10, segmentStats.getValue().cardinality());
+            SegmentAnalysis analysis = segmentAnalysis.get(i);
+            assertEquals(10, analysis.cardinality());
         }
     }
 
@@ -467,24 +430,23 @@ public class VolumeTest extends BaseVolumeTest {
         }
 
         {
-            Stats stats = volume.getStats();
-            String firstSegment = stats.getSegments().keySet().iterator().next();
+            List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+            String firstSegment = segmentAnalysis.getFirst().name();
             volume.vacuumSegment(firstSegment, readVersion);
         }
 
         {
-            Stats stats = volume.getStats();
-            assertEquals(3, stats.getSegments().size());
-            Iterator<Map.Entry<String, Stats.SegmentStats>> iterator = stats.getSegments().entrySet().iterator();
+            List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+            assertEquals(3, segmentAnalysis.size());
+
 
             // Cardinality should be zero for the first segment.
-            Map.Entry<String, Stats.SegmentStats> firstSegment = iterator.next();
-            assertEquals(0, firstSegment.getValue().cardinality());
+            assertEquals(0, segmentAnalysis.getFirst().cardinality());
 
             // All keys moved to the new segments.
             for (int i = 1; i < 3; i++) {
-                Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
-                assertEquals(10, segmentStats.getValue().cardinality());
+                SegmentAnalysis analysis = segmentAnalysis.get(i);
+                assertEquals(10, analysis.cardinality());
             }
         }
     }
@@ -561,14 +523,14 @@ public class VolumeTest extends BaseVolumeTest {
     public void test_VolumeMetadata_compute() throws UnknownHostException {
         Host host = new Host(Role.OWNER, createMemberWithEphemeralPort());
         try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata)->{
+            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata) -> {
                 volumeMetadata.setOwner(host);
             });
             tr.commit().join();
         }
 
         try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata)->{
+            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata) -> {
                 assertEquals(host, volumeMetadata.getOwner());
             });
         }

@@ -137,9 +137,9 @@ class SegmentLogTest extends BaseVolumeTest {
 
         for (int i = 0; i < entries.size(); i++) {
             SegmentLogEntry entry = entries.get(i);
-            Versionstamp key = keys.get(i+3);
+            Versionstamp key = keys.get(i + 3);
             assertEquals(key, entry.key());
-            SegmentLogValue value = values.get(i+3);
+            SegmentLogValue value = values.get(i + 3);
             assertEquals(value, entry.value());
         }
     }
