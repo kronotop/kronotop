@@ -335,19 +335,17 @@ public class VolumeTest extends BaseVolumeTest {
         Stats stats = volume.getStats();
         assertEquals(2, stats.getSegments().size());
 
-        long readVersion;
         try (Transaction tr = database.createTransaction()) {
-            readVersion = tr.getReadVersion().join();
-        }
-        List<SegmentAnalysis> analysisList = volume.analyze(readVersion);
-        SegmentAnalysis analysis = analysisList.getFirst();
-        Stats.SegmentStats segmentStats = stats.getSegments().get(analysis.name());
+            List<SegmentAnalysis> analysisList = volume.analyze(tr);
+            SegmentAnalysis analysis = analysisList.getFirst();
+            Stats.SegmentStats segmentStats = stats.getSegments().get(analysis.name());
 
-        assertNotNull(segmentStats);
-        assertEquals(segmentStats.cardinality(), analysis.cardinality());
-        assertEquals(segmentStats.size(), analysis.size());
-        assertEquals(segmentStats.freeBytes(), analysis.size() - analysis.usedBytes());
-        assertEquals(0.0, analysis.garbageRatio());
+            assertNotNull(segmentStats);
+            assertEquals(segmentStats.cardinality(), analysis.cardinality());
+            assertEquals(segmentStats.size(), analysis.size());
+            assertEquals(segmentStats.freeBytes(), analysis.size() - analysis.usedBytes());
+            assertEquals(0.0, analysis.garbageRatio());
+        }
     }
 
     @Test
@@ -369,15 +367,13 @@ public class VolumeTest extends BaseVolumeTest {
         }
         deleteResult.complete();
 
-        long readVersion;
         try (Transaction tr = database.createTransaction()) {
-            readVersion = tr.getReadVersion().join();
+            List<SegmentAnalysis> analysis = volume.analyze(tr);
+            SegmentAnalysis segmentAnalysis = analysis.getFirst();
+            assertTrue(segmentAnalysis.garbageRatio() > 0);
+            long garbageBytes = segmentAnalysis.size() - segmentAnalysis.freeBytes() - segmentAnalysis.usedBytes();
+            assertEquals(40, garbageBytes); // We deleted 4 items and the test entry size is 10.
         }
-        List<SegmentAnalysis> analysis = volume.analyze(readVersion);
-        SegmentAnalysis segmentAnalysis = analysis.getFirst();
-        assertTrue(segmentAnalysis.garbageRatio() > 0);
-        long garbageBytes = segmentAnalysis.size() - segmentAnalysis.freeBytes() - segmentAnalysis.usedBytes();
-        assertEquals(40, garbageBytes); // We deleted 4 items and the test entry size is 10.
     }
 
     @Test

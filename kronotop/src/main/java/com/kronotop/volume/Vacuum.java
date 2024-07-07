@@ -51,7 +51,9 @@ class Vacuum {
     }
 
     public List<SegmentAnalysis> analyze() {
-        return volume.analyze(readVersion);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return volume.analyze(tr);
+        }
     }
 
     public void vacuum() throws IOException {

@@ -25,7 +25,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
-import io.netty.buffer.PooledByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -474,23 +473,19 @@ public class Volume {
         }
     }
 
-    private SegmentAnalysis analyze(Segment segment, long readVersion) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            tr.setReadVersion(readVersion);
+    private SegmentAnalysis analyzeSegment(Transaction tr, Segment segment) {
+        byte[] segmentCardinalityKey = packSegmentCardinalityKey(segment.getName());
+        byte[] segmentCardinalityData = tr.get(segmentCardinalityKey).join();
+        int cardinality = decodeSegmentCardinality(segmentCardinalityData);
 
-            byte[] segmentCardinalityKey = packSegmentCardinalityKey(segment.getName());
-            byte[] segmentCardinalityData = tr.get(segmentCardinalityKey).join();
-            int cardinality = decodeSegmentCardinality(segmentCardinalityData);
+        byte[] segmentUsedBytesKey = packSegmentUsedBytesKey(segment.getName());
+        byte[] segmentUsedBytesData = tr.get(segmentUsedBytesKey).join();
+        long usedBytes = decodeSegmentUsedBytes(segmentUsedBytesData);
 
-            byte[] segmentUsedBytesKey = packSegmentUsedBytesKey(segment.getName());
-            byte[] segmentUsedBytesData = tr.get(segmentUsedBytesKey).join();
-            long usedBytes = decodeSegmentUsedBytes(segmentUsedBytesData);
-
-            return new SegmentAnalysis(segment.getName(),segment.getSize(), usedBytes, segment.getFreeBytes(), cardinality);
-        }
+        return new SegmentAnalysis(segment.getName(), segment.getSize(), usedBytes, segment.getFreeBytes(), cardinality);
     }
 
-    protected List<SegmentAnalysis> analyze(long readVersion) {
+    public List<SegmentAnalysis> analyze(Transaction tr) {
         // Create a read-only copy of segments to prevent acquiring segmentsLock for a long time.
         // Read-only access to the segments is not an issue. A segment can only be removed by the Vacuum daemon.
         List<Segment> readOnlySegments;
@@ -505,7 +500,7 @@ public class Volume {
             segmentsLock.readLock().unlock();
         }
         for (Segment segment : readOnlySegments) {
-            result.add(analyze(segment, readVersion));
+            result.add(analyzeSegment(tr, segment));
         }
         return result;
     }
