@@ -23,6 +23,7 @@ import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.volume.BaseVolumeTest;
+import com.kronotop.volume.SegmentAnalysis;
 import com.kronotop.volume.Session;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,7 +51,8 @@ class SegmentRangeHandlerTest extends BaseVolumeTest {
             tr.commit().join();
         }
 
-        String segmentName = volume.getStats().getSegments().keySet().iterator().next();
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        String segmentName = segmentAnalysis.getFirst().name();
 
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 

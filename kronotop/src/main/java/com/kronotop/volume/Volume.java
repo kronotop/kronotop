@@ -505,6 +505,12 @@ public class Volume {
         return result;
     }
 
+    public List<SegmentAnalysis> analyze() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return analyze(tr);
+        }
+    }
+
     protected void vacuumSegment(String name, long readVersion) throws IOException {
         Segment segment = getSegmentByName(name);
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
