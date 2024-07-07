@@ -351,6 +351,36 @@ public class VolumeTest extends BaseVolumeTest {
     }
 
     @Test
+    public void test_analyze_delete_entries() throws IOException {
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Session session = new Session(tr);
+            appendResult = volume.append(session, getEntries(10));
+            tr.commit().join();
+        }
+
+        DeleteResult deleteResult;
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+        Versionstamp[] keys = Arrays.copyOfRange(versionstampedKeys, 3, 7);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Session session = new Session(tr);
+            deleteResult = volume.delete(session, keys);
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        long readVersion;
+        try (Transaction tr = database.createTransaction()) {
+            readVersion = tr.getReadVersion().join();
+        }
+        List<SegmentAnalysis> analysis = volume.analyze(readVersion);
+        SegmentAnalysis segmentAnalysis = analysis.getFirst();
+        assertTrue(segmentAnalysis.garbageRatio() > 0);
+        long garbageBytes = segmentAnalysis.size() - segmentAnalysis.freeBytes() - segmentAnalysis.usedBytes();
+        assertEquals(40, garbageBytes); // We deleted 4 items and the test entry size is 10.
+    }
+
+    @Test
     public void test_TooManyEntriesException_before_appending() {
         ByteBuffer[] entries = getEntries(UserVersion.MAX_VALUE + 1);
         try (Transaction tr = database.createTransaction()) {

@@ -497,15 +497,14 @@ public class Volume {
         List<SegmentAnalysis> result = new ArrayList<>();
         segmentsLock.readLock().lock();
         try {
-            if (segments.isEmpty() || segments.size() == 1) {
+            if (segments.isEmpty()) {
                 return result;
             }
             readOnlySegments = new ArrayList<>(segments);
         } finally {
             segmentsLock.readLock().unlock();
         }
-        for (int i = 0; i < readOnlySegments.size() - 1; i++) {
-            Segment segment = readOnlySegments.get(i);
+        for (Segment segment : readOnlySegments) {
             result.add(analyze(segment, readVersion));
         }
         return result;
