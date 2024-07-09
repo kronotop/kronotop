@@ -23,4 +23,5 @@ class Prefixes {
     protected static final byte SEGMENT_USED_BYTES_PREFIX = 0x4;
     protected static final byte SEGMENT_LOG_PREFIX = 0x5;
     protected static final byte SEGMENT_LOG_CARDINALITY_PREFIX = 0x6;
+    protected static final byte SEGMENT_REPLICATION_PREFIX = 0x7;
 }

@@ -33,12 +33,11 @@ class SegmentLogTest extends BaseVolumeTest {
     public void test_append() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment, volumeConfig);
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), volumeConfig.subspace());
 
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
             SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, 0, 100);
-            assertDoesNotThrow(() -> segmentLog.append(session, 0, entry));
+            assertDoesNotThrow(() -> segmentLog.append(tr, 0, entry));
             tr.commit().join();
         }
     }
@@ -47,12 +46,11 @@ class SegmentLogTest extends BaseVolumeTest {
     public void test_SegmentLogIterable() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment, volumeConfig);
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), volumeConfig.subspace());
         List<Versionstamp> keys = new ArrayList<>();
         List<SegmentLogValue> values = new ArrayList<>();
 
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
             long start = 0;
             long length = 100;
             for (int userVersion = 0; userVersion < 10; userVersion++) {
@@ -60,7 +58,7 @@ class SegmentLogTest extends BaseVolumeTest {
                 values.add(value);
 
                 int finalUserVersion = userVersion;
-                assertDoesNotThrow(() -> segmentLog.append(session, finalUserVersion, value));
+                assertDoesNotThrow(() -> segmentLog.append(tr, finalUserVersion, value));
                 start += length;
             }
             CompletableFuture<byte[]> future = tr.getVersionstamp();
@@ -74,8 +72,7 @@ class SegmentLogTest extends BaseVolumeTest {
 
         List<SegmentLogEntry> entries = new ArrayList<>();
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
-            SegmentLogIterable iterable = new SegmentLogIterable(volumeConfig.subspace(), segment.getName(), session, null, null);
+            SegmentLogIterable iterable = new SegmentLogIterable(tr, volumeConfig.subspace(), segment.getName());
             for (SegmentLogEntry segmentLogEntry : iterable) {
                 entries.add(segmentLogEntry);
             }
@@ -96,19 +93,18 @@ class SegmentLogTest extends BaseVolumeTest {
     public void test_SegmentLogIterable_range() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment, volumeConfig);
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), volumeConfig.subspace());
         List<Versionstamp> keys = new ArrayList<>();
         List<SegmentLogValue> values = new ArrayList<>();
 
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
             long start = 0;
             long length = 100;
             for (int userVersion = 0; userVersion < 10; userVersion++) {
                 SegmentLogValue value = new SegmentLogValue(OperationKind.APPEND, start, length);
                 values.add(value);
 
-                segmentLog.append(session, userVersion, value);
+                segmentLog.append(tr, userVersion, value);
                 start += length;
             }
             CompletableFuture<byte[]> future = tr.getVersionstamp();
@@ -126,8 +122,7 @@ class SegmentLogTest extends BaseVolumeTest {
 
         List<SegmentLogEntry> entries = new ArrayList<>();
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
-            SegmentLogIterable iterable = new SegmentLogIterable(volumeConfig.subspace(), segment.getName(), session, begin, end);
+            SegmentLogIterable iterable = new SegmentLogIterable(tr, volumeConfig.subspace(), segment.getName(), begin, end);
             for (SegmentLogEntry segmentLogEntry : iterable) {
                 entries.add(segmentLogEntry);
             }
@@ -148,22 +143,20 @@ class SegmentLogTest extends BaseVolumeTest {
     public void test_getCardinality() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment, volumeConfig);
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), volumeConfig.subspace());
 
         int total = 100;
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
             for (int userVersion = 0; userVersion < total; userVersion++) {
                 SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, 0, 100);
                 int finalUserVersion = userVersion;
-                assertDoesNotThrow(() -> segmentLog.append(session, finalUserVersion, entry));
+                assertDoesNotThrow(() -> segmentLog.append(tr, finalUserVersion, entry));
             }
             tr.commit().join();
         }
 
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
-            assertEquals(total, segmentLog.getCardinality(session));
+            assertEquals(total, segmentLog.getCardinality(tr));
         }
     }
 }

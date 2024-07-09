@@ -20,6 +20,8 @@ package com.kronotop.volume;
 // <segment-name><versionstamped-key><epoch> = <operation><position><length>
 
 import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 
@@ -32,34 +34,32 @@ import static com.kronotop.volume.Prefixes.SEGMENT_LOG_PREFIX;
 
 class SegmentLog {
     private static final byte[] CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
-    private final Segment segment;
-    private final VolumeConfig config;
+    private final String segmentName;
+    private final DirectorySubspace subspace;
     private final byte[] cardinalityKey;
 
-    SegmentLog(Segment segment, VolumeConfig config) {
-        this.segment = segment;
-        this.config = config;
-        Tuple key = Tuple.from(
-                SEGMENT_LOG_CARDINALITY_PREFIX,
-                segment.getName()
-        );
-        this.cardinalityKey = config.subspace().pack(key);
+    SegmentLog(String segmentName, DirectorySubspace subspace) {
+        this.segmentName = segmentName;
+        this.subspace = subspace;
+
+        Tuple key = Tuple.from(SEGMENT_LOG_CARDINALITY_PREFIX, segmentName);
+        this.cardinalityKey = subspace.pack(key);
     }
 
-    void append(Session session, int userVersion, SegmentLogValue value) {
+    void append(Transaction tr, int userVersion, SegmentLogValue value) {
         Tuple preKey = Tuple.from(
                 SEGMENT_LOG_PREFIX,
-                segment.getName(),
+                segmentName,
                 Versionstamp.incomplete(userVersion),
                 Instant.now().toEpochMilli()
         );
-        byte[] key = config.subspace().packWithVersionstamp(preKey);
-        session.getTransaction().mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value.encode().array());
-        session.getTransaction().mutate(MutationType.ADD, cardinalityKey, CARDINALITY_INCREASE_DELTA);
+        byte[] key = subspace.packWithVersionstamp(preKey);
+        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value.encode().array());
+        tr.mutate(MutationType.ADD, cardinalityKey, CARDINALITY_INCREASE_DELTA);
     }
 
-    int getCardinality(Session session) {
-        byte[] data = session.getTransaction().get(cardinalityKey).join();
+    int getCardinality(Transaction tr) {
+        byte[] data = tr.get(cardinalityKey).join();
         return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
     }
 }

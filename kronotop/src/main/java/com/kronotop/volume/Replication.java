@@ -21,10 +21,14 @@ import com.kronotop.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class Replication {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replication.class);
     private final Context context;
     private final Volume volume;
+    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean isClosed = false;
 
     public Replication(Context context, Volume volume) {
@@ -53,18 +57,39 @@ public class Replication {
 
     public void start() {
         checkStandbyOwnership();
-        // 1- Find the latest key from segment log
-        // 2- Set snapshot boundaries: start from scratch and scan to the latest key.
-        // 3- Continuously set the boundary
-        // 4- Set a watch for the newly added keys to SegmentLog
-        // 5- Receive the latest keys in a different thread.
+        try(Transaction tr = context.getFoundationDB().createTransaction()) {
+            ReplicationMetadata replicationMetadata = ReplicationMetadata.compute(tr, volume.getConfig().subspace(), (metadata) -> {
+                ReplicationMetadata.Snapshot snapshot = metadata.getSnapshot();
+                if (snapshot == null) {
+                    VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+                    long firstSegmentId = volumeMetadata.getSegments().getFirst();
 
-        // Replication metadata
-        // 1- Snapshot boundaries: begin-end, begin constantly changes
-        // 2- Snapshot: Number of fetched keys
+                    SegmentLogEntry firstEntry = new SegmentLogIterable(tr, volume.getConfig().subspace(), Segment.generateName(firstSegmentId), null, null, 1).iterator().next();
+                    SegmentLogEntry lastEntry = new SegmentLogIterable(tr, volume.getConfig().subspace(), Segment.generateName(firstSegmentId), null, null, 1, true).iterator().next();
+
+                    snapshot = new ReplicationMetadata.Snapshot(firstEntry.key().getBytes(), lastEntry.key().getBytes());
+                    metadata.setSnapshot(snapshot);
+                }
+            });
+
+            ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot();
+            if (snapshot.getBegin() == snapshot.getEnd()) {
+                // Start the other thread
+                return;
+            }
+
+            // Run the snapshot fetcher
+            //new SegmentLogIterable(tr, volume.getConfig(), snapshot.getBegin(), snapshot.getEnd());
+        }
+        executor.submit(() -> {});
     }
 
     public void stop() {
+        if (isClosed) {
+            return;
+        }
+
         isClosed = true;
+        executor.close();
     }
 }

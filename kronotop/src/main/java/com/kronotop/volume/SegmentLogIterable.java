@@ -18,6 +18,8 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.ReadTransaction;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.async.AsyncIterator;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -38,13 +40,25 @@ class SegmentLogIterable implements Iterable<SegmentLogEntry> {
     private final String segmentName;
     private final DirectorySubspace subspace;
 
-    SegmentLogIterable(DirectorySubspace subspace, String segmentName, Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
-        this.subspace = subspace;
-        this.segmentName = segmentName;
-        this.asyncIterable = createAsyncIterable(session, begin, end);
+    SegmentLogIterable(Transaction tr, DirectorySubspace subspace, String segmentName) {
+        this(tr, subspace, segmentName, null, null);
     }
 
-    private AsyncIterable<KeyValue> createAsyncIterable(Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+    SegmentLogIterable(Transaction tr, DirectorySubspace subspace, String segmentName, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+        this(tr, subspace, segmentName, begin, end, ReadTransaction.ROW_LIMIT_UNLIMITED, false);
+    }
+
+    SegmentLogIterable(Transaction tr, DirectorySubspace subspace, String segmentName, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
+        this(tr, subspace, segmentName, begin, end, limit, false);
+    }
+
+    SegmentLogIterable(Transaction tr, DirectorySubspace subspace, String segmentName, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
+        this.subspace = subspace;
+        this.segmentName = segmentName;
+        this.asyncIterable = createAsyncIterable(tr, begin, end, limit, reverse);
+    }
+
+    private AsyncIterable<KeyValue> createAsyncIterable(Transaction tr, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
         KeySelector beginKeySelector;
         if (begin == null) {
             beginKeySelector = KeySelector.firstGreaterOrEqual(subspace.pack(Tuple.from(SEGMENT_LOG_PREFIX, segmentName)));
@@ -58,7 +72,7 @@ class SegmentLogIterable implements Iterable<SegmentLogEntry> {
         } else {
             endKeySelector = new KeySelector(packKey(end.getKey()), end.orEqual(), end.getOffset());
         }
-        return session.getTransaction().getRange(beginKeySelector, endKeySelector);
+        return tr.getRange(beginKeySelector, endKeySelector, limit, reverse);
     }
 
     private byte[] packKey(Versionstamp key) {

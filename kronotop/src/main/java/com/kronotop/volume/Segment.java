@@ -43,10 +43,14 @@ class Segment {
 
     Segment(SegmentConfig config) throws IOException {
         this.config = config;
-        this.name = Strings.padStart(Long.toString(config.id()), 19, '0');
+        this.name = generateName(config.id());
         this.metadataFile = createOrOpenSegmentMetadataFile();
         this.metadata = createOrDecodeSegmentMetadata(config.id());
         this.segmentFile = createOrOpenSegmentFile();
+    }
+
+    protected static String generateName(long id) {
+        return Strings.padStart(Long.toString(id), 19, '0');
     }
 
     String getName() {

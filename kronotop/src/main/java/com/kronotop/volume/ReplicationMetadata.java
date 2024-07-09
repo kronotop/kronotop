@@ -18,22 +18,29 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.kronotop.JSONUtils;
 
 import java.util.function.Consumer;
 
+import static com.kronotop.volume.Prefixes.SEGMENT_REPLICATION_PREFIX;
+
 public class ReplicationMetadata {
     @JsonIgnore
     private static final String REPLICATION_METADATA_KEY = "replication-metadata";
 
+    @JsonIgnore
+    private static final Tuple preKey = Tuple.from(SEGMENT_REPLICATION_PREFIX, REPLICATION_METADATA_KEY);
+
+    private byte[] latestSegmentLogKey;
     private Snapshot snapshot;
 
     public ReplicationMetadata() {
     }
 
     public static ReplicationMetadata load(Transaction tr, DirectorySubspace subspace) {
-        byte[] key = subspace.pack(REPLICATION_METADATA_KEY);
+        byte[] key = subspace.pack(preKey);
         byte[] value = tr.get(key).join();
         if (value == null) {
             return new ReplicationMetadata();
@@ -42,7 +49,7 @@ public class ReplicationMetadata {
     }
 
     public static ReplicationMetadata compute(Transaction tr, DirectorySubspace subspace, Consumer<ReplicationMetadata> remappingFunction) {
-        byte[] key = subspace.pack(REPLICATION_METADATA_KEY);
+        byte[] key = subspace.pack(preKey);
         ReplicationMetadata replicationMetadata;
         byte[] value = tr.get(key).join();
         if (value == null) {
@@ -55,12 +62,20 @@ public class ReplicationMetadata {
         return replicationMetadata;
     }
 
+    public void setSnapshot(Snapshot snapshot) {
+        this.snapshot = snapshot;
+    }
+
     public Snapshot getSnapshot() {
         return snapshot;
     }
 
-    public void setSnapshot(Snapshot snapshot) {
-        this.snapshot = snapshot;
+    public void setLatestSegmentLogKey(byte[] latestSegmentLogKey) {
+        this.latestSegmentLogKey = latestSegmentLogKey;
+    }
+
+    public byte[] getLatestSegmentLogKey() {
+        return latestSegmentLogKey;
     }
 
     public byte[] toByte() {
@@ -70,7 +85,7 @@ public class ReplicationMetadata {
     public static class Snapshot {
         private byte[] begin;
         private byte[] end;
-        private long processedKeys;
+        private long processedEntries;
 
         Snapshot() {
         }
@@ -92,12 +107,12 @@ public class ReplicationMetadata {
             return end;
         }
 
-        public void setProcessedKeys(long processedKeys) {
-            this.processedKeys = processedKeys;
+        public void setProcessedEntries(long processedEntries) {
+            this.processedEntries = processedEntries;
         }
 
-        public long getProcessedKeys() {
-            return processedKeys;
+        public long getProcessedEntries() {
+            return processedEntries;
         }
     }
 }
