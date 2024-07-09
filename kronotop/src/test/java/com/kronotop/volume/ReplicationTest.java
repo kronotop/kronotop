@@ -29,14 +29,14 @@ class ReplicationTest extends BaseVolumeTest {
     public void test_replication() throws IOException {
 
         {
-            ByteBuffer[] entries = getEntries(2);
+            ByteBuffer[] entries = getEntries(10);
             AppendResult result;
             try (Transaction tr = database.createTransaction()) {
                 Session session = new Session(tr);
                 result = volume.append(session, entries);
                 tr.commit().join();
             }
-            assertEquals(2, result.getVersionstampedKeys().length);
+            assertEquals(10, result.getVersionstampedKeys().length);
         }
 
 

@@ -33,10 +33,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -56,6 +53,8 @@ public class Volume {
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
     private final List<Segment> segments = new ArrayList<>();
     private final HashMap<String, Segment> segmentsByName = new HashMap<>();
+    private final ConcurrentHashMap<String, SegmentLog> segmentLogs = new ConcurrentHashMap<>();
+
     private volatile boolean isClosed;
 
     protected Volume(Context context, VolumeConfig volumeConfig) throws IOException {
@@ -118,6 +117,7 @@ public class Volume {
                 Segment segment = new Segment(segmentConfig);
                 segments.add(segment);
                 segmentsByName.put(segment.getName(), segment);
+                segmentLogs.put(segment.getName(), new SegmentLog(segment.getName(), config.subspace()));
             }
             segments.sort(Comparator.comparing(Segment::getName));
         } finally {
@@ -156,6 +156,7 @@ public class Volume {
         segments.add(segment);
         segments.sort(Comparator.comparing(Segment::getName));
         segmentsByName.put(segment.getName(), segment);
+        segmentLogs.put(segment.getName(), new SegmentLog(segment.getName(), config.subspace()));
         return segment;
     }
 
@@ -213,15 +214,28 @@ public class Volume {
         return config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, data));
     }
 
+    private void appendSegmentLog(Session session, OperationKind kind, EntryMetadata entryMetadata) {
+        appendSegmentLog(session.getTransaction(), kind, session.getAndIncrementUserVersion(), entryMetadata);
+    }
+
+    private void appendSegmentLog(Transaction tr, OperationKind kind, int userVersion, EntryMetadata entryMetadata) {
+        SegmentLog segmentLog = segmentLogs.get(entryMetadata.segment());
+        segmentLog.append(tr, userVersion, new SegmentLogValue(kind, entryMetadata.position(), entryMetadata.length()));
+    }
+
     private CompletableFuture<byte[]> writeMetadata(Session session, EntryMetadata[] entryMetadataList) {
         Transaction tr = session.getTransaction();
         for (EntryMetadata entryMetadata : entryMetadataList) {
-            int version = session.getAndIncrementUserVersion();
+            int userVersion = session.getAndIncrementUserVersion();
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, packEntryKeyWithVersionstamp(version), encodedEntryMetadata);
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, packEntryMetadataKey(encodedEntryMetadata), Tuple.from(Versionstamp.incomplete(version)).packWithVersionstamp());
+
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, packEntryKeyWithVersionstamp(userVersion), encodedEntryMetadata);
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, packEntryMetadataKey(encodedEntryMetadata), Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp());
+
             mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_INCREASE_DELTA);
             mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(entryMetadata.length()));
+
+            appendSegmentLog(tr, OperationKind.APPEND, userVersion, entryMetadata);
         }
         return tr.getVersionstamp();
     }
@@ -348,6 +362,8 @@ public class Volume {
             mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_DECREASE_DELTA);
             mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(-1 * entryMetadata.length()));
 
+            appendSegmentLog(session, OperationKind.DELETE, entryMetadata);
+
             result.add(index, key);
             index++;
         }
@@ -385,6 +401,9 @@ public class Volume {
 
             tr.clear(packEntryMetadataKey(encodedOldEntryMetadata));
             tr.set(packedKey, entryMetadata.encode().array());
+
+            appendSegmentLog(session, OperationKind.UPDATE, entryMetadata);
+
             index++;
         }
         return new UpdateResult(pairs, entryMetadataCache::invalidate);

@@ -71,7 +71,6 @@ public class Replication {
                 SegmentLogEntry lastEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1, true).iterator().next();
 
                 snapshot = new ReplicationMetadata.Snapshot(segmentId, firstEntry.key().getBytes(), lastEntry.key().getBytes());
-                System.out.println(snapshot);
                 metadata.setSnapshot(snapshot);
             }
         });
@@ -91,7 +90,7 @@ public class Replication {
 
             // [begin, end)
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
-            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getEnd()));
+            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getEnd()));
 
             String segmentName = Segment.generateName(snapshot.getSegmentId());
             SegmentLogIterable iterable = new SegmentLogIterable(tr, subspace, segmentName, begin, end);
