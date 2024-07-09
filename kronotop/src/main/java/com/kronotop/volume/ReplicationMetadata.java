@@ -68,8 +68,9 @@ public class ReplicationMetadata {
     }
 
     public static class Snapshot {
-        private byte[] end;
         private byte[] begin;
+        private byte[] end;
+        private long processedKeys;
 
         Snapshot() {
         }
@@ -89,6 +90,14 @@ public class ReplicationMetadata {
 
         public byte[] getEnd() {
             return end;
+        }
+
+        public void setProcessedKeys(long processedKeys) {
+            this.processedKeys = processedKeys;
+        }
+
+        public long getProcessedKeys() {
+            return processedKeys;
         }
     }
 }
