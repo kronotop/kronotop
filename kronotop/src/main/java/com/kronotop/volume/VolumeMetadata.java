@@ -29,7 +29,7 @@ import java.util.function.Consumer;
 
 public class VolumeMetadata {
     @JsonIgnore
-    private static final String VOLUME_METADATA_KEY = "metadata";
+    private static final String VOLUME_METADATA_KEY = "volume-metadata";
 
     private final List<Long> segments = new ArrayList<>();
     private final List<Host> hosts = new ArrayList<>();

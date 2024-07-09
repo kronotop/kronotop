@@ -53,6 +53,15 @@ public class Replication {
 
     public void start() {
         checkStandbyOwnership();
+        // 1- Find the latest key from segment log
+        // 2- Set snapshot boundaries: start from scratch and scan to the latest key.
+        // 3- Continuously set the boundary
+        // 4- Set a watch for the newly added keys to SegmentLog
+        // 5- Receive the latest keys in a different thread.
+
+        // Replication metadata
+        // 1- Snapshot boundaries: begin-end, begin constantly changes
+        // 2- Snapshot: Number of fetched keys
     }
 
     public void stop() {

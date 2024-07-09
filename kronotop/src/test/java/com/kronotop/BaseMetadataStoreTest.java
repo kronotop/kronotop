@@ -34,10 +34,10 @@ public class BaseMetadataStoreTest extends BaseTest {
     protected Config config;
     protected Context context;
 
-    protected DirectorySubspace getClusterSubspace(String name) {
+    protected DirectorySubspace getClusterSubspace(String subspaceName) {
         try (Transaction tr = database.createTransaction()) {
             String clusterName = config.getString("cluster.name");
-            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add(name).asList();
+            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add(subspaceName).asList();
             DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
             tr.commit().join();
             return subspace;
