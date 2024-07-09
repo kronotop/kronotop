@@ -402,7 +402,8 @@ public class Volume {
             tr.clear(packEntryMetadataKey(encodedOldEntryMetadata));
             tr.set(packedKey, entryMetadata.encode().array());
 
-            appendSegmentLog(session, OperationKind.UPDATE, entryMetadata);
+            appendSegmentLog(session, OperationKind.DELETE, oldEntryMetadata);
+            appendSegmentLog(session, OperationKind.APPEND, entryMetadata);
 
             index++;
         }
@@ -442,21 +443,6 @@ public class Volume {
 
     public boolean isClosed() {
         return isClosed;
-    }
-
-    private HashMap<String, Integer> loadSegmentCardinality() {
-        HashMap<String, Integer> cardinality = new HashMap<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Tuple key = Tuple.from(SEGMENT_CARDINALITY_PREFIX);
-            byte[] begin = config.subspace().pack(key);
-            byte[] end = ByteArrayUtil.strinc(begin);
-            Range range = new Range(begin, end);
-            for (KeyValue keyValue : tr.getRange(range)) {
-                String name = (String) config.subspace().unpack(keyValue.getKey()).get(1);
-                cardinality.put(name, decodeSegmentCardinality(keyValue.getValue()));
-            }
-            return cardinality;
-        }
     }
 
     public Iterable<KeyEntry> getRange(@Nonnull Session session) {
