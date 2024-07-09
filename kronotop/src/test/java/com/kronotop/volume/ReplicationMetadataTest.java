@@ -33,7 +33,7 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
 
         byte[] begin = Versionstamp.incomplete(0).getBytes();
         byte[] end = Versionstamp.incomplete(1).getBytes();
-        ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(begin, end);
+        ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(0, begin, end);
         metadata.setSnapshot(snapshot);
 
         byte[] data = JSONUtils.writeValueAsBytes(metadata);
@@ -49,7 +49,7 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
             replicationMetadata = ReplicationMetadata.compute(tr, subspace, (metadata) -> {
                 byte[] begin = Versionstamp.incomplete(0).getBytes();
                 byte[] end = Versionstamp.incomplete(1).getBytes();
-                ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(begin, end);
+                ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(0, begin, end);
                 metadata.setSnapshot(snapshot);
             });
             tr.commit().join();
@@ -68,7 +68,7 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
             replicationMetadata = ReplicationMetadata.compute(tr, subspace, (metadata) -> {
                 byte[] begin = Versionstamp.incomplete(0).getBytes();
                 byte[] end = Versionstamp.incomplete(1).getBytes();
-                ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(begin, end);
+                ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(0, begin, end);
                 metadata.setSnapshot(snapshot);
             });
             tr.commit().join();

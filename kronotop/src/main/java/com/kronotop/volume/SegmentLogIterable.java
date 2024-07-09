@@ -34,7 +34,6 @@ import java.util.NoSuchElementException;
 
 import static com.kronotop.volume.Prefixes.SEGMENT_LOG_PREFIX;
 
-
 class SegmentLogIterable implements Iterable<SegmentLogEntry> {
     private final AsyncIterable<KeyValue> asyncIterable;
     private final String segmentName;

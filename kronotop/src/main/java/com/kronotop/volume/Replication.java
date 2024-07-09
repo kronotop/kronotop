@@ -17,6 +17,8 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,12 +30,14 @@ public class Replication {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replication.class);
     private final Context context;
     private final Volume volume;
+    private final DirectorySubspace subspace;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean isClosed = false;
 
     public Replication(Context context, Volume volume) {
         this.context = context;
         this.volume = volume;
+        this.subspace = volume.getConfig().subspace();
     }
 
     private void checkStandbyOwnership() {
@@ -55,22 +59,29 @@ public class Replication {
         }
     }
 
+    ReplicationMetadata getReplicationMetadata(Transaction tr) {
+        return ReplicationMetadata.compute(tr, subspace, (metadata) -> {
+            ReplicationMetadata.Snapshot snapshot = metadata.getSnapshot();
+            if (snapshot == null) {
+                VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, subspace);
+                long segmentId = volumeMetadata.getSegments().getFirst();
+
+                String segmentName = Segment.generateName(segmentId);
+                SegmentLogEntry firstEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1).iterator().next();
+                SegmentLogEntry lastEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1, true).iterator().next();
+
+                snapshot = new ReplicationMetadata.Snapshot(segmentId, firstEntry.key().getBytes(), lastEntry.key().getBytes());
+                System.out.println(snapshot);
+                metadata.setSnapshot(snapshot);
+            }
+        });
+    }
+
     public void start() {
-        checkStandbyOwnership();
+        //checkStandbyOwnership();
+
         try(Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationMetadata replicationMetadata = ReplicationMetadata.compute(tr, volume.getConfig().subspace(), (metadata) -> {
-                ReplicationMetadata.Snapshot snapshot = metadata.getSnapshot();
-                if (snapshot == null) {
-                    VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-                    long firstSegmentId = volumeMetadata.getSegments().getFirst();
-
-                    SegmentLogEntry firstEntry = new SegmentLogIterable(tr, volume.getConfig().subspace(), Segment.generateName(firstSegmentId), null, null, 1).iterator().next();
-                    SegmentLogEntry lastEntry = new SegmentLogIterable(tr, volume.getConfig().subspace(), Segment.generateName(firstSegmentId), null, null, 1, true).iterator().next();
-
-                    snapshot = new ReplicationMetadata.Snapshot(firstEntry.key().getBytes(), lastEntry.key().getBytes());
-                    metadata.setSnapshot(snapshot);
-                }
-            });
+            ReplicationMetadata replicationMetadata = getReplicationMetadata(tr);
 
             ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot();
             if (snapshot.getBegin() == snapshot.getEnd()) {
@@ -78,8 +89,15 @@ public class Replication {
                 return;
             }
 
-            // Run the snapshot fetcher
-            //new SegmentLogIterable(tr, volume.getConfig(), snapshot.getBegin(), snapshot.getEnd());
+            // [begin, end)
+            VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
+            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getEnd()));
+
+            String segmentName = Segment.generateName(snapshot.getSegmentId());
+            SegmentLogIterable iterable = new SegmentLogIterable(tr, subspace, segmentName, begin, end);
+            for (SegmentLogEntry entry : iterable) {
+                System.out.println(entry);
+            }
         }
         executor.submit(() -> {});
     }

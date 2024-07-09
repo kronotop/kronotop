@@ -33,7 +33,6 @@ public class ReplicationMetadata {
     @JsonIgnore
     private static final Tuple preKey = Tuple.from(SEGMENT_REPLICATION_PREFIX, REPLICATION_METADATA_KEY);
 
-    private byte[] latestSegmentLogKey;
     private Snapshot snapshot;
 
     public ReplicationMetadata() {
@@ -70,14 +69,6 @@ public class ReplicationMetadata {
         return snapshot;
     }
 
-    public void setLatestSegmentLogKey(byte[] latestSegmentLogKey) {
-        this.latestSegmentLogKey = latestSegmentLogKey;
-    }
-
-    public byte[] getLatestSegmentLogKey() {
-        return latestSegmentLogKey;
-    }
-
     public byte[] toByte() {
         return JSONUtils.writeValueAsBytes(this);
     }
@@ -86,11 +77,12 @@ public class ReplicationMetadata {
         private byte[] begin;
         private byte[] end;
         private long processedEntries;
+        private long segmentId;
 
         Snapshot() {
         }
 
-        public Snapshot(byte[] begin, byte[] end) {
+        public Snapshot(long segmentId, byte[] begin, byte[] end) {
             this.begin = begin;
             this.end = end;
         }
@@ -113,6 +105,14 @@ public class ReplicationMetadata {
 
         public long getProcessedEntries() {
             return processedEntries;
+        }
+
+        public void setSegmentId(long segmentId) {
+            this.segmentId = segmentId;
+        }
+
+        public long getSegmentId() {
+            return segmentId;
         }
     }
 }

@@ -16,12 +16,31 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ReplicationTest extends BaseVolumeTest {
     @Test
-    public void test_replication() {
+    public void test_replication() throws IOException {
+
+        {
+            ByteBuffer[] entries = getEntries(2);
+            AppendResult result;
+            try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr);
+                result = volume.append(session, entries);
+                tr.commit().join();
+            }
+            assertEquals(2, result.getVersionstampedKeys().length);
+        }
+
+
         Replication replication = new Replication(context, volume);
-        //replication.start();
+        replication.start();
     }
 }
