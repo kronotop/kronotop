@@ -53,7 +53,7 @@ public class Volume {
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
     private final List<Segment> segments = new ArrayList<>();
     private final HashMap<String, Segment> segmentsByName = new HashMap<>();
-    private final ConcurrentHashMap<String, SegmentLog> segmentLogs = new ConcurrentHashMap<>();
+    private final HashMap<String, SegmentLog> segmentLogs = new HashMap<>();
 
     private volatile boolean isClosed;
 
@@ -219,8 +219,16 @@ public class Volume {
     }
 
     private void appendSegmentLog(Transaction tr, OperationKind kind, int userVersion, EntryMetadata entryMetadata) {
-        SegmentLog segmentLog = segmentLogs.get(entryMetadata.segment());
-        segmentLog.append(tr, userVersion, new SegmentLogValue(kind, entryMetadata.position(), entryMetadata.length()));
+        segmentsLock.readLock().lock();
+        try {
+             SegmentLog segmentLog = segmentLogs.get(entryMetadata.segment());
+             if (segmentLog == null) {
+                 throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
+             }
+            segmentLog.append(tr, userVersion, new SegmentLogValue(kind, entryMetadata.position(), entryMetadata.length()));
+        } finally {
+            segmentsLock.readLock().unlock();
+        }
     }
 
     private CompletableFuture<byte[]> writeMetadata(Session session, EntryMetadata[] entryMetadataList) {
