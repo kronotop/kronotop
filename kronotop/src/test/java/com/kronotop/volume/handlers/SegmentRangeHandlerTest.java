@@ -16,18 +16,21 @@
 
 package com.kronotop.volume.handlers;
 
+import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.KronotopTestInstance;
+import com.kronotop.cluster.BaseClusterTest;
 import com.kronotop.cluster.protocol.InternalCommandBuilder;
 import com.kronotop.cluster.protocol.SegmentRange;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.volume.BaseVolumeIntegrationTest;
-import com.kronotop.volume.SegmentAnalysis;
-import com.kronotop.volume.Session;
+import com.kronotop.volume.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -37,8 +40,30 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class SegmentRangeHandlerTest extends BaseVolumeIntegrationTest {
-/*
+class SegmentRangeHandlerTest extends BaseClusterTest {
+    private final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
+
+    private Database database;
+    private KronotopTestInstance kronotopInstance;
+    private Volume volume;
+    private VolumeConfig volumeConfig;
+
+    @BeforeEach
+    public void setup() {
+        super.setup();
+        kronotopInstance = getClusterCoordinator();
+        database = kronotopInstance.getContext().getFoundationDB();
+        VolumeService volumeService = kronotopInstance.getContext().getService(VolumeService.NAME);
+
+        DirectorySubspace subspace = baseVolumeTestWrapper.getSubspace(database, kronotopInstance.getContext().getConfig());
+        volumeConfig = baseVolumeTestWrapper.getVolumeConfig(kronotopInstance.getContext().getConfig(), subspace);
+        try {
+            volume = volumeService.newVolume(volumeConfig);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Test
     public void test_SEGMENTRANGE() throws IOException {
         ByteBuffer[] entries = {
@@ -96,5 +121,8 @@ class SegmentRangeHandlerTest extends BaseVolumeIntegrationTest {
         Object response = kronotopInstance.getChannel().readOutbound();
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Segment: 'barfoo' could not be found", message.content());
-    }*/
+    }
+
+    private static class BaseVolumeTestWrapper extends BaseVolumeTest {
+    }
 }

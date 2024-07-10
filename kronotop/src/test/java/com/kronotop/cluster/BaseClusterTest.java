@@ -23,6 +23,7 @@ import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentHashMap;
 
