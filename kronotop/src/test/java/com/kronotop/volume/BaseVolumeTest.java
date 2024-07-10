@@ -21,11 +21,10 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.google.common.base.Strings;
-import com.kronotop.BaseTest;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.cluster.BaseClusterTest;
 import com.kronotop.common.utils.DirectoryLayout;
-import com.typesafe.config.Config;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,16 +34,15 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.UUID;
 
-public class BaseVolumeTest extends BaseTest {
-    protected KronotopTestInstance kronotopInstance;
-    protected EmbeddedChannel channel;
+public class BaseVolumeTest extends BaseClusterTest {
     protected Database database;
     protected Volume volume;
     protected VolumeConfig volumeConfig;
-
-    Context context;
-    VolumeService service;
-    DirectorySubspace subspace;
+    protected KronotopTestInstance coordinator;
+    protected EmbeddedChannel channel;
+    protected Context context;
+    protected VolumeService service;
+    protected DirectorySubspace subspace;
 
     protected ByteBuffer[] getEntries(int number) {
         int capacity = 10;
@@ -57,8 +55,8 @@ public class BaseVolumeTest extends BaseTest {
     }
 
     protected DirectorySubspace getSubspace() {
-        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
-            String clusterName = kronotopInstance.getContext().getConfig().getString("cluster.name");
+        try (Transaction tr = coordinator.getContext().getFoundationDB().createTransaction()) {
+            String clusterName = coordinator.getContext().getConfig().getString("cluster.name");
             List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add("volumes-test").add(UUID.randomUUID().toString()).asList();
             DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
             tr.commit().join();
@@ -67,11 +65,6 @@ public class BaseVolumeTest extends BaseTest {
     }
 
     void setupVolumeTestEnv() throws IOException {
-        database = kronotopInstance.getContext().getFoundationDB();
-        context = kronotopInstance.getContext();
-        service = kronotopInstance.getContext().getService(VolumeService.NAME);
-        subspace = getSubspace();
-
         String name = context.getConfig().getString("volume_test.volume.name");
         String rootPath = context.getConfig().getString("volume_test.volume.root_path");
         Long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
@@ -79,8 +72,8 @@ public class BaseVolumeTest extends BaseTest {
         volumeConfig = new VolumeConfig(subspace, name, rootPath, segmentSize, allowedGarbageRatio);
         volume = service.newVolume(volumeConfig);
 
-        // Set an owner for this newly created Volume instance
-        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+        // Set an owner for this new Volume instance
+        try (Transaction tr = coordinator.getContext().getFoundationDB().createTransaction()) {
             VolumeMetadata.compute(tr, subspace, (volumeMetadata -> {
                 Host host = new Host(Role.OWNER, context.getMember());
                 volumeMetadata.setOwner(host);
@@ -90,17 +83,22 @@ public class BaseVolumeTest extends BaseTest {
     }
 
     @BeforeEach
-    public void setup() throws IOException, InterruptedException {
-        Config config = loadConfig("test.conf");
-        kronotopInstance = new KronotopTestInstance(config);
-        kronotopInstance.start();
-        channel = kronotopInstance.getChannel();
-        setupVolumeTestEnv();
+    public void setupBaseVolumeTest() {
+        coordinator = getClusterCoordinator();
+        channel = coordinator.getChannel();
+        database = coordinator.getContext().getFoundationDB();
+        context = coordinator.getContext();
+        service = coordinator.getContext().getService(VolumeService.NAME);
+        subspace = getSubspace();
+        try {
+            setupVolumeTestEnv();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @AfterEach
-    public void tearDown() {
+    public void tearDownBaseVolumeTest() {
         volume.close();
-        kronotopInstance.shutdown();
     }
 }

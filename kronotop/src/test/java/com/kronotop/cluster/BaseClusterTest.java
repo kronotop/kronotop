@@ -80,6 +80,33 @@ public class BaseClusterTest extends BaseTest {
     }
 
     /**
+     * Retrieves the cluster coordinator instance from the Kronotop test instances.
+     *
+     * <p>
+     * This method iterates through the Kronotop test instances and checks if the instance's member
+     * is equal to the known coordinator member obtained from the membership service. If a matching coordinator
+     * instance is found, it is returned.
+     * </p>
+     * <p>
+     * If no coordinator instance is found, an {@code IllegalStateException} is thrown.
+     * </p>
+     *
+     * @return the cluster coordinator instance
+     * @throws IllegalStateException if no coordinator instance is found
+     */
+    protected KronotopTestInstance getClusterCoordinator() {
+        KronotopTestInstance instance =  kronotopInstances.values().iterator().next();
+        MembershipService membershipService = instance.getContext().getService(MembershipService.NAME);
+        Member coordinator = membershipService.getKnownCoordinator();
+        for (KronotopTestInstance coordinatorInstance : kronotopInstances.values()) {
+            if (coordinatorInstance.getContext().getMember().equals(coordinator)) {
+                return coordinatorInstance;
+            }
+        }
+        throw new IllegalStateException("No coordinator found");
+    }
+
+    /**
      * Tears down the Kronotop cluster by shutting down all instances.
      * <p>
      * This method iterates through all the instances in the {@code kronotopInstances} map and calls
