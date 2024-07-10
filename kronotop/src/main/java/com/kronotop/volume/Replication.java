@@ -20,7 +20,10 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.cluster.internalclient.InternalCommand;
+import com.kronotop.cluster.client.InternalClient;
+import com.kronotop.cluster.client.StatefulInternalConnection;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.api.StatefulRedisConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -101,10 +104,9 @@ public class Replication {
                 System.out.println(entry);
             }
 
-            JedisPool pool = new JedisPool("localhost", 6379);
-            try (Jedis jedis = pool.getResource()) {
-                //jedis.sendCommand(InternalCommand.SEGMENTRANGE);
-            }
+            RedisClient redisClient = RedisClient.create("redis://localhost/0");
+            StatefulInternalConnection<String, String> connection = InternalClient.connect(redisClient);
+            //connection.sync().segmentRange();
         }
     }
 

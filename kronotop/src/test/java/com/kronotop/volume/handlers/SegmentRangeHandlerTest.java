@@ -17,8 +17,8 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.cluster.protocol.InternalCommandBuilder;
-import com.kronotop.cluster.protocol.SegmentRange;
+import com.kronotop.cluster.client.protocol.InternalCommandBuilder;
+import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
@@ -26,6 +26,7 @@ import com.kronotop.volume.BaseNetworkedVolumeTest;
 import com.kronotop.volume.SegmentAnalysis;
 import com.kronotop.volume.Session;
 import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.dynamic.RedisCommandFactory;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;

@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package com.kronotop.client;
+package com.kronotop.cluster.client;
 
-import com.kronotop.protocol.KronotopAsyncCommands;
-import com.kronotop.protocol.KronotopAsyncCommandsImpl;
-import com.kronotop.protocol.KronotopCommands;
+import com.kronotop.cluster.client.protocol.InternalAsyncCommands;
+import com.kronotop.cluster.client.protocol.InternalAsyncCommandsImpl;
+import com.kronotop.cluster.client.protocol.InternalCommands;
 import io.lettuce.core.AbstractRedisClient;
-import io.lettuce.core.cluster.RedisClusterClient;
-import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
 import io.lettuce.core.cluster.api.sync.NodeSelection;
 import io.lettuce.core.cluster.api.sync.NodeSelectionCommands;
@@ -36,37 +36,36 @@ import java.lang.reflect.Proxy;
  * @param <K> the type for Redis keys
  * @param <V> the type for Redis values
  */
-public class StatefulKronotopConnection<K, V> {
-    private final StatefulRedisClusterConnection<K, V> connection;
-    private final KronotopAsyncCommands<K, V> async;
-    private final KronotopCommands<K, V> sync;
+public class StatefulInternalConnection<K, V> {
+    private final StatefulRedisConnection<K, V> connection;
+    private final InternalAsyncCommands<K, V> async;
+    private final InternalCommands<K, V> sync;
 
-    public StatefulKronotopConnection(StatefulRedisClusterConnection<K, V> connection, RedisCodec<K, V> codec) {
+    public StatefulInternalConnection(StatefulRedisConnection<K, V> connection, RedisCodec<K, V> codec) {
         this.connection = connection;
-        this.async = new KronotopAsyncCommandsImpl<>(connection, codec);
+        this.async = new InternalAsyncCommandsImpl<>(connection, codec);
         this.sync = newKronotopCommandsImpl();
-
     }
 
-    public static StatefulKronotopConnection<String, String> connect(RedisClusterClient redisClusterClient) {
-        return KronotopClient.connect(redisClusterClient);
+    public static StatefulInternalConnection<String, String> connect(RedisClient redisClient) {
+        return InternalClient.connect(redisClient);
     }
 
-    public static <K, V> StatefulKronotopConnection<K, V> connect(RedisClusterClient redisClusterClient, RedisCodec<K, V> codec) {
-        StatefulRedisClusterConnection<K, V> connection = redisClusterClient.connect(codec);
-        return new StatefulKronotopConnection<>(connection, codec);
+    public static <K, V> StatefulInternalConnection<K, V> connect(RedisClient redisClient, RedisCodec<K, V> codec) {
+        StatefulRedisConnection<K, V> connection = redisClient.connect(codec);
+        return new StatefulInternalConnection<>(connection, codec);
     }
 
-    public KronotopAsyncCommands<K, V> async() {
+    public InternalAsyncCommands<K, V> async() {
         return async;
     }
 
-    public KronotopCommands<K, V> sync() {
+    public InternalCommands<K, V> sync() {
         return sync;
     }
 
-    private KronotopCommands<K, V> newKronotopCommandsImpl() {
-        return clusterSyncHandler(KronotopCommands.class);
+    private InternalCommands<K, V> newKronotopCommandsImpl() {
+        return clusterSyncHandler(InternalCommands.class);
     }
 
     @SuppressWarnings("unchecked")

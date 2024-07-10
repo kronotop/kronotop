@@ -14,21 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.internalclient;
+package com.kronotop.cluster.client.protocol;
 
-import redis.clients.jedis.commands.ProtocolCommand;
-import redis.clients.jedis.util.SafeEncoder;
-
-public enum InternalCommand implements ProtocolCommand {
-
-    SEGMENTRANGE("SEGMENTRANGE");
-
-    private final byte[] raw;
-
-    InternalCommand(String command) {
-        this.raw = SafeEncoder.encode(command);
-    }
-    public byte[] getRaw() {
-        return this.raw;
-    }
+public record SegmentRange(long position, long length) {
 }

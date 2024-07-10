@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.protocol;
+package com.kronotop.cluster.client.protocol;
 
 import io.lettuce.core.protocol.ProtocolKeyword;
 

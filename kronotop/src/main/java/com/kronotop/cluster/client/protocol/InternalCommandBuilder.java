@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.protocol;
+package com.kronotop.cluster.client.protocol;
 
 import com.kronotop.protocol.BaseKronotopCommandBuilder;
 import io.lettuce.core.codec.RedisCodec;

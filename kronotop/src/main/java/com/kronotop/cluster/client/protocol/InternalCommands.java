@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.protocol;
 
-public record SegmentRange(long position, long length) {
+package com.kronotop.cluster.client.protocol;
+
+import java.util.List;
+
+public interface InternalCommands<K, V> {
+    List<Object> segmentRange(String volume, String segment, SegmentRange... ranges);
 }
