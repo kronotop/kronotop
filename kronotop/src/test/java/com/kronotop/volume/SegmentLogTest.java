@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class SegmentLogTest extends BaseVolumeTest {
+class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_append() throws IOException {

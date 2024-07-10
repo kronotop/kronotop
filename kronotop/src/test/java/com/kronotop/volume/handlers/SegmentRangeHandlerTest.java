@@ -22,7 +22,7 @@ import com.kronotop.cluster.protocol.SegmentRange;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.volume.BaseVolumeTest;
+import com.kronotop.volume.BaseVolumeIntegrationTest;
 import com.kronotop.volume.SegmentAnalysis;
 import com.kronotop.volume.Session;
 import io.lettuce.core.codec.StringCodec;
@@ -37,7 +37,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class SegmentRangeHandlerTest extends BaseVolumeTest {
+class SegmentRangeHandlerTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_SEGMENTRANGE() throws IOException {

@@ -1,19 +1,3 @@
-/*
- * Copyright (c) 2023-2024 Kronotop
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Database;
@@ -22,28 +6,22 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.google.common.base.Strings;
 import com.kronotop.BaseTest;
-import com.kronotop.Context;
-import com.kronotop.KronotopTestInstance;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.typesafe.config.Config;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 
-import java.io.IOException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.UUID;
 
 public class BaseVolumeTest extends BaseTest {
-    protected Config config;
-    protected Database database;
-    protected Volume volume;
-    protected VolumeConfig volumeConfig;
-    protected KronotopTestInstance kronotopInstance;
-    protected Context context;
-    protected VolumeService service;
-    protected DirectorySubspace subspace;
+
+    protected VolumeConfig getVolumeConfig(Config config, DirectorySubspace subspace) {
+        String name = config.getString("volume_test.volume.name");
+        String rootPath = config.getString("volume_test.volume.root_path");
+        Long segmentSize = config.getLong("volume_test.volume.segment_size");
+        Float allowedGarbageRatio = (float) config.getDouble("volume_test.volume.allowed_garbage_ratio");
+        return new VolumeConfig(subspace, name, rootPath, segmentSize, allowedGarbageRatio);
+    }
 
     protected ByteBuffer[] getEntries(int number) {
         int capacity = 10;
@@ -55,7 +33,7 @@ public class BaseVolumeTest extends BaseTest {
         return entries;
     }
 
-    protected DirectorySubspace getSubspace() {
+    protected DirectorySubspace getSubspace(Database database, Config config) {
         try (Transaction tr = database.createTransaction()) {
             String clusterName = config.getString("cluster.name");
             List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add("volumes-test").add(UUID.randomUUID().toString()).asList();
@@ -63,51 +41,5 @@ public class BaseVolumeTest extends BaseTest {
             tr.commit().join();
             return subspace;
         }
-    }
-
-    void setupVolumeTestEnv() throws IOException {
-        String name = config.getString("volume_test.volume.name");
-        String rootPath = config.getString("volume_test.volume.root_path");
-        Long segmentSize = config.getLong("volume_test.volume.segment_size");
-        Float allowedGarbageRatio = (float) config.getDouble("volume_test.volume.allowed_garbage_ratio");
-        volumeConfig = new VolumeConfig(subspace, name, rootPath, segmentSize, allowedGarbageRatio);
-        volume = service.newVolume(volumeConfig);
-
-        // Set an owner for this new Volume instance
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeMetadata.compute(tr, subspace, (volumeMetadata -> {
-                Host host = new Host(Role.OWNER, context.getMember());
-                volumeMetadata.setOwner(host);
-            }));
-            tr.commit().join();
-        }
-    }
-
-    @BeforeEach
-    public void setup() {
-        config = loadConfig("test.conf");
-
-        kronotopInstance = new KronotopTestInstance(config);
-        try {
-            kronotopInstance.start();
-        } catch (UnknownHostException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-        database = kronotopInstance.getContext().getFoundationDB();
-        context = kronotopInstance.getContext();
-        service = kronotopInstance.getContext().getService(VolumeService.NAME);
-        subspace = getSubspace();
-        
-        try {
-            setupVolumeTestEnv();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @AfterEach
-    public void tearDown() {
-        volume.close();
     }
 }

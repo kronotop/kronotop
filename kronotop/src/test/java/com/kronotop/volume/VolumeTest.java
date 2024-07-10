@@ -32,7 +32,7 @@ import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class VolumeTest extends BaseVolumeTest {
+public class VolumeTest extends BaseVolumeIntegrationTest {
     Random random = new Random();
 
     private ByteBuffer randomBytes(int size) {

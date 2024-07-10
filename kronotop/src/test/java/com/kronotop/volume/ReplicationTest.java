@@ -24,7 +24,7 @@ import java.nio.ByteBuffer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class ReplicationTest extends BaseVolumeTest {
+class ReplicationTest extends BaseVolumeIntegrationTest {
     @Test
     public void test_replication() throws IOException {
 
