@@ -20,8 +20,11 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.cluster.internalclient.InternalCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -96,6 +99,11 @@ public class Replication {
             SegmentLogIterable iterable = new SegmentLogIterable(tr, subspace, segmentName, begin, end);
             for (SegmentLogEntry entry : iterable) {
                 System.out.println(entry);
+            }
+
+            JedisPool pool = new JedisPool("localhost", 6379);
+            try (Jedis jedis = pool.getResource()) {
+                //jedis.sendCommand(InternalCommand.SEGMENTRANGE);
             }
         }
     }

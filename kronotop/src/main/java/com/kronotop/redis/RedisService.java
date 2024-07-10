@@ -22,15 +22,14 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.kronotop.common.KronotopException;
-import com.kronotop.common.resp.RESPError;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.coordinator.Route;
-import com.kronotop.watcher.Watcher;
+import com.kronotop.common.KronotopException;
+import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.cluster.ClusterHandler;
 import com.kronotop.redis.connection.AuthHandler;
 import com.kronotop.redis.connection.HelloHandler;
@@ -51,12 +50,13 @@ import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.Handlers;
 import com.kronotop.server.Request;
-import io.lettuce.core.cluster.SlotHash;
+import com.kronotop.watcher.Watcher;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import redis.clients.jedis.util.JedisClusterCRC16;
 
 import java.util.*;
 import java.util.concurrent.CompletionException;
@@ -358,7 +358,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @throws KronotopException if the key's slot is not owned by any member yet or not owned by the current member
      */
     public Shard findShard(String key) {
-        int slot = SlotHash.getSlot(key);
+        int slot = JedisClusterCRC16.getSlot(key);
         return findShard_internal(slot);
     }
 
@@ -373,7 +373,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     public Shard findShard(List<String> keys) {
         Integer latestSlot = null;
         for (String key : keys) {
-            int currentSlot = SlotHash.getSlot(key);
+            int currentSlot = JedisClusterCRC16.getSlot(key);
             if (latestSlot != null && latestSlot != currentSlot) {
                 throw new KronotopException(RESPError.CROSSSLOT, RESPError.CROSSSLOT_MESSAGE);
             }
