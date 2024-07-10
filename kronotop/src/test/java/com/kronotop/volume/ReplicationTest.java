@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.KronotopTestInstance;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -24,12 +25,12 @@ import java.nio.ByteBuffer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class ReplicationTest extends BaseVolumeIntegrationTest {
+class ReplicationTest extends BaseNetworkedVolumeTest {
+
     @Test
     public void test_replication() throws IOException {
-
         {
-            ByteBuffer[] entries = getEntries(10);
+            ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
             AppendResult result;
             try (Transaction tr = database.createTransaction()) {
                 Session session = new Session(tr);
@@ -39,8 +40,25 @@ class ReplicationTest extends BaseVolumeIntegrationTest {
             assertEquals(10, result.getVersionstampedKeys().length);
         }
 
+        // First, you need to create a new Kronotop instance
+        KronotopTestInstance standbyInstance = addNewInstance();
 
-        Replication replication = new Replication(context, volume);
+        // Create a new volume, it'll be idle.
+        VolumeService volumeService = standbyInstance.getContext().getService(VolumeService.NAME);
+        Volume standbyVolume = volumeService.newVolume(volumeConfig);
+
+        try (Transaction tr = database.createTransaction()) {
+            VolumeMetadata.compute(tr, volumeConfig.subspace(), (volumeMetadata -> {
+                Host owner = new Host(Role.OWNER, kronotopInstance.getMember());
+                volumeMetadata.setOwner(owner);
+
+                Host standby = new Host(Role.STANDBY, standbyInstance.getMember());
+                volumeMetadata.setStandby(standby);
+            }));
+            tr.commit().join();
+        }
+
+        Replication replication = new Replication(standbyInstance.getContext(), standbyVolume);
         replication.start();
     }
 }
