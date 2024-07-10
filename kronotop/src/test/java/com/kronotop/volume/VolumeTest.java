@@ -521,17 +521,18 @@ public class VolumeTest extends BaseVolumeTest {
 
     @Test
     public void test_VolumeMetadata_compute() throws UnknownHostException {
-        Host host = new Host(Role.OWNER, createMemberWithEphemeralPort());
+        Host host = new Host(Role.STANDBY, createMemberWithEphemeralPort());
         try (Transaction tr = database.createTransaction()) {
             VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata) -> {
-                volumeMetadata.setOwner(host);
+                volumeMetadata.setStandby(host);
             });
             tr.commit().join();
         }
 
         try (Transaction tr = database.createTransaction()) {
             VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata) -> {
-                assertEquals(host, volumeMetadata.getOwner());
+                assertEquals(1, volumeMetadata.getStandbyHosts().size());
+                assertEquals(host, volumeMetadata.getStandbyHosts().getFirst());
             });
         }
     }
