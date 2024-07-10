@@ -26,6 +26,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.net.UnknownHostException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -33,8 +35,8 @@ public class BaseTest {
     @TempDir
     public File redisVolumeRootPathTempDir;
 
+    private final String clusterName = UUID.randomUUID().toString();
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
-
 
     protected String getEphemeralTCPPort() {
         // Ephemeral ports (49152 to 65535), as defined by the Internet Assigned Numbers Authority (IANA).
@@ -53,8 +55,11 @@ public class BaseTest {
     }
 
     protected Config loadConfig(String resourceName) {
-        System.setProperty("cluster.name", UUID.randomUUID().toString());
-        System.setProperty("volume_test.volume.root_path", redisVolumeRootPathTempDir.getAbsolutePath());
+        System.setProperty("cluster.name", clusterName);
+
+        Path volumeRootPath = Paths.get(redisVolumeRootPathTempDir.getAbsolutePath(), UUID.randomUUID().toString());
+        System.setProperty("volume_test.volume.root_path", volumeRootPath.toString());
+
         ConfigFactory.invalidateCaches();
         return ConfigFactory.load(resourceName);
     }

@@ -16,7 +16,7 @@
 
 package com.kronotop.cluster;
 
-import com.kronotop.ConfigTestUtil;
+import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.redis.storage.Shard;
 import com.typesafe.config.Config;
@@ -33,8 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * with multiple instances. The class uses a ConcurrentHashMap to store the KronotopTestInstance
  * objects associated with their respective Members.
  */
-public class BaseClusterTest {
-    private final Config config = ConfigTestUtil.load("test.conf");
+public class BaseClusterTest extends BaseTest {
     protected ConcurrentHashMap<Member, KronotopTestInstance> kronotopInstances = new ConcurrentHashMap<>();
 
     @BeforeEach
@@ -67,6 +66,7 @@ public class BaseClusterTest {
      * @throws RuntimeException if an UnknownHostException or InterruptedException occurs
      */
     protected KronotopTestInstance addNewInstance() {
+        Config config = loadConfig("test.conf");
         KronotopTestInstance kronotopInstance = new KronotopTestInstance(config);
 
         try {
@@ -79,6 +79,13 @@ public class BaseClusterTest {
         return kronotopInstance;
     }
 
+    /**
+     * Tears down the Kronotop cluster by shutting down all instances.
+     * <p>
+     * This method iterates through all the instances in the {@code kronotopInstances} map and calls
+     * the {@code shutdown()} method on each instance. It is called automatically after each test method
+     * is executed in a JUnit 5 test class annotated with {@code @Test}.
+     */
     @AfterEach
     public void tearDown() {
         for (KronotopTestInstance kronotopInstance : kronotopInstances.values()) {
