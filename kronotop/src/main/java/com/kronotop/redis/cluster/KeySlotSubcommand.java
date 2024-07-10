@@ -20,13 +20,13 @@ import com.kronotop.redis.cluster.protocol.ClusterMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import redis.clients.jedis.util.JedisClusterCRC16;
+import io.lettuce.core.cluster.SlotHash;
 
 class KeySlotSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
         ClusterMessage clusterMessage = request.attr(MessageTypes.CLUSTER).get();
-        response.writeInteger(JedisClusterCRC16.getSlot(clusterMessage.getKey()));
+        response.writeInteger(SlotHash.getSlot(clusterMessage.getKey()));
     }
 }

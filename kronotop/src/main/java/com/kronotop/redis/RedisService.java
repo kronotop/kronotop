@@ -51,12 +51,12 @@ import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.Handlers;
 import com.kronotop.server.Request;
 import com.kronotop.watcher.Watcher;
+import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.util.JedisClusterCRC16;
 
 import java.util.*;
 import java.util.concurrent.CompletionException;
@@ -358,7 +358,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @throws KronotopException if the key's slot is not owned by any member yet or not owned by the current member
      */
     public Shard findShard(String key) {
-        int slot = JedisClusterCRC16.getSlot(key);
+        int slot = SlotHash.getSlot(key);
         return findShard_internal(slot);
     }
 
@@ -373,7 +373,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     public Shard findShard(List<String> keys) {
         Integer latestSlot = null;
         for (String key : keys) {
-            int currentSlot = JedisClusterCRC16.getSlot(key);
+            int currentSlot = SlotHash.getSlot(key);
             if (latestSlot != null && latestSlot != currentSlot) {
                 throw new KronotopException(RESPError.CROSSSLOT, RESPError.CROSSSLOT_MESSAGE);
             }

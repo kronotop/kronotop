@@ -23,11 +23,8 @@ import com.kronotop.Context;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import io.lettuce.core.RedisClient;
-import io.lettuce.core.api.StatefulRedisConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -85,7 +82,7 @@ public class Replication {
     public void start() {
         checkStandbyOwnership();
 
-        try(Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationMetadata replicationMetadata = getReplicationMetadata(tr);
 
             ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot();
