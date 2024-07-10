@@ -46,8 +46,7 @@ public class BaseMetadataStoreTest extends BaseTest {
 
     @BeforeEach
     public void setup() throws UnknownHostException {
-        String address = String.format("localhost:[%s]", getEphemeralTCPPort());
-        Member member = createMember(address);
+        Member member = createMemberWithEphemeralPort();
         config = loadConfig("test.conf");
         database = FoundationDBFactory.newDatabase(config);
         context = new ContextImpl(config, member, database);

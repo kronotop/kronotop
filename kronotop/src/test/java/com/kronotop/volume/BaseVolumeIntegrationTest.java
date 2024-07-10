@@ -16,32 +16,17 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.google.common.base.Strings;
-import com.kronotop.BaseTest;
-import com.kronotop.Context;
-import com.kronotop.KronotopTestInstance;
-import com.kronotop.common.utils.DirectoryLayout;
-import com.typesafe.config.Config;
+import com.kronotop.server.Handlers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.UUID;
 
 public class BaseVolumeIntegrationTest extends BaseVolumeTest {
-    protected Config config;
-    protected Database database;
     protected Volume volume;
     protected VolumeConfig volumeConfig;
-    protected KronotopTestInstance kronotopInstance;
-    protected Context context;
     protected VolumeService service;
     protected DirectorySubspace subspace;
 
@@ -60,21 +45,10 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
     }
 
     @BeforeEach
-    public void setup() {
-        config = loadConfig("test.conf");
-
-        kronotopInstance = new KronotopTestInstance(config);
-        try {
-            kronotopInstance.start();
-        } catch (UnknownHostException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-        database = kronotopInstance.getContext().getFoundationDB();
-        context = kronotopInstance.getContext();
-        service = kronotopInstance.getContext().getService(VolumeService.NAME);
+    public void setupIntegrationTest() {
+        service = new VolumeService(context, new Handlers());
         subspace = getSubspace(database, config);
-        
+
         try {
             setupVolumeTestEnv();
         } catch (IOException e) {
@@ -83,8 +57,7 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
     }
 
     @AfterEach
-    public void tearDown() {
+    public void tearDownIntegrationTest() {
         volume.close();
-        kronotopInstance.shutdown();
     }
 }

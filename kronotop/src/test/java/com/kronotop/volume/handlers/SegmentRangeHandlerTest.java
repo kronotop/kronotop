@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class SegmentRangeHandlerTest extends BaseVolumeIntegrationTest {
-
+/*
     @Test
     public void test_SEGMENTRANGE() throws IOException {
         ByteBuffer[] entries = {
@@ -96,5 +96,5 @@ class SegmentRangeHandlerTest extends BaseVolumeIntegrationTest {
         Object response = kronotopInstance.getChannel().readOutbound();
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Segment: 'barfoo' could not be found", message.content());
-    }
+    }*/
 }

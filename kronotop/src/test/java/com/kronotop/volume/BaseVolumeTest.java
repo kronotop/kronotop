@@ -5,7 +5,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.google.common.base.Strings;
-import com.kronotop.BaseTest;
+import com.kronotop.BaseMetadataStoreTest;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.typesafe.config.Config;
 
@@ -13,7 +13,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.UUID;
 
-public class BaseVolumeTest extends BaseTest {
+public class BaseVolumeTest extends BaseMetadataStoreTest {
 
     protected VolumeConfig getVolumeConfig(Config config, DirectorySubspace subspace) {
         String name = config.getString("volume_test.volume.name");
