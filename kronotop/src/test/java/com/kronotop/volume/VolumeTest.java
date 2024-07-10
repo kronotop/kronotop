@@ -41,11 +41,6 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         return ByteBuffer.wrap(b);
     }
 
-    @AfterEach
-    public void tearDownVolumeTest() {
-        volume.close();
-    }
-
     @Test
     public void test_append() throws IOException {
         ByteBuffer[] entries = getEntries(2);
@@ -198,7 +193,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         volume.close();
 
         {
-            Volume reopenedVolume = service.newVolume(volumeConfig);
+            Volume reopenedVolume = service.newVolume(volume.getConfig());
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = database.createTransaction()) {
                 Session session = new Session(tr);

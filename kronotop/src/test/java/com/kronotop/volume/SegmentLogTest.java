@@ -31,9 +31,9 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_append() throws IOException {
-        SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
+        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment.getName(), volumeConfig.subspace());
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
 
         try (Transaction tr = database.createTransaction()) {
             SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, 0, 100);
@@ -44,9 +44,9 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_SegmentLogIterable() throws IOException {
-        SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
+        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment.getName(), volumeConfig.subspace());
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
         List<Versionstamp> keys = new ArrayList<>();
         List<SegmentLogValue> values = new ArrayList<>();
 
@@ -72,7 +72,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
         List<SegmentLogEntry> entries = new ArrayList<>();
         try (Transaction tr = database.createTransaction()) {
-            SegmentLogIterable iterable = new SegmentLogIterable(tr, volumeConfig.subspace(), segment.getName());
+            SegmentLogIterable iterable = new SegmentLogIterable(tr, volume.getConfig().subspace(), segment.getName());
             for (SegmentLogEntry segmentLogEntry : iterable) {
                 entries.add(segmentLogEntry);
             }
@@ -91,9 +91,9 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_SegmentLogIterable_range() throws IOException {
-        SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
+        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment.getName(), volumeConfig.subspace());
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
         List<Versionstamp> keys = new ArrayList<>();
         List<SegmentLogValue> values = new ArrayList<>();
 
@@ -122,7 +122,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
         List<SegmentLogEntry> entries = new ArrayList<>();
         try (Transaction tr = database.createTransaction()) {
-            SegmentLogIterable iterable = new SegmentLogIterable(tr, volumeConfig.subspace(), segment.getName(), begin, end);
+            SegmentLogIterable iterable = new SegmentLogIterable(tr, volume.getConfig().subspace(), segment.getName(), begin, end);
             for (SegmentLogEntry segmentLogEntry : iterable) {
                 entries.add(segmentLogEntry);
             }
@@ -141,9 +141,9 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_getCardinality() throws IOException {
-        SegmentConfig segmentConfig = new SegmentConfig(1, volumeConfig.rootPath(), 0xfffff);
+        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().rootPath(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment.getName(), volumeConfig.subspace());
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
 
         int total = 100;
         try (Transaction tr = database.createTransaction()) {

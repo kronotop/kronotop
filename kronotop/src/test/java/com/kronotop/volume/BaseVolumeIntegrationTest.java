@@ -26,12 +26,11 @@ import java.io.IOException;
 
 public class BaseVolumeIntegrationTest extends BaseVolumeTest {
     protected Volume volume;
-    protected VolumeConfig volumeConfig;
     protected VolumeService service;
     protected DirectorySubspace subspace;
 
     void setupVolumeTestEnv() throws IOException {
-        volumeConfig = getVolumeConfig(config, subspace);
+        VolumeConfig volumeConfig = getVolumeConfig(config, subspace);
         volume = service.newVolume(volumeConfig);
 
         // Set an owner for this new Volume instance
