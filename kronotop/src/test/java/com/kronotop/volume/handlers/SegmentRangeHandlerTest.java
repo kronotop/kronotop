@@ -62,9 +62,9 @@ class SegmentRangeHandlerTest extends BaseVolumeTest {
                 new SegmentRange(3, 3),
         };
         cmd.segmentrange(volumeConfig.name(), segmentName, ranges).encode(buf);
-        channel.writeInbound(buf);
+        getClusterCoordinator().getChannel().writeInbound(buf);
 
-        Object response = channel.readOutbound();
+        Object response = getClusterCoordinator().getChannel().readOutbound();
         ArrayRedisMessage message = (ArrayRedisMessage) response;
         for (int i = 0; i < ranges.length; i++) {
             FullBulkStringRedisMessage redisMessage = (FullBulkStringRedisMessage) message.children().get(i);
@@ -78,9 +78,9 @@ class SegmentRangeHandlerTest extends BaseVolumeTest {
 
         ByteBuf buf = Unpooled.buffer();
         cmd.segmentrange("foobar", "barfoo", new SegmentRange(0, 3)).encode(buf);
-        channel.writeInbound(buf);
+        getClusterCoordinator().getChannel().writeInbound(buf);
 
-        Object response = channel.readOutbound();
+        Object response = getClusterCoordinator().getChannel().readOutbound();
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Volume: 'foobar' is not open", message.content());
     }
@@ -91,9 +91,9 @@ class SegmentRangeHandlerTest extends BaseVolumeTest {
 
         ByteBuf buf = Unpooled.buffer();
         cmd.segmentrange(volumeConfig.name(), "barfoo", new SegmentRange(0, 3)).encode(buf);
-        channel.writeInbound(buf);
+        getClusterCoordinator().getChannel().writeInbound(buf);
 
-        Object response = channel.readOutbound();
+        Object response = getClusterCoordinator().getChannel().readOutbound();
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Segment: 'barfoo' could not be found", message.content());
     }

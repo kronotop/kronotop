@@ -39,7 +39,6 @@ public class BaseVolumeTest extends BaseClusterTest {
     protected Volume volume;
     protected VolumeConfig volumeConfig;
     protected KronotopTestInstance coordinator;
-    protected EmbeddedChannel channel;
     protected Context context;
     protected VolumeService service;
     protected DirectorySubspace subspace;
@@ -85,7 +84,6 @@ public class BaseVolumeTest extends BaseClusterTest {
     @BeforeEach
     public void setupBaseVolumeTest() {
         coordinator = getClusterCoordinator();
-        channel = coordinator.getChannel();
         database = coordinator.getContext().getFoundationDB();
         context = coordinator.getContext();
         service = coordinator.getContext().getService(VolumeService.NAME);
