@@ -44,7 +44,7 @@ public class BaseVolumeTest extends BaseTest {
 
     Context context;
     VolumeService service;
-    DirectorySubspace directorySubspace;
+    DirectorySubspace subspace;
 
     protected ByteBuffer[] getEntries(int number) {
         int capacity = 10;
@@ -56,7 +56,7 @@ public class BaseVolumeTest extends BaseTest {
         return entries;
     }
 
-    protected DirectorySubspace getDirectorySubspace() {
+    protected DirectorySubspace getSubspace() {
         try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
             String clusterName = kronotopInstance.getContext().getConfig().getString("cluster.name");
             List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add("volumes-test").add(UUID.randomUUID().toString()).asList();
@@ -70,15 +70,23 @@ public class BaseVolumeTest extends BaseTest {
         database = kronotopInstance.getContext().getFoundationDB();
         context = kronotopInstance.getContext();
         service = kronotopInstance.getContext().getService(VolumeService.NAME);
-        directorySubspace = getDirectorySubspace();
+        subspace = getSubspace();
 
         String name = context.getConfig().getString("volume_test.volume.name");
         String rootPath = context.getConfig().getString("volume_test.volume.root_path");
         Long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
         Float allowedGarbageRatio = (float) context.getConfig().getDouble("volume_test.volume.allowed_garbage_ratio");
-        volumeConfig = new VolumeConfig(directorySubspace, name, rootPath, segmentSize, allowedGarbageRatio);
+        volumeConfig = new VolumeConfig(subspace, name, rootPath, segmentSize, allowedGarbageRatio);
         volume = service.newVolume(volumeConfig);
 
+        // Set an owner for this newly created Volume instance
+        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+            VolumeMetadata.compute(tr, subspace, (volumeMetadata -> {
+                Host host = new Host(Role.OWNER, context.getMember());
+                volumeMetadata.setOwner(host);
+            }));
+            tr.commit().join();
+        }
     }
 
     @BeforeEach

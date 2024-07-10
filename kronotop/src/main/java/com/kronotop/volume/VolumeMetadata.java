@@ -120,6 +120,7 @@ public class VolumeMetadata {
 
     @JsonIgnore
     public Host getOwner() {
+        System.out.println(hosts);
         for (Host host : hosts) {
             if (host.role() == Role.OWNER) {
                 return host;

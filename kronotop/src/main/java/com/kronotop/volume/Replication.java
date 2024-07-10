@@ -77,7 +77,7 @@ public class Replication {
     }
 
     public void start() {
-        //checkStandbyOwnership();
+        checkStandbyOwnership();
 
         try(Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationMetadata replicationMetadata = getReplicationMetadata(tr);
@@ -98,7 +98,6 @@ public class Replication {
                 System.out.println(entry);
             }
         }
-        executor.submit(() -> {});
     }
 
     public void stop() {
