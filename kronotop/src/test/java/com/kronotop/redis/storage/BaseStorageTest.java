@@ -18,8 +18,8 @@ package com.kronotop.redis.storage;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.ConfigTestUtil;
-import com.kronotop.KronotopTestInstance;
 import com.kronotop.Context;
+import com.kronotop.KronotopTestInstance;
 import com.kronotop.redis.RedisService;
 import com.typesafe.config.Config;
 import io.lettuce.core.cluster.SlotHash;

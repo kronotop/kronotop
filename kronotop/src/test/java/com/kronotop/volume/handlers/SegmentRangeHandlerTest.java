@@ -26,7 +26,6 @@ import com.kronotop.volume.BaseNetworkedVolumeTest;
 import com.kronotop.volume.SegmentAnalysis;
 import com.kronotop.volume.Session;
 import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.dynamic.RedisCommandFactory;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;

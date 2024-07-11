@@ -61,12 +61,12 @@ public class ReplicationMetadata {
         return replicationMetadata;
     }
 
-    public void setSnapshot(Snapshot snapshot) {
-        this.snapshot = snapshot;
-    }
-
     public Snapshot getSnapshot() {
         return snapshot;
+    }
+
+    public void setSnapshot(Snapshot snapshot) {
+        this.snapshot = snapshot;
     }
 
     public byte[] toByte() {
@@ -99,20 +99,20 @@ public class ReplicationMetadata {
             return end;
         }
 
-        public void setProcessedEntries(long processedEntries) {
-            this.processedEntries = processedEntries;
-        }
-
         public long getProcessedEntries() {
             return processedEntries;
         }
 
-        public void setSegmentId(long segmentId) {
-            this.segmentId = segmentId;
+        public void setProcessedEntries(long processedEntries) {
+            this.processedEntries = processedEntries;
         }
 
         public long getSegmentId() {
             return segmentId;
+        }
+
+        public void setSegmentId(long segmentId) {
+            this.segmentId = segmentId;
         }
     }
 }

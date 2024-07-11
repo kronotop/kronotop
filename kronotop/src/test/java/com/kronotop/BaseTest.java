@@ -32,11 +32,10 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class BaseTest {
-    @TempDir
-    public File redisVolumeRootPathTempDir;
-
     private final String clusterName = UUID.randomUUID().toString();
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
+    @TempDir
+    public File redisVolumeRootPathTempDir;
 
     protected String getEphemeralTCPPort() {
         // Ephemeral ports (49152 to 65535), as defined by the Internet Assigned Numbers Authority (IANA).

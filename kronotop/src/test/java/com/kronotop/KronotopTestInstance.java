@@ -17,9 +17,9 @@
 package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.coordinator.Route;
+import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.storage.Shard;
 import com.kronotop.server.Router;

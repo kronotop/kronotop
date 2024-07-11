@@ -33,7 +33,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -221,10 +224,10 @@ public class Volume {
     private void appendSegmentLog(Transaction tr, OperationKind kind, int userVersion, EntryMetadata entryMetadata) {
         segmentsLock.readLock().lock();
         try {
-             SegmentLog segmentLog = segmentLogs.get(entryMetadata.segment());
-             if (segmentLog == null) {
-                 throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
-             }
+            SegmentLog segmentLog = segmentLogs.get(entryMetadata.segment());
+            if (segmentLog == null) {
+                throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
+            }
             segmentLog.append(tr, userVersion, new SegmentLogValue(kind, entryMetadata.position(), entryMetadata.length()));
         } finally {
             segmentsLock.readLock().unlock();

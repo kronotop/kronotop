@@ -23,7 +23,6 @@ import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
-import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -96,7 +95,7 @@ public class BaseClusterTest extends BaseTest {
      * @throws IllegalStateException if no coordinator instance is found
      */
     protected KronotopTestInstance getClusterCoordinator() {
-        KronotopTestInstance instance =  kronotopInstances.values().iterator().next();
+        KronotopTestInstance instance = kronotopInstances.values().iterator().next();
         MembershipService membershipService = instance.getContext().getService(MembershipService.NAME);
         Member coordinator = membershipService.getKnownCoordinator();
         for (KronotopTestInstance coordinatorInstance : kronotopInstances.values()) {

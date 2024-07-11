@@ -1,6 +1,5 @@
 package com.kronotop.redis.connection;
 
-import com.kronotop.ConfigTestUtil;
 import com.kronotop.redis.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
