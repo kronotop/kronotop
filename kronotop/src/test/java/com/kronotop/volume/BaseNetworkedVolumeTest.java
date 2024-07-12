@@ -17,15 +17,16 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Database;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.cluster.BaseClusterTest;
+import com.kronotop.cluster.BaseClusterTestWithTCPServer;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
 
-public class BaseNetworkedVolumeTest extends BaseClusterTest {
+public class BaseNetworkedVolumeTest extends BaseClusterTestWithTCPServer {
     protected final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
 
     protected Context context;
@@ -46,6 +47,14 @@ public class BaseNetworkedVolumeTest extends BaseClusterTest {
         volumeConfig = baseVolumeTestWrapper.getVolumeConfig(kronotopInstance.getContext().getConfig(), subspace);
         try {
             volume = volumeService.newVolume(volumeConfig);
+            // Set an owner for this new Volume instance
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeMetadata.compute(tr, subspace, (volumeMetadata -> {
+                    Host host = new Host(Role.OWNER, context.getMember());
+                    volumeMetadata.setOwner(host);
+                }));
+                tr.commit().join();
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

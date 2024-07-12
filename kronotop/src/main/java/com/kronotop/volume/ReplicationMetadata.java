@@ -22,6 +22,10 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.kronotop.JSONUtils;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import static com.kronotop.volume.Prefixes.SEGMENT_REPLICATION_PREFIX;
@@ -33,7 +37,7 @@ public class ReplicationMetadata {
     @JsonIgnore
     private static final Tuple preKey = Tuple.from(SEGMENT_REPLICATION_PREFIX, REPLICATION_METADATA_KEY);
 
-    private Snapshot snapshot;
+    private final Map<String,Snapshot> snapshots = new HashMap<>();
 
     public ReplicationMetadata() {
     }
@@ -61,12 +65,25 @@ public class ReplicationMetadata {
         return replicationMetadata;
     }
 
-    public Snapshot getSnapshot() {
-        return snapshot;
+    @JsonIgnore
+    public Snapshot getSnapshot(String jobId) {
+        return snapshots.get(jobId);
     }
 
-    public void setSnapshot(Snapshot snapshot) {
-        this.snapshot = snapshot;
+    @JsonIgnore
+    public String setSnapshot(Snapshot snapshot) {
+        String jobId = UUID.randomUUID().toString();
+        snapshots.put(jobId, snapshot);
+        return jobId;
+    }
+
+    @JsonIgnore
+    public void dropSnapshot(String jobId) {
+        snapshots.remove(jobId);
+    }
+
+    public Map<String, Snapshot> getSnapshots() {
+        return Collections.unmodifiableMap(snapshots);
     }
 
     public byte[] toByte() {

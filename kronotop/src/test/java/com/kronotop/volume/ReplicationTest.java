@@ -17,15 +17,19 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.KronotopTestInstance;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ReplicationTest extends BaseNetworkedVolumeTest {
+
+    @TempDir
+    private Path standbyVolumeRootPath;
 
     @Test
     public void test_replication() throws IOException {
@@ -40,25 +44,18 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
             assertEquals(10, result.getVersionstampedKeys().length);
         }
 
-        // First, you need to create a new Kronotop instance
-        KronotopTestInstance standbyInstance = addNewInstance();
-
-        // Create a new volume, it'll be idle.
-        VolumeService volumeService = standbyInstance.getContext().getService(VolumeService.NAME);
-        Volume standbyVolume = volumeService.newVolume(volumeConfig);
-
+        final Host source;
+        final String jobId;
         try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata.compute(tr, volumeConfig.subspace(), (volumeMetadata -> {
-                Host owner = new Host(Role.OWNER, kronotopInstance.getMember());
-                volumeMetadata.setOwner(owner);
-
-                Host standby = new Host(Role.STANDBY, standbyInstance.getMember());
-                volumeMetadata.setStandby(standby);
-            }));
+            jobId = Replication.CreateReplicationJob(tr, volume.getConfig().subspace());
+            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+            source = volumeMetadata.getOwner();
             tr.commit().join();
         }
 
-        Replication replication = new Replication(standbyInstance.getContext(), standbyVolume);
+        System.out.println(volume.getConfig().subspace().toString());
+
+        Replication replication = new Replication(context, source, volume.getConfig().subspace(), jobId, standbyVolumeRootPath.toString());
         replication.start();
     }
 }

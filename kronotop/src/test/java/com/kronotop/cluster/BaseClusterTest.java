@@ -59,15 +59,19 @@ public class BaseClusterTest extends BaseTest {
         return true;
     }
 
+    protected KronotopTestInstance addNewInstance() {
+        return addNewInstance(false);
+    }
+
     /**
      * Adds a new KronotopTestInstance to the cluster.
      *
      * @return the added KronotopTestInstance
      * @throws RuntimeException if an UnknownHostException or InterruptedException occurs
      */
-    protected KronotopTestInstance addNewInstance() {
+    protected KronotopTestInstance addNewInstance(boolean runWithTCPServer) {
         Config config = loadConfig("test.conf");
-        KronotopTestInstance kronotopInstance = new KronotopTestInstance(config);
+        KronotopTestInstance kronotopInstance = new KronotopTestInstance(config, runWithTCPServer);
 
         try {
             kronotopInstance.start();

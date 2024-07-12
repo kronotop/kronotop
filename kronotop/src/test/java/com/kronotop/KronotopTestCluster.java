@@ -46,9 +46,7 @@ public class KronotopTestCluster {
         KronotopTestCluster cluster = new KronotopTestCluster(config);
         cluster.start(2);
 
-        KronotopTestInstance instance = cluster.addInstance();
-        System.out.println(instance.getMember());
-
+        cluster.addInstance();
         cluster.shutdown();
     }
 
