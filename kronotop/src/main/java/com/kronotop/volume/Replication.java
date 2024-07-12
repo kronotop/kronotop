@@ -37,19 +37,18 @@ import java.util.concurrent.atomic.AtomicReference;
 public class Replication {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replication.class);
     private final Context context;
-    private final String rootPath;
-    private final String jobId;
-    private final Host source;
-    private final DirectorySubspace subspace;
+    private final ReplicationConfig config;
+    private final RedisClient client;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-    private volatile boolean isClosed = false;
+    private volatile boolean isStarted = false;
 
-    public Replication(Context context, Host source, DirectorySubspace subspace, String jobId, String rootPath) {
+    public Replication(Context context, ReplicationConfig config) {
         this.context = context;
-        this.source = source;
-        this.jobId = jobId;
-        this.rootPath = rootPath;
-        this.subspace = subspace;
+        this.config = config;
+        Member member = config.source().member();
+        this.client = RedisClient.create(
+                String.format("redis://%s:%d", member.getAddress().getHost(), member.getAddress().getPort())
+        );
     }
 
     public static String CreateReplicationJob(Transaction tr, DirectorySubspace subspace) {
@@ -69,10 +68,16 @@ public class Replication {
     }
 
     public void start() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, subspace);
+        if (isStarted) {
+            throw new IllegalStateException("Replication is already started");
+        }
 
-            ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(jobId);
+        StatefulInternalConnection<String, String> connection = InternalClient.connect(client);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
+
+            ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
             if (snapshot.getBegin() == snapshot.getEnd()) {
                 // Start the other thread
                 return;
@@ -82,30 +87,29 @@ public class Replication {
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getEnd()));
 
-            Member member = source.member();
-            RedisClient redisClient = RedisClient.create(String.format("redis://%s:%d", member.getAddress().getHost(), member.getAddress().getPort()));
-            StatefulInternalConnection<String, String> connection = InternalClient.connect(redisClient);
-
-            String segmentName = Segment.generateName(snapshot.getSegmentId());
-            SegmentLogIterable iterable = new SegmentLogIterable(tr, subspace, segmentName, begin, end);
             List<SegmentRange> ranges = new ArrayList<>();
+            String segmentName = Segment.generateName(snapshot.getSegmentId());
+            SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segmentName, begin, end);
             for (SegmentLogEntry entry : iterable) {
                 ranges.add(new SegmentRange(entry.value().position(), entry.value().length()));
             }
             SegmentRange[] r = new SegmentRange[ranges.size()];
             ranges.toArray(r);
-            List<Object> items = connection.sync().segmentRange("redis-volume", segmentName, r);
+            List<Object> items = connection.sync().segmentRange(config.volumeName(), segmentName, r);
             System.out.println(items);
-            redisClient.shutdown();
         }
     }
 
     public void stop() {
-        if (isClosed) {
+        if (!isStarted) {
             return;
         }
 
-        isClosed = true;
-        executor.close();
+        try {
+            executor.close();
+            client.shutdown();
+        } finally {
+            isStarted = false;
+        }
     }
 }

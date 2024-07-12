@@ -55,7 +55,12 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
 
         System.out.println(volume.getConfig().subspace().toString());
 
-        Replication replication = new Replication(context, source, volume.getConfig().subspace(), jobId, standbyVolumeRootPath.toString());
-        replication.start();
+        ReplicationConfig config = new ReplicationConfig(source, volume.getConfig().subspace(), jobId, "redis-volume", standbyVolumeRootPath.toString());
+        Replication replication = new Replication(context, config);
+        try {
+            replication.start();
+        } finally {
+            replication.stop();
+        }
     }
 }
