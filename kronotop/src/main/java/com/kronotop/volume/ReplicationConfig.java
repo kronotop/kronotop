@@ -18,5 +18,11 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 
-public record ReplicationConfig(Host source, DirectorySubspace subspace, String jobId, String volumeName, String rootPath) {
+public record ReplicationConfig(
+        Host source,
+        DirectorySubspace subspace,
+        String jobId,
+        String volumeName,
+        Long segmentSize,
+        String rootPath) {
 }

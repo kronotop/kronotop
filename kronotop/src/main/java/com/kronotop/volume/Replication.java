@@ -25,10 +25,14 @@ import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,12 +71,12 @@ public class Replication {
         return jobId.get();
     }
 
-    public void start() {
+    public void start() throws IOException {
         if (isStarted) {
             throw new IllegalStateException("Replication is already started");
         }
 
-        StatefulInternalConnection<String, String> connection = InternalClient.connect(client);
+        StatefulInternalConnection<byte[], byte[]> connection = InternalClient.connect(client, ByteArrayCodec.INSTANCE);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
@@ -83,20 +87,29 @@ public class Replication {
                 return;
             }
 
+            SegmentConfig segmentConfig = new SegmentConfig(snapshot.getSegmentId(), config.rootPath(), config.segmentSize());
+            Segment segment = new Segment(segmentConfig);
+
             // [begin, end)
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getEnd()));
 
-            List<SegmentRange> ranges = new ArrayList<>();
             String segmentName = Segment.generateName(snapshot.getSegmentId());
+            List<SegmentRange> ranges = new ArrayList<>();
             SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segmentName, begin, end);
             for (SegmentLogEntry entry : iterable) {
                 ranges.add(new SegmentRange(entry.value().position(), entry.value().length()));
             }
+
             SegmentRange[] r = new SegmentRange[ranges.size()];
             ranges.toArray(r);
             List<Object> items = connection.sync().segmentRange(config.volumeName(), segmentName, r);
-            System.out.println(items);
+            for (int i = 0; i < items.size(); i++) {
+                byte[] data = (byte[]) items.get(i);
+                SegmentRange range = r[i];
+                segment.insert(ByteBuffer.wrap(data), range.position());
+            }
+            segment.flush(true);
         }
     }
 

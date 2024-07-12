@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import com.kronotop.BaseMetadataStoreTest;
+import io.netty.buffer.ByteBuf;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -138,6 +139,20 @@ class SegmentTest extends BaseMetadataStoreTest {
             } finally {
                 segment.close();
             }
+        }
+    }
+
+    @Test
+    void test_insert() throws IOException {
+        Segment segment = new Segment(getSegmentConfig());
+        try {
+            byte[] data = "foobar".getBytes();
+            ByteBuffer buffer = ByteBuffer.allocate(data.length).put(data).flip();
+            assertDoesNotThrow(() -> segment.insert(buffer, 100));
+            ByteBuffer buf = segment.get(100, data.length);
+            assertArrayEquals(data, buf.array());
+        } finally {
+            segment.close();
         }
     }
 }

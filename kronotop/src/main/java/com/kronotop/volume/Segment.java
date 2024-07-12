@@ -144,6 +144,18 @@ class Segment {
         }
     }
 
+    void insert(ByteBuffer entry, long position) throws IOException {
+        try {
+            int length = segmentFile.getChannel().write(entry, position);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(String.format("%d bytes has been inserted to segment %s", length, getName()));
+            }
+        } finally {
+            // Now this segment requires a flush.
+            setFlushed(false);
+        }
+    }
+
     ByteBuffer get(long position, long length) throws IOException {
         if (position + length > metadata.getSize()) {
             String message = String.format("position: %d, length: %d but size: %d", position, length, metadata.getSize());
