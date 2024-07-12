@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class Replication {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replication.class);
+    private static final int MAXIMUM_BATCH_SIZE = 100;
     private final Context context;
     private final ReplicationConfig config;
     private final RedisClient client;
@@ -95,22 +95,45 @@ public class Replication {
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getEnd()));
 
             String segmentName = Segment.generateName(snapshot.getSegmentId());
-            List<SegmentRange> ranges = new ArrayList<>();
             SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segmentName, begin, end);
+            int totalEntries = 0;
+            List<SegmentLogEntry> segmentLogEntries = new ArrayList<>();
             for (SegmentLogEntry entry : iterable) {
-                ranges.add(new SegmentRange(entry.value().position(), entry.value().length()));
+                if (totalEntries >= MAXIMUM_BATCH_SIZE) {
+                    break;
+                }
+                segmentLogEntries.add(entry);
+                totalEntries++;
             }
 
-            SegmentRange[] r = new SegmentRange[ranges.size()];
-            ranges.toArray(r);
-            List<Object> items = connection.sync().segmentRange(config.volumeName(), segmentName, r);
-            for (int i = 0; i < items.size(); i++) {
-                byte[] data = (byte[]) items.get(i);
-                SegmentRange range = r[i];
-                segment.insert(ByteBuffer.wrap(data), range.position());
-            }
-            segment.flush(true);
+            List<Object> dataRanges = fetchSegmentRange(connection, segmentName, segmentLogEntries);
+            insertSegmentRange(segment, segmentLogEntries, dataRanges);
+
+            ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
+                ReplicationMetadata.Snapshot s = metadata.getSnapshot(config.jobId());
+                s.setBegin(segmentLogEntries.getLast().key().getBytes());
+            });
+
+            tr.commit().join();
         }
+    }
+
+    private void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> items) throws IOException {
+        for (int i = 0; i < items.size(); i++) {
+            byte[] data = (byte[]) items.get(i);
+            SegmentLogEntry entry = entries.get(i);
+            segment.insert(ByteBuffer.wrap(data), entry.value().position());
+        }
+        segment.flush(true);
+    }
+
+    private List<Object> fetchSegmentRange(StatefulInternalConnection<byte[], byte[]> connection, String segmentName, List<SegmentLogEntry> entries) {
+        SegmentRange[] segmentRanges = new SegmentRange[entries.size()];
+        for (int i = 0; i < entries.size(); i++) {
+            SegmentLogEntry entry = entries.get(i);
+            segmentRanges[i] = new SegmentRange(entry.value().position(), entry.value().length());
+        }
+        return connection.sync().segmentRange(config.volumeName(), segmentName, segmentRanges);
     }
 
     public void stop() {

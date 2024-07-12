@@ -67,5 +67,9 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         } finally {
             replication.stop();
         }
+
+        SegmentConfig segmentConfig = new SegmentConfig(0, config.rootPath(), config.segmentSize());
+        Segment segment = new Segment(segmentConfig);
+
     }
 }
