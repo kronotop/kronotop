@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.JSONUtils;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
@@ -77,30 +78,12 @@ public class Replication {
         return jobId.get();
     }
 
-    private void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException {
-        for (int i = 0; i < dataRange.size(); i++) {
-            byte[] data = (byte[]) dataRange.get(i);
-            SegmentLogEntry entry = entries.get(i);
-            // TODO: Manage segment metadata properly
-            segment.insert(ByteBuffer.wrap(data), entry.value().position());
-        }
-        segment.flush(true);
-    }
-
-    private List<Object> fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
-        SegmentRange[] segmentRanges = new SegmentRange[entries.size()];
-        for (int i = 0; i < entries.size(); i++) {
-            SegmentLogEntry entry = entries.get(i);
-            segmentRanges[i] = new SegmentRange(entry.value().position(), entry.value().length());
-        }
-        return connection.sync().segmentRange(config.volumeName(), segmentName, segmentRanges);
-    }
-
     public void start() throws IOException {
         if (isStarted) {
             throw new IllegalStateException("Replication is already started");
         }
         executor.submit(new SnapshotJob(this));
+        isStarted = true;
     }
 
     public void stop() throws IOException {
@@ -118,6 +101,25 @@ public class Replication {
         } finally {
             isStarted = false;
         }
+    }
+
+    private void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException {
+        for (int i = 0; i < dataRange.size(); i++) {
+            byte[] data = (byte[]) dataRange.get(i);
+            SegmentLogEntry entry = entries.get(i);
+            // TODO: Manage segment metadata properly
+            segment.insert(ByteBuffer.wrap(data), entry.value().position());
+        }
+        segment.flush(true);
+    }
+
+    private List<Object> fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
+        SegmentRange[] segmentRanges = new SegmentRange[entries.size()];
+        for (int i = 0; i < entries.size(); i++) {
+            SegmentLogEntry entry = entries.get(i);
+            segmentRanges[i] = new SegmentRange(entry.value().position(), entry.value().length());
+        }
+        return connection.sync().segmentRange(config.volumeName(), segmentName, segmentRanges);
     }
 
     private static class SnapshotJob implements Runnable {
@@ -144,29 +146,30 @@ public class Replication {
             }
 
             // [begin, end)
-            VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
+            VersionstampedKeySelector begin;
+            if (snapshot.getProcessedEntries() == 0) {
+                begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
+            } else {
+                begin = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getBegin()));
+                // There is no difference between firstGreaterThan and firstGreaterOrEqual. firstGreaterThan still returns the
+                // begin-key. I don't understand why but calling add(1) fixes the problem.
+                begin = begin.add(1);
+            }
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getEnd()));
 
-            String segmentName = Segment.generateName(snapshot.getSegmentId());
-            SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segmentName, begin, end);
-            int totalEntries = 0;
+            SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segment.getName(), begin, end, MAXIMUM_BATCH_SIZE);
             List<SegmentLogEntry> segmentLogEntries = new ArrayList<>();
             for (SegmentLogEntry entry : iterable) {
-                if (totalEntries >= MAXIMUM_BATCH_SIZE) {
-                    break;
-                }
                 segmentLogEntries.add(entry);
-                totalEntries++;
             }
 
-            if (totalEntries == 0) {
-                return new IterationResult(null, totalEntries);
+            if (segmentLogEntries.isEmpty()) {
+                return new IterationResult(null, 0);
             }
 
-            List<Object> dataRanges = replication.fetchSegmentRange(segmentName, segmentLogEntries);
+            List<Object> dataRanges = replication.fetchSegmentRange(segment.getName(), segmentLogEntries);
             replication.insertSegmentRange(segment, segmentLogEntries, dataRanges);
-
-            return new IterationResult(segmentLogEntries.getLast().key(), totalEntries);
+            return new IterationResult(segmentLogEntries.getLast().key(), segmentLogEntries.size());
         }
 
         private void snapshotLoop() {
@@ -178,6 +181,7 @@ public class Replication {
                         ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
                             ReplicationMetadata.Snapshot snapshot = metadata.getSnapshot(config.jobId());
                             snapshot.setBegin(result.latestKey.getBytes());
+                            snapshot.setProcessedEntries(result.processedKeys + snapshot.getProcessedEntries());
                         });
                         tr.commit().join();
                         continue;
