@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Replication {
@@ -46,6 +47,7 @@ public class Replication {
     private final RedisClient client;
     private final StatefulInternalConnection<byte[], byte[]> connection;
     private final HashMap<Long, Segment> openSegments = new HashMap<>();
+    private final Semaphore semaphore = new Semaphore(1);
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean isStarted = false;
 
@@ -119,6 +121,7 @@ public class Replication {
     }
 
     private static class SnapshotJob implements Runnable {
+        private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotJob.class);
         private final Context context;
         private final ReplicationConfig config;
         private final Replication replication;
@@ -166,8 +169,7 @@ public class Replication {
             return new IterationResult(segmentLogEntries.getLast().key(), totalEntries);
         }
 
-        @Override
-        public void run() {
+        private void snapshotLoop() {
             // Take a snapshot
             while (true) {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -184,6 +186,18 @@ public class Replication {
                 } catch (IOException e) {
                     LOGGER.error("Error while fetching segment logs", e);
                 }
+            }
+        }
+
+        @Override
+        public void run() {
+            try {
+                replication.semaphore.acquire();
+                snapshotLoop();
+            } catch (Exception e) {
+                LOGGER.error("SnapshotJob: {} has failed", replication.config.jobId(), e);
+            } finally {
+                replication.semaphore.release();
             }
         }
 
