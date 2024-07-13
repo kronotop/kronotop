@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,6 +45,7 @@ public class Replication {
     private final ReplicationConfig config;
     private final RedisClient client;
     private final StatefulInternalConnection<byte[], byte[]> connection;
+    private final HashMap<Long, Segment> openSegments = new HashMap<>();
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean isStarted = false;
 
@@ -127,9 +129,12 @@ public class Replication {
             ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
             ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
 
-            // TODO: Cache this
-            SegmentConfig segmentConfig = new SegmentConfig(snapshot.getSegmentId(), config.rootPath(), config.segmentSize());
-            Segment segment = new Segment(segmentConfig);
+            Segment segment = replication.openSegments.get(snapshot.getSegmentId());
+            if (segment == null) {
+                SegmentConfig segmentConfig = new SegmentConfig(snapshot.getSegmentId(), config.rootPath(), config.segmentSize());
+                segment = new Segment(segmentConfig);
+                replication.openSegments.put(snapshot.getSegmentId(), segment);
+            }
 
             // [begin, end)
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
