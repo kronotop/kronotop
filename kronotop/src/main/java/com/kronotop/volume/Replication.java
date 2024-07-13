@@ -43,6 +43,7 @@ public class Replication {
     private final Context context;
     private final ReplicationConfig config;
     private final RedisClient client;
+    private final StatefulInternalConnection<byte[], byte[]> connection;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile boolean isStarted = false;
 
@@ -53,6 +54,7 @@ public class Replication {
         this.client = RedisClient.create(
                 String.format("redis://%s:%d", member.getAddress().getHost(), member.getAddress().getPort())
         );
+        this.connection = InternalClient.connect(client, ByteArrayCodec.INSTANCE);
     }
 
     public static String CreateReplicationJob(Transaction tr, DirectorySubspace subspace) {
@@ -71,22 +73,61 @@ public class Replication {
         return jobId.get();
     }
 
+    private void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException {
+        for (int i = 0; i < dataRange.size(); i++) {
+            byte[] data = (byte[]) dataRange.get(i);
+            SegmentLogEntry entry = entries.get(i);
+            // TODO: Manage segment metadata properly
+            segment.insert(ByteBuffer.wrap(data), entry.value().position());
+        }
+        segment.flush(true);
+    }
+
+    private List<Object> fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
+        SegmentRange[] segmentRanges = new SegmentRange[entries.size()];
+        for (int i = 0; i < entries.size(); i++) {
+            SegmentLogEntry entry = entries.get(i);
+            segmentRanges[i] = new SegmentRange(entry.value().position(), entry.value().length());
+        }
+        return connection.sync().segmentRange(config.volumeName(), segmentName, segmentRanges);
+    }
+
     public void start() throws IOException {
         if (isStarted) {
             throw new IllegalStateException("Replication is already started");
         }
+        executor.submit(new SnapshotJob(this));
+    }
 
-        StatefulInternalConnection<byte[], byte[]> connection = InternalClient.connect(client, ByteArrayCodec.INSTANCE);
+    public void stop() {
+        if (!isStarted) {
+            return;
+        }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try {
+            executor.close();
+            client.shutdown();
+        } finally {
+            isStarted = false;
+        }
+    }
+
+    private static class SnapshotJob implements Runnable {
+        private final Context context;
+        private final ReplicationConfig config;
+        private final Replication replication;
+
+        public SnapshotJob(Replication replication) {
+            this.replication = replication;
+            this.context = replication.context;
+            this.config = replication.config;
+        }
+
+        private IterationResult iterateSegmentLogEntries(Transaction tr) throws IOException {
             ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
-
             ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
-            if (snapshot.getBegin() == snapshot.getEnd()) {
-                // Start the other thread
-                return;
-            }
 
+            // TODO: Cache this
             SegmentConfig segmentConfig = new SegmentConfig(snapshot.getSegmentId(), config.rootPath(), config.segmentSize());
             Segment segment = new Segment(segmentConfig);
 
@@ -106,46 +147,38 @@ public class Replication {
                 totalEntries++;
             }
 
-            List<Object> dataRanges = fetchSegmentRange(connection, segmentName, segmentLogEntries);
-            insertSegmentRange(segment, segmentLogEntries, dataRanges);
+            if (totalEntries == 0) {
+                return new IterationResult(null, totalEntries);
+            }
 
-            ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
-                ReplicationMetadata.Snapshot s = metadata.getSnapshot(config.jobId());
-                s.setBegin(segmentLogEntries.getLast().key().getBytes());
-            });
+            List<Object> dataRanges = replication.fetchSegmentRange(segmentName, segmentLogEntries);
+            replication.insertSegmentRange(segment, segmentLogEntries, dataRanges);
 
-            tr.commit().join();
-        }
-    }
-
-    private void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> items) throws IOException {
-        for (int i = 0; i < items.size(); i++) {
-            byte[] data = (byte[]) items.get(i);
-            SegmentLogEntry entry = entries.get(i);
-            segment.insert(ByteBuffer.wrap(data), entry.value().position());
-        }
-        segment.flush(true);
-    }
-
-    private List<Object> fetchSegmentRange(StatefulInternalConnection<byte[], byte[]> connection, String segmentName, List<SegmentLogEntry> entries) {
-        SegmentRange[] segmentRanges = new SegmentRange[entries.size()];
-        for (int i = 0; i < entries.size(); i++) {
-            SegmentLogEntry entry = entries.get(i);
-            segmentRanges[i] = new SegmentRange(entry.value().position(), entry.value().length());
-        }
-        return connection.sync().segmentRange(config.volumeName(), segmentName, segmentRanges);
-    }
-
-    public void stop() {
-        if (!isStarted) {
-            return;
+            return new IterationResult(segmentLogEntries.getLast().key(), totalEntries);
         }
 
-        try {
-            executor.close();
-            client.shutdown();
-        } finally {
-            isStarted = false;
+        @Override
+        public void run() {
+            // Take a snapshot
+            while (true) {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    IterationResult result = iterateSegmentLogEntries(tr);
+                    if (result.processedKeys > 0) {
+                        ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
+                            ReplicationMetadata.Snapshot snapshot = metadata.getSnapshot(config.jobId());
+                            snapshot.setBegin(result.latestKey.getBytes());
+                        });
+                        tr.commit().join();
+                        continue;
+                    }
+                    break;
+                } catch (IOException e) {
+                    LOGGER.error("Error while fetching segment logs", e);
+                }
+            }
+        }
+
+        private record IterationResult(Versionstamp latestKey, int processedKeys) {
         }
     }
 }
