@@ -101,9 +101,13 @@ public class Replication {
         executor.submit(new SnapshotJob(this));
     }
 
-    public void stop() {
+    public void stop() throws IOException {
         if (!isStarted) {
             return;
+        }
+
+        for (Segment segment : openSegments.values()) {
+            segment.close();
         }
 
         try {
