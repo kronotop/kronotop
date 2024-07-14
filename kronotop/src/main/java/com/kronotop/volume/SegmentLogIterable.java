@@ -67,6 +67,7 @@ class SegmentLogIterable implements Iterable<SegmentLogEntry> {
 
         KeySelector endKeySelector;
         if (end == null) {
+            // TODO: This looks wrong to me.
             endKeySelector = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(beginKeySelector.getKey()));
         } else {
             endKeySelector = new KeySelector(packKey(end.getKey()), end.orEqual(), end.getOffset());

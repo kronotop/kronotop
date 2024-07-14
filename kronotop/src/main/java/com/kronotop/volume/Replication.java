@@ -18,6 +18,7 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.cluster.Member;
@@ -32,11 +33,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Replication {
@@ -49,6 +49,7 @@ public class Replication {
     private final HashMap<Long, Segment> openSegments = new HashMap<>();
     private final Semaphore semaphore = new Semaphore(1);
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    private final AtomicReference<Future<?>> snapshotFuture = new AtomicReference<>();
     private volatile boolean isStarted = false;
 
     public Replication(Context context, ReplicationConfig config) {
@@ -77,11 +78,15 @@ public class Replication {
         return jobId.get();
     }
 
+    public AtomicReference<Future<?>> getSnapshotFuture() {
+        return snapshotFuture;
+    }
+
     public void start() throws IOException {
         if (isStarted) {
             throw new IllegalStateException("Replication is already started");
         }
-        executor.submit(new SnapshotJob(this));
+        snapshotFuture.set(executor.submit(new SnapshotJob(this)));
         isStarted = true;
     }
 
@@ -132,30 +137,8 @@ public class Replication {
             this.config = replication.config;
         }
 
-        private IterationResult iterateSegmentLogEntries(Transaction tr) throws IOException, NotEnoughSpaceException {
-            ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
-            ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
-
-            Segment segment = replication.openSegments.get(snapshot.getSegmentId());
-            if (segment == null) {
-                SegmentConfig segmentConfig = new SegmentConfig(snapshot.getSegmentId(), config.rootPath(), config.segmentSize());
-                segment = new Segment(segmentConfig);
-                replication.openSegments.put(snapshot.getSegmentId(), segment);
-            }
-
-            // [begin, end)
-            VersionstampedKeySelector begin;
-            if (snapshot.getProcessedEntries() == 0) {
-                begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
-            } else {
-                begin = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getBegin()));
-                // There is no difference between firstGreaterThan and firstGreaterOrEqual. firstGreaterThan still returns the
-                // begin-key. I don't understand why but calling add(1) fixes the problem.
-                begin = begin.add(1);
-            }
-            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getEnd()));
-
-            SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segment.getName(), begin, end, MAXIMUM_BATCH_SIZE);
+        private IterationResult iterate(Transaction tr, Segment segment, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) throws NotEnoughSpaceException, IOException {
+            SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segment.getName(), begin, end, limit);
             List<SegmentLogEntry> segmentLogEntries = new ArrayList<>();
             for (SegmentLogEntry entry : iterable) {
                 segmentLogEntries.add(entry);
@@ -170,18 +153,57 @@ public class Replication {
             return new IterationResult(segmentLogEntries.getLast().key(), segmentLogEntries.size());
         }
 
+        private IterationResult iterateSegmentLogEntries(Transaction tr) throws IOException, NotEnoughSpaceException {
+            ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
+            ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
+
+            Segment segment = replication.openSegments.get(snapshot.getSegmentId());
+            if (segment == null) {
+                SegmentConfig segmentConfig = new SegmentConfig(snapshot.getSegmentId(), config.rootPath(), config.segmentSize());
+                segment = new Segment(segmentConfig);
+                replication.openSegments.put(snapshot.getSegmentId(), segment);
+            }
+
+            // [begin, end)
+            VersionstampedKeySelector begin; // inclusive
+            if (snapshot.getProcessedEntries() == 0) {
+                begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
+            } else {
+                begin = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getBegin()));
+                // There is no difference between firstGreaterThan and firstGreaterOrEqual. firstGreaterThan still returns the
+                // begin-key. I don't understand why but calling add(1) fixes the problem.
+                begin = begin.add(1);
+            }
+            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getEnd())); // exclusive
+
+            IterationResult iterationResult = iterate(tr, segment, begin, end, MAXIMUM_BATCH_SIZE);
+            if (iterationResult.processedKeys() == 0) {
+                // Fetch the end key to fulfill the condition: [begin, end]
+                begin = VersionstampedKeySelector.firstGreaterOrEqual(end.getKey());
+                iterationResult = iterate(tr, segment, begin, null, 1);
+            }
+
+            return iterationResult;
+        }
+
         private void snapshotLoop() {
             // Take a snapshot
             while (true) {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     IterationResult result = iterateSegmentLogEntries(tr);
                     if (result.processedKeys > 0) {
-                        ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
+                        ReplicationMetadata replicationMetadata = ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
                             ReplicationMetadata.Snapshot snapshot = metadata.getSnapshot(config.jobId());
                             snapshot.setBegin(result.latestKey.getBytes());
                             snapshot.setProcessedEntries(result.processedKeys + snapshot.getProcessedEntries());
                         });
                         tr.commit().join();
+
+                        // The end key fetched: [begin, end]
+                        ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
+                        if (Arrays.equals(snapshot.getBegin(), snapshot.getEnd())) {
+                            break;
+                        }
                         continue;
                     }
                     break;
