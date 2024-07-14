@@ -33,6 +33,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 class Segment {
     private static final Logger LOGGER = LoggerFactory.getLogger(Segment.class);
+    protected static final int SEGMENT_NAME_SIZE = 19;
     private final SegmentConfig config;
     private final String name;
     private final SegmentMetadata metadata;
