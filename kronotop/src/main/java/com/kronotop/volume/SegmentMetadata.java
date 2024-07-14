@@ -19,12 +19,11 @@ package com.kronotop.volume;
 import java.nio.ByteBuffer;
 
 public class SegmentMetadata {
-    public static final int HEADER_SIZE = 32;
+    public static final int HEADER_SIZE = 24;
     private final long id;
     private final long size;
     private final ByteBuffer buffer;
     private long position;
-    private long wastedBytes;
 
     public SegmentMetadata(long id, long size) {
         this.id = id;
@@ -38,7 +37,6 @@ public class SegmentMetadata {
         long size = buffer.getLong();
         SegmentMetadata segmentMetadata = new SegmentMetadata(id, size);
         segmentMetadata.setPosition(buffer.getLong());
-        segmentMetadata.setWastedBytes(buffer.getLong());
         return segmentMetadata;
     }
 
@@ -58,20 +56,11 @@ public class SegmentMetadata {
         this.position = position;
     }
 
-    public long getWastedBytes() {
-        return wastedBytes;
-    }
-
-    public void setWastedBytes(long wastedBytes) {
-        this.wastedBytes = wastedBytes;
-    }
-
     public ByteBuffer encode() {
         buffer.clear();
         buffer.putLong(id);
         buffer.putLong(size);
         buffer.putLong(position);
-        buffer.putLong(wastedBytes);
         buffer.flip();
         return buffer;
     }

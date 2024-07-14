@@ -144,12 +144,28 @@ class Segment {
         }
     }
 
-    void insert(ByteBuffer entry, long position) throws IOException {
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private void updateMetadataPosition(long position) throws NotEnoughSpaceException, IOException {
+        lock.writeLock().lock();
+        try {
+            if (position > metadata.getSize()) {
+                throw new NotEnoughSpaceException();
+            }
+            metadata.setPosition(position);
+            ByteBuffer buffer = metadata.encode();
+            metadataFile.getChannel().write(buffer, 0);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    void insert(ByteBuffer entry, long position) throws IOException, NotEnoughSpaceException {
         try {
             int length = segmentFile.getChannel().write(entry, position);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(String.format("%d bytes has been inserted to segment %s", length, getName()));
             }
+            updateMetadataPosition(position);
         } finally {
             // Now this segment requires a flush.
             setFlushed(false);

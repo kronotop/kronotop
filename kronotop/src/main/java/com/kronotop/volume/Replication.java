@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.JSONUtils;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
@@ -103,11 +102,10 @@ public class Replication {
         }
     }
 
-    private void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException {
+    private void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException, NotEnoughSpaceException {
         for (int i = 0; i < dataRange.size(); i++) {
             byte[] data = (byte[]) dataRange.get(i);
             SegmentLogEntry entry = entries.get(i);
-            // TODO: Manage segment metadata properly
             segment.insert(ByteBuffer.wrap(data), entry.value().position());
         }
         segment.flush(true);
@@ -134,7 +132,7 @@ public class Replication {
             this.config = replication.config;
         }
 
-        private IterationResult iterateSegmentLogEntries(Transaction tr) throws IOException {
+        private IterationResult iterateSegmentLogEntries(Transaction tr) throws IOException, NotEnoughSpaceException {
             ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
             ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
 
@@ -187,7 +185,7 @@ public class Replication {
                         continue;
                     }
                     break;
-                } catch (IOException e) {
+                } catch (IOException | NotEnoughSpaceException e) {
                     LOGGER.error("Error while fetching segment logs", e);
                 }
             }
