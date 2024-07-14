@@ -28,8 +28,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class ReplicationTest extends BaseNetworkedVolumeTest {
 
@@ -80,6 +79,14 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
             });
         } finally {
             replication.stop();
+        }
+
+        try (Transaction tr = database.createTransaction()) {
+            ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, volume.getConfig().subspace());
+            ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(jobId);
+            assertEquals(10, snapshot.getTotalEntries());
+            assertEquals(snapshot.getTotalEntries(), snapshot.getProcessedEntries());
+            assertTrue(snapshot.getLastUpdate() > 0);
         }
 
         VolumeConfig replicaVolumeConfig = new VolumeConfig(

@@ -93,13 +93,17 @@ public class ReplicationMetadata {
     public static class Snapshot {
         private byte[] begin;
         private byte[] end;
+        private long totalEntries;
         private long processedEntries;
         private long segmentId;
+        private long lastUpdate;
 
         Snapshot() {
         }
 
-        public Snapshot(long segmentId, byte[] begin, byte[] end) {
+        public Snapshot(long segmentId, long totalEntries, byte[] begin, byte[] end) {
+            this.segmentId = segmentId;
+            this.totalEntries = totalEntries;
             this.begin = begin;
             this.end = end;
         }
@@ -128,8 +132,24 @@ public class ReplicationMetadata {
             return segmentId;
         }
 
+        public void setTotalEntries(long totalEntries) {
+            this.totalEntries = totalEntries;
+        }
+
+        public long getTotalEntries() {
+            return totalEntries;
+        }
+
         public void setSegmentId(long segmentId) {
             this.segmentId = segmentId;
+        }
+
+        public void setLastUpdate(long lastUpdate) {
+            this.lastUpdate = lastUpdate;
+        }
+
+        public long getLastUpdate() {
+            return lastUpdate;
         }
     }
 }

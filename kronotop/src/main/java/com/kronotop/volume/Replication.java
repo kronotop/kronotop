@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -74,7 +75,14 @@ public class Replication {
             SegmentLogEntry firstEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1).iterator().next();
             SegmentLogEntry lastEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1, true).iterator().next();
 
-            ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(segmentId, firstEntry.key().getBytes(), lastEntry.key().getBytes());
+            SegmentLog segmentLog = new SegmentLog(segmentName, subspace);
+            int totalEntries = segmentLog.getCardinality(tr);
+            ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(
+                    segmentId,
+                    totalEntries,
+                    firstEntry.key().getBytes(),
+                    lastEntry.key().getBytes()
+            );
             jobId.set(metadata.setSnapshot(snapshot));
         });
         return jobId.get();
@@ -198,6 +206,7 @@ public class Replication {
                             ReplicationMetadata.Snapshot snapshot = metadata.getSnapshot(config.jobId());
                             snapshot.setBegin(result.latestKey.getBytes());
                             snapshot.setProcessedEntries(result.processedKeys + snapshot.getProcessedEntries());
+                            snapshot.setLastUpdate(Instant.now().toEpochMilli());
                         });
                         tr.commit().join();
 
