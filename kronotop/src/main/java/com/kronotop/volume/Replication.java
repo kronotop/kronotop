@@ -53,6 +53,7 @@ public class Replication {
     private final Semaphore semaphore = new Semaphore(1);
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final AtomicReference<Future<?>> snapshotFuture = new AtomicReference<>();
+    private final AtomicReference<Future<?>> changeDataCaptureFuture = new AtomicReference<>();
     private volatile boolean isStarted = false;
 
     public Replication(Context context, ReplicationConfig config) {
@@ -97,6 +98,7 @@ public class Replication {
             throw new IllegalStateException("Replication is already started");
         }
         snapshotFuture.set(executor.submit(new SnapshotJob(this)));
+        changeDataCaptureFuture.set(executor.submit(new ChangeDataCapture(this)));
         isStarted = true;
     }
 
@@ -135,6 +137,58 @@ public class Replication {
         return connection.sync().segmentRange(config.volumeName(), segmentName, segmentRanges);
     }
 
+    private IterationResult iterate(Transaction tr, Segment segment, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) throws NotEnoughSpaceException, IOException {
+        SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segment.getName(), begin, end, limit);
+        List<SegmentLogEntry> segmentLogEntries = new ArrayList<>();
+        for (SegmentLogEntry entry : iterable) {
+            segmentLogEntries.add(entry);
+        }
+
+        if (segmentLogEntries.isEmpty()) {
+            return new IterationResult(null, 0);
+        }
+
+        List<Object> dataRanges = fetchSegmentRange(segment.getName(), segmentLogEntries);
+        insertSegmentRange(segment, segmentLogEntries, dataRanges);
+        return new IterationResult(segmentLogEntries.getLast().key(), segmentLogEntries.size());
+    }
+
+    private IterationResult iterateSegmentLogEntries(Transaction tr) throws IOException, NotEnoughSpaceException {
+        ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
+        ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
+
+        Segment segment = openSegments.get(snapshot.getSegmentId());
+        if (segment == null) {
+            SegmentConfig segmentConfig = new SegmentConfig(snapshot.getSegmentId(), config.rootPath(), config.segmentSize());
+            segment = new Segment(segmentConfig);
+            openSegments.put(snapshot.getSegmentId(), segment);
+        }
+
+        // [begin, end)
+        VersionstampedKeySelector begin; // inclusive
+        if (snapshot.getProcessedEntries() == 0) {
+            begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
+        } else {
+            begin = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getBegin()));
+            // There is no difference between firstGreaterThan and firstGreaterOrEqual. firstGreaterThan still returns the
+            // begin-key. I don't understand why but calling add(1) fixes the problem.
+            begin = begin.add(1);
+        }
+        VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getEnd())); // exclusive
+
+        IterationResult iterationResult = iterate(tr, segment, begin, end, MAXIMUM_BATCH_SIZE);
+        if (iterationResult.processedKeys() == 0) {
+            // Fetch the end key to fulfill the condition: [begin, end]
+            begin = VersionstampedKeySelector.firstGreaterOrEqual(end.getKey());
+            iterationResult = iterate(tr, segment, begin, null, 1);
+        }
+
+        return iterationResult;
+    }
+
+    private record IterationResult(Versionstamp latestKey, int processedKeys) {
+    }
+
     private static class SnapshotJob implements Runnable {
         private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotJob.class);
         private final Context context;
@@ -147,60 +201,20 @@ public class Replication {
             this.config = replication.config;
         }
 
-        private IterationResult iterate(Transaction tr, Segment segment, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) throws NotEnoughSpaceException, IOException {
-            SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segment.getName(), begin, end, limit);
-            List<SegmentLogEntry> segmentLogEntries = new ArrayList<>();
-            for (SegmentLogEntry entry : iterable) {
-                segmentLogEntries.add(entry);
-            }
-
-            if (segmentLogEntries.isEmpty()) {
-                return new IterationResult(null, 0);
-            }
-
-            List<Object> dataRanges = replication.fetchSegmentRange(segment.getName(), segmentLogEntries);
-            replication.insertSegmentRange(segment, segmentLogEntries, dataRanges);
-            return new IterationResult(segmentLogEntries.getLast().key(), segmentLogEntries.size());
-        }
-
-        private IterationResult iterateSegmentLogEntries(Transaction tr) throws IOException, NotEnoughSpaceException {
+        private boolean isSnapshotCompleted(Transaction tr) {
             ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
             ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
-
-            Segment segment = replication.openSegments.get(snapshot.getSegmentId());
-            if (segment == null) {
-                SegmentConfig segmentConfig = new SegmentConfig(snapshot.getSegmentId(), config.rootPath(), config.segmentSize());
-                segment = new Segment(segmentConfig);
-                replication.openSegments.put(snapshot.getSegmentId(), segment);
-            }
-
-            // [begin, end)
-            VersionstampedKeySelector begin; // inclusive
-            if (snapshot.getProcessedEntries() == 0) {
-                begin = VersionstampedKeySelector.firstGreaterOrEqual(Versionstamp.fromBytes(snapshot.getBegin()));
-            } else {
-                begin = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getBegin()));
-                // There is no difference between firstGreaterThan and firstGreaterOrEqual. firstGreaterThan still returns the
-                // begin-key. I don't understand why but calling add(1) fixes the problem.
-                begin = begin.add(1);
-            }
-            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(Versionstamp.fromBytes(snapshot.getEnd())); // exclusive
-
-            IterationResult iterationResult = iterate(tr, segment, begin, end, MAXIMUM_BATCH_SIZE);
-            if (iterationResult.processedKeys() == 0) {
-                // Fetch the end key to fulfill the condition: [begin, end]
-                begin = VersionstampedKeySelector.firstGreaterOrEqual(end.getKey());
-                iterationResult = iterate(tr, segment, begin, null, 1);
-            }
-
-            return iterationResult;
+            return snapshot.getProcessedEntries() == snapshot.getTotalEntries();
         }
 
         private void snapshotLoop() {
             // Take a snapshot
             while (true) {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    IterationResult result = iterateSegmentLogEntries(tr);
+                    if (isSnapshotCompleted(tr)) {
+                        break;
+                    }
+                    IterationResult result = replication.iterateSegmentLogEntries(tr);
                     if (result.processedKeys > 0) {
                         ReplicationMetadata replicationMetadata = ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
                             ReplicationMetadata.Snapshot snapshot = metadata.getSnapshot(config.jobId());
@@ -235,8 +249,25 @@ public class Replication {
                 replication.semaphore.release();
             }
         }
+    }
 
-        private record IterationResult(Versionstamp latestKey, int processedKeys) {
+    private static class ChangeDataCapture implements Runnable {
+        private final Replication replication;
+
+        public ChangeDataCapture(Replication replication) {
+            this.replication = replication;
+        }
+
+        @Override
+        public void run() {
+            Future<?> future = replication.getSnapshotFuture().get();
+            try {
+                replication.semaphore.acquire();
+            } catch (Exception e) {
+                LOGGER.error("ChangeDataCapture: {} has failed", replication.config.jobId(), e);
+            } finally {
+                replication.semaphore.release();
+            }
         }
     }
 }
