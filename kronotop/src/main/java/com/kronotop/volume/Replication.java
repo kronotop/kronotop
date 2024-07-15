@@ -36,10 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Replication {
@@ -258,9 +255,21 @@ public class Replication {
             this.replication = replication;
         }
 
+        private void watchChanges() {
+            try(Transaction tr = replication.context.getFoundationDB().createTransaction()) {
+
+            }
+        }
+
         @Override
         public void run() {
             Future<?> future = replication.getSnapshotFuture().get();
+            try {
+                future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.error("Error while fetching segment logs", e);
+            }
+
             try {
                 replication.semaphore.acquire();
             } catch (Exception e) {
