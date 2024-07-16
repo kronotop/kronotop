@@ -48,7 +48,8 @@ public class Replication {
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final AtomicReference<Future<?>> snapshotFuture = new AtomicReference<>();
     private final AtomicReference<Future<?>> changeDataCaptureFuture = new AtomicReference<>();
-    private volatile boolean isStarted = false;
+    private volatile boolean started = false;
+    private volatile boolean stopped = false;
 
     public Replication(Context context, ReplicationConfig config) {
         this.context = context;
@@ -96,28 +97,28 @@ public class Replication {
     }
 
     public void start() throws IOException {
-        if (isStarted) {
+        if (started) {
             throw new IllegalStateException("Replication is already started");
         }
+        started = true;
         snapshotFuture.set(executor.submit(new SnapshotJobRunner(this)));
         changeDataCaptureFuture.set(executor.submit(new ChangeDataCaptureRunner(this)));
-        isStarted = true;
     }
 
     public void stop() throws IOException {
-        if (!isStarted) {
-            return;
+        if (!started) {
+            throw new IllegalStateException("Replication is not started");
         }
 
+        stopped = true;
         for (Segment segment : openSegments.values()) {
             segment.close();
         }
-
         try {
             executor.close();
             client.shutdown();
         } finally {
-            isStarted = false;
+            started = false;
         }
     }
 
@@ -213,6 +214,11 @@ public class Replication {
         private void snapshotLoopOnSegment(long segmentId) {
             // Take a snapshot
             while (true) {
+                if (replication.stopped) {
+                    // Replication has stopped.
+                    break;
+                }
+
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     if (isSnapshotCompleted(tr, segmentId)) {
                         break;
@@ -250,6 +256,11 @@ public class Replication {
             }
             SnapshotJob snapshotJob = replicationMetadata.getSnapshotJob(config.jobId());
             for (Map.Entry<Long, Snapshot> entry : snapshotJob.entrySet()) {
+                if (replication.stopped) {
+                    // Replication has stopped.
+                    break;
+                }
+
                 Snapshot snapshot = entry.getValue();
                 if (snapshot.getProcessedEntries() == snapshot.getTotalEntries()) {
                     // Completed
