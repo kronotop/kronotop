@@ -24,6 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.Random;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -31,25 +32,17 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ReplicationTest extends BaseNetworkedVolumeTest {
-
+    Random random = new Random();
     @TempDir
     private Path standbyVolumeRootPath;
 
-    @Test
-    public void test_take_snapshot() throws IOException {
-        Versionstamp[] versionstampedKeys;
-        {
-            AppendResult result;
-            ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
-            try (Transaction tr = database.createTransaction()) {
-                Session session = new Session(tr);
-                result = volume.append(session, entries);
-                tr.commit().join();
-            }
-            versionstampedKeys = result.getVersionstampedKeys();
-            assertEquals(10, versionstampedKeys.length);
-        }
+    private ByteBuffer randomBytes(int size) {
+        byte[] b = new byte[size];
+        random.nextBytes(b);
+        return ByteBuffer.wrap(b);
+    }
 
+    private void testReplication(Versionstamp[] versionstampedKeys) throws IOException {
         final Host source;
         final String jobId;
         try (Transaction tr = database.createTransaction()) {
@@ -84,7 +77,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         try (Transaction tr = database.createTransaction()) {
             ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, volume.getConfig().subspace());
             SnapshotJob snapshotJob = replicationMetadata.getSnapshotJob(jobId);
-            for (Snapshot snapshot: snapshotJob.values()) {
+            for (Snapshot snapshot : snapshotJob.values()) {
                 assertEquals(10, snapshot.getTotalEntries());
                 assertEquals(snapshot.getTotalEntries(), snapshot.getProcessedEntries());
                 assertTrue(snapshot.getLastUpdate() > 0);
@@ -105,5 +98,44 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
             ByteBuffer replicaBuf = replicaVolume.get(versionstampedKey);
             assertArrayEquals(buf.array(), replicaBuf.array());
         }
+    }
+
+    @Test
+    public void test_take_snapshot() throws IOException {
+        Versionstamp[] versionstampedKeys;
+        AppendResult result;
+        ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+        versionstampedKeys = result.getVersionstampedKeys();
+        assertEquals(10, versionstampedKeys.length);
+        testReplication(versionstampedKeys);
+    }
+
+    @Test
+    public void test_take_snapshot_when_many_segments_exists() throws IOException {
+        Versionstamp[] versionstampedKeys;
+
+        long bufferSize = 100480;
+        long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
+        long numIterations = 2 * (segmentSize / bufferSize);
+
+        ByteBuffer[] entries = new ByteBuffer[(int) numIterations];
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (int i = 1; i <= numIterations; i++) {
+                entries[i - 1] = randomBytes((int) bufferSize);
+                ;
+            }
+            Session session = new Session(tr);
+            AppendResult result = volume.append(session, entries);
+            tr.commit().join();
+            versionstampedKeys = result.getVersionstampedKeys();
+        }
+
+        assertEquals(2, volume.analyze().size());
+        testReplication(versionstampedKeys);
     }
 }
