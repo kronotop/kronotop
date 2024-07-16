@@ -32,10 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -67,21 +64,29 @@ public class Replication {
         AtomicReference<String> jobId = new AtomicReference<>();
         ReplicationMetadata.compute(tr, subspace, (metadata) -> {
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, subspace);
-            long segmentId = volumeMetadata.getSegments().getFirst();
 
-            String segmentName = Segment.generateName(segmentId);
-            SegmentLogEntry firstEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1).iterator().next();
-            SegmentLogEntry lastEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1, true).iterator().next();
+            SnapshotJob snapshotJob = new SnapshotJob();
+            for (Long segmentId : volumeMetadata.getSegments()) {
+                String segmentName = Segment.generateName(segmentId);
+                SegmentLogEntry firstEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1).iterator().next();
+                SegmentLogEntry lastEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1, true).iterator().next();
 
-            SegmentLog segmentLog = new SegmentLog(segmentName, subspace);
-            int totalEntries = segmentLog.getCardinality(tr);
-            ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(
-                    segmentId,
-                    totalEntries,
-                    firstEntry.key().getBytes(),
-                    lastEntry.key().getBytes()
-            );
-            jobId.set(metadata.setSnapshot(snapshot));
+                SegmentLog segmentLog = new SegmentLog(segmentName, subspace);
+                int totalEntries = segmentLog.getCardinality(tr);
+                Snapshot snapshot = new Snapshot(
+                        segmentId,
+                        totalEntries,
+                        firstEntry.key().getBytes(),
+                        lastEntry.key().getBytes()
+                );
+                snapshotJob.put(segmentId, snapshot);
+            }
+
+            if (snapshotJob.isEmpty()) {
+                throw new IllegalStateException("No segment found to take a snapshot");
+            }
+
+            jobId.set(metadata.setSnapshotJob(snapshotJob));
         });
         return jobId.get();
     }
@@ -94,8 +99,8 @@ public class Replication {
         if (isStarted) {
             throw new IllegalStateException("Replication is already started");
         }
-        snapshotFuture.set(executor.submit(new SnapshotJob(this)));
-        changeDataCaptureFuture.set(executor.submit(new ChangeDataCapture(this)));
+        snapshotFuture.set(executor.submit(new SnapshotJobRunner(this)));
+        changeDataCaptureFuture.set(executor.submit(new ChangeDataCaptureRunner(this)));
         isStarted = true;
     }
 
@@ -150,15 +155,16 @@ public class Replication {
         return new IterationResult(segmentLogEntries.getLast().key(), segmentLogEntries.size());
     }
 
-    private IterationResult iterateSegmentLogEntries(Transaction tr) throws IOException, NotEnoughSpaceException {
+    private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId) throws IOException, NotEnoughSpaceException {
         ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
-        ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
+        SnapshotJob snapshotJob = replicationMetadata.getSnapshotJob(config.jobId());
+        Snapshot snapshot = snapshotJob.get(segmentId);
 
-        Segment segment = openSegments.get(snapshot.getSegmentId());
+        Segment segment = openSegments.get(segmentId);
         if (segment == null) {
-            SegmentConfig segmentConfig = new SegmentConfig(snapshot.getSegmentId(), config.rootPath(), config.segmentSize());
+            SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
             segment = new Segment(segmentConfig);
-            openSegments.put(snapshot.getSegmentId(), segment);
+            openSegments.put(segmentId, segment);
         }
 
         // [begin, end)
@@ -186,43 +192,45 @@ public class Replication {
     private record IterationResult(Versionstamp latestKey, int processedKeys) {
     }
 
-    private static class SnapshotJob implements Runnable {
+    private static class SnapshotJobRunner implements Runnable {
         private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotJob.class);
         private final Context context;
         private final ReplicationConfig config;
         private final Replication replication;
 
-        public SnapshotJob(Replication replication) {
+        public SnapshotJobRunner(Replication replication) {
             this.replication = replication;
             this.context = replication.context;
             this.config = replication.config;
         }
 
-        private boolean isSnapshotCompleted(Transaction tr) {
+        private boolean isSnapshotCompleted(Transaction tr, long segmentId) {
             ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
-            ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
+            Snapshot snapshot = replicationMetadata.getSnapshotJob(config.jobId()).get(segmentId);
             return snapshot.getProcessedEntries() == snapshot.getTotalEntries();
         }
 
-        private void snapshotLoop() {
+        private void snapshotLoopOnSegment(long segmentId) {
             // Take a snapshot
             while (true) {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    if (isSnapshotCompleted(tr)) {
+                    if (isSnapshotCompleted(tr, segmentId)) {
                         break;
                     }
-                    IterationResult result = replication.iterateSegmentLogEntries(tr);
+                    IterationResult result = replication.iterateSegmentLogEntries(tr, segmentId);
                     if (result.processedKeys > 0) {
                         ReplicationMetadata replicationMetadata = ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
-                            ReplicationMetadata.Snapshot snapshot = metadata.getSnapshot(config.jobId());
+                            SnapshotJob snapshotJob = metadata.getSnapshotJob(config.jobId());
+                            Snapshot snapshot = snapshotJob.get(segmentId);
                             snapshot.setBegin(result.latestKey.getBytes());
                             snapshot.setProcessedEntries(result.processedKeys + snapshot.getProcessedEntries());
                             snapshot.setLastUpdate(Instant.now().toEpochMilli());
+                            snapshotJob.put(segmentId, snapshot); // TODO: Is this required?
                         });
                         tr.commit().join();
 
                         // The end key fetched: [begin, end]
-                        ReplicationMetadata.Snapshot snapshot = replicationMetadata.getSnapshot(config.jobId());
+                        Snapshot snapshot = replicationMetadata.getSnapshotJob(config.jobId()).get(segmentId);
                         if (Arrays.equals(snapshot.getBegin(), snapshot.getEnd())) {
                             break;
                         }
@@ -232,6 +240,22 @@ public class Replication {
                 } catch (IOException | NotEnoughSpaceException e) {
                     LOGGER.error("Error while fetching segment logs", e);
                 }
+            }
+        }
+
+        private void snapshotLoop() {
+            ReplicationMetadata replicationMetadata;
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
+            }
+            SnapshotJob snapshotJob = replicationMetadata.getSnapshotJob(config.jobId());
+            for (Map.Entry<Long, Snapshot> entry : snapshotJob.entrySet()) {
+                Snapshot snapshot = entry.getValue();
+                if (snapshot.getProcessedEntries() == snapshot.getTotalEntries()) {
+                    // Completed
+                    continue;
+                }
+                snapshotLoopOnSegment(entry.getKey());
             }
         }
 
@@ -248,15 +272,15 @@ public class Replication {
         }
     }
 
-    private static class ChangeDataCapture implements Runnable {
+    private static class ChangeDataCaptureRunner implements Runnable {
         private final Replication replication;
 
-        public ChangeDataCapture(Replication replication) {
+        public ChangeDataCaptureRunner(Replication replication) {
             this.replication = replication;
         }
 
         private void watchChanges() {
-            try(Transaction tr = replication.context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = replication.context.getFoundationDB().createTransaction()) {
 
             }
         }

@@ -22,10 +22,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.kronotop.JSONUtils;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 
 import static com.kronotop.volume.Prefixes.SEGMENT_REPLICATION_PREFIX;
@@ -37,7 +34,7 @@ public class ReplicationMetadata {
     @JsonIgnore
     private static final Tuple preKey = Tuple.from(SEGMENT_REPLICATION_PREFIX, REPLICATION_METADATA_KEY);
 
-    private final Map<String,Snapshot> snapshots = new HashMap<>();
+    private final Map<String,SnapshotJob> snapshotJobs = new HashMap<>();
 
     public ReplicationMetadata() {
     }
@@ -66,90 +63,27 @@ public class ReplicationMetadata {
     }
 
     @JsonIgnore
-    public Snapshot getSnapshot(String jobId) {
-        return snapshots.get(jobId);
+    public SnapshotJob getSnapshotJob(String jobId) {
+        return snapshotJobs.get(jobId);
     }
 
     @JsonIgnore
-    public String setSnapshot(Snapshot snapshot) {
+    public String setSnapshotJob(SnapshotJob job) {
         String jobId = UUID.randomUUID().toString();
-        snapshots.put(jobId, snapshot);
+        snapshotJobs.put(jobId, job);
         return jobId;
     }
 
     @JsonIgnore
-    public void dropSnapshot(String jobId) {
-        snapshots.remove(jobId);
+    public void dropSnapshotJob(String jobId) {
+        snapshotJobs.remove(jobId);
     }
 
-    public Map<String, Snapshot> getSnapshots() {
-        return Collections.unmodifiableMap(snapshots);
+    public Map<String, SnapshotJob> getSnapshotJobs() {
+        return Collections.unmodifiableMap(snapshotJobs);
     }
 
     public byte[] toByte() {
         return JSONUtils.writeValueAsBytes(this);
-    }
-
-    public static class Snapshot {
-        private byte[] begin;
-        private byte[] end;
-        private long totalEntries;
-        private long processedEntries;
-        private long segmentId;
-        private long lastUpdate;
-
-        Snapshot() {
-        }
-
-        public Snapshot(long segmentId, long totalEntries, byte[] begin, byte[] end) {
-            this.segmentId = segmentId;
-            this.totalEntries = totalEntries;
-            this.begin = begin;
-            this.end = end;
-        }
-
-        public byte[] getBegin() {
-            return begin;
-        }
-
-        public void setBegin(byte[] begin) {
-            this.begin = begin;
-        }
-
-        public byte[] getEnd() {
-            return end;
-        }
-
-        public long getProcessedEntries() {
-            return processedEntries;
-        }
-
-        public void setProcessedEntries(long processedEntries) {
-            this.processedEntries = processedEntries;
-        }
-
-        public long getSegmentId() {
-            return segmentId;
-        }
-
-        public void setTotalEntries(long totalEntries) {
-            this.totalEntries = totalEntries;
-        }
-
-        public long getTotalEntries() {
-            return totalEntries;
-        }
-
-        public void setSegmentId(long segmentId) {
-            this.segmentId = segmentId;
-        }
-
-        public void setLastUpdate(long lastUpdate) {
-            this.lastUpdate = lastUpdate;
-        }
-
-        public long getLastUpdate() {
-            return lastUpdate;
-        }
     }
 }

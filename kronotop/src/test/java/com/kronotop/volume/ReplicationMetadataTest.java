@@ -33,8 +33,11 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
 
         byte[] begin = Versionstamp.incomplete(0).getBytes();
         byte[] end = Versionstamp.incomplete(1).getBytes();
-        ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(0, 1, begin, end);
-        metadata.setSnapshot(snapshot);
+
+        SnapshotJob snapshotJob = new SnapshotJob();
+        Snapshot snapshot = new Snapshot(0, 1, begin, end);
+        snapshotJob.put(snapshot.getSegmentId(), snapshot);
+        metadata.setSnapshotJob(snapshotJob);
 
         byte[] data = JSONUtils.writeValueAsBytes(metadata);
         ReplicationMetadata result = JSONUtils.readValue(data, ReplicationMetadata.class);
@@ -49,8 +52,10 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
             replicationMetadata = ReplicationMetadata.compute(tr, subspace, (metadata) -> {
                 byte[] begin = Versionstamp.incomplete(0).getBytes();
                 byte[] end = Versionstamp.incomplete(1).getBytes();
-                ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(0, 1, begin, end);
-                metadata.setSnapshot(snapshot);
+                Snapshot snapshot = new Snapshot(0, 1, begin, end);
+                SnapshotJob snapshotJob = new SnapshotJob();
+                snapshotJob.put(snapshot.getSegmentId(), snapshot);
+                metadata.setSnapshotJob(snapshotJob);
             });
             tr.commit().join();
         }
@@ -68,8 +73,10 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
             replicationMetadata = ReplicationMetadata.compute(tr, subspace, (metadata) -> {
                 byte[] begin = Versionstamp.incomplete(0).getBytes();
                 byte[] end = Versionstamp.incomplete(1).getBytes();
-                ReplicationMetadata.Snapshot snapshot = new ReplicationMetadata.Snapshot(0, 1, begin, end);
-                metadata.setSnapshot(snapshot);
+                SnapshotJob snapshotJob = new SnapshotJob();
+                Snapshot snapshot = new Snapshot(0, 1, begin, end);
+                snapshotJob.put(snapshot.getSegmentId(), snapshot);
+                metadata.setSnapshotJob(snapshotJob);
             });
             tr.commit().join();
         }
