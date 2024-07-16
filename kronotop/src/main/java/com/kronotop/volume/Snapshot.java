@@ -20,8 +20,8 @@ public class Snapshot {
     private byte[] begin;
     private byte[] end;
     private long totalEntries;
-    private long processedEntries;
     private long segmentId;
+    private long processedEntries;
     private long lastUpdate;
 
     Snapshot() {
@@ -58,16 +58,8 @@ public class Snapshot {
         return segmentId;
     }
 
-    public void setSegmentId(long segmentId) {
-        this.segmentId = segmentId;
-    }
-
     public long getTotalEntries() {
         return totalEntries;
-    }
-
-    public void setTotalEntries(long totalEntries) {
-        this.totalEntries = totalEntries;
     }
 
     public long getLastUpdate() {
