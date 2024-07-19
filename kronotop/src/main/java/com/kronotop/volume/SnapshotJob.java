@@ -18,5 +18,22 @@ package com.kronotop.volume;
 
 import java.util.TreeMap;
 
-public class SnapshotJob extends TreeMap<Long, Snapshot> {}
+public class SnapshotJob {
+
+    private final TreeMap<Long, Snapshot> snapshots = new TreeMap<>();
+
+    private boolean snapshotCompleted;
+
+    public TreeMap<Long, Snapshot> getSnapshots() {
+        return snapshots;
+    }
+
+    public boolean isSnapshotCompleted() {
+        return snapshotCompleted;
+    }
+
+    public void setSnapshotCompleted(boolean snapshotCompleted) {
+        this.snapshotCompleted = snapshotCompleted;
+    }
+}
 

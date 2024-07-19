@@ -34,8 +34,6 @@ public class ReplicationMetadata {
     @JsonIgnore
     private static final Tuple preKey = Tuple.from(SEGMENT_REPLICATION_PREFIX, REPLICATION_METADATA_KEY);
 
-    private boolean snapshotCompleted;
-
     private final Map<String,SnapshotJob> snapshotJobs = new HashMap<>();
 
     public ReplicationMetadata() {
@@ -83,14 +81,6 @@ public class ReplicationMetadata {
 
     public Map<String, SnapshotJob> getSnapshotJobs() {
         return Collections.unmodifiableMap(snapshotJobs);
-    }
-
-    public void setSnapshotCompleted(boolean snapshotCompleted) {
-        this.snapshotCompleted = snapshotCompleted;
-    }
-
-    public boolean isSnapshotCompleted() {
-        return snapshotCompleted;
     }
 
     public byte[] toByte() {

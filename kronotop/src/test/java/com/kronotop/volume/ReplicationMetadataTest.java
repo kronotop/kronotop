@@ -37,7 +37,7 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
 
         SnapshotJob snapshotJob = new SnapshotJob();
         Snapshot snapshot = new Snapshot(0, 1, begin, end);
-        snapshotJob.put(snapshot.getSegmentId(), snapshot);
+        snapshotJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
         metadata.setSnapshotJob(snapshotJob);
 
         byte[] data = JSONUtils.writeValueAsBytes(metadata);
@@ -55,7 +55,7 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
                 byte[] end = Versionstamp.incomplete(1).getBytes();
                 Snapshot snapshot = new Snapshot(0, 1, begin, end);
                 SnapshotJob snapshotJob = new SnapshotJob();
-                snapshotJob.put(snapshot.getSegmentId(), snapshot);
+                snapshotJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
                 metadata.setSnapshotJob(snapshotJob);
             });
             tr.commit().join();
@@ -76,7 +76,7 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
                 byte[] end = Versionstamp.incomplete(1).getBytes();
                 SnapshotJob snapshotJob = new SnapshotJob();
                 Snapshot snapshot = new Snapshot(0, 1, begin, end);
-                snapshotJob.put(snapshot.getSegmentId(), snapshot);
+                snapshotJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
                 metadata.setSnapshotJob(snapshotJob);
             });
             tr.commit().join();
@@ -92,11 +92,20 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
     public void test_ReplicationMetadata_SnapshotCompleted() {
         ReplicationMetadata metadata = new ReplicationMetadata();
 
-        metadata.setSnapshotCompleted(true);
+        byte[] begin = Versionstamp.incomplete(0).getBytes();
+        byte[] end = Versionstamp.incomplete(1).getBytes();
+
+        SnapshotJob snapshotJob = new SnapshotJob();
+        Snapshot snapshot = new Snapshot(0, 1, begin, end);
+        snapshotJob.setSnapshotCompleted(true);
+
+        snapshotJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
+        String jobId = metadata.setSnapshotJob(snapshotJob);
 
         byte[] data = JSONUtils.writeValueAsBytes(metadata);
         ReplicationMetadata result = JSONUtils.readValue(data, ReplicationMetadata.class);
-        assertTrue(result.isSnapshotCompleted());
         assertThat(metadata).usingRecursiveComparison().isEqualTo(result);
+        SnapshotJob job = result.getSnapshotJob(jobId);
+        assertTrue(job.isSnapshotCompleted());
     }
 }
