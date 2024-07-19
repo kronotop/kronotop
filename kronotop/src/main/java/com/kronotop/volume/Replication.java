@@ -231,7 +231,6 @@ public class Replication {
                             snapshot.setBegin(result.latestKey.getBytes());
                             snapshot.setProcessedEntries(result.processedKeys + snapshot.getProcessedEntries());
                             snapshot.setLastUpdate(Instant.now().toEpochMilli());
-                            snapshotJob.put(segmentId, snapshot); // TODO: Is this required?
                         });
                         tr.commit().join();
 
