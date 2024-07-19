@@ -24,11 +24,12 @@ import com.kronotop.JSONUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReplicationMetadataTest extends BaseMetadataStoreTest {
 
     @Test
-    public void test_ReplicationMetadata() {
+    public void test_ReplicationMetadata_SnapshotJob() {
         ReplicationMetadata metadata = new ReplicationMetadata();
 
         byte[] begin = Versionstamp.incomplete(0).getBytes();
@@ -85,5 +86,17 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
             ReplicationMetadata result = ReplicationMetadata.load(tr, subspace);
             assertThat(replicationMetadata).usingRecursiveComparison().isEqualTo(result);
         }
+    }
+
+    @Test
+    public void test_ReplicationMetadata_SnapshotCompleted() {
+        ReplicationMetadata metadata = new ReplicationMetadata();
+
+        metadata.setSnapshotCompleted(true);
+
+        byte[] data = JSONUtils.writeValueAsBytes(metadata);
+        ReplicationMetadata result = JSONUtils.readValue(data, ReplicationMetadata.class);
+        assertTrue(result.isSnapshotCompleted());
+        assertThat(metadata).usingRecursiveComparison().isEqualTo(result);
     }
 }
