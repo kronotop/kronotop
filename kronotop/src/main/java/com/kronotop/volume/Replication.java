@@ -194,7 +194,7 @@ public class Replication {
     }
 
     private static class SnapshotJobRunner implements Runnable {
-        private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotJob.class);
+        private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotJobRunner.class);
         private final Context context;
         private final ReplicationConfig config;
         private final Replication replication;
@@ -271,7 +271,7 @@ public class Replication {
 
         private void isSnapshotCompleted() {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
+                ReplicationMetadata result = ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
                     SnapshotJob snapshotJob = metadata.getSnapshotJob(config.jobId());
                     boolean completed = true;
                     for (Map.Entry<Long, Snapshot> entry : snapshotJob.getSnapshots().entrySet()) {
@@ -284,6 +284,15 @@ public class Replication {
                     snapshotJob.setSnapshotCompleted(completed);
                 });
                 tr.commit().join();
+
+                SnapshotJob snapshotJob = result.getSnapshotJob(config.jobId());
+                if (snapshotJob.isSnapshotCompleted()) {
+                    long totalProcessedEntries = 0;
+                    for (Map.Entry<Long, Snapshot> entry : snapshotJob.getSnapshots().entrySet()) {
+                        totalProcessedEntries += entry.getValue().getProcessedEntries();
+                    }
+                    LOGGER.info("SnapshotJob: {} completed. Number of processed keys: {}", config.jobId(), totalProcessedEntries);
+                }
             }
         }
 
