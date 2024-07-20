@@ -88,6 +88,7 @@ public class Replication {
             }
 
             jobId.set(metadata.setSnapshotJob(snapshotJob));
+            LOGGER.info("Created replication job: {}", jobId.get());
         });
         return jobId.get();
     }
@@ -96,13 +97,27 @@ public class Replication {
         return snapshotFuture;
     }
 
+    private boolean isSnapshotCompleted(Transaction tr) {
+        ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
+        SnapshotJob snapshotJob = replicationMetadata.getSnapshotJob(config.jobId());
+        return snapshotJob.isSnapshotCompleted();
+    }
+
     public void start() throws IOException {
         if (started) {
             throw new IllegalStateException("Replication is already started");
         }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            if (isSnapshotCompleted(tr)) {
+                changeDataCaptureFuture.set(executor.submit(new ChangeDataCaptureRunner(this)));
+            } else {
+                snapshotFuture.set(executor.submit(new SnapshotJobRunner(this)));
+            }
+        }
+
         started = true;
-        snapshotFuture.set(executor.submit(new SnapshotJobRunner(this)));
-        changeDataCaptureFuture.set(executor.submit(new ChangeDataCaptureRunner(this)));
+        LOGGER.info("Replication job: {} started", config.jobId());
     }
 
     public void stop() throws IOException {
@@ -120,6 +135,7 @@ public class Replication {
         } finally {
             started = false;
         }
+        LOGGER.info("Replication job: {} stopped", config.jobId());
     }
 
     private void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException, NotEnoughSpaceException {
@@ -292,12 +308,17 @@ public class Replication {
                         totalProcessedEntries += entry.getValue().getProcessedEntries();
                     }
                     LOGGER.info("SnapshotJob: {} completed. Number of processed keys: {}", config.jobId(), totalProcessedEntries);
+                    replication.changeDataCaptureFuture.set(replication.executor.submit(new ChangeDataCaptureRunner(replication)));
                 }
             }
         }
 
         @Override
         public void run() {
+            if (replication.stopped) {
+                return;
+            }
+
             try {
                 replication.semaphore.acquire();
                 snapshotLoop();
@@ -311,6 +332,7 @@ public class Replication {
     }
 
     private static class ChangeDataCaptureRunner implements Runnable {
+        private static final Logger LOGGER = LoggerFactory.getLogger(ChangeDataCaptureRunner.class);
         private final Replication replication;
 
         public ChangeDataCaptureRunner(Replication replication) {
@@ -325,6 +347,10 @@ public class Replication {
 
         @Override
         public void run() {
+            if (replication.stopped) {
+                return;
+            }
+
             Future<?> future = replication.getSnapshotFuture().get();
             try {
                 future.get();
@@ -334,6 +360,8 @@ public class Replication {
 
             try {
                 replication.semaphore.acquire();
+                LOGGER.info("watching changes!");
+                watchChanges();
             } catch (Exception e) {
                 LOGGER.error("ChangeDataCapture: {} has failed", replication.config.jobId(), e);
             } finally {
