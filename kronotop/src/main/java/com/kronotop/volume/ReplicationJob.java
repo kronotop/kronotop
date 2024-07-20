@@ -18,7 +18,7 @@ package com.kronotop.volume;
 
 import java.util.TreeMap;
 
-public class SnapshotJob {
+public class ReplicationJob {
 
     private final TreeMap<Long, Snapshot> snapshots = new TreeMap<>();
 

@@ -29,16 +29,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ReplicationMetadataTest extends BaseMetadataStoreTest {
 
     @Test
-    public void test_ReplicationMetadata_SnapshotJob() {
+    public void test_ReplicationMetadata_ReplicationJob() {
         ReplicationMetadata metadata = new ReplicationMetadata();
 
         byte[] begin = Versionstamp.incomplete(0).getBytes();
         byte[] end = Versionstamp.incomplete(1).getBytes();
 
-        SnapshotJob snapshotJob = new SnapshotJob();
+        ReplicationJob replicationJob = new ReplicationJob();
         Snapshot snapshot = new Snapshot(0, 1, begin, end);
-        snapshotJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
-        metadata.setSnapshotJob(snapshotJob);
+        replicationJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
+        metadata.setReplicationJob(replicationJob);
 
         byte[] data = JSONUtils.writeValueAsBytes(metadata);
         ReplicationMetadata result = JSONUtils.readValue(data, ReplicationMetadata.class);
@@ -54,9 +54,9 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
                 byte[] begin = Versionstamp.incomplete(0).getBytes();
                 byte[] end = Versionstamp.incomplete(1).getBytes();
                 Snapshot snapshot = new Snapshot(0, 1, begin, end);
-                SnapshotJob snapshotJob = new SnapshotJob();
-                snapshotJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
-                metadata.setSnapshotJob(snapshotJob);
+                ReplicationJob replicationJob = new ReplicationJob();
+                replicationJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
+                metadata.setReplicationJob(replicationJob);
             });
             tr.commit().join();
         }
@@ -74,10 +74,10 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
             replicationMetadata = ReplicationMetadata.compute(tr, subspace, (metadata) -> {
                 byte[] begin = Versionstamp.incomplete(0).getBytes();
                 byte[] end = Versionstamp.incomplete(1).getBytes();
-                SnapshotJob snapshotJob = new SnapshotJob();
+                ReplicationJob replicationJob = new ReplicationJob();
                 Snapshot snapshot = new Snapshot(0, 1, begin, end);
-                snapshotJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
-                metadata.setSnapshotJob(snapshotJob);
+                replicationJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
+                metadata.setReplicationJob(replicationJob);
             });
             tr.commit().join();
         }
@@ -95,17 +95,17 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
         byte[] begin = Versionstamp.incomplete(0).getBytes();
         byte[] end = Versionstamp.incomplete(1).getBytes();
 
-        SnapshotJob snapshotJob = new SnapshotJob();
+        ReplicationJob replicationJob = new ReplicationJob();
         Snapshot snapshot = new Snapshot(0, 1, begin, end);
-        snapshotJob.setSnapshotCompleted(true);
+        replicationJob.setSnapshotCompleted(true);
 
-        snapshotJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
-        String jobId = metadata.setSnapshotJob(snapshotJob);
+        replicationJob.getSnapshots().put(snapshot.getSegmentId(), snapshot);
+        String jobId = metadata.setReplicationJob(replicationJob);
 
         byte[] data = JSONUtils.writeValueAsBytes(metadata);
         ReplicationMetadata result = JSONUtils.readValue(data, ReplicationMetadata.class);
         assertThat(metadata).usingRecursiveComparison().isEqualTo(result);
-        SnapshotJob job = result.getSnapshotJob(jobId);
+        ReplicationJob job = result.getReplicationJob(jobId);
         assertTrue(job.isSnapshotCompleted());
     }
 }

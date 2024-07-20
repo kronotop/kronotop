@@ -66,7 +66,7 @@ public class Replication {
         ReplicationMetadata.compute(tr, subspace, (metadata) -> {
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, subspace);
 
-            SnapshotJob snapshotJob = new SnapshotJob();
+            ReplicationJob replicationJob = new ReplicationJob();
             for (Long segmentId : volumeMetadata.getSegments()) {
                 String segmentName = Segment.generateName(segmentId);
                 SegmentLogEntry firstEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1).iterator().next();
@@ -80,14 +80,14 @@ public class Replication {
                         firstEntry.key().getBytes(),
                         lastEntry.key().getBytes()
                 );
-                snapshotJob.getSnapshots().put(segmentId, snapshot);
+                replicationJob.getSnapshots().put(segmentId, snapshot);
             }
 
-            if (snapshotJob.getSnapshots().isEmpty()) {
+            if (replicationJob.getSnapshots().isEmpty()) {
                 throw new IllegalStateException("No segment found to take a snapshot");
             }
 
-            jobId.set(metadata.setSnapshotJob(snapshotJob));
+            jobId.set(metadata.setReplicationJob(replicationJob));
             LOGGER.info("Created replication job: {}", jobId.get());
         });
         return jobId.get();
@@ -99,8 +99,8 @@ public class Replication {
 
     private boolean isSnapshotCompleted(Transaction tr) {
         ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
-        SnapshotJob snapshotJob = replicationMetadata.getSnapshotJob(config.jobId());
-        return snapshotJob.isSnapshotCompleted();
+        ReplicationJob replicationJob = replicationMetadata.getReplicationJob(config.jobId());
+        return replicationJob.isSnapshotCompleted();
     }
 
     public void start() throws IOException {
@@ -112,7 +112,7 @@ public class Replication {
             if (isSnapshotCompleted(tr)) {
                 changeDataCaptureFuture.set(executor.submit(new ChangeDataCaptureRunner(this)));
             } else {
-                snapshotFuture.set(executor.submit(new SnapshotJobRunner(this)));
+                snapshotFuture.set(executor.submit(new SnapshotStageRunner(this)));
             }
         }
 
@@ -174,8 +174,8 @@ public class Replication {
 
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId) throws IOException, NotEnoughSpaceException {
         ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
-        SnapshotJob snapshotJob = replicationMetadata.getSnapshotJob(config.jobId());
-        Snapshot snapshot = snapshotJob.getSnapshots().get(segmentId);
+        ReplicationJob replicationJob = replicationMetadata.getReplicationJob(config.jobId());
+        Snapshot snapshot = replicationJob.getSnapshots().get(segmentId);
 
         Segment segment = openSegments.get(segmentId);
         if (segment == null) {
@@ -209,13 +209,13 @@ public class Replication {
     private record IterationResult(Versionstamp latestKey, int processedKeys) {
     }
 
-    private static class SnapshotJobRunner implements Runnable {
-        private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotJobRunner.class);
+    private static class SnapshotStageRunner implements Runnable {
+        private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotStageRunner.class);
         private final Context context;
         private final ReplicationConfig config;
         private final Replication replication;
 
-        public SnapshotJobRunner(Replication replication) {
+        public SnapshotStageRunner(Replication replication) {
             this.replication = replication;
             this.context = replication.context;
             this.config = replication.config;
@@ -223,7 +223,7 @@ public class Replication {
 
         private boolean isSnapshotCompleted(Transaction tr, long segmentId) {
             ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
-            Snapshot snapshot = replicationMetadata.getSnapshotJob(config.jobId()).getSnapshots().get(segmentId);
+            Snapshot snapshot = replicationMetadata.getReplicationJob(config.jobId()).getSnapshots().get(segmentId);
             return snapshot.getProcessedEntries() == snapshot.getTotalEntries();
         }
 
@@ -242,8 +242,8 @@ public class Replication {
                     IterationResult result = replication.iterateSegmentLogEntries(tr, segmentId);
                     if (result.processedKeys > 0) {
                         ReplicationMetadata replicationMetadata = ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
-                            SnapshotJob snapshotJob = metadata.getSnapshotJob(config.jobId());
-                            Snapshot snapshot = snapshotJob.getSnapshots().get(segmentId);
+                            ReplicationJob replicationJob = metadata.getReplicationJob(config.jobId());
+                            Snapshot snapshot = replicationJob.getSnapshots().get(segmentId);
                             snapshot.setBegin(result.latestKey.getBytes());
                             snapshot.setProcessedEntries(result.processedKeys + snapshot.getProcessedEntries());
                             snapshot.setLastUpdate(Instant.now().toEpochMilli());
@@ -251,7 +251,7 @@ public class Replication {
                         tr.commit().join();
 
                         // The end key fetched: [begin, end]
-                        Snapshot snapshot = replicationMetadata.getSnapshotJob(config.jobId()).getSnapshots().get(segmentId);
+                        Snapshot snapshot = replicationMetadata.getReplicationJob(config.jobId()).getSnapshots().get(segmentId);
                         if (Arrays.equals(snapshot.getBegin(), snapshot.getEnd())) {
                             break;
                         }
@@ -269,8 +269,8 @@ public class Replication {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 replicationMetadata = ReplicationMetadata.load(tr, config.subspace());
             }
-            SnapshotJob snapshotJob = replicationMetadata.getSnapshotJob(config.jobId());
-            for (Map.Entry<Long, Snapshot> entry : snapshotJob.getSnapshots().entrySet()) {
+            ReplicationJob replicationJob = replicationMetadata.getReplicationJob(config.jobId());
+            for (Map.Entry<Long, Snapshot> entry : replicationJob.getSnapshots().entrySet()) {
                 if (replication.stopped) {
                     // Replication has stopped.
                     break;
@@ -288,26 +288,26 @@ public class Replication {
         private void isSnapshotCompleted() {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 ReplicationMetadata result = ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
-                    SnapshotJob snapshotJob = metadata.getSnapshotJob(config.jobId());
+                    ReplicationJob replicationJob = metadata.getReplicationJob(config.jobId());
                     boolean completed = true;
-                    for (Map.Entry<Long, Snapshot> entry : snapshotJob.getSnapshots().entrySet()) {
+                    for (Map.Entry<Long, Snapshot> entry : replicationJob.getSnapshots().entrySet()) {
                         Snapshot snapshot = entry.getValue();
                         if (snapshot.getProcessedEntries() != snapshot.getTotalEntries()) {
                             completed = false;
                             break;
                         }
                     }
-                    snapshotJob.setSnapshotCompleted(completed);
+                    replicationJob.setSnapshotCompleted(completed);
                 });
                 tr.commit().join();
 
-                SnapshotJob snapshotJob = result.getSnapshotJob(config.jobId());
-                if (snapshotJob.isSnapshotCompleted()) {
+                ReplicationJob replicationJob = result.getReplicationJob(config.jobId());
+                if (replicationJob.isSnapshotCompleted()) {
                     long totalProcessedEntries = 0;
-                    for (Map.Entry<Long, Snapshot> entry : snapshotJob.getSnapshots().entrySet()) {
+                    for (Map.Entry<Long, Snapshot> entry : replicationJob.getSnapshots().entrySet()) {
                         totalProcessedEntries += entry.getValue().getProcessedEntries();
                     }
-                    LOGGER.info("SnapshotJob: {} completed. Number of processed keys: {}", config.jobId(), totalProcessedEntries);
+                    LOGGER.info("ReplicationJob: {}, snapshot stage has completed. Number of processed keys: {}", config.jobId(), totalProcessedEntries);
                     replication.changeDataCaptureFuture.set(replication.executor.submit(new ChangeDataCaptureRunner(replication)));
                 }
             }
@@ -324,7 +324,7 @@ public class Replication {
                 snapshotLoop();
                 isSnapshotCompleted();
             } catch (Exception e) {
-                LOGGER.error("SnapshotJob: {} has failed", replication.config.jobId(), e);
+                LOGGER.error("ReplicationJob: {}, snapshot stage has failed", replication.config.jobId(), e);
             } finally {
                 replication.semaphore.release();
             }

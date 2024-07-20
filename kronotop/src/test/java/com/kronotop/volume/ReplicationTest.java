@@ -76,8 +76,8 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
 
         try (Transaction tr = database.createTransaction()) {
             ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, volume.getConfig().subspace());
-            SnapshotJob snapshotJob = replicationMetadata.getSnapshotJob(jobId);
-            for (Snapshot snapshot : snapshotJob.getSnapshots().values()) {
+            ReplicationJob replicationJob = replicationMetadata.getReplicationJob(jobId);
+            for (Snapshot snapshot : replicationJob.getSnapshots().values()) {
                 assertEquals(10, snapshot.getTotalEntries());
                 assertEquals(snapshot.getTotalEntries(), snapshot.getProcessedEntries());
                 assertTrue(snapshot.getLastUpdate() > 0);
@@ -102,7 +102,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         // Check replication metadata
         try (Transaction tr = database.createTransaction()) {
             ReplicationMetadata metadata = ReplicationMetadata.load(tr, volume.getConfig().subspace());
-            assertTrue(metadata.getSnapshotJob(jobId).isSnapshotCompleted());
+            assertTrue(metadata.getReplicationJob(jobId).isSnapshotCompleted());
         }
     }
 

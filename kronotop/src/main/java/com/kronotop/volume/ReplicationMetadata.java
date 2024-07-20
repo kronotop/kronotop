@@ -34,7 +34,7 @@ public class ReplicationMetadata {
     @JsonIgnore
     private static final Tuple preKey = Tuple.from(SEGMENT_REPLICATION_PREFIX, REPLICATION_METADATA_KEY);
 
-    private final Map<String,SnapshotJob> snapshotJobs = new HashMap<>();
+    private final Map<String, ReplicationJob> replicationJobs = new HashMap<>();
 
     public ReplicationMetadata() {
     }
@@ -63,24 +63,24 @@ public class ReplicationMetadata {
     }
 
     @JsonIgnore
-    public SnapshotJob getSnapshotJob(String jobId) {
-        return snapshotJobs.get(jobId);
+    public ReplicationJob getReplicationJob(String jobId) {
+        return replicationJobs.get(jobId);
     }
 
     @JsonIgnore
-    public String setSnapshotJob(SnapshotJob job) {
+    public String setReplicationJob(ReplicationJob job) {
         String jobId = UUID.randomUUID().toString();
-        snapshotJobs.put(jobId, job);
+        replicationJobs.put(jobId, job);
         return jobId;
     }
 
     @JsonIgnore
-    public void dropSnapshotJob(String jobId) {
-        snapshotJobs.remove(jobId);
+    public void dropReplicationJob(String jobId) {
+        replicationJobs.remove(jobId);
     }
 
-    public Map<String, SnapshotJob> getSnapshotJobs() {
-        return Collections.unmodifiableMap(snapshotJobs);
+    public Map<String, ReplicationJob> getReplicationJobs() {
+        return Collections.unmodifiableMap(replicationJobs);
     }
 
     public byte[] toByte() {
