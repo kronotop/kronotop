@@ -24,6 +24,10 @@ public class ReplicationJob {
 
     private boolean snapshotCompleted;
 
+    private long latestSegmentId;
+
+    private byte[] latestVersionstampedKey;
+
     public TreeMap<Long, Snapshot> getSnapshots() {
         return snapshots;
     }
@@ -34,6 +38,22 @@ public class ReplicationJob {
 
     public void setSnapshotCompleted(boolean snapshotCompleted) {
         this.snapshotCompleted = snapshotCompleted;
+    }
+
+    public void setLatestVersionstampedKey(byte[] latestVersionstampedKey) {
+        this.latestVersionstampedKey = latestVersionstampedKey;
+    }
+
+    public byte[] getLatestVersionstampedKey() {
+        return latestVersionstampedKey;
+    }
+
+    public void setLatestSegmentId(long latestSegmentId) {
+        this.latestSegmentId = latestSegmentId;
+    }
+
+    public long getLatestSegmentId() {
+        return latestSegmentId;
     }
 }
 

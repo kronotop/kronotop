@@ -108,4 +108,19 @@ class ReplicationMetadataTest extends BaseMetadataStoreTest {
         ReplicationJob job = result.getReplicationJob(jobId);
         assertTrue(job.isSnapshotCompleted());
     }
+
+    @Test
+    public void test_ReplicationMetadata_CDC_properties() {
+        ReplicationMetadata metadata = new ReplicationMetadata();
+
+        ReplicationJob replicationJob = new ReplicationJob();
+
+        // CDC related properties
+        replicationJob.setLatestSegmentId(10);
+        replicationJob.setLatestVersionstampedKey("foobar".getBytes());
+
+        byte[] data = JSONUtils.writeValueAsBytes(metadata);
+        ReplicationMetadata result = JSONUtils.readValue(data, ReplicationMetadata.class);
+        assertThat(metadata).usingRecursiveComparison().isEqualTo(result);
+    }
 }
