@@ -334,14 +334,35 @@ public class Replication {
     private static class ChangeDataCaptureRunner implements Runnable {
         private static final Logger LOGGER = LoggerFactory.getLogger(ChangeDataCaptureRunner.class);
         private final Replication replication;
+        private final Context context;
+        private final ReplicationConfig config;
 
         public ChangeDataCaptureRunner(Replication replication) {
             this.replication = replication;
+            this.context = replication.context;
+            this.config = replication.config;
         }
 
         private void watchChanges() {
             try (Transaction tr = replication.context.getFoundationDB().createTransaction()) {
 
+            }
+        }
+
+        private ReplicationMetadata startChangeDataCapture() {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                ReplicationMetadata replicationMetadata = ReplicationMetadata.compute(tr, config.subspace(), (metadata) -> {
+                    ReplicationJob replicationJob = metadata.getReplicationJob(config.jobId());
+                    Map.Entry<Long, Snapshot> entry = replicationJob.getSnapshots().lastEntry();
+                    if (entry == null) {
+                        throw new IllegalStateException("ReplicationJob: " + config.jobId() + " has no snapshot");
+                    }
+                    Snapshot snapshot = entry.getValue();
+                    replicationJob.setLatestSegmentId(snapshot.getSegmentId());
+                    replicationJob.setLatestVersionstampedKey(snapshot.getEnd());
+                });
+                tr.commit().join();
+                return replicationMetadata;
             }
         }
 
@@ -360,7 +381,7 @@ public class Replication {
 
             try {
                 replication.semaphore.acquire();
-                LOGGER.info("watching changes!");
+                startChangeDataCapture();
                 watchChanges();
             } catch (Exception e) {
                 LOGGER.error("ChangeDataCapture: {} has failed", replication.config.jobId(), e);
