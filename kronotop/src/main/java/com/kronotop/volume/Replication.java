@@ -206,7 +206,7 @@ public class Replication {
                     }
                     IterationResult result = replication.iterateSegmentLogEntries(tr, segmentId);
                     if (result.processedKeys > 0) {
-                        ReplicationJob job = ReplicationJob.compute(tr, config.subspace(), context.getMember(), config.jobId(), (replicationJob) -> {
+                        ReplicationJob job = ReplicationJob.compute(tr, config, (replicationJob) -> {
                             Snapshot snapshot = replicationJob.getSnapshots().get(segmentId);
                             snapshot.setBegin(result.latestKey.getBytes());
                             snapshot.setProcessedEntries(result.processedKeys + snapshot.getProcessedEntries());
@@ -250,7 +250,7 @@ public class Replication {
 
         private void isSnapshotCompleted() {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                ReplicationJob replicationJob = ReplicationJob.compute(tr, config.subspace(), context.getMember(), config.jobId(), (job) -> {
+                ReplicationJob replicationJob = ReplicationJob.compute(tr, config, (job) -> {
                     boolean completed = true;
                     for (Map.Entry<Long, Snapshot> entry : job.getSnapshots().entrySet()) {
                         Snapshot snapshot = entry.getValue();
@@ -311,7 +311,7 @@ public class Replication {
 
         private ReplicationJob startChangeDataCapture() {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                ReplicationJob replicationJob = ReplicationJob.compute(tr, config.subspace(), context.getMember(), config.jobId(), (job) -> {
+                ReplicationJob replicationJob = ReplicationJob.compute(tr, config, (job) -> {
                     Map.Entry<Long, Snapshot> entry = job.getSnapshots().lastEntry();
                     if (entry == null) {
                         throw new IllegalStateException("ReplicationJob: " + config.jobId() + " has no snapshot");

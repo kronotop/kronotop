@@ -113,8 +113,9 @@ public class ReplicationJob {
         return JSONUtils.readValue(value, ReplicationJob.class);
     }
 
-    public static ReplicationJob compute(Transaction tr, DirectorySubspace subspace, Member member, Versionstamp key, Consumer<ReplicationJob> remappingFunction) {
-        byte[] packedKey = subspace.pack(Tuple.from(SEGMENT_REPLICATION_PREFIX, member.getId(), key));
+    public static ReplicationJob compute(Transaction tr, ReplicationConfig config, Consumer<ReplicationJob> remappingFunction) {
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_PREFIX, config.destination().member().getId(), config.jobId());
+        byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
             throw new ReplicationNotFoundException();
