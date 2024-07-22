@@ -50,8 +50,10 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
             source = volumeMetadata.getOwner();
         }
 
+        Host destination = new Host(Role.STANDBY, context.getMember());
         ReplicationConfig config = new ReplicationConfig(
                 source,
+                destination,
                 volume.getConfig().subspace(),
                 jobId,
                 volume.getConfig().name(),
@@ -73,7 +75,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         }
 
         try (Transaction tr = database.createTransaction()) {
-            ReplicationJob replicationJob = ReplicationJob.load(tr, config.subspace(), context.getMember(), config.jobId());
+            ReplicationJob replicationJob = ReplicationJob.load(tr, config);
             for (Snapshot snapshot : replicationJob.getSnapshots().values()) {
                 assertEquals(10, snapshot.getTotalEntries());
                 assertEquals(snapshot.getTotalEntries(), snapshot.getProcessedEntries());
@@ -98,7 +100,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
 
         // Check replication metadata
         try (Transaction tr = database.createTransaction()) {
-            ReplicationJob replicationJob = ReplicationJob.load(tr, config.subspace(), context.getMember(), config.jobId());
+            ReplicationJob replicationJob = ReplicationJob.load(tr, config);
             assertTrue(replicationJob.isSnapshotCompleted());
         }
     }

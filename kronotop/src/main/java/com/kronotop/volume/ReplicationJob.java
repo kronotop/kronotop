@@ -103,8 +103,9 @@ public class ReplicationJob {
         return Versionstamp.complete(trVersion);
     }
 
-    public static ReplicationJob load(Transaction tr, DirectorySubspace subspace, Member member, Versionstamp key) {
-        byte[] packedKey = subspace.pack(Tuple.from(SEGMENT_REPLICATION_PREFIX, member.getId(), key));
+    public static ReplicationJob load(Transaction tr, ReplicationConfig config) {
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_PREFIX, config.destination().member().getId(), config.jobId());
+        byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
             throw new ReplicationNotFoundException();

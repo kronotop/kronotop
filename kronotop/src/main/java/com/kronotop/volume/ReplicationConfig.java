@@ -21,6 +21,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 
 public record ReplicationConfig(
         Host source,
+        Host destination,
         DirectorySubspace subspace,
         Versionstamp jobId,
         String volumeName,

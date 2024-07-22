@@ -65,7 +65,7 @@ public class Replication {
     }
 
     private boolean isSnapshotCompleted(Transaction tr) {
-        ReplicationJob replicationJob = ReplicationJob.load(tr, config.subspace(), context.getMember(), config.jobId());
+        ReplicationJob replicationJob = ReplicationJob.load(tr, config);
         return replicationJob.isSnapshotCompleted();
     }
 
@@ -139,7 +139,7 @@ public class Replication {
     }
 
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId) throws IOException, NotEnoughSpaceException {
-        ReplicationJob replicationJob = ReplicationJob.load(tr, config.subspace(), context.getMember(), config.jobId());
+        ReplicationJob replicationJob = ReplicationJob.load(tr, config);
         Snapshot snapshot = replicationJob.getSnapshots().get(segmentId);
 
         Segment segment = openSegments.get(segmentId);
@@ -187,7 +187,7 @@ public class Replication {
         }
 
         private boolean isSnapshotCompleted(Transaction tr, long segmentId) {
-            ReplicationJob replicationJob = ReplicationJob.load(tr, config.subspace(), context.getMember(), config.jobId());
+            ReplicationJob replicationJob = ReplicationJob.load(tr, config);
             Snapshot snapshot = replicationJob.getSnapshots().get(segmentId);
             return snapshot.getProcessedEntries() == snapshot.getTotalEntries();
         }
@@ -231,7 +231,7 @@ public class Replication {
         private void snapshotLoop() {
             ReplicationJob replicationJob;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                replicationJob = ReplicationJob.load(tr, config.subspace(), context.getMember(), config.jobId());
+                replicationJob = ReplicationJob.load(tr, config);
             }
             for (Map.Entry<Long, Snapshot> entry : replicationJob.getSnapshots().entrySet()) {
                 if (replication.stopped) {
