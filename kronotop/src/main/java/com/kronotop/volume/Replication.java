@@ -64,18 +64,13 @@ public class Replication {
         return snapshotFuture;
     }
 
-    private boolean isSnapshotCompleted(Transaction tr) {
-        ReplicationJob replicationJob = ReplicationJob.load(tr, config);
-        return replicationJob.isSnapshotCompleted();
-    }
-
     public void start() throws IOException {
         if (started) {
             throw new IllegalStateException("Replication is already started");
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            if (isSnapshotCompleted(tr)) {
+            if (ReplicationJob.load(tr, config).isSnapshotCompleted()) {
                 changeDataCaptureFuture.set(executor.submit(new ChangeDataCaptureRunner(this)));
             } else {
                 snapshotFuture.set(executor.submit(new SnapshotStageRunner(this)));
@@ -206,8 +201,8 @@ public class Replication {
                     }
                     IterationResult result = replication.iterateSegmentLogEntries(tr, segmentId);
                     if (result.processedKeys > 0) {
-                        ReplicationJob job = ReplicationJob.compute(tr, config, (replicationJob) -> {
-                            Snapshot snapshot = replicationJob.getSnapshots().get(segmentId);
+                        ReplicationJob replicationJob = ReplicationJob.compute(tr, config, (job) -> {
+                            Snapshot snapshot = job.getSnapshots().get(segmentId);
                             snapshot.setBegin(result.latestKey.getBytes());
                             snapshot.setProcessedEntries(result.processedKeys + snapshot.getProcessedEntries());
                             snapshot.setLastUpdate(Instant.now().toEpochMilli());
@@ -215,7 +210,7 @@ public class Replication {
                         tr.commit().join();
 
                         // The end key fetched: [begin, end]
-                        Snapshot snapshot = job.getSnapshots().get(segmentId);
+                        Snapshot snapshot = replicationJob.getSnapshots().get(segmentId);
                         if (Arrays.equals(snapshot.getBegin(), snapshot.getEnd())) {
                             break;
                         }
