@@ -44,12 +44,10 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
 
     private void testReplication(Versionstamp[] versionstampedKeys) throws IOException {
         final Host source;
-        final String jobId;
+        final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
-            jobId = Replication.CreateReplicationJob(tr, volume.getConfig().subspace());
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
             source = volumeMetadata.getOwner();
-            tr.commit().join();
         }
 
         ReplicationConfig config = new ReplicationConfig(
@@ -75,8 +73,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         }
 
         try (Transaction tr = database.createTransaction()) {
-            ReplicationMetadata replicationMetadata = ReplicationMetadata.load(tr, volume.getConfig().subspace());
-            ReplicationJob replicationJob = replicationMetadata.getReplicationJob(jobId);
+            ReplicationJob replicationJob = ReplicationJob.load(tr, config.subspace(), context.getMember(), config.jobId());
             for (Snapshot snapshot : replicationJob.getSnapshots().values()) {
                 assertEquals(10, snapshot.getTotalEntries());
                 assertEquals(snapshot.getTotalEntries(), snapshot.getProcessedEntries());
@@ -101,8 +98,8 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
 
         // Check replication metadata
         try (Transaction tr = database.createTransaction()) {
-            ReplicationMetadata metadata = ReplicationMetadata.load(tr, volume.getConfig().subspace());
-            assertTrue(metadata.getReplicationJob(jobId).isSnapshotCompleted());
+            ReplicationJob replicationJob = ReplicationJob.load(tr, config.subspace(), context.getMember(), config.jobId());
+            assertTrue(replicationJob.isSnapshotCompleted());
         }
     }
 

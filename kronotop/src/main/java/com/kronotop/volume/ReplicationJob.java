@@ -16,7 +16,20 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Database;
+import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.JSONUtils;
+import com.kronotop.cluster.Member;
+
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+
+import static com.kronotop.volume.Prefixes.SEGMENT_REPLICATION_PREFIX;
 
 public class ReplicationJob {
 
@@ -54,6 +67,61 @@ public class ReplicationJob {
 
     public long getLatestSegmentId() {
         return latestSegmentId;
+    }
+
+    public static Versionstamp newJob(Database database, DirectorySubspace subspace, Member member) {
+        CompletableFuture<byte[]> future;
+        try (Transaction tr = database.createTransaction()) {
+            ReplicationJob replicationJob = new ReplicationJob();
+            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, subspace);
+            for (Long segmentId : volumeMetadata.getSegments()) {
+                String segmentName = Segment.generateName(segmentId);
+                SegmentLogEntry firstEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1).iterator().next();
+                SegmentLogEntry lastEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1, true).iterator().next();
+
+                SegmentLog segmentLog = new SegmentLog(segmentName, subspace);
+                int totalEntries = segmentLog.getCardinality(tr);
+                Snapshot snapshot = new Snapshot(
+                        segmentId,
+                        totalEntries,
+                        firstEntry.key().getBytes(),
+                        lastEntry.key().getBytes()
+                );
+                replicationJob.getSnapshots().put(segmentId, snapshot);
+            }
+
+            if (replicationJob.getSnapshots().isEmpty()) {
+                throw new IllegalStateException("No segment found to take a snapshot");
+            }
+
+            byte[] key = subspace.packWithVersionstamp(Tuple.from(SEGMENT_REPLICATION_PREFIX, member.getId(), Versionstamp.incomplete()));
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(replicationJob));
+            future = tr.getVersionstamp();
+            tr.commit().join();
+        }
+        byte[] trVersion = future.join();
+        return Versionstamp.complete(trVersion);
+    }
+
+    public static ReplicationJob load(Transaction tr, DirectorySubspace subspace, Member member, Versionstamp key) {
+        byte[] packedKey = subspace.pack(Tuple.from(SEGMENT_REPLICATION_PREFIX, member.getId(), key));
+        byte[] value = tr.get(packedKey).join();
+        if (value == null) {
+            throw new ReplicationNotFoundException();
+        }
+        return JSONUtils.readValue(value, ReplicationJob.class);
+    }
+
+    public static ReplicationJob compute(Transaction tr, DirectorySubspace subspace, Member member, Versionstamp key, Consumer<ReplicationJob> remappingFunction) {
+        byte[] packedKey = subspace.pack(Tuple.from(SEGMENT_REPLICATION_PREFIX, member.getId(), key));
+        byte[] value = tr.get(packedKey).join();
+        if (value == null) {
+            throw new ReplicationNotFoundException();
+        }
+        ReplicationJob replicationJob = JSONUtils.readValue(value, ReplicationJob.class);
+        remappingFunction.accept(replicationJob);
+        tr.set(packedKey, JSONUtils.writeValueAsBytes(replicationJob));
+        return replicationJob;
     }
 }
 
