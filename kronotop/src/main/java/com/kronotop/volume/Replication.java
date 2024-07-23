@@ -71,7 +71,7 @@ public class Replication {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             if (ReplicationJob.load(tr, config).isSnapshotCompleted()) {
-                changeDataCaptureFuture.set(executor.submit(new ChangeDataCaptureRunner(this)));
+                changeDataCaptureFuture.set(executor.submit(new ChangeDataCaptureStageRunner(this)));
             } else {
                 snapshotFuture.set(executor.submit(new SnapshotStageRunner(this)));
             }
@@ -263,7 +263,7 @@ public class Replication {
                         totalProcessedEntries += entry.getValue().getProcessedEntries();
                     }
                     LOGGER.info("ReplicationJob: {}, snapshot stage has completed. Number of processed keys: {}", config.jobId(), totalProcessedEntries);
-                    replication.changeDataCaptureFuture.set(replication.executor.submit(new ChangeDataCaptureRunner(replication)));
+                    replication.changeDataCaptureFuture.set(replication.executor.submit(new ChangeDataCaptureStageRunner(replication)));
                 }
             }
         }
@@ -286,13 +286,13 @@ public class Replication {
         }
     }
 
-    private static class ChangeDataCaptureRunner implements Runnable {
-        private static final Logger LOGGER = LoggerFactory.getLogger(ChangeDataCaptureRunner.class);
+    private static class ChangeDataCaptureStageRunner implements Runnable {
+        private static final Logger LOGGER = LoggerFactory.getLogger(ChangeDataCaptureStageRunner.class);
         private final Replication replication;
         private final Context context;
         private final ReplicationConfig config;
 
-        public ChangeDataCaptureRunner(Replication replication) {
+        public ChangeDataCaptureStageRunner(Replication replication) {
             this.replication = replication;
             this.context = replication.context;
             this.config = replication.config;
