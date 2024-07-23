@@ -19,6 +19,7 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
@@ -78,7 +79,7 @@ public class Replication {
         }
 
         started = true;
-        LOGGER.info("Replication job: {} started", config.jobId());
+        LOGGER.info("Replication job: {} started", VersionstampUtils.base64Encode(config.jobId()));
     }
 
     public void stop() throws IOException {
@@ -96,7 +97,7 @@ public class Replication {
         } finally {
             started = false;
         }
-        LOGGER.info("Replication job: {} stopped", config.jobId());
+        LOGGER.info("Replication job: {} stopped", VersionstampUtils.base64Encode(config.jobId()));
     }
 
     private void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException, NotEnoughSpaceException {
@@ -262,7 +263,7 @@ public class Replication {
                     for (Map.Entry<Long, Snapshot> entry : replicationJob.getSnapshots().entrySet()) {
                         totalProcessedEntries += entry.getValue().getProcessedEntries();
                     }
-                    LOGGER.info("ReplicationJob: {}, snapshot stage has completed. Number of processed keys: {}", config.jobId(), totalProcessedEntries);
+                    LOGGER.info("ReplicationJob: {}, snapshot stage has completed. Number of processed keys: {}", VersionstampUtils.base64Encode(config.jobId()), totalProcessedEntries);
                     replication.changeDataCaptureFuture.set(replication.executor.submit(new ChangeDataCaptureStageRunner(replication)));
                 }
             }
