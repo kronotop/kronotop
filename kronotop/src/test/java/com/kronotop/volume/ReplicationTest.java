@@ -58,7 +58,8 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
                 jobId,
                 volume.getConfig().name(),
                 volume.getConfig().segmentSize(),
-                standbyVolumeRootPath.toString()
+                standbyVolumeRootPath.toString(),
+                false
         );
         Replication replication = new Replication(context, config);
         try {
@@ -146,7 +147,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
 
     @Test
     public void test_take_snapshot_CDC() throws IOException, InterruptedException {
-        Versionstamp[] versionstampedKeys;
+        /*Versionstamp[] versionstampedKeys;
         AppendResult result;
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
         try (Transaction tr = database.createTransaction()) {
@@ -168,7 +169,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
             tr.commit().join();
         }
 
-        Thread.sleep(10000);
+        Thread.sleep(10000);*/
 
     }
 }

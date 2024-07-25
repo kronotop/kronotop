@@ -77,10 +77,14 @@ public class Replication {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            if (ReplicationJob.load(tr, config).isSnapshotCompleted()) {
+            if (config.cdcOnly()) {
                 changeDataCaptureFuture.set(executor.submit(new ChangeDataCaptureStageRunner(this)));
             } else {
-                snapshotFuture.set(executor.submit(new SnapshotStageRunner(this)));
+                if (ReplicationJob.load(tr, config).isSnapshotCompleted()) {
+                    changeDataCaptureFuture.set(executor.submit(new ChangeDataCaptureStageRunner(this)));
+                } else {
+                    snapshotFuture.set(executor.submit(new SnapshotStageRunner(this)));
+                }
             }
         }
 
@@ -270,7 +274,9 @@ public class Replication {
                         totalProcessedEntries += entry.getValue().getProcessedEntries();
                     }
                     LOGGER.info("ReplicationJob: {}, snapshot stage has completed. Number of processed keys: {}", VersionstampUtils.base64Encode(config.jobId()), totalProcessedEntries);
-                    replication.changeDataCaptureFuture.set(replication.executor.submit(new ChangeDataCaptureStageRunner(replication)));
+                    if (config.cdcOnly()) {
+                        replication.changeDataCaptureFuture.set(replication.executor.submit(new ChangeDataCaptureStageRunner(replication)));
+                    }
                 }
             }
         }
@@ -281,6 +287,7 @@ public class Replication {
                 return;
             }
 
+            LOGGER.info("ReplicationJob: {}, Snapshot stage has started", VersionstampUtils.base64Encode(replication.config.jobId()));
             try {
                 replication.semaphore.acquire();
                 snapshotLoop();
@@ -350,19 +357,13 @@ public class Replication {
                 return;
             }
 
-            Future<?> future = replication.getSnapshotFuture().get();
-            try {
-                future.get();
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.error("Error while fetching segment logs", e);
-            }
-
+            LOGGER.info("ReplicationJob: {}, CDC stage has started", VersionstampUtils.base64Encode(replication.config.jobId()));
             try {
                 replication.semaphore.acquire();
                 startChangeDataCapture();
                 watchChanges();
             } catch (Exception e) {
-                LOGGER.error("ChangeDataCapture: {} has failed", replication.config.jobId(), e);
+                LOGGER.error("ReplicationJob: {}, CDC stage has failed", VersionstampUtils.base64Encode(replication.config.jobId()), e);
             } finally {
                 replication.semaphore.release();
             }
