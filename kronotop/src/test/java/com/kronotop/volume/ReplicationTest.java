@@ -42,7 +42,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         return ByteBuffer.wrap(b);
     }
 
-    private void testReplication(Versionstamp[] versionstampedKeys) throws IOException {
+    private void checkSnapshot(Versionstamp[] versionstampedKeys) throws IOException {
         final Host source;
         final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
@@ -117,7 +117,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         }
         versionstampedKeys = result.getVersionstampedKeys();
         assertEquals(10, versionstampedKeys.length);
-        testReplication(versionstampedKeys);
+        checkSnapshot(versionstampedKeys);
     }
 
     @Test
@@ -141,6 +141,34 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         }
 
         assertEquals(2, volume.analyze().size());
-        testReplication(versionstampedKeys);
+        checkSnapshot(versionstampedKeys);
+    }
+
+    @Test
+    public void test_take_snapshot_CDC() throws IOException, InterruptedException {
+        Versionstamp[] versionstampedKeys;
+        AppendResult result;
+        ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+        versionstampedKeys = result.getVersionstampedKeys();
+        assertEquals(10, versionstampedKeys.length);
+        checkSnapshot(versionstampedKeys);
+
+        System.out.println("bitti");
+        Thread.sleep(3000);
+        System.out.println("start adding new entries");
+        ByteBuffer[] entries2 = baseVolumeTestWrapper.getEntries(10);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            result = volume.append(session, entries2);
+            tr.commit().join();
+        }
+
+        Thread.sleep(10000);
+
     }
 }

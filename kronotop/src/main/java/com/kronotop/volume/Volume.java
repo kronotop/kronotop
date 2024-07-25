@@ -47,10 +47,12 @@ public class Volume {
     private static final byte[] SEGMENT_CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private static final byte[] SEGMENT_CARDINALITY_DECREASE_DELTA = new byte[]{-1, -1, -1, -1}; // -1, byte order: little-endian
     private static final int SEGMENT_VACUUM_BATCH_SIZE = 100;
+    private static final byte[] CDC_TRIGGER_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
 
     private final Context context;
     private final VolumeConfig config;
     private final LoadingCache<Versionstamp, EntryMetadata> entryMetadataCache;
+    private final byte[] cdcTriggerKey;
 
     // segmentsLock protects segments array
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
@@ -64,11 +66,16 @@ public class Volume {
         this.context = context;
         this.config = volumeConfig;
         this.entryMetadataCache = CacheBuilder.newBuilder().expireAfterAccess(30, TimeUnit.MINUTES).build(new EntryMetadataLoader());
+        this.cdcTriggerKey = config.subspace().pack(Tuple.from(VOLUME_CDC_TRIGGER_PREFIX));
         openSegments();
     }
 
     protected VolumeConfig getConfig() {
         return config;
+    }
+
+    private void triggerCDCSubscribers(Transaction tr) {
+        tr.mutate(MutationType.ADD, cdcTriggerKey, CDC_TRIGGER_DELTA);
     }
 
     private void mutateSegmentCardinality(Transaction tr, String name, byte[] delta) {
@@ -247,6 +254,7 @@ public class Volume {
             mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(entryMetadata.length()));
 
             appendSegmentLog(tr, OperationKind.APPEND, userVersion, entryMetadata);
+            triggerCDCSubscribers(tr);
         }
         return tr.getVersionstamp();
     }
@@ -374,6 +382,7 @@ public class Volume {
             mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(-1 * entryMetadata.length()));
 
             appendSegmentLog(session, OperationKind.DELETE, entryMetadata);
+            triggerCDCSubscribers(tr);
 
             result.add(index, key);
             index++;
@@ -415,6 +424,7 @@ public class Volume {
 
             appendSegmentLog(session, OperationKind.DELETE, oldEntryMetadata);
             appendSegmentLog(session, OperationKind.APPEND, entryMetadata);
+            triggerCDCSubscribers(tr);
 
             index++;
         }
@@ -462,14 +472,6 @@ public class Volume {
 
     public Iterable<KeyEntry> getRange(@Nonnull Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
         return new VolumeIterable(this, session, begin, end);
-    }
-
-    private int loadSegmentCardinalityByName(String name) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] key = packSegmentCardinalityKey(name);
-            byte[] value = tr.get(key).join();
-            return decodeSegmentCardinality(value);
-        }
     }
 
     private SegmentAnalysis analyzeSegment(Transaction tr, Segment segment) {

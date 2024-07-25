@@ -17,13 +17,16 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.KeyWatcher;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.SegmentRange;
+import com.kronotop.journal.JournalName;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
@@ -35,6 +38,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static com.kronotop.volume.Prefixes.VOLUME_CDC_TRIGGER_PREFIX;
 
 public class Replication {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replication.class);
@@ -48,6 +53,7 @@ public class Replication {
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final AtomicReference<Future<?>> snapshotFuture = new AtomicReference<>();
     private final AtomicReference<Future<?>> changeDataCaptureFuture = new AtomicReference<>();
+    private final KeyWatcher keyWatcher = new KeyWatcher();
     private volatile boolean started = false;
     private volatile boolean stopped = false;
 
@@ -292,6 +298,7 @@ public class Replication {
         private final Replication replication;
         private final Context context;
         private final ReplicationConfig config;
+        private final KeyWatcher keyWatcher = new KeyWatcher();
 
         public ChangeDataCaptureStageRunner(Replication replication) {
             this.replication = replication;
@@ -300,8 +307,24 @@ public class Replication {
         }
 
         private void watchChanges() {
-            try (Transaction tr = replication.context.getFoundationDB().createTransaction()) {
+            while (!replication.stopped) {
+                try (Transaction tr = replication.context.getFoundationDB().createTransaction()) {
+                    CompletableFuture<Void> watcher = keyWatcher.watch(tr, config.subspace().pack(Tuple.from(VOLUME_CDC_TRIGGER_PREFIX)));
+                    tr.commit().join();
 
+                    try {
+                        // fetch events here
+                        LOGGER.info("Fetching the latest segment logs before watching");
+                        watcher.join();
+                    } catch (CancellationException e) {
+                        LOGGER.info("{} watcher has been cancelled", "foobar");
+                        return;
+                    }
+                    // fetch events here
+                    LOGGER.info("Fetching the latest segment logs");
+                } catch (Exception e) {
+                    LOGGER.error("Error while watching segment log: {}", JournalName.clusterEvents(), e);
+                }
             }
         }
 
