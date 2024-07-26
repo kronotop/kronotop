@@ -89,11 +89,7 @@ public class ReplicationJob {
                 );
                 replicationJob.getSnapshots().put(segmentId, snapshot);
             }
-
-            if (replicationJob.getSnapshots().isEmpty()) {
-                throw new IllegalStateException("No segment found to take a snapshot");
-            }
-
+            
             byte[] key = subspace.packWithVersionstamp(Tuple.from(SEGMENT_REPLICATION_PREFIX, member.getId(), Versionstamp.incomplete()));
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(replicationJob));
             future = tr.getVersionstamp();

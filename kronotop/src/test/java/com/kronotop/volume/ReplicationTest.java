@@ -147,29 +147,37 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
 
     @Test
     public void test_take_snapshot_CDC() throws IOException, InterruptedException {
-        /*Versionstamp[] versionstampedKeys;
-        AppendResult result;
-        ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
+        final Host source;
+        final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
-            result = volume.append(session, entries);
-            tr.commit().join();
-        }
-        versionstampedKeys = result.getVersionstampedKeys();
-        assertEquals(10, versionstampedKeys.length);
-        checkSnapshot(versionstampedKeys);
-
-        System.out.println("bitti");
-        Thread.sleep(3000);
-        System.out.println("start adding new entries");
-        ByteBuffer[] entries2 = baseVolumeTestWrapper.getEntries(10);
-        try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
-            result = volume.append(session, entries2);
-            tr.commit().join();
+            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+            source = volumeMetadata.getOwner();
         }
 
-        Thread.sleep(10000);*/
-
+        Host destination = new Host(Role.STANDBY, context.getMember());
+        ReplicationConfig config = new ReplicationConfig(
+                source,
+                destination,
+                volume.getConfig().subspace(),
+                jobId,
+                volume.getConfig().name(),
+                volume.getConfig().segmentSize(),
+                standbyVolumeRootPath.toString(),
+                true
+        );
+        Replication replication = new Replication(context, config);
+        try {
+            replication.start();
+            await().atMost(5, TimeUnit.SECONDS).until(() -> {
+                Future<?> future = replication.getSnapshotFuture().get();
+                if (future == null) {
+                    return false;
+                }
+                return future.isDone();
+            });
+        } finally {
+            replication.stop();
+        }
+        Thread.sleep(10000);
     }
 }

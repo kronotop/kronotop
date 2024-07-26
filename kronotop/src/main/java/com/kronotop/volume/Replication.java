@@ -97,6 +97,9 @@ public class Replication {
             throw new IllegalStateException("Replication is not started");
         }
 
+        // Unwatch the CDC trigger, if it exists.
+        keyWatcher.unwatch(config.subspace().pack(Tuple.from(VOLUME_CDC_TRIGGER_PREFIX)));
+
         stopped = true;
         for (Segment segment : openSegments.values()) {
             segment.close();
@@ -239,6 +242,11 @@ public class Replication {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 replicationJob = ReplicationJob.load(tr, config);
             }
+
+            if (replicationJob.getSnapshots().isEmpty()) {
+                throw new IllegalStateException("No segment found to take a snapshot");
+            }
+
             for (Map.Entry<Long, Snapshot> entry : replicationJob.getSnapshots().entrySet()) {
                 if (replication.stopped) {
                     // Replication has stopped.
@@ -324,7 +332,7 @@ public class Replication {
                         LOGGER.info("Fetching the latest segment logs before watching");
                         watcher.join();
                     } catch (CancellationException e) {
-                        LOGGER.info("{} watcher has been cancelled", "foobar");
+                        LOGGER.info("CDC watcher has been cancelled on Volume: {}", config.volumeName());
                         return;
                     }
                     // fetch events here
@@ -338,13 +346,12 @@ public class Replication {
         private ReplicationJob startChangeDataCapture() {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 ReplicationJob replicationJob = ReplicationJob.compute(tr, config, (job) -> {
-                    Map.Entry<Long, Snapshot> entry = job.getSnapshots().lastEntry();
-                    if (entry == null) {
-                        throw new IllegalStateException("ReplicationJob: " + config.jobId() + " has no snapshot");
+                    if (!job.getSnapshots().isEmpty()) {
+                        Map.Entry<Long, Snapshot> entry = job.getSnapshots().lastEntry();
+                        Snapshot snapshot = entry.getValue();
+                        job.setLatestSegmentId(snapshot.getSegmentId());
+                        job.setLatestVersionstampedKey(snapshot.getEnd());
                     }
-                    Snapshot snapshot = entry.getValue();
-                    job.setLatestSegmentId(snapshot.getSegmentId());
-                    job.setLatestVersionstampedKey(snapshot.getEnd());
                 });
                 tr.commit().join();
                 return replicationJob;
