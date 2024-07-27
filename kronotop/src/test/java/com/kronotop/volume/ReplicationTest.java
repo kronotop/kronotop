@@ -168,16 +168,18 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         Replication replication = new Replication(context, config);
         try {
             replication.start();
-            await().atMost(5, TimeUnit.SECONDS).until(() -> {
-                Future<?> future = replication.getSnapshotFuture().get();
-                if (future == null) {
-                    return false;
+            Thread.sleep(5000);
+            {
+                ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
+                try (Transaction tr = database.createTransaction()) {
+                    Session session = new Session(tr);
+                    volume.append(session, entries);
+                    tr.commit().join();
                 }
-                return future.isDone();
-            });
+            }
+            Thread.sleep(5000);
         } finally {
             replication.stop();
         }
-        Thread.sleep(10000);
     }
 }

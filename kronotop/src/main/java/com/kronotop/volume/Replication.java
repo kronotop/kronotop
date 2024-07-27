@@ -321,6 +321,14 @@ public class Replication {
             this.config = replication.config;
         }
 
+        private void fetchChanges() {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                ReplicationJob replicationJob = ReplicationJob.load(tr, config);
+                System.out.println(replicationJob.getLatestSegmentId());
+                System.out.println(Arrays.toString(replicationJob.getLatestVersionstampedKey()));
+            }
+        }
+
         private void watchChanges() {
             while (!replication.stopped) {
                 try (Transaction tr = replication.context.getFoundationDB().createTransaction()) {
@@ -330,13 +338,15 @@ public class Replication {
                     try {
                         // fetch events here
                         LOGGER.info("Fetching the latest segment logs before watching");
+                        fetchChanges();
                         watcher.join();
                     } catch (CancellationException e) {
                         LOGGER.info("CDC watcher has been cancelled on Volume: {}", config.volumeName());
                         return;
                     }
                     // fetch events here
-                    LOGGER.info("Fetching the latest segment logs");
+                    LOGGER.info("Triggered, fetching the latest segment logs");
+                    fetchChanges();
                 } catch (Exception e) {
                     LOGGER.error("Error while watching segment log: {}", JournalName.clusterEvents(), e);
                 }
