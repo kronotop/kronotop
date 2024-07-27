@@ -65,7 +65,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         try {
             replication.start();
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
-                Future<?> future = replication.getSnapshotFuture().get();
+                Future<?> future = replication.getContext().snapshotFuture().get();
                 if (future == null) {
                     return false;
                 }
