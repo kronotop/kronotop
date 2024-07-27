@@ -27,10 +27,11 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
 
-class SnapshotStageRunnable extends ReplicationRunnable implements Runnable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotStageRunnable.class);
+class SnapshotStageRunner extends ReplicationRunnable implements StageRunner {
+    public static final String NAME = "Snapshot";
+    private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotStageRunner.class);
 
-    SnapshotStageRunnable(Context context, ReplicationConfig config) {
+    SnapshotStageRunner(Context context, ReplicationConfig config) {
         super(context, config);
     }
 

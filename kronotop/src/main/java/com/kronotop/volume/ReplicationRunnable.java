@@ -79,7 +79,7 @@ public class ReplicationRunnable {
         return started;
     }
 
-    protected void stop() throws IOException {
+    public void stop() throws IOException {
         if (!started) {
             throw new IllegalStateException("Replication is not started");
         }

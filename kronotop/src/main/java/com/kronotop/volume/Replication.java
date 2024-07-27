@@ -27,9 +27,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 import static com.kronotop.volume.Prefixes.VOLUME_CDC_TRIGGER_PREFIX;
 
@@ -39,6 +41,7 @@ public class Replication {
     private final ReplicationConfig config;
     private final ReplicationContext replicationContext;
     private final KeyWatcher keyWatcher = new KeyWatcher();
+    private final Map<String, StageRunner> stages = new HashMap<>();
     private volatile boolean started = false;
     private volatile boolean stopped = false;
 
@@ -55,12 +58,16 @@ public class Replication {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             if (config.cdcOnly()) {
-                replicationContext.changeDataCaptureFuture().set(replicationContext.executor().submit(new ChangeDataCaptureStageRunner(this)));
+                Future<?> future = replicationContext.executor().submit(new ChangeDataCaptureStageRunner(this));
+                replicationContext.changeDataCaptureFuture().set(future);
             } else {
                 if (ReplicationJob.load(tr, config).isSnapshotCompleted()) {
-                    replicationContext.changeDataCaptureFuture().set(replicationContext.executor().submit(new ChangeDataCaptureStageRunner(this)));
+                    Future<?> future = replicationContext.executor().submit(new ChangeDataCaptureStageRunner(this));
+                    replicationContext.changeDataCaptureFuture().set(future);
                 } else {
-                    replicationContext.snapshotFuture().set(replicationContext.executor().submit(new SnapshotStageRunnable(context, config)));
+                    StageRunner stageRunner = stages.computeIfAbsent(SnapshotStageRunner.NAME, (k) -> new SnapshotStageRunner(context, config));
+                    Future<?> future = replicationContext.executor().submit(stageRunner);
+                    replicationContext.snapshotFuture().set(future);
                 }
             }
         }
@@ -69,7 +76,7 @@ public class Replication {
         LOGGER.info("Replication job: {} started", VersionstampUtils.base64Encode(config.jobId()));
     }
 
-    public ReplicationContext getContext() {
+    public ReplicationContext getReplicationContext() {
         return replicationContext;
     }
 
@@ -78,12 +85,14 @@ public class Replication {
             throw new IllegalStateException("Replication is not started");
         }
 
-        // Unwatch the CDC trigger, if it exists.
-        keyWatcher.unwatch(config.subspace().pack(Tuple.from(VOLUME_CDC_TRIGGER_PREFIX)));
-
         stopped = true;
+
+        for (StageRunner runner : stages.values()) {
+            runner.stop();
+        }
+
         try {
-            replicationContext.executor().close();
+            replicationContext.free();
         } finally {
             started = false;
         }

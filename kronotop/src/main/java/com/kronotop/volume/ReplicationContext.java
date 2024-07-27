@@ -43,4 +43,8 @@ public class ReplicationContext {
     public AtomicReference<Future<?>> changeDataCaptureFuture() {
         return changeDataCaptureFuture;
     }
+
+    public void free() {
+        executor.shutdown();
+    }
 }
