@@ -31,7 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
-public class ReplicationRunnable {
+public class ReplicationStageRunner {
     protected static final int MAXIMUM_BATCH_SIZE = 100;
     protected final Context context;
     protected final ReplicationConfig config;
@@ -42,7 +42,7 @@ public class ReplicationRunnable {
     private volatile boolean started = false;
     private volatile boolean stopped = false;
 
-    public ReplicationRunnable(Context context, ReplicationConfig config) {
+    public ReplicationStageRunner(Context context, ReplicationConfig config) {
         this.context = context;
         this.config = config;
 
@@ -79,7 +79,7 @@ public class ReplicationRunnable {
         return started;
     }
 
-    public void stop() throws IOException {
+    public void stop() {
         if (!started) {
             throw new IllegalStateException("Replication is not started");
         }
@@ -87,7 +87,12 @@ public class ReplicationRunnable {
         stopped = true;
 
         for (Segment segment : openSegments.values()) {
-            segment.close();
+            try {
+                segment.close();
+            } catch (IOException e) {
+                // TODO: Log this properly
+                e.printStackTrace();
+            }
         }
 
         try {

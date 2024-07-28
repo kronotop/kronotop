@@ -27,12 +27,15 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
 
-class SnapshotStageRunner extends ReplicationRunnable implements StageRunner {
-    public static final String NAME = "Snapshot";
+class SnapshotStageRunner extends ReplicationStageRunner implements StageRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotStageRunner.class);
 
     SnapshotStageRunner(Context context, ReplicationConfig config) {
         super(context, config);
+    }
+
+    public String name() {
+        return "Snapshot";
     }
 
     private boolean isSnapshotCompleted(Transaction tr, long segmentId) {
@@ -188,13 +191,10 @@ class SnapshotStageRunner extends ReplicationRunnable implements StageRunner {
 
         LOGGER.info("ReplicationJob: {}, Snapshot stage has started", VersionstampUtils.base64Encode(config.jobId()));
         try {
-            semaphore.acquire();
             snapshotLoop();
             isSnapshotCompleted();
         } catch (Exception e) {
             LOGGER.error("ReplicationJob: {}, snapshot stage has failed", config.jobId(), e);
-        } finally {
-            semaphore.release();
         }
     }
 }
