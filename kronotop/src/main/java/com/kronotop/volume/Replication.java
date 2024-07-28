@@ -27,12 +27,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Replication {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replication.class);
     private final Context context;
     private final ReplicationConfig config;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    private final AtomicReference<StageRunner> activeStageRunner = new AtomicReference<>();
     private volatile boolean started = false;
     private volatile boolean stopped = false;
 
@@ -41,13 +43,21 @@ public class Replication {
         this.config = config;
     }
 
-    private void runStages(List<StageRunner> runners) {
-        for (StageRunner runner : runners) {
-            LOGGER.info("Running {}", runner.name());
+    private void runStages(List<StageRunner> stageRunners) {
+        for (StageRunner stageRunner : stageRunners) {
+            if (stopped) {
+                return;
+            }
+            LOGGER.atInfo().
+                    setMessage("{} state is about to be started, jobId = {}").
+                    addArgument(stageRunner.name()).
+                    addArgument(config.stringifyJobId()).
+                    log();
+            activeStageRunner.set(stageRunner);
             try {
-                runner.run();
+                stageRunner.run();
             } finally {
-                runner.stop();
+                stageRunner.stop();
             }
         }
     }
@@ -56,6 +66,8 @@ public class Replication {
         if (started) {
             throw new IllegalStateException("Replication is already started");
         }
+
+        started = true;
 
         executor.submit(() -> {
             List<StageRunner> runners = new ArrayList<>();
@@ -81,7 +93,6 @@ public class Replication {
             runStages(runners);
         });
 
-        started = true;
         LOGGER.info("Replication job: {} started", VersionstampUtils.base64Encode(config.jobId()));
     }
 
@@ -90,10 +101,16 @@ public class Replication {
             throw new IllegalStateException("Replication is not started");
         }
 
+        stopped = true;
+
+        StageRunner stageRunner = activeStageRunner.get();
+        if (stageRunner != null) {
+            LOGGER.info("Stopping stage {}", VersionstampUtils.base64Encode(config.jobId()));
+            stageRunner.stop();
+        }
 
         executor.shutdown();
 
-        stopped = true;
         LOGGER.info("Replication job: {} stopped", VersionstampUtils.base64Encode(config.jobId()));
     }
 }

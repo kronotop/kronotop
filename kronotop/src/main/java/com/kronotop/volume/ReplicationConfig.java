@@ -18,6 +18,7 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.VersionstampUtils;
 
 public record ReplicationConfig(
         Host source,
@@ -28,4 +29,8 @@ public record ReplicationConfig(
         Long segmentSize,
         String rootPath,
         boolean cdcOnly) {
+
+    String stringifyJobId() {
+        return VersionstampUtils.base64Encode(jobId);
+    }
 }
