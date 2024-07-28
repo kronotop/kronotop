@@ -46,7 +46,7 @@ public class Replication {
     private void runStages(List<StageRunner> stageRunners) {
         for (StageRunner stageRunner : stageRunners) {
             if (stopped) {
-                return;
+                break;
             }
             LOGGER.atInfo().
                     setMessage("{} state is about to be started, jobId = {}").
@@ -62,7 +62,7 @@ public class Replication {
         }
     }
 
-    public void start() throws IOException {
+    public synchronized void start() throws IOException {
         if (started) {
             throw new IllegalStateException("Replication is already started");
         }
@@ -92,25 +92,33 @@ public class Replication {
 
             runStages(runners);
         });
-
-        LOGGER.info("Replication job: {} started", VersionstampUtils.base64Encode(config.jobId()));
     }
 
-    public void stop() {
+    public synchronized void stop() {
         if (!started) {
             throw new IllegalStateException("Replication is not started");
+        }
+
+        if (!stopped) {
+            throw new IllegalStateException("Replication is already stopped");
         }
 
         stopped = true;
 
         StageRunner stageRunner = activeStageRunner.get();
         if (stageRunner != null) {
-            LOGGER.info("Stopping stage {}", VersionstampUtils.base64Encode(config.jobId()));
+            LOGGER.atInfo().
+                    setMessage("Stopping {} stage, jobId = {}").
+                    addArgument(stageRunner.name()).
+                    addArgument(config.stringifyJobId()).
+                    log();
             stageRunner.stop();
         }
 
         executor.shutdown();
 
-        LOGGER.info("Replication job: {} stopped", VersionstampUtils.base64Encode(config.jobId()));
+        LOGGER.atInfo().setMessage("ReplicationJob stopped, jobId = {}")
+                .addArgument(VersionstampUtils.base64Encode(config.jobId()))
+                .log();
     }
 }
