@@ -104,8 +104,6 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
             watchChanges();
         } catch (Exception e) {
             LOGGER.error("ReplicationJob: {}, CDC stage has failed", VersionstampUtils.base64Encode(config.jobId()), e);
-        } finally {
-            //replication.semaphore.release();
         }
     }
 }

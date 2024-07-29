@@ -24,22 +24,22 @@ import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.codec.ByteArrayCodec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.Semaphore;
 
 public class ReplicationStageRunner {
     protected static final int MAXIMUM_BATCH_SIZE = 100;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationStageRunner.class);
     protected final Context context;
     protected final ReplicationConfig config;
-    protected final Semaphore semaphore = new Semaphore(1);
     protected final RedisClient client;
     protected final StatefulInternalConnection<byte[], byte[]> connection;
     protected final HashMap<Long, Segment> openSegments = new HashMap<>();
-    private volatile boolean started = false;
     private volatile boolean stopped = false;
 
     public ReplicationStageRunner(Context context, ReplicationConfig config) {
@@ -71,17 +71,9 @@ public class ReplicationStageRunner {
         return connection.sync().segmentRange(config.volumeName(), segmentName, segmentRanges);
     }
 
-    public void setStarted(boolean started) {
-        this.started = started;
-    }
-
-    public boolean isStarted() {
-        return started;
-    }
-
     public void stop() {
-        if (!started) {
-            throw new IllegalStateException("Replication is not started");
+        if (stopped) {
+            return;
         }
 
         stopped = true;
@@ -89,17 +81,12 @@ public class ReplicationStageRunner {
         for (Segment segment : openSegments.values()) {
             try {
                 segment.close();
-            } catch (IOException e) {
-                // TODO: Log this properly
-                e.printStackTrace();
+            } catch (Exception e) {
+                LOGGER.error("Error closing segment {}", segment, e);
             }
         }
 
-        try {
-            client.shutdown();
-        } finally {
-            setStarted(false);
-        }
+        client.shutdown();
     }
 
     protected boolean isStopped() {

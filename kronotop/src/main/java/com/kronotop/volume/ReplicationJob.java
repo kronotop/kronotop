@@ -41,34 +41,6 @@ public class ReplicationJob {
 
     private byte[] latestVersionstampedKey;
 
-    public TreeMap<Long, Snapshot> getSnapshots() {
-        return snapshots;
-    }
-
-    public boolean isSnapshotCompleted() {
-        return snapshotCompleted;
-    }
-
-    public void setSnapshotCompleted(boolean snapshotCompleted) {
-        this.snapshotCompleted = snapshotCompleted;
-    }
-
-    public void setLatestVersionstampedKey(byte[] latestVersionstampedKey) {
-        this.latestVersionstampedKey = latestVersionstampedKey;
-    }
-
-    public byte[] getLatestVersionstampedKey() {
-        return latestVersionstampedKey;
-    }
-
-    public void setLatestSegmentId(long latestSegmentId) {
-        this.latestSegmentId = latestSegmentId;
-    }
-
-    public long getLatestSegmentId() {
-        return latestSegmentId;
-    }
-
     public static Versionstamp newJob(Database database, DirectorySubspace subspace, Member member) {
         CompletableFuture<byte[]> future;
         try (Transaction tr = database.createTransaction()) {
@@ -89,7 +61,7 @@ public class ReplicationJob {
                 );
                 replicationJob.getSnapshots().put(segmentId, snapshot);
             }
-            
+
             byte[] key = subspace.packWithVersionstamp(Tuple.from(SEGMENT_REPLICATION_PREFIX, member.getId(), Versionstamp.incomplete()));
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(replicationJob));
             future = tr.getVersionstamp();
@@ -120,6 +92,34 @@ public class ReplicationJob {
         remappingFunction.accept(replicationJob);
         tr.set(packedKey, JSONUtils.writeValueAsBytes(replicationJob));
         return replicationJob;
+    }
+
+    public TreeMap<Long, Snapshot> getSnapshots() {
+        return snapshots;
+    }
+
+    public boolean isSnapshotCompleted() {
+        return snapshotCompleted;
+    }
+
+    public void setSnapshotCompleted(boolean snapshotCompleted) {
+        this.snapshotCompleted = snapshotCompleted;
+    }
+
+    public byte[] getLatestVersionstampedKey() {
+        return latestVersionstampedKey;
+    }
+
+    public void setLatestVersionstampedKey(byte[] latestVersionstampedKey) {
+        this.latestVersionstampedKey = latestVersionstampedKey;
+    }
+
+    public long getLatestSegmentId() {
+        return latestSegmentId;
+    }
+
+    public void setLatestSegmentId(long latestSegmentId) {
+        this.latestSegmentId = latestSegmentId;
     }
 }
 

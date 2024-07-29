@@ -25,7 +25,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 class SnapshotStageRunner extends ReplicationStageRunner implements StageRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotStageRunner.class);
@@ -180,15 +183,6 @@ class SnapshotStageRunner extends ReplicationStageRunner implements StageRunner 
 
     @Override
     public void run() {
-        if (isStopped()) {
-            return;
-        }
-        if (isStarted()) {
-            throw new IllegalStateException("Snapshot stage is already started");
-        }
-
-        setStarted(true);
-
         LOGGER.info("ReplicationJob: {}, Snapshot stage has started", VersionstampUtils.base64Encode(config.jobId()));
         try {
             snapshotLoop();

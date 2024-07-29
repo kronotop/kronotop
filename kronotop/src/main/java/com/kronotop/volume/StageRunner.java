@@ -16,10 +16,8 @@
 
 package com.kronotop.volume;
 
-import java.io.IOException;
-import java.util.function.Function;
-
 public interface StageRunner extends Runnable {
     String name();
+
     void stop();
 }

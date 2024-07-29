@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Replication {
@@ -62,14 +63,14 @@ public class Replication {
         }
     }
 
-    public synchronized void start() throws IOException {
+    public synchronized Future<?> start() throws IOException {
         if (started) {
             throw new IllegalStateException("Replication is already started");
         }
 
         started = true;
 
-        executor.submit(() -> {
+        return executor.submit(() -> {
             List<StageRunner> runners = new ArrayList<>();
 
             if (config.cdcOnly()) {
@@ -99,7 +100,7 @@ public class Replication {
             throw new IllegalStateException("Replication is not started");
         }
 
-        if (!stopped) {
+        if (stopped) {
             throw new IllegalStateException("Replication is already stopped");
         }
 
