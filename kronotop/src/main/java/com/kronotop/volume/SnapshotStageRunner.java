@@ -19,6 +19,7 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.cluster.client.StatefulInternalConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +33,8 @@ import java.util.Map;
 class SnapshotStageRunner extends ReplicationStageRunner implements StageRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotStageRunner.class);
 
-    SnapshotStageRunner(Context context, ReplicationConfig config) {
-        super(context, config);
+    SnapshotStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
+        super(context, config, connection);
     }
 
     public String name() {
@@ -188,7 +189,6 @@ class SnapshotStageRunner extends ReplicationStageRunner implements StageRunner 
                         addArgument(totalProcessedEntries).
                         addArgument(config.stringifyJobId()).
                         log();
-                ;
             }
         }
     }

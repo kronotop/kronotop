@@ -18,7 +18,11 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
-import com.kronotop.VersionstampUtils;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.client.InternalClient;
+import com.kronotop.cluster.client.StatefulInternalConnection;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,16 +36,24 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class Replication {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replication.class);
+    protected final StatefulInternalConnection<byte[], byte[]> connection;
     private final Context context;
     private final ReplicationConfig config;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final AtomicReference<StageRunner> activeStageRunner = new AtomicReference<>();
+    private final RedisClient client;
     private volatile boolean started = false;
     private volatile boolean stopped = false;
 
     public Replication(Context context, ReplicationConfig config) {
         this.context = context;
         this.config = config;
+
+        Member member = config.source().member();
+        this.client = RedisClient.create(
+                String.format("redis://%s:%d", member.getAddress().getHost(), member.getAddress().getPort())
+        );
+        this.connection = InternalClient.connect(client, ByteArrayCodec.INSTANCE);
     }
 
     private void runStages(List<StageRunner> stageRunners) {
@@ -74,18 +86,18 @@ public class Replication {
             List<StageRunner> runners = new ArrayList<>();
 
             if (config.cdcOnly()) {
-                StageRunner changeDataCaptureStageRunner = new ChangeDataCaptureStageRunner(context, config);
+                StageRunner changeDataCaptureStageRunner = new ChangeDataCaptureStageRunner(context, config, connection);
                 runners.add(changeDataCaptureStageRunner);
             } else {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     if (ReplicationJob.load(tr, config).isSnapshotCompleted()) {
-                        StageRunner changeDataCaptureStageRunner = new ChangeDataCaptureStageRunner(context, config);
+                        StageRunner changeDataCaptureStageRunner = new ChangeDataCaptureStageRunner(context, config, connection);
                         runners.add(changeDataCaptureStageRunner);
                     } else {
-                        StageRunner snapshotStageRunner = new SnapshotStageRunner(context, config);
+                        StageRunner snapshotStageRunner = new SnapshotStageRunner(context, config, connection);
                         runners.add(snapshotStageRunner);
 
-                        StageRunner changeDataCaptureStageRunner = new ChangeDataCaptureStageRunner(context, config);
+                        StageRunner changeDataCaptureStageRunner = new ChangeDataCaptureStageRunner(context, config, connection);
                         runners.add(changeDataCaptureStageRunner);
                     }
                 }
@@ -117,9 +129,10 @@ public class Replication {
         }
 
         executor.shutdown();
+        client.shutdown();
 
-        LOGGER.atInfo().setMessage("ReplicationJob stopped, jobId = {}")
-                .addArgument(VersionstampUtils.base64Encode(config.jobId()))
+        LOGGER.atInfo().setMessage("Replication has stopped, jobId = {}")
+                .addArgument(config.stringifyJobId())
                 .log();
     }
 }

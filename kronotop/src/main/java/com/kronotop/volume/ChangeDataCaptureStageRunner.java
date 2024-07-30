@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
+import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.journal.JournalName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,8 +36,8 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
     private static final Logger LOGGER = LoggerFactory.getLogger(ChangeDataCaptureStageRunner.class);
     private final KeyWatcher keyWatcher = new KeyWatcher();
 
-    public ChangeDataCaptureStageRunner(Context context, ReplicationConfig config) {
-        super(context, config);
+    public ChangeDataCaptureStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
+        super(context, config, connection);
     }
 
     public String name() {

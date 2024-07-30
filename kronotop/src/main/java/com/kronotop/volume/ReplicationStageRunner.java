@@ -18,12 +18,8 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.SegmentRange;
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,20 +33,14 @@ public class ReplicationStageRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationStageRunner.class);
     protected final Context context;
     protected final ReplicationConfig config;
-    protected final RedisClient client;
     protected final StatefulInternalConnection<byte[], byte[]> connection;
     protected final HashMap<Long, Segment> openSegments = new HashMap<>();
     private volatile boolean stopped = false;
 
-    public ReplicationStageRunner(Context context, ReplicationConfig config) {
+    public ReplicationStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
         this.context = context;
         this.config = config;
-
-        Member member = config.source().member();
-        this.client = RedisClient.create(
-                String.format("redis://%s:%d", member.getAddress().getHost(), member.getAddress().getPort())
-        );
-        this.connection = InternalClient.connect(client, ByteArrayCodec.INSTANCE);
+        this.connection = connection;
     }
 
     protected void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException, NotEnoughSpaceException {
@@ -89,8 +79,6 @@ public class ReplicationStageRunner {
                         log();
             }
         }
-
-        client.shutdown();
     }
 
     protected boolean isStopped() {
