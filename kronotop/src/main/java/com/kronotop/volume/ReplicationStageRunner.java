@@ -16,6 +16,7 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.cluster.client.StatefulInternalConnection;
@@ -25,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -41,6 +43,22 @@ public class ReplicationStageRunner {
         this.context = context;
         this.config = config;
         this.connection = connection;
+    }
+
+    protected IterationResult iterate(Transaction tr, Segment segment, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) throws NotEnoughSpaceException, IOException {
+        SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segment.getName(), begin, end, limit);
+        List<SegmentLogEntry> segmentLogEntries = new ArrayList<>();
+        for (SegmentLogEntry entry : iterable) {
+            segmentLogEntries.add(entry);
+        }
+
+        if (segmentLogEntries.isEmpty()) {
+            return new IterationResult(null, 0);
+        }
+
+        List<Object> dataRanges = fetchSegmentRange(segment.getName(), segmentLogEntries);
+        insertSegmentRange(segment, segmentLogEntries, dataRanges);
+        return new IterationResult(segmentLogEntries.getLast().key(), segmentLogEntries.size());
     }
 
     protected void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException, NotEnoughSpaceException {

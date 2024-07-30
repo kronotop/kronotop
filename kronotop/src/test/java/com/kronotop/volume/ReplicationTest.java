@@ -174,6 +174,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
                     Session session = new Session(tr);
                     volume.append(session, entries);
                     tr.commit().join();
+                    System.out.println("INSERTED 10 KEYS");
                 }
             }
             Thread.sleep(5000);

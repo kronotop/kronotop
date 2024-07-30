@@ -18,6 +18,7 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
 import com.kronotop.cluster.client.StatefulInternalConnection;
@@ -25,7 +26,10 @@ import com.kronotop.journal.JournalName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -44,11 +48,48 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
         return "ChangeDataCapture";
     }
 
+    private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId, Versionstamp key) throws IOException, NotEnoughSpaceException {
+        Segment segment = openSegments.get(segmentId);
+        if (segment == null) {
+            SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
+            segment = new Segment(segmentConfig);
+            openSegments.put(segmentId, segment);
+        }
+
+        // (begin, ...)
+        VersionstampedKeySelector begin = null;
+        if (key != null) {
+            begin = VersionstampedKeySelector.firstGreaterThan(key);
+            // There is no difference between firstGreaterThan and firstGreaterOrEqual. firstGreaterThan still returns the
+            // begin-key. I don't understand why but calling add(1) fixes the problem.
+            begin = begin.add(1);
+        }
+
+        return iterate(tr, segment, begin, null, MAXIMUM_BATCH_SIZE);
+    }
+
     private void fetchChanges() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationJob replicationJob = ReplicationJob.load(tr, config);
-            System.out.println(replicationJob.getLatestSegmentId());
-            System.out.println(Arrays.toString(replicationJob.getLatestVersionstampedKey()));
+            ReplicationJob.compute(tr, config, (job) -> {
+                Versionstamp key = null;
+                if (job.getLatestVersionstampedKey() != null) {
+                    key = Versionstamp.fromBytes(job.getLatestVersionstampedKey());
+                }
+
+                IterationResult iterationResult;
+                try {
+                    iterationResult = iterateSegmentLogEntries(tr, job.getLatestSegmentId(), key);
+                } catch (IOException | NotEnoughSpaceException e) {
+                    throw new RuntimeException(e);
+                }
+                if (iterationResult.processedKeys() == 0) {
+                    // TODO: Find a new segment id, if there is any.
+                    return;
+                }
+                job.setLatestVersionstampedKey(iterationResult.latestKey().getBytes());
+            });
+
+            tr.commit().join();
         }
     }
 
@@ -71,14 +112,14 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
                 LOGGER.info("Triggered, fetching the latest segment logs");
                 fetchChanges();
             } catch (Exception e) {
-                LOGGER.error("Error while watching segment log: {}", JournalName.clusterEvents(), e);
+                LOGGER.error("Error while watching segment log: {}", config.volumeName(), e);
             }
         }
     }
 
-    private ReplicationJob startChangeDataCapture() {
+    private void discoverStartingPoint() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationJob replicationJob = ReplicationJob.compute(tr, config, (job) -> {
+            ReplicationJob.compute(tr, config, (job) -> {
                 if (!job.getSnapshots().isEmpty()) {
                     Map.Entry<Long, Snapshot> entry = job.getSnapshots().lastEntry();
                     Snapshot snapshot = entry.getValue();
@@ -87,8 +128,13 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
                 }
             });
             tr.commit().join();
-            return replicationJob;
         }
+    }
+
+    @Override
+    public void stop() {
+        keyWatcher.unwatch(config.subspace().pack(Tuple.from(VOLUME_CDC_TRIGGER_PREFIX)));
+        super.stop();
     }
 
     @Override
@@ -98,7 +144,7 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
         }
 
         try {
-            startChangeDataCapture();
+            discoverStartingPoint();
             watchChanges();
         } catch (Exception e) {
             LOGGER.atError().setMessage("{} stage has failed, jobId = {}").
