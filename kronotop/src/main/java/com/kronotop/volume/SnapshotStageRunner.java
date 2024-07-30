@@ -19,7 +19,6 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.VersionstampUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,7 +126,11 @@ class SnapshotStageRunner extends ReplicationStageRunner implements StageRunner 
                 }
                 break;
             } catch (IOException | NotEnoughSpaceException e) {
-                LOGGER.error("Error while fetching segment logs", e);
+                LOGGER.atError().setMessage("An error has occurred while running {} stage, retrying, jobId = {}").
+                        addArgument(name()).
+                        addArgument(config.stringifyJobId()).
+                        setCause(e).
+                        log();
             }
         }
     }
@@ -176,19 +179,31 @@ class SnapshotStageRunner extends ReplicationStageRunner implements StageRunner 
                 for (Map.Entry<Long, Snapshot> entry : replicationJob.getSnapshots().entrySet()) {
                     totalProcessedEntries += entry.getValue().getProcessedEntries();
                 }
-                LOGGER.info("ReplicationJob: {}, snapshot stage has completed. Number of processed keys: {}", VersionstampUtils.base64Encode(config.jobId()), totalProcessedEntries);
+                LOGGER.atInfo().setMessage("{} stage has completed, jobId = {}").
+                        addArgument(name()).
+                        addArgument(config.stringifyJobId()).
+                        log();
+                LOGGER.atInfo().setMessage("Number of processed keys during {} stage: {}, jobId = {}").
+                        addArgument(name()).
+                        addArgument(totalProcessedEntries).
+                        addArgument(config.stringifyJobId()).
+                        log();
+                ;
             }
         }
     }
 
     @Override
     public void run() {
-        LOGGER.info("ReplicationJob: {}, Snapshot stage has started", VersionstampUtils.base64Encode(config.jobId()));
         try {
             snapshotLoop();
             isSnapshotCompleted();
         } catch (Exception e) {
-            LOGGER.error("ReplicationJob: {}, snapshot stage has failed", config.jobId(), e);
+            LOGGER.atError().setMessage("{} stage has failed, jobId = {}").
+                    addArgument(name()).
+                    addArgument(config.stringifyJobId()).
+                    setCause(e).
+                    log();
         }
     }
 }

@@ -82,7 +82,11 @@ public class ReplicationStageRunner {
             try {
                 segment.close();
             } catch (Exception e) {
-                LOGGER.error("Error closing segment {}", segment, e);
+                LOGGER.atError().
+                        setMessage("Error while closing a segment, jobId = {}").
+                        addArgument(config.stringifyJobId()).
+                        setCause(e).
+                        log();
             }
         }
 

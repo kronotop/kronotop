@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
-import com.kronotop.VersionstampUtils;
 import com.kronotop.journal.JournalName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,13 +96,15 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
             return;
         }
 
-        LOGGER.info("ReplicationJob: {}, CDC stage has started", VersionstampUtils.base64Encode(config.jobId()));
         try {
-            //replication.semaphore.acquire();
             startChangeDataCapture();
             watchChanges();
         } catch (Exception e) {
-            LOGGER.error("ReplicationJob: {}, CDC stage has failed", VersionstampUtils.base64Encode(config.jobId()), e);
+            LOGGER.atError().setMessage("{} stage has failed, jobId = {}").
+                    addArgument(name()).
+                    addArgument(config.stringifyJobId()).
+                    setCause(e).
+                    log();
         }
     }
 }
