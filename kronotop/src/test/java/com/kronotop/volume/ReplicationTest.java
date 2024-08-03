@@ -144,7 +144,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
     }
 
     @Test
-    public void test_take_snapshot_CDC() throws IOException, InterruptedException {
+    public void test_watch_changes_stage() throws IOException, InterruptedException {
         final Host source;
         final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
@@ -179,7 +179,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
                 Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
                 Versionstamp key = versionstampedKeys[4];
                 System.out.println(key);
-                ChangeDataCaptureStageRunner runner = new ChangeDataCaptureStageRunner(context, config, null);
+                WatchChangesStageRunner runner = new WatchChangesStageRunner(context, config, null);
                 try(Transaction tr = database.createTransaction()) {
                     System.out.println(runner.findNextSegmentId(tr, key));
                 }

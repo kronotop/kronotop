@@ -66,7 +66,7 @@ public class Volume {
         this.context = context;
         this.config = volumeConfig;
         this.entryMetadataCache = CacheBuilder.newBuilder().expireAfterAccess(30, TimeUnit.MINUTES).build(new EntryMetadataLoader());
-        this.cdcTriggerKey = config.subspace().pack(Tuple.from(VOLUME_CDC_TRIGGER_PREFIX));
+        this.cdcTriggerKey = config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_PREFIX));
         openSegments();
     }
 

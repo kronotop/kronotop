@@ -38,18 +38,18 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 import static com.kronotop.volume.Prefixes.ENTRY_PREFIX;
-import static com.kronotop.volume.Prefixes.VOLUME_CDC_TRIGGER_PREFIX;
+import static com.kronotop.volume.Prefixes.VOLUME_WATCH_CHANGES_TRIGGER_PREFIX;
 
-public class ChangeDataCaptureStageRunner extends ReplicationStageRunner implements StageRunner {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ChangeDataCaptureStageRunner.class);
+public class WatchChangesStageRunner extends ReplicationStageRunner implements StageRunner {
+    private static final Logger LOGGER = LoggerFactory.getLogger(WatchChangesStageRunner.class);
     private final KeyWatcher keyWatcher = new KeyWatcher();
 
-    public ChangeDataCaptureStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
+    public WatchChangesStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
         super(context, config, connection);
     }
 
     public String name() {
-        return "ChangeDataCapture";
+        return "WatchChanges";
     }
 
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId, Versionstamp key) throws IOException, NotEnoughSpaceException {
@@ -140,7 +140,7 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
     private void watchChanges() {
         while (!isStopped()) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, config.subspace().pack(Tuple.from(VOLUME_CDC_TRIGGER_PREFIX)));
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_PREFIX)));
                 tr.commit().join();
 
                 try {
@@ -183,7 +183,7 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
 
     @Override
     public void stop() {
-        keyWatcher.unwatch(config.subspace().pack(Tuple.from(VOLUME_CDC_TRIGGER_PREFIX)));
+        keyWatcher.unwatch(config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_PREFIX)));
         super.stop();
     }
 

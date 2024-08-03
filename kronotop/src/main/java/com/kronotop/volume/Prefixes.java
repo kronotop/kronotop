@@ -24,5 +24,5 @@ class Prefixes {
     protected static final byte SEGMENT_LOG_PREFIX = 0x5;
     protected static final byte SEGMENT_LOG_CARDINALITY_PREFIX = 0x6;
     protected static final byte SEGMENT_REPLICATION_PREFIX = 0x7;
-    protected static final byte VOLUME_CDC_TRIGGER_PREFIX = 0x8;
+    protected static final byte VOLUME_WATCH_CHANGES_TRIGGER_PREFIX = 0x8;
 }
