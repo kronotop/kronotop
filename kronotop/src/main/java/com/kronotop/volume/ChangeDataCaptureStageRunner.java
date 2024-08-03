@@ -16,24 +16,28 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.async.AsyncIterable;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.base.CharMatcher;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
 import com.kronotop.cluster.client.StatefulInternalConnection;
-import com.kronotop.journal.JournalName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
+import static com.kronotop.volume.Prefixes.ENTRY_PREFIX;
 import static com.kronotop.volume.Prefixes.VOLUME_CDC_TRIGGER_PREFIX;
 
 public class ChangeDataCaptureStageRunner extends ReplicationStageRunner implements StageRunner {
@@ -68,27 +72,67 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
         return iterate(tr, segment, begin, null, MAXIMUM_BATCH_SIZE);
     }
 
+    /**
+     * Finds the next segment ID based on the provided transaction and key.
+     *
+     * @param tr  the transaction
+     * @param key the key used to find the next segment ID
+     * @return the next segment ID
+     * @throws IllegalStateException if no new segment exists
+     */
+    protected long findNextSegmentId(Transaction tr, Versionstamp key) {
+        byte[] packedKey = config.subspace().pack(Tuple.from(ENTRY_PREFIX, key));
+        KeySelector begin = KeySelector.firstGreaterThan(packedKey);
+        begin.add(1);
+
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(config.subspace().pack(Tuple.from(ENTRY_PREFIX))));
+        AsyncIterable<KeyValue> iterable = tr.getRange(begin, end, 1);
+
+        for (KeyValue keyValue : iterable) {
+            EntryMetadata metadata = EntryMetadata.decode(ByteBuffer.wrap(keyValue.getValue()));
+            String segmentId = CharMatcher.is('0').trimLeadingFrom(metadata.segment());
+            if (segmentId.isEmpty()) {
+                return 0L;
+            }
+            return Long.parseLong(segmentId);
+        }
+        throw new NoSegmentExistsException();
+    }
+
     private void fetchChanges() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationJob.compute(tr, config, (job) -> {
-                Versionstamp key = null;
-                if (job.getLatestVersionstampedKey() != null) {
-                    key = Versionstamp.fromBytes(job.getLatestVersionstampedKey());
-                }
-
-                IterationResult iterationResult;
+                Versionstamp key = job.getLatestVersionstampedKey() != null ? Versionstamp.fromBytes(job.getLatestVersionstampedKey()) : null;
                 try {
-                    iterationResult = iterateSegmentLogEntries(tr, job.getLatestSegmentId(), key);
-                } catch (IOException | NotEnoughSpaceException e) {
-                    throw new RuntimeException(e);
-                }
-                if (iterationResult.processedKeys() == 0) {
-                    // TODO: Find a new segment id, if there is any.
-                    return;
-                }
-                job.setLatestVersionstampedKey(iterationResult.latestKey().getBytes());
-            });
+                    IterationResult iterationResult = iterateSegmentLogEntries(tr, job.getLatestSegmentId(), key);
+                    if (iterationResult.processedKeys() != 0) {
+                        // Segment id not changed yet
+                        job.setLatestVersionstampedKey(iterationResult.latestKey().getBytes());
+                        return;
+                    }
 
+                    if (key == null) {
+                        LOGGER.atDebug()
+                                .setMessage("It's not possible to find a new segmentId because key is null, jobId = {}")
+                                .addArgument(config.stringifyJobId())
+                                .log();
+                        return;
+                    }
+
+                    // Need to find a new segment id
+                    long segmentId = findNextSegmentId(tr, key);
+                    job.setLatestSegmentId(segmentId);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                } catch (NotEnoughSpaceException e) {
+                    throw new RuntimeException(e);
+                } catch (NoSegmentExistsException e) {
+                    LOGGER.atDebug()
+                            .setMessage("No new segment found, jobId = {}")
+                            .addArgument(config.stringifyJobId())
+                            .log();
+                }
+            });
             tr.commit().join();
         }
     }
@@ -101,31 +145,37 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
 
                 try {
                     // fetch events here
-                    LOGGER.info("Fetching the latest segment logs before watching");
                     fetchChanges();
                     watcher.join();
                 } catch (CancellationException e) {
-                    LOGGER.info("CDC watcher has been cancelled on Volume: {}", config.volumeName());
+                    LOGGER.atInfo()
+                            .setMessage("{} stage has cancelled, jobId = {}")
+                            .addArgument(name())
+                            .addArgument(config.stringifyJobId())
+                            .log();
                     return;
                 }
                 // fetch events here
-                LOGGER.info("Triggered, fetching the latest segment logs");
                 fetchChanges();
             } catch (Exception e) {
-                LOGGER.error("Error while watching segment log: {}", config.volumeName(), e);
+                LOGGER.atError()
+                        .setMessage("Error while watching changes, jobId = {}")
+                        .addArgument(config.stringifyJobId())
+                        .log();
             }
         }
     }
 
-    private void discoverStartingPoint() {
+    private void findStartingPoint() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationJob.compute(tr, config, (job) -> {
-                if (!job.getSnapshots().isEmpty()) {
-                    Map.Entry<Long, Snapshot> entry = job.getSnapshots().lastEntry();
-                    Snapshot snapshot = entry.getValue();
-                    job.setLatestSegmentId(snapshot.getSegmentId());
-                    job.setLatestVersionstampedKey(snapshot.getEnd());
+                if (job.getSnapshots().isEmpty()) {
+                    return;
                 }
+                Map.Entry<Long, Snapshot> entry = job.getSnapshots().lastEntry();
+                Snapshot snapshot = entry.getValue();
+                job.setLatestSegmentId(snapshot.getSegmentId());
+                job.setLatestVersionstampedKey(snapshot.getEnd());
             });
             tr.commit().join();
         }
@@ -144,7 +194,7 @@ public class ChangeDataCaptureStageRunner extends ReplicationStageRunner impleme
         }
 
         try {
-            discoverStartingPoint();
+            findStartingPoint();
             watchChanges();
         } catch (Exception e) {
             LOGGER.atError().setMessage("{} stage has failed, jobId = {}").

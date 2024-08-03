@@ -71,7 +71,7 @@ public class ReplicationStageRunner {
     }
 
     protected List<Object> fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
-        com.kronotop.cluster.client.protocol.SegmentRange[] segmentRanges = new com.kronotop.cluster.client.protocol.SegmentRange[entries.size()];
+        SegmentRange[] segmentRanges = new SegmentRange[entries.size()];
         for (int i = 0; i < entries.size(); i++) {
             SegmentLogEntry entry = entries.get(i);
             segmentRanges[i] = new SegmentRange(entry.value().position(), entry.value().length());

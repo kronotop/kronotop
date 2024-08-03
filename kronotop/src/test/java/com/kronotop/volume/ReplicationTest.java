@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.Random;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
@@ -65,7 +64,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         try {
             replication.start();
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
-                try(Transaction tr = database.createTransaction()) {
+                try (Transaction tr = database.createTransaction()) {
                     ReplicationJob job = ReplicationJob.load(tr, config);
                     return job.isSnapshotCompleted();
                 }
@@ -169,12 +168,20 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
             replication.start();
             Thread.sleep(5000);
             {
+                AppendResult result;
                 ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
                 try (Transaction tr = database.createTransaction()) {
                     Session session = new Session(tr);
-                    volume.append(session, entries);
+                    result = volume.append(session, entries);
                     tr.commit().join();
                     System.out.println("INSERTED 10 KEYS");
+                }
+                Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
+                Versionstamp key = versionstampedKeys[4];
+                System.out.println(key);
+                ChangeDataCaptureStageRunner runner = new ChangeDataCaptureStageRunner(context, config, null);
+                try(Transaction tr = database.createTransaction()) {
+                    System.out.println(runner.findNextSegmentId(tr, key));
                 }
             }
             Thread.sleep(5000);
