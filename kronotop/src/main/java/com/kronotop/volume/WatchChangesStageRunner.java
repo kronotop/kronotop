@@ -40,6 +40,9 @@ import java.util.concurrent.CompletableFuture;
 import static com.kronotop.volume.Prefixes.ENTRY_PREFIX;
 import static com.kronotop.volume.Prefixes.VOLUME_WATCH_CHANGES_TRIGGER_PREFIX;
 
+/**
+ * This class represents a stage runner for watching changes in a database segment log.
+ */
 public class WatchChangesStageRunner extends ReplicationStageRunner implements StageRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(WatchChangesStageRunner.class);
     private final KeyWatcher keyWatcher = new KeyWatcher();
@@ -52,6 +55,16 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
         return "WatchChanges";
     }
 
+    /**
+     * Iterates over the segment log entries.
+     *
+     * @param tr        the transaction
+     * @param segmentId the ID of the segment
+     * @param key       the key used to find the next segment ID
+     * @return an IterationResult containing the latest key and the number of processed keys
+     * @throws IOException             if an I/O error occurs
+     * @throws NotEnoughSpaceException if there is not enough space
+     */
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId, Versionstamp key) throws IOException, NotEnoughSpaceException {
         Segment segment = openSegments.get(segmentId);
         if (segment == null) {
@@ -99,6 +112,9 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
         throw new NoSegmentExistsException();
     }
 
+    /**
+     * Fetches changes by iterating over segment log entries and finding the next segment ID.
+     */
     private void fetchChanges() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationJob.compute(tr, config, (job) -> {
@@ -137,6 +153,10 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
         }
     }
 
+    /**
+     * Watches for changes by continuously iterating over segment log entries and fetching events.
+     * When the stage is stopped, the method terminates.
+     */
     private void watchChanges() {
         while (!isStopped()) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -166,6 +186,11 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
         }
     }
 
+    /**
+     * Finds the starting point for the replication job by computing the latest segment ID and the latest versionstamped key.
+     *
+     * @throws RuntimeException if an error occurs during computation or transaction commit.
+     */
     private void findStartingPoint() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationJob.compute(tr, config, (job) -> {
