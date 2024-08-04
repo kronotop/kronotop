@@ -16,6 +16,7 @@
 
 package com.kronotop.volume;
 
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
 import com.kronotop.common.KronotopException;
 import org.slf4j.Logger;
@@ -48,6 +49,20 @@ public class Segment {
         this.metadataFile = createOrOpenSegmentMetadataFile();
         this.metadata = createOrDecodeSegmentMetadata(config.id());
         this.segmentFile = createOrOpenSegmentFile();
+    }
+
+    /**
+     * Extracts the segment ID from a given name.
+     *
+     * @param name the name from which to extract the segment ID
+     * @return the extracted segment ID
+     */
+    protected static long extractIdFromName(String name) {
+        String segmentId = CharMatcher.is('0').trimLeadingFrom(name);
+        if (segmentId.isEmpty()) {
+            return 0L;
+        }
+        return Long.parseLong(segmentId);
     }
 
     protected static String generateName(long id) {

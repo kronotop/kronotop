@@ -36,6 +36,7 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.kronotop.volume.Prefixes.ENTRY_PREFIX;
 import static com.kronotop.volume.Prefixes.VOLUME_WATCH_CHANGES_TRIGGER_PREFIX;
@@ -46,6 +47,7 @@ import static com.kronotop.volume.Prefixes.VOLUME_WATCH_CHANGES_TRIGGER_PREFIX;
 public class WatchChangesStageRunner extends ReplicationStageRunner implements StageRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(WatchChangesStageRunner.class);
     private final KeyWatcher keyWatcher = new KeyWatcher();
+    private final AtomicBoolean isWatching = new AtomicBoolean();
 
     public WatchChangesStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
         super(context, config, connection);
@@ -93,7 +95,7 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
      * @return the next segment ID
      * @throws IllegalStateException if no new segment exists
      */
-    protected long findNextSegmentId(Transaction tr, Versionstamp key) {
+    private long findNextSegmentId(Transaction tr, Versionstamp key) {
         byte[] packedKey = config.subspace().pack(Tuple.from(ENTRY_PREFIX, key));
         KeySelector begin = KeySelector.firstGreaterThan(packedKey);
         begin.add(1);
@@ -103,11 +105,7 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
 
         for (KeyValue keyValue : iterable) {
             EntryMetadata metadata = EntryMetadata.decode(ByteBuffer.wrap(keyValue.getValue()));
-            String segmentId = CharMatcher.is('0').trimLeadingFrom(metadata.segment());
-            if (segmentId.isEmpty()) {
-                return 0L;
-            }
-            return Long.parseLong(segmentId);
+            return Segment.extractIdFromName(metadata.segment());
         }
         throw new NoSegmentExistsException();
     }
@@ -153,6 +151,10 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
         }
     }
 
+    protected boolean isWatching() {
+        return isWatching.get();
+    }
+
     /**
      * Watches for changes by continuously iterating over segment log entries and fetching events.
      * When the stage is stopped, the method terminates.
@@ -166,6 +168,7 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
                 try {
                     // fetch events here
                     fetchChanges();
+                    isWatching.set(true);
                     watcher.join();
                 } catch (CancellationException e) {
                     LOGGER.atInfo()
@@ -173,7 +176,9 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
                             .addArgument(name())
                             .addArgument(config.stringifyJobId())
                             .log();
-                    return;
+                    return; // cancelled
+                } finally {
+                    isWatching.set(false);
                 }
                 // fetch events here
                 fetchChanges();
@@ -182,6 +187,7 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
                         .setMessage("Error while watching changes, jobId = {}")
                         .addArgument(config.stringifyJobId())
                         .log();
+                // Retrying...
             }
         }
     }

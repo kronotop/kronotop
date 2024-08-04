@@ -20,17 +20,24 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+
+import static org.awaitility.Awaitility.await;
 
 public class WatchChangesStageIntegrationTest extends BaseNetworkedVolumeTest {
+    private static final Logger LOGGER = LoggerFactory.getLogger(WatchChangesStageIntegrationTest.class);
+
     @TempDir
     private Path standbyVolumeRootPath;
 
-    @Test
-    public void test_watch_changes_stage() throws IOException, InterruptedException {
+    private Replication newReplication() {
         final Host source;
         final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
@@ -49,28 +56,66 @@ public class WatchChangesStageIntegrationTest extends BaseNetworkedVolumeTest {
                 standbyVolumeRootPath.toString(),
                 true
         );
-        Replication replication = new Replication(context, config);
+        return new Replication(context, config);
+    }
+
+    private Versionstamp[] appendKeys(int number) throws IOException {
+        ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr);
+            AppendResult result = volume.append(session, entries);
+            tr.commit().join();
+
+            LOGGER.info("Successfully appended {} keys", number);
+            return result.getVersionstampedKeys();
+        }
+    }
+
+    private Volume standbyVolume() throws IOException {
+        VolumeConfig standbyVolumeConfig = new VolumeConfig(
+                volume.getConfig().subspace(),
+                volume.getConfig().name(),
+                standbyVolumeRootPath.toString(),
+                volume.getConfig().segmentSize(),
+                volume.getConfig().allowedGarbageRatio()
+        );
+        System.out.println(standbyVolumeConfig.rootPath());
+        return new Volume(context, standbyVolumeConfig);
+    }
+
+    private boolean checkAppendedEntries(Versionstamp[] versionstampedKeys, Volume standbyVolume) throws IOException {
+        for (Versionstamp versionstampedKey : versionstampedKeys) {
+            try {
+                ByteBuffer buf = volume.get(versionstampedKey);
+                if (buf == null) {
+                    return false;
+                }
+                ByteBuffer replicaBuf = standbyVolume.get(versionstampedKey);
+                if (!Arrays.equals(buf.array(), replicaBuf.array())) {
+                    return false;
+                }
+            } catch (SegmentNotFoundException e) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Test
+    public void test_watch_changes_stage() throws IOException {
+        Replication replication = newReplication();
+        Volume standbyVolume = standbyVolume();
         try {
             replication.start();
-            Thread.sleep(5000);
-            {
-                AppendResult result;
-                ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
-                try (Transaction tr = database.createTransaction()) {
-                    Session session = new Session(tr);
-                    result = volume.append(session, entries);
-                    tr.commit().join();
-                    System.out.println("INSERTED 10 KEYS");
-                }
-                Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
-                Versionstamp key = versionstampedKeys[4];
-                System.out.println(key);
-                WatchChangesStageRunner runner = new WatchChangesStageRunner(context, config, null);
-                try (Transaction tr = database.createTransaction()) {
-                    System.out.println(runner.findNextSegmentId(tr, key));
-                }
-            }
-            Thread.sleep(5000);
+
+            await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
+
+            WatchChangesStageRunner watchChangesStageRunner = (WatchChangesStageRunner) replication.getActiveStageRunner();
+
+            await().atMost(10, TimeUnit.SECONDS).until(watchChangesStageRunner::isWatching);
+
+            Versionstamp[] versionstampedKeys = appendKeys(10);
+            await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(versionstampedKeys, standbyVolume));
         } finally {
             replication.stop();
         }

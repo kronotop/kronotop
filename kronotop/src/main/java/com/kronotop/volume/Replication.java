@@ -107,6 +107,10 @@ public class Replication {
         });
     }
 
+    protected StageRunner getActiveStageRunner() {
+        return activeStageRunner.get();
+    }
+
     public synchronized void stop() {
         if (!started) {
             throw new IllegalStateException("Replication is not started");
