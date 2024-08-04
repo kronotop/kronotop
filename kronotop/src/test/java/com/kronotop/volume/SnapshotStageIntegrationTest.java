@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
-class ReplicationTest extends BaseNetworkedVolumeTest {
+class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
     Random random = new Random();
     @TempDir
     private Path standbyVolumeRootPath;
@@ -41,7 +41,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         return ByteBuffer.wrap(b);
     }
 
-    private void checkSnapshot(Versionstamp[] versionstampedKeys) throws IOException {
+    private void checkSnapshotStage(Versionstamp[] versionstampedKeys) throws IOException {
         final Host source;
         final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
@@ -105,7 +105,7 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
     }
 
     @Test
-    public void test_take_snapshot() throws IOException {
+    public void test_snapshot_stage() throws IOException {
         Versionstamp[] versionstampedKeys;
         AppendResult result;
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
@@ -116,11 +116,11 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         }
         versionstampedKeys = result.getVersionstampedKeys();
         assertEquals(10, versionstampedKeys.length);
-        checkSnapshot(versionstampedKeys);
+        checkSnapshotStage(versionstampedKeys);
     }
 
     @Test
-    public void test_take_snapshot_when_many_segments_exists() throws IOException {
+    public void test_snapshot_stage_when_many_segments_exists() throws IOException {
         Versionstamp[] versionstampedKeys;
 
         long bufferSize = 100480;
@@ -131,7 +131,6 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 1; i <= numIterations; i++) {
                 entries[i - 1] = randomBytes((int) bufferSize);
-                ;
             }
             Session session = new Session(tr);
             AppendResult result = volume.append(session, entries);
@@ -140,53 +139,6 @@ class ReplicationTest extends BaseNetworkedVolumeTest {
         }
 
         assertEquals(2, volume.analyze().size());
-        checkSnapshot(versionstampedKeys);
-    }
-
-    @Test
-    public void test_watch_changes_stage() throws IOException, InterruptedException {
-        final Host source;
-        final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
-        try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            source = volumeMetadata.getOwner();
-        }
-
-        Host destination = new Host(Role.STANDBY, context.getMember());
-        ReplicationConfig config = new ReplicationConfig(
-                source,
-                destination,
-                volume.getConfig().subspace(),
-                jobId,
-                volume.getConfig().name(),
-                volume.getConfig().segmentSize(),
-                standbyVolumeRootPath.toString(),
-                true
-        );
-        Replication replication = new Replication(context, config);
-        try {
-            replication.start();
-            Thread.sleep(5000);
-            {
-                AppendResult result;
-                ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
-                try (Transaction tr = database.createTransaction()) {
-                    Session session = new Session(tr);
-                    result = volume.append(session, entries);
-                    tr.commit().join();
-                    System.out.println("INSERTED 10 KEYS");
-                }
-                Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
-                Versionstamp key = versionstampedKeys[4];
-                System.out.println(key);
-                WatchChangesStageRunner runner = new WatchChangesStageRunner(context, config, null);
-                try(Transaction tr = database.createTransaction()) {
-                    System.out.println(runner.findNextSegmentId(tr, key));
-                }
-            }
-            Thread.sleep(5000);
-        } finally {
-            replication.stop();
-        }
+        checkSnapshotStage(versionstampedKeys);
     }
 }

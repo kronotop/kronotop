@@ -17,7 +17,6 @@
 package com.kronotop.volume;
 
 import com.kronotop.BaseMetadataStoreTest;
-import io.netty.buffer.ByteBuf;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

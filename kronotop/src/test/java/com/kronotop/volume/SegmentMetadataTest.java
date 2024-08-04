@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import org.junit.jupiter.api.Test;
+
 import java.nio.ByteBuffer;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,7 +39,7 @@ public class SegmentMetadataTest {
 
         // When
         SegmentMetadata segmentMetadata = SegmentMetadata.decode(buffer);
-        
+
         // Then
         assertNotNull(segmentMetadata);
         assertEquals(expectedId, segmentMetadata.getId());
@@ -58,6 +59,7 @@ public class SegmentMetadataTest {
         // When / Then
         assertThrows(Exception.class, () -> SegmentMetadata.decode(buffer));
     }
+
     @Test
     public void encodeTest_validSegmentMetadata_encodesCorrectly() {
         // Given
