@@ -23,7 +23,6 @@ import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.google.common.base.CharMatcher;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
 import com.kronotop.cluster.client.StatefulInternalConnection;

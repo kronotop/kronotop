@@ -305,7 +305,7 @@ public class Volume {
                 return segment;
             }
             long segmentId = Segment.extractIdFromName(name);
-            try(Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 if (!hasSegment(tr, segmentId)) {
                     throw new SegmentNotFoundException(name);
                 }
