@@ -18,6 +18,5 @@ package com.kronotop.volume;
 
 public interface StageRunner extends Runnable {
     String name();
-
     void stop();
 }
