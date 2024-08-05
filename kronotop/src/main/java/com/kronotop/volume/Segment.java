@@ -62,7 +62,11 @@ public class Segment {
         if (segmentId.isEmpty()) {
             return 0L;
         }
-        return Long.parseLong(segmentId);
+        try {
+            return Long.parseLong(segmentId);
+        } catch (NumberFormatException e) {
+            throw new KronotopException("Invalid segment ID: " + segmentId, e);
+        }
     }
 
     protected static String generateName(long id) {

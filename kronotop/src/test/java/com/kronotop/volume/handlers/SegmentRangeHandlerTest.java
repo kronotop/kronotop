@@ -90,11 +90,11 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeTest {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentrange(volumeConfig.name(), "barfoo", new SegmentRange(0, 3)).encode(buf);
+        cmd.segmentrange(volumeConfig.name(), "0000000000000000001", new SegmentRange(0, 3)).encode(buf);
         kronotopInstance.getChannel().writeInbound(buf);
 
         Object response = kronotopInstance.getChannel().readOutbound();
         ErrorRedisMessage message = (ErrorRedisMessage) response;
-        assertEquals("ERR Segment: 'barfoo' could not be found", message.content());
+        assertEquals("ERR Segment: '0000000000000000001' could not be found", message.content());
     }
 }
