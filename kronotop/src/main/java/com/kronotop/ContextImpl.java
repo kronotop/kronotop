@@ -18,10 +18,9 @@ package com.kronotop;
 
 import com.apple.foundationdb.Database;
 import com.google.common.util.concurrent.Striped;
-import com.kronotop.MissingConfigException;
-import com.kronotop.common.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.commands.CommandMetadata;
+import com.kronotop.common.KronotopException;
 import com.kronotop.journal.Journal;
 import com.kronotop.redis.storage.LogicalDatabase;
 import com.typesafe.config.Config;

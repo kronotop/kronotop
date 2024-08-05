@@ -20,6 +20,7 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.Member;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.typesafe.config.Config;
@@ -28,26 +29,33 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.Random;
 
 public class BaseMetadataStoreTest extends BaseTest {
     protected Database database;
     protected Config config;
     protected Context context;
+    Random random = new Random();
 
-    protected DirectorySubspace getClusterSubspace(String name) {
+    protected DirectorySubspace getClusterSubspace(String subspaceName) {
         try (Transaction tr = database.createTransaction()) {
             String clusterName = config.getString("cluster.name");
-            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add(name).asList();
+            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add(subspaceName).asList();
             DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
             tr.commit().join();
             return subspace;
         }
     }
 
+    protected Versionstamp getVersionstamp() {
+        byte[] data = new byte[10];
+        random.nextBytes(data);
+        return Versionstamp.complete(data);
+    }
+
     @BeforeEach
     public void setup() throws UnknownHostException {
-        String address = String.format("localhost:[%s]", getEphemeralTCPPort());
-        Member member = createMember(address);
+        Member member = createMemberWithEphemeralPort();
         config = loadConfig("test.conf");
         database = FoundationDBFactory.newDatabase(config);
         context = new ContextImpl(config, member, database);

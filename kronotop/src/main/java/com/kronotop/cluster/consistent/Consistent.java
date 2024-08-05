@@ -16,8 +16,8 @@
 
 package com.kronotop.cluster.consistent;
 
-import com.kronotop.common.utils.Utils;
 import com.kronotop.cluster.Member;
+import com.kronotop.common.utils.Utils;
 import com.typesafe.config.Config;
 
 import java.nio.charset.StandardCharsets;

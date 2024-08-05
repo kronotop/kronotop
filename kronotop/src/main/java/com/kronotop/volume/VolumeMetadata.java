@@ -16,32 +16,144 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kronotop.JSONUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Comparator;
+import java.util.List;
+import java.util.function.Consumer;
 
 public class VolumeMetadata {
-    private final Set<Long> segments = new HashSet<>();
-    @JsonProperty("segment_id")
-    private long segmentId = 0;
-
     @JsonIgnore
-    public long getAndIncrementSegmentId() {
-        try {
-            return segmentId;
-        } finally {
-            segmentId++;
+    private static final String VOLUME_METADATA_KEY = "volume-metadata";
+
+    private final List<Long> segments = new ArrayList<>();
+    private final List<Host> hosts = new ArrayList<>();
+
+    public static VolumeMetadata load(Transaction tr, DirectorySubspace subspace) {
+        byte[] key = subspace.pack(VOLUME_METADATA_KEY);
+        byte[] value = tr.get(key).join();
+        if (value == null) {
+            return new VolumeMetadata();
         }
+        return JSONUtils.readValue(value, VolumeMetadata.class);
+    }
+
+    public static VolumeMetadata compute(Transaction tr, DirectorySubspace subspace, Consumer<VolumeMetadata> remappingFunction) {
+        byte[] key = subspace.pack(VOLUME_METADATA_KEY);
+        VolumeMetadata volumeMetadata;
+        byte[] value = tr.get(key).join();
+        if (value == null) {
+            volumeMetadata = new VolumeMetadata();
+        } else {
+            volumeMetadata = JSONUtils.readValue(value, VolumeMetadata.class);
+        }
+        remappingFunction.accept(volumeMetadata);
+        tr.set(key, volumeMetadata.toByte());
+        return volumeMetadata;
     }
 
     public void addSegment(long segmentId) {
+        for (long id : segments) {
+            if (id == segmentId) {
+                throw new IllegalArgumentException("Duplicate segment");
+            }
+        }
         segments.add(segmentId);
+        segments.sort(Comparator.naturalOrder());
     }
 
-    public Set<Long> getSegments() {
-        return Collections.unmodifiableSet(segments);
+    public void removeSegment(long segmentId) {
+        for (int i = 0; i < segments.size(); i++) {
+            if (segments.get(i) == segmentId) {
+                segments.remove(i);
+                return;
+            }
+        }
+        throw new IllegalArgumentException("No such segment");
+    }
+
+    public List<Long> getSegments() {
+        return Collections.unmodifiableList(segments);
+    }
+
+    @JsonIgnore
+    public void setStandby(Host host) {
+        if (host.role() == Role.OWNER) {
+            throw new IllegalArgumentException("Cannot set an owner host as a standby");
+        }
+        for (Host existing : hosts) {
+            if (existing.equals(host)) {
+                return;
+            }
+        }
+        hosts.add(host);
+    }
+
+    private void unsetHost(Host host) {
+        for (int i = 0; i < hosts.size(); i++) {
+            Host existing = hosts.get(i);
+            if (existing.equals(host)) {
+                hosts.remove(i);
+                return;
+            }
+        }
+        throw new IllegalStateException("Host not found");
+    }
+
+    @JsonIgnore
+    public void unsetStandby(Host host) {
+        if (host.role() == Role.OWNER) {
+            throw new IllegalArgumentException("Host is an owner");
+        }
+        unsetHost(host);
+    }
+
+    @JsonIgnore
+    public List<Host> getStandbyHosts() {
+        return hosts.stream().filter(host -> host.role() == Role.STANDBY).toList();
+    }
+
+    @JsonIgnore
+    public Host getOwner() {
+        for (Host host : hosts) {
+            if (host.role() == Role.OWNER) {
+                return host;
+            }
+        }
+        throw new IllegalStateException("No owner host found");
+    }
+
+    @JsonIgnore
+    public void setOwner(Host host) {
+        if (host.role() == Role.STANDBY) {
+            throw new IllegalArgumentException("Cannot set a standby host as a owner");
+        }
+        for (Host existing : hosts) {
+            if (existing.equals(host)) {
+                return;
+            }
+        }
+        hosts.add(host);
+    }
+
+    @JsonIgnore
+    public void unsetOwner(Host host) {
+        if (host.role() == Role.STANDBY) {
+            throw new IllegalArgumentException("Host is a standby");
+        }
+        unsetHost(host);
+    }
+
+    public List<Host> getHosts() {
+        return Collections.unmodifiableList(hosts);
+    }
+
+    public byte[] toByte() {
+        return JSONUtils.writeValueAsBytes(this);
     }
 }

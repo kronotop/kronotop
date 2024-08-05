@@ -16,32 +16,30 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.google.common.base.Strings;
-import com.kronotop.BaseTest;
-import com.kronotop.KronotopTestInstance;
+import com.kronotop.BaseMetadataStoreTest;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.typesafe.config.Config;
-import io.netty.channel.embedded.EmbeddedChannel;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.UUID;
 
-public class BaseVolumeTest extends BaseTest {
-    protected KronotopTestInstance kronotopInstance;
-    protected EmbeddedChannel channel;
+public class BaseVolumeTest extends BaseMetadataStoreTest {
 
-    protected EmbeddedChannel newChannel() {
-        return kronotopInstance.newChannel();
+    public VolumeConfig getVolumeConfig(Config config, DirectorySubspace subspace) {
+        String name = config.getString("volume_test.volume.name");
+        String rootPath = config.getString("volume_test.volume.root_path");
+        Long segmentSize = config.getLong("volume_test.volume.segment_size");
+        Float allowedGarbageRatio = (float) config.getDouble("volume_test.volume.allowed_garbage_ratio");
+        return new VolumeConfig(subspace, name, rootPath, segmentSize, allowedGarbageRatio);
     }
 
-    protected ByteBuffer[] getEntries(int number) {
+    public ByteBuffer[] getEntries(int number) {
         int capacity = 10;
         ByteBuffer[] entries = new ByteBuffer[number];
         for (int i = 0; i < number; i++) {
@@ -51,33 +49,13 @@ public class BaseVolumeTest extends BaseTest {
         return entries;
     }
 
-    protected DirectorySubspace getDirectorySubspace() {
-        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
-            String clusterName = kronotopInstance.getContext().getConfig().getString("cluster.name");
+    public DirectorySubspace getSubspace(Database database, Config config) {
+        try (Transaction tr = database.createTransaction()) {
+            String clusterName = config.getString("cluster.name");
             List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add("volumes-test").add(UUID.randomUUID().toString()).asList();
             DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
             tr.commit().join();
             return subspace;
         }
-    }
-
-    void setupCommon(Config config) throws UnknownHostException, InterruptedException {
-        kronotopInstance = new KronotopTestInstance(config);
-        kronotopInstance.start();
-        channel = kronotopInstance.getChannel();
-    }
-
-    @BeforeEach
-    public void setup() throws UnknownHostException, InterruptedException {
-        Config config = loadConfig("test.conf");
-        setupCommon(config);
-    }
-
-    @AfterEach
-    public void tearDown() {
-        if (kronotopInstance == null) {
-            return;
-        }
-        kronotopInstance.shutdown();
     }
 }

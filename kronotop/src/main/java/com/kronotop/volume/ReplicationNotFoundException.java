@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.protocol;
+package com.kronotop.volume;
 
-public record SegmentRange(long position, long length) {
+public class ReplicationNotFoundException extends RuntimeException {
 }

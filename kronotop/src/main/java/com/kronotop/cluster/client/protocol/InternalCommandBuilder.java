@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.protocol;
+package com.kronotop.cluster.client.protocol;
 
-import com.kronotop.protocol.BaseKronotopCommandBuilder;
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.output.ArrayOutput;
 import io.lettuce.core.protocol.Command;
@@ -24,7 +23,7 @@ import io.lettuce.core.protocol.CommandArgs;
 
 import java.util.List;
 
-public class InternalCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
+public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, V> {
     public InternalCommandBuilder(RedisCodec<K, V> codec) {
         super(codec);
     }

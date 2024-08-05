@@ -16,19 +16,12 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.google.common.base.Strings;
-import com.kronotop.Context;
-import com.kronotop.common.utils.DirectoryLayout;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,34 +31,13 @@ import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class VolumeTest extends BaseVolumeTest {
-    Database database;
-    Context context;
-    VolumeService service;
-    DirectorySubspace directorySubspace;
-    Volume volume;
-    VolumeConfig volumeConfig;
+public class VolumeTest extends BaseVolumeIntegrationTest {
     Random random = new Random();
 
     private ByteBuffer randomBytes(int size) {
         byte[] b = new byte[size];
         random.nextBytes(b);
         return ByteBuffer.wrap(b);
-    }
-
-    @BeforeEach
-    public void setupVolumeTestEnvironment() throws IOException {
-        database = kronotopInstance.getContext().getFoundationDB();
-        context = kronotopInstance.getContext();
-        service = kronotopInstance.getContext().getService(VolumeService.NAME);
-        directorySubspace = getDirectorySubspace();
-        volumeConfig = new VolumeConfig(directorySubspace, "append-test");
-        volume = service.newVolume(volumeConfig);
-    }
-
-    @AfterEach
-    public void tearDownVolumeTest() {
-        volume.close();
     }
 
     @Test
@@ -220,7 +192,7 @@ public class VolumeTest extends BaseVolumeTest {
         volume.close();
 
         {
-            Volume reopenedVolume = service.newVolume(volumeConfig);
+            Volume reopenedVolume = service.newVolume(volume.getConfig());
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = database.createTransaction()) {
                 Session session = new Session(tr);
@@ -238,7 +210,7 @@ public class VolumeTest extends BaseVolumeTest {
     @Test
     public void test_create_new_segments() throws IOException {
         long bufferSize = 100480;
-        long segmentSize = context.getConfig().getLong("volumes.segment_size");
+        long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -249,7 +221,7 @@ public class VolumeTest extends BaseVolumeTest {
             tr.commit().join();
         }
 
-        assertEquals(2, volume.getStats().getSegments().size());
+        assertEquals(2, volume.analyze().size());
     }
 
     @Test
@@ -305,45 +277,9 @@ public class VolumeTest extends BaseVolumeTest {
     }
 
     @Test
-    public void test_getStats() throws IOException {
-        ByteBuffer[] entries = getEntries(10);
-        AppendResult appendResult;
-        try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
-            appendResult = volume.append(session, entries);
-            tr.commit().join();
-        }
-        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
-
-        Stats stats = volume.getStats();
-        assertEquals(1, stats.getSegments().size());
-
-        for (Map.Entry<String, Stats.SegmentStats> segmentStats : stats.getSegments().entrySet()) {
-            assertEquals(10, segmentStats.getValue().cardinality());
-            assertTrue(segmentStats.getValue().size() > segmentStats.getValue().freeBytes());
-        }
-
-        DeleteResult deleteResult;
-        try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr);
-            deleteResult = volume.delete(session, versionstampedKeys);
-            tr.commit().join();
-        }
-        deleteResult.complete();
-
-        stats = volume.getStats();
-        assertEquals(1, stats.getSegments().size());
-
-        for (Map.Entry<String, Stats.SegmentStats> segmentStats : stats.getSegments().entrySet()) {
-            assertEquals(0, segmentStats.getValue().cardinality());
-            assertTrue(segmentStats.getValue().size() > segmentStats.getValue().freeBytes());
-        }
-    }
-
-    @Test
     public void test_analyze() throws IOException {
         long bufferSize = 100480;
-        long segmentSize = context.getConfig().getLong("volumes.segment_size");
+        long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -354,22 +290,48 @@ public class VolumeTest extends BaseVolumeTest {
             tr.commit().join();
         }
 
-        Stats stats = volume.getStats();
-        assertEquals(2, stats.getSegments().size());
-
-        long readVersion;
         try (Transaction tr = database.createTransaction()) {
-            readVersion = tr.getReadVersion().join();
-        }
-        List<SegmentAnalysis> analysisList = volume.analyze(readVersion);
-        SegmentAnalysis analysis = analysisList.getFirst();
-        Stats.SegmentStats segmentStats = stats.getSegments().get(analysis.name());
+            List<SegmentAnalysis> segmentAnalysis = volume.analyze(tr);
+            assertEquals(2, segmentAnalysis.size());
 
-        assertNotNull(segmentStats);
-        assertEquals(segmentStats.cardinality(), analysis.cardinality());
-        assertEquals(segmentStats.size(), analysis.size());
-        assertEquals(segmentStats.freeBytes(), analysis.size() - analysis.usedBytes());
-        assertTrue(analysis.garbageRatio() > 0);
+            int cardinality = 0;
+            for (SegmentAnalysis analysis : segmentAnalysis) {
+                assertEquals(0.0, analysis.garbageRatio());
+                assertEquals(segmentSize, analysis.size());
+                assertEquals(analysis.freeBytes(), analysis.size() - analysis.usedBytes());
+                assertTrue(analysis.cardinality() > 0);
+                cardinality += analysis.cardinality();
+            }
+            assertEquals(numIterations, cardinality);
+        }
+    }
+
+    @Test
+    public void test_analyze_delete_entries() throws IOException {
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Session session = new Session(tr);
+            appendResult = volume.append(session, getEntries(10));
+            tr.commit().join();
+        }
+
+        DeleteResult deleteResult;
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+        Versionstamp[] keys = Arrays.copyOfRange(versionstampedKeys, 3, 7);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Session session = new Session(tr);
+            deleteResult = volume.delete(session, keys);
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        try (Transaction tr = database.createTransaction()) {
+            List<SegmentAnalysis> analysis = volume.analyze(tr);
+            SegmentAnalysis segmentAnalysis = analysis.getFirst();
+            assertTrue(segmentAnalysis.garbageRatio() > 0);
+            long garbageBytes = segmentAnalysis.size() - segmentAnalysis.freeBytes() - segmentAnalysis.usedBytes();
+            assertEquals(40, garbageBytes); // We deleted 4 items and the test entry size is 10.
+        }
     }
 
     @Test
@@ -398,7 +360,7 @@ public class VolumeTest extends BaseVolumeTest {
     @Test
     public void test_update_segment_cardinality() throws IOException, KeyNotFoundException {
         long bufferSize = 100480;
-        long segmentSize = context.getConfig().getLong("volumes.segment_size");
+        long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
         long numIterations = 2 * (segmentSize / bufferSize);
 
         AppendResult result;
@@ -426,27 +388,26 @@ public class VolumeTest extends BaseVolumeTest {
             updateResult.complete();
         }
 
-        Stats stats = volume.getStats();
-        assertEquals(4, stats.getSegments().size());
-        Iterator<Map.Entry<String, Stats.SegmentStats>> iterator = stats.getSegments().entrySet().iterator();
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        assertEquals(4, segmentAnalysis.size());
 
         // Cardinality should be zero for the first two segments.
         for (int i = 0; i < 2; i++) {
-            Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
-            assertEquals(0, segmentStats.getValue().cardinality());
+            SegmentAnalysis analysis = segmentAnalysis.get(i);
+            assertEquals(0, analysis.cardinality());
         }
 
         // All keys moved to the new segments and the first two segments will be vacuumed.
         for (int i = 2; i < 4; i++) {
-            Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
-            assertEquals(10, segmentStats.getValue().cardinality());
+            SegmentAnalysis analysis = segmentAnalysis.get(i);
+            assertEquals(10, analysis.cardinality());
         }
     }
 
     @Test
-    public void test_evictSegment() throws IOException {
+    public void test_vacuumSegment() throws IOException {
         long bufferSize = 100480;
-        long segmentSize = context.getConfig().getLong("volumes.segment_size");
+        long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -463,24 +424,23 @@ public class VolumeTest extends BaseVolumeTest {
         }
 
         {
-            Stats stats = volume.getStats();
-            String firstSegment = stats.getSegments().keySet().iterator().next();
-            volume.evictSegment(firstSegment, readVersion);
+            List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+            String firstSegment = segmentAnalysis.getFirst().name();
+            volume.vacuumSegment(firstSegment, readVersion);
         }
 
         {
-            Stats stats = volume.getStats();
-            assertEquals(3, stats.getSegments().size());
-            Iterator<Map.Entry<String, Stats.SegmentStats>> iterator = stats.getSegments().entrySet().iterator();
+            List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+            assertEquals(3, segmentAnalysis.size());
+
 
             // Cardinality should be zero for the first segment.
-            Map.Entry<String, Stats.SegmentStats> firstSegment = iterator.next();
-            assertEquals(0, firstSegment.getValue().cardinality());
+            assertEquals(0, segmentAnalysis.getFirst().cardinality());
 
             // All keys moved to the new segments.
             for (int i = 1; i < 3; i++) {
-                Map.Entry<String, Stats.SegmentStats> segmentStats = iterator.next();
-                assertEquals(10, segmentStats.getValue().cardinality());
+                SegmentAnalysis analysis = segmentAnalysis.get(i);
+                assertEquals(10, analysis.cardinality());
             }
         }
     }
@@ -551,5 +511,23 @@ public class VolumeTest extends BaseVolumeTest {
 
         assertArrayEquals(expectedKeys, retrievedKeys);
         assertArrayEquals(expectedEntries, retrievedEntries);
+    }
+
+    @Test
+    public void test_VolumeMetadata_compute() throws UnknownHostException {
+        Host host = new Host(Role.STANDBY, createMemberWithEphemeralPort());
+        try (Transaction tr = database.createTransaction()) {
+            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata) -> {
+                volumeMetadata.setStandby(host);
+            });
+            tr.commit().join();
+        }
+
+        try (Transaction tr = database.createTransaction()) {
+            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata) -> {
+                assertEquals(1, volumeMetadata.getStandbyHosts().size());
+                assertEquals(host, volumeMetadata.getStandbyHosts().getFirst());
+            });
+        }
     }
 }

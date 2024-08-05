@@ -23,7 +23,6 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.MissingConfigException;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.typesafe.config.Config;
 

@@ -34,9 +34,15 @@ class SegmentTest extends BaseMetadataStoreTest {
         return ByteBuffer.wrap(b);
     }
 
+    private SegmentConfig getSegmentConfig() {
+        String rootPath = context.getConfig().getString("volume_test.volume.root_path");
+        long size = context.getConfig().getLong("volume_test.volume.segment_size");
+        return new SegmentConfig(1, rootPath, size);
+    }
+
     @Test
     void test_append() throws IOException {
-        Segment segment = new Segment(context, 1);
+        Segment segment = new Segment(getSegmentConfig());
         try {
             ByteBuffer buffer = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
             assertDoesNotThrow(() -> segment.append(buffer));
@@ -47,10 +53,10 @@ class SegmentTest extends BaseMetadataStoreTest {
 
     @Test
     void test_append_NotEnoughSpaceException() throws IOException {
-        Segment segment = new Segment(context, 1);
+        Segment segment = new Segment(getSegmentConfig());
         try {
             long bufferSize = 100480;
-            long segmentSize = context.getConfig().getLong("volumes.segment_size");
+            long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
             long numIterations = segmentSize / bufferSize;
 
             for (int i = 1; i <= numIterations; i++) {
@@ -64,7 +70,7 @@ class SegmentTest extends BaseMetadataStoreTest {
 
     @Test
     void test_get() throws IOException, NotEnoughSpaceException {
-        Segment segment = new Segment(context, 1);
+        Segment segment = new Segment(getSegmentConfig());
         try {
             ByteBuffer buffer = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
             EntryMetadata entryMetadata = segment.append(buffer);
@@ -79,7 +85,7 @@ class SegmentTest extends BaseMetadataStoreTest {
 
     @Test
     void test_getFreeBytes() throws IOException {
-        Segment segment = new Segment(context, 1);
+        Segment segment = new Segment(getSegmentConfig());
         try {
             long bufferSize = 10;
             int numIterations = 2;
@@ -88,7 +94,7 @@ class SegmentTest extends BaseMetadataStoreTest {
                 assertDoesNotThrow(() -> segment.append(randomBytes((int) bufferSize)));
                 total += bufferSize;
             }
-            long segmentSize = context.getConfig().getLong("volumes.segment_size");
+            long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
             assertEquals(segmentSize - total, segment.getFreeBytes());
         } finally {
             segment.close();
@@ -97,7 +103,7 @@ class SegmentTest extends BaseMetadataStoreTest {
 
     @Test
     void test_flush() throws IOException {
-        Segment segment = new Segment(context, 1);
+        Segment segment = new Segment(getSegmentConfig());
         try {
             ByteBuffer buffer = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
             assertDoesNotThrow(() -> segment.append(buffer));
@@ -109,7 +115,7 @@ class SegmentTest extends BaseMetadataStoreTest {
 
     @Test
     void test_close() throws IOException {
-        Segment segment = new Segment(context, 1);
+        Segment segment = new Segment(getSegmentConfig());
         ByteBuffer buffer = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
         assertDoesNotThrow(() -> segment.append(buffer));
         assertDoesNotThrow(segment::close);
@@ -120,18 +126,32 @@ class SegmentTest extends BaseMetadataStoreTest {
         EntryMetadata entryMetadata;
         ByteBuffer expected = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
         {
-            Segment segment = new Segment(context, 1);
+            Segment segment = new Segment(getSegmentConfig());
             entryMetadata = segment.append(expected);
             segment.close();
         }
         {
-            Segment segment = new Segment(context, 1);
+            Segment segment = new Segment(getSegmentConfig());
             try {
                 ByteBuffer result = segment.get(entryMetadata.position(), entryMetadata.length());
                 assertArrayEquals(expected.array(), result.array());
             } finally {
                 segment.close();
             }
+        }
+    }
+
+    @Test
+    void test_insert() throws IOException {
+        Segment segment = new Segment(getSegmentConfig());
+        try {
+            byte[] data = "foobar".getBytes();
+            ByteBuffer buffer = ByteBuffer.allocate(data.length).put(data).flip();
+            assertDoesNotThrow(() -> segment.insert(buffer, 100));
+            ByteBuffer buf = segment.get(100, data.length);
+            assertArrayEquals(data, buf.array());
+        } finally {
+            segment.close();
         }
     }
 }

@@ -16,21 +16,7 @@
 
 package com.kronotop.volume;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import com.apple.foundationdb.tuple.Versionstamp;
 
-public class Stats {
-    private HashMap<String, SegmentStats> segments;
-
-    public Map<String, SegmentStats> getSegments() {
-        return Collections.unmodifiableMap(segments);
-    }
-
-    void setSegments(HashMap<String, SegmentStats> segments) {
-        this.segments = segments;
-    }
-
-    public record SegmentStats(long size, long freeBytes, int cardinality) {
-    }
+public record SegmentLogEntry(Versionstamp key, long timestamp, SegmentLogValue value) {
 }

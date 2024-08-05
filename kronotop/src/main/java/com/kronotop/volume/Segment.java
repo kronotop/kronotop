@@ -16,8 +16,8 @@
 
 package com.kronotop.volume;
 
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
-import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,9 +32,10 @@ import java.nio.file.Path;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-class Segment {
+public class Segment {
+    protected static final int SEGMENT_NAME_SIZE = 19;
     private static final Logger LOGGER = LoggerFactory.getLogger(Segment.class);
-    private final Context context;
+    private final SegmentConfig config;
     private final String name;
     private final SegmentMetadata metadata;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
@@ -42,12 +43,34 @@ class Segment {
     private final RandomAccessFile metadataFile;
     private volatile boolean flushed = true;
 
-    Segment(Context context, long id) throws IOException {
-        this.context = context;
-        this.name = Strings.padStart(Long.toString(id), 19, '0');
+    Segment(SegmentConfig config) throws IOException {
+        this.config = config;
+        this.name = generateName(config.id());
         this.metadataFile = createOrOpenSegmentMetadataFile();
-        this.metadata = createOrDecodeSegmentMetadata(id);
+        this.metadata = createOrDecodeSegmentMetadata(config.id());
         this.segmentFile = createOrOpenSegmentFile();
+    }
+
+    /**
+     * Extracts the segment ID from a given name.
+     *
+     * @param name the name from which to extract the segment ID
+     * @return the extracted segment ID
+     */
+    protected static long extractIdFromName(String name) {
+        String segmentId = CharMatcher.is('0').trimLeadingFrom(name);
+        if (segmentId.isEmpty()) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(segmentId);
+        } catch (NumberFormatException e) {
+            throw new KronotopException("Invalid segment ID: " + segmentId, e);
+        }
+    }
+
+    protected static String generateName(long id) {
+        return Strings.padStart(Long.toString(id), 19, '0');
     }
 
     String getName() {
@@ -73,10 +96,9 @@ class Segment {
     }
 
     private SegmentMetadata createOrDecodeSegmentMetadata(long id) throws IOException {
-        long size = context.getConfig().getLong("volumes.segment_size");
         if (this.metadataFile.getChannel().size() == 0) {
             // Empty file. Create a new SegmentMetadata.
-            return new SegmentMetadata(id, size);
+            return new SegmentMetadata(id, config.size());
         } else {
             ByteBuffer buffer = ByteBuffer.allocate(SegmentMetadata.HEADER_SIZE);
             this.metadataFile.getChannel().read(buffer);
@@ -85,8 +107,7 @@ class Segment {
     }
 
     private RandomAccessFile createOrOpenSegmentMetadataFile() throws IOException {
-        String rootPath = context.getConfig().getString("volumes.root_path");
-        Path path = Path.of(rootPath, "segments", name + ".metadata");
+        Path path = Path.of(config.rootPath(), "segments", name + ".metadata");
         Files.createDirectories(path.getParent());
         try {
             return new RandomAccessFile(path.toFile(), "rw");
@@ -97,8 +118,7 @@ class Segment {
     }
 
     private RandomAccessFile createOrOpenSegmentFile() throws IOException {
-        String rootPath = context.getConfig().getString("volumes.root_path");
-        Path path = Path.of(rootPath, "segments", getName());
+        Path path = Path.of(config.rootPath(), "segments", getName());
         Files.createDirectories(path.getParent());
         try {
             RandomAccessFile file = new RandomAccessFile(path.toFile(), "rw");
@@ -138,6 +158,34 @@ class Segment {
                 LOGGER.debug(String.format("%d bytes has been written to segment %s", length, getName()));
             }
             return new EntryMetadata(getName(), position, length);
+        } finally {
+            // Now this segment requires a flush.
+            setFlushed(false);
+        }
+    }
+
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private void updateMetadataPosition(long position) throws NotEnoughSpaceException, IOException {
+        lock.writeLock().lock();
+        try {
+            if (position > metadata.getSize()) {
+                throw new NotEnoughSpaceException();
+            }
+            metadata.setPosition(position);
+            ByteBuffer buffer = metadata.encode();
+            metadataFile.getChannel().write(buffer, 0);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    void insert(ByteBuffer entry, long position) throws IOException, NotEnoughSpaceException {
+        try {
+            int length = segmentFile.getChannel().write(entry, position);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(String.format("%d bytes has been inserted to segment %s", length, getName()));
+            }
+            updateMetadataPosition(position);
         } finally {
             // Now this segment requires a flush.
             setFlushed(false);

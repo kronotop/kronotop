@@ -26,7 +26,6 @@ import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
 import io.lettuce.core.cluster.api.sync.NodeSelection;
 import io.lettuce.core.cluster.api.sync.NodeSelectionCommands;
 import io.lettuce.core.codec.RedisCodec;
-import io.lettuce.core.codec.StringCodec;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -50,8 +49,7 @@ public class StatefulKronotopConnection<K, V> {
     }
 
     public static StatefulKronotopConnection<String, String> connect(RedisClusterClient redisClusterClient) {
-        StatefulRedisClusterConnection<String, String> connection = redisClusterClient.connect();
-        return new StatefulKronotopConnection<>(connection, StringCodec.UTF8);
+        return KronotopClient.connect(redisClusterClient);
     }
 
     public static <K, V> StatefulKronotopConnection<K, V> connect(RedisClusterClient redisClusterClient, RedisCodec<K, V> codec) {

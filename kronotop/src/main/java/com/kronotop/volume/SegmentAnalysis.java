@@ -16,9 +16,9 @@
 
 package com.kronotop.volume;
 
-public record SegmentAnalysis(String name, long size, long usedBytes, int cardinality) {
+public record SegmentAnalysis(String name, long size, long usedBytes, long freeBytes, int cardinality) {
 
     public float garbageRatio() {
-        return (float) (100 * (size - usedBytes)) / size;
+        return (float) (100 * ((size - freeBytes) - usedBytes)) / size;
     }
 }

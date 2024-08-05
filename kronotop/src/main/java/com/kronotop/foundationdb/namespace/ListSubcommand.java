@@ -18,9 +18,9 @@ package com.kronotop.foundationdb.namespace;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
-import com.kronotop.common.KronotopException;
 import com.kronotop.Context;
 import com.kronotop.TransactionUtils;
+import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;

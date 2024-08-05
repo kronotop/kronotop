@@ -18,10 +18,14 @@ package com.kronotop.volume;
 
 import java.nio.ByteBuffer;
 
+import static com.kronotop.volume.Segment.SEGMENT_NAME_SIZE;
+
 public record EntryMetadata(String segment, long position, long length) {
 
+    public static int ENTRY_METADATA_SIZE = SEGMENT_NAME_SIZE + 16; // position(8 bytes) + length (8 bytes)
+
     public static EntryMetadata decode(ByteBuffer buffer) {
-        byte[] rawSegment = new byte[19];
+        byte[] rawSegment = new byte[SEGMENT_NAME_SIZE];
         buffer.get(rawSegment);
         String segment = new String(rawSegment);
         long position = buffer.getLong();
@@ -30,6 +34,6 @@ public record EntryMetadata(String segment, long position, long length) {
     }
 
     public ByteBuffer encode() {
-        return ByteBuffer.allocate(35).put(segment.getBytes()).putLong(position).putLong(length).flip();
+        return ByteBuffer.allocate(ENTRY_METADATA_SIZE).put(segment.getBytes()).putLong(position).putLong(length).flip();
     }
 }

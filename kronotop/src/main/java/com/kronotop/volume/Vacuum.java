@@ -51,7 +51,9 @@ class Vacuum {
     }
 
     public List<SegmentAnalysis> analyze() {
-        return volume.analyze(readVersion);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return volume.analyze(tr);
+        }
     }
 
     public void vacuum() throws IOException {
@@ -60,7 +62,7 @@ class Vacuum {
             if (segmentAnalysis.garbageRatio() < volume.getConfig().allowedGarbageRatio()) {
                 continue;
             }
-            volume.evictSegment(segmentAnalysis.name(), readVersion);
+            volume.vacuumSegment(segmentAnalysis.name(), readVersion);
         }
     }
 

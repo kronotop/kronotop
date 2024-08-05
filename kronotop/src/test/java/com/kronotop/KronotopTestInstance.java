@@ -17,11 +17,13 @@
 package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.coordinator.Route;
+import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.storage.Shard;
+import com.kronotop.server.NioRESPServer;
+import com.kronotop.server.RESPServer;
 import com.kronotop.server.Router;
 import com.kronotop.server.resp3.RedisArrayAggregator;
 import com.kronotop.server.resp3.RedisBulkStringAggregator;
@@ -43,9 +45,15 @@ public class KronotopTestInstance extends KronotopInstance {
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
     private final Object clusterOperable = new Object();
     private EmbeddedChannel channel;
+    private boolean runWithTCPServer = false;
 
     public KronotopTestInstance(Config config) {
         super(config);
+    }
+
+    public KronotopTestInstance(Config config, boolean runWithTCPServer) {
+        super(config);
+        this.runWithTCPServer = runWithTCPServer;
     }
 
     public EmbeddedChannel newChannel() {
@@ -80,6 +88,11 @@ public class KronotopTestInstance extends KronotopInstance {
     @Override
     public void start() throws UnknownHostException, InterruptedException {
         super.start();
+        if (runWithTCPServer) {
+            RESPServer server = new NioRESPServer(context, handlers);
+            context.registerService(server.getName(), server);
+            server.start(member);
+        }
         CheckClusterStatus checkClusterStatus = new CheckClusterStatus();
         executor.execute(checkClusterStatus);
         synchronized (clusterOperable) {
@@ -118,6 +131,7 @@ public class KronotopTestInstance extends KronotopInstance {
     private class CheckClusterStatus implements Runnable {
         @Override
         public void run() {
+            // TODO: Cant see the exception traceback here. This may lead to critical and subtle issues.
             int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
             for (int shardId = 0; shardId < numberOfShards; shardId++) {
                 MembershipService membershipService = context.getService(MembershipService.NAME);

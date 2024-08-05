@@ -18,10 +18,11 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 
-public record VolumeConfig(DirectorySubspace subspace, String name, Float allowedGarbageRatio) {
-    public static final Float DEFAULT_allowedGarbageRatio = 40.0f;
-
-    public VolumeConfig(DirectorySubspace subspace, String name) {
-        this(subspace, name, DEFAULT_allowedGarbageRatio);
-    }
+public record VolumeConfig(
+        DirectorySubspace subspace,
+        String name,
+        String rootPath,
+        Long segmentSize,
+        Float allowedGarbageRatio
+) {
 }

@@ -57,6 +57,19 @@
             <scope>compile</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.kronotop</groupId>
+            <artifactId>kronotop-client</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.lettuce</groupId>
+            <artifactId>lettuce-core</artifactId>
+            <version>6.3.2.RELEASE</version>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/org.junit.platform/junit-platform-launcher -->
         <dependency>
             <groupId>org.junit.platform</groupId>
@@ -65,11 +78,6 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>com.kronotop</groupId>
-            <artifactId>kronotop-client</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
         <!-- https://mvnrepository.com/artifact/org.foundationdb/fdb-java -->
         <dependency>
             <groupId>org.foundationdb</groupId>
