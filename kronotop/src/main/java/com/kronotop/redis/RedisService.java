@@ -21,7 +21,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
@@ -74,7 +73,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final MembershipService membershipService;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
-            new ThreadFactoryBuilder().setNameFormat("kr.redis-service-%d").build()
+            Thread.ofVirtual().name("kr.redis-service", 0L).factory()
     );
     private final int numberOfShards;
     private final List<ShardMaintenanceWorker> shardMaintenanceWorkers = new ArrayList<>();
