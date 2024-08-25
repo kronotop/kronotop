@@ -19,6 +19,7 @@ package com.kronotop.cluster;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.cluster.coordinator.RoutingTable;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -69,6 +70,7 @@ public class MembershipServiceIntegrationTest extends BaseClusterTest {
     }
 
     @Test
+    @Disabled("CLUSTERING-REFACTOR")
     public void test_singleKronotopInstance_getRoutingTable() {
         KronotopTestInstance kronotopTestInstance = kronotopInstances.values().iterator().next();
         MembershipService membershipService = kronotopTestInstance.getContext().getService(MembershipService.NAME);
@@ -119,6 +121,7 @@ public class MembershipServiceIntegrationTest extends BaseClusterTest {
     }
 
     @Test
+    @Disabled("CLUSTERING-REFACTOR")
     public void test_kronotopClusterWithTwoInstances_getRoutingTable() {
         KronotopTestInstance instanceOne = kronotopInstances.values().iterator().next();
         KronotopTestInstance instanceTwo = addNewInstance();

@@ -41,6 +41,7 @@ import com.kronotop.redis.server.FlushAllHandler;
 import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.ShardMaintenanceWorker;
+import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.string.*;
@@ -87,6 +88,13 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         this.membershipService = context.getService(MembershipService.NAME);
         this.hashSlots = distributeHashSlots();
         this.serviceContext = context.getServiceContext(NAME);
+
+        // TODO: CLUSTER-REFACTORING
+        for (int i = 0; i < this.numberOfShards; i++) {
+            RedisShard redisShard = new OnHeapRedisShardImpl(i);
+            redisShard.setOperable(true);
+            this.serviceContext.shards().put(i, redisShard);
+        }
 
         registerHandler(new PingHandler());
         registerHandler(new AuthHandler(this));

@@ -28,9 +28,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.*;
-import com.kronotop.cluster.coordinator.CoordinatorService;
+import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.cluster.coordinator.RoutingTable;
-import com.kronotop.cluster.sharding.ShardingService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.ByteUtils;
 import com.kronotop.journal.Event;
@@ -56,8 +55,6 @@ public class MembershipService implements KronotopService {
     private final ScheduledThreadPoolExecutor scheduler;
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
-    private final CoordinatorService coordinatorService;
-    private final ShardingService shardingService;
     private final AtomicReference<Member> knownCoordinator = new AtomicReference<>();
     private final ConcurrentHashMap<Member, MemberView> knownMembers = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Member, DirectorySubspace> memberSubspaces = new ConcurrentHashMap<>();
@@ -71,21 +68,27 @@ public class MembershipService implements KronotopService {
         this.context = context;
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
-        this.coordinatorService = context.getService(CoordinatorService.NAME);
-        this.shardingService = context.getService(ShardingService.NAME);
+
+        RoutingTable table = new RoutingTable();
+        int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
+        for (int i = 0; i < numberOfShards; i++) {
+            table.setRoute(i, new Route(context.getMember()));
+        }
+        routingTable.set(table);
 
         ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("kr.membership-%d").build();
         this.scheduler = new ScheduledThreadPoolExecutor(2, namedThreadFactory);
     }
 
     public void waitUntilBootstrapped() throws InterruptedException {
-        synchronized (isBootstrapped) {
+        // TODO: CLUSTER-REFACTORING
+        /*synchronized (isBootstrapped) {
             if (isBootstrapped.get()) {
                 return;
             }
             LOGGER.info("Waiting to be bootstrapped");
             isBootstrapped.wait();
-        }
+        }*/
     }
 
     private void removeMemberOnFDB(Address address) {
@@ -157,8 +160,6 @@ public class MembershipService implements KronotopService {
      * This method is private and does not return any value.
      */
     private void initialize() {
-        coordinatorService.addMember(context.getMember());
-
         Address address = context.getMember().getAddress();
         try {
             if (context.getConfig().hasPath("cluster.force_register")) {
@@ -246,7 +247,6 @@ public class MembershipService implements KronotopService {
         if (coordinator.equals(myself)) {
             if (knownCoordinator.get() == null || !knownCoordinator.get().equals(myself)) {
                 LOGGER.info("Propagating myself as the cluster coordinator");
-                coordinatorService.start();
             }
         }
         knownCoordinator.set(coordinator);
@@ -274,7 +274,6 @@ public class MembershipService implements KronotopService {
             openMemberSubspace(member);
             long lastHeartbeat = getLatestHeartbeat(member);
             knownMembers.putIfAbsent(member, new MemberView(lastHeartbeat));
-            coordinatorService.addMember(member);
         }
 
         // Schedule the periodic tasks here.
@@ -457,13 +456,11 @@ public class MembershipService implements KronotopService {
                 openMemberSubspace(member);
                 long lastHeartbeat = getLatestHeartbeat(member);
                 knownMembers.putIfAbsent(member, new MemberView(lastHeartbeat));
-                coordinatorService.addMember(member);
                 LOGGER.info("Member join: {}", member.getAddress());
             } else {
                 // A registered cluster member has left the cluster.
                 memberSubspaces.remove(member);
                 knownMembers.remove(member);
-                coordinatorService.removeMember(member);
                 LOGGER.info("Member left: {}", member.getAddress());
             }
         }
@@ -473,7 +470,7 @@ public class MembershipService implements KronotopService {
         checkCluster();
         Member coordinator = knownCoordinator.get();
         if (coordinator.equals(context.getMember())) {
-            coordinatorService.checkShardOwnerships();
+            LOGGER.debug("Checking shard ownership...");
         }
     }
 
@@ -487,9 +484,7 @@ public class MembershipService implements KronotopService {
             }
         }
         RoutingTable oldRoutingTable = routingTable.get();
-        shardingService.makeShardsOperable(oldRoutingTable, newRoutingTable);
         routingTable.set(newRoutingTable);
-        shardingService.dropPreviouslyOwnedShards(oldRoutingTable, newRoutingTable);
         LOGGER.debug("Routing table has been updated");
     }
 
