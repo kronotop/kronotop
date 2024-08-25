@@ -22,7 +22,7 @@ import com.kronotop.Context;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.TransactionSizeLimitExceeded;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +42,7 @@ public class Persistence {
     private static final Logger LOGGER = LoggerFactory.getLogger(Persistence.class);
     private final Context context;
     private final AtomicInteger transactionSize = new AtomicInteger();
-    private final Shard shard;
+    private final RedisShard shard;
     private final EnumMap<DataStructure, Node> layout = new EnumMap<>(DataStructure.class);
 
     /**
@@ -52,7 +52,7 @@ public class Persistence {
      * @param context the Context object containing information about the cluster and database
      * @param shard   the Shard object representing a shard in the cluster
      */
-    public Persistence(Context context, Shard shard) {
+    public Persistence(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
 
@@ -61,7 +61,7 @@ public class Persistence {
         readWriteLock.writeLock().lock();
         try {
             for (DataStructure dataStructure : DataStructure.values()) {
-                DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(shard.getId(), dataStructure);
+                DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(shard.id(), dataStructure);
                 layout.put(dataStructure, new Node(subspace));
             }
         } finally {
@@ -75,7 +75,7 @@ public class Persistence {
      * @return true if the persistence queue is empty, false otherwise
      */
     public boolean isQueueEmpty() {
-        return shard.getPersistenceQueue().size() == 0;
+        return shard.persistenceQueue().size() == 0;
     }
 
     /**
@@ -140,16 +140,16 @@ public class Persistence {
      * @throws RuntimeException if an exception occurs during the persistence process
      */
     public void run() {
-        List<Key> keys = shard.getPersistenceQueue().poll(1000);
+        List<Key> keys = shard.persistenceQueue().poll(1000);
         if (keys.isEmpty()) {
             return;
         }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (Key key : keys) {
-                ReadWriteLock lock = shard.getStriped().get(key.getKey());
+                ReadWriteLock lock = shard.striped().get(key.getKey());
                 lock.readLock().lock();
                 try {
-                    Object latestValue = shard.get(key.getKey());
+                    Object latestValue = shard.storage().get(key.getKey());
                     if (key instanceof StringKey) {
                         persistStringValue(tr, (StringKey) key, (StringValue) latestValue);
                     } else if (key instanceof HashKey) {
@@ -166,7 +166,7 @@ public class Persistence {
             tr.commit().join();
         } catch (Exception e) {
             for (Key key : keys) {
-                shard.getPersistenceQueue().add(key);
+                shard.persistenceQueue().add(key);
             }
             throw new RuntimeException(e);
         } finally {

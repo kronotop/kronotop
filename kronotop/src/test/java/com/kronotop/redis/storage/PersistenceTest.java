@@ -20,7 +20,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.impl.OnHeapShardImpl;
+import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.HashKey;
 import com.kronotop.redis.storage.persistence.Persistence;
@@ -36,9 +36,9 @@ import static org.junit.jupiter.api.Assertions.*;
 public class PersistenceTest extends BaseStorageTest {
     @Test
     public void test_STRING() {
-        Shard shard = new OnHeapShardImpl(0);
-        shard.put("key-1", new StringValue("value-1".getBytes(), 0));
-        shard.getPersistenceQueue().add(new StringKey("key-1"));
+        RedisShard shard = new OnHeapRedisShardImpl(0);
+        shard.storage().put("key-1", new StringValue("value-1".getBytes(), 0));
+        shard.persistenceQueue().add(new StringKey("key-1"));
 
         Persistence persistence = new Persistence(context, shard);
         assertFalse(persistence.isQueueEmpty());
@@ -65,12 +65,12 @@ public class PersistenceTest extends BaseStorageTest {
 
     @Test
     public void test_HASH() {
-        Shard shard = new OnHeapShardImpl(0);
+        RedisShard shard = new OnHeapRedisShardImpl(0);
         HashValue hashValue = new HashValue();
         hashValue.put("field-name", "value".getBytes());
-        shard.put("hash-name", hashValue);
+        shard.storage().put("hash-name", hashValue);
         HashKey hashKey = new HashKey("hash-name", "field-name");
-        shard.getPersistenceQueue().add(hashKey);
+        shard.persistenceQueue().add(hashKey);
 
         Persistence persistence = new Persistence(context, shard);
         assertFalse(persistence.isQueueEmpty());

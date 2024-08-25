@@ -19,7 +19,7 @@ package com.kronotop.redis.generic;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.RandomKeyMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -51,15 +51,15 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Collection<Shard> shards = service.getContext().getLogicalDatabase().getShards().values();
+        Collection<RedisShard> shards = service.getServiceContext().shards().values();
         if (shards.isEmpty()) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }
         List<Integer> shardIds = new ArrayList<>();
-        for (Shard shard : shards) {
-            if (!shard.isEmpty()) {
-                shardIds.add(shard.getId());
+        for (RedisShard shard : shards) {
+            if (!shard.storage().isEmpty()) {
+                shardIds.add(shard.id());
             }
         }
 
@@ -70,9 +70,9 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
 
         int randomIndex = ThreadLocalRandom.current().nextInt(shardIds.size());
         int shardId = shardIds.get(randomIndex);
-        Shard shard = service.getShard(shardId);
+        RedisShard shard = service.getShard(shardId);
         try {
-            String randomKey = shard.getIndex().random();
+            String randomKey = shard.index().random();
             ByteBuf buf = response.getChannelContext().alloc().buffer();
             buf.writeBytes(randomKey.getBytes());
             response.write(buf);

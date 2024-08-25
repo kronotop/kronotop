@@ -14,10 +14,29 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume;
+package com.kronotop.cluster.sharding;
 
-public interface StageRunner extends Runnable {
-    String name();
+import java.util.concurrent.atomic.AtomicReference;
 
-    void stop();
+public interface Shard {
+
+    AtomicReference<ShardStatus> status = new AtomicReference<>(ShardStatus.INOPERABLE);
+
+    default ShardStatus status() {
+        return this.status.get();
+    }
+
+    default void setStatus(ShardStatus status) {
+        this.status.set(status);
+    }
+
+    ShardLocator getShardLocator();
+
+    ShardStatistics getShardStatistics();
+
+    Integer id();
+
+    void start();
+
+    void shutdown();
 }

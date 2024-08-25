@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HValsMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -52,20 +52,19 @@ public class HValsHandler extends BaseHandler implements Handler {
         HValsMessage hvalsMessage = request.attr(MessageTypes.HVALS).get();
 
         List<RedisMessage> result = new ArrayList<>();
-        Shard shard = service.findShard(hvalsMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hvalsMessage.getKey());
+        RedisShard shard = service.findShard(hvalsMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hvalsMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.get(hvalsMessage.getKey());
+            Object retrieved = shard.storage().get(hvalsMessage.getKey());
             if (retrieved == null) {
                 response.writeArray(result);
                 return;
             }
-            if (!(retrieved instanceof HashValue)) {
+            if (!(retrieved instanceof HashValue hashValue)) {
                 throw new WrongTypeException();
             }
 
-            HashValue hashValue = (HashValue) retrieved;
             Collection<byte[]> values = hashValue.values();
             for (byte[] value : values) {
                 ByteBuf buf = response.getChannelContext().alloc().buffer();

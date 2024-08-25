@@ -23,6 +23,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.Member;
 import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.server.Handlers;
+import com.kronotop.volume.VolumeService;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,10 +61,14 @@ public class BaseMetadataStoreTest extends BaseTest {
         config = loadConfig("test.conf");
         database = FoundationDBFactory.newDatabase(config);
         context = new ContextImpl(config, member, database);
+        context.registerService(VolumeService.NAME, new VolumeService(context, new Handlers()));
     }
 
     @AfterEach
     public void tearDown() {
+        for (KronotopService service : context.getServices()) {
+            service.shutdown();
+        }
         try (Transaction tr = database.createTransaction()) {
             String clusterName = config.getString("cluster.name");
             List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).asList();

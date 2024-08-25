@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HMGetMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -49,21 +49,20 @@ public class HMGetHandler extends BaseHandler implements Handler {
         HMGetMessage hmgetMessage = request.attr(MessageTypes.HMGET).get();
 
         List<RedisMessage> upperList = new ArrayList<>();
-        Shard shard = service.findShard(hmgetMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hmgetMessage.getKey());
+        RedisShard shard = service.findShard(hmgetMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hmgetMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.get(hmgetMessage.getKey());
+            Object retrieved = shard.storage().get(hmgetMessage.getKey());
             if (retrieved == null) {
                 for (int i = 0; i < hmgetMessage.getFields().size(); i++) {
                     upperList.add(FullBulkStringRedisMessage.NULL_INSTANCE);
                 }
             } else {
-                if (!(retrieved instanceof HashValue)) {
+                if (!(retrieved instanceof HashValue hashValue)) {
                     throw new WrongTypeException();
                 }
 
-                HashValue hashValue = (HashValue) retrieved;
                 for (String field : hmgetMessage.getFields()) {
                     byte[] value = hashValue.get(field);
                     if (value == null) {

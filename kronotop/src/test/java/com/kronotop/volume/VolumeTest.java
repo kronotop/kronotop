@@ -208,6 +208,55 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    public void test_reopen_write_new_entries() throws IOException {
+        List<Versionstamp> versionstampedKeys;
+
+        ByteBuffer[] firstEntries = getEntries(2);
+        {
+            AppendResult result;
+            try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr);
+                result = volume.append(session, firstEntries);
+                tr.commit().join();
+            }
+            versionstampedKeys = new ArrayList<>(Arrays.stream(result.getVersionstampedKeys()).toList());
+        }
+
+        // Flushes all the underlying files.
+        volume.close();
+
+        {
+            Volume reopenedVolume = service.newVolume(volume.getConfig());
+
+            ByteBuffer[] secondEntries = getEntries(2);
+            AppendResult result;
+            try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr);
+                result = reopenedVolume.append(session, secondEntries);
+                tr.commit().join();
+            }
+            versionstampedKeys.addAll(Arrays.stream(result.getVersionstampedKeys()).toList());
+
+            List<ByteBuffer> retrievedEntries = new ArrayList<>();
+            try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr);
+                for (Versionstamp versionstamp : versionstampedKeys) {
+                    ByteBuffer buffer = reopenedVolume.get(session, versionstamp);
+                    retrievedEntries.add(buffer);
+                }
+            }
+
+            for (int i = 0; i < firstEntries.length; i++) {
+                assertArrayEquals(firstEntries[i].array(), retrievedEntries.get(i).array());
+            }
+
+            for (int i = 0; i < secondEntries.length; i++) {
+                assertArrayEquals(secondEntries[i].array(), retrievedEntries.get(i).array());
+            }
+        }
+    }
+
+    @Test
     public void test_create_new_segments() throws IOException {
         long bufferSize = 100480;
         long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");

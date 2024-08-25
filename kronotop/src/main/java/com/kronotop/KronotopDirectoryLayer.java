@@ -20,7 +20,6 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.common.utils.DirectoryLayout;
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.redis.storage.persistence.DataStructure;
 
 import java.util.HashMap;
@@ -47,7 +46,6 @@ public class KronotopDirectoryLayer {
                 internal().
                 redis().
                 persistence().
-                logicalDatabase(LogicalDatabase.NAME).
                 shardId(Integer.toString(shardId)).
                 dataStructure(dataStructure.name().toLowerCase()).
                 asList();

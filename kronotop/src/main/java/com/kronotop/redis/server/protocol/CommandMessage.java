@@ -68,7 +68,6 @@ public class CommandMessage implements KronotopMessage<Void> {
         if (subcommand.equals(SUBCOMMAND_INFO) || subcommand.equals(SUBCOMMAND_DOCS)) {
             parseCommands();
         } else if (subcommand.equals(SUBCOMMAND_COUNT)) {
-            return;
         }
     }
 

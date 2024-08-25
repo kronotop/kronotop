@@ -20,7 +20,7 @@ import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HSetNXMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -57,16 +57,16 @@ public class HSetNXHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HSetNXMessage hsetnxMessage = request.attr(MessageTypes.HSETNX).get();
 
-        Shard shard = service.findShard(hsetnxMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hsetnxMessage.getKey());
+        RedisShard shard = service.findShard(hsetnxMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hsetnxMessage.getKey());
         lock.writeLock().lock();
         int result = 0;
         try {
             HashValue hashValue;
-            Object retrieved = shard.get(hsetnxMessage.getKey());
+            Object retrieved = shard.storage().get(hsetnxMessage.getKey());
             if (retrieved == null) {
                 hashValue = new HashValue();
-                shard.put(hsetnxMessage.getKey(), hashValue);
+                shard.storage().put(hsetnxMessage.getKey(), hashValue);
             } else {
                 if (!(retrieved instanceof HashValue)) {
                     throw new WrongTypeException();

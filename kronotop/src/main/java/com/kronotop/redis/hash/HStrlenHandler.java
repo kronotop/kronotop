@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HStrlenMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -45,20 +45,19 @@ public class HStrlenHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HStrlenMessage hstrlenMessage = request.attr(MessageTypes.HSTRLEN).get();
 
-        Shard shard = service.findShard(hstrlenMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hstrlenMessage.getKey());
+        RedisShard shard = service.findShard(hstrlenMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hstrlenMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.get(hstrlenMessage.getKey());
+            Object retrieved = shard.storage().get(hstrlenMessage.getKey());
             if (retrieved == null) {
                 response.writeInteger(0);
                 return;
             }
-            if (!(retrieved instanceof HashValue)) {
+            if (!(retrieved instanceof HashValue hashValue)) {
                 throw new WrongTypeException();
             }
 
-            HashValue hashValue = (HashValue) retrieved;
             byte[] value = hashValue.get(hstrlenMessage.getField());
             if (value != null) {
                 response.writeInteger(value.length);

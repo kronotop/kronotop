@@ -31,6 +31,7 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class VolumeService extends CommandHandlerService implements KronotopService {
@@ -60,8 +61,8 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         synchronized (volumesLock) {
             for (Map.Entry<String, Volume> entry : volumes.entrySet()) {
                 entry.getValue().close();
-                volumes.remove(entry.getKey());
             }
+            volumes.clear();
         }
     }
 
@@ -92,7 +93,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         }
     }
 
-    public Volume getVolume(String name) {
+    public Volume findVolume(String name) {
         synchronized (volumesLock) {
             if (volumes.containsKey(name)) {
                 Volume volume = volumes.get(name);
@@ -101,7 +102,26 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 }
                 return volume;
             }
-            throw new VolumeNotOpenException(name);
+        }
+        throw new VolumeNotOpenException(name);
+    }
+
+    public void closeVolume(String name) {
+        synchronized (volumesLock) {
+            Volume volume = volumes.get(name);
+            if (volume != null) {
+                volume.close();
+                volumes.remove(name);
+                return;
+            }
+        }
+        throw new VolumeNotOpenException(name);
+    }
+
+    public List<Volume> volumes() {
+        synchronized (volumesLock) {
+            // Returns an unmodifiable list
+            return volumes.values().stream().toList();
         }
     }
 }

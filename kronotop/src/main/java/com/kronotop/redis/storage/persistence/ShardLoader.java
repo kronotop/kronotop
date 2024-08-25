@@ -26,7 +26,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.Context;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.WrongTypeException;
 
 import java.io.IOException;
@@ -41,10 +41,10 @@ import java.util.concurrent.CompletionException;
  */
 public final class ShardLoader {
     private final Context context;
-    private final Shard shard;
+    private final RedisShard shard;
     private Range range;
 
-    public ShardLoader(Context context, Shard shard) {
+    public ShardLoader(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
     }
@@ -62,10 +62,10 @@ public final class ShardLoader {
 
         String key = subspace.getPath().get(subspace.getPath().size() - 1);
         HashValue hashValue;
-        Object retrieved = shard.get(key);
+        Object retrieved = shard.storage().get(key);
         if (retrieved == null) {
             hashValue = new HashValue();
-            shard.put(key, hashValue);
+            shard.storage().put(key, hashValue);
         } else {
             if (!(retrieved instanceof HashValue)) {
                 // TODO: add key to the error message
@@ -116,9 +116,9 @@ public final class ShardLoader {
             try {
                 StringValue stringValue = StringValue.decode(keyValue.getValue());
                 String key = subspace.unpack(keyValue.getKey()).get(0).toString();
-                shard.computeIfAbsent(key, (k) -> {
-                    shard.getIndex().add(k);
-                    shard.getIndex().flush();
+                shard.storage().computeIfAbsent(key, (k) -> {
+                    shard.index().add(k);
+                    shard.index().flush();
                     return stringValue;
                 });
             } catch (IOException e) {
@@ -135,7 +135,7 @@ public final class ShardLoader {
      */
     public void load(Transaction tr, DataStructure dataStructure) {
         try {
-            DirectorySubspace subspace = context.getDirectoryLayer().openDataStructure(shard.getId(), dataStructure);
+            DirectorySubspace subspace = context.getDirectoryLayer().openDataStructure(shard.id(), dataStructure);
             if (dataStructure.equals(DataStructure.STRING)) {
                 loadStringValues(tr, subspace);
             } else if (dataStructure.equals(DataStructure.HASH)) {

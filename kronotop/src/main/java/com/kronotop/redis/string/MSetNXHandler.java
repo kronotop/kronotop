@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.MSetNXMessage;
 import com.kronotop.server.Handler;
@@ -50,16 +50,16 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
         return Collections.singletonList(request.attr(MessageTypes.MSETNX).get().getKey());
     }
 
-    private int msetnx(Shard storage, MSetNXMessage mSetNXMessage) {
+    private int msetnx(RedisShard shard, MSetNXMessage mSetNXMessage) {
         for (MSetNXMessage.Pair pair : mSetNXMessage.getPairs()) {
-            if (storage.containsKey(pair.getKey())) {
+            if (shard.storage().containsKey(pair.getKey())) {
                 return 0;
             }
         }
         for (MSetNXMessage.Pair pair : mSetNXMessage.getPairs()) {
-            Object previousValue = storage.put(pair.getKey(), new StringValue(pair.getValue()));
+            Object previousValue = shard.storage().put(pair.getKey(), new StringValue(pair.getValue()));
             if (previousValue == null) {
-                storage.getIndex().add(pair.getKey());
+                shard.index().add(pair.getKey());
             }
         }
         return 1;
@@ -79,9 +79,9 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
             keys.add(pair.getKey());
         }
 
-        Shard shard = service.findShard(msetnxMessage.getKeys());
+        RedisShard shard = service.findShard(msetnxMessage.getKeys());
         int result;
-        Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(keys);
+        Iterable<ReadWriteLock> locks = shard.striped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
@@ -94,7 +94,7 @@ public class MSetNXHandler extends BaseStringHandler implements Handler {
         }
 
         for (String key : msetnxMessage.getKeys()) {
-            shard.getPersistenceQueue().add(new StringKey(key));
+            shard.persistenceQueue().add(new StringKey(key));
         }
         response.writeInteger(result);
     }

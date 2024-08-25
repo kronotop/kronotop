@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.storage.impl;
 
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.ShardReadOnlyException;
 import com.kronotop.redis.storage.persistence.Key;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
@@ -33,21 +33,21 @@ import com.kronotop.redis.storage.persistence.impl.OnHeapPersistenceQueue;
  * Shard shard = new OnHeapShardImpl(0);
  * shard.setReadOnly(true);
  *
- * InMemoryShardPersistenceQueue queue = new InMemoryShardPersistenceQueue(shard);
+ * RedisShardPersistenceQueue queue = new RedisShardPersistenceQueue(shard);
  * queue.add(new StringKey("foo"));
  * }</pre>
  */
-public class InMemoryShardPersistenceQueue extends OnHeapPersistenceQueue implements PersistenceQueue {
-    private final Shard shard;
+public class RedisShardPersistenceQueue extends OnHeapPersistenceQueue implements PersistenceQueue {
+    private final RedisShard shard;
 
-    public InMemoryShardPersistenceQueue(Shard shard) {
+    public RedisShardPersistenceQueue(RedisShard shard) {
         this.shard = shard;
     }
 
     @Override
     public void add(Key key) {
         if (shard.isReadOnly()) {
-            throw new ShardReadOnlyException(shard.getId());
+            throw new ShardReadOnlyException(shard.id());
         }
         super.add(key);
     }

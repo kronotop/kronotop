@@ -16,8 +16,10 @@
 
 package com.kronotop.redis.storage;
 
+import com.kronotop.ServiceContext;
+import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.impl.OnHeapShardImpl;
+import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.StringKey;
 import org.junit.jupiter.api.Test;
 
@@ -26,15 +28,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ShardMaintenanceWorkerTest extends BaseStorageTest {
     @Test
     public void testRun() {
-        Shard shard = new OnHeapShardImpl(0);
-        shard.put("key-1", new StringValue("value-1".getBytes(), 0));
-        shard.getPersistenceQueue().add(new StringKey("key-1"));
+        RedisShard shard = new OnHeapRedisShardImpl(0);
+        shard.storage().put("key-1", new StringValue("value-1".getBytes(), 0));
+        shard.persistenceQueue().add(new StringKey("key-1"));
 
-        context.getLogicalDatabase().getShards().put(0, shard);
+        ServiceContext<RedisShard> redisContext = context.getServiceContext(RedisService.NAME);
+        redisContext.shards().put(0, shard);
         ShardMaintenanceWorker shardMaintenanceWorker = new ShardMaintenanceWorker(context, 0);
         shardMaintenanceWorker.run();
 
-        assertEquals(0, shard.getPersistenceQueue().size());
+        assertEquals(0, shard.persistenceQueue().size());
 
     }
 }

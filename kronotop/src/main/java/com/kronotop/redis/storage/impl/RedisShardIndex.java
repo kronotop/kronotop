@@ -16,15 +16,15 @@
 
 package com.kronotop.redis.storage.impl;
 
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.ShardReadOnlyException;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.index.impl.IndexImpl;
 
-public class InMemoryShardIndex extends IndexImpl implements Index {
-    private final Shard shard;
+public class RedisShardIndex extends IndexImpl implements Index {
+    private final RedisShard shard;
 
-    public InMemoryShardIndex(int id, Shard shard) {
+    public RedisShardIndex(int id, RedisShard shard) {
         super(id);
         this.shard = shard;
     }
@@ -32,7 +32,7 @@ public class InMemoryShardIndex extends IndexImpl implements Index {
     @Override
     public void add(String key) {
         if (shard.isReadOnly()) {
-            throw new ShardReadOnlyException(shard.getId());
+            throw new ShardReadOnlyException(shard.id());
         }
         super.add(key);
     }
@@ -40,7 +40,7 @@ public class InMemoryShardIndex extends IndexImpl implements Index {
     @Override
     public void remove(String key) {
         if (shard.isReadOnly()) {
-            throw new ShardReadOnlyException(shard.getId());
+            throw new ShardReadOnlyException(shard.id());
         }
         super.remove(key);
     }

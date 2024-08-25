@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.GetSetMessage;
 import com.kronotop.server.*;
@@ -60,18 +60,18 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         GetSetMessage getSetMessage = request.attr(MessageTypes.GETSET).get();
 
-        Shard shard = service.findShard(getSetMessage.getKey());
+        RedisShard shard = service.findShard(getSetMessage.getKey());
         AtomicReference<Object> result = new AtomicReference<>();
 
-        ReadWriteLock lock = shard.getStriped().get(getSetMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(getSetMessage.getKey());
         try {
             lock.writeLock().lock();
-            shard.compute(getSetMessage.getKey(), (key, oldValue) -> {
+            shard.storage().compute(getSetMessage.getKey(), (key, oldValue) -> {
                 if (oldValue != null && !(oldValue instanceof StringValue)) {
                     throw new WrongTypeException();
                 }
                 if (oldValue == null) {
-                    shard.getIndex().add(getSetMessage.getKey());
+                    shard.index().add(getSetMessage.getKey());
                 }
                 result.set(oldValue);
                 return new StringValue(getSetMessage.getValue());
@@ -88,7 +88,7 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
         StringValue stringValue = (StringValue) result.get();
         ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(stringValue.getValue());
-        shard.getPersistenceQueue().add(new StringKey(getSetMessage.getKey()));
+        shard.persistenceQueue().add(new StringKey(getSetMessage.getKey()));
         response.write(buf);
     }
 }

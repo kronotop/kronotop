@@ -14,16 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.storage.impl;
+package com.kronotop.volume;
 
-import com.kronotop.redis.storage.Shard;
-
-/**
- * This class represents an on-heap shard implementation that extends the AbstractInMemoryShard class and implements the Shard interface.
- * It provides a concurrent map with additional functionality.
- */
-public class OnHeapShardImpl extends AbstractInMemoryShard implements Shard {
-    public OnHeapShardImpl(Integer id) {
-        super(id);
+public class VolumeAlreadyRegisteredException extends RuntimeException {
+    public VolumeAlreadyRegisteredException(String name) {
+        super(String.format("Volume: '%s' is already registered", name));
     }
 }

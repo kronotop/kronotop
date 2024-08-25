@@ -22,7 +22,6 @@ import com.kronotop.cluster.Member;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.common.KronotopException;
 import com.kronotop.journal.Journal;
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
@@ -43,12 +42,12 @@ public class ContextImpl implements Context {
     private final Database database;
     private final ConcurrentMap<String, KronotopService> services = new ConcurrentHashMap<>();
     private final String clusterName;
-    private final LogicalDatabase logicalDatabase;
     private final Striped<ReadWriteLock> stripedReadWriteLock = Striped.readWriteLock(3);
     private final Journal journal;
     private final ConcurrentHashMap<String, CommandMetadata> commandMetadata = new ConcurrentHashMap<>();
     private final Map<String, CommandMetadata> unmodifiableCommandMetadata = Collections.unmodifiableMap(commandMetadata);
-    private final KronotopDirectoryLayer kronotopDirectoryLayer;
+    private final KronotopDirectoryLayer directoryLayer;
+    private final ConcurrentHashMap<String, ServiceContext<?>> contexts = new ConcurrentHashMap<>();
 
     public ContextImpl(Config config, Member member, Database database) {
         if (config.hasPath("cluster.name")) {
@@ -60,9 +59,8 @@ public class ContextImpl implements Context {
         this.config = config;
         this.member = member;
         this.database = database;
-        this.logicalDatabase = new LogicalDatabase();
         this.journal = new Journal(config, database);
-        this.kronotopDirectoryLayer = new KronotopDirectoryLayer(database, clusterName);
+        this.directoryLayer = new KronotopDirectoryLayer(database, clusterName);
     }
 
     @Override
@@ -105,10 +103,6 @@ public class ContextImpl implements Context {
         return new ArrayList<>(services.values());
     }
 
-    public LogicalDatabase getLogicalDatabase() {
-        return logicalDatabase;
-    }
-
     public Striped<ReadWriteLock> getStripedReadWriteLock() {
         return stripedReadWriteLock;
     }
@@ -130,6 +124,22 @@ public class ContextImpl implements Context {
 
     @Override
     public KronotopDirectoryLayer getDirectoryLayer() {
-        return kronotopDirectoryLayer;
+        return directoryLayer;
+    }
+
+    @Override
+    public <T> void registerServiceContext(String name, ServiceContext<T> context) {
+        synchronized (contexts) {
+            if (contexts.containsKey(name)) {
+                throw new KronotopException(String.format("ServiceContext '%s' already registered", name));
+            }
+            contexts.put(name, context);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> ServiceContext<T> getServiceContext(String name) {
+        return (ServiceContext<T>) contexts.get(name);
     }
 }

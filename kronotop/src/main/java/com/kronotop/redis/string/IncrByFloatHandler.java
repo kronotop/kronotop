@@ -20,7 +20,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.IncrByFloatMessage;
 import com.kronotop.server.Handler;
@@ -64,13 +64,13 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         IncrByFloatMessage incrByFloatMessage = request.attr(MessageTypes.INCRBYFLOAT).get();
 
-        Shard shard = service.findShard(incrByFloatMessage.getKey());
+        RedisShard shard = service.findShard(incrByFloatMessage.getKey());
         AtomicReference<Double> result = new AtomicReference<>();
-        ReadWriteLock lock = shard.getStriped().get(incrByFloatMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(incrByFloatMessage.getKey());
 
         try {
             lock.writeLock().lock();
-            shard.compute(incrByFloatMessage.getKey(), (key, oldValue) -> {
+            shard.storage().compute(incrByFloatMessage.getKey(), (key, oldValue) -> {
                 double currentValue = 0;
                 if (oldValue != null) {
                     StringValue value = (StringValue) oldValue;
@@ -80,7 +80,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
                     }
                 } else {
-                    shard.getIndex().add(incrByFloatMessage.getKey());
+                    shard.index().add(incrByFloatMessage.getKey());
                 }
                 currentValue += incrByFloatMessage.getIncrement();
                 result.set(currentValue);
@@ -90,7 +90,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        shard.getPersistenceQueue().add(new StringKey(incrByFloatMessage.getKey()));
+        shard.persistenceQueue().add(new StringKey(incrByFloatMessage.getKey()));
         ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(result.get().toString().getBytes());
         response.write(buf);

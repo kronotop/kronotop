@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HRandFieldMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -97,20 +97,19 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
         FullBulkStringRedisMessage bulkReply = null;
         List<RedisMessage> arrayReply = null;
 
-        Shard shard = service.findShard(hrandfieldMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hrandfieldMessage.getKey());
+        RedisShard shard = service.findShard(hrandfieldMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hrandfieldMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.get(hrandfieldMessage.getKey());
+            Object retrieved = shard.storage().get(hrandfieldMessage.getKey());
             if (retrieved == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;
             }
-            if (!(retrieved instanceof HashValue)) {
+            if (!(retrieved instanceof HashValue hashValue)) {
                 throw new WrongTypeException();
             }
 
-            HashValue hashValue = (HashValue) retrieved;
             if (hrandfieldMessage.getCount() == null) {
                 bulkReply = prepareBulkReply(response, hashValue);
             } else {

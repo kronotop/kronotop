@@ -27,6 +27,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
+import com.kronotop.redis.RedisContext;
 import com.kronotop.redis.RedisService;
 import com.kronotop.server.Handlers;
 import com.kronotop.volume.VolumeService;
@@ -134,6 +135,18 @@ public class KronotopInstance {
     }
 
     /**
+     * Initializes the context by creating a new instance of ContextImpl using the provided config,
+     * member, and database. It then registers the RedisContext as a child context in the main context.
+     */
+    private void initializeContext() {
+        context = new ContextImpl(config, member, database);
+
+        // Register child contexts here.
+        RedisContext redisContext = new RedisContext(context);
+        context.registerServiceContext(RedisService.NAME, redisContext);
+    }
+
+    /**
      * Starts the Kronotop instance.
      *
      * <p>
@@ -157,7 +170,7 @@ public class KronotopInstance {
         LOGGER.info("Initializing a new Kronotop instance");
         try {
             initializeMember();
-            context = new ContextImpl(config, member, database);
+            initializeContext();
             registerKronotopServices();
             setStatus(KronotopInstanceStatus.RUNNING);
         } catch (Exception e) {

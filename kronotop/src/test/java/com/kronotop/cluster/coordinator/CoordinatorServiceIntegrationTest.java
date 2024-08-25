@@ -17,11 +17,12 @@
 package com.kronotop.cluster.coordinator;
 
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.ServiceContext;
 import com.kronotop.cluster.BaseClusterTest;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.instance.KronotopInstance;
-import com.kronotop.redis.storage.LogicalDatabase;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.RedisService;
+import com.kronotop.redis.storage.RedisShard;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -49,9 +50,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * to check the status of the cluster by iterating through each shard and performing necessary checks. If an issue is
  * found, the execution is scheduled to retry after a certain time period. Once all the shards have been checked and no
  * issues are found, it notifies the clusterOperable object.
- * <p>
- * The test class uses the {@link LogicalDatabase} class to represent the logical database in the Kronotop context.
- * It contains the shards and provides operations to manage them.
  */
 public class CoordinatorServiceIntegrationTest extends BaseClusterTest {
 
@@ -70,9 +68,9 @@ public class CoordinatorServiceIntegrationTest extends BaseClusterTest {
     public void test_singleKronotopInstance() {
         KronotopTestInstance kronotopTestInstance = kronotopInstances.values().iterator().next();
         int numberOfShards = kronotopTestInstance.getContext().getConfig().getInt("cluster.number_of_shards");
-        LogicalDatabase logicalDatabase = kronotopTestInstance.getContext().getLogicalDatabase();
+        ServiceContext<RedisShard> redisContext = kronotopTestInstance.getContext().getServiceContext(RedisService.NAME);
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
-            Shard shard = logicalDatabase.getShards().get(shardId);
+            RedisShard shard = redisContext.shards().get(shardId);
             assertNotNull(shard);
             assertFalse(shard.isReadOnly());
             assertTrue(shard.isOperable());
@@ -101,9 +99,9 @@ public class CoordinatorServiceIntegrationTest extends BaseClusterTest {
         {
             KronotopTestInstance kronotopTestInstance = kronotopInstances.values().iterator().next();
             int numberOfShards = kronotopTestInstance.getContext().getConfig().getInt("cluster.number_of_shards");
-            LogicalDatabase logicalDatabase = kronotopTestInstance.getContext().getLogicalDatabase();
+            ServiceContext<RedisShard> redisContext = kronotopTestInstance.getContext().getServiceContext(RedisService.NAME);
             for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                Shard shard = logicalDatabase.getShards().get(shardId);
+                RedisShard shard = redisContext.shards().get(shardId);
                 assertNotNull(shard);
                 assertFalse(shard.isReadOnly());
                 assertTrue(shard.isOperable());
@@ -119,12 +117,12 @@ public class CoordinatorServiceIntegrationTest extends BaseClusterTest {
             RoutingTable routingTable = membershipService.getRoutingTable();
 
             int numberOfShards = kronotopTestInstance.getContext().getConfig().getInt("cluster.number_of_shards");
-            LogicalDatabase logicalDatabase = kronotopTestInstance.getContext().getLogicalDatabase();
+            ServiceContext<RedisShard> redisContext = kronotopTestInstance.getContext().getServiceContext(RedisService.NAME);
             for (int shardId = 0; shardId < numberOfShards; shardId++) {
                 Route route = routingTable.getRoute(shardId);
                 assertNotNull(route);
                 if (route.getMember().equals(kronotopTestInstance.getMember())) {
-                    Shard shard = logicalDatabase.getShards().get(shardId);
+                    RedisShard shard = redisContext.shards().get(shardId);
                     assertFalse(shard.isReadOnly());
                     assertTrue(shard.isOperable());
                 } else {

@@ -20,7 +20,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.DecrMessage;
 import com.kronotop.server.Handler;
@@ -63,13 +63,13 @@ public class DecrHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         DecrMessage decrMessage = request.attr(MessageTypes.DECR).get();
 
-        Shard shard = service.findShard(decrMessage.getKey());
+        RedisShard shard = service.findShard(decrMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
 
-        ReadWriteLock lock = shard.getStriped().get(decrMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(decrMessage.getKey());
         try {
             lock.writeLock().lock();
-            shard.compute(decrMessage.getKey(), (key, oldValue) -> {
+            shard.storage().compute(decrMessage.getKey(), (key, oldValue) -> {
                 int currentValue = 0;
                 if (oldValue != null) {
                     StringValue value = (StringValue) oldValue;
@@ -79,7 +79,7 @@ public class DecrHandler extends BaseStringHandler implements Handler {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                     }
                 } else {
-                    shard.getIndex().add(decrMessage.getKey());
+                    shard.index().add(decrMessage.getKey());
                 }
                 currentValue -= 1;
                 result.set(currentValue);
@@ -89,7 +89,7 @@ public class DecrHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        shard.getPersistenceQueue().add(new StringKey(decrMessage.getKey()));
+        shard.persistenceQueue().add(new StringKey(decrMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

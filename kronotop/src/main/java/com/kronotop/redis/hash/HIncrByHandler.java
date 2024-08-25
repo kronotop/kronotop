@@ -22,7 +22,7 @@ import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HIncrByMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -59,16 +59,16 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HIncrByMessage hincrbyMessage = request.attr(MessageTypes.HINCRBY).get();
 
-        Shard shard = service.findShard(hincrbyMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hincrbyMessage.getKey());
+        RedisShard shard = service.findShard(hincrbyMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hincrbyMessage.getKey());
         lock.writeLock().lock();
         long newValue;
         try {
             HashValue hashValue;
-            Object retrieved = shard.get(hincrbyMessage.getKey());
+            Object retrieved = shard.storage().get(hincrbyMessage.getKey());
             if (retrieved == null) {
                 hashValue = new HashValue();
-                shard.put(hincrbyMessage.getKey(), hashValue);
+                shard.storage().put(hincrbyMessage.getKey(), hashValue);
             } else {
                 if (!(retrieved instanceof HashValue)) {
                     throw new WrongTypeException();

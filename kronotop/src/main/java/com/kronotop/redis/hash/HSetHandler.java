@@ -20,7 +20,7 @@ import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HSetMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -55,16 +55,16 @@ public class HSetHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HSetMessage hsetMessage = request.attr(MessageTypes.HSET).get();
 
-        Shard shard = service.findShard(hsetMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hsetMessage.getKey());
+        RedisShard shard = service.findShard(hsetMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hsetMessage.getKey());
         lock.writeLock().lock();
         int total = 0;
         try {
             HashValue hashValue;
-            Object retrieved = shard.get(hsetMessage.getKey());
+            Object retrieved = shard.storage().get(hsetMessage.getKey());
             if (retrieved == null) {
                 hashValue = new HashValue();
-                shard.put(hsetMessage.getKey(), hashValue);
+                shard.storage().put(hsetMessage.getKey(), hashValue);
             } else {
                 if (!(retrieved instanceof HashValue)) {
                     throw new WrongTypeException();

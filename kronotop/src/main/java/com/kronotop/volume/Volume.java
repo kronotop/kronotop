@@ -62,7 +62,7 @@ public class Volume {
 
     private volatile boolean isClosed;
 
-    protected Volume(Context context, VolumeConfig volumeConfig) throws IOException {
+    public Volume(Context context, VolumeConfig volumeConfig) throws IOException {
         this.context = context;
         this.config = volumeConfig;
         this.entryMetadataCache = CacheBuilder.newBuilder().expireAfterAccess(30, TimeUnit.MINUTES).build(new EntryMetadataLoader());
@@ -466,8 +466,10 @@ public class Volume {
         segmentsLock.readLock().lock();
         try {
             for (Map.Entry<String, Segment> entry : segmentsByName.entrySet()) {
+                Segment segment = entry.getValue();
                 try {
-                    entry.getValue().close();
+                    // This also flushes the underlying files with metadata = true.
+                    segment.close();
                 } catch (IOException e) {
                     LOGGER.error("Failed to close Segment: {}", entry.getKey(), e);
                 }

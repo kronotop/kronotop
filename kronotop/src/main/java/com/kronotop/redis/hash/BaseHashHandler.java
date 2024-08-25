@@ -19,7 +19,7 @@ package com.kronotop.redis.hash;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.HashKey;
 
 import java.util.List;
@@ -30,10 +30,10 @@ public class BaseHashHandler extends BaseHandler {
         super(service);
     }
 
-    protected void persistence(Shard shard, String key, List<FieldValuePair> fieldValuePairs) {
+    protected void persistence(RedisShard shard, String key, List<FieldValuePair> fieldValuePairs) {
         for (FieldValuePair fieldValuePair : fieldValuePairs) {
             HashKey hashKey = new HashKey(key, fieldValuePair.getField());
-            shard.getPersistenceQueue().add(hashKey);
+            shard.persistenceQueue().add(hashKey);
         }
     }
 }

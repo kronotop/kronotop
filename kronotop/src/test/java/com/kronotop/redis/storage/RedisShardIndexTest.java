@@ -16,20 +16,26 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.redis.storage.impl.InMemoryShardPersistenceQueue;
-import com.kronotop.redis.storage.impl.OnHeapShardImpl;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
+import com.kronotop.redis.storage.impl.RedisShardIndex;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class InMemoryShardPersistenceQueueTest {
+public class RedisShardIndexTest extends BaseStorageTest {
     @Test
     public void test_add() {
-        Shard shard = new OnHeapShardImpl(0);
+        RedisShard shard = new OnHeapRedisShardImpl(0);
         shard.setReadOnly(true);
+        RedisShardIndex index = new RedisShardIndex(0, shard);
+        assertThrows(ShardReadOnlyException.class, () -> index.add("foo"));
+    }
 
-        InMemoryShardPersistenceQueue queue = new InMemoryShardPersistenceQueue(shard);
-        assertThrows(ShardReadOnlyException.class, () -> queue.add(new StringKey("foo")));
+    @Test
+    public void test_remove() {
+        RedisShard shard = new OnHeapRedisShardImpl(0);
+        shard.setReadOnly(true);
+        RedisShardIndex index = new RedisShardIndex(0, shard);
+        assertThrows(ShardReadOnlyException.class, () -> index.remove("foo"));
     }
 }

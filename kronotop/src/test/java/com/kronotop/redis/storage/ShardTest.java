@@ -16,23 +16,23 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.redis.storage.impl.OnHeapShardImpl;
+import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ShardTest {
-    protected Shard shard;
+public class ShardTest extends BaseStorageTest {
+    protected RedisShard shard;
 
     @BeforeEach
     public void beforeEach() {
-        shard = new OnHeapShardImpl(0);
+        shard = new OnHeapRedisShardImpl(0);
     }
 
     @Test
     public void test_getIndex() {
-        assertNotNull(shard.getIndex());
+        assertNotNull(shard.index());
     }
 
     @Test
@@ -49,23 +49,23 @@ public class ShardTest {
 
     @Test
     public void test_put() {
-        shard.put("foo", "bar");
+        shard.storage().put("foo", "bar");
         shard.setReadOnly(true);
-        ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.put("boo", "foo"));
+        ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.storage().put("boo", "foo"));
         assertNotNull(expected);
     }
 
     @Test
     public void test_remove() {
         shard.setReadOnly(true);
-        ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.remove("boo"));
+        ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.storage().remove("boo"));
         assertNotNull(expected);
     }
 
     @Test
     public void test_remove_with_value() {
         shard.setReadOnly(true);
-        ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.remove("boo", "foo"));
+        ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.storage().remove("boo", "foo"));
         assertNotNull(expected);
     }
 
@@ -74,7 +74,7 @@ public class ShardTest {
         shard.setReadOnly(true);
         ShardReadOnlyException expected = assertThrows(
                 ShardReadOnlyException.class,
-                () -> shard.compute("boo", (key, value) -> value)
+                () -> shard.storage().compute("boo", (key, value) -> value)
         );
         assertNotNull(expected);
     }
@@ -84,7 +84,7 @@ public class ShardTest {
         shard.setReadOnly(true);
         ShardReadOnlyException expected = assertThrows(
                 ShardReadOnlyException.class,
-                () -> shard.computeIfAbsent("boo", (key) -> key)
+                () -> shard.storage().computeIfAbsent("boo", (key) -> key)
         );
         assertNotNull(expected);
     }

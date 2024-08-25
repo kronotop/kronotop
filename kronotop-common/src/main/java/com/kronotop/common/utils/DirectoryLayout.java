@@ -29,11 +29,6 @@ public class DirectoryLayout {
         return this;
     }
 
-    public DirectoryLayout logicalDatabase(String logicalDatabase) {
-        items.add(logicalDatabase);
-        return this;
-    }
-
     public DirectoryLayout shardId(String shardId) {
         items.add(shardId);
         return this;
@@ -131,10 +126,6 @@ public class DirectoryLayout {
     public static class Builder {
         public static DirectoryLayout clusterName(String clusterName) {
             return new DirectoryLayout().clusterName(clusterName);
-        }
-
-        public static DirectoryLayout logicalDatabase(String logicalDatabase) {
-            return new DirectoryLayout().logicalDatabase(logicalDatabase);
         }
 
         public static DirectoryLayout shardId(String shardId) {

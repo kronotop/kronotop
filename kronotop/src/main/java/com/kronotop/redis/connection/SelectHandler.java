@@ -18,7 +18,6 @@ package com.kronotop.redis.connection;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.connection.protocol.SelectMessage;
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -45,7 +44,7 @@ public class SelectHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         SelectMessage selectMessage = request.attr(MessageTypes.SELECT).get();
-        if (selectMessage.getIndex().equals(LogicalDatabase.NAME)) {
+        if (selectMessage.getIndex().equals(RedisService.LogicalDatabase)) {
             response.writeOK();
             return;
         }

@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.string.protocol.StrlenMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -44,12 +44,12 @@ public class StrlenHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         StrlenMessage strlenMessage = request.attr(MessageTypes.STRLEN).get();
 
-        Shard shard = service.findShard(strlenMessage.getKey());
+        RedisShard shard = service.findShard(strlenMessage.getKey());
         Object received;
-        ReadWriteLock lock = shard.getStriped().get(strlenMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(strlenMessage.getKey());
         try {
             lock.readLock().lock();
-            received = shard.get(strlenMessage.getKey());
+            received = shard.storage().get(strlenMessage.getKey());
         } finally {
             lock.readLock().unlock();
         }
@@ -58,10 +58,9 @@ public class StrlenHandler extends BaseStringHandler implements Handler {
             response.writeInteger(0);
             return;
         }
-        if (!(received instanceof StringValue)) {
+        if (!(received instanceof StringValue stringValue)) {
             throw new WrongTypeException();
         }
-        StringValue stringValue = (StringValue) received;
         response.writeInteger(stringValue.getValue().length);
     }
 }

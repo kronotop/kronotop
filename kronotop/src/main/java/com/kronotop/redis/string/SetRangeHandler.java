@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.SetRangeMessage;
 import com.kronotop.server.Handler;
@@ -63,13 +63,13 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         SetRangeMessage setRangeMessage = request.attr(MessageTypes.SETRANGE).get();
 
-        Shard shard = service.findShard(setRangeMessage.getKey());
+        RedisShard shard = service.findShard(setRangeMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
 
-        ReadWriteLock lock = shard.getStriped().get(setRangeMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(setRangeMessage.getKey());
         try {
             lock.writeLock().lock();
-            shard.compute(setRangeMessage.getKey(), (key, oldValue) -> {
+            shard.storage().compute(setRangeMessage.getKey(), (key, oldValue) -> {
                 if (oldValue == null) {
                     int offset = setRangeMessage.getOffset();
                     ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -77,7 +77,7 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
                     output.writeBytes(padding);
                     output.writeBytes(setRangeMessage.getValue());
                     result.set(output.size());
-                    shard.getIndex().add(setRangeMessage.getKey());
+                    shard.index().add(setRangeMessage.getKey());
                     return new StringValue(output.toByteArray());
                 }
 
@@ -99,7 +99,7 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
         } finally {
             lock.writeLock().unlock();
         }
-        shard.getPersistenceQueue().add(new StringKey(setRangeMessage.getKey()));
+        shard.persistenceQueue().add(new StringKey(setRangeMessage.getKey()));
         response.writeInteger(result.get());
     }
 

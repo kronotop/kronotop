@@ -17,6 +17,8 @@
 package com.kronotop.redis.storage;
 
 import com.kronotop.Context;
+import com.kronotop.ServiceContext;
+import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.persistence.Persistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,10 +39,12 @@ public class ShardMaintenanceWorker implements Runnable {
     private final int numWorkers;
     private final HashMap<Integer, Persistence> cache = new HashMap<>();
     private final Semaphore semaphore = new Semaphore(1);
+    private final ServiceContext<RedisShard> redisContext;
 
     public ShardMaintenanceWorker(Context context, int workerId) {
         this.workerId = workerId;
         this.context = context;
+        this.redisContext = context.getServiceContext(RedisService.NAME);
         this.numWorkers = context.getConfig().getInt("persistence.num_workers");
     }
 
@@ -61,11 +65,11 @@ public class ShardMaintenanceWorker implements Runnable {
         try {
             semaphore.acquire();
             try {
-                context.getLogicalDatabase().getShards().forEach((shardId, shard) -> {
+                redisContext.shards().forEach((shardId, shard) -> {
                     if (shardId % numWorkers != workerId) return;
 
-                    shard.getIndex().flush();
-                    if (shard.getPersistenceQueue().size() > 0) {
+                    shard.index().flush();
+                    if (shard.persistenceQueue().size() > 0) {
                         Persistence persistence = cache.compute(shardId,
                                 (k, value) ->
                                         Objects.requireNonNullElseGet(value,

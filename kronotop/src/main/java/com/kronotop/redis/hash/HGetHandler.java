@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HGetMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -47,20 +47,19 @@ public class HGetHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HGetMessage hgetMessage = request.attr(MessageTypes.HGET).get();
 
-        Shard shard = service.findShard(hgetMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hgetMessage.getKey());
+        RedisShard shard = service.findShard(hgetMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hgetMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.get(hgetMessage.getKey());
+            Object retrieved = shard.storage().get(hgetMessage.getKey());
             if (retrieved == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;
             }
-            if (!(retrieved instanceof HashValue)) {
+            if (!(retrieved instanceof HashValue hashValue)) {
                 throw new WrongTypeException();
             }
 
-            HashValue hashValue = (HashValue) retrieved;
             byte[] value = hashValue.get(hgetMessage.getField());
             if (value == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);

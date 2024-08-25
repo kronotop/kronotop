@@ -24,6 +24,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
 import com.kronotop.KronotopService;
+import com.kronotop.ServiceContext;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.cluster.coordinator.RoutingTable;
 import com.kronotop.cluster.coordinator.events.TaskCompletedEvent;
@@ -36,8 +37,9 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalMetadata;
 import com.kronotop.journal.JournalName;
-import com.kronotop.redis.storage.Shard;
-import com.kronotop.redis.storage.impl.OnHeapShardImpl;
+import com.kronotop.redis.RedisService;
+import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.storage.persistence.ShardLoader;
@@ -63,6 +65,7 @@ public class ShardingService implements KronotopService {
     public static final String NAME = "Sharding";
     private static final Logger LOGGER = LoggerFactory.getLogger(ShardingService.class);
     private final Context context;
+    private final ServiceContext<RedisShard> redisContext;
     private final AtomicReference<byte[]> latestShardEventsVersionstamp = new AtomicReference<>();
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final ExecutorService executor;
@@ -71,6 +74,7 @@ public class ShardingService implements KronotopService {
 
     public ShardingService(Context context) {
         this.context = context;
+        this.redisContext = context.getServiceContext(RedisService.NAME);
         this.executor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setNameFormat("kr.sharding-%d").build()
         );
@@ -124,14 +128,14 @@ public class ShardingService implements KronotopService {
      * @param task The task containing the shard ID of the shard to be loaded.
      */
     private void loadShardFromFDB(BaseTask task) {
-        if (context.getLogicalDatabase().getShards().containsKey(task.getShardId())) {
+        if (redisContext.shards().containsKey(task.getShardId())) {
             LOGGER.warn("ShardId: {} could not be loaded from FoundationDB because it's already exists", task.getShardId());
             return;
         }
 
-        Shard shard = context.getLogicalDatabase().getShards().compute(task.getShardId(),
+        RedisShard shard = redisContext.shards().compute(task.getShardId(),
                 (key, value) -> Objects.requireNonNullElseGet(
-                        value, () -> new OnHeapShardImpl(task.getShardId()))
+                        value, () -> new OnHeapRedisShardImpl(task.getShardId()))
         );
         while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -175,7 +179,7 @@ public class ShardingService implements KronotopService {
                 Route newRoute = newRoutingTable.getRoute(shardId);
                 if (!newRoute.getMember().equals(context.getMember())) {
                     LOGGER.info("Dropping ShardId: {}", shardId);
-                    context.getLogicalDatabase().getShards().remove(shardId);
+                    redisContext.shards().remove(shardId);
                 }
             }
         }
@@ -198,7 +202,7 @@ public class ShardingService implements KronotopService {
             if (oldRoute == null || !oldRoute.getMember().equals(context.getMember())) {
                 Route newRoute = newRoutingTable.getRoute(shardId);
                 if (newRoute != null && newRoute.getMember().equals(context.getMember())) {
-                    context.getLogicalDatabase().getShards().computeIfPresent(shardId, (id, shard) -> {
+                    redisContext.shards().computeIfPresent(shardId, (id, shard) -> {
                         shard.setReadOnly(false);
                         shard.setOperable(true);
                         return shard;
@@ -248,10 +252,10 @@ public class ShardingService implements KronotopService {
                         context.getJournal().getPublisher().publish(JournalName.coordinatorEvents(), new TaskCompletedEvent(baseTask));
                     } else if (baseTask.getType() == TaskType.REASSIGN_SHARD) {
                         ReassignShardTask task = objectMapper.readValue(event.getValue(), ReassignShardTask.class);
-                        Shard shard = context.getLogicalDatabase().getShards().get(task.getShardId());
+                        RedisShard shard = redisContext.shards().get(task.getShardId());
                         if (shard != null) {
                             shard.setReadOnly(true);
-                            if (shard.getPersistenceQueue().size() > 0) {
+                            if (shard.persistenceQueue().size() > 0) {
                                 Persistence persistence = new Persistence(context, shard);
                                 while (!persistence.isQueueEmpty()) {
                                     persistence.run();

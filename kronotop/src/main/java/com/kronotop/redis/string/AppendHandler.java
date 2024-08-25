@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.AppendMessage;
 import com.kronotop.server.Handler;
@@ -62,13 +62,13 @@ public class AppendHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         AppendMessage appendMessage = request.attr(MessageTypes.APPEND).get();
 
-        Shard shard = service.findShard(appendMessage.getKey());
+        RedisShard shard = service.findShard(appendMessage.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
 
-        ReadWriteLock lock = shard.getStriped().get(appendMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(appendMessage.getKey());
         try {
             lock.writeLock().lock();
-            shard.compute(appendMessage.getKey(), (key, oldValue) -> {
+            shard.storage().compute(appendMessage.getKey(), (key, oldValue) -> {
                 if (oldValue != null) {
                     StringValue value = (StringValue) oldValue;
                     ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -77,7 +77,7 @@ public class AppendHandler extends BaseStringHandler implements Handler {
                     result.set(output.size());
                     return new StringValue(output.toByteArray());
                 } else {
-                    shard.getIndex().add(appendMessage.getKey());
+                    shard.index().add(appendMessage.getKey());
                     result.set(appendMessage.getValue().length);
                     return new StringValue(appendMessage.getValue());
                 }
@@ -86,7 +86,7 @@ public class AppendHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        shard.getPersistenceQueue().add(new StringKey(appendMessage.getKey()));
+        shard.persistenceQueue().add(new StringKey(appendMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

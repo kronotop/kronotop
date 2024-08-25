@@ -21,7 +21,8 @@ import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.instance.KronotopInstance;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.RedisService;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.NioRESPServer;
 import com.kronotop.server.RESPServer;
 import com.kronotop.server.Router;
@@ -129,12 +130,19 @@ public class KronotopTestInstance extends KronotopInstance {
      * Once all the shards have been checked and no issues are found, it notifies the clusterOperable object.
      */
     private class CheckClusterStatus implements Runnable {
+        private final MembershipService membershipService;
+        private final RedisService redisService;
+
+        public CheckClusterStatus() {
+            this.membershipService = context.getService(MembershipService.NAME);
+            this.redisService = context.getService(RedisService.NAME);
+        }
+
         @Override
         public void run() {
             // TODO: Cant see the exception traceback here. This may lead to critical and subtle issues.
             int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
             for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                MembershipService membershipService = context.getService(MembershipService.NAME);
                 Route route = membershipService.getRoutingTable().getRoute(shardId);
                 if (route == null) {
                     executor.schedule(this, 20, TimeUnit.MILLISECONDS);
@@ -144,7 +152,8 @@ public class KronotopTestInstance extends KronotopInstance {
                     // Belong to another member
                     continue;
                 }
-                Shard shard = context.getLogicalDatabase().getShards().get(shardId);
+
+                RedisShard shard = redisService.getServiceContext().shards().get(shardId);
                 if (shard == null) {
                     executor.schedule(this, 20, TimeUnit.MILLISECONDS);
                     return;

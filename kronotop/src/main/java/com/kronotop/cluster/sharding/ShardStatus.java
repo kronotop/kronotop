@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume;
+package com.kronotop.cluster.sharding;
 
-public interface StageRunner extends Runnable {
-    String name();
-
-    void stop();
+public enum ShardStatus {
+    READONLY,
+    READWRITE,
+    INOPERABLE
 }

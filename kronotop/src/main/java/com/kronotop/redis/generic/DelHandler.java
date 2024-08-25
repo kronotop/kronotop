@@ -18,7 +18,7 @@ package com.kronotop.redis.generic;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.DelMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -57,9 +57,9 @@ public class DelHandler extends BaseGenericHandler implements Handler {
     public void execute(Request request, Response response) {
         DelMessage delMessage = request.attr(MessageTypes.DEL).get();
 
-        Shard shard = service.findShard(delMessage.getKeys());
+        RedisShard shard = service.findShard(delMessage.getKeys());
 
-        Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(delMessage.getKeys());
+        Iterable<ReadWriteLock> locks = shard.striped().bulkGet(delMessage.getKeys());
         long keysRemoved = 0;
         try {
             for (ReadWriteLock lock : locks) {
@@ -67,9 +67,9 @@ public class DelHandler extends BaseGenericHandler implements Handler {
             }
 
             for (String key : delMessage.getKeys()) {
-                if (shard.remove(key) != null) {
+                if (shard.storage().remove(key) != null) {
                     keysRemoved++;
-                    shard.getIndex().remove(key);
+                    shard.index().remove(key);
                 }
             }
         } finally {
@@ -78,7 +78,7 @@ public class DelHandler extends BaseGenericHandler implements Handler {
             }
         }
         for (String key : delMessage.getKeys()) {
-            shard.getPersistenceQueue().add(new StringKey(key));
+            shard.persistenceQueue().add(new StringKey(key));
         }
         response.writeInteger(keysRemoved);
     }

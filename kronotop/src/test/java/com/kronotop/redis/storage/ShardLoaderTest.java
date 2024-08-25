@@ -18,7 +18,7 @@ package com.kronotop.redis.storage;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.impl.OnHeapShardImpl;
+import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
 import com.kronotop.redis.storage.persistence.ShardLoader;
@@ -30,31 +30,31 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ShardLoaderTest extends BaseStorageTest {
     @Test
     public void testDataStructureLoader_STRING() {
-        Shard shard = new OnHeapShardImpl(0);
+        RedisShard shard = new OnHeapRedisShardImpl(0);
 
         for (int i = 0; i < 10; i++) {
             String key = String.format("key-%d", i);
             String value = String.format("value-%d", i);
-            shard.put(key, new StringValue(value.getBytes(), 0));
-            shard.getPersistenceQueue().add(new StringKey(key));
+            shard.storage().put(key, new StringValue(value.getBytes(), 0));
+            shard.persistenceQueue().add(new StringKey(key));
         }
 
         Persistence persistence = new Persistence(context, shard);
         persistence.run();
 
-        Shard newShard = new OnHeapShardImpl(0);
+        RedisShard newShard = new OnHeapRedisShardImpl(0);
         ShardLoader shardLoader = new ShardLoader(context, newShard);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             shardLoader.load(tr, DataStructure.STRING);
         }
 
-        assertEquals(shard.size(), newShard.size());
+        assertEquals(shard.storage().size(), newShard.storage().size());
 
-        for (String key : newShard.keySet()) {
-            Object newObj = newShard.get(key);
+        for (String key : newShard.storage().keySet()) {
+            Object newObj = newShard.storage().get(key);
             StringValue newValue = (StringValue) newObj;
 
-            Object obj = shard.get(key);
+            Object obj = shard.storage().get(key);
             StringValue value = (StringValue) obj;
 
             assertEquals(value.getTTL(), newValue.getTTL());

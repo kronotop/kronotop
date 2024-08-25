@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.MSetMessage;
 import com.kronotop.server.Handler;
@@ -59,21 +59,21 @@ public class MSetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         MSetMessage msetMessage = request.attr(MessageTypes.MSET).get();
 
-        Shard shard = service.findShard(msetMessage.getKeys());
+        RedisShard shard = service.findShard(msetMessage.getKeys());
         List<String> keys = new ArrayList<>();
         for (MSetMessage.Pair pair : msetMessage.getPairs()) {
             keys.add(pair.getKey());
         }
 
-        Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(keys);
+        Iterable<ReadWriteLock> locks = shard.striped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
             for (MSetMessage.Pair pair : msetMessage.getPairs()) {
-                Object previousValue = shard.put(pair.getKey(), new StringValue(pair.getValue()));
+                Object previousValue = shard.storage().put(pair.getKey(), new StringValue(pair.getValue()));
                 if (previousValue == null) {
-                    shard.getIndex().add(pair.getKey());
+                    shard.index().add(pair.getKey());
                 }
             }
         } finally {
@@ -82,7 +82,7 @@ public class MSetHandler extends BaseStringHandler implements Handler {
             }
         }
         for (String key : msetMessage.getKeys()) {
-            shard.getPersistenceQueue().add(new StringKey(key));
+            shard.persistenceQueue().add(new StringKey(key));
         }
         response.writeOK();
     }

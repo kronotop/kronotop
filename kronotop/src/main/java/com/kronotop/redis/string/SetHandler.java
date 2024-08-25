@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.SetMessage;
 import com.kronotop.server.Handler;
@@ -60,18 +60,18 @@ public class SetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         SetMessage setMessage = request.attr(MessageTypes.SET).get();
 
-        Shard shard = service.findShard(setMessage.getKey());
+        RedisShard shard = service.findShard(setMessage.getKey());
         StringValue stringValue = new StringValue(setMessage.getValue());
-        ReadWriteLock lock = shard.getStriped().get(setMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(setMessage.getKey());
         try {
             lock.writeLock().lock();
-            shard.put(setMessage.getKey(), stringValue);
-            shard.getIndex().add(setMessage.getKey());
+            shard.storage().put(setMessage.getKey(), stringValue);
+            shard.index().add(setMessage.getKey());
         } finally {
             lock.writeLock().unlock();
         }
 
-        shard.getPersistenceQueue().add(new StringKey(setMessage.getKey()));
+        shard.persistenceQueue().add(new StringKey(setMessage.getKey()));
         response.writeOK();
     }
 }

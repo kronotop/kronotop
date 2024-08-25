@@ -21,7 +21,6 @@ import com.google.common.util.concurrent.Striped;
 import com.kronotop.cluster.Member;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.journal.Journal;
-import com.kronotop.redis.storage.LogicalDatabase;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
@@ -86,13 +85,6 @@ public interface Context {
     List<KronotopService> getServices();
 
     /**
-     * Retrieves the logical database from the context.
-     *
-     * @return the logical database object.
-     */
-    LogicalDatabase getLogicalDatabase();
-
-    /**
      * Retrieves a Striped object that provides striped read-write locks.
      * The returned Striped object can be used to obtain a specific stripe
      * for locking purposes.
@@ -108,9 +100,46 @@ public interface Context {
      */
     Journal getJournal();
 
+    /**
+     * Registers the metadata of a command in the context.
+     *
+     * @param command  the name of the command
+     * @param metadata the metadata of the command to register
+     */
     void registerCommandMetadata(String command, CommandMetadata metadata);
 
+    /**
+     * Retrieves the metadata of commands.
+     *
+     * @return A map containing the metadata of commands. The keys are the names of the commands,
+     * and the values are {@link CommandMetadata} objects containing the metadata of the
+     * commands.
+     */
     Map<String, CommandMetadata> getCommandMetadata();
 
+    /**
+     * Retrieves the KronotopDirectoryLayer object, which provides methods to open or create directory
+     * subspaces within the cluster.
+     *
+     * @return The KronotopDirectoryLayer object.
+     */
     KronotopDirectoryLayer getDirectoryLayer();
+
+    /**
+     * Registers a service context in the Kronotop instance.
+     *
+     * @param name    the name of the service context
+     * @param context the service context to register
+     * @param <T>     the type of the service context
+     */
+    <T> void registerServiceContext(String name, ServiceContext<T> context);
+
+    /**
+     * Retrieves the service context with the specified name.
+     *
+     * @param name the name of the service context.
+     * @param <T>  the type of the service context.
+     * @return the service context with the specified name.
+     */
+    <T> ServiceContext<T> getServiceContext(String name);
 }

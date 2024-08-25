@@ -20,7 +20,7 @@ import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HDelMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -57,28 +57,27 @@ public class HDelHandler extends BaseHashHandler implements Handler {
 
         int total = 0;
 
-        Shard shard = service.findShard(hdelMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hdelMessage.getKey());
+        RedisShard shard = service.findShard(hdelMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hdelMessage.getKey());
         lock.writeLock().lock();
         try {
-            Object retrieved = shard.get(hdelMessage.getKey());
+            Object retrieved = shard.storage().get(hdelMessage.getKey());
             if (retrieved == null) {
                 response.writeInteger(0);
                 return;
             }
-            if (!(retrieved instanceof HashValue)) {
+            if (!(retrieved instanceof HashValue hashValue)) {
                 throw new WrongTypeException();
             }
 
-            HashValue hashValue = (HashValue) retrieved;
             for (FieldValuePair fieldValuePair : hdelMessage.getFieldValuePairs()) {
                 byte[] value = hashValue.remove(fieldValuePair.getField());
                 if (value != null) {
                     total++;
                 }
             }
-            if (hashValue.size() == 0) {
-                shard.remove(hdelMessage.getKey());
+            if (hashValue.isEmpty()) {
+                shard.storage().remove(hdelMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();

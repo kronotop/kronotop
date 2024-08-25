@@ -17,6 +17,7 @@
 package com.kronotop.redis.storage;
 
 import com.google.common.util.concurrent.Striped;
+import com.kronotop.cluster.sharding.Shard;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
 
@@ -27,7 +28,10 @@ import java.util.concurrent.locks.ReadWriteLock;
  * This interface represents a shard, which is a concurrent map with additional functionality.
  * It extends the ConcurrentMap interface to provide all the standard map operations.
  */
-public interface Shard extends ConcurrentMap<String, Object> {
+public interface RedisShard extends Shard {
+
+    ConcurrentMap<String, Object> storage();
+
     /**
      * Checks if the shard is read-only.
      *
@@ -47,26 +51,19 @@ public interface Shard extends ConcurrentMap<String, Object> {
      *
      * @return the index associated with this shard
      */
-    Index getIndex();
+    Index index();
 
     /**
      * @return the Striped object that provides access to a collection of ReadWriteLocks
      */
-    Striped<ReadWriteLock> getStriped();
+    Striped<ReadWriteLock> striped();
 
     /**
      * Retrieves the PersistenceQueue associated with the Shard.
      *
      * @return the PersistenceQueue associated with the Shard
      */
-    PersistenceQueue getPersistenceQueue();
-
-    /**
-     * Retrieves the ID associated with this shard.
-     *
-     * @return the ID associated with this shard
-     */
-    Integer getId();
+    PersistenceQueue persistenceQueue();
 
     /**
      * Checks if the shard is operable.

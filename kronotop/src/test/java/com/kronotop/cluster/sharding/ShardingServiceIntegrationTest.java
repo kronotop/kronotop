@@ -17,10 +17,12 @@
 package com.kronotop.cluster.sharding;
 
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.ServiceContext;
 import com.kronotop.cluster.BaseClusterTest;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.coordinator.Route;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.RedisService;
+import com.kronotop.redis.storage.RedisShard;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -77,19 +79,22 @@ public class ShardingServiceIntegrationTest extends BaseClusterTest {
 
             for (Integer shardId : shardIdsOwnedBySecondInstance) {
                 {
-                    Shard shard = firstInstance.getContext().getLogicalDatabase().getShards().get(shardId);
+                    ServiceContext<RedisShard> redisContext = firstInstance.getContext().getServiceContext(RedisService.NAME);
+                    RedisShard shard = redisContext.shards().get(shardId);
                     assertNull(shard);
                 }
                 {
-                    Shard shard = secondInstance.getContext().getLogicalDatabase().getShards().get(shardId);
+                    ServiceContext<RedisShard> redisContext = secondInstance.getContext().getServiceContext(RedisService.NAME);
+                    RedisShard shard = redisContext.shards().get(shardId);
                     assertNotNull(shard);
                     assertTrue(shard.isOperable());
                     assertFalse(shard.isReadOnly());
                 }
             }
 
+            ServiceContext<RedisShard> redisContext = firstInstance.getContext().getServiceContext(RedisService.NAME);
             for (Integer shardId : shardIdsOwnedByFirstInstance) {
-                Shard shard = firstInstance.getContext().getLogicalDatabase().getShards().get(shardId);
+                RedisShard shard = redisContext.shards().get(shardId);
                 assertNotNull(shard);
                 assertTrue(shard.isOperable());
                 assertFalse(shard.isReadOnly());

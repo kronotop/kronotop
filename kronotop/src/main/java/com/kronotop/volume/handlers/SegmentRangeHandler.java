@@ -53,7 +53,7 @@ public class SegmentRangeHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         SegmentRangeMessage message = request.attr(MessageTypes.SEGMENTRANGE).get();
         try {
-            Volume volume = service.getVolume(message.getVolume());
+            Volume volume = service.findVolume(message.getVolume());
             List<RedisMessage> children = new ArrayList<>();
             ByteBuffer[] entries = volume.getSegmentRange(message.getSegment(), message.getSegmentRanges());
             for (ByteBuffer entry : entries) {

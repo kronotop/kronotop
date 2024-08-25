@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HGetAllMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -52,20 +52,19 @@ public class HGetAllHandler extends BaseHandler implements Handler {
         HGetAllMessage hgetallMessage = request.attr(MessageTypes.HGETALL).get();
 
         List<RedisMessage> result = new ArrayList<>();
-        Shard shard = service.findShard(hgetallMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hgetallMessage.getKey());
+        RedisShard shard = service.findShard(hgetallMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hgetallMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.get(hgetallMessage.getKey());
+            Object retrieved = shard.storage().get(hgetallMessage.getKey());
             if (retrieved == null) {
                 response.writeArray(result);
                 return;
             }
-            if (!(retrieved instanceof HashValue)) {
+            if (!(retrieved instanceof HashValue hashValue)) {
                 throw new WrongTypeException();
             }
 
-            HashValue hashValue = (HashValue) retrieved;
             Enumeration<String> fields = hashValue.keys();
             while (fields.hasMoreElements()) {
                 String field = fields.nextElement();

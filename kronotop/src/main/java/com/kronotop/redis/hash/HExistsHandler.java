@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HExistsMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -45,20 +45,19 @@ public class HExistsHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HExistsMessage hexistsMessage = request.attr(MessageTypes.HEXISTS).get();
 
-        Shard shard = service.findShard(hexistsMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(hexistsMessage.getKey());
+        RedisShard shard = service.findShard(hexistsMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(hexistsMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.get(hexistsMessage.getKey());
+            Object retrieved = shard.storage().get(hexistsMessage.getKey());
             if (retrieved == null) {
                 response.writeInteger(0);
                 return;
             }
-            if (!(retrieved instanceof HashValue)) {
+            if (!(retrieved instanceof HashValue hashValue)) {
                 throw new WrongTypeException();
             }
 
-            HashValue hashValue = (HashValue) retrieved;
             boolean exists = hashValue.containsKey(hexistsMessage.getField());
             if (exists) {
                 response.writeInteger(1);

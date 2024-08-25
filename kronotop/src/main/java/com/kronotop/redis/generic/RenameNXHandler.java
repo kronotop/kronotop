@@ -19,7 +19,7 @@ package com.kronotop.redis.generic;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.RenameNXMessage;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -57,33 +57,33 @@ public class RenameNXHandler extends BaseGenericHandler implements Handler {
         keys.add(renamenxMessage.getKey());
         keys.add(renamenxMessage.getNewkey());
 
-        Shard shard = service.findShard(keys);
-        Iterable<ReadWriteLock> locks = shard.getStriped().bulkGet(keys);
+        RedisShard shard = service.findShard(keys);
+        Iterable<ReadWriteLock> locks = shard.striped().bulkGet(keys);
         try {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
 
-            Object result = shard.get(renamenxMessage.getKey());
+            Object result = shard.storage().get(renamenxMessage.getKey());
             if (result == null) {
                 throw new KronotopException("no such key");
             }
 
-            if (shard.containsKey(renamenxMessage.getNewkey())) {
+            if (shard.storage().containsKey(renamenxMessage.getNewkey())) {
                 // newkey already exists.
                 return 0;
             }
 
-            shard.put(renamenxMessage.getNewkey(), result);
-            shard.getPersistenceQueue().add(new StringKey(renamenxMessage.getNewkey()));
-            shard.remove(renamenxMessage.getKey(), result);
+            shard.storage().put(renamenxMessage.getNewkey(), result);
+            shard.persistenceQueue().add(new StringKey(renamenxMessage.getNewkey()));
+            shard.storage().remove(renamenxMessage.getKey(), result);
         } finally {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().unlock();
             }
         }
 
-        shard.getPersistenceQueue().add(new StringKey(renamenxMessage.getKey()));
+        shard.persistenceQueue().add(new StringKey(renamenxMessage.getKey()));
         return 1;
     }
 

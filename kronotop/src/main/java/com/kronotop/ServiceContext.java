@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume;
+package com.kronotop;
 
-public interface StageRunner extends Runnable {
-    String name();
+import java.util.concurrent.ConcurrentHashMap;
 
-    void stop();
+public interface ServiceContext<T> {
+
+    ConcurrentHashMap<Integer, T> shards();
+
+    Context root();
 }

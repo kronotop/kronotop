@@ -18,7 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.StringValue;
-import com.kronotop.redis.storage.Shard;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.GetDelMessage;
 import com.kronotop.server.*;
@@ -59,15 +59,15 @@ public class GetDelHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         GetDelMessage getDelMessage = request.attr(MessageTypes.GETDEL).get();
 
-        Shard shard = service.findShard(getDelMessage.getKey());
-        ReadWriteLock lock = shard.getStriped().get(getDelMessage.getKey());
+        RedisShard shard = service.findShard(getDelMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(getDelMessage.getKey());
 
         Object retrieved;
         try {
             lock.writeLock().lock();
-            retrieved = shard.remove(getDelMessage.getKey());
+            retrieved = shard.storage().remove(getDelMessage.getKey());
             if (retrieved != null) {
-                shard.getIndex().remove(getDelMessage.getKey());
+                shard.index().remove(getDelMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();
@@ -77,13 +77,12 @@ public class GetDelHandler extends BaseStringHandler implements Handler {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }
-        if (!(retrieved instanceof StringValue)) {
+        if (!(retrieved instanceof StringValue stringValue)) {
             throw new WrongTypeException();
         }
-        StringValue stringValue = (StringValue) retrieved;
         ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(stringValue.getValue());
-        shard.getPersistenceQueue().add(new StringKey(getDelMessage.getKey()));
+        shard.persistenceQueue().add(new StringKey(getDelMessage.getKey()));
         response.write(buf);
     }
 }

@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume;
+package com.kronotop.redis.storage.impl;
 
-public interface StageRunner extends Runnable {
-    String name();
+import com.kronotop.redis.storage.RedisShard;
 
-    void stop();
+/**
+ * This class represents an on-heap Redis shard implementation that extends the AbstractRedisShard class and implements the Shard interface.
+ * It provides a concurrent map with additional functionality.
+ */
+public class OnHeapRedisShardImpl extends AbstractRedisShard implements RedisShard {
+    public OnHeapRedisShardImpl(Integer id) {
+        super(id);
+    }
 }

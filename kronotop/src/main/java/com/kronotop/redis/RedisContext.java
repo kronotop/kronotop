@@ -14,15 +14,29 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.storage;
+package com.kronotop.redis;
+
+import com.kronotop.Context;
+import com.kronotop.ServiceContext;
+import com.kronotop.redis.storage.RedisShard;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-public class LogicalDatabase {
-    public static final String NAME = "0";
-    private final ConcurrentHashMap<Integer, Shard> shards = new ConcurrentHashMap<>();
+public class RedisContext implements ServiceContext<RedisShard> {
+    private final Context context;
+    private final ConcurrentHashMap<Integer, RedisShard> shards = new ConcurrentHashMap<>();
 
-    public ConcurrentHashMap<Integer, Shard> getShards() {
+    public RedisContext(Context context) {
+        this.context = context;
+    }
+
+    @Override
+    public ConcurrentHashMap<Integer, RedisShard> shards() {
         return shards;
+    }
+
+    @Override
+    public Context root() {
+        return context;
     }
 }
