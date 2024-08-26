@@ -33,11 +33,12 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class VolumeService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Volume";
     private static final Logger LOGGER = LoggerFactory.getLogger(VolumeService.class);
-    private final Object volumesLock = new Object();
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final HashMap<String, Volume> volumes = new HashMap<>();
 
     public VolumeService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
@@ -58,11 +59,14 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
 
     @Override
     public void shutdown() {
-        synchronized (volumesLock) {
+        lock.writeLock().lock();
+        try {
             for (Map.Entry<String, Volume> entry : volumes.entrySet()) {
                 entry.getValue().close();
             }
             volumes.clear();
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
@@ -79,7 +83,8 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     public Volume newVolume(VolumeConfig config) throws IOException {
-        synchronized (volumesLock) {
+        lock.writeLock().lock();
+        try {
             if (volumes.containsKey(config.name())) {
                 Volume volume = volumes.get(config.name());
                 if (!volume.isClosed()) {
@@ -87,14 +92,18 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 }
             }
             checkAndCreateRootPath(config.rootPath());
+            // TODO: Create folders for this specific volume in the constructor.
             Volume volume = new Volume(context, config);
             volumes.put(config.name(), volume);
             return volume;
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
     public Volume findVolume(String name) {
-        synchronized (volumesLock) {
+        lock.readLock().lock();
+        try {
             if (volumes.containsKey(name)) {
                 Volume volume = volumes.get(name);
                 if (volume.isClosed()) {
@@ -102,26 +111,34 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 }
                 return volume;
             }
+            throw new VolumeNotOpenException(name);
+        } finally {
+            lock.readLock().unlock();
         }
-        throw new VolumeNotOpenException(name);
     }
 
     public void closeVolume(String name) {
-        synchronized (volumesLock) {
+        lock.writeLock().lock();
+        try {
             Volume volume = volumes.get(name);
             if (volume != null) {
                 volume.close();
                 volumes.remove(name);
                 return;
             }
+            throw new VolumeNotOpenException(name);
+        } finally {
+            lock.writeLock().unlock();
         }
-        throw new VolumeNotOpenException(name);
     }
 
     public List<Volume> volumes() {
-        synchronized (volumesLock) {
+        lock.readLock().lock();
+        try {
             // Returns an unmodifiable list
             return volumes.values().stream().toList();
+        } finally {
+            lock.readLock().unlock();
         }
     }
 }
