@@ -94,7 +94,7 @@ public class KronotopTestInstance extends KronotopInstance {
             context.registerService(server.getName(), server);
             server.start(member);
         }
-        // TODO: Enable this again when the clustering services reimplemented.
+        // TODO: CLUSTER-REFACTORING
         //CheckClusterStatus checkClusterStatus = new CheckClusterStatus();
         //executor.execute(checkClusterStatus);
         //synchronized (clusterOperable) {

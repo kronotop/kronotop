@@ -69,7 +69,7 @@ public class MembershipService implements KronotopService {
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
 
-        // TODO: This will be removed
+        // TODO: CLUSTER-REFACTORING
         RoutingTable table = new RoutingTable();
         int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
         for (int i = 0; i < numberOfShards; i++) {
@@ -77,6 +77,7 @@ public class MembershipService implements KronotopService {
         }
         routingTable.set(table);
         knownCoordinator.set(context.getMember());
+        // TODO: CLUSTER-REFACTORING
 
         ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("kr.membership-%d").build();
         this.scheduler = new ScheduledThreadPoolExecutor(2, namedThreadFactory);
@@ -145,8 +146,7 @@ public class MembershipService implements KronotopService {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
                 throw new MemberAlreadyRegisteredException(String.format("%s already registered or not gracefully stopped", address));
             }
-            if (e.getCause() instanceof FDBException) {
-                FDBException exception = (FDBException) e.getCause();
+            if (e.getCause() instanceof FDBException exception) {
                 if (exception.isRetryable()) {
                     registerMember(address);
                     return;
@@ -419,7 +419,6 @@ public class MembershipService implements KronotopService {
     }
 
     public Member getKnownCoordinator() {
-        // TODO: CLUSTERING-REFACTOR
         return knownCoordinator.get();
     }
 
