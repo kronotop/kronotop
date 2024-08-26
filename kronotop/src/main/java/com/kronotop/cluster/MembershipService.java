@@ -69,12 +69,14 @@ public class MembershipService implements KronotopService {
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
 
+        // TODO: This will be removed
         RoutingTable table = new RoutingTable();
         int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
         for (int i = 0; i < numberOfShards; i++) {
             table.setRoute(i, new Route(context.getMember()));
         }
         routingTable.set(table);
+        knownCoordinator.set(context.getMember());
 
         ThreadFactory namedThreadFactory = new ThreadFactoryBuilder().setNameFormat("kr.membership-%d").build();
         this.scheduler = new ScheduledThreadPoolExecutor(2, namedThreadFactory);
@@ -417,6 +419,7 @@ public class MembershipService implements KronotopService {
     }
 
     public Member getKnownCoordinator() {
+        // TODO: CLUSTERING-REFACTOR
         return knownCoordinator.get();
     }
 
