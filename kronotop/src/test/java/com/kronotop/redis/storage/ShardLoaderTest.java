@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ShardLoaderTest extends BaseStorageTest {
     @Test
     public void testDataStructureLoader_STRING() {
-        RedisShard shard = new OnHeapRedisShardImpl(0);
+        RedisShard shard = new OnHeapRedisShardImpl(context, 0);
 
         for (int i = 0; i < 10; i++) {
             String key = String.format("key-%d", i);
@@ -42,7 +42,7 @@ public class ShardLoaderTest extends BaseStorageTest {
         Persistence persistence = new Persistence(context, shard);
         persistence.run();
 
-        RedisShard newShard = new OnHeapRedisShardImpl(0);
+        RedisShard newShard = new OnHeapRedisShardImpl(context, 0);
         ShardLoader shardLoader = new ShardLoader(context, newShard);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             shardLoader.load(tr, DataStructure.STRING);

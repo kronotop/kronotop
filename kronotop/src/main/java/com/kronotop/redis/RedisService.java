@@ -91,7 +91,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
 
         // TODO: CLUSTER-REFACTORING
         for (int i = 0; i < this.numberOfShards; i++) {
-            RedisShard redisShard = new OnHeapRedisShardImpl(i);
+            RedisShard redisShard = new OnHeapRedisShardImpl(context, i);
             redisShard.setOperable(true);
             this.serviceContext.shards().put(i, redisShard);
         }

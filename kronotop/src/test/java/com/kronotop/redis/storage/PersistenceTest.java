@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class PersistenceTest extends BaseStorageTest {
     @Test
     public void test_STRING() {
-        RedisShard shard = new OnHeapRedisShardImpl(0);
+        RedisShard shard = new OnHeapRedisShardImpl(context, 0);
         shard.storage().put("key-1", new StringValue("value-1".getBytes(), 0));
         shard.persistenceQueue().add(new StringKey("key-1"));
 
@@ -65,7 +65,7 @@ public class PersistenceTest extends BaseStorageTest {
 
     @Test
     public void test_HASH() {
-        RedisShard shard = new OnHeapRedisShardImpl(0);
+        RedisShard shard = new OnHeapRedisShardImpl(context, 0);
         HashValue hashValue = new HashValue();
         hashValue.put("field-name", "value".getBytes());
         shard.storage().put("hash-name", hashValue);

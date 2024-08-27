@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ShardMaintenanceWorkerTest extends BaseStorageTest {
     @Test
     public void testRun() {
-        RedisShard shard = new OnHeapRedisShardImpl(0);
+        RedisShard shard = new OnHeapRedisShardImpl(context, 0);
         shard.storage().put("key-1", new StringValue("value-1".getBytes(), 0));
         shard.persistenceQueue().add(new StringKey("key-1"));
 

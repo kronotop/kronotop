@@ -31,7 +31,7 @@ class ShardImplTest extends BaseVolumeTest {
     public void setUp() {
         DirectorySubspace subspace = getSubspace(database, config);
         volumeConfig = getVolumeConfig(config, subspace);
-        shard = new ShardImpl(1);
+        shard = new ShardImpl(context, 1);
     }
 
     @AfterEach

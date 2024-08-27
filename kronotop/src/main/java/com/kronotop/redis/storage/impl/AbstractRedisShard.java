@@ -18,6 +18,7 @@
 package com.kronotop.redis.storage.impl;
 
 import com.google.common.util.concurrent.Striped;
+import com.kronotop.Context;
 import com.kronotop.cluster.sharding.impl.ShardImpl;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.index.Index;
@@ -38,8 +39,8 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     private volatile boolean readOnly;
     private volatile boolean operable;
 
-    protected AbstractRedisShard(Integer id) {
-        super(id);
+    protected AbstractRedisShard(Context context, Integer id) {
+        super(context, id);
 
         this.persistenceQueue = new RedisShardPersistenceQueue(this);
         this.index = new RedisShardIndex(id, this);

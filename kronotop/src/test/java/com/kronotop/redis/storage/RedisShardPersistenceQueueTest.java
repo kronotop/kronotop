@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 public class RedisShardPersistenceQueueTest extends BaseStorageTest {
     @Test
     public void test_add() {
-        RedisShard shard = new OnHeapRedisShardImpl(0);
+        RedisShard shard = new OnHeapRedisShardImpl(context, 0);
         shard.setReadOnly(true);
 
         RedisShardPersistenceQueue queue = new RedisShardPersistenceQueue(shard);

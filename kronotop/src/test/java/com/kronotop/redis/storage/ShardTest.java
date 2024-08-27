@@ -27,7 +27,7 @@ public class ShardTest extends BaseStorageTest {
 
     @BeforeEach
     public void beforeEach() {
-        shard = new OnHeapRedisShardImpl(0);
+        shard = new OnHeapRedisShardImpl(context, 0);
     }
 
     @Test
