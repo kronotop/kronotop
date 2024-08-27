@@ -20,6 +20,7 @@ import com.google.common.util.concurrent.Striped;
 import com.kronotop.cluster.sharding.Shard;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
+import com.kronotop.volume.Volume;
 
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -78,4 +79,11 @@ public interface RedisShard extends Shard {
      * @param operable true to set the shard as operable, false otherwise
      */
     void setOperable(boolean operable);
+
+    /**
+     * Retrieves the Volume associated with the Shard.
+     *
+     * @return the Volume associated with the Shard
+     */
+    Volume volume();
 }

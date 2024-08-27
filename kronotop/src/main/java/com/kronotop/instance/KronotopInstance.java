@@ -165,6 +165,7 @@ public class KronotopInstance {
             registerKronotopServices();
             setStatus(KronotopInstanceStatus.RUNNING);
         } catch (Exception e) {
+            LOGGER.error("Failed to initialize the instance", e);
             shutdown();
             throw e;
         }

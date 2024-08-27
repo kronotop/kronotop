@@ -26,9 +26,9 @@ import org.slf4j.LoggerFactory;
 
 public class ShardImpl implements Shard {
     private static final Logger LOGGER = LoggerFactory.getLogger(ShardImpl.class);
-    private final Context context;
-    private final VolumeService volumeService;
-    private final int id;
+    protected final Context context;
+    protected final VolumeService volumeService;
+    protected final int id;
 
     public ShardImpl(Context context, int id) {
         this.context = context;
