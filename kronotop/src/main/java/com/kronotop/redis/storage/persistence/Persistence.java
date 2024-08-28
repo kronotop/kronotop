@@ -94,7 +94,7 @@ public class Persistence {
             tr.clear(packetKey);
             return;
         }
-        byte[] data = stringValue.encode();
+        byte[] data = stringValue.encode().array();
         if (data.length + transactionSize.get() >= MAXIMUM_TRANSACTION_SIZE) {
             throw new TransactionSizeLimitExceeded();
         }

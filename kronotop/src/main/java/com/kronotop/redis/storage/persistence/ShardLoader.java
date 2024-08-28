@@ -30,6 +30,7 @@ import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.WrongTypeException;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -114,7 +115,8 @@ public final class ShardLoader {
         for (KeyValue keyValue : asyncIterable) {
             range = new Range(keyValue.getKey(), range.end);
             try {
-                StringValue stringValue = StringValue.decode(keyValue.getValue());
+                ByteBuffer data = ByteBuffer.wrap(keyValue.getValue());
+                StringValue stringValue = StringValue.decode(data);
                 String key = subspace.unpack(keyValue.getKey()).get(0).toString();
                 shard.storage().computeIfAbsent(key, (k) -> {
                     shard.index().add(k);

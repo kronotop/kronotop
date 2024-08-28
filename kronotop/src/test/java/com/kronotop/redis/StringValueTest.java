@@ -19,6 +19,7 @@ package com.kronotop.redis;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,8 +39,8 @@ public class StringValueTest {
     @Test
     public void testDecodeWithTTL() throws IOException {
         StringValue expectedStringValue = new StringValue("Hello, World!".getBytes(StandardCharsets.UTF_8), 1000L);
-        byte[] encodedData = expectedStringValue.encode();
-        StringValue actualStringValue = StringValue.decode(encodedData);
+        ByteBuffer data = expectedStringValue.encode();
+        StringValue actualStringValue = StringValue.decode(data);
 
         assertArrayEquals(expectedStringValue.getValue(), actualStringValue.getValue());
         assertEquals(expectedStringValue.getTTL(), actualStringValue.getTTL());
@@ -52,8 +53,8 @@ public class StringValueTest {
     @Test
     public void testDecodeNoTTL() throws IOException {
         StringValue expectedStringValue = new StringValue("Hello, World!".getBytes(StandardCharsets.UTF_8));
-        byte[] encodedData = expectedStringValue.encode();
-        StringValue actualStringValue = StringValue.decode(encodedData);
+        ByteBuffer data = expectedStringValue.encode();
+        StringValue actualStringValue = StringValue.decode(data);
 
         assertArrayEquals(expectedStringValue.getValue(), actualStringValue.getValue());
         assertEquals(expectedStringValue.getTTL(), actualStringValue.getTTL());
@@ -65,8 +66,8 @@ public class StringValueTest {
      */
     @Test
     public void testDecodeZeroLengthArray() throws IOException {
-        byte[] encodedData = new byte[0];
-        assertThrows(IOException.class, () -> StringValue.decode(encodedData));
+        ByteBuffer data = ByteBuffer.allocate(0);
+        assertThrows(IOException.class, () -> StringValue.decode(data));
     }
 
     /**
@@ -83,7 +84,7 @@ public class StringValueTest {
         StringValue stringValue = new StringValue(value, ttl);
 
         // Let's encode our string value into bytes
-        byte[] encoded = stringValue.encode();
+        ByteBuffer encoded = stringValue.encode();
 
         // Now decode it back into a new StringValue object
         StringValue stringValueNew = StringValue.decode(encoded);

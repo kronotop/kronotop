@@ -16,10 +16,6 @@
 
 package com.kronotop.redis;
 
-import org.msgpack.core.MessageBufferPacker;
-import org.msgpack.core.MessagePack;
-import org.msgpack.core.MessageUnpacker;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -28,6 +24,8 @@ import java.nio.ByteBuffer;
  * It can be decoded from and encoded into a byte array using MessagePack serialization.
  */
 public class StringValue {
+    public static int HEADER_SIZE = 13;
+    public static byte MAGIC = 0x53;
     private final byte[] value;
     private long ttl = 0;
 
@@ -41,23 +39,25 @@ public class StringValue {
     }
 
     /**
-     * Decodes the given byte array and returns a StringValue object.
+     * Decodes a byte buffer into a StringValue object.
      *
-     * @param data the byte array to decode
+     * @param buffer the byte buffer to decode
      * @return the decoded StringValue object
-     * @throws IOException if an I/O error occurs while unpacking the data
+     * @throws IOException if an I/O error occurs while decoding the data
      */
-    public static StringValue decode(byte[] data) throws IOException {
-        if (data.length == 0) {
-            throw new IOException("data cannot be empty");
+    public static StringValue decode(ByteBuffer buffer) throws IOException {
+        if (buffer.remaining() == 0) {
+            throw new IOException("buffer cannot be empty");
         }
-        try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(data)) {
-            long ttl = unpacker.unpackLong();
-            int payloadSize = unpacker.unpackInt();
-            ByteBuffer buffer = ByteBuffer.allocate(payloadSize);
-            unpacker.readPayload(buffer);
-            return new StringValue(buffer.array(), ttl);
+        byte magic = buffer.get();
+        if (magic != MAGIC) {
+            throw new IOException("value is not a String");
         }
+        long ttl = buffer.getLong();
+        int valueLength = buffer.getInt();
+        byte[] value = new byte[valueLength];
+        buffer.get(value);
+        return new StringValue(value, ttl);
     }
 
     /**
@@ -91,12 +91,14 @@ public class StringValue {
      * @return the byte array representing the encoded StringValue object
      * @throws IOException if an I/O error occurs while encoding the data
      */
-    public byte[] encode() throws IOException {
-        try (MessageBufferPacker packer = MessagePack.newDefaultBufferPacker()) {
-            packer.packLong(this.getTTL());
-            packer.packInt(this.getValue().length);
-            packer.writePayload(this.getValue());
-            return packer.toByteArray();
-        }
+    public ByteBuffer encode() throws IOException {
+        // HEADER SIZE: 1 + 8 + 4 = 13
+        ByteBuffer buffer = ByteBuffer.allocate(HEADER_SIZE + value.length);
+        buffer.put(MAGIC);
+        buffer.putLong(getTTL());
+        buffer.putInt(value.length);
+        buffer.put(value);
+        buffer.flip();
+        return buffer;
     }
 }

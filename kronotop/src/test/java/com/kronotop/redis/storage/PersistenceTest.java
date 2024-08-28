@@ -28,6 +28,7 @@ import com.kronotop.redis.storage.persistence.StringKey;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,7 +52,7 @@ public class PersistenceTest extends BaseStorageTest {
             assertNotNull(rawValue);
 
             try {
-                StringValue value = StringValue.decode(rawValue);
+                StringValue value = StringValue.decode(ByteBuffer.wrap(rawValue));
                 assertEquals(0, value.getTTL());
                 assertEquals("value-1", new String(value.getValue()));
             } catch (IOException e) {
