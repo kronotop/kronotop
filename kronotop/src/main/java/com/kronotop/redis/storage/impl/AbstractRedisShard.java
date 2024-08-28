@@ -123,4 +123,9 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     public Volume volume() {
         return volume;
     }
+
+    @Override
+    public void close() {
+        volume.close();
+    }
 }

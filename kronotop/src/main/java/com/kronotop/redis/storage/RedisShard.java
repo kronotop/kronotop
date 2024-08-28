@@ -86,4 +86,9 @@ public interface RedisShard extends Shard {
      * @return the Volume associated with the Shard
      */
     Volume volume();
+
+    /**
+     * Closes the shard and frees allocated resources.
+     */
+    void close();
 }
