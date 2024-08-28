@@ -79,16 +79,9 @@ public class StringValue {
     }
 
     /**
-     * Encodes the StringValue object into a byte array.
-     * The encoding format consists of the following steps:
-     * 1. Create a MessageBufferPacker to pack the values.
-     * 2. Pack the TTL value using packLong() method.
-     * 3. Pack the length of the value byte array using packInt() method.
-     * 4. Write the value byte array using writePayload() method.
-     * 5. Convert the packed data into a byte array using toByteArray() method.
-     * 6. Close the MessageBufferPacker to release resources.
+     * Encodes the StringValue object into a byte array representation.
      *
-     * @return the byte array representing the encoded StringValue object
+     * @return the encoded ByteBuffer object
      * @throws IOException if an I/O error occurs while encoding the data
      */
     public ByteBuffer encode() throws IOException {
