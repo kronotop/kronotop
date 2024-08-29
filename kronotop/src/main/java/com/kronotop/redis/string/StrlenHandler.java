@@ -61,6 +61,6 @@ public class StrlenHandler extends BaseStringHandler implements Handler {
         if (!(received instanceof StringValue stringValue)) {
             throw new WrongTypeException();
         }
-        response.writeInteger(stringValue.getValue().length);
+        response.writeInteger(stringValue.value().length);
     }
 }

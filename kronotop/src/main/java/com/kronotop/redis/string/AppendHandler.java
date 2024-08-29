@@ -72,7 +72,7 @@ public class AppendHandler extends BaseStringHandler implements Handler {
                 if (oldValue != null) {
                     StringValue value = (StringValue) oldValue;
                     ByteArrayOutputStream output = new ByteArrayOutputStream();
-                    output.writeBytes(value.getValue());
+                    output.writeBytes(value.value());
                     output.writeBytes(appendMessage.getValue());
                     result.set(output.size());
                     return new StringValue(output.toByteArray());

@@ -20,9 +20,11 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.redis.HashValue;
+import com.kronotop.redis.StringPack;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.TransactionSizeLimitExceeded;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.volume.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +96,8 @@ public class Persistence {
             tr.clear(packetKey);
             return;
         }
-        byte[] data = stringValue.encode().array();
+        StringPack stringPack = new StringPack(key.getKey(), stringValue);
+        byte[] data = stringPack.pack().array();
         if (data.length + transactionSize.get() >= MAXIMUM_TRANSACTION_SIZE) {
             throw new TransactionSizeLimitExceeded();
         }
@@ -145,6 +148,7 @@ public class Persistence {
             return;
         }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Session session = new Session(tr);
             for (Key key : keys) {
                 ReadWriteLock lock = shard.striped().get(key.getKey());
                 lock.readLock().lock();

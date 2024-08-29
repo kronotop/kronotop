@@ -19,6 +19,7 @@ package com.kronotop.redis.storage;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.redis.HashValue;
+import com.kronotop.redis.StringPack;
 import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
@@ -52,9 +53,9 @@ public class PersistenceTest extends BaseStorageTest {
             assertNotNull(rawValue);
 
             try {
-                StringValue value = StringValue.decode(ByteBuffer.wrap(rawValue));
-                assertEquals(0, value.getTTL());
-                assertEquals("value-1", new String(value.getValue()));
+                StringPack stringPack = StringPack.unpack(ByteBuffer.wrap(rawValue));
+                assertEquals(0, stringPack.stringValue().ttl());
+                assertEquals("value-1", new String(stringPack.stringValue().value()));
             } catch (IOException e) {
                 // TODO: Is that OK?
                 throw new RuntimeException(e);

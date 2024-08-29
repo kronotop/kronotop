@@ -57,8 +57,8 @@ public class ShardLoaderTest extends BaseStorageTest {
             Object obj = shard.storage().get(key);
             StringValue value = (StringValue) obj;
 
-            assertEquals(value.getTTL(), newValue.getTTL());
-            assertEquals(new String(value.getValue()), new String(newValue.getValue()));
+            assertEquals(value.ttl(), newValue.ttl());
+            assertEquals(new String(value.value()), new String(newValue.value()));
         }
     }
 }

@@ -81,23 +81,23 @@ public class GetRangeHandler extends BaseStringHandler implements Handler {
         }
 
         if (start == 0 && end == -1) {
-            end = value.getValue().length;
+            end = value.value().length;
         }
 
         if (start < 0) {
-            start = value.getValue().length + start;
+            start = value.value().length + start;
         }
 
         if (end < 0) {
-            end = value.getValue().length + end + 1;
+            end = value.value().length + end + 1;
         }
 
-        if (end > value.getValue().length) {
-            end = value.getValue().length;
+        if (end > value.value().length) {
+            end = value.value().length;
         }
 
         try {
-            byte[] data = Arrays.copyOfRange(value.getValue(), start, end);
+            byte[] data = Arrays.copyOfRange(value.value(), start, end);
             ByteBuf buf = response.getChannelContext().alloc().buffer();
             buf.writeBytes(data);
             response.writeFullBulkString(new FullBulkStringRedisMessage(buf));

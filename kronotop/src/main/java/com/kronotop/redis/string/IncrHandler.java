@@ -74,7 +74,7 @@ public class IncrHandler extends BaseStringHandler implements Handler {
                 if (oldValue != null) {
                     StringValue value = (StringValue) oldValue;
                     try {
-                        currentValue = Integer.parseInt(new String(value.getValue()));
+                        currentValue = Integer.parseInt(new String(value.value()));
                     } catch (NumberFormatException e) {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                     }

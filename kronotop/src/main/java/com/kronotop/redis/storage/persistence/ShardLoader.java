@@ -25,7 +25,7 @@ import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.Context;
 import com.kronotop.redis.HashValue;
-import com.kronotop.redis.StringValue;
+import com.kronotop.redis.StringPack;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.WrongTypeException;
 
@@ -116,12 +116,12 @@ public final class ShardLoader {
             range = new Range(keyValue.getKey(), range.end);
             try {
                 ByteBuffer data = ByteBuffer.wrap(keyValue.getValue());
-                StringValue stringValue = StringValue.decode(data);
+                StringPack stringPack = StringPack.unpack(data);
                 String key = subspace.unpack(keyValue.getKey()).get(0).toString();
                 shard.storage().computeIfAbsent(key, (k) -> {
                     shard.index().add(k);
                     shard.index().flush();
-                    return stringValue;
+                    return stringPack.stringValue();
                 });
             } catch (IOException e) {
                 throw new RuntimeException(e);

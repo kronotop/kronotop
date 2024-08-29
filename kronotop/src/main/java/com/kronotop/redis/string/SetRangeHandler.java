@@ -82,14 +82,14 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
                 }
 
                 StringValue value = (StringValue) oldValue;
-                int size = value.getValue().length;
-                int overflowSize = value.getValue().length - (setRangeMessage.getOffset() + setRangeMessage.getValue().length);
+                int size = value.value().length;
+                int overflowSize = value.value().length - (setRangeMessage.getOffset() + setRangeMessage.getValue().length);
                 if (overflowSize < 0) {
                     size += Math.abs(overflowSize);
                 }
                 byte[] data = new byte[size];
                 ByteBuffer buf = ByteBuffer.wrap(data);
-                buf.put(value.getValue());
+                buf.put(value.value());
                 buf.position(setRangeMessage.getOffset());
                 buf.put(setRangeMessage.getValue());
 

@@ -75,7 +75,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
                 if (oldValue != null) {
                     StringValue value = (StringValue) oldValue;
                     try {
-                        currentValue = Double.parseDouble(new String(value.getValue()));
+                        currentValue = Double.parseDouble(new String(value.value()));
                     } catch (NumberFormatException e) {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
                     }

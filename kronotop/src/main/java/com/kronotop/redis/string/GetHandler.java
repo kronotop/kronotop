@@ -64,7 +64,7 @@ public class GetHandler extends BaseStringHandler implements Handler {
             throw new WrongTypeException();
         }
         ByteBuf buf = response.getChannelContext().alloc().buffer();
-        buf.writeBytes(stringValue.getValue());
+        buf.writeBytes(stringValue.value());
         response.write(buf);
     }
 }

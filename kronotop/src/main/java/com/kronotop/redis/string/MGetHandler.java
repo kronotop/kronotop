@@ -72,7 +72,7 @@ public class MGetHandler extends BaseStringHandler implements Handler {
                 }
 
                 ByteBuf buf = response.getChannelContext().alloc().buffer();
-                buf.writeBytes(stringValue.getValue());
+                buf.writeBytes(stringValue.value());
                 result.add(new FullBulkStringRedisMessage(buf));
             }
         } finally {
