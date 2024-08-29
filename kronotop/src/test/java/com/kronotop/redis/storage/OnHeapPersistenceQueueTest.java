@@ -65,7 +65,7 @@ public class OnHeapPersistenceQueueTest {
         List<Key> keys = p.poll(10);
         for (int i = 0; i < 10; i++) {
             Key key = keys.get(i);
-            assertEquals(String.format("key-%s", i), key.key());
+            assertEquals(String.format("key-%s", i), key.data());
         }
     }
 

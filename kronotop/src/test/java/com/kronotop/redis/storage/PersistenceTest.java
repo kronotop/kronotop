@@ -82,7 +82,7 @@ public class PersistenceTest extends BaseStorageTest {
         DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(0, DataStructure.HASH);
         context.getFoundationDB().run(tr -> {
             List<String> hashpath = new ArrayList<>(subspace.getPath());
-            hashpath.add(hashKey.key());
+            hashpath.add(hashKey.data());
             DirectorySubspace hashSubspace = DirectoryLayer.getDefault().createOrOpen(tr, hashpath).join();
             byte[] rawValue = tr.get(hashSubspace.pack(hashKey.getField())).join();
             assertNotNull(rawValue);

@@ -91,12 +91,12 @@ public class Persistence {
      */
     private void persistStringValue(Transaction tr, StringKey key, StringValue stringValue) throws IOException {
         Node node = layout.get(DataStructure.STRING);
-        byte[] packetKey = node.getSubspace().pack(key.key());
+        byte[] packetKey = node.getSubspace().pack(key.data());
         if (stringValue == null) {
             tr.clear(packetKey);
             return;
         }
-        StringPack stringPack = new StringPack(key.key(), stringValue);
+        StringPack stringPack = new StringPack(key.data(), stringValue);
         byte[] data = stringPack.pack().array();
         if (data.length + transactionSize.get() >= MAXIMUM_TRANSACTION_SIZE) {
             throw new TransactionSizeLimitExceeded();
@@ -115,7 +115,7 @@ public class Persistence {
      */
     private void persistHashValue(Transaction tr, HashKey hashKey, HashValue hashValue) {
         Node node = layout.get(DataStructure.HASH);
-        DirectorySubspace subspace = node.getLeaf(tr.getDatabase(), hashKey.key()).getSubspace();
+        DirectorySubspace subspace = node.getLeaf(tr.getDatabase(), hashKey.data()).getSubspace();
         byte[] packedKey = subspace.pack(hashKey.getField());
         if (hashValue == null) {
             tr.clear(packedKey);
@@ -150,16 +150,16 @@ public class Persistence {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Session session = new Session(tr);
             for (Key key : keys) {
-                ReadWriteLock lock = shard.striped().get(key.key());
+                ReadWriteLock lock = shard.striped().get(key.data());
                 lock.readLock().lock();
                 try {
-                    Object latestValue = shard.storage().get(key.key());
+                    Object latestValue = shard.storage().get(key.data());
                     if (key instanceof StringKey) {
                         persistStringValue(tr, (StringKey) key, (StringValue) latestValue);
                     } else if (key instanceof HashKey) {
                         persistHashValue(tr, (HashKey) key, (HashValue) latestValue);
                     } else {
-                        LOGGER.warn("Unknown value type for key: {}", key.key());
+                        LOGGER.warn("Unknown value type for key: {}", key.data());
                     }
                 } catch (TransactionSizeLimitExceeded e) {
                     break;

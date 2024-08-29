@@ -17,19 +17,19 @@
 package com.kronotop.redis.storage.persistence;
 
 public class HashKey implements Key {
-    private final String key;
+    private final String data;
     private final String field;
     private final int hashCode;
 
-    public HashKey(String key, String field) {
-        this.key = key;
+    public HashKey(String data, String field) {
+        this.data = data;
         this.field = field;
         this.hashCode = hashCodeInternal();
     }
 
     @Override
-    public String key() {
-        return key;
+    public String data() {
+        return data;
     }
 
     public String getField() {
@@ -38,7 +38,7 @@ public class HashKey implements Key {
 
     @SuppressWarnings("checkstyle:magicnumber")
     private int hashCodeInternal() {
-        int result = key.hashCode();
+        int result = data.hashCode();
         result = 31 * result + field.hashCode();
         return result;
     }

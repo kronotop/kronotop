@@ -16,5 +16,5 @@
 
 package com.kronotop.redis.storage.persistence;
 
-public record StringKey(String key) implements Key {
+public record StringKey(String data) implements Key {
 }
