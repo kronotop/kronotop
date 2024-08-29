@@ -28,6 +28,11 @@ public class HashKey implements Key {
     }
 
     @Override
+    public KeyKind kind() {
+        return KeyKind.HASH;
+    }
+
+    @Override
     public String data() {
         return data;
     }

@@ -17,4 +17,8 @@
 package com.kronotop.redis.storage.persistence;
 
 public record StringKey(String data) implements Key {
+    @Override
+    public KeyKind kind() {
+        return KeyKind.STRING;
+    }
 }

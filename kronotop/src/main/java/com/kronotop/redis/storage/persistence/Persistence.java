@@ -89,7 +89,7 @@ public class Persistence {
      * @throws IOException                  if an I/O error occurs while encoding the string value
      * @throws TransactionSizeLimitExceeded if the size of the transaction exceeds the maximum allowed size
      */
-    private void persistStringValue(Transaction tr, StringKey key, StringValue stringValue) throws IOException {
+    private void persistStringValue(Transaction tr, Key key, StringValue stringValue) throws IOException {
         Node node = layout.get(DataStructure.STRING);
         byte[] packetKey = node.getSubspace().pack(key.data());
         if (stringValue == null) {
@@ -109,11 +109,12 @@ public class Persistence {
      * Persists the given hash value with the specified key in the transaction.
      *
      * @param tr        the transaction object
-     * @param hashKey   the key object for the hash value
+     * @param key       the key object for the hash value
      * @param hashValue the hash value to be persisted
      * @throws TransactionSizeLimitExceeded if the size of the transaction exceeds the maximum allowed size
      */
-    private void persistHashValue(Transaction tr, HashKey hashKey, HashValue hashValue) {
+    private void persistHashValue(Transaction tr, Key key, HashValue hashValue) {
+        HashKey hashKey = (HashKey) key;
         Node node = layout.get(DataStructure.HASH);
         DirectorySubspace subspace = node.getLeaf(tr.getDatabase(), hashKey.data()).getSubspace();
         byte[] packedKey = subspace.pack(hashKey.getField());
@@ -154,12 +155,15 @@ public class Persistence {
                 lock.readLock().lock();
                 try {
                     Object latestValue = shard.storage().get(key.data());
-                    if (key instanceof StringKey) {
-                        persistStringValue(tr, (StringKey) key, (StringValue) latestValue);
-                    } else if (key instanceof HashKey) {
-                        persistHashValue(tr, (HashKey) key, (HashValue) latestValue);
-                    } else {
-                        LOGGER.warn("Unknown value type for key: {}", key.data());
+                    switch (key.kind()) {
+                        case STRING:
+                            persistStringValue(tr, key, (StringValue) latestValue);
+                            continue;
+                        case HASH:
+                            persistHashValue(tr, key, (HashValue) latestValue);
+                            continue;
+                        default:
+                            LOGGER.warn("Unknown value type for key: {}", key.data());
                     }
                 } catch (TransactionSizeLimitExceeded e) {
                     break;
