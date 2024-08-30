@@ -23,7 +23,7 @@ public record StringPack(String key, StringValue stringValue) {
     public static int HEADER_SIZE = 17;
     public static byte MAGIC = 0x53;
 
-    public static ByteBuffer pack(String key, StringValue stringValue) throws IOException {
+    public static ByteBuffer pack(String key, StringValue stringValue) {
         // HEADER SIZE: 1 (Magic) + 8 (TTL) + 4 (Key Size) + 4 (Value Size) = 17
         ByteBuffer buffer = ByteBuffer.allocate(HEADER_SIZE + key.length() + stringValue.value().length);
         buffer.put(MAGIC);
@@ -59,7 +59,7 @@ public record StringPack(String key, StringValue stringValue) {
         return new StringPack(new String(keyBytes), stringValue);
     }
 
-    public ByteBuffer pack() throws IOException {
+    public ByteBuffer pack() {
         return StringPack.pack(key, stringValue);
     }
 }

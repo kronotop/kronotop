@@ -16,6 +16,65 @@
 
 package com.kronotop.redis.hash;
 
-public record HashFieldPack(String field, byte[] fieldValue) {
-    public static int HEADER_SIZE = 17;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+
+public record HashFieldPack(String key, String field, HashField hashField) {
+    // Magic (1) + Key Length(4) + Field Length (4) + Value Length (8) + TTL (8) = 25
+    public static int HEADER_SIZE = 25;
+    public static byte MAGIC = 0x48;
+
+    public static HashFieldPack unpack(ByteBuffer buffer) throws IOException {
+        if (buffer.remaining() == 0) {
+            throw new IOException("buffer cannot be empty");
+        }
+        byte magic = buffer.get();
+        if (magic != MAGIC) {
+            throw new IOException("value is not a String");
+        }
+
+        long ttl = buffer.getLong();
+
+        // key section starts
+        int keyLength = buffer.getInt();
+        byte[] keyBytes = new byte[keyLength];
+        buffer.get(keyBytes);
+
+        int fieldLength = buffer.getInt();
+        byte[] fieldBytes = new byte[fieldLength];
+        buffer.get(fieldBytes);
+        // key section ends
+
+        int valueLength = buffer.getInt();
+        byte[] value = new byte[valueLength];
+        buffer.get(value);
+
+        return new HashFieldPack(new String(keyBytes), new String(fieldBytes), new HashField(value, ttl));
+    }
+
+    public static ByteBuffer pack(String key, String field, HashField hashField) {
+        int capacity = HEADER_SIZE + key.length() + field.length() + hashField.value().length;
+        ByteBuffer buffer = ByteBuffer.allocate(capacity);
+        buffer.put(MAGIC);
+
+        buffer.putLong(hashField.ttl());
+
+        // key section starts
+        buffer.putInt(key.length());
+        buffer.put(key.getBytes());
+
+        buffer.putInt(field.length());
+        buffer.put(field.getBytes());
+        // key section ends
+
+        buffer.putInt(hashField.value().length);
+        buffer.put(hashField.value());
+
+        buffer.flip();
+        return buffer;
+    }
+
+    public ByteBuffer pack() {
+        return HashFieldPack.pack(key, field, hashField);
+    }
 }
