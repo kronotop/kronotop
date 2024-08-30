@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.redis.string;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

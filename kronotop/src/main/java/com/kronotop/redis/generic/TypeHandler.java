@@ -18,7 +18,7 @@ package com.kronotop.redis.generic;
 
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.StringValue;
+import com.kronotop.redis.string.StringValue;
 import com.kronotop.redis.generic.protocol.TypeMessage;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.Handler;

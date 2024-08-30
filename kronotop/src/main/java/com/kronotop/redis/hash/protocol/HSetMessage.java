@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.hash.protocol;
 
-import com.kronotop.redis.HashField;
+import com.kronotop.redis.hash.HashField;
 import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.WrongNumberOfArgumentsException;

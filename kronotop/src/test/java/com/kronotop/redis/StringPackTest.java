@@ -16,6 +16,8 @@
 
 package com.kronotop.redis;
 
+import com.kronotop.redis.string.StringPack;
+import com.kronotop.redis.string.StringValue;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

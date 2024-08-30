@@ -16,8 +16,6 @@
 
 package com.kronotop.redis.hash;
 
-import com.kronotop.redis.HashField;
-import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HDelMessage;

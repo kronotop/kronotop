@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.redis.hash;
 
-import java.util.concurrent.ConcurrentHashMap;
-
-/**
- * Represents a concurrent HashMap where the keys are of type String and the values are byte arrays.
- * It extends the ConcurrentHashMap class to provide thread-safe operations on the map.
- */
-public class HashValue extends ConcurrentHashMap<String, HashField> {
+public record HashField(byte[] value, long ttl) {
+    public HashField(byte[] value) {
+        this(value, 0);
+    }
 }

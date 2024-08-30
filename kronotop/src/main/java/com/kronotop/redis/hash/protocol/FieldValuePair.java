@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.hash.protocol;
 
-import com.kronotop.redis.HashField;
+import com.kronotop.redis.hash.HashField;
 
 public class FieldValuePair {
     private final String field;

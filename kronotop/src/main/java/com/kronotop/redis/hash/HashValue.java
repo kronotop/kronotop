@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.redis.hash;
+
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The StringValue class represents a string value stored as a byte array.
- * It can be decoded from and encoded into a byte array using MessagePack serialization.
+ * Represents a concurrent HashMap where the keys are of type String and the values are byte arrays.
+ * It extends the ConcurrentHashMap class to provide thread-safe operations on the map.
  */
-public record StringValue(byte[] value, long ttl) {
-    public StringValue(byte[] value) {
-        this(value, 0);
-    }
+public class HashValue extends ConcurrentHashMap<String, HashField> {
 }

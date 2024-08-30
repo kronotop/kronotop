@@ -17,7 +17,7 @@
 package com.kronotop.redis.storage;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.redis.StringValue;
+import com.kronotop.redis.string.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;

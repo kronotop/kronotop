@@ -18,10 +18,10 @@ package com.kronotop.redis.storage;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.redis.HashField;
-import com.kronotop.redis.HashValue;
-import com.kronotop.redis.StringPack;
-import com.kronotop.redis.StringValue;
+import com.kronotop.redis.hash.HashField;
+import com.kronotop.redis.hash.HashValue;
+import com.kronotop.redis.string.StringPack;
+import com.kronotop.redis.string.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.HashKey;

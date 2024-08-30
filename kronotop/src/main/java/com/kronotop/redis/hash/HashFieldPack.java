@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.redis.hash;
 
-public record HashField(byte[] value, long ttl) {
-    public HashField(byte[] value) {
-        this(value, 0);
-    }
+public record HashFieldPack(String field, byte[] fieldValue) {
+    public static int HEADER_SIZE = 17;
 }

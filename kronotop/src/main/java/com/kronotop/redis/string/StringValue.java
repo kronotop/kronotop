@@ -14,8 +14,14 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.redis.string;
 
-public record HashFieldPack(String field, byte[] fieldValue) {
-    public static int HEADER_SIZE = 17;
+/**
+ * The StringValue class represents a string value stored as a byte array.
+ * It can be decoded from and encoded into a byte array using MessagePack serialization.
+ */
+public record StringValue(byte[] value, long ttl) {
+    public StringValue(byte[] value) {
+        this(value, 0);
+    }
 }
