@@ -60,7 +60,7 @@ public class HGetHandler extends BaseHandler implements Handler {
             }
 
             HashField hashField = hashValue.get(hgetMessage.getField());
-            if (hashField.value() == null) {
+            if (hashField == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;
             }
