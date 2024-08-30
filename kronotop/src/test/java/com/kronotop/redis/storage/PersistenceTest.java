@@ -18,6 +18,7 @@ package com.kronotop.redis.storage;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.redis.HashField;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringPack;
 import com.kronotop.redis.StringValue;
@@ -69,7 +70,7 @@ public class PersistenceTest extends BaseStorageTest {
     public void test_HASH() {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
         HashValue hashValue = new HashValue();
-        hashValue.put("field-name", "value".getBytes());
+        hashValue.put("field-name", new HashField("value".getBytes()));
         shard.storage().put("hash-name", hashValue);
         HashKey hashKey = new HashKey("hash-name", "field-name");
         shard.persistenceQueue().add(hashKey);

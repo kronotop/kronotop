@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.hash;
 
+import com.kronotop.redis.HashField;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
@@ -71,8 +72,8 @@ public class HDelHandler extends BaseHashHandler implements Handler {
             }
 
             for (FieldValuePair fieldValuePair : hdelMessage.getFieldValuePairs()) {
-                byte[] value = hashValue.remove(fieldValuePair.getField());
-                if (value != null) {
+                HashField field = hashValue.remove(fieldValuePair.getField());
+                if (field.value() != null) {
                     total++;
                 }
             }

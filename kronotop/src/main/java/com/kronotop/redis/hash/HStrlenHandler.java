@@ -17,6 +17,7 @@
 package com.kronotop.redis.hash;
 
 import com.kronotop.redis.BaseHandler;
+import com.kronotop.redis.HashField;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HStrlenMessage;
@@ -58,9 +59,9 @@ public class HStrlenHandler extends BaseHandler implements Handler {
                 throw new WrongTypeException();
             }
 
-            byte[] value = hashValue.get(hstrlenMessage.getField());
-            if (value != null) {
-                response.writeInteger(value.length);
+            HashField hashField = hashValue.get(hstrlenMessage.getField());
+            if (hashField != null) {
+                response.writeInteger(hashField.value().length);
             } else {
                 response.writeInteger(0);
             }

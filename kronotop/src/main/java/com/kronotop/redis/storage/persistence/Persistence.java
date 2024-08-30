@@ -19,10 +19,7 @@ package com.kronotop.redis.storage.persistence;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
-import com.kronotop.redis.HashValue;
-import com.kronotop.redis.StringPack;
-import com.kronotop.redis.StringValue;
-import com.kronotop.redis.TransactionSizeLimitExceeded;
+import com.kronotop.redis.*;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.volume.Session;
 import org.slf4j.Logger;
@@ -123,12 +120,12 @@ public class Persistence {
             return;
         }
 
-        byte[] value = hashValue.get(hashKey.getField());
-        if (value != null) {
-            if (value.length + transactionSize.get() >= MAXIMUM_TRANSACTION_SIZE) {
+        HashField hashField = hashValue.get(hashKey.getField());
+        if (hashField != null) {
+            if (hashField.value().length + transactionSize.get() >= MAXIMUM_TRANSACTION_SIZE) {
                 throw new TransactionSizeLimitExceeded();
             }
-            tr.set(packedKey, value);
+            tr.set(packedKey, hashField.value());
         } else {
             tr.clear(packedKey);
         }

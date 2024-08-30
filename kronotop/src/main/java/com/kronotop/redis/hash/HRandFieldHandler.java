@@ -82,7 +82,7 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
 
             if (hrandfieldMessage.getWithValues()) {
                 ByteBuf valueBuf = response.getChannelContext().alloc().buffer();
-                valueBuf.writeBytes(hashValue.get(field));
+                valueBuf.writeBytes(hashValue.get(field).value());
                 upperList.add(new FullBulkStringRedisMessage(valueBuf));
             }
 

@@ -16,11 +16,13 @@
 
 package com.kronotop.redis.hash.protocol;
 
+import com.kronotop.redis.HashField;
+
 public class FieldValuePair {
     private final String field;
-    private final byte[] value;
+    private final HashField value;
 
-    public FieldValuePair(String key, byte[] value) {
+    public FieldValuePair(String key, HashField value) {
         this.field = key;
         this.value = value;
     }
@@ -29,7 +31,7 @@ public class FieldValuePair {
         return field;
     }
 
-    public byte[] getValue() {
+    public HashField getValue() {
         return value;
     }
 }

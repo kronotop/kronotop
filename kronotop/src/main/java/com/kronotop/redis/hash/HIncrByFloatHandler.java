@@ -18,6 +18,7 @@ package com.kronotop.redis.hash;
 
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
+import com.kronotop.redis.HashField;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
@@ -77,22 +78,22 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
                 hashValue = (HashValue) retrieved;
             }
 
-            FieldValuePair fieldValuePair = hincrbyfloatMessage.getFieldValuePairs().get(0);
+            FieldValuePair fieldValuePair = hincrbyfloatMessage.getFieldValuePairs().getFirst();
             if (fieldValuePair == null) {
                 throw new KronotopException("field is missing");
             }
 
-            byte[] oldValue = hashValue.get(fieldValuePair.getField());
-            if (oldValue == null) {
+            HashField oldHashField = hashValue.get(fieldValuePair.getField());
+            if (oldHashField == null) {
                 newValue = hincrbyfloatMessage.getIncrement();
             } else {
                 try {
-                    newValue = Double.parseDouble(new String(oldValue)) + hincrbyfloatMessage.getIncrement();
+                    newValue = Double.parseDouble(new String(oldHashField.value())) + hincrbyfloatMessage.getIncrement();
                 } catch (NumberFormatException e) {
                     throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                 }
             }
-            hashValue.put(fieldValuePair.getField(), Double.toString(newValue).getBytes());
+            hashValue.put(fieldValuePair.getField(), new HashField(Double.toString(newValue).getBytes()));
         } finally {
             lock.writeLock().unlock();
         }

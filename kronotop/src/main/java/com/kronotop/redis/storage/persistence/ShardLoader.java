@@ -24,6 +24,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.Context;
+import com.kronotop.redis.HashField;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.StringPack;
 import com.kronotop.redis.storage.RedisShard;
@@ -78,7 +79,7 @@ public final class ShardLoader {
         for (KeyValue keyValue : asyncIterable) {
             range = new Range(keyValue.getKey(), range.end);
             String field = subspace.unpack(keyValue.getKey()).get(0).toString();
-            hashValue.put(field, keyValue.getValue());
+            hashValue.put(field, new HashField(keyValue.getValue()));
         }
     }
 

@@ -17,6 +17,7 @@
 package com.kronotop.redis.hash;
 
 import com.kronotop.redis.BaseHandler;
+import com.kronotop.redis.HashField;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HValsMessage;
@@ -65,10 +66,10 @@ public class HValsHandler extends BaseHandler implements Handler {
                 throw new WrongTypeException();
             }
 
-            Collection<byte[]> values = hashValue.values();
-            for (byte[] value : values) {
+            Collection<HashField> hashFields = hashValue.values();
+            for (HashField hashField : hashFields) {
                 ByteBuf buf = response.getChannelContext().alloc().buffer();
-                buf.writeBytes(value);
+                buf.writeBytes(hashField.value());
                 result.add(new FullBulkStringRedisMessage(buf));
             }
         } finally {

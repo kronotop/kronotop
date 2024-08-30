@@ -17,6 +17,7 @@
 package com.kronotop.redis.hash;
 
 import com.kronotop.redis.BaseHandler;
+import com.kronotop.redis.HashField;
 import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HMGetMessage;
@@ -64,14 +65,14 @@ public class HMGetHandler extends BaseHandler implements Handler {
                 }
 
                 for (String field : hmgetMessage.getFields()) {
-                    byte[] value = hashValue.get(field);
-                    if (value == null) {
+                    HashField hashField = hashValue.get(field);
+                    if (hashField.value() == null) {
                         upperList.add(FullBulkStringRedisMessage.NULL_INSTANCE);
                         continue;
                     }
 
                     ByteBuf buf = response.getChannelContext().alloc().buffer();
-                    buf.writeBytes(value);
+                    buf.writeBytes(hashField.value());
                     upperList.add(new FullBulkStringRedisMessage(buf));
                 }
             }
