@@ -20,8 +20,32 @@ package com.kronotop.redis.string;
  * The StringValue class represents a string value stored as a byte array.
  * It can be decoded from and encoded into a byte array using MessagePack serialization.
  */
-public record StringValue(byte[] value, long ttl) {
+public class StringValue {
+    private byte[] value;
+    private Long ttl;
+
     public StringValue(byte[] value) {
         this(value, 0);
+    }
+
+    public StringValue(byte[] value, long ttl) {
+        this.value = value;
+        this.ttl = ttl;
+    }
+
+    public byte[] value() {
+        return value;
+    }
+
+    public void setValue(byte[] value) {
+        this.value = value;
+    }
+
+    public Long ttl() {
+        return ttl;
+    }
+
+    public void setTtl(Long ttl) {
+        this.ttl = ttl;
     }
 }
