@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.storage.persistence;
 
-public interface Key {
-    KeyKind kind();
+import java.nio.ByteBuffer;
 
-    String data();
+public interface DataStructurePack {
+    ByteBuffer pack();
 }

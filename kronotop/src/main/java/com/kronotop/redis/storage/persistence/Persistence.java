@@ -17,22 +17,18 @@
 package com.kronotop.redis.storage.persistence;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
-import com.kronotop.redis.*;
 import com.kronotop.redis.hash.HashField;
-import com.kronotop.redis.hash.HashValue;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.string.StringValue;
+import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 
 /**
@@ -40,13 +36,9 @@ import java.util.concurrent.locks.ReadWriteLock;
  * It provides methods for persisting different types of data structures such as strings and hashes.
  */
 public class Persistence {
-    public static final int MAXIMUM_TRANSACTION_SIZE = 10_000_000;
-    public static final String PERSISTENCE_LAYOUT_KEY = "persistence-layout";
     private static final Logger LOGGER = LoggerFactory.getLogger(Persistence.class);
     private final Context context;
-    private final AtomicInteger transactionSize = new AtomicInteger();
     private final RedisShard shard;
-    private final EnumMap<DataStructure, Node> layout = new EnumMap<>(DataStructure.class);
 
     /**
      * Constructs a Persistence object with the given context and shard.
@@ -58,18 +50,6 @@ public class Persistence {
     public Persistence(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
-
-        // TODO: Do we need this?
-        ReadWriteLock readWriteLock = context.getStripedReadWriteLock().get(PERSISTENCE_LAYOUT_KEY);
-        readWriteLock.writeLock().lock();
-        try {
-            for (DataStructure dataStructure : DataStructure.values()) {
-                DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(shard.id(), dataStructure);
-                layout.put(dataStructure, new Node(subspace));
-            }
-        } finally {
-            readWriteLock.writeLock().unlock();
-        }
     }
 
     /**
@@ -82,108 +62,103 @@ public class Persistence {
     }
 
     /**
-     * Persists the given string value with the specified key in the transaction.
+     * Persist data for a list of keys.
+     * <p>
+     * This method takes a list of keys as input and persists the corresponding data to a storage system.
+     * It uses a {@link PersistenceSession} object to pack the data structures into byte buffers,
+     * which are then appended to the storage system.
      *
-     * @param tr          the transaction object
-     * @param key         the key object for the string value
-     * @param stringValue the string value to be persisted
-     * @throws IOException                  if an I/O error occurs while encoding the string value
-     * @throws TransactionSizeLimitExceeded if the size of the transaction exceeds the maximum allowed size
+     * @param keys the list of keys to persist
+     * @throws IOException if an I/O error occurs while persisting the data
      */
-    private void persistStringValue(Transaction tr, Key key, StringValue stringValue) throws IOException {
-        Node node = layout.get(DataStructure.STRING);
-        byte[] packetKey = node.getSubspace().pack(key.data());
-        if (stringValue == null) {
-            tr.clear(packetKey);
-            return;
-        }
-        StringPack stringPack = new StringPack(key.data(), stringValue);
-        byte[] data = stringPack.pack().array();
-        if (data.length + transactionSize.get() >= MAXIMUM_TRANSACTION_SIZE) {
-            throw new TransactionSizeLimitExceeded();
-        }
-        tr.set(packetKey, data);
-        transactionSize.addAndGet(data.length);
-    }
-
-    /**
-     * Persists the given hash value with the specified key in the transaction.
-     *
-     * @param tr        the transaction object
-     * @param key       the key object for the hash value
-     * @param hashValue the hash value to be persisted
-     * @throws TransactionSizeLimitExceeded if the size of the transaction exceeds the maximum allowed size
-     */
-    private void persistHashValue(Transaction tr, Key key, HashValue hashValue) {
-        HashKey hashKey = (HashKey) key;
-        Node node = layout.get(DataStructure.HASH);
-        DirectorySubspace subspace = node.getLeaf(tr.getDatabase(), hashKey.data()).getSubspace();
-        byte[] packedKey = subspace.pack(hashKey.getField());
-        if (hashValue == null) {
-            tr.clear(packedKey);
-            return;
-        }
-
-        HashField hashField = hashValue.get(hashKey.getField());
-        if (hashField != null) {
-            if (hashField.value().length + transactionSize.get() >= MAXIMUM_TRANSACTION_SIZE) {
-                throw new TransactionSizeLimitExceeded();
+    private void persist(List<Key> keys) throws IOException {
+        PersistenceSession session = new PersistenceSession(keys.size());
+        for (Key key : keys) {
+            ReadWriteLock lock = shard.striped().get(key.data());
+            lock.readLock().lock();
+            try {
+                Object latestValue = shard.storage().get(key.data());
+                if (key.kind() == KeyKind.STRING) {
+                    StringPack stringPack = new StringPack(key.data(), (StringValue) latestValue);
+                    session.pack(stringPack);
+                } else if (key.kind() == KeyKind.HASH) {
+                    HashKey hashKey = (HashKey) key;
+                    HashFieldPack hashFieldPack = new HashFieldPack(hashKey.data(), hashKey.getField(), (HashField) latestValue);
+                    session.pack(hashFieldPack);
+                } else {
+                    LOGGER.warn("Unknown value type for key: {}", key.data());
+                }
+            } finally {
+                lock.readLock().unlock();
             }
-            tr.set(packedKey, hashField.value());
-        } else {
-            tr.clear(packedKey);
         }
+
+        session.persist();
     }
 
-    /**
-     * Executes the persistence process for a batch of keys.
-     * It retrieves a batch of keys from the persistence queue,
-     * and for each key, it locks the corresponding lock, retrieves the latest value from the shard,
-     * and persists the value in the transaction.
-     * Finally, it commits the transaction and handles any exceptions that occur during the process.
-     *
-     * @throws RuntimeException if an exception occurs during the persistence process
-     */
     public void run() {
         List<Key> keys = shard.persistenceQueue().poll(1000);
         if (keys.isEmpty()) {
             return;
         }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Session session = new Session(tr);
-            for (Key key : keys) {
-                ReadWriteLock lock = shard.striped().get(key.data());
-                lock.readLock().lock();
-                try {
-                    Object latestValue = shard.storage().get(key.data());
-                    switch (key.kind()) {
-                        case STRING:
-                            StringPack stringPack = new StringPack(key.data(), (StringValue) latestValue);
-                            ByteBuffer buffer = stringPack.pack();
-                            System.out.println(buffer.remaining());
 
-                            persistStringValue(tr, key, (StringValue) latestValue);
-                            continue;
-                        case HASH:
-                            persistHashValue(tr, key, (HashValue) latestValue);
-                            continue;
-                        default:
-                            LOGGER.warn("Unknown value type for key: {}", key.data());
-                    }
-                } catch (TransactionSizeLimitExceeded e) {
-                    break;
-                } finally {
-                    lock.readLock().unlock();
-                }
-            }
-            tr.commit().join();
+        try {
+            persist(keys);
         } catch (Exception e) {
             for (Key key : keys) {
                 shard.persistenceQueue().add(key);
             }
             throw new RuntimeException(e);
-        } finally {
-            transactionSize.set(0);
+        }
+    }
+
+    /**
+     * A PersistenceSession represents a session for persisting data to a storage system.
+     * It provides methods for packing data structures into byte buffers and persisting them.
+     */
+    private class PersistenceSession {
+        private final ByteBuffer[] entries;
+        private int size;
+        private int cursor;
+
+        public PersistenceSession(int capacity) {
+            this.entries = new ByteBuffer[capacity];
+        }
+
+        /**
+         * Packs a data structure into the persistence session.
+         * The data structure is packed into a {@link ByteBuffer} and added to the {@code entries} array.
+         * The size of the packed buffer is added to the {@code size} field.
+         * The cursor is incremented to the next position in the {@code entries} array.
+         *
+         * @param dataStructurePack the data structure to be packed
+         */
+        public void pack(DataStructurePack dataStructurePack) {
+            ByteBuffer buffer = dataStructurePack.pack();
+            size += buffer.remaining();
+            entries[cursor++] = buffer;
+        }
+
+        /**
+         * Persists the data stored in the PersistenceSession to a storage system.
+         * The data is packed into byte buffers and appended to the storage system.
+         *
+         * @throws IOException if an I/O error occurs while persisting the data
+         */
+        public void persist() throws IOException {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                Session session = new Session(tr);
+                AppendResult result = shard.volume().append(session, entries);
+                tr.commit().join();
+
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("{} entries have persisted, total size is {}", result.getVersionstampedKeys().length, size());
+                }
+            }
+        }
+
+        public int size() {
+            return size;
         }
     }
 }

@@ -21,7 +21,7 @@ import com.kronotop.redis.hash.HashField;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public record HashFieldPack(String key, String field, HashField hashField) {
+public record HashFieldPack(String key, String field, HashField hashField) implements DataStructurePack {
     // Magic (1) + Key Length(4) + Field Length (4) + Value Length (8) + TTL (8) = 25
     public static int HEADER_SIZE = 25;
     public static byte MAGIC = 0x48;
@@ -76,6 +76,7 @@ public record HashFieldPack(String key, String field, HashField hashField) {
         return buffer;
     }
 
+    @Override
     public ByteBuffer pack() {
         return HashFieldPack.pack(key, field, hashField);
     }

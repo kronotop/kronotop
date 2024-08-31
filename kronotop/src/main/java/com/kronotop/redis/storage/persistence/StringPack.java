@@ -21,7 +21,7 @@ import com.kronotop.redis.string.StringValue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public record StringPack(String key, StringValue stringValue) {
+public record StringPack(String key, StringValue stringValue) implements DataStructurePack {
     public static int HEADER_SIZE = 17;
     public static byte MAGIC = 0x53;
 
@@ -61,6 +61,7 @@ public record StringPack(String key, StringValue stringValue) {
         return new StringPack(new String(keyBytes), stringValue);
     }
 
+    @Override
     public ByteBuffer pack() {
         return StringPack.pack(key, stringValue);
     }
