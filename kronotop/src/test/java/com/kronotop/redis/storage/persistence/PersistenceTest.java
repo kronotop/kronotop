@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.storage;
+package com.kronotop.redis.storage.persistence;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.redis.hash.HashField;
 import com.kronotop.redis.hash.HashValue;
-import com.kronotop.redis.string.StringPack;
+import com.kronotop.redis.storage.BaseStorageTest;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.string.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
-import com.kronotop.redis.storage.persistence.DataStructure;
-import com.kronotop.redis.storage.persistence.HashKey;
-import com.kronotop.redis.storage.persistence.Persistence;
-import com.kronotop.redis.storage.persistence.StringKey;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

@@ -26,7 +26,6 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.Context;
 import com.kronotop.redis.hash.HashField;
 import com.kronotop.redis.hash.HashValue;
-import com.kronotop.redis.string.StringPack;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.WrongTypeException;
 

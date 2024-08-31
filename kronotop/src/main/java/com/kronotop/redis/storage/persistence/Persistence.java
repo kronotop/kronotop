@@ -23,13 +23,13 @@ import com.kronotop.redis.*;
 import com.kronotop.redis.hash.HashField;
 import com.kronotop.redis.hash.HashValue;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.string.StringPack;
 import com.kronotop.redis.string.StringValue;
 import com.kronotop.volume.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -158,6 +158,10 @@ public class Persistence {
                     Object latestValue = shard.storage().get(key.data());
                     switch (key.kind()) {
                         case STRING:
+                            StringPack stringPack = new StringPack(key.data(), (StringValue) latestValue);
+                            ByteBuffer buffer = stringPack.pack();
+                            System.out.println(buffer.remaining());
+
                             persistStringValue(tr, key, (StringValue) latestValue);
                             continue;
                         case HASH:

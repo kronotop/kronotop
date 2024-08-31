@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.hash;
+package com.kronotop.redis.storage.persistence;
+
+import com.kronotop.redis.hash.HashField;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
