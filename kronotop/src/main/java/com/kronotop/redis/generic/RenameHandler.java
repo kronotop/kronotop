@@ -19,6 +19,7 @@ package com.kronotop.redis.generic;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.RenameMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValue;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -70,7 +71,7 @@ public class RenameHandler extends BaseGenericHandler implements Handler {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().lock();
             }
-            Object result = shard.storage().get(renameMessage.getKey());
+            RedisValue result = shard.storage().get(renameMessage.getKey());
             if (result == null) {
                 response.writeError("no such key");
                 return;

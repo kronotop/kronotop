@@ -17,7 +17,7 @@
 
 package com.kronotop.redis.storage.persistence;
 
-import com.kronotop.redis.hash.HashField;
+import com.kronotop.redis.hash.HashFieldValue;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -28,13 +28,13 @@ public class HashFieldPackTest {
 
     @Test
     public void test_pack_then_unpack() {
-        HashFieldPack actual = new HashFieldPack("key", "field", new HashField("foobar".getBytes(), 1000));
+        HashFieldPack actual = new HashFieldPack("key", "field", new HashFieldValue("foobar".getBytes(), 1000));
         ByteBuffer buffer = actual.pack();
 
         HashFieldPack expected = assertDoesNotThrow(() -> HashFieldPack.unpack(buffer));
         assertEquals(actual.key(), expected.key());
         assertEquals(actual.field(), expected.field());
-        assertEquals(actual.hashField().ttl(), expected.hashField().ttl());
-        assertArrayEquals(actual.hashField().value(), expected.hashField().value());
+        assertEquals(actual.hashFieldValue().ttl(), expected.hashFieldValue().ttl());
+        assertArrayEquals(actual.hashFieldValue().value(), expected.hashFieldValue().value());
     }
 }

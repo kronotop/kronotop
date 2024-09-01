@@ -70,7 +70,7 @@ public class HDelHandler extends BaseHashHandler implements Handler {
             }
 
             for (FieldValuePair fieldValuePair : hdelMessage.getFieldValuePairs()) {
-                HashField field = hashValue.remove(fieldValuePair.getField());
+                HashFieldValue field = hashValue.remove(fieldValuePair.getField());
                 if (field.value() != null) {
                     total++;
                 }

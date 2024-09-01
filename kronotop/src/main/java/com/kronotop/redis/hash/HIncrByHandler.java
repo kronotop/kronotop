@@ -22,6 +22,7 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HIncrByMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValue;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -64,7 +65,7 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
         long newValue;
         try {
             HashValue hashValue;
-            Object retrieved = shard.storage().get(hincrbyMessage.getKey());
+            RedisValue retrieved = shard.storage().get(hincrbyMessage.getKey());
             if (retrieved == null) {
                 hashValue = new HashValue();
                 shard.storage().put(hincrbyMessage.getKey(), hashValue);
@@ -80,7 +81,7 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
                 throw new KronotopException("field is missing");
             }
 
-            HashField oldHashField = hashValue.get(fieldValuePair.getField());
+            HashFieldValue oldHashField = hashValue.get(fieldValuePair.getField());
             if (oldHashField == null) {
                 newValue = hincrbyMessage.getIncrement();
             } else {
@@ -90,7 +91,7 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
                     throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
                 }
             }
-            hashValue.put(fieldValuePair.getField(), new HashField(Long.toString(newValue).getBytes()));
+            hashValue.put(fieldValuePair.getField(), new HashFieldValue(Long.toString(newValue).getBytes()));
         } finally {
             lock.writeLock().unlock();
         }

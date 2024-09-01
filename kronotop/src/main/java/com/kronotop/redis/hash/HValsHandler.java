@@ -64,8 +64,8 @@ public class HValsHandler extends BaseHandler implements Handler {
                 throw new WrongTypeException();
             }
 
-            Collection<HashField> hashFields = hashValue.values();
-            for (HashField hashField : hashFields) {
+            Collection<HashFieldValue> hashFields = hashValue.values();
+            for (HashFieldValue hashField : hashFields) {
                 ByteBuf buf = response.getChannelContext().alloc().buffer();
                 buf.writeBytes(hashField.value());
                 result.add(new FullBulkStringRedisMessage(buf));

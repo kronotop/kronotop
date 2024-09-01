@@ -18,13 +18,14 @@ package com.kronotop.redis.storage.impl;
 
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.ShardReadOnlyException;
+import com.kronotop.redis.storage.persistence.RedisValue;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class Storage extends ConcurrentHashMap<String, Object> {
+public class Storage extends ConcurrentHashMap<String, RedisValue> {
     private final RedisShard shard;
 
     public Storage(RedisShard shard) {
@@ -32,7 +33,7 @@ public class Storage extends ConcurrentHashMap<String, Object> {
     }
 
     @Override
-    public Object put(@Nonnull String key, @Nonnull Object value) {
+    public RedisValue put(@Nonnull String key, @Nonnull RedisValue value) {
         if (shard.isReadOnly()) {
             throw new ShardReadOnlyException(shard.id());
         }
@@ -40,7 +41,7 @@ public class Storage extends ConcurrentHashMap<String, Object> {
     }
 
     @Override
-    public Object remove(@Nonnull Object key) {
+    public RedisValue remove(@Nonnull Object key) {
         if (shard.isReadOnly()) {
             throw new ShardReadOnlyException(shard.id());
         }
@@ -56,7 +57,7 @@ public class Storage extends ConcurrentHashMap<String, Object> {
     }
 
     @Override
-    public Object compute(String key, @Nonnull BiFunction<? super String, ? super Object, ?> remappingFunction) {
+    public RedisValue compute(String key, @Nonnull BiFunction<? super String, ? super RedisValue, ? extends RedisValue> remappingFunction) {
         if (shard.isReadOnly()) {
             throw new ShardReadOnlyException(shard.id());
         }
@@ -64,7 +65,7 @@ public class Storage extends ConcurrentHashMap<String, Object> {
     }
 
     @Override
-    public Object computeIfAbsent(String key, @Nonnull Function<? super String, ?> mappingFunction) {
+    public RedisValue computeIfAbsent(String key, @Nonnull Function<? super String, ? extends RedisValue> mappingFunction) {
         if (shard.isReadOnly()) {
             throw new ShardReadOnlyException(shard.id());
         }

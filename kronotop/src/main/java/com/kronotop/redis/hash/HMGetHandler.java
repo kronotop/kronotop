@@ -63,7 +63,7 @@ public class HMGetHandler extends BaseHandler implements Handler {
                 }
 
                 for (String field : hmgetMessage.getFields()) {
-                    HashField hashField = hashValue.get(field);
+                    HashFieldValue hashField = hashValue.get(field);
                     if (hashField.value() == null) {
                         upperList.add(FullBulkStringRedisMessage.NULL_INSTANCE);
                         continue;

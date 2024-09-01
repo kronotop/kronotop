@@ -16,12 +16,12 @@
 
 package com.kronotop.redis.storage.persistence;
 
-import com.kronotop.redis.hash.HashField;
+import com.kronotop.redis.hash.HashFieldValue;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public record HashFieldPack(String key, String field, HashField hashField) implements DataStructurePack {
+public record HashFieldPack(String key, String field, HashFieldValue hashFieldValue) implements DataStructurePack {
     // Magic (1) + Key Length(4) + Field Length (4) + Value Length (8) + TTL (8) = 25
     public static int HEADER_SIZE = 25;
     public static byte MAGIC = 0x48;
@@ -51,10 +51,10 @@ public record HashFieldPack(String key, String field, HashField hashField) imple
         byte[] value = new byte[valueLength];
         buffer.get(value);
 
-        return new HashFieldPack(new String(keyBytes), new String(fieldBytes), new HashField(value, ttl));
+        return new HashFieldPack(new String(keyBytes), new String(fieldBytes), new HashFieldValue(value, ttl));
     }
 
-    public static ByteBuffer pack(String key, String field, HashField hashField) {
+    public static ByteBuffer pack(String key, String field, HashFieldValue hashField) {
         int capacity = HEADER_SIZE + key.length() + field.length() + hashField.value().length;
         ByteBuffer buffer = ByteBuffer.allocate(capacity);
         buffer.put(MAGIC);
@@ -78,6 +78,6 @@ public record HashFieldPack(String key, String field, HashField hashField) imple
 
     @Override
     public ByteBuffer pack() {
-        return HashFieldPack.pack(key, field, hashField);
+        return HashFieldPack.pack(key, field, hashFieldValue);
     }
 }

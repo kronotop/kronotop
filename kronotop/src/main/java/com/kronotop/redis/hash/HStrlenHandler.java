@@ -57,7 +57,7 @@ public class HStrlenHandler extends BaseHandler implements Handler {
                 throw new WrongTypeException();
             }
 
-            HashField hashField = hashValue.get(hstrlenMessage.getField());
+            HashFieldValue hashField = hashValue.get(hstrlenMessage.getField());
             if (hashField != null) {
                 response.writeInteger(hashField.value().length);
             } else {

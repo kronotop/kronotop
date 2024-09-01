@@ -59,7 +59,7 @@ public class HGetHandler extends BaseHandler implements Handler {
                 throw new WrongTypeException();
             }
 
-            HashField hashField = hashValue.get(hgetMessage.getField());
+            HashFieldValue hashField = hashValue.get(hgetMessage.getField());
             if (hashField == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;

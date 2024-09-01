@@ -20,6 +20,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.RenameNXMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValue;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -64,7 +65,7 @@ public class RenameNXHandler extends BaseGenericHandler implements Handler {
                 lock.writeLock().lock();
             }
 
-            Object result = shard.storage().get(renamenxMessage.getKey());
+            RedisValue result = shard.storage().get(renamenxMessage.getKey());
             if (result == null) {
                 throw new KronotopException("no such key");
             }

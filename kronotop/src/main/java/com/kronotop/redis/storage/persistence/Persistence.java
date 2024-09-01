@@ -17,8 +17,9 @@
 package com.kronotop.redis.storage.persistence;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.redis.hash.HashField;
+import com.kronotop.redis.hash.HashFieldValue;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.string.StringValue;
 import com.kronotop.volume.AppendResult;
@@ -78,16 +79,22 @@ public class Persistence {
             lock.readLock().lock();
             try {
                 Object latestValue = shard.storage().get(key.data());
+                if (latestValue == null) {
+                    // TODO: We need to find a way to remove keys from shard's volume
+                    continue;
+                }
                 if (key.kind() == KeyKind.STRING) {
                     StringPack stringPack = new StringPack(key.data(), (StringValue) latestValue);
                     session.pack(stringPack);
                 } else if (key.kind() == KeyKind.HASH) {
                     HashKey hashKey = (HashKey) key;
-                    HashFieldPack hashFieldPack = new HashFieldPack(hashKey.data(), hashKey.getField(), (HashField) latestValue);
+                    HashFieldPack hashFieldPack = new HashFieldPack(hashKey.data(), hashKey.getField(), (HashFieldValue) latestValue);
                     session.pack(hashFieldPack);
                 } else {
                     LOGGER.warn("Unknown value type for key: {}", key.data());
+                    continue;
                 }
+
             } finally {
                 lock.readLock().unlock();
             }
@@ -145,15 +152,18 @@ public class Persistence {
          *
          * @throws IOException if an I/O error occurs while persisting the data
          */
-        public void persist() throws IOException {
+        public Versionstamp[] persist() throws IOException {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Session session = new Session(tr);
                 AppendResult result = shard.volume().append(session, entries);
                 tr.commit().join();
 
+                Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("{} entries have persisted, total size is {}", result.getVersionstampedKeys().length, size());
+                    LOGGER.debug("{} entries have persisted, total size is {}", versionstampedKeys.length, size());
                 }
+
+                return versionstampedKeys;
             }
         }
 

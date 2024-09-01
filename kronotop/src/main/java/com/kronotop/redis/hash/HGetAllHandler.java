@@ -71,7 +71,7 @@ public class HGetAllHandler extends BaseHandler implements Handler {
                 fieldBuf.writeBytes(field.getBytes());
                 result.add(new FullBulkStringRedisMessage(fieldBuf));
 
-                HashField hashField = hashValue.get(field);
+                HashFieldValue hashField = hashValue.get(field);
                 ByteBuf valueBuf = response.getChannelContext().alloc().buffer();
                 valueBuf.writeBytes(hashField.value());
                 result.add(new FullBulkStringRedisMessage(valueBuf));

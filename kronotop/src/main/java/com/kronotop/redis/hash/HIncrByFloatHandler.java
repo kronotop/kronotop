@@ -81,7 +81,7 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
                 throw new KronotopException("field is missing");
             }
 
-            HashField oldHashField = hashValue.get(fieldValuePair.getField());
+            HashFieldValue oldHashField = hashValue.get(fieldValuePair.getField());
             if (oldHashField == null) {
                 newValue = hincrbyfloatMessage.getIncrement();
             } else {
@@ -91,7 +91,7 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
                     throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                 }
             }
-            hashValue.put(fieldValuePair.getField(), new HashField(Double.toString(newValue).getBytes()));
+            hashValue.put(fieldValuePair.getField(), new HashFieldValue(Double.toString(newValue).getBytes()));
         } finally {
             lock.writeLock().unlock();
         }

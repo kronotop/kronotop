@@ -14,55 +14,43 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.hash;
+package com.kronotop.redis.storage.persistence;
 
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.redis.storage.persistence.RedisValue;
-
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Represents a concurrent HashMap where the keys are of type String and the values are byte arrays.
- * It extends the ConcurrentHashMap class to provide thread-safe operations on the map.
+ * The RedisValue interface defines the contract for a value stored in Redis.
+ * It provides methods to retrieve and set the value in byte array form,
+ * as well as to retrieve and set the versionstamp for the value.
  */
-public class HashValue extends ConcurrentHashMap<String, HashFieldValue> implements RedisValue {
+public interface RedisValue {
     /**
      * Retrieves the value stored in the RedisValue as a byte array.
      *
      * @return the value as a byte array.
      */
-    @Override
-    public byte[] value() {
-        return new byte[0];
-    }
+    byte[] value();
 
     /**
      * Sets the value stored in the RedisValue as a byte array.
      *
      * @param value the new value to be set as a byte array.
      */
-    @Override
-    public void setValue(byte[] value) {
+    void setValue(byte[] value);
 
-    }
 
     /**
      * Retrieves the versionstamp associated with the RedisValue.
      *
      * @return the versionstamp of the RedisValue.
      */
-    @Override
-    public Versionstamp versionstamp() {
-        return null;
-    }
+    Versionstamp versionstamp();
+
 
     /**
      * Sets the versionstamp associated with the RedisValue.
      *
      * @param versionstamp the new versionstamp to be set.
      */
-    @Override
-    public void setVersionstamp(Versionstamp versionstamp) {
-
-    }
+    void setVersionstamp(Versionstamp versionstamp);
 }

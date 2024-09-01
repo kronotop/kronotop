@@ -71,7 +71,7 @@ public class HSetHandler extends BaseHashHandler implements Handler {
                 hashValue = (HashValue) retrieved;
             }
             for (FieldValuePair fieldValuePair : hsetMessage.getFieldValuePairs()) {
-                HashField oldHashField = hashValue.put(fieldValuePair.getField(), fieldValuePair.getValue());
+                HashFieldValue oldHashField = hashValue.put(fieldValuePair.getField(), fieldValuePair.getValue());
                 if (oldHashField == null) {
                     total++;
                 }
