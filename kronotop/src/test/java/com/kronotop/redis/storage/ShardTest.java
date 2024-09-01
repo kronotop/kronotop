@@ -17,6 +17,7 @@
 package com.kronotop.redis.storage;
 
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
+import com.kronotop.redis.string.StringValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -49,9 +50,9 @@ public class ShardTest extends BaseStorageTest {
 
     @Test
     public void test_put() {
-        shard.storage().put("foo", "bar");
+        shard.storage().put("foo", new StringValue("bar".getBytes()));
         shard.setReadOnly(true);
-        ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.storage().put("boo", "foo"));
+        ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.storage().put("boo", new StringValue("foo".getBytes())));
         assertNotNull(expected);
     }
 
@@ -65,7 +66,7 @@ public class ShardTest extends BaseStorageTest {
     @Test
     public void test_remove_with_value() {
         shard.setReadOnly(true);
-        ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.storage().remove("boo", "foo"));
+        ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.storage().remove("boo", new StringValue("foo".getBytes())));
         assertNotNull(expected);
     }
 
@@ -84,7 +85,7 @@ public class ShardTest extends BaseStorageTest {
         shard.setReadOnly(true);
         ShardReadOnlyException expected = assertThrows(
                 ShardReadOnlyException.class,
-                () -> shard.storage().computeIfAbsent("boo", (key) -> key)
+                () -> shard.storage().computeIfAbsent("boo", (key) -> new StringValue("foo".getBytes()))
         );
         assertNotNull(expected);
     }
