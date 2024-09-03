@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class TypeHandlerTest extends BaseHandlerTest {
     @Test
-    public void testTYPE_none() {
+    public void test_TYPE_none() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.type("mykey").encode(buf);
@@ -43,7 +43,7 @@ public class TypeHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testTYPE() {
+    public void test_TYPE() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();

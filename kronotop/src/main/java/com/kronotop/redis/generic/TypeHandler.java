@@ -18,6 +18,7 @@ package com.kronotop.redis.generic;
 
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.redis.string.StringValue;
 import com.kronotop.redis.generic.protocol.TypeMessage;
 import com.kronotop.redis.storage.RedisShard;
@@ -48,24 +49,21 @@ public class TypeHandler extends BaseHandler implements Handler {
 
         RedisShard shard = service.findShard(typeMessage.getKey());
 
-        Object retrieved;
+        RedisValueContainer container;
         ReadWriteLock lock = shard.striped().get(typeMessage.getKey());
         try {
             lock.readLock().lock();
-            retrieved = shard.storage().get(typeMessage.getKey());
+            container = shard.storage().get(typeMessage.getKey());
         } finally {
             lock.readLock().unlock();
         }
 
-        if (retrieved == null) {
+        if (container == null) {
             response.writeSimpleString("none");
             return;
         }
 
-        if (retrieved instanceof StringValue) {
-            response.writeSimpleString("string");
-        } else {
-            response.writeError("unknown type");
-        }
+        String dataStructureType = container.kind().toString().toLowerCase();
+        response.writeSimpleString(dataStructureType);
     }
 }
