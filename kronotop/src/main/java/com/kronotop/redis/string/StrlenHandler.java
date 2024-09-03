@@ -18,6 +18,8 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.redis.string.protocol.StrlenMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -25,6 +27,8 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(StrlenMessage.COMMAND)
 @MaximumParameterCount(StrlenMessage.MAXIMUM_PARAMETER_COUNT)
@@ -44,22 +48,20 @@ public class StrlenHandler extends BaseStringHandler implements Handler {
         StrlenMessage strlenMessage = request.attr(MessageTypes.STRLEN).get();
 
         RedisShard shard = service.findShard(strlenMessage.getKey());
-        Object received;
+        RedisValueContainer container;
         ReadWriteLock lock = shard.striped().get(strlenMessage.getKey());
         try {
             lock.readLock().lock();
-            received = shard.storage().get(strlenMessage.getKey());
+            container = shard.storage().get(strlenMessage.getKey());
         } finally {
             lock.readLock().unlock();
         }
 
-        if (received == null) {
+        if (container == null) {
             response.writeInteger(0);
             return;
         }
-        if (!(received instanceof StringValue stringValue)) {
-            throw new WrongTypeException();
-        }
-        response.writeInteger(stringValue.value().length);
+        checkRedisValueKind(container, RedisValueKind.STRING);
+        response.writeInteger(container.string().value().length);
     }
 }

@@ -18,12 +18,11 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.AppendMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -67,18 +66,21 @@ public class AppendHandler extends BaseStringHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(appendMessage.getKey());
         try {
             lock.writeLock().lock();
-            shard.storage().compute(appendMessage.getKey(), (key, oldValue) -> {
-                if (oldValue != null) {
-                    StringValue value = (StringValue) oldValue;
+            shard.storage().compute(appendMessage.getKey(), (key, container) -> {
+                if (container != null) {
+                    if (!container.kind().equals(RedisValueKind.STRING)) {
+                        throw new WrongTypeException();
+                    }
+                    StringValue value = container.string();
                     ByteArrayOutputStream output = new ByteArrayOutputStream();
                     output.writeBytes(value.value());
                     output.writeBytes(appendMessage.getValue());
                     result.set(output.size());
-                    return new StringValue(output.toByteArray());
+                    return new RedisValueContainer(new StringValue(output.toByteArray()));
                 } else {
                     shard.index().add(appendMessage.getKey());
                     result.set(appendMessage.getValue().length);
-                    return new StringValue(appendMessage.getValue());
+                    return new RedisValueContainer(new StringValue(appendMessage.getValue()));
                 }
             });
         } finally {

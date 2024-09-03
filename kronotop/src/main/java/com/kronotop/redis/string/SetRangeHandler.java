@@ -18,6 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.SetRangeMessage;
 import com.kronotop.server.Handler;
@@ -68,8 +69,8 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(setRangeMessage.getKey());
         try {
             lock.writeLock().lock();
-            shard.storage().compute(setRangeMessage.getKey(), (key, oldValue) -> {
-                if (oldValue == null) {
+            shard.storage().compute(setRangeMessage.getKey(), (key, container) -> {
+                if (container == null) {
                     int offset = setRangeMessage.getOffset();
                     ByteArrayOutputStream output = new ByteArrayOutputStream();
                     byte[] padding = new byte[offset];
@@ -77,23 +78,22 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
                     output.writeBytes(setRangeMessage.getValue());
                     result.set(output.size());
                     shard.index().add(setRangeMessage.getKey());
-                    return new StringValue(output.toByteArray());
+                    return new RedisValueContainer(new StringValue(output.toByteArray()));
                 }
 
-                StringValue value = (StringValue) oldValue;
-                int size = value.value().length;
-                int overflowSize = value.value().length - (setRangeMessage.getOffset() + setRangeMessage.getValue().length);
+                int size = container.string().value().length;
+                int overflowSize = container.string().value().length - (setRangeMessage.getOffset() + setRangeMessage.getValue().length);
                 if (overflowSize < 0) {
                     size += Math.abs(overflowSize);
                 }
                 byte[] data = new byte[size];
                 ByteBuffer buf = ByteBuffer.wrap(data);
-                buf.put(value.value());
+                buf.put(container.string().value());
                 buf.position(setRangeMessage.getOffset());
                 buf.put(setRangeMessage.getValue());
 
                 result.set(size);
-                return new StringValue(buf.array());
+                return new RedisValueContainer(new StringValue(buf.array()));
             });
         } finally {
             lock.writeLock().unlock();

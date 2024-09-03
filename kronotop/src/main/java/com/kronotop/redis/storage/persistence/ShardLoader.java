@@ -61,18 +61,18 @@ public final class ShardLoader {
             range = new Range(subspace.pack(), ByteArrayUtil.strinc(subspace.pack()));
         }
 
-        String key = subspace.getPath().get(subspace.getPath().size() - 1);
+        String key = subspace.getPath().getLast();
         HashValue hashValue;
-        Object retrieved = shard.storage().get(key);
-        if (retrieved == null) {
+        RedisValueContainer container = shard.storage().get(key);
+        if (container == null) {
             hashValue = new HashValue();
-            shard.storage().put(key, hashValue);
+            shard.storage().put(key, new RedisValueContainer(hashValue));
         } else {
-            if (!(retrieved instanceof HashValue)) {
+            if (!(container.kind().equals(RedisValueKind.HASH))) {
                 // TODO: add key to the error message
                 throw new WrongTypeException();
             }
-            hashValue = (HashValue) retrieved;
+            hashValue = container.hash();
         }
         AsyncIterable<KeyValue> asyncIterable = tr.snapshot().getRange(range);
         for (KeyValue keyValue : asyncIterable) {
@@ -121,7 +121,7 @@ public final class ShardLoader {
                 shard.storage().computeIfAbsent(key, (k) -> {
                     shard.index().add(k);
                     shard.index().flush();
-                    return stringPack.stringValue();
+                    return new RedisValueContainer(stringPack.stringValue());
                 });
             } catch (IOException e) {
                 throw new RuntimeException(e);

@@ -20,6 +20,8 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HDelMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -27,6 +29,8 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HDelMessage.COMMAND)
 @MinimumParameterCount(HDelMessage.MINIMUM_PARAMETER_COUNT)
@@ -60,22 +64,20 @@ public class HDelHandler extends BaseHashHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(hdelMessage.getKey());
         lock.writeLock().lock();
         try {
-            Object retrieved = shard.storage().get(hdelMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hdelMessage.getKey());
+            if (container == null) {
                 response.writeInteger(0);
                 return;
             }
-            if (!(retrieved instanceof HashValue hashValue)) {
-                throw new WrongTypeException();
-            }
+            checkRedisValueKind(container, RedisValueKind.HASH);
 
             for (FieldValuePair fieldValuePair : hdelMessage.getFieldValuePairs()) {
-                HashFieldValue field = hashValue.remove(fieldValuePair.getField());
+                HashFieldValue field = container.hash().remove(fieldValuePair.getField());
                 if (field.value() != null) {
                     total++;
                 }
             }
-            if (hashValue.isEmpty()) {
+            if (container.hash().isEmpty()) {
                 shard.storage().remove(hdelMessage.getKey());
             }
         } finally {

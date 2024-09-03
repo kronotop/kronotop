@@ -18,6 +18,7 @@ package com.kronotop.redis.storage;
 
 import com.kronotop.ServiceContext;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.redis.string.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.StringKey;
@@ -29,7 +30,7 @@ public class ShardMaintenanceWorkerTest extends BaseStorageTest {
     @Test
     public void testRun() {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
-        shard.storage().put("key-1", new StringValue("value-1".getBytes(), 0));
+        shard.storage().put("key-1", new RedisValueContainer(new StringValue("value-1".getBytes(), 0L)));
         shard.persistenceQueue().add(new StringKey("key-1"));
 
         ServiceContext<RedisShard> redisContext = context.getServiceContext(RedisService.NAME);

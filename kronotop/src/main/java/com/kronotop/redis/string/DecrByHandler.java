@@ -20,12 +20,11 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.DecrByMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -34,6 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(DecrByMessage.COMMAND)
 @MaximumParameterCount(DecrByMessage.MAXIMUM_PARAMETER_COUNT)
@@ -68,12 +69,12 @@ public class DecrByHandler extends BaseStringHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(decrByMessage.getKey());
         try {
             lock.writeLock().lock();
-            shard.storage().compute(decrByMessage.getKey(), (key, oldValue) -> {
+            shard.storage().compute(decrByMessage.getKey(), (key, container) -> {
                 int currentValue = 0;
-                if (oldValue != null) {
-                    StringValue value = (StringValue) oldValue;
+                if (container != null) {
+                    checkRedisValueKind(container, RedisValueKind.STRING);
                     try {
-                        currentValue = Integer.parseInt(new String(value.value()));
+                        currentValue = Integer.parseInt(new String(container.string().value()));
                     } catch (NumberFormatException e) {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                     }
@@ -83,7 +84,8 @@ public class DecrByHandler extends BaseStringHandler implements Handler {
                 }
                 currentValue -= decrByMessage.getDecrement();
                 result.set(currentValue);
-                return new StringValue(Integer.toString(currentValue).getBytes());
+                StringValue value = new StringValue(Integer.toString(currentValue).getBytes());
+                return new RedisValueContainer(value);
             });
         } finally {
             lock.writeLock().unlock();

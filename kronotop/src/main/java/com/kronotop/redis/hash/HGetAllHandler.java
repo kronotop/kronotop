@@ -20,6 +20,8 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HGetAllMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -32,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HGetAllMessage.COMMAND)
 @MinimumParameterCount(HGetAllMessage.MINIMUM_PARAMETER_COUNT)
@@ -55,23 +59,21 @@ public class HGetAllHandler extends BaseHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(hgetallMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.storage().get(hgetallMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hgetallMessage.getKey());
+            if (container == null) {
                 response.writeArray(result);
                 return;
             }
-            if (!(retrieved instanceof HashValue hashValue)) {
-                throw new WrongTypeException();
-            }
+            checkRedisValueKind(container, RedisValueKind.HASH);
 
-            Enumeration<String> fields = hashValue.keys();
+            Enumeration<String> fields = container.hash().keys();
             while (fields.hasMoreElements()) {
                 String field = fields.nextElement();
                 ByteBuf fieldBuf = response.getChannelContext().alloc().buffer();
                 fieldBuf.writeBytes(field.getBytes());
                 result.add(new FullBulkStringRedisMessage(fieldBuf));
 
-                HashFieldValue hashField = hashValue.get(field);
+                HashFieldValue hashField = container.hash().get(field);
                 ByteBuf valueBuf = response.getChannelContext().alloc().buffer();
                 valueBuf.writeBytes(hashField.value());
                 result.add(new FullBulkStringRedisMessage(valueBuf));

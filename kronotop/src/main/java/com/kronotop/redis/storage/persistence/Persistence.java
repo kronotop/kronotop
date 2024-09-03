@@ -78,17 +78,17 @@ public class Persistence {
             ReadWriteLock lock = shard.striped().get(key.data());
             lock.readLock().lock();
             try {
-                Object latestValue = shard.storage().get(key.data());
-                if (latestValue == null) {
+                RedisValueContainer container = shard.storage().get(key.data());
+                if (container == null) {
                     // TODO: We need to find a way to remove keys from shard's volume
                     continue;
                 }
                 if (key.kind() == KeyKind.STRING) {
-                    StringPack stringPack = new StringPack(key.data(), (StringValue) latestValue);
+                    StringPack stringPack = new StringPack(key.data(), container.string());
                     session.pack(stringPack);
                 } else if (key.kind() == KeyKind.HASH) {
                     HashKey hashKey = (HashKey) key;
-                    HashFieldPack hashFieldPack = new HashFieldPack(hashKey.data(), hashKey.getField(), (HashFieldValue) latestValue);
+                    HashFieldPack hashFieldPack = new HashFieldPack(hashKey.data(), hashKey.getField(), container.hashField());
                     session.pack(hashFieldPack);
                 } else {
                     LOGGER.warn("Unknown value type for key: {}", key.data());

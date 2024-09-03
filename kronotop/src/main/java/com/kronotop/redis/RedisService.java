@@ -44,12 +44,11 @@ import com.kronotop.redis.storage.ShardMaintenanceWorker;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.redis.string.*;
 import com.kronotop.redis.transactions.*;
-import com.kronotop.server.ChannelAttributes;
-import com.kronotop.server.CommandAlreadyRegisteredException;
-import com.kronotop.server.Handlers;
-import com.kronotop.server.Request;
+import com.kronotop.server.*;
 import com.kronotop.watcher.Watcher;
 import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.ChannelHandlerContext;
@@ -439,5 +438,11 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         ranges.add(currentRange);
 
         return ranges;
+    }
+
+    public static void checkRedisValueKind(RedisValueContainer container, RedisValueKind kind) {
+        if (!container.kind().equals(kind)) {
+            throw new WrongTypeException();
+        }
     }
 }

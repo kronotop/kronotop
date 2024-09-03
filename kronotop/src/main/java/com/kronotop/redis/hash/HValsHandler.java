@@ -20,6 +20,8 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HValsMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -32,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HValsMessage.COMMAND)
 @MinimumParameterCount(HValsMessage.MINIMUM_PARAMETER_COUNT)
@@ -55,16 +59,14 @@ public class HValsHandler extends BaseHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(hvalsMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.storage().get(hvalsMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hvalsMessage.getKey());
+            if (container == null) {
                 response.writeArray(result);
                 return;
             }
-            if (!(retrieved instanceof HashValue hashValue)) {
-                throw new WrongTypeException();
-            }
+            checkRedisValueKind(container, RedisValueKind.HASH);
 
-            Collection<HashFieldValue> hashFields = hashValue.values();
+            Collection<HashFieldValue> hashFields = container.hash().values();
             for (HashFieldValue hashField : hashFields) {
                 ByteBuf buf = response.getChannelContext().alloc().buffer();
                 buf.writeBytes(hashField.value());

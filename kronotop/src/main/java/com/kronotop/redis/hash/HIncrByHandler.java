@@ -33,6 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
 
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
+
 @Command(HIncrByMessage.COMMAND)
 @MinimumParameterCount(HIncrByMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(HIncrByMessage.MAXIMUM_PARAMETER_COUNT)
@@ -71,9 +73,7 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
                 hashValue = new HashValue();
                 shard.storage().put(hincrbyMessage.getKey(), new RedisValueContainer(hashValue));
             } else {
-                if (!container.kind().equals(RedisValueKind.HASH)) {
-                    throw new WrongTypeException();
-                }
+                checkRedisValueKind(container, RedisValueKind.HASH);
                 hashValue = container.hash();
             }
 

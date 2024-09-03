@@ -20,6 +20,8 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HGetMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -28,6 +30,8 @@ import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HGetMessage.COMMAND)
 @MinimumParameterCount(HGetMessage.MINIMUM_PARAMETER_COUNT)
@@ -50,16 +54,14 @@ public class HGetHandler extends BaseHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(hgetMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.storage().get(hgetMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hgetMessage.getKey());
+            if (container == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;
             }
-            if (!(retrieved instanceof HashValue hashValue)) {
-                throw new WrongTypeException();
-            }
+            checkRedisValueKind(container, RedisValueKind.HASH);
 
-            HashFieldValue hashField = hashValue.get(hgetMessage.getField());
+            HashFieldValue hashField = container.hash().get(hgetMessage.getField());
             if (hashField == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;

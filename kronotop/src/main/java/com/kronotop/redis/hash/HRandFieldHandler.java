@@ -20,6 +20,8 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HRandFieldMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -30,6 +32,8 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.*;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HRandFieldMessage.COMMAND)
 @MinimumParameterCount(HRandFieldMessage.MINIMUM_PARAMETER_COUNT)
@@ -100,19 +104,17 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(hrandfieldMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.storage().get(hrandfieldMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hrandfieldMessage.getKey());
+            if (container == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;
             }
-            if (!(retrieved instanceof HashValue hashValue)) {
-                throw new WrongTypeException();
-            }
+            checkRedisValueKind(container, RedisValueKind.HASH);
 
             if (hrandfieldMessage.getCount() == null) {
-                bulkReply = prepareBulkReply(response, hashValue);
+                bulkReply = prepareBulkReply(response, container.hash());
             } else {
-                arrayReply = prepareArrayReply(response, hrandfieldMessage, hashValue);
+                arrayReply = prepareArrayReply(response, hrandfieldMessage, container.hash());
             }
         } finally {
             lock.readLock().unlock();

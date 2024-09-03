@@ -19,22 +19,22 @@ package com.kronotop.redis.string;
 import com.kronotop.redis.storage.persistence.BaseRedisValue;
 
 public class StringValue extends BaseRedisValue<byte[]> {
-    private Long ttl;
+    private long ttl;
 
     public StringValue(byte[] value) {
         super(value);
     }
 
-    public StringValue(byte[] value, Long ttl) {
+    public StringValue(byte[] value, long ttl) {
         this(value);
         this.ttl = ttl;
     }
 
-    public Long ttl() {
+    public long ttl() {
         return ttl;
     }
 
-    public void setTTL(Long ttl) {
+    public void setTTL(long ttl) {
         this.ttl = ttl;
     }
 }

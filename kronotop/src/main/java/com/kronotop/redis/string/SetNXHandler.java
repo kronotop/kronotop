@@ -18,6 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.string.protocol.SetNXMessage;
 import com.kronotop.server.Handler;
@@ -60,22 +61,22 @@ public class SetNXHandler extends BaseStringHandler implements Handler {
         SetNXMessage setnxMessage = request.attr(MessageTypes.SETNX).get();
 
         RedisShard shard = service.findShard(setnxMessage.getKey());
-        Object result;
+        RedisValueContainer container;
         ReadWriteLock lock = shard.striped().get(setnxMessage.getKey());
         try {
             lock.writeLock().lock();
-            result = shard.storage().putIfAbsent(
+            container = shard.storage().putIfAbsent(
                     setnxMessage.getKey(),
-                    new StringValue(setnxMessage.getValue())
+                    new RedisValueContainer(new StringValue(setnxMessage.getValue()))
             );
-            if (result == null) {
+            if (container == null) {
                 shard.index().add(setnxMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();
         }
 
-        if (result == null) {
+        if (container == null) {
             response.writeInteger(1);
         } else {
             response.writeInteger(0);

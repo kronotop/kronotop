@@ -22,6 +22,8 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HIncrByFloatMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -31,6 +33,8 @@ import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HIncrByFloatMessage.COMMAND)
 @MinimumParameterCount(HIncrByFloatMessage.MINIMUM_PARAMETER_COUNT)
@@ -65,15 +69,13 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
         double newValue;
         try {
             HashValue hashValue;
-            Object retrieved = shard.storage().get(hincrbyfloatMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hincrbyfloatMessage.getKey());
+            if (container == null) {
                 hashValue = new HashValue();
-                shard.storage().put(hincrbyfloatMessage.getKey(), hashValue);
+                shard.storage().put(hincrbyfloatMessage.getKey(), new RedisValueContainer(hashValue));
             } else {
-                if (!(retrieved instanceof HashValue)) {
-                    throw new WrongTypeException();
-                }
-                hashValue = (HashValue) retrieved;
+                checkRedisValueKind(container, RedisValueKind.HASH);
+                hashValue = container.hash();
             }
 
             FieldValuePair fieldValuePair = hincrbyfloatMessage.getFieldValuePairs().getFirst();

@@ -17,12 +17,9 @@
 package com.kronotop.redis.storage;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.redis.storage.persistence.*;
 import com.kronotop.redis.string.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
-import com.kronotop.redis.storage.persistence.DataStructure;
-import com.kronotop.redis.storage.persistence.Persistence;
-import com.kronotop.redis.storage.persistence.ShardLoader;
-import com.kronotop.redis.storage.persistence.StringKey;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,7 +32,7 @@ public class ShardLoaderTest extends BaseStorageTest {
         for (int i = 0; i < 10; i++) {
             String key = String.format("key-%d", i);
             String value = String.format("value-%d", i);
-            shard.storage().put(key, new StringValue(value.getBytes(), 0));
+            shard.storage().put(key, new RedisValueContainer(new StringValue(value.getBytes(), 0L)));
             shard.persistenceQueue().add(new StringKey(key));
         }
 

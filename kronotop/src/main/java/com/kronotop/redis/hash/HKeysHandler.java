@@ -20,6 +20,8 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HKeysMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -32,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HKeysMessage.COMMAND)
 @MinimumParameterCount(HKeysMessage.MINIMUM_PARAMETER_COUNT)
@@ -55,16 +59,14 @@ public class HKeysHandler extends BaseHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(hkeysMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.storage().get(hkeysMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hkeysMessage.getKey());
+            if (container == null) {
                 response.writeArray(fields);
                 return;
             }
-            if (!(retrieved instanceof HashValue hashValue)) {
-                throw new WrongTypeException();
-            }
+            checkRedisValueKind(container, RedisValueKind.HASH);
 
-            Enumeration<String> keys = hashValue.keys();
+            Enumeration<String> keys = container.hash().keys();
             while (keys.hasMoreElements()) {
                 ByteBuf buf = response.getChannelContext().alloc().buffer();
                 buf.writeBytes(keys.nextElement().getBytes());

@@ -19,7 +19,7 @@ package com.kronotop.redis.hash;
 import com.kronotop.redis.storage.persistence.BaseRedisValue;
 
 public class HashFieldValue extends BaseRedisValue<byte[]> {
-    private Long ttl;
+    private long ttl;
 
     public HashFieldValue(byte[] value) {
         super(value);
@@ -30,11 +30,11 @@ public class HashFieldValue extends BaseRedisValue<byte[]> {
         this.ttl = ttl;
     }
 
-    public Long ttl() {
+    public long ttl() {
         return ttl;
     }
 
-    public void setTTL(Long ttl) {
+    public void setTTL(long ttl) {
         this.ttl = ttl;
     }
 }

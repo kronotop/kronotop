@@ -37,7 +37,7 @@ public class PersistenceTest extends BaseStorageTest {
     @Test
     public void test_STRING() {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
-        shard.storage().put("key-1", new StringValue("value-1".getBytes(), 0));
+        shard.storage().put("key-1", new RedisValueContainer(new StringValue("value-1".getBytes(), 0L)));
         shard.persistenceQueue().add(new StringKey("key-1"));
 
         Persistence persistence = new Persistence(context, shard);
@@ -68,7 +68,7 @@ public class PersistenceTest extends BaseStorageTest {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
         HashValue hashValue = new HashValue();
         hashValue.put("field-name", new HashFieldValue("value".getBytes()));
-        shard.storage().put("hash-name", hashValue);
+        shard.storage().put("hash-name", new RedisValueContainer(hashValue));
         HashKey hashKey = new HashKey("hash-name", "field-name");
         shard.persistenceQueue().add(hashKey);
 

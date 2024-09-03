@@ -20,6 +20,8 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HSetNXMessage;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -28,6 +30,8 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HSetNXMessage.COMMAND)
 @MaximumParameterCount(HSetNXMessage.MAXIMUM_PARAMETER_COUNT)
@@ -62,17 +66,15 @@ public class HSetNXHandler extends BaseHashHandler implements Handler {
         int result = 0;
         try {
             HashValue hashValue;
-            Object retrieved = shard.storage().get(hsetnxMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hsetnxMessage.getKey());
+            if (container == null) {
                 hashValue = new HashValue();
-                shard.storage().put(hsetnxMessage.getKey(), hashValue);
+                shard.storage().put(hsetnxMessage.getKey(), new RedisValueContainer(hashValue));
             } else {
-                if (!(retrieved instanceof HashValue)) {
-                    throw new WrongTypeException();
-                }
-                hashValue = (HashValue) retrieved;
+                checkRedisValueKind(container, RedisValueKind.HASH);
+                hashValue = container.hash();
             }
-            FieldValuePair fieldValuePair = hsetnxMessage.getFieldValuePairs().get(0);
+            FieldValuePair fieldValuePair = hsetnxMessage.getFieldValuePairs().getFirst();
             boolean exists = hashValue.containsKey(fieldValuePair.getField());
             if (!exists) {
                 hashValue.put(fieldValuePair.getField(), fieldValuePair.getValue());
