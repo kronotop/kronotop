@@ -40,6 +40,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -207,8 +209,10 @@ public class MembershipService implements KronotopService {
         long lastHeartbeat = 0;
         try {
             DirectorySubspace subspace = memberSubspaces.get(member);
-            byte[] rawLastHeartbeat = tr.get(subspace.pack(Keys.LAST_HEARTBEAT.toString())).join();
-            lastHeartbeat = ByteUtils.toLong(rawLastHeartbeat);
+            byte[] data = tr.get(subspace.pack(Keys.LAST_HEARTBEAT.toString())).join();
+            if (data != null) {
+                lastHeartbeat = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
+            }
         } catch (CompletionException e) {
             if (!(e.getCause() instanceof NoSuchDirectoryException)) {
                 throw new NoSuchMemberException(String.format("No such member: %s", member.getAddress()));
@@ -636,6 +640,8 @@ public class MembershipService implements KronotopService {
      * This task is responsible for updating the last heartbeat timestamp of a member in the cluster.
      */
     private class HeartbeatTask implements Runnable {
+        private static final byte[] HEARTBEAT_DELTA = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1, byte order: little-endian
+
         @Override
         public void run() {
             if (isShutdown) {
@@ -643,7 +649,7 @@ public class MembershipService implements KronotopService {
             }
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 DirectorySubspace subspace = memberSubspaces.get(context.getMember());
-                tr.mutate(MutationType.ADD, subspace.pack(Keys.LAST_HEARTBEAT.toString()), ByteUtils.fromLong(1L));
+                tr.mutate(MutationType.ADD, subspace.pack(Keys.LAST_HEARTBEAT.toString()), HEARTBEAT_DELTA);
                 tr.commit().join();
             } catch (Exception e) {
                 LOGGER.error("Error while running heartbeat task", e);

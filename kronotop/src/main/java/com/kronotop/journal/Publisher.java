@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class Publisher {
     private static final Logger LOGGER = LoggerFactory.getLogger(Publisher.class);
+    private static final byte[] TRIGGER_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private final Database database;
     private final LoadingCache<String, JournalMetadata> cache;
     private final LoadingCache<Long, AtomicInteger> userVersions;
@@ -73,7 +74,7 @@ public class Publisher {
             Tuple tuple = Tuple.from(Versionstamp.incomplete(userVersion));
 
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), data);
-            tr.mutate(MutationType.ADD, journalMetadata.getTrigger(), ByteUtils.fromLong(1L));
+            tr.mutate(MutationType.ADD, journalMetadata.getTrigger(), TRIGGER_DELTA);
 
             return new VersionstampContainer(tr.getVersionstamp(), userVersion);
         } catch (Exception e) {
