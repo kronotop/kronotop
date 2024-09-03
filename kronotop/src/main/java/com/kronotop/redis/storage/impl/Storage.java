@@ -18,14 +18,14 @@ package com.kronotop.redis.storage.impl;
 
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.ShardReadOnlyException;
-import com.kronotop.redis.storage.persistence.RedisValue;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class Storage extends ConcurrentHashMap<String, RedisValue> {
+public class Storage extends ConcurrentHashMap<String, RedisValueContainer> {
     private final RedisShard shard;
 
     public Storage(RedisShard shard) {
@@ -33,7 +33,7 @@ public class Storage extends ConcurrentHashMap<String, RedisValue> {
     }
 
     @Override
-    public RedisValue put(@Nonnull String key, @Nonnull RedisValue value) {
+    public RedisValueContainer put(@Nonnull String key, @Nonnull RedisValueContainer value) {
         if (shard.isReadOnly()) {
             throw new ShardReadOnlyException(shard.id());
         }
@@ -41,7 +41,7 @@ public class Storage extends ConcurrentHashMap<String, RedisValue> {
     }
 
     @Override
-    public RedisValue remove(@Nonnull Object key) {
+    public RedisValueContainer remove(@Nonnull Object key) {
         if (shard.isReadOnly()) {
             throw new ShardReadOnlyException(shard.id());
         }
@@ -57,7 +57,7 @@ public class Storage extends ConcurrentHashMap<String, RedisValue> {
     }
 
     @Override
-    public RedisValue compute(String key, @Nonnull BiFunction<? super String, ? super RedisValue, ? extends RedisValue> remappingFunction) {
+    public RedisValueContainer compute(String key, @Nonnull BiFunction<? super String, ? super RedisValueContainer, ? extends RedisValueContainer> remappingFunction) {
         if (shard.isReadOnly()) {
             throw new ShardReadOnlyException(shard.id());
         }
@@ -65,7 +65,7 @@ public class Storage extends ConcurrentHashMap<String, RedisValue> {
     }
 
     @Override
-    public RedisValue computeIfAbsent(String key, @Nonnull Function<? super String, ? extends RedisValue> mappingFunction) {
+    public RedisValueContainer computeIfAbsent(String key, @Nonnull Function<? super String, ? extends RedisValueContainer> mappingFunction) {
         if (shard.isReadOnly()) {
             throw new ShardReadOnlyException(shard.id());
         }

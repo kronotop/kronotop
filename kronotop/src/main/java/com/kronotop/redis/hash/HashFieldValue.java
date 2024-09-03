@@ -16,53 +16,25 @@
 
 package com.kronotop.redis.hash;
 
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.redis.storage.persistence.RedisValue;
+import com.kronotop.redis.storage.persistence.BaseRedisValue;
 
-public class HashFieldValue implements RedisValue {
-    private byte[] value;
-    private Versionstamp versionstamp;
+public class HashFieldValue extends BaseRedisValue<byte[]> {
     private Long ttl;
 
     public HashFieldValue(byte[] value) {
-        this(value, 0);
+        super(value);
     }
 
     public HashFieldValue(byte[] value, long ttl) {
-        this(value, ttl, null);
-    }
-
-    public HashFieldValue(byte[] value, long ttl, Versionstamp versionstamp) {
-        this.value = value;
+        this(value);
         this.ttl = ttl;
-        this.versionstamp = versionstamp;
     }
 
     public Long ttl() {
         return ttl;
     }
 
-    public void setTtl(Long ttl) {
+    public void setTTL(Long ttl) {
         this.ttl = ttl;
-    }
-
-    @Override
-    public byte[] value() {
-        return value;
-    }
-
-    @Override
-    public void setValue(byte[] value) {
-        this.value = value;
-    }
-
-    @Override
-    public Versionstamp versionstamp() {
-        return versionstamp;
-    }
-
-    @Override
-    public void setVersionstamp(Versionstamp versionstamp) {
-        this.versionstamp = versionstamp;
     }
 }

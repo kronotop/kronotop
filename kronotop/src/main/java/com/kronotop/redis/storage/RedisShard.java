@@ -20,7 +20,7 @@ import com.google.common.util.concurrent.Striped;
 import com.kronotop.cluster.sharding.Shard;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
-import com.kronotop.redis.storage.persistence.RedisValue;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.volume.Volume;
 
 import java.util.concurrent.ConcurrentMap;
@@ -32,7 +32,7 @@ import java.util.concurrent.locks.ReadWriteLock;
  */
 public interface RedisShard extends Shard {
 
-    ConcurrentMap<String, RedisValue> storage();
+    ConcurrentMap<String, RedisValueContainer> storage();
 
     /**
      * Checks if the shard is read-only.

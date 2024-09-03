@@ -25,7 +25,7 @@ import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
-import com.kronotop.redis.storage.persistence.RedisValue;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeConfig;
 import com.typesafe.config.Config;
@@ -43,7 +43,7 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     private final Index index;
     private final PersistenceQueue persistenceQueue;
     private final Striped<ReadWriteLock> striped = Striped.lazyWeakReadWriteLock(271);
-    private final ConcurrentMap<String, RedisValue> storage;
+    private final ConcurrentMap<String, RedisValueContainer> storage;
     private final Volume volume;
     private volatile boolean readOnly;
     private volatile boolean operable;
@@ -81,7 +81,7 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     }
 
     @Override
-    public ConcurrentMap<String, RedisValue> storage() {
+    public ConcurrentMap<String, RedisValueContainer> storage() {
         return storage;
     }
 

@@ -22,7 +22,8 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HIncrByMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValue;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -65,15 +66,15 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
         long newValue;
         try {
             HashValue hashValue;
-            RedisValue retrieved = shard.storage().get(hincrbyMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hincrbyMessage.getKey());
+            if (container == null) {
                 hashValue = new HashValue();
-                shard.storage().put(hincrbyMessage.getKey(), hashValue);
+                shard.storage().put(hincrbyMessage.getKey(), new RedisValueContainer(hashValue));
             } else {
-                if (!(retrieved instanceof HashValue)) {
+                if (!container.kind().equals(RedisValueKind.HASH)) {
                     throw new WrongTypeException();
                 }
-                hashValue = (HashValue) retrieved;
+                hashValue = container.hash();
             }
 
             FieldValuePair fieldValuePair = hincrbyMessage.getFieldValuePairs().getFirst();

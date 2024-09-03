@@ -16,52 +16,25 @@
 
 package com.kronotop.redis.string;
 
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.redis.storage.persistence.RedisValue;
+import com.kronotop.redis.storage.persistence.BaseRedisValue;
 
-/**
- * The StringValue class represents a string value stored as a byte array.
- * It can be decoded from and encoded into a byte array using MessagePack serialization.
- */
-public class StringValue implements RedisValue {
-    private byte[] value;
+public class StringValue extends BaseRedisValue<byte[]> {
     private Long ttl;
-    private Versionstamp versionstamp;
 
     public StringValue(byte[] value) {
-        this(value, 0);
+        super(value);
     }
 
-    public StringValue(byte[] value, long ttl) {
-        this.value = value;
+    public StringValue(byte[] value, Long ttl) {
+        this(value);
         this.ttl = ttl;
-    }
-
-    @Override
-    public byte[] value() {
-        return value;
-    }
-
-    @Override
-    public void setValue(byte[] value) {
-        this.value = value;
-    }
-
-    @Override
-    public Versionstamp versionstamp() {
-        return versionstamp;
-    }
-
-    @Override
-    public void setVersionstamp(Versionstamp versionstamp) {
-        this.versionstamp = versionstamp;
     }
 
     public Long ttl() {
         return ttl;
     }
 
-    public void setTtl(Long ttl) {
+    public void setTTL(Long ttl) {
         this.ttl = ttl;
     }
 }

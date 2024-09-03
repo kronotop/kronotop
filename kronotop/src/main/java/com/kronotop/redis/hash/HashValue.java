@@ -16,53 +16,7 @@
 
 package com.kronotop.redis.hash;
 
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.redis.storage.persistence.RedisValue;
-
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Represents a concurrent HashMap where the keys are of type String and the values are byte arrays.
- * It extends the ConcurrentHashMap class to provide thread-safe operations on the map.
- */
-public class HashValue extends ConcurrentHashMap<String, HashFieldValue> implements RedisValue {
-    /**
-     * Retrieves the value stored in the RedisValue as a byte array.
-     *
-     * @return the value as a byte array.
-     */
-    @Override
-    public byte[] value() {
-        return new byte[0];
-    }
-
-    /**
-     * Sets the value stored in the RedisValue as a byte array.
-     *
-     * @param value the new value to be set as a byte array.
-     */
-    @Override
-    public void setValue(byte[] value) {
-
-    }
-
-    /**
-     * Retrieves the versionstamp associated with the RedisValue.
-     *
-     * @return the versionstamp of the RedisValue.
-     */
-    @Override
-    public Versionstamp versionstamp() {
-        return null;
-    }
-
-    /**
-     * Sets the versionstamp associated with the RedisValue.
-     *
-     * @param versionstamp the new versionstamp to be set.
-     */
-    @Override
-    public void setVersionstamp(Versionstamp versionstamp) {
-
-    }
+public class HashValue extends ConcurrentHashMap<String, HashFieldValue> {
 }
