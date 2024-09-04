@@ -84,17 +84,18 @@ public class Persistence {
                     continue;
                 }
                 appendedKeys.add(key);
-                if (key.kind() == KeyKind.STRING) {
-                    StringPack stringPack = new StringPack(key.data(), container.string());
-                    session.pack(stringPack);
-                } else if (key.kind() == KeyKind.HASH) {
-                    HashKey hashKey = (HashKey) key;
-                    HashFieldPack hashFieldPack = new HashFieldPack(hashKey.data(), hashKey.getField(), container.hashField());
-                    session.pack(hashFieldPack);
-                } else {
-                    LOGGER.warn("Unknown value type for key: {}", key.data());
+                switch (key.kind()) {
+                    case STRING -> {
+                        StringPack stringPack = new StringPack(key.data(), container.string());
+                        session.pack(stringPack);
+                    }
+                    case HASH -> {
+                        HashKey hashKey = (HashKey) key;
+                        HashFieldPack hashFieldPack = new HashFieldPack(hashKey.data(), hashKey.getField(), container.hashField());
+                        session.pack(hashFieldPack);
+                    }
+                    default -> LOGGER.warn("Unknown value type for key: {}", key.data());
                 }
-
             } finally {
                 lock.readLock().unlock();
             }
@@ -108,6 +109,10 @@ public class Persistence {
             lock.writeLock().lock();
             try {
                 RedisValueContainer container = shard.storage().get(key.data());
+                if (container == null) {
+                    // Deleted after persisting it to the shard's volume.
+                    continue;
+                }
                 BaseRedisValue<?> value = container.baseRedisValue();
                 value.setVersionstamp(versionstamp);
             } finally {

@@ -28,8 +28,8 @@ public class HashKey implements Key {
     }
 
     @Override
-    public KeyKind kind() {
-        return KeyKind.HASH;
+    public RedisValueKind kind() {
+        return RedisValueKind.HASH;
     }
 
     @Override

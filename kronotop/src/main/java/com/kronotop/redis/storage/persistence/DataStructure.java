@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.storage.persistence;
 
+// TODO: To be deleted
 public enum DataStructure {
     STRING,
     HASH

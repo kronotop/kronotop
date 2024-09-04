@@ -17,6 +17,6 @@
 package com.kronotop.redis.storage.persistence;
 
 public interface Key {
-    KeyKind kind();
+    RedisValueKind kind();
     String data();
 }
