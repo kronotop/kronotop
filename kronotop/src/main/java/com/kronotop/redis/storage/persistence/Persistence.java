@@ -19,9 +19,7 @@ package com.kronotop.redis.storage.persistence;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.redis.hash.HashFieldValue;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.string.StringValue;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.Session;
 import org.slf4j.Logger;
@@ -29,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
 
@@ -74,6 +73,7 @@ public class Persistence {
      */
     private void persist(List<Key> keys) throws IOException {
         PersistenceSession session = new PersistenceSession(keys.size());
+        List<Key> appendedKeys = new ArrayList<>();
         for (Key key : keys) {
             ReadWriteLock lock = shard.striped().get(key.data());
             lock.readLock().lock();
@@ -83,6 +83,7 @@ public class Persistence {
                     // TODO: We need to find a way to remove keys from shard's volume
                     continue;
                 }
+                appendedKeys.add(key);
                 if (key.kind() == KeyKind.STRING) {
                     StringPack stringPack = new StringPack(key.data(), container.string());
                     session.pack(stringPack);
@@ -92,7 +93,6 @@ public class Persistence {
                     session.pack(hashFieldPack);
                 } else {
                     LOGGER.warn("Unknown value type for key: {}", key.data());
-                    continue;
                 }
 
             } finally {
@@ -100,7 +100,20 @@ public class Persistence {
             }
         }
 
-        session.persist();
+        Versionstamp[] versionstampedKeys = session.persist();
+        int index = 0;
+        for (Versionstamp versionstamp : versionstampedKeys) {
+            Key key = appendedKeys.get(index);
+            ReadWriteLock lock = shard.striped().get(key.data());
+            lock.writeLock().lock();
+            try {
+                RedisValueContainer container = shard.storage().get(key.data());
+                BaseRedisValue<?> value = container.baseRedisValue();
+                value.setVersionstamp(versionstamp);
+            } finally {
+                lock.writeLock().unlock();
+            }
+        }
     }
 
     public void run() {

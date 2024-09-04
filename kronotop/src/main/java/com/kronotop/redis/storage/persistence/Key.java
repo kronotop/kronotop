@@ -18,6 +18,5 @@ package com.kronotop.redis.storage.persistence;
 
 public interface Key {
     KeyKind kind();
-
     String data();
 }

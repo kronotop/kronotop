@@ -56,4 +56,12 @@ public class RedisValueContainer {
     public HashFieldValue hashField() {
         return hashFieldValue;
     }
+
+    public BaseRedisValue<?> baseRedisValue() {
+        return switch (kind) {
+            case STRING -> string();
+            case HASH_FIELD -> hashFieldValue;
+            default -> throw new UnsupportedOperationException();
+        };
+    }
 }
