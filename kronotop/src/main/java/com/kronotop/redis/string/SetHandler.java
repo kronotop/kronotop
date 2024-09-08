@@ -19,7 +19,6 @@ package com.kronotop.redis.string;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.SetMessage;
 import com.kronotop.server.Handler;

@@ -20,9 +20,12 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.redis.storage.persistence.RedisValueKind;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.GetDelMessage;
-import com.kronotop.server.*;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -84,7 +87,7 @@ public class GetDelHandler extends BaseStringHandler implements Handler {
         checkRedisValueKind(container, RedisValueKind.STRING);
         ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(container.string().value());
-        shard.persistenceQueue().add(new StringKey(getDelMessage.getKey()));
+        shard.persistenceQueue().add(new AppendStringJob(getDelMessage.getKey()));
         response.write(buf);
     }
 }

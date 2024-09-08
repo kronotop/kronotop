@@ -19,7 +19,7 @@ package com.kronotop.redis.generic;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.DelMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -78,7 +78,7 @@ public class DelHandler extends BaseGenericHandler implements Handler {
             }
         }
         for (String key : delMessage.getKeys()) {
-            shard.persistenceQueue().add(new StringKey(key));
+            shard.persistenceQueue().add(new AppendStringJob(key));
         }
         response.writeInteger(keysRemoved);
     }

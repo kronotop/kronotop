@@ -18,7 +18,6 @@ package com.kronotop.redis.storage.impl;
 
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.ShardReadOnlyException;
-import com.kronotop.redis.storage.persistence.Key;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
 import com.kronotop.redis.storage.persistence.impl.OnHeapPersistenceQueue;
 import com.kronotop.redis.storage.persistence.jobs.PersistenceJob;

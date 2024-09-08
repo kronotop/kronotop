@@ -21,5 +21,6 @@ import com.kronotop.redis.storage.persistence.PersistenceSession;
 
 public interface PersistenceJob {
     void run(PersistenceSession session);
+
     void postHook(PersistenceSession session, Versionstamp[] versionstampedKeys);
 }

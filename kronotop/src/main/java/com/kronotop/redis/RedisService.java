@@ -151,6 +151,12 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         registerHandler(new ClusterHandler(this));
     }
 
+    public static void checkRedisValueKind(RedisValueContainer container, RedisValueKind kind) {
+        if (!container.kind().equals(kind)) {
+            throw new WrongTypeException();
+        }
+    }
+
     public void start() {
         int numPersistenceWorkers = context.getConfig().getInt("persistence.num_workers");
         int period = context.getConfig().getInt("persistence.period");
@@ -438,11 +444,5 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         ranges.add(currentRange);
 
         return ranges;
-    }
-
-    public static void checkRedisValueKind(RedisValueContainer container, RedisValueKind kind) {
-        if (!container.kind().equals(kind)) {
-            throw new WrongTypeException();
-        }
     }
 }

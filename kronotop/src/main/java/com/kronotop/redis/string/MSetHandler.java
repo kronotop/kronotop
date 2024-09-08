@@ -19,7 +19,7 @@ package com.kronotop.redis.string;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.MSetMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -85,7 +85,7 @@ public class MSetHandler extends BaseStringHandler implements Handler {
             }
         }
         for (String key : msetMessage.getKeys()) {
-            shard.persistenceQueue().add(new StringKey(key));
+            shard.persistenceQueue().add(new AppendStringJob(key));
         }
         response.writeOK();
     }

@@ -22,6 +22,8 @@ import com.kronotop.redis.hash.HashFieldValue;
 import com.kronotop.redis.hash.HashValue;
 import com.kronotop.redis.storage.BaseStorageTest;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.jobs.AppendHashFieldJob;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import org.junit.jupiter.api.Test;
@@ -38,7 +40,7 @@ public class PersistenceTest extends BaseStorageTest {
     public void test_STRING() {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
         shard.storage().put("key-1", new RedisValueContainer(new StringValue("value-1".getBytes(), 0L)));
-        shard.persistenceQueue().add(new StringKey("key-1"));
+        shard.persistenceQueue().add(new AppendStringJob("key-1"));
 
         Persistence persistence = new Persistence(context, shard);
         assertFalse(persistence.isQueueEmpty());
@@ -69,8 +71,8 @@ public class PersistenceTest extends BaseStorageTest {
         HashValue hashValue = new HashValue();
         hashValue.put("field-name", new HashFieldValue("value".getBytes()));
         shard.storage().put("hash-name", new RedisValueContainer(hashValue));
-        HashKey hashKey = new HashKey("hash-name", "field-name");
-        shard.persistenceQueue().add(hashKey);
+        AppendHashFieldJob job = new AppendHashFieldJob("hash-name", "field-name");
+        shard.persistenceQueue().add(job);
 
         Persistence persistence = new Persistence(context, shard);
         assertFalse(persistence.isQueueEmpty());
@@ -80,9 +82,9 @@ public class PersistenceTest extends BaseStorageTest {
         DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(0, DataStructure.HASH);
         context.getFoundationDB().run(tr -> {
             List<String> hashpath = new ArrayList<>(subspace.getPath());
-            hashpath.add(hashKey.data());
+            hashpath.add(job.key());
             DirectorySubspace hashSubspace = DirectoryLayer.getDefault().createOrOpen(tr, hashpath).join();
-            byte[] rawValue = tr.get(hashSubspace.pack(hashKey.getField())).join();
+            byte[] rawValue = tr.get(hashSubspace.pack(job.field())).join();
             assertNotNull(rawValue);
             assertArrayEquals("value".getBytes(), rawValue);
             return null;

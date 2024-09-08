@@ -23,7 +23,10 @@ import java.util.List;
 
 public interface PersistenceQueue {
     void add(PersistenceJob job);
+
     List<PersistenceJob> poll(int count);
+
     void clear();
+
     int size();
 }

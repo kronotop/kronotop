@@ -22,7 +22,7 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.redis.storage.persistence.RedisValueKind;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.IncrByFloatMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -93,7 +93,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        shard.persistenceQueue().add(new StringKey(incrByFloatMessage.getKey()));
+        shard.persistenceQueue().add(new AppendStringJob(incrByFloatMessage.getKey()));
         ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(result.get().toString().getBytes());
         response.write(buf);

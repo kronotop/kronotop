@@ -22,9 +22,12 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.redis.storage.persistence.RedisValueKind;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.DecrByMessage;
-import com.kronotop.server.*;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -91,7 +94,7 @@ public class DecrByHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        shard.persistenceQueue().add(new StringKey(decrByMessage.getKey()));
+        shard.persistenceQueue().add(new AppendStringJob(decrByMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

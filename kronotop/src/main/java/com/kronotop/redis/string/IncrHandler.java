@@ -21,7 +21,7 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.IncrMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -89,7 +89,7 @@ public class IncrHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        shard.persistenceQueue().add(new StringKey(incrMessage.getKey()));
+        shard.persistenceQueue().add(new AppendStringJob(incrMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

@@ -33,6 +33,14 @@ public class AppendHashFieldJob implements PersistenceJob {
         this.field = field;
     }
 
+    public String key() {
+        return key;
+    }
+
+    public String field() {
+        return field;
+    }
+
     @Override
     public void run(PersistenceSession session) {
         ReadWriteLock lock = session.shard().striped().get(key);
