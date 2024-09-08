@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
+package com.kronotop.redis.storage.persistence.jobs;
 
-package com.kronotop.redis.storage.persistence;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.redis.storage.persistence.PersistenceSession;
 
-import com.kronotop.redis.storage.persistence.jobs.PersistenceJob;
-
-import java.util.List;
-
-public interface PersistenceQueue {
-    void add(PersistenceJob job);
-    List<PersistenceJob> poll(int count);
-    void clear();
-    int size();
+public interface PersistenceJob {
+    void run(PersistenceSession session);
+    void postHook(PersistenceSession session, Versionstamp[] versionstampedKeys);
 }

@@ -16,20 +16,15 @@
 
 package com.kronotop.redis.storage.persistence;
 
-import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.volume.AppendResult;
-import com.kronotop.volume.Session;
+import com.kronotop.redis.storage.persistence.jobs.PersistenceJob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.locks.ReadWriteLock;
 
 /**
  * The Persistence class is responsible for persisting data to the FoundationDB cluster.
@@ -62,131 +57,39 @@ public class Persistence {
     }
 
     /**
-     * Persist data for a list of keys.
+     * Persist data for a list of jobs.
      * <p>
-     * This method takes a list of keys as input and persists the corresponding data to a storage system.
+     * This method takes a list of jobs as input and persists the corresponding data to a storage system.
      * It uses a {@link PersistenceSession} object to pack the data structures into byte buffers,
      * which are then appended to the storage system.
      *
-     * @param keys the list of keys to persist
+     * @param jobs the list of jobs to persist
      * @throws IOException if an I/O error occurs while persisting the data
      */
-    private void persist(List<Key> keys) throws IOException {
-        PersistenceSession session = new PersistenceSession(keys.size());
-        List<Key> appendedKeys = new ArrayList<>();
-        for (Key key : keys) {
-            ReadWriteLock lock = shard.striped().get(key.data());
-            lock.readLock().lock();
-            try {
-                RedisValueContainer container = shard.storage().get(key.data());
-                if (container == null) {
-                    // TODO: We need to find a way to remove keys from shard's volume
-                    continue;
-                }
-                appendedKeys.add(key);
-                switch (key.kind()) {
-                    case STRING -> {
-                        StringPack stringPack = new StringPack(key.data(), container.string());
-                        session.pack(stringPack);
-                    }
-                    case HASH -> {
-                        HashKey hashKey = (HashKey) key;
-                        HashFieldPack hashFieldPack = new HashFieldPack(hashKey.data(), hashKey.getField(), container.hashField());
-                        session.pack(hashFieldPack);
-                    }
-                    default -> LOGGER.warn("Unknown value type for key: {}", key.data());
-                }
-            } finally {
-                lock.readLock().unlock();
-            }
+    private void persist(List<PersistenceJob> jobs) throws IOException {
+        PersistenceSession session = new PersistenceSession(context, shard, jobs.size());
+        for (PersistenceJob job : jobs) {
+            job.run(session);
         }
-
         Versionstamp[] versionstampedKeys = session.persist();
-        int index = 0;
-        for (Versionstamp versionstamp : versionstampedKeys) {
-            Key key = appendedKeys.get(index);
-            ReadWriteLock lock = shard.striped().get(key.data());
-            lock.writeLock().lock();
-            try {
-                RedisValueContainer container = shard.storage().get(key.data());
-                if (container == null) {
-                    // Deleted after persisting it to the shard's volume.
-                    continue;
-                }
-                BaseRedisValue<?> value = container.baseRedisValue();
-                value.setVersionstamp(versionstamp);
-            } finally {
-                lock.writeLock().unlock();
-            }
+        for (PersistenceJob job : jobs) {
+            job.postHook(session, versionstampedKeys);
         }
     }
 
     public void run() {
-        List<Key> keys = shard.persistenceQueue().poll(1000);
-        if (keys.isEmpty()) {
+        List<PersistenceJob> jobs = shard.persistenceQueue().poll(1000);
+        if (jobs.isEmpty()) {
             return;
         }
 
         try {
-            persist(keys);
+            persist(jobs);
         } catch (Exception e) {
-            for (Key key : keys) {
-                shard.persistenceQueue().add(key);
+            for (PersistenceJob job : jobs) {
+                shard.persistenceQueue().add(job);
             }
             throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * A PersistenceSession represents a session for persisting data to a storage system.
-     * It provides methods for packing data structures into byte buffers and persisting them.
-     */
-    private class PersistenceSession {
-        private final ByteBuffer[] entries;
-        private int size;
-        private int cursor;
-
-        public PersistenceSession(int capacity) {
-            this.entries = new ByteBuffer[capacity];
-        }
-
-        /**
-         * Packs a data structure into the persistence session.
-         * The data structure is packed into a {@link ByteBuffer} and added to the {@code entries} array.
-         * The size of the packed buffer is added to the {@code size} field.
-         * The cursor is incremented to the next position in the {@code entries} array.
-         *
-         * @param dataStructurePack the data structure to be packed
-         */
-        public void pack(DataStructurePack dataStructurePack) {
-            ByteBuffer buffer = dataStructurePack.pack();
-            size += buffer.remaining();
-            entries[cursor++] = buffer;
-        }
-
-        /**
-         * Persists the data stored in the PersistenceSession to a storage system.
-         * The data is packed into byte buffers and appended to the storage system.
-         *
-         * @throws IOException if an I/O error occurs while persisting the data
-         */
-        public Versionstamp[] persist() throws IOException {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Session session = new Session(tr);
-                AppendResult result = shard.volume().append(session, entries);
-                tr.commit().join();
-
-                Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("{} entries have persisted, total size is {}", versionstampedKeys.length, size());
-                }
-
-                return versionstampedKeys;
-            }
-        }
-
-        public int size() {
-            return size;
         }
     }
 }

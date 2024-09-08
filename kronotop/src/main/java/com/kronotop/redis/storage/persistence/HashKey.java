@@ -28,7 +28,7 @@ public class HashKey implements Key {
     }
 
     @Override
-    public RedisValueKind kind() {
+    public RedisValueKind valueKind() {
         return RedisValueKind.HASH;
     }
 
