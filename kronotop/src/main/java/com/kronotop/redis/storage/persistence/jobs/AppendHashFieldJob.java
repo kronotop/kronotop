@@ -17,6 +17,7 @@
 package com.kronotop.redis.storage.persistence.jobs;
 
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.redis.hash.HashFieldValue;
 import com.kronotop.redis.storage.persistence.HashFieldPack;
 import com.kronotop.redis.storage.persistence.PersistenceSession;
 import com.kronotop.redis.storage.persistence.RedisValueContainer;
@@ -51,7 +52,12 @@ public class AppendHashFieldJob implements PersistenceJob {
                 // Removed before calling this job
                 return;
             }
-            HashFieldPack hashFieldPack = new HashFieldPack(key, field, container.hashField());
+            HashFieldValue hashFieldValue = container.hash().get(field);
+            if (hashFieldValue == null) {
+                // Removed before calling this job
+                return;
+            }
+            HashFieldPack hashFieldPack = new HashFieldPack(key, field, hashFieldValue);
             position = session.pack(hashFieldPack);
         } finally {
             lock.readLock().unlock();

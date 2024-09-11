@@ -17,31 +17,26 @@
 package com.kronotop.redis.storage.persistence;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.redis.hash.HashFieldValue;
 import com.kronotop.redis.hash.HashValue;
 import com.kronotop.redis.storage.BaseStorageTest;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.jobs.AppendHashFieldJob;
 import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.StringValue;
-import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.volume.KeyEntry;
 import com.kronotop.volume.Session;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PersistenceTest extends BaseStorageTest {
+
     @Test
-    public void test_STRING() {
+    public void test_STRING() throws IOException {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
         String expectedKey = "key-1";
         String expectedValue = "value-1";
@@ -63,17 +58,21 @@ public class PersistenceTest extends BaseStorageTest {
                 assertArrayEquals(expectedValue.getBytes(), pack.stringValue().value());
                 assertEquals(0L, pack.stringValue().ttl());
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
     @Test
-    public void test_HASH() {
+    public void test_HASH() throws IOException {
+
+        String expectedKey = "hash-name";
+        String expectedField = "field-name";
+        String expectedValue = "value";
+
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
         HashValue hashValue = new HashValue();
-        hashValue.put("field-name", new HashFieldValue("value".getBytes()));
-        shard.storage().put("hash-name", new RedisValueContainer(hashValue));
+
+        hashValue.put(expectedField, new HashFieldValue(expectedValue.getBytes()));
+        shard.storage().put(expectedKey, new RedisValueContainer(hashValue));
         AppendHashFieldJob job = new AppendHashFieldJob("hash-name", "field-name");
         shard.persistenceQueue().add(job);
 
@@ -81,5 +80,16 @@ public class PersistenceTest extends BaseStorageTest {
         assertFalse(persistence.isQueueEmpty());
         persistence.run();
         assertTrue(persistence.isQueueEmpty());
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Session session = new Session(tr);
+            Iterable<KeyEntry> iterable = shard.volume().getRange(session);
+            for (KeyEntry keyEntry : iterable) {
+                HashFieldPack pack = HashFieldPack.unpack(keyEntry.entry());
+                assertEquals(expectedKey, pack.key());
+                assertEquals(expectedField, pack.field());
+                assertArrayEquals(expectedValue.getBytes(), pack.hashFieldValue().value());
+            }
+        }
     }
 }
