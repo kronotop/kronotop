@@ -155,7 +155,7 @@ public class Segment {
             long position = forwardMetadataPosition(entry.remaining());
             int length = segmentFile.getChannel().write(entry, position);
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug(String.format("%d bytes has been written to segment %s", length, getName()));
+                LOGGER.debug("{} bytes has been written to segment {}", length, getName());
             }
             return new EntryMetadata(getName(), position, length);
         } finally {
@@ -183,7 +183,7 @@ public class Segment {
         try {
             int length = segmentFile.getChannel().write(entry, position);
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug(String.format("%d bytes has been inserted to segment %s", length, getName()));
+                LOGGER.debug("{} bytes has been inserted to segment {}", length, getName());
             }
             updateMetadataPosition(position);
         } finally {
@@ -200,9 +200,9 @@ public class Segment {
         ByteBuffer buffer = ByteBuffer.allocate((int) length);
         int nr = segmentFile.getChannel().read(buffer, position);
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(String.format("%d bytes has been read from segment %s", nr, getName()));
+            LOGGER.debug("{} bytes has been read from segment {}", nr, getName());
         }
-        return buffer;
+        return buffer.flip();
     }
 
     synchronized void flush(boolean metaData) throws IOException {

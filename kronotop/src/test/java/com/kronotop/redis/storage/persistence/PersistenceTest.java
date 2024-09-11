@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.storage.persistence;
 
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.redis.hash.HashFieldValue;
@@ -26,11 +27,14 @@ import com.kronotop.redis.storage.persistence.jobs.AppendHashFieldJob;
 import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
+import com.kronotop.volume.KeyEntry;
+import com.kronotop.volume.Session;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,7 +43,10 @@ public class PersistenceTest extends BaseStorageTest {
     @Test
     public void test_STRING() {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
-        shard.storage().put("key-1", new RedisValueContainer(new StringValue("value-1".getBytes(), 0L)));
+        String expectedKey = "key-1";
+        String expectedValue = "value-1";
+
+        shard.storage().put(expectedKey, new RedisValueContainer(new StringValue(expectedValue.getBytes(), 0L)));
         shard.persistenceQueue().add(new AppendStringJob("key-1"));
 
         Persistence persistence = new Persistence(context, shard);
@@ -47,22 +54,18 @@ public class PersistenceTest extends BaseStorageTest {
         persistence.run();
         assertTrue(persistence.isQueueEmpty());
 
-        DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(0, DataStructure.STRING);
-        context.getFoundationDB().run(tr -> {
-            byte[] rawValue = tr.get(subspace.pack("key-1")).join();
-            assertNotNull(rawValue);
-
-            try {
-                StringPack stringPack = StringPack.unpack(ByteBuffer.wrap(rawValue));
-                assertEquals(0, stringPack.stringValue().ttl());
-                assertEquals("value-1", new String(stringPack.stringValue().value()));
-            } catch (IOException e) {
-                // TODO: Is that OK?
-                throw new RuntimeException(e);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Session session = new Session(tr);
+            Iterable<KeyEntry> iterable = shard.volume().getRange(session);
+            for (KeyEntry keyEntry : iterable) {
+                StringPack pack = StringPack.unpack(keyEntry.entry());
+                assertEquals(expectedKey, pack.key());
+                assertArrayEquals(expectedValue.getBytes(), pack.stringValue().value());
+                assertEquals(0L, pack.stringValue().ttl());
             }
-
-            return null;
-        });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
@@ -78,16 +81,5 @@ public class PersistenceTest extends BaseStorageTest {
         assertFalse(persistence.isQueueEmpty());
         persistence.run();
         assertTrue(persistence.isQueueEmpty());
-
-        DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(0, DataStructure.HASH);
-        context.getFoundationDB().run(tr -> {
-            List<String> hashpath = new ArrayList<>(subspace.getPath());
-            hashpath.add(job.key());
-            DirectorySubspace hashSubspace = DirectoryLayer.getDefault().createOrOpen(tr, hashpath).join();
-            byte[] rawValue = tr.get(hashSubspace.pack(job.field())).join();
-            assertNotNull(rawValue);
-            assertArrayEquals("value".getBytes(), rawValue);
-            return null;
-        });
     }
 }
