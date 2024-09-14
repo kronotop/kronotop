@@ -40,7 +40,7 @@ import com.kronotop.redis.server.CommandHandler;
 import com.kronotop.redis.server.FlushAllHandler;
 import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.ShardMaintenanceWorker;
+import com.kronotop.redis.storage.RedisShardMaintenanceWorker;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.persistence.DataStructure;
 import com.kronotop.redis.storage.persistence.Persistence;
@@ -50,6 +50,7 @@ import com.kronotop.redis.string.*;
 import com.kronotop.redis.transactions.*;
 import com.kronotop.server.*;
 import com.kronotop.watcher.Watcher;
+import com.typesafe.config.Config;
 import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
@@ -78,7 +79,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             Thread.ofVirtual().name("kr.redis-service", 0L).factory()
     );
     private final int numberOfShards;
-    private final List<ShardMaintenanceWorker> shardMaintenanceWorkers = new ArrayList<>();
+    private final List<RedisShardMaintenanceWorker> shardMaintenanceWorkers = new ArrayList<>();
 
     public RedisService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
         super(context, handlers);
@@ -158,10 +159,11 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     }
 
     public void start() {
-        int numPersistenceWorkers = context.getConfig().getInt("persistence.num_workers");
-        int period = context.getConfig().getInt("persistence.period");
+        Config redisConfig = context.getConfig().getConfig("redis");
+        int numPersistenceWorkers = redisConfig.getInt("persistence.num_workers");
+        int period = redisConfig.getInt("persistence.period");
         for (int workerId = 0; workerId < numPersistenceWorkers; workerId++) {
-            ShardMaintenanceWorker shardMaintenanceWorker = new ShardMaintenanceWorker(context, workerId);
+            RedisShardMaintenanceWorker shardMaintenanceWorker = new RedisShardMaintenanceWorker(context, workerId);
             shardMaintenanceWorkers.add(shardMaintenanceWorker);
             scheduledExecutorService.scheduleAtFixedRate(shardMaintenanceWorker, 0, period, TimeUnit.SECONDS);
         }
@@ -235,7 +237,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      */
     public void clearShards() {
         try {
-            shardMaintenanceWorkers.forEach(ShardMaintenanceWorker::pause);
+            shardMaintenanceWorkers.forEach(RedisShardMaintenanceWorker::pause);
 
             // Stop all the operations on the owned shards
             serviceContext.shards().values().forEach(shard -> {
@@ -266,7 +268,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
                 shard.persistenceQueue().clear();
             });
         } finally {
-            shardMaintenanceWorkers.forEach(ShardMaintenanceWorker::unpause);
+            shardMaintenanceWorkers.forEach(RedisShardMaintenanceWorker::unpause);
             // Make the shard operable again
             serviceContext.shards().values().forEach(shard -> {
                 shard.setReadOnly(false);

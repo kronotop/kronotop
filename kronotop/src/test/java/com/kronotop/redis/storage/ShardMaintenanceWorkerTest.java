@@ -35,7 +35,7 @@ public class ShardMaintenanceWorkerTest extends BaseStorageTest {
 
         ServiceContext<RedisShard> redisContext = context.getServiceContext(RedisService.NAME);
         redisContext.shards().put(0, shard);
-        ShardMaintenanceWorker shardMaintenanceWorker = new ShardMaintenanceWorker(context, 0);
+        RedisShardMaintenanceWorker shardMaintenanceWorker = new RedisShardMaintenanceWorker(context, 0);
         shardMaintenanceWorker.run();
 
         assertEquals(0, shard.persistenceQueue().size());
