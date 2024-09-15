@@ -50,13 +50,15 @@ public class RedisShardMaintenanceWorker implements Runnable {
 
     public void pause() {
         try {
+            LOGGER.info("{}: {} has been paused", this.getClass().getSimpleName(), workerId);
             semaphore.acquire();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void unpause() {
+    public void resume() {
+        LOGGER.info("{}: {} has been resumed", this.getClass().getSimpleName(), workerId);
         semaphore.release();
     }
 

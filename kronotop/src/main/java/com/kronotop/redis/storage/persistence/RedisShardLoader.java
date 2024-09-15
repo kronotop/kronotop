@@ -37,15 +37,15 @@ import java.util.List;
 import java.util.concurrent.CompletionException;
 
 /**
- * The ShardLoader class is responsible for loading data from a specified directory subspace into a Shard object.
+ * The RedisShardLoader class is responsible for loading data from a specified directory subspace into a Shard object.
  * It provides methods to load string values and hash values from the subspace into the Shard.
  */
-public final class ShardLoader {
+public final class RedisShardLoader {
     private final Context context;
     private final RedisShard shard;
     private Range range;
 
-    public ShardLoader(Context context, RedisShard shard) {
+    public RedisShardLoader(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
     }

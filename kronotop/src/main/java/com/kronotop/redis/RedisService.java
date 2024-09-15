@@ -268,7 +268,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
                 shard.persistenceQueue().clear();
             });
         } finally {
-            shardMaintenanceWorkers.forEach(RedisShardMaintenanceWorker::unpause);
+            shardMaintenanceWorkers.forEach(RedisShardMaintenanceWorker::resume);
             // Make the shard operable again
             serviceContext.shards().values().forEach(shard -> {
                 shard.setReadOnly(false);

@@ -41,7 +41,7 @@ public class ShardLoaderTest extends BaseStorageTest {
         persistence.run();
 
         RedisShard newShard = new OnHeapRedisShardImpl(context, 0);
-        ShardLoader shardLoader = new ShardLoader(context, newShard);
+        RedisShardLoader shardLoader = new RedisShardLoader(context, newShard);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             shardLoader.load(tr, DataStructure.STRING);
         }
