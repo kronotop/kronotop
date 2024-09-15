@@ -17,11 +17,15 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.GetDelMessage;
-import com.kronotop.server.*;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -31,6 +35,8 @@ import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(GetDelMessage.COMMAND)
 @MaximumParameterCount(GetDelMessage.MAXIMUM_PARAMETER_COUNT)
@@ -62,27 +68,26 @@ public class GetDelHandler extends BaseStringHandler implements Handler {
         RedisShard shard = service.findShard(getDelMessage.getKey());
         ReadWriteLock lock = shard.striped().get(getDelMessage.getKey());
 
-        Object retrieved;
+        RedisValueContainer container;
         try {
             lock.writeLock().lock();
-            retrieved = shard.storage().remove(getDelMessage.getKey());
-            if (retrieved != null) {
+            container = shard.storage().remove(getDelMessage.getKey());
+            if (container != null) {
                 shard.index().remove(getDelMessage.getKey());
             }
         } finally {
             lock.writeLock().unlock();
         }
 
-        if (retrieved == null) {
+        if (container == null) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }
-        if (!(retrieved instanceof StringValue stringValue)) {
-            throw new WrongTypeException();
-        }
+
+        checkRedisValueKind(container, RedisValueKind.STRING);
         ByteBuf buf = response.getChannelContext().alloc().buffer();
-        buf.writeBytes(stringValue.getValue());
-        shard.persistenceQueue().add(new StringKey(getDelMessage.getKey()));
+        buf.writeBytes(container.string().value());
+        shard.persistenceQueue().add(new AppendStringJob(getDelMessage.getKey()));
         response.write(buf);
     }
 }

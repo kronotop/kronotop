@@ -17,9 +17,9 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.MSetMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -71,8 +71,11 @@ public class MSetHandler extends BaseStringHandler implements Handler {
                 lock.writeLock().lock();
             }
             for (MSetMessage.Pair pair : msetMessage.getPairs()) {
-                Object previousValue = shard.storage().put(pair.getKey(), new StringValue(pair.getValue()));
-                if (previousValue == null) {
+                RedisValueContainer container = shard.storage().put(
+                        pair.getKey(),
+                        new RedisValueContainer(new StringValue(pair.getValue()))
+                );
+                if (container == null) {
                     shard.index().add(pair.getKey());
                 }
             }
@@ -82,7 +85,7 @@ public class MSetHandler extends BaseStringHandler implements Handler {
             }
         }
         for (String key : msetMessage.getKeys()) {
-            shard.persistenceQueue().add(new StringKey(key));
+            shard.persistenceQueue().add(new AppendStringJob(key));
         }
         response.writeOK();
     }

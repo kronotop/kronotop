@@ -16,18 +16,24 @@
 
 package com.kronotop.redis.hash;
 
-import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HSetMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.server.*;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HSetMessage.COMMAND)
 @MinimumParameterCount(HSetMessage.MINIMUM_PARAMETER_COUNT)
@@ -61,19 +67,17 @@ public class HSetHandler extends BaseHashHandler implements Handler {
         int total = 0;
         try {
             HashValue hashValue;
-            Object retrieved = shard.storage().get(hsetMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hsetMessage.getKey());
+            if (container == null) {
                 hashValue = new HashValue();
-                shard.storage().put(hsetMessage.getKey(), hashValue);
+                shard.storage().put(hsetMessage.getKey(), new RedisValueContainer(hashValue));
             } else {
-                if (!(retrieved instanceof HashValue)) {
-                    throw new WrongTypeException();
-                }
-                hashValue = (HashValue) retrieved;
+                checkRedisValueKind(container, RedisValueKind.HASH);
+                hashValue = container.hash();
             }
             for (FieldValuePair fieldValuePair : hsetMessage.getFieldValuePairs()) {
-                byte[] oldValue = hashValue.put(fieldValuePair.getField(), fieldValuePair.getValue());
-                if (oldValue == null) {
+                HashFieldValue oldHashField = hashValue.put(fieldValuePair.getField(), fieldValuePair.getValue());
+                if (oldHashField == null) {
                     total++;
                 }
             }

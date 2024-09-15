@@ -19,9 +19,10 @@ package com.kronotop.redis.string;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.DecrMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -35,6 +36,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(DecrMessage.COMMAND)
 @MaximumParameterCount(DecrMessage.MAXIMUM_PARAMETER_COUNT)
@@ -69,12 +72,12 @@ public class DecrHandler extends BaseStringHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(decrMessage.getKey());
         try {
             lock.writeLock().lock();
-            shard.storage().compute(decrMessage.getKey(), (key, oldValue) -> {
+            shard.storage().compute(decrMessage.getKey(), (key, container) -> {
                 int currentValue = 0;
-                if (oldValue != null) {
-                    StringValue value = (StringValue) oldValue;
+                if (container != null) {
+                    checkRedisValueKind(container, RedisValueKind.STRING);
                     try {
-                        currentValue = Integer.parseInt(new String(value.getValue()));
+                        currentValue = Integer.parseInt(new String(container.string().value()));
                     } catch (NumberFormatException e) {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                     }
@@ -83,13 +86,14 @@ public class DecrHandler extends BaseStringHandler implements Handler {
                 }
                 currentValue -= 1;
                 result.set(currentValue);
-                return new StringValue(Integer.toString(currentValue).getBytes());
+                StringValue value = new StringValue(Integer.toString(currentValue).getBytes());
+                return new RedisValueContainer(value);
             });
         } finally {
             lock.writeLock().unlock();
         }
 
-        shard.persistenceQueue().add(new StringKey(decrMessage.getKey()));
+        shard.persistenceQueue().add(new AppendStringJob(decrMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

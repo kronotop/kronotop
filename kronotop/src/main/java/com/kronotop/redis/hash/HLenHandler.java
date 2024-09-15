@@ -17,16 +17,22 @@
 package com.kronotop.redis.hash;
 
 import com.kronotop.redis.BaseHandler;
-import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HLenMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.server.*;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HLenMessage.COMMAND)
 @MinimumParameterCount(HLenMessage.MINIMUM_PARAMETER_COUNT)
@@ -49,16 +55,13 @@ public class HLenHandler extends BaseHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(hlenMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.storage().get(hlenMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hlenMessage.getKey());
+            if (container == null) {
                 response.writeInteger(0);
                 return;
             }
-            if (!(retrieved instanceof HashValue hashValue)) {
-                throw new WrongTypeException();
-            }
-
-            response.writeInteger(hashValue.size());
+            checkRedisValueKind(container, RedisValueKind.HASH);
+            response.writeInteger(container.hash().size());
         } finally {
             lock.readLock().unlock();
         }

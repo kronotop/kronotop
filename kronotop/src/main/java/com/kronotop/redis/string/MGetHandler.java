@@ -17,8 +17,9 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.redis.string.protocol.MGetMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -60,19 +61,19 @@ public class MGetHandler extends BaseStringHandler implements Handler {
             }
 
             for (String key : mgetMessage.getKeys()) {
-                Object value = shard.storage().get(key);
-                if (value == null) {
+                RedisValueContainer container = shard.storage().get(key);
+                if (container == null) {
                     result.add(FullBulkStringRedisMessage.NULL_INSTANCE);
                     continue;
                 }
 
-                if (!(value instanceof StringValue stringValue)) {
+                if (!(container.kind().equals(RedisValueKind.STRING))) {
                     result.add(FullBulkStringRedisMessage.NULL_INSTANCE);
                     continue;
                 }
 
                 ByteBuf buf = response.getChannelContext().alloc().buffer();
-                buf.writeBytes(stringValue.getValue());
+                buf.writeBytes(container.string().value());
                 result.add(new FullBulkStringRedisMessage(buf));
             }
         } finally {

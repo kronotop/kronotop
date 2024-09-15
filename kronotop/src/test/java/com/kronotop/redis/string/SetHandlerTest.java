@@ -31,8 +31,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class SetHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testSET() {
+    public void test_SET() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.set("mykey", "myvalue").encode(buf);
@@ -45,7 +46,7 @@ public class SetHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testSET_GET() {
+    public void test_SET_GET() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();

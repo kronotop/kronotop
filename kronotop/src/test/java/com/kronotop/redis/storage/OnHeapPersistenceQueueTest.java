@@ -16,9 +16,9 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.redis.storage.persistence.Key;
-import com.kronotop.redis.storage.persistence.StringKey;
 import com.kronotop.redis.storage.persistence.impl.OnHeapPersistenceQueue;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.persistence.jobs.PersistenceJob;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -27,58 +27,58 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class OnHeapPersistenceQueueTest {
     @Test
-    public void testAdd() {
+    public void test_add() {
         OnHeapPersistenceQueue p = new OnHeapPersistenceQueue();
-        p.add(new StringKey("key-1"));
+        p.add(new AppendStringJob("key-1"));
         assertEquals(1, p.size());
     }
 
     @Test
-    public void testPoll() {
+    public void test_poll() {
         OnHeapPersistenceQueue p = new OnHeapPersistenceQueue();
-        p.add(new StringKey("key-1"));
-        p.add(new StringKey("key-2"));
-        p.add(new StringKey("key-3"));
+        p.add(new AppendStringJob("key-1"));
+        p.add(new AppendStringJob("key-2"));
+        p.add(new AppendStringJob("key-3"));
 
-        List<Key> keys = p.poll(10);
+        List<PersistenceJob> keys = p.poll(10);
         assertEquals(3, keys.size());
     }
 
     @Test
     public void testPoll_Slice() {
         OnHeapPersistenceQueue p = new OnHeapPersistenceQueue();
-        p.add(new StringKey("key-1"));
-        p.add(new StringKey("key-2"));
-        p.add(new StringKey("key-3"));
+        p.add(new AppendStringJob("key-1"));
+        p.add(new AppendStringJob("key-2"));
+        p.add(new AppendStringJob("key-3"));
 
-        List<Key> keys = p.poll(1);
-        assertEquals(1, keys.size());
+        List<PersistenceJob> jobs = p.poll(1);
+        assertEquals(1, jobs.size());
     }
 
     @Test
-    public void testPoll_Preserve_Insertion_Order() {
+    public void test_poll_Preserve_Insertion_Order() {
         OnHeapPersistenceQueue p = new OnHeapPersistenceQueue();
         for (int i = 0; i < 10; i++) {
-            p.add(new StringKey(String.format("key-%s", i)));
+            p.add(new AppendStringJob(String.format("key-%s", i)));
         }
 
-        List<Key> keys = p.poll(10);
+        List<PersistenceJob> jobs = p.poll(10);
         for (int i = 0; i < 10; i++) {
-            Key key = keys.get(i);
-            assertEquals(String.format("key-%s", i), key.getKey());
+            AppendStringJob job = (AppendStringJob) jobs.get(i);
+            assertEquals(String.format("key-%s", i), job.key());
         }
     }
 
     @Test
-    public void testClear() {
+    public void test_clear() {
         OnHeapPersistenceQueue p = new OnHeapPersistenceQueue();
-        p.add(new StringKey("key-1"));
-        p.add(new StringKey("key-2"));
-        p.add(new StringKey("key-3"));
+        p.add(new AppendStringJob("key-1"));
+        p.add(new AppendStringJob("key-2"));
+        p.add(new AppendStringJob("key-3"));
 
         p.clear();
 
-        List<Key> keys = p.poll(10);
-        assertEquals(0, keys.size());
+        List<PersistenceJob> jobs = p.poll(10);
+        assertEquals(0, jobs.size());
     }
 }

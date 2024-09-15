@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.consistent;
+package com.kronotop.redis.storage.persistence.jobs;
 
-public class NoShardOwnerFoundException extends RuntimeException {
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.redis.storage.persistence.PersistenceSession;
+
+public interface PersistenceJob {
+    void run(PersistenceSession session);
+
+    void postHook(PersistenceSession session, Versionstamp[] versionstampedKeys);
 }

@@ -14,22 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.coordinator.tasks;
+package com.kronotop.redis.storage.persistence;
 
-public class AssignShardTask extends BaseTask {
-    AssignShardTask() {
-    }
-
-    public AssignShardTask(int shardId) {
-        super(TaskType.ASSIGN_SHARD, shardId);
-    }
-
-    public String toString() {
-        return String.format(
-                "AssignShardTask {type=%s shardId=%s, createdAt=%d}",
-                getType(),
-                getShardId(),
-                getCreatedAt()
-        );
-    }
+public enum RedisValueKind {
+    STRING,
+    HASH,
+    HASH_FIELD
 }

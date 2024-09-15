@@ -17,12 +17,14 @@
 
 package com.kronotop.redis.storage.persistence;
 
+import com.kronotop.redis.storage.persistence.jobs.PersistenceJob;
+
 import java.util.List;
 
 public interface PersistenceQueue {
-    void add(Key key);
+    void add(PersistenceJob job);
 
-    List<Key> poll(int count);
+    List<PersistenceJob> poll(int count);
 
     void clear();
 

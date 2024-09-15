@@ -19,9 +19,10 @@ package com.kronotop.redis.string;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.IncrByFloatMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -36,6 +37,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(IncrByFloatMessage.COMMAND)
 @MaximumParameterCount(IncrByFloatMessage.MAXIMUM_PARAMETER_COUNT)
@@ -70,12 +73,12 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
 
         try {
             lock.writeLock().lock();
-            shard.storage().compute(incrByFloatMessage.getKey(), (key, oldValue) -> {
+            shard.storage().compute(incrByFloatMessage.getKey(), (key, container) -> {
                 double currentValue = 0;
-                if (oldValue != null) {
-                    StringValue value = (StringValue) oldValue;
+                if (container != null) {
+                    checkRedisValueKind(container, RedisValueKind.STRING);
                     try {
-                        currentValue = Double.parseDouble(new String(value.getValue()));
+                        currentValue = Double.parseDouble(new String(container.string().value()));
                     } catch (NumberFormatException e) {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
                     }
@@ -84,13 +87,13 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
                 }
                 currentValue += incrByFloatMessage.getIncrement();
                 result.set(currentValue);
-                return new StringValue(Double.toString(currentValue).getBytes());
+                return new RedisValueContainer(new StringValue(Double.toString(currentValue).getBytes()));
             });
         } finally {
             lock.writeLock().unlock();
         }
 
-        shard.persistenceQueue().add(new StringKey(incrByFloatMessage.getKey()));
+        shard.persistenceQueue().add(new AppendStringJob(incrByFloatMessage.getKey()));
         ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(result.get().toString().getBytes());
         response.write(buf);

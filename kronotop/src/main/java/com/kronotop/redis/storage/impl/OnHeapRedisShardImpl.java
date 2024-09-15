@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.storage.impl;
 
+import com.kronotop.Context;
 import com.kronotop.redis.storage.RedisShard;
 
 /**
@@ -23,7 +24,7 @@ import com.kronotop.redis.storage.RedisShard;
  * It provides a concurrent map with additional functionality.
  */
 public class OnHeapRedisShardImpl extends AbstractRedisShard implements RedisShard {
-    public OnHeapRedisShardImpl(Integer id) {
-        super(id);
+    public OnHeapRedisShardImpl(Context context, Integer id) {
+        super(context, id);
     }
 }

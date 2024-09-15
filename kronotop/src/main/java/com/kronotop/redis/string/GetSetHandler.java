@@ -17,11 +17,15 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.GetSetMessage;
-import com.kronotop.server.*;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -32,6 +36,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(GetSetMessage.COMMAND)
 @MaximumParameterCount(GetSetMessage.MAXIMUM_PARAMETER_COUNT)
@@ -61,20 +67,19 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
         GetSetMessage getSetMessage = request.attr(MessageTypes.GETSET).get();
 
         RedisShard shard = service.findShard(getSetMessage.getKey());
-        AtomicReference<Object> result = new AtomicReference<>();
+        AtomicReference<StringValue> result = new AtomicReference<>();
 
         ReadWriteLock lock = shard.striped().get(getSetMessage.getKey());
         try {
             lock.writeLock().lock();
-            shard.storage().compute(getSetMessage.getKey(), (key, oldValue) -> {
-                if (oldValue != null && !(oldValue instanceof StringValue)) {
-                    throw new WrongTypeException();
-                }
-                if (oldValue == null) {
+            shard.storage().compute(getSetMessage.getKey(), (key, container) -> {
+                if (container == null) {
                     shard.index().add(getSetMessage.getKey());
+                } else {
+                    checkRedisValueKind(container, RedisValueKind.STRING);
+                    result.set(container.string());
                 }
-                result.set(oldValue);
-                return new StringValue(getSetMessage.getValue());
+                return new RedisValueContainer(new StringValue(getSetMessage.getValue()));
             });
         } finally {
             lock.writeLock().unlock();
@@ -85,10 +90,9 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
             return;
         }
 
-        StringValue stringValue = (StringValue) result.get();
         ByteBuf buf = response.getChannelContext().alloc().buffer();
-        buf.writeBytes(stringValue.getValue());
-        shard.persistenceQueue().add(new StringKey(getSetMessage.getKey()));
+        buf.writeBytes(result.get().value());
+        shard.persistenceQueue().add(new AppendStringJob(getSetMessage.getKey()));
         response.write(buf);
     }
 }

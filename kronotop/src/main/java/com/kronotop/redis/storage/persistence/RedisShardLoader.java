@@ -24,27 +24,28 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.Context;
-import com.kronotop.redis.HashValue;
-import com.kronotop.redis.StringValue;
+import com.kronotop.redis.hash.HashFieldValue;
+import com.kronotop.redis.hash.HashValue;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.WrongTypeException;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
 /**
- * The ShardLoader class is responsible for loading data from a specified directory subspace into a Shard object.
+ * The RedisShardLoader class is responsible for loading data from a specified directory subspace into a Shard object.
  * It provides methods to load string values and hash values from the subspace into the Shard.
  */
-public final class ShardLoader {
+public final class RedisShardLoader {
     private final Context context;
     private final RedisShard shard;
     private Range range;
 
-    public ShardLoader(Context context, RedisShard shard) {
+    public RedisShardLoader(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
     }
@@ -60,24 +61,24 @@ public final class ShardLoader {
             range = new Range(subspace.pack(), ByteArrayUtil.strinc(subspace.pack()));
         }
 
-        String key = subspace.getPath().get(subspace.getPath().size() - 1);
+        String key = subspace.getPath().getLast();
         HashValue hashValue;
-        Object retrieved = shard.storage().get(key);
-        if (retrieved == null) {
+        RedisValueContainer container = shard.storage().get(key);
+        if (container == null) {
             hashValue = new HashValue();
-            shard.storage().put(key, hashValue);
+            shard.storage().put(key, new RedisValueContainer(hashValue));
         } else {
-            if (!(retrieved instanceof HashValue)) {
+            if (!(container.kind().equals(RedisValueKind.HASH))) {
                 // TODO: add key to the error message
                 throw new WrongTypeException();
             }
-            hashValue = (HashValue) retrieved;
+            hashValue = container.hash();
         }
         AsyncIterable<KeyValue> asyncIterable = tr.snapshot().getRange(range);
         for (KeyValue keyValue : asyncIterable) {
             range = new Range(keyValue.getKey(), range.end);
             String field = subspace.unpack(keyValue.getKey()).get(0).toString();
-            hashValue.put(field, keyValue.getValue());
+            hashValue.put(field, new HashFieldValue(keyValue.getValue()));
         }
     }
 
@@ -114,12 +115,13 @@ public final class ShardLoader {
         for (KeyValue keyValue : asyncIterable) {
             range = new Range(keyValue.getKey(), range.end);
             try {
-                StringValue stringValue = StringValue.decode(keyValue.getValue());
+                ByteBuffer data = ByteBuffer.wrap(keyValue.getValue());
+                StringPack stringPack = StringPack.unpack(data);
                 String key = subspace.unpack(keyValue.getKey()).get(0).toString();
                 shard.storage().computeIfAbsent(key, (k) -> {
                     shard.index().add(k);
                     shard.index().flush();
-                    return stringValue;
+                    return new RedisValueContainer(stringPack.stringValue());
                 });
             } catch (IOException e) {
                 throw new RuntimeException(e);

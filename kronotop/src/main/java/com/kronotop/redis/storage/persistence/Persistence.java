@@ -16,34 +16,24 @@
 
 package com.kronotop.redis.storage.persistence;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.redis.HashValue;
-import com.kronotop.redis.StringValue;
-import com.kronotop.redis.TransactionSizeLimitExceeded;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.jobs.PersistenceJob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReadWriteLock;
 
 /**
  * The Persistence class is responsible for persisting data to the FoundationDB cluster.
  * It provides methods for persisting different types of data structures such as strings and hashes.
  */
 public class Persistence {
-    public static final int MAXIMUM_TRANSACTION_SIZE = 10_000_000;
-    public static final String PERSISTENCE_LAYOUT_KEY = "persistence-layout";
     private static final Logger LOGGER = LoggerFactory.getLogger(Persistence.class);
     private final Context context;
-    private final AtomicInteger transactionSize = new AtomicInteger();
     private final RedisShard shard;
-    private final EnumMap<DataStructure, Node> layout = new EnumMap<>(DataStructure.class);
 
     /**
      * Constructs a Persistence object with the given context and shard.
@@ -55,18 +45,6 @@ public class Persistence {
     public Persistence(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
-
-        // TODO: Do we need this?
-        ReadWriteLock readWriteLock = context.getStripedReadWriteLock().get(PERSISTENCE_LAYOUT_KEY);
-        readWriteLock.writeLock().lock();
-        try {
-            for (DataStructure dataStructure : DataStructure.values()) {
-                DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(shard.id(), dataStructure);
-                layout.put(dataStructure, new Node(subspace));
-            }
-        } finally {
-            readWriteLock.writeLock().unlock();
-        }
     }
 
     /**
@@ -79,98 +57,39 @@ public class Persistence {
     }
 
     /**
-     * Persists the given string value with the specified key in the transaction.
+     * Persist data for a list of jobs.
+     * <p>
+     * This method takes a list of jobs as input and persists the corresponding data to a storage system.
+     * It uses a {@link PersistenceSession} object to pack the data structures into byte buffers,
+     * which are then appended to the storage system.
      *
-     * @param tr          the transaction object
-     * @param key         the key object for the string value
-     * @param stringValue the string value to be persisted
-     * @throws IOException                  if an I/O error occurs while encoding the string value
-     * @throws TransactionSizeLimitExceeded if the size of the transaction exceeds the maximum allowed size
+     * @param jobs the list of jobs to persist
+     * @throws IOException if an I/O error occurs while persisting the data
      */
-    private void persistStringValue(Transaction tr, StringKey key, StringValue stringValue) throws IOException {
-        Node node = layout.get(DataStructure.STRING);
-        byte[] packetKey = node.getSubspace().pack(key.getKey());
-        if (stringValue == null) {
-            tr.clear(packetKey);
-            return;
+    private void persist(List<PersistenceJob> jobs) throws IOException {
+        PersistenceSession session = new PersistenceSession(context, shard, jobs.size());
+        for (PersistenceJob job : jobs) {
+            job.run(session);
         }
-        byte[] data = stringValue.encode();
-        if (data.length + transactionSize.get() >= MAXIMUM_TRANSACTION_SIZE) {
-            throw new TransactionSizeLimitExceeded();
-        }
-        tr.set(packetKey, data);
-        transactionSize.addAndGet(data.length);
-    }
-
-    /**
-     * Persists the given hash value with the specified key in the transaction.
-     *
-     * @param tr        the transaction object
-     * @param hashKey   the key object for the hash value
-     * @param hashValue the hash value to be persisted
-     * @throws TransactionSizeLimitExceeded if the size of the transaction exceeds the maximum allowed size
-     */
-    private void persistHashValue(Transaction tr, HashKey hashKey, HashValue hashValue) {
-        Node node = layout.get(DataStructure.HASH);
-        DirectorySubspace subspace = node.getLeaf(tr.getDatabase(), hashKey.getKey()).getSubspace();
-        byte[] packedKey = subspace.pack(hashKey.getField());
-        if (hashValue == null) {
-            tr.clear(packedKey);
-            return;
-        }
-
-        byte[] value = hashValue.get(hashKey.getField());
-        if (value != null) {
-            if (value.length + transactionSize.get() >= MAXIMUM_TRANSACTION_SIZE) {
-                throw new TransactionSizeLimitExceeded();
-            }
-            tr.set(packedKey, value);
-        } else {
-            tr.clear(packedKey);
+        Versionstamp[] versionstampedKeys = session.persist();
+        for (PersistenceJob job : jobs) {
+            job.postHook(session, versionstampedKeys);
         }
     }
 
-    /**
-     * Executes the persistence process for a batch of keys.
-     * It retrieves a batch of keys from the persistence queue,
-     * and for each key, it locks the corresponding lock, retrieves the latest value from the shard,
-     * and persists the value in the transaction.
-     * Finally, it commits the transaction and handles any exceptions that occur during the process.
-     *
-     * @throws RuntimeException if an exception occurs during the persistence process
-     */
     public void run() {
-        List<Key> keys = shard.persistenceQueue().poll(1000);
-        if (keys.isEmpty()) {
+        List<PersistenceJob> jobs = shard.persistenceQueue().poll(1000);
+        if (jobs.isEmpty()) {
             return;
         }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            for (Key key : keys) {
-                ReadWriteLock lock = shard.striped().get(key.getKey());
-                lock.readLock().lock();
-                try {
-                    Object latestValue = shard.storage().get(key.getKey());
-                    if (key instanceof StringKey) {
-                        persistStringValue(tr, (StringKey) key, (StringValue) latestValue);
-                    } else if (key instanceof HashKey) {
-                        persistHashValue(tr, (HashKey) key, (HashValue) latestValue);
-                    } else {
-                        LOGGER.warn("Unknown value type for key: {}", key.getKey());
-                    }
-                } catch (TransactionSizeLimitExceeded e) {
-                    break;
-                } finally {
-                    lock.readLock().unlock();
-                }
-            }
-            tr.commit().join();
+
+        try {
+            persist(jobs);
         } catch (Exception e) {
-            for (Key key : keys) {
-                shard.persistenceQueue().add(key);
+            for (PersistenceJob job : jobs) {
+                shard.persistenceQueue().add(job);
             }
             throw new RuntimeException(e);
-        } finally {
-            transactionSize.set(0);
         }
     }
 }

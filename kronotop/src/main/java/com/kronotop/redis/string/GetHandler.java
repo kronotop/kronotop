@@ -17,8 +17,9 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.redis.string.protocol.GetMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -48,23 +49,21 @@ public class GetHandler extends BaseStringHandler implements Handler {
 
         RedisShard shard = service.findShard(getMessage.getKey());
         ReadWriteLock lock = shard.striped().get(getMessage.getKey());
-        Object retrieved;
         try {
             lock.readLock().lock();
-            retrieved = shard.storage().get(getMessage.getKey());
+            RedisValueContainer container = shard.storage().get(getMessage.getKey());
+            if (container == null) {
+                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                return;
+            }
+            if (!container.kind().equals(RedisValueKind.STRING)) {
+                throw new WrongTypeException();
+            }
+            ByteBuf buf = response.getChannelContext().alloc().buffer();
+            buf.writeBytes(container.string().value());
+            response.write(buf);
         } finally {
             lock.readLock().unlock();
         }
-
-        if (retrieved == null) {
-            response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
-            return;
-        }
-        if (!(retrieved instanceof StringValue stringValue)) {
-            throw new WrongTypeException();
-        }
-        ByteBuf buf = response.getChannelContext().alloc().buffer();
-        buf.writeBytes(stringValue.getValue());
-        response.write(buf);
     }
 }

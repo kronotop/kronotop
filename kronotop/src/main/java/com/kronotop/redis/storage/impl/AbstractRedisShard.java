@@ -17,12 +17,21 @@
 
 package com.kronotop.redis.storage.impl;
 
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.google.common.util.concurrent.Striped;
+import com.kronotop.Context;
 import com.kronotop.cluster.sharding.impl.ShardImpl;
+import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.volume.Volume;
+import com.kronotop.volume.VolumeConfig;
+import com.typesafe.config.Config;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 
@@ -34,20 +43,45 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     private final Index index;
     private final PersistenceQueue persistenceQueue;
     private final Striped<ReadWriteLock> striped = Striped.lazyWeakReadWriteLock(271);
-    private final ConcurrentMap<String, Object> storage;
+    private final ConcurrentMap<String, RedisValueContainer> storage;
+    private final Volume volume;
     private volatile boolean readOnly;
     private volatile boolean operable;
 
-    protected AbstractRedisShard(Integer id) {
-        super(id);
+    protected AbstractRedisShard(Context context, Integer id) {
+        super(context, id);
 
         this.persistenceQueue = new RedisShardPersistenceQueue(this);
         this.index = new RedisShardIndex(id, this);
         this.storage = new Storage(this);
+        this.volume = initializeRedisShardVolume();
+    }
+
+    private Volume initializeRedisShardVolume() {
+        Config config = context.getConfig().getConfig("redis.persistence");
+        DirectoryLayout layout = DirectoryLayout.Builder.
+                clusterName(context.getClusterName()).
+                internal().
+                redis().
+                persistence().
+                shardId(Integer.toString(id));
+        DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDirectorySubspace(layout.asList());
+        VolumeConfig volumeConfig = new VolumeConfig(
+                subspace,
+                String.format("redis-shard-%d", id),
+                config.getString("root_path"),
+                config.getLong("segment_size"),
+                (float) config.getDouble("allowed_garbage_ratio")
+        );
+        try {
+            return volumeService.newVolume(volumeConfig);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Override
-    public ConcurrentMap<String, Object> storage() {
+    public ConcurrentMap<String, RedisValueContainer> storage() {
         return storage;
     }
 
@@ -84,5 +118,15 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     @Override
     public void setOperable(boolean operable) {
         this.operable = operable;
+    }
+
+    @Override
+    public Volume volume() {
+        return volume;
+    }
+
+    @Override
+    public void close() {
+        volume.close();
     }
 }

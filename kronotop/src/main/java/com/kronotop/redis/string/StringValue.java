@@ -14,25 +14,27 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.coordinator.events;
+package com.kronotop.redis.string;
 
-public class BaseCoordinatorEvent {
-    private int shardId;
-    private CoordinatorEventType type;
+import com.kronotop.redis.storage.persistence.BaseRedisValue;
 
-    BaseCoordinatorEvent() {
+public class StringValue extends BaseRedisValue<byte[]> {
+    private long ttl;
+
+    public StringValue(byte[] value) {
+        super(value);
     }
 
-    public BaseCoordinatorEvent(CoordinatorEventType type, int shardId) {
-        this.type = type;
-        this.shardId = shardId;
+    public StringValue(byte[] value, long ttl) {
+        this(value);
+        this.ttl = ttl;
     }
 
-    public CoordinatorEventType getType() {
-        return type;
+    public long ttl() {
+        return ttl;
     }
 
-    public int getShardId() {
-        return shardId;
+    public void setTTL(long ttl) {
+        this.ttl = ttl;
     }
 }

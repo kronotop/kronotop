@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.storage.persistence.impl;
 
-import com.kronotop.redis.storage.persistence.Key;
 import com.kronotop.redis.storage.persistence.PersistenceQueue;
+import com.kronotop.redis.storage.persistence.jobs.PersistenceJob;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,14 +37,14 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class OnHeapPersistenceQueue implements PersistenceQueue {
     private final Lock lock = new ReentrantLock(true);
-    private final ConcurrentHashMap<Key, Boolean> index = new ConcurrentHashMap<>();
-    private final ConcurrentLinkedQueue<Key> queue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentHashMap<PersistenceJob, Boolean> index = new ConcurrentHashMap<>();
+    private final ConcurrentLinkedQueue<PersistenceJob> queue = new ConcurrentLinkedQueue<>();
 
-    public void add(Key key) {
+    public void add(PersistenceJob job) {
         // Runs the business logic atomically.
-        index.compute(key, (k, value) -> {
+        index.compute(job, (k, value) -> {
             if (value == null) {
-                queue.add(key);
+                queue.add(job);
                 return true;
             }
             // Already added to the queue.
@@ -52,8 +52,8 @@ public class OnHeapPersistenceQueue implements PersistenceQueue {
         });
     }
 
-    public List<Key> poll(int count) {
-        List<Key> result = new ArrayList<>();
+    public List<PersistenceJob> poll(int count) {
+        List<PersistenceJob> result = new ArrayList<>();
         // We use a lock here because concurrent calls to poll and clear
         // methods may lead to very nasty concurrency bugs.
         lock.lock();
@@ -61,7 +61,7 @@ public class OnHeapPersistenceQueue implements PersistenceQueue {
             for (int i = 0; i < count; i++) {
                 // Read-only - peek retrieves, but does not remove, the head of
                 // this queue, or returns null if this queue is empty.
-                Key key = queue.peek();
+                PersistenceJob key = queue.peek();
                 if (key == null) {
                     break;
                 }

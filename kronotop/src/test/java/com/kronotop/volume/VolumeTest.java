@@ -520,7 +520,12 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             }
         }
         assertArrayEquals(versionstampedKeys, retrievedKeys);
-        assertArrayEquals(entries, retrievedEntries);
+        for (int i = 0; i < entries.length; i++) {
+            ByteBuffer expected = entries[i];
+            expected.flip();
+            ByteBuffer actual = retrievedEntries[i];
+            assertArrayEquals(expected.array(), actual.array());
+        }
     }
 
     @Test
@@ -559,7 +564,12 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         }
 
         assertArrayEquals(expectedKeys, retrievedKeys);
-        assertArrayEquals(expectedEntries, retrievedEntries);
+        for (int i = 0; i < expectedEntries.length; i++) {
+            ByteBuffer expected = expectedEntries[i];
+            expected.flip();
+            ByteBuffer actual = retrievedEntries[i];
+            assertArrayEquals(expected.array(), actual.array());
+        }
     }
 
     @Test

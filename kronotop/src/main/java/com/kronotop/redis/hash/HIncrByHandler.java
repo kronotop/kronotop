@@ -18,12 +18,16 @@ package com.kronotop.redis.hash;
 
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HIncrByMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.server.*;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -31,6 +35,8 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HIncrByMessage.COMMAND)
 @MinimumParameterCount(HIncrByMessage.MINIMUM_PARAMETER_COUNT)
@@ -65,33 +71,31 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
         long newValue;
         try {
             HashValue hashValue;
-            Object retrieved = shard.storage().get(hincrbyMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hincrbyMessage.getKey());
+            if (container == null) {
                 hashValue = new HashValue();
-                shard.storage().put(hincrbyMessage.getKey(), hashValue);
+                shard.storage().put(hincrbyMessage.getKey(), new RedisValueContainer(hashValue));
             } else {
-                if (!(retrieved instanceof HashValue)) {
-                    throw new WrongTypeException();
-                }
-                hashValue = (HashValue) retrieved;
+                checkRedisValueKind(container, RedisValueKind.HASH);
+                hashValue = container.hash();
             }
 
-            FieldValuePair fieldValuePair = hincrbyMessage.getFieldValuePairs().get(0);
+            FieldValuePair fieldValuePair = hincrbyMessage.getFieldValuePairs().getFirst();
             if (fieldValuePair == null) {
                 throw new KronotopException("field is missing");
             }
 
-            byte[] oldValue = hashValue.get(fieldValuePair.getField());
-            if (oldValue == null) {
+            HashFieldValue oldHashField = hashValue.get(fieldValuePair.getField());
+            if (oldHashField == null) {
                 newValue = hincrbyMessage.getIncrement();
             } else {
                 try {
-                    newValue = Long.parseLong(new String(oldValue)) + hincrbyMessage.getIncrement();
+                    newValue = Long.parseLong(new String(oldHashField.value())) + hincrbyMessage.getIncrement();
                 } catch (NumberFormatException e) {
                     throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
                 }
             }
-            hashValue.put(fieldValuePair.getField(), Long.toString(newValue).getBytes());
+            hashValue.put(fieldValuePair.getField(), new HashFieldValue(Long.toString(newValue).getBytes()));
         } finally {
             lock.writeLock().unlock();
         }

@@ -32,8 +32,8 @@ import java.util.concurrent.Semaphore;
  * It runs periodically to flush shard indexes and persist data from the persistence queue for a specific worker.
  * It implements the Runnable interface to be executed by a thread pool.
  */
-public class ShardMaintenanceWorker implements Runnable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ShardMaintenanceWorker.class);
+public class RedisShardMaintenanceWorker implements Runnable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedisShardMaintenanceWorker.class);
     private final Context context;
     private final int workerId;
     private final int numWorkers;
@@ -41,22 +41,24 @@ public class ShardMaintenanceWorker implements Runnable {
     private final Semaphore semaphore = new Semaphore(1);
     private final ServiceContext<RedisShard> redisContext;
 
-    public ShardMaintenanceWorker(Context context, int workerId) {
+    public RedisShardMaintenanceWorker(Context context, int workerId) {
         this.workerId = workerId;
         this.context = context;
         this.redisContext = context.getServiceContext(RedisService.NAME);
-        this.numWorkers = context.getConfig().getInt("persistence.num_workers");
+        this.numWorkers = context.getConfig().getInt("redis.persistence.num_workers");
     }
 
     public void pause() {
         try {
+            LOGGER.info("{}: {} has been paused", this.getClass().getSimpleName(), workerId);
             semaphore.acquire();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void unpause() {
+    public void resume() {
+        LOGGER.info("{}: {} has been resumed", this.getClass().getSimpleName(), workerId);
         semaphore.release();
     }
 
@@ -78,11 +80,11 @@ public class ShardMaintenanceWorker implements Runnable {
                     }
                 });
             } catch (Exception e) {
-                LOGGER.error("Error while running shard maintenance worker {}", e.getMessage());
+                LOGGER.error("Error while running Redis shard maintenance worker {}", e.getMessage());
                 throw e;
             }
         } catch (InterruptedException e) {
-            LOGGER.debug("Shard maintenance worker is interrupted while waiting for a permit", e);
+            LOGGER.debug("Redis shard maintenance worker is interrupted while waiting for a permit", e);
         } finally {
             semaphore.release();
         }

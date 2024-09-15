@@ -94,11 +94,12 @@ public class KronotopTestInstance extends KronotopInstance {
             context.registerService(server.getName(), server);
             server.start(member);
         }
-        CheckClusterStatus checkClusterStatus = new CheckClusterStatus();
-        executor.execute(checkClusterStatus);
-        synchronized (clusterOperable) {
-            clusterOperable.wait();
-        }
+        // TODO: CLUSTER-REFACTORING
+        //CheckClusterStatus checkClusterStatus = new CheckClusterStatus();
+        //executor.execute(checkClusterStatus);
+        //synchronized (clusterOperable) {
+        //    clusterOperable.wait();
+        //}
         channel = newChannel();
     }
 

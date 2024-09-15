@@ -17,16 +17,22 @@
 package com.kronotop.redis.hash;
 
 import com.kronotop.redis.BaseHandler;
-import com.kronotop.redis.HashValue;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.HStrlenMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.server.*;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(HStrlenMessage.COMMAND)
 @MinimumParameterCount(HStrlenMessage.MINIMUM_PARAMETER_COUNT)
@@ -49,18 +55,15 @@ public class HStrlenHandler extends BaseHandler implements Handler {
         ReadWriteLock lock = shard.striped().get(hstrlenMessage.getKey());
         lock.readLock().lock();
         try {
-            Object retrieved = shard.storage().get(hstrlenMessage.getKey());
-            if (retrieved == null) {
+            RedisValueContainer container = shard.storage().get(hstrlenMessage.getKey());
+            if (container == null) {
                 response.writeInteger(0);
                 return;
             }
-            if (!(retrieved instanceof HashValue hashValue)) {
-                throw new WrongTypeException();
-            }
-
-            byte[] value = hashValue.get(hstrlenMessage.getField());
-            if (value != null) {
-                response.writeInteger(value.length);
+            checkRedisValueKind(container, RedisValueKind.HASH);
+            HashFieldValue hashField = container.hash().get(hstrlenMessage.getField());
+            if (hashField != null) {
+                response.writeInteger(hashField.value().length);
             } else {
                 response.writeInteger(0);
             }

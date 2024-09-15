@@ -19,9 +19,9 @@ package com.kronotop.redis.string;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.StringKey;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
 import com.kronotop.redis.string.protocol.IncrMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -69,12 +69,11 @@ public class IncrHandler extends BaseStringHandler implements Handler {
         AtomicReference<Integer> result = new AtomicReference<>();
         try {
             lock.writeLock().lock();
-            shard.storage().compute(incrMessage.getKey(), (key, oldValue) -> {
+            shard.storage().compute(incrMessage.getKey(), (key, container) -> {
                 int currentValue = 0;
-                if (oldValue != null) {
-                    StringValue value = (StringValue) oldValue;
+                if (container != null) {
                     try {
-                        currentValue = Integer.parseInt(new String(value.getValue()));
+                        currentValue = Integer.parseInt(new String(container.string().value()));
                     } catch (NumberFormatException e) {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
                     }
@@ -83,13 +82,14 @@ public class IncrHandler extends BaseStringHandler implements Handler {
                 }
                 currentValue += 1;
                 result.set(currentValue);
-                return new StringValue(Integer.toString(currentValue).getBytes());
+                StringValue value = new StringValue(Integer.toString(currentValue).getBytes());
+                return new RedisValueContainer(value);
             });
         } finally {
             lock.writeLock().unlock();
         }
 
-        shard.persistenceQueue().add(new StringKey(incrMessage.getKey()));
+        shard.persistenceQueue().add(new AppendStringJob(incrMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

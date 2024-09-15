@@ -14,9 +14,27 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.coordinator.tasks;
+package com.kronotop.redis.hash;
 
-public enum TaskType {
-    ASSIGN_SHARD,
-    REASSIGN_SHARD
+import com.kronotop.redis.storage.persistence.BaseRedisValue;
+
+public class HashFieldValue extends BaseRedisValue<byte[]> {
+    private long ttl;
+
+    public HashFieldValue(byte[] value) {
+        super(value);
+    }
+
+    public HashFieldValue(byte[] value, long ttl) {
+        this(value);
+        this.ttl = ttl;
+    }
+
+    public long ttl() {
+        return ttl;
+    }
+
+    public void setTTL(long ttl) {
+        this.ttl = ttl;
+    }
 }

@@ -17,8 +17,8 @@
 package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.StringValue;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.redis.string.protocol.GetRangeMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -57,22 +57,22 @@ public class GetRangeHandler extends BaseStringHandler implements Handler {
         GetRangeMessage getRangeMessage = request.attr(MessageTypes.GETRANGE).get();
 
         RedisShard shard = service.findShard(getRangeMessage.getKey());
-        Object result;
+        RedisValueContainer container;
         ReadWriteLock lock = shard.striped().get(getRangeMessage.getKey());
 
         try {
             lock.readLock().lock();
-            result = shard.storage().get(getRangeMessage.getKey());
+            container = shard.storage().get(getRangeMessage.getKey());
         } finally {
             lock.readLock().unlock();
         }
 
-        if (result == null) {
+        if (container == null) {
             emptyResponse(response);
             return;
         }
 
-        StringValue value = (StringValue) result;
+        StringValue value = container.string();
 
         int start = getRangeMessage.getStart();
         int end = getRangeMessage.getEnd();
@@ -81,23 +81,23 @@ public class GetRangeHandler extends BaseStringHandler implements Handler {
         }
 
         if (start == 0 && end == -1) {
-            end = value.getValue().length;
+            end = value.value().length;
         }
 
         if (start < 0) {
-            start = value.getValue().length + start;
+            start = value.value().length + start;
         }
 
         if (end < 0) {
-            end = value.getValue().length + end + 1;
+            end = value.value().length + end + 1;
         }
 
-        if (end > value.getValue().length) {
-            end = value.getValue().length;
+        if (end > value.value().length) {
+            end = value.value().length;
         }
 
         try {
-            byte[] data = Arrays.copyOfRange(value.getValue(), start, end);
+            byte[] data = Arrays.copyOfRange(value.value(), start, end);
             ByteBuf buf = response.getChannelContext().alloc().buffer();
             buf.writeBytes(data);
             response.writeFullBulkString(new FullBulkStringRedisMessage(buf));

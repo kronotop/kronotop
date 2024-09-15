@@ -21,8 +21,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.coordinator.CoordinatorService;
-import com.kronotop.cluster.sharding.ShardingService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.network.Address;
@@ -100,13 +98,6 @@ public class KronotopInstance {
         VolumeService volumeService = new VolumeService(context, handlers);
         context.registerService(VolumeService.NAME, volumeService);
 
-        ShardingService shardingService = new ShardingService(context);
-        context.registerService(ShardingService.NAME, shardingService);
-        shardingService.start();
-
-        CoordinatorService coordinatorService = new CoordinatorService(context);
-        context.registerService(CoordinatorService.NAME, coordinatorService);
-
         MembershipService membershipService = new MembershipService(context);
         context.registerService(MembershipService.NAME, membershipService);
         membershipService.start();
@@ -174,6 +165,7 @@ public class KronotopInstance {
             registerKronotopServices();
             setStatus(KronotopInstanceStatus.RUNNING);
         } catch (Exception e) {
+            LOGGER.error("Failed to initialize the instance", e);
             shutdown();
             throw e;
         }

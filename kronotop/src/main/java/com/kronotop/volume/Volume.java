@@ -372,8 +372,7 @@ public class Volume {
         ByteBuffer[] entries = new ByteBuffer[segmentRanges.length];
         for (int i = 0; i < segmentRanges.length; i++) {
             SegmentRange segmentRange = segmentRanges[i];
-            ByteBuffer entry = segment.get(segmentRange.position(), segmentRange.length());
-            entries[i] = entry.flip();
+            entries[i] = segment.get(segmentRange.position(), segmentRange.length());
         }
         return entries;
     }
@@ -555,7 +554,7 @@ public class Volume {
                     EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
 
                     Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
-                    ByteBuffer buffer = getByEntryMetadata(versionstampedKey, entryMetadata).flip();
+                    ByteBuffer buffer = getByEntryMetadata(versionstampedKey, entryMetadata);
                     pairs.add(new KeyEntry(versionstampedKey, buffer));
                     if (pairs.size() >= SEGMENT_VACUUM_BATCH_SIZE) {
                         break;

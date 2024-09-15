@@ -16,35 +16,25 @@
 
 package com.kronotop.redis.storage.persistence;
 
-public class HashKey implements Key {
-    private final String key;
-    private final String field;
-    private final int hashCode;
+import com.apple.foundationdb.tuple.Versionstamp;
 
-    public HashKey(String key, String field) {
-        this.key = key;
-        this.field = field;
-        this.hashCode = hashCodeInternal();
+public class BaseRedisValue<T> {
+    private final T value;
+    private Versionstamp versionstamp;
+
+    public BaseRedisValue(T value) {
+        this.value = value;
     }
 
-    @Override
-    public String getKey() {
-        return key;
+    public T value() {
+        return value;
     }
 
-    public String getField() {
-        return field;
+    public void setVersionstamp(Versionstamp versionstamp) {
+        this.versionstamp = versionstamp;
     }
 
-    @SuppressWarnings("checkstyle:magicnumber")
-    private int hashCodeInternal() {
-        int result = key.hashCode();
-        result = 31 * result + field.hashCode();
-        return result;
-    }
-
-    @Override
-    public int hashCode() {
-        return hashCode;
+    public Versionstamp versionstamp() {
+        return versionstamp;
     }
 }

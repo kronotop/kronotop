@@ -17,33 +17,31 @@
 package com.kronotop.redis.storage;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.redis.StringValue;
+import com.kronotop.redis.storage.persistence.*;
+import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.string.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
-import com.kronotop.redis.storage.persistence.DataStructure;
-import com.kronotop.redis.storage.persistence.Persistence;
-import com.kronotop.redis.storage.persistence.ShardLoader;
-import com.kronotop.redis.storage.persistence.StringKey;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ShardLoaderTest extends BaseStorageTest {
+public class RedisShardLoaderTest extends BaseStorageTest {
     @Test
     public void testDataStructureLoader_STRING() {
-        RedisShard shard = new OnHeapRedisShardImpl(0);
+        RedisShard shard = new OnHeapRedisShardImpl(context, 0);
 
         for (int i = 0; i < 10; i++) {
             String key = String.format("key-%d", i);
             String value = String.format("value-%d", i);
-            shard.storage().put(key, new StringValue(value.getBytes(), 0));
-            shard.persistenceQueue().add(new StringKey(key));
+            shard.storage().put(key, new RedisValueContainer(new StringValue(value.getBytes(), 0L)));
+            shard.persistenceQueue().add(new AppendStringJob(key));
         }
 
         Persistence persistence = new Persistence(context, shard);
         persistence.run();
 
-        RedisShard newShard = new OnHeapRedisShardImpl(0);
-        ShardLoader shardLoader = new ShardLoader(context, newShard);
+        RedisShard newShard = new OnHeapRedisShardImpl(context, 0);
+        RedisShardLoader shardLoader = new RedisShardLoader(context, newShard);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             shardLoader.load(tr, DataStructure.STRING);
         }
@@ -57,8 +55,8 @@ public class ShardLoaderTest extends BaseStorageTest {
             Object obj = shard.storage().get(key);
             StringValue value = (StringValue) obj;
 
-            assertEquals(value.getTTL(), newValue.getTTL());
-            assertEquals(new String(value.getValue()), new String(newValue.getValue()));
+            assertEquals(value.ttl(), newValue.ttl());
+            assertEquals(new String(value.value()), new String(newValue.value()));
         }
     }
 }

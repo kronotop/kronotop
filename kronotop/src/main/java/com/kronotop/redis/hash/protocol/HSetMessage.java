@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.hash.protocol;
 
+import com.kronotop.redis.hash.HashFieldValue;
 import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.WrongNumberOfArgumentsException;
@@ -40,8 +41,8 @@ public class HSetMessage extends PersistableHashMessage implements KronotopMessa
             );
         }
 
-        byte[] rawKey = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawKey);
+        byte[] rawKey = new byte[request.getParams().getFirst().readableBytes()];
+        request.getParams().getFirst().readBytes(rawKey);
         key = new String(rawKey);
 
         for (int i = 1; i < request.getParams().size(); i = i + 2) {
@@ -52,7 +53,7 @@ public class HSetMessage extends PersistableHashMessage implements KronotopMessa
             byte[] value = new byte[request.getParams().get(i + 1).readableBytes()];
             request.getParams().get(i + 1).readBytes(value);
 
-            FieldValuePair fieldValuePair = new FieldValuePair(field, value);
+            FieldValuePair fieldValuePair = new FieldValuePair(field, new HashFieldValue(value));
             getFieldValuePairs().add(fieldValuePair);
         }
     }

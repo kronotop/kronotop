@@ -14,16 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.coordinator;
+package com.kronotop.redis.storage.persistence;
 
-import com.kronotop.cluster.BroadcastEvent;
-import com.kronotop.cluster.EventTypes;
+import java.nio.ByteBuffer;
 
-/**
- * Represents an event that updates the routing table.
- */
-public class UpdateRoutingTableEvent extends BroadcastEvent {
-    public UpdateRoutingTableEvent(String payload) {
-        super(EventTypes.UPDATE_ROUTING_TABLE, payload);
-    }
+public interface DataStructurePack {
+    ByteBuffer pack();
 }
