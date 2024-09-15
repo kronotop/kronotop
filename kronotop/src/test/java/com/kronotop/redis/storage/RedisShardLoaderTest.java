@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ShardLoaderTest extends BaseStorageTest {
+public class RedisShardLoaderTest extends BaseStorageTest {
     @Test
     public void testDataStructureLoader_STRING() {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
