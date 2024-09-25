@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [ '21' ]
+        java: [ '21', '23' ] # supported LTS versions and the latest JVM version (possibly a non-LTS)
     name: Java ${{ matrix.Java }}
     steps:
       - uses: actions/checkout@v3

@@ -34,8 +34,12 @@ import java.util.concurrent.ThreadLocalRandom;
 public class BaseTest {
     private final String clusterName = UUID.randomUUID().toString();
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
+
     @TempDir
-    public File redisVolumeRootPathTempDir;
+    public File volumeIntegrationTestsTempDir;
+
+    @TempDir
+    public File redisIntegrationTestsTempDir;
 
     protected String getEphemeralTCPPort() {
         // Ephemeral ports (49152 to 65535), as defined by the Internet Assigned Numbers Authority (IANA).
@@ -56,8 +60,11 @@ public class BaseTest {
     protected Config loadConfig(String resourceName) {
         System.setProperty("cluster.name", clusterName);
 
-        Path volumeRootPath = Paths.get(redisVolumeRootPathTempDir.getAbsolutePath(), UUID.randomUUID().toString());
-        System.setProperty("volume_test.volume.root_path", volumeRootPath.toString());
+        Path volumeIntegrationTestsTempDir = Paths.get(this.volumeIntegrationTestsTempDir.getAbsolutePath(), UUID.randomUUID().toString());
+        System.setProperty("volume_test.volume.root_path", volumeIntegrationTestsTempDir.toString());
+
+        Path redisIntegrationTestsTempDir = Paths.get(this.redisIntegrationTestsTempDir.getAbsolutePath(), UUID.randomUUID().toString());
+        System.setProperty("redis.volume_syncer.root_path", redisIntegrationTestsTempDir.toString());
 
         ConfigFactory.invalidateCaches();
         return ConfigFactory.load(resourceName);
