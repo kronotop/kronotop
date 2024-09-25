@@ -24,10 +24,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class DirectoryLayoutTest {
+
     @Test
     public void testDirectoryNamingTest() {
         String subspaceName = DirectoryLayout.Builder.clusterName("development").internal().redis().volume().dataStructure("string").toString();
-        String expectedSubspaceName = "kronotop.development.internal.redis.syncer.0.string";
+        String expectedSubspaceName = "kronotop.development.internal.redis.volume.string";
         assertEquals(expectedSubspaceName, subspaceName);
     }
 
