@@ -39,13 +39,8 @@ import com.kronotop.redis.hash.*;
 import com.kronotop.redis.server.CommandHandler;
 import com.kronotop.redis.server.FlushAllHandler;
 import com.kronotop.redis.server.FlushDBHandler;
-import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.RedisShardMaintenanceWorker;
+import com.kronotop.redis.storage.*;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
-import com.kronotop.redis.storage.persistence.DataStructure;
-import com.kronotop.redis.storage.persistence.Persistence;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.RedisValueKind;
 import com.kronotop.redis.string.*;
 import com.kronotop.redis.transactions.*;
 import com.kronotop.server.*;
@@ -65,7 +60,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class RedisService extends CommandHandlerService implements KronotopService {
-    public static final String REDIS_VERSION = "7.0.8";
+    public static final String REDIS_VERSION = "7.4.0";
     public static final String NAME = "Redis";
     public static final String LogicalDatabase = "0";
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisService.class);
@@ -78,13 +73,15 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             Runtime.getRuntime().availableProcessors(),
             Thread.ofVirtual().name("kr.redis-service", 0L).factory()
     );
+    private final boolean isVolumeSyncEnabled;
     private final int numberOfShards;
-    private final List<RedisShardMaintenanceWorker> shardMaintenanceWorkers = new ArrayList<>();
+    private final List<VolumeSyncWorker> volumeSyncWorkers = new ArrayList<>();
 
     public RedisService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
         super(context, handlers);
         this.watcher = context.getService(Watcher.NAME);
         this.numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
+        this.isVolumeSyncEnabled = context.getConfig().getBoolean("redis.volume_syncer.enabled");
         this.membershipService = context.getService(MembershipService.NAME);
         this.hashSlots = distributeHashSlots();
         this.serviceContext = context.getServiceContext(NAME);
@@ -94,6 +91,13 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             RedisShard redisShard = new OnHeapRedisShardImpl(context, i);
             redisShard.setOperable(true);
             this.serviceContext.shards().put(i, redisShard);
+        }
+
+        // TODO: CLUSTER-REFACTORING
+        for (int i = 0; i < this.numberOfShards; i++) {
+            RedisShard shard = this.serviceContext.shards().get(i);
+            RedisShardLoader redisShardLoader = new RedisShardLoader(context, shard);
+            redisShardLoader.load();
         }
 
         registerHandler(new PingHandler());
@@ -153,19 +157,29 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     }
 
     public static void checkRedisValueKind(RedisValueContainer container, RedisValueKind kind) {
+        if (container == null) {
+            return;
+        }
         if (!container.kind().equals(kind)) {
             throw new WrongTypeException();
         }
     }
 
+    public boolean isVolumeSyncEnabled() {
+        return isVolumeSyncEnabled;
+    }
+
     public void start() {
-        Config redisConfig = context.getConfig().getConfig("redis");
-        int numPersistenceWorkers = redisConfig.getInt("persistence.num_workers");
-        int period = redisConfig.getInt("persistence.period");
-        for (int workerId = 0; workerId < numPersistenceWorkers; workerId++) {
-            RedisShardMaintenanceWorker shardMaintenanceWorker = new RedisShardMaintenanceWorker(context, workerId);
-            shardMaintenanceWorkers.add(shardMaintenanceWorker);
-            scheduledExecutorService.scheduleAtFixedRate(shardMaintenanceWorker, 0, period, TimeUnit.SECONDS);
+        if (isVolumeSyncEnabled()) {
+            Config redisConfig = context.getConfig().getConfig("redis");
+            int numVolumeSyncWorkers = redisConfig.getInt("volume_syncer.num_workers");
+            int period = redisConfig.getInt("volume_syncer.period");
+            for (int workerId = 0; workerId < numVolumeSyncWorkers; workerId++) {
+                VolumeSyncWorker worker = new VolumeSyncWorker(context, workerId);
+                volumeSyncWorkers.add(worker);
+                scheduledExecutorService.scheduleAtFixedRate(worker, 0, period, TimeUnit.MILLISECONDS);
+            }
+            LOGGER.info("Volume sync has been enabled");
         }
     }
 
@@ -237,7 +251,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      */
     public void clearShards() {
         try {
-            shardMaintenanceWorkers.forEach(RedisShardMaintenanceWorker::pause);
+            volumeSyncWorkers.forEach(VolumeSyncWorker::pause);
 
             // Stop all the operations on the owned shards
             serviceContext.shards().values().forEach(shard -> {
@@ -265,10 +279,10 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             // Clear all in-memory data
             serviceContext.shards().values().forEach(shard -> {
                 shard.storage().clear();
-                shard.persistenceQueue().clear();
+                shard.volumeSyncQueue().clear();
             });
         } finally {
-            shardMaintenanceWorkers.forEach(RedisShardMaintenanceWorker::resume);
+            volumeSyncWorkers.forEach(VolumeSyncWorker::resume);
             // Make the shard operable again
             serviceContext.shards().values().forEach(shard -> {
                 shard.setReadOnly(false);
@@ -311,37 +325,21 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         return watcher;
     }
 
-    /**
-     * Drains the persistence queues of all shards in the logical database by running the persistence process for each key in the queues.
-     * The persistence process retrieves the latest values for each key from the shard and persists them to the FoundationDB cluster.
-     */
-    private void drainPersistenceQueues() {
-        LOGGER.info("Draining persistence queue of Redis logical database");
-        for (RedisShard shard : serviceContext.shards().values()) {
-            if (shard.persistenceQueue().size() > 0) {
-                Persistence persistence = new Persistence(context, shard);
-                while (!persistence.isQueueEmpty()) {
-                    persistence.run();
-                }
-            }
-        }
-    }
-
     @Override
     public void shutdown() {
-        scheduledExecutorService.shutdownNow();
+        volumeSyncWorkers.forEach((worker) -> {
+            worker.drainVolumeSyncQueues();
+            worker.shutdown();
+        });
+
         try {
-            boolean result = scheduledExecutorService.awaitTermination(6, TimeUnit.SECONDS);
-            if (result) {
-                LOGGER.debug("Persistence executor has been terminated");
-            } else {
-                LOGGER.debug("Persistence executor has been terminated due to the timeout");
+            scheduledExecutorService.shutdownNow();
+            if (!scheduledExecutorService.awaitTermination(6, TimeUnit.SECONDS)) {
+                LOGGER.warn("Redis scheduled executor service could not be stopped gracefully");
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-
-        drainPersistenceQueues();
     }
 
     public MembershipService getClusterService() {

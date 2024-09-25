@@ -97,10 +97,10 @@ public class ScanHandler extends BaseHandler implements Handler {
         }
 
         Iterable<ReadWriteLock> locks = shard.striped().bulkGet(projection.getKeys());
+        for (ReadWriteLock lock : locks) {
+            lock.readLock().lock();
+        }
         try {
-            for (ReadWriteLock lock : locks) {
-                lock.readLock().lock();
-            }
             for (String key : projection.getKeys()) {
                 if (shard.storage().containsKey(key)) {
                     ByteBuf buf = response.getChannelContext().alloc().buffer();

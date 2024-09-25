@@ -29,8 +29,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class HIncrByFloatHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testHINCRBYFLOAT() {
+    public void test_HINCRBYFLOAT() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hincrbyfloat("mykey", "field", 10.50).encode(buf);

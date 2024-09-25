@@ -23,15 +23,16 @@ import com.kronotop.Context;
 import com.kronotop.cluster.sharding.impl.ShardImpl;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.storage.index.Index;
-import com.kronotop.redis.storage.persistence.PersistenceQueue;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.syncer.VolumeSyncQueue;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeConfig;
 import com.typesafe.config.Config;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 
@@ -41,7 +42,7 @@ import java.util.concurrent.locks.ReadWriteLock;
  */
 public abstract class AbstractRedisShard extends ShardImpl implements RedisShard {
     private final Index index;
-    private final PersistenceQueue persistenceQueue;
+    private final VolumeSyncQueue volumeSyncQueue;
     private final Striped<ReadWriteLock> striped = Striped.lazyWeakReadWriteLock(271);
     private final ConcurrentMap<String, RedisValueContainer> storage;
     private final Volume volume;
@@ -51,25 +52,29 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     protected AbstractRedisShard(Context context, Integer id) {
         super(context, id);
 
-        this.persistenceQueue = new RedisShardPersistenceQueue(this);
+        this.volumeSyncQueue = new RedisShardVolumeSyncQueue(this);
         this.index = new RedisShardIndex(id, this);
         this.storage = new Storage(this);
         this.volume = initializeRedisShardVolume();
     }
 
+    private Path getVolumeRootPath(Config config) {
+        return Path.of(config.getString("root_path"), "redis", "shards", Integer.toString(id));
+    }
+
     private Volume initializeRedisShardVolume() {
-        Config config = context.getConfig().getConfig("redis.persistence");
+        Config config = context.getConfig().getConfig("redis.volume_syncer");
         DirectoryLayout layout = DirectoryLayout.Builder.
                 clusterName(context.getClusterName()).
                 internal().
                 redis().
-                persistence().
+                volume().
                 shardId(Integer.toString(id));
         DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDirectorySubspace(layout.asList());
         VolumeConfig volumeConfig = new VolumeConfig(
                 subspace,
                 String.format("redis-shard-%d", id),
-                config.getString("root_path"),
+                getVolumeRootPath(config).toString(),
                 config.getLong("segment_size"),
                 (float) config.getDouble("allowed_garbage_ratio")
         );
@@ -106,8 +111,8 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     }
 
     @Override
-    public PersistenceQueue persistenceQueue() {
-        return persistenceQueue;
+    public VolumeSyncQueue volumeSyncQueue() {
+        return volumeSyncQueue;
     }
 
     @Override

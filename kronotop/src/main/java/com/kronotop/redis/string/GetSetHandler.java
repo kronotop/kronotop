@@ -18,9 +18,8 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.RedisValueKind;
-import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.RedisValueContainer;
+import com.kronotop.redis.storage.RedisValueKind;
 import com.kronotop.redis.string.protocol.GetSetMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -34,7 +33,6 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 
 import static com.kronotop.redis.RedisService.checkRedisValueKind;
@@ -62,37 +60,38 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
         return Collections.singletonList(request.attr(MessageTypes.GETSET).get().getKey());
     }
 
+    private RedisValueContainer executeGetSetCommand(RedisShard shard, GetSetMessage message) {
+        RedisValueContainer previous = shard.storage().get(message.getKey());
+        checkRedisValueKind(previous, RedisValueKind.STRING);
+
+        RedisValueContainer container = new RedisValueContainer(new StringValue(message.getValue()));
+        shard.storage().put(message.getKey(), container);
+
+        return previous;
+    }
+
     @Override
     public void execute(Request request, Response response) {
-        GetSetMessage getSetMessage = request.attr(MessageTypes.GETSET).get();
+        GetSetMessage message = request.attr(MessageTypes.GETSET).get();
 
-        RedisShard shard = service.findShard(getSetMessage.getKey());
-        AtomicReference<StringValue> result = new AtomicReference<>();
-
-        ReadWriteLock lock = shard.striped().get(getSetMessage.getKey());
+        RedisValueContainer previous;
+        RedisShard shard = service.findShard(message.getKey());
+        ReadWriteLock lock = shard.striped().get(message.getKey());
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
-            shard.storage().compute(getSetMessage.getKey(), (key, container) -> {
-                if (container == null) {
-                    shard.index().add(getSetMessage.getKey());
-                } else {
-                    checkRedisValueKind(container, RedisValueKind.STRING);
-                    result.set(container.string());
-                }
-                return new RedisValueContainer(new StringValue(getSetMessage.getValue()));
-            });
+            previous = executeGetSetCommand(shard, message);
+            syncStringOnVolume(shard, message.getKey(), previous);
         } finally {
             lock.writeLock().unlock();
         }
 
-        if (result.get() == null) {
+        if (previous == null) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }
 
         ByteBuf buf = response.getChannelContext().alloc().buffer();
-        buf.writeBytes(result.get().value());
-        shard.persistenceQueue().add(new AppendStringJob(getSetMessage.getKey()));
+        buf.writeBytes(previous.string().value());
         response.write(buf);
     }
 }

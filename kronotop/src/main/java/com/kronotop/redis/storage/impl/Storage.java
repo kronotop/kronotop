@@ -17,8 +17,8 @@
 package com.kronotop.redis.storage.impl;
 
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.storage.ShardReadOnlyException;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.ConcurrentHashMap;

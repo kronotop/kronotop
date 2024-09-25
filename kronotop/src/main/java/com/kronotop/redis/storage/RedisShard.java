@@ -19,8 +19,7 @@ package com.kronotop.redis.storage;
 import com.google.common.util.concurrent.Striped;
 import com.kronotop.cluster.sharding.Shard;
 import com.kronotop.redis.storage.index.Index;
-import com.kronotop.redis.storage.persistence.PersistenceQueue;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.syncer.VolumeSyncQueue;
 import com.kronotop.volume.Volume;
 
 import java.util.concurrent.ConcurrentMap;
@@ -61,11 +60,12 @@ public interface RedisShard extends Shard {
     Striped<ReadWriteLock> striped();
 
     /**
-     * Retrieves the PersistenceQueue associated with the Shard.
+     * Retrieves the append-only queue associated with this shard.
+     * The append queue is utilized for synchronizing volume-related operations.
      *
-     * @return the PersistenceQueue associated with the Shard
+     * @return the VolumeSyncQueue for this shard
      */
-    PersistenceQueue persistenceQueue();
+    VolumeSyncQueue volumeSyncQueue();
 
     /**
      * Checks if the shard is operable.

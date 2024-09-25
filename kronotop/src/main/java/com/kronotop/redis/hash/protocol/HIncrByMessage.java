@@ -23,13 +23,13 @@ import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class HIncrByMessage extends PersistableHashMessage implements KronotopMessage<String> {
+public class HIncrByMessage extends SyncableHashMessage implements KronotopMessage<String> {
     public static final String COMMAND = "HINCRBY";
     public static final int MINIMUM_PARAMETER_COUNT = 3;
     public static final int MAXIMUM_PARAMETER_COUNT = 3;
     private final Request request;
     private String key;
-    private long increment;
+    private int increment;
 
     public HIncrByMessage(Request request) {
         this.request = request;
@@ -55,7 +55,7 @@ public class HIncrByMessage extends PersistableHashMessage implements KronotopMe
         }
     }
 
-    public long getIncrement() {
+    public int getIncrement() {
         return increment;
     }
 

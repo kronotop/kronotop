@@ -20,9 +20,9 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.BaseStorageTest;
+import com.kronotop.redis.storage.DataStructure;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.DataStructure;
-import com.kronotop.redis.storage.persistence.Persistence;
+import com.kronotop.redis.storage.syncer.VolumeSyncer;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -51,11 +51,11 @@ public class FlushDBHandlerTest extends BaseStorageTest {
         }
 
         {
-            // Persistence task has been run at the background, but it's an async event.
+            // VolumeSync task has been run at the background, but it's an async event.
             // Let's run the task eagerly. It's safe.
             RedisShard shard = redisService.getShard(getShardId(key));
-            Persistence persistence = new Persistence(context, shard);
-            persistence.run();
+            VolumeSyncer volumeSyncer = new VolumeSyncer(context, shard);
+            volumeSyncer.run();
         }
 
         {

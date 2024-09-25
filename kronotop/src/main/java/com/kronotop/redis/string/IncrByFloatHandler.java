@@ -20,9 +20,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.RedisValueKind;
-import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.string.protocol.IncrByFloatMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -37,8 +35,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
-
-import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(IncrByFloatMessage.COMMAND)
 @MaximumParameterCount(IncrByFloatMessage.MAXIMUM_PARAMETER_COUNT)
@@ -65,35 +61,33 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        IncrByFloatMessage incrByFloatMessage = request.attr(MessageTypes.INCRBYFLOAT).get();
+        IncrByFloatMessage message = request.attr(MessageTypes.INCRBYFLOAT).get();
 
-        RedisShard shard = service.findShard(incrByFloatMessage.getKey());
+        RedisShard shard = service.findShard(message.getKey());
         AtomicReference<Double> result = new AtomicReference<>();
-        ReadWriteLock lock = shard.striped().get(incrByFloatMessage.getKey());
 
+        NumberManipulationHandler<Double> handler = new NumberManipulationHandler<>(
+                NumberManipulationHandler::encodeDouble,
+                NumberManipulationHandler::decodeDouble
+        );
+        ReadWriteLock lock = shard.striped().get(message.getKey());
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
-            shard.storage().compute(incrByFloatMessage.getKey(), (key, container) -> {
-                double currentValue = 0;
-                if (container != null) {
-                    checkRedisValueKind(container, RedisValueKind.STRING);
-                    try {
-                        currentValue = Double.parseDouble(new String(container.string().value()));
-                    } catch (NumberFormatException e) {
-                        throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
-                    }
-                } else {
-                    shard.index().add(incrByFloatMessage.getKey());
+            RedisValueContainer previous = handler.manipulate(shard, message.getKey(), (currentValue) -> {
+                if (currentValue == null) {
+                    currentValue = 0.0;
                 }
-                currentValue += incrByFloatMessage.getIncrement();
+                currentValue += message.getIncrement();
                 result.set(currentValue);
-                return new RedisValueContainer(new StringValue(Double.toString(currentValue).getBytes()));
+                return currentValue;
             });
+            syncStringOnVolume(shard, message.getKey(), previous);
+        } catch (NumberFormatException e) {
+            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
         } finally {
             lock.writeLock().unlock();
         }
 
-        shard.persistenceQueue().add(new AppendStringJob(incrByFloatMessage.getKey()));
         ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(result.get().toString().getBytes());
         response.write(buf);

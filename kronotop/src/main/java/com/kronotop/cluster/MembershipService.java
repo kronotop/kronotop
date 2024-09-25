@@ -31,7 +31,6 @@ import com.kronotop.*;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.cluster.coordinator.RoutingTable;
 import com.kronotop.common.KronotopException;
-import com.kronotop.common.utils.ByteUtils;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
 import com.kronotop.network.Address;

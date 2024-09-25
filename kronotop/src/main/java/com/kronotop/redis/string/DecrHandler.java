@@ -20,9 +20,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.RedisValueKind;
-import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.string.protocol.DecrMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -36,8 +34,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
-
-import static com.kronotop.redis.RedisService.checkRedisValueKind;
 
 @Command(DecrMessage.COMMAND)
 @MaximumParameterCount(DecrMessage.MAXIMUM_PARAMETER_COUNT)
@@ -64,36 +60,33 @@ public class DecrHandler extends BaseStringHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        DecrMessage decrMessage = request.attr(MessageTypes.DECR).get();
+        DecrMessage message = request.attr(MessageTypes.DECR).get();
 
-        RedisShard shard = service.findShard(decrMessage.getKey());
+        RedisShard shard = service.findShard(message.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
 
-        ReadWriteLock lock = shard.striped().get(decrMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(message.getKey());
+        NumberManipulationHandler<Integer> handler = new NumberManipulationHandler<>(
+                NumberManipulationHandler::encodeInteger,
+                NumberManipulationHandler::decodeInteger
+        );
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
-            shard.storage().compute(decrMessage.getKey(), (key, container) -> {
-                int currentValue = 0;
-                if (container != null) {
-                    checkRedisValueKind(container, RedisValueKind.STRING);
-                    try {
-                        currentValue = Integer.parseInt(new String(container.string().value()));
-                    } catch (NumberFormatException e) {
-                        throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
-                    }
-                } else {
-                    shard.index().add(decrMessage.getKey());
+            RedisValueContainer previous = handler.manipulate(shard, message.getKey(), (currentValue) -> {
+                if (currentValue == null) {
+                    currentValue = 0;
                 }
                 currentValue -= 1;
                 result.set(currentValue);
-                StringValue value = new StringValue(Integer.toString(currentValue).getBytes());
-                return new RedisValueContainer(value);
+                return currentValue;
             });
+            syncStringOnVolume(shard, message.getKey(), previous);
+        } catch (NumberFormatException e) {
+            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
         } finally {
             lock.writeLock().unlock();
         }
 
-        shard.persistenceQueue().add(new AppendStringJob(decrMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

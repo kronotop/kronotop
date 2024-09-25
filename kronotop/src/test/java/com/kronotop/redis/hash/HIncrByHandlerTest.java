@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class HIncrByHandlerTest extends BaseHandlerTest {
     @Test
-    public void testHINCRBY() {
+    public void test_HINCRBY() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hincrby("mykey", "field", 10).encode(buf);

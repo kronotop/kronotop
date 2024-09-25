@@ -18,9 +18,8 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.RedisValueKind;
-import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.RedisValueContainer;
+import com.kronotop.redis.storage.RedisValueKind;
 import com.kronotop.redis.string.protocol.AppendMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -30,7 +29,7 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(AppendMessage.COMMAND)
@@ -56,38 +55,45 @@ public class AppendHandler extends BaseStringHandler implements Handler {
         request.attr(MessageTypes.APPEND).set(new AppendMessage(request));
     }
 
+    private RedisValueContainer appendCommand(RedisShard shard, AppendMessage message, AtomicInteger result) {
+        RedisValueContainer previous = shard.storage().get(message.getKey());
+        if (previous == null) {
+            StringValue newValue = new StringValue(message.getValue());
+            shard.storage().put(message.getKey(), new RedisValueContainer(newValue));
+            result.set(newValue.value().length);
+            return null;
+        }
+
+        if (!previous.kind().equals(RedisValueKind.STRING)) {
+            throw new WrongTypeException();
+        }
+
+        StringValue previousValue = previous.string();
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        output.writeBytes(previousValue.value());
+        output.writeBytes(message.getValue());
+
+        StringValue newValue = new StringValue(output.toByteArray());
+        shard.storage().put(message.getKey(), new RedisValueContainer(newValue));
+        result.set(newValue.value().length);
+        return previous;
+    }
+
     @Override
     public void execute(Request request, Response response) {
-        AppendMessage appendMessage = request.attr(MessageTypes.APPEND).get();
+        AppendMessage message = request.attr(MessageTypes.APPEND).get();
 
-        RedisShard shard = service.findShard(appendMessage.getKey());
-        AtomicReference<Integer> result = new AtomicReference<>();
+        RedisShard shard = service.findShard(message.getKey());
+        AtomicInteger result = new AtomicInteger();
 
-        ReadWriteLock lock = shard.striped().get(appendMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(message.getKey());
         try {
             lock.writeLock().lock();
-            shard.storage().compute(appendMessage.getKey(), (key, container) -> {
-                if (container != null) {
-                    if (!container.kind().equals(RedisValueKind.STRING)) {
-                        throw new WrongTypeException();
-                    }
-                    StringValue value = container.string();
-                    ByteArrayOutputStream output = new ByteArrayOutputStream();
-                    output.writeBytes(value.value());
-                    output.writeBytes(appendMessage.getValue());
-                    result.set(output.size());
-                    return new RedisValueContainer(new StringValue(output.toByteArray()));
-                } else {
-                    shard.index().add(appendMessage.getKey());
-                    result.set(appendMessage.getValue().length);
-                    return new RedisValueContainer(new StringValue(appendMessage.getValue()));
-                }
-            });
+            RedisValueContainer previous = appendCommand(shard, message, result);
+            syncStringOnVolume(shard, message.getKey(), previous);
         } finally {
             lock.writeLock().unlock();
         }
-
-        shard.persistenceQueue().add(new AppendStringJob(appendMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

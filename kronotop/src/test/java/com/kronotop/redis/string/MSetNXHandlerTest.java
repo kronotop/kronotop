@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class MSetNXHandlerTest extends BaseHandlerTest {
+
     public Map<String, String> getPairs() {
         HashMap<String, String> pairs = new HashMap<>();
         pairs.put("mykey-1{nodeA}", "myvalue-1");
@@ -42,7 +43,7 @@ public class MSetNXHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testMSETNX() {
+    public void test_MSETNX() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.msetnx(getPairs()).encode(buf);
@@ -55,7 +56,7 @@ public class MSetNXHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testMSETNX_Return_Zero() {
+    public void test_MSETNX_returns_zero() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
 
         {

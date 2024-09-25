@@ -20,7 +20,7 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.TypeMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -50,8 +50,8 @@ public class TypeHandler extends BaseHandler implements Handler {
 
         RedisValueContainer container;
         ReadWriteLock lock = shard.striped().get(typeMessage.getKey());
+        lock.readLock().lock();
         try {
-            lock.readLock().lock();
             container = shard.storage().get(typeMessage.getKey());
         } finally {
             lock.readLock().unlock();

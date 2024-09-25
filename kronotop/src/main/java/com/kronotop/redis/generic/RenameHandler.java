@@ -19,8 +19,7 @@ package com.kronotop.redis.generic;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.RenameMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -59,33 +58,36 @@ public class RenameHandler extends BaseGenericHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        RenameMessage renameMessage = request.attr(MessageTypes.RENAME).get();
+        RenameMessage message = request.attr(MessageTypes.RENAME).get();
 
         List<String> keys = new ArrayList<>();
-        keys.add(renameMessage.getKey());
-        keys.add(renameMessage.getNewkey());
+        keys.add(message.getKey());
+        keys.add(message.getNewkey());
 
         RedisShard shard = service.findShard(keys);
+
         Iterable<ReadWriteLock> locks = shard.striped().bulkGet(keys);
+        for (ReadWriteLock lock : locks) {
+            lock.writeLock().lock();
+        }
+
         try {
-            for (ReadWriteLock lock : locks) {
-                lock.writeLock().lock();
-            }
-            RedisValueContainer container = shard.storage().get(renameMessage.getKey());
-            if (container == null) {
+            RedisValueContainer previous = shard.storage().get(message.getKey());
+            if (previous == null) {
                 response.writeError("no such key");
                 return;
             }
 
-            shard.storage().put(renameMessage.getNewkey(), container);
-            shard.persistenceQueue().add(new AppendStringJob(renameMessage.getNewkey()));
-            shard.storage().remove(renameMessage.getKey(), container);
+            shard.storage().remove(message.getKey());
+            shard.storage().put(message.getNewkey(), previous);
+
+            shard.index().add(message.getNewkey());
+            syncMutatedStringOnVolume(shard, message.getNewkey(), previous.baseRedisValue().versionstamp());
         } finally {
             for (ReadWriteLock lock : locks) {
                 lock.writeLock().unlock();
             }
         }
-        shard.persistenceQueue().add(new AppendStringJob(renameMessage.getKey()));
         response.writeOK();
     }
 }

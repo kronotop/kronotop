@@ -16,13 +16,54 @@
 
 package com.kronotop.redis.string;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
-
-// TODO: This should be removed
+import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.RedisValueContainer;
+import com.kronotop.redis.storage.syncer.jobs.AppendStringJob;
+import com.kronotop.redis.storage.syncer.jobs.DeleteByVersionstampJob;
 
 public class BaseStringHandler extends BaseHandler {
     public BaseStringHandler(RedisService service) {
         super(service);
+    }
+
+    protected void deleteByVersionstamp(RedisShard shard, Versionstamp versionstamp) {
+        if (!service.isVolumeSyncEnabled()) {
+            return;
+        }
+
+        if (versionstamp != null) {
+            shard.volumeSyncQueue().add(new DeleteByVersionstampJob(versionstamp));
+        }
+    }
+
+    protected void syncMutatedStringOnVolume(RedisShard shard, String key, Versionstamp versionstamp) {
+        if (!service.isVolumeSyncEnabled()) {
+            return;
+        }
+
+        shard.volumeSyncQueue().add(new AppendStringJob(key));
+        if (versionstamp != null) {
+            shard.volumeSyncQueue().add(new DeleteByVersionstampJob(versionstamp));
+        }
+    }
+
+    protected void syncStringOnVolume(RedisShard shard, String key, RedisValueContainer previous) {
+        if (!service.isVolumeSyncEnabled()) {
+            return;
+        }
+
+        if (previous == null) {
+            shard.volumeSyncQueue().add(new AppendStringJob(key));
+            shard.index().add(key);
+        } else {
+            shard.volumeSyncQueue().add(new AppendStringJob(key));
+            Versionstamp versionstamp = previous.baseRedisValue().versionstamp();
+            if (versionstamp != null) {
+                shard.volumeSyncQueue().add(new DeleteByVersionstampJob(versionstamp));
+            }
+        }
     }
 }

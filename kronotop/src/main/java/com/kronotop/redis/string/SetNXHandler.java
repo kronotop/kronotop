@@ -18,8 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.string.protocol.SetNXMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -58,30 +57,26 @@ public class SetNXHandler extends BaseStringHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        SetNXMessage setnxMessage = request.attr(MessageTypes.SETNX).get();
+        SetNXMessage message = request.attr(MessageTypes.SETNX).get();
 
-        RedisShard shard = service.findShard(setnxMessage.getKey());
-        RedisValueContainer container;
-        ReadWriteLock lock = shard.striped().get(setnxMessage.getKey());
+        RedisShard shard = service.findShard(message.getKey());
+        RedisValueContainer previous;
+        ReadWriteLock lock = shard.striped().get(message.getKey());
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
-            container = shard.storage().putIfAbsent(
-                    setnxMessage.getKey(),
-                    new RedisValueContainer(new StringValue(setnxMessage.getValue()))
+            previous = shard.storage().putIfAbsent(
+                    message.getKey(),
+                    new RedisValueContainer(new StringValue(message.getValue()))
             );
-            if (container == null) {
-                shard.index().add(setnxMessage.getKey());
-            }
+            syncStringOnVolume(shard, message.getKey(), previous);
         } finally {
             lock.writeLock().unlock();
         }
 
-        if (container == null) {
+        if (previous == null) {
             response.writeInteger(1);
-        } else {
-            response.writeInteger(0);
+            return;
         }
-
-        shard.persistenceQueue().add(new AppendStringJob(setnxMessage.getKey()));
+        response.writeInteger(0);
     }
 }

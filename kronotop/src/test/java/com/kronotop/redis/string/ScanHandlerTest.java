@@ -36,8 +36,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class ScanHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testSCAN() {
+    public void test_SCAN() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
 
         SortedSet<String> expectedResult = new TreeSet<>();

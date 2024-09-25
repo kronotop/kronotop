@@ -33,8 +33,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class DelHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testDEL_Non_Existing_Keys() {
+    public void test_DEL_Non_Existing_Keys() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.del("key-1{nodeA}", "key-2{nodeA}").encode(buf);
@@ -47,7 +48,7 @@ public class DelHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testDEL_Many_Keys() {
+    public void test_DEL_Many_Keys() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             for (int i = 0; i < 10; i++) {

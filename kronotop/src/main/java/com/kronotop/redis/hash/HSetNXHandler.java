@@ -20,8 +20,8 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HSetNXMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.redis.storage.RedisValueContainer;
+import com.kronotop.redis.storage.RedisValueKind;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -61,33 +61,33 @@ public class HSetNXHandler extends BaseHashHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        HSetNXMessage hsetnxMessage = request.attr(MessageTypes.HSETNX).get();
+        HSetNXMessage message = request.attr(MessageTypes.HSETNX).get();
 
-        RedisShard shard = service.findShard(hsetnxMessage.getKey());
-        ReadWriteLock lock = shard.striped().get(hsetnxMessage.getKey());
+        RedisShard shard = service.findShard(message.getKey());
+        ReadWriteLock lock = shard.striped().get(message.getKey());
         lock.writeLock().lock();
         int result = 0;
         try {
             HashValue hashValue;
-            RedisValueContainer container = shard.storage().get(hsetnxMessage.getKey());
-            if (container == null) {
+            RedisValueContainer previous = shard.storage().get(message.getKey());
+            if (previous == null) {
                 hashValue = new HashValue();
-                shard.storage().put(hsetnxMessage.getKey(), new RedisValueContainer(hashValue));
+                shard.storage().put(message.getKey(), new RedisValueContainer(hashValue));
             } else {
-                checkRedisValueKind(container, RedisValueKind.HASH);
-                hashValue = container.hash();
+                checkRedisValueKind(previous, RedisValueKind.HASH);
+                hashValue = previous.hash();
             }
-            FieldValuePair fieldValuePair = hsetnxMessage.getFieldValuePairs().getFirst();
+            FieldValuePair fieldValuePair = message.getFieldValuePairs().getFirst();
             boolean exists = hashValue.containsKey(fieldValuePair.getField());
             if (!exists) {
                 hashValue.put(fieldValuePair.getField(), fieldValuePair.getValue());
+                syncHashField(shard, message.getKey(), fieldValuePair);
                 result = 1;
             }
         } finally {
             lock.writeLock().unlock();
         }
 
-        persistence(shard, hsetnxMessage.getKey(), hsetnxMessage.getFieldValuePairs());
         response.writeInteger(result);
     }
 }

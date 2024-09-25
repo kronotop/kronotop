@@ -34,8 +34,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class HGetAllHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testHGETALL() {
+    public void test_HGETALL() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         HashMap<String, String> map = new HashMap<>();
         {
@@ -78,7 +79,7 @@ public class HGetAllHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testHGETALL_KeyNotExists() {
+    public void test_HGETALL_KeyNotExists() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hgetall("mykey").encode(buf);

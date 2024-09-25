@@ -20,8 +20,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.string.protocol.IncrMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -61,35 +60,34 @@ public class IncrHandler extends BaseStringHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        IncrMessage incrMessage = request.attr(MessageTypes.INCR).get();
+        IncrMessage message = request.attr(MessageTypes.INCR).get();
 
-        RedisShard shard = service.findShard(incrMessage.getKey());
+        RedisShard shard = service.findShard(message.getKey());
 
-        ReadWriteLock lock = shard.striped().get(incrMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(message.getKey());
         AtomicReference<Integer> result = new AtomicReference<>();
+
+        NumberManipulationHandler<Integer> handler = new NumberManipulationHandler<>(
+                NumberManipulationHandler::encodeInteger,
+                NumberManipulationHandler::decodeInteger
+        );
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
-            shard.storage().compute(incrMessage.getKey(), (key, container) -> {
-                int currentValue = 0;
-                if (container != null) {
-                    try {
-                        currentValue = Integer.parseInt(new String(container.string().value()));
-                    } catch (NumberFormatException e) {
-                        throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
-                    }
-                } else {
-                    shard.index().add(incrMessage.getKey());
+            RedisValueContainer previous = handler.manipulate(shard, message.getKey(), (currentValue) -> {
+                if (currentValue == null) {
+                    currentValue = 0;
                 }
                 currentValue += 1;
                 result.set(currentValue);
-                StringValue value = new StringValue(Integer.toString(currentValue).getBytes());
-                return new RedisValueContainer(value);
+                return currentValue;
             });
+            syncStringOnVolume(shard, message.getKey(), previous);
+        } catch (NumberFormatException e) {
+            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
         } finally {
             lock.writeLock().unlock();
         }
 
-        shard.persistenceQueue().add(new AppendStringJob(incrMessage.getKey()));
         response.writeInteger(result.get());
     }
 }

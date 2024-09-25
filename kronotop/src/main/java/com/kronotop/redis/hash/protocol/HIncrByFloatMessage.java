@@ -23,7 +23,7 @@ import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class HIncrByFloatMessage extends PersistableHashMessage implements KronotopMessage<String> {
+public class HIncrByFloatMessage extends SyncableHashMessage implements KronotopMessage<String> {
     public static final String COMMAND = "HINCRBYFLOAT";
     public static final int MINIMUM_PARAMETER_COUNT = 3;
     public static final int MAXIMUM_PARAMETER_COUNT = 3;

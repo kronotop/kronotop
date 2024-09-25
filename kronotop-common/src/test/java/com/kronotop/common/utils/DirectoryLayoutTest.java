@@ -26,8 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class DirectoryLayoutTest {
     @Test
     public void testDirectoryNamingTest() {
-        String subspaceName = DirectoryLayout.Builder.clusterName("development").internal().redis().persistence().dataStructure("string").toString();
-        String expectedSubspaceName = "kronotop.development.internal.redis.persistence.0.string";
+        String subspaceName = DirectoryLayout.Builder.clusterName("development").internal().redis().volume().dataStructure("string").toString();
+        String expectedSubspaceName = "kronotop.development.internal.redis.syncer.0.string";
         assertEquals(expectedSubspaceName, subspaceName);
     }
 

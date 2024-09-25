@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class ExistsHandlerTest extends BaseHandlerTest {
     @Test
-    public void testEXISTS_NonExistingKeys() {
+    public void test_EXISTS_NonExistingKeys() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.exists("key-1{nodeA}", "key-2{nodeA}").encode(buf);
@@ -47,7 +47,7 @@ public class ExistsHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testEXISTS_Many_Keys() {
+    public void test_EXISTS_Many_Keys() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             for (int i = 0; i < 10; i++) {
@@ -80,7 +80,7 @@ public class ExistsHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testEXISTS_CountMultipleTimes() {
+    public void test_EXISTS_CountMultipleTimes() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();

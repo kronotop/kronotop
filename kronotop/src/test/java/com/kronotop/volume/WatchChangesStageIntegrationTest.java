@@ -87,7 +87,6 @@ public class WatchChangesStageIntegrationTest extends BaseNetworkedVolumeTest {
                 volume.getConfig().segmentSize(),
                 volume.getConfig().allowedGarbageRatio()
         );
-        System.out.println(standbyVolumeConfig.rootPath());
         return new Volume(context, standbyVolumeConfig);
     }
 

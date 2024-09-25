@@ -49,8 +49,8 @@ public class DirectoryLayout {
         return this;
     }
 
-    public DirectoryLayout persistence() {
-        items.add("persistence");
+    public DirectoryLayout volume() {
+        items.add("volume");
         return this;
     }
 
@@ -144,8 +144,8 @@ public class DirectoryLayout {
             return new DirectoryLayout().dataStructure(dataStructure);
         }
 
-        public static DirectoryLayout persistence() {
-            return new DirectoryLayout().persistence();
+        public static DirectoryLayout volume() {
+            return new DirectoryLayout().volume();
         }
 
         public static DirectoryLayout namespaces() {

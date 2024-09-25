@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.hash;
 
-import com.kronotop.redis.storage.persistence.BaseRedisValue;
+import com.kronotop.redis.storage.BaseRedisValue;
 
 public class HashFieldValue extends BaseRedisValue<byte[]> {
     private long ttl;

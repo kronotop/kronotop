@@ -18,8 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.string.protocol.SetMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -56,22 +55,25 @@ public class SetHandler extends BaseStringHandler implements Handler {
         return Collections.singletonList(request.attr(MessageTypes.SET).get().getKey());
     }
 
+    private RedisValueContainer executeSetCommand(RedisShard shard, SetMessage message) {
+        StringValue stringValue = new StringValue(message.getValue());
+        RedisValueContainer container = new RedisValueContainer(stringValue);
+        return shard.storage().put(message.getKey(), container);
+    }
+
     @Override
     public void execute(Request request, Response response) {
-        SetMessage setMessage = request.attr(MessageTypes.SET).get();
+        SetMessage message = request.attr(MessageTypes.SET).get();
 
-        RedisShard shard = service.findShard(setMessage.getKey());
-        StringValue stringValue = new StringValue(setMessage.getValue());
-        ReadWriteLock lock = shard.striped().get(setMessage.getKey());
+        RedisShard shard = service.findShard(message.getKey());
+        ReadWriteLock lock = shard.striped().get(message.getKey());
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
-            shard.storage().put(setMessage.getKey(), new RedisValueContainer(stringValue));
-            shard.index().add(setMessage.getKey());
+            RedisValueContainer previous = executeSetCommand(shard, message);
+            syncStringOnVolume(shard, message.getKey(), previous);
         } finally {
             lock.writeLock().unlock();
         }
-
-        shard.persistenceQueue().add(new AppendStringJob(setMessage.getKey()));
         response.writeOK();
     }
 }

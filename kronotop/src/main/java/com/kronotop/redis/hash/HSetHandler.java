@@ -20,8 +20,8 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HSetMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.redis.storage.RedisValueContainer;
+import com.kronotop.redis.storage.RedisValueKind;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -59,32 +59,35 @@ public class HSetHandler extends BaseHashHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        HSetMessage hsetMessage = request.attr(MessageTypes.HSET).get();
+        HSetMessage message = request.attr(MessageTypes.HSET).get();
 
-        RedisShard shard = service.findShard(hsetMessage.getKey());
-        ReadWriteLock lock = shard.striped().get(hsetMessage.getKey());
+        RedisShard shard = service.findShard(message.getKey());
+        ReadWriteLock lock = shard.striped().get(message.getKey());
         lock.writeLock().lock();
         int total = 0;
         try {
             HashValue hashValue;
-            RedisValueContainer container = shard.storage().get(hsetMessage.getKey());
-            if (container == null) {
+            RedisValueContainer previous = shard.storage().get(message.getKey());
+            if (previous == null) {
                 hashValue = new HashValue();
-                shard.storage().put(hsetMessage.getKey(), new RedisValueContainer(hashValue));
+                shard.storage().put(message.getKey(), new RedisValueContainer(hashValue));
             } else {
-                checkRedisValueKind(container, RedisValueKind.HASH);
-                hashValue = container.hash();
+                checkRedisValueKind(previous, RedisValueKind.HASH);
+                hashValue = previous.hash();
             }
-            for (FieldValuePair fieldValuePair : hsetMessage.getFieldValuePairs()) {
-                HashFieldValue oldHashField = hashValue.put(fieldValuePair.getField(), fieldValuePair.getValue());
-                if (oldHashField == null) {
+
+            for (FieldValuePair fieldValuePair : message.getFieldValuePairs()) {
+                HashFieldValue previousHashField = hashValue.put(fieldValuePair.getField(), fieldValuePair.getValue());
+                if (previousHashField != null) {
+                    deleteByVersionstamp(shard, previousHashField);
+                } else {
                     total++;
                 }
+                syncHashField(shard, message.getKey(), fieldValuePair);
             }
         } finally {
             lock.writeLock().unlock();
         }
-        persistence(shard, hsetMessage.getKey(), hsetMessage.getFieldValuePairs());
         response.writeInteger(total);
     }
 }

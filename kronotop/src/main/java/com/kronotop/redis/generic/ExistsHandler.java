@@ -48,12 +48,12 @@ public class ExistsHandler extends BaseHandler implements Handler {
         RedisShard shard = service.findShard(existsMessage.getKeys());
 
         Iterable<ReadWriteLock> locks = shard.striped().bulkGet(existsMessage.getKeys());
+        for (ReadWriteLock lock : locks) {
+            lock.readLock().lock();
+        }
+
         long total = 0;
         try {
-            for (ReadWriteLock lock : locks) {
-                lock.readLock().lock();
-            }
-
             for (String key : existsMessage.getKeys()) {
                 if (shard.storage().containsKey(key)) {
                     total++;

@@ -32,8 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class SetRangeHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testSETRANGE_NonExistingKey() {
+    public void test_SETRANGE_NonExistingKey() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -59,7 +60,7 @@ public class SetRangeHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testSETRANGE() {
+    public void test_SETRANGE() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();

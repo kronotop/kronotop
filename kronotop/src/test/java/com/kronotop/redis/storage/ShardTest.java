@@ -17,7 +17,6 @@
 package com.kronotop.redis.storage;
 
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
 import com.kronotop.redis.string.StringValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -32,8 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class RenameNXHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testRENAMENX_newkey_NotExists() {
+    public void test_RENAMENX_newkey_NotExists() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -81,7 +82,7 @@ public class RenameNXHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testRENAMENX_newkey_Exists() {
+    public void test_RENAMENX_newkey_Exists() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();

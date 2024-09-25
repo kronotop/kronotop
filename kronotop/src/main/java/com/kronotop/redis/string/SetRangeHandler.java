@@ -18,8 +18,7 @@ package com.kronotop.redis.string;
 
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.string.protocol.SetRangeMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -33,7 +32,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(SetRangeMessage.COMMAND)
@@ -59,47 +58,53 @@ public class SetRangeHandler extends BaseStringHandler implements Handler {
         request.attr(MessageTypes.SETRANGE).set(new SetRangeMessage(request));
     }
 
+    private RedisValueContainer executeSetRangeCommand(RedisShard shard, SetRangeMessage message, AtomicInteger result) {
+        RedisValueContainer previous = shard.storage().get(message.getKey());
+        if (previous == null) {
+            int offset = message.getOffset();
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            byte[] padding = new byte[offset];
+            output.writeBytes(padding);
+            output.writeBytes(message.getValue());
+            result.set(output.size());
+            shard.index().add(message.getKey());
+            RedisValueContainer container = new RedisValueContainer(new StringValue(output.toByteArray()));
+            shard.storage().put(message.getKey(), container);
+            return null;
+        }
+
+        int size = previous.string().value().length;
+        int overflowSize = previous.string().value().length - (message.getOffset() + message.getValue().length);
+        if (overflowSize < 0) {
+            size += Math.abs(overflowSize);
+        }
+        byte[] data = new byte[size];
+        ByteBuffer buf = ByteBuffer.wrap(data);
+        buf.put(previous.string().value());
+        buf.position(message.getOffset());
+        buf.put(message.getValue());
+
+        result.set(size);
+        RedisValueContainer container = new RedisValueContainer(new StringValue(buf.array()));
+        shard.storage().put(message.getKey(), container);
+        return previous;
+    }
+
     @Override
     public void execute(Request request, Response response) {
-        SetRangeMessage setRangeMessage = request.attr(MessageTypes.SETRANGE).get();
+        SetRangeMessage message = request.attr(MessageTypes.SETRANGE).get();
 
-        RedisShard shard = service.findShard(setRangeMessage.getKey());
-        AtomicReference<Integer> result = new AtomicReference<>();
+        RedisShard shard = service.findShard(message.getKey());
+        AtomicInteger result = new AtomicInteger();
 
-        ReadWriteLock lock = shard.striped().get(setRangeMessage.getKey());
+        ReadWriteLock lock = shard.striped().get(message.getKey());
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
-            shard.storage().compute(setRangeMessage.getKey(), (key, container) -> {
-                if (container == null) {
-                    int offset = setRangeMessage.getOffset();
-                    ByteArrayOutputStream output = new ByteArrayOutputStream();
-                    byte[] padding = new byte[offset];
-                    output.writeBytes(padding);
-                    output.writeBytes(setRangeMessage.getValue());
-                    result.set(output.size());
-                    shard.index().add(setRangeMessage.getKey());
-                    return new RedisValueContainer(new StringValue(output.toByteArray()));
-                }
-
-                int size = container.string().value().length;
-                int overflowSize = container.string().value().length - (setRangeMessage.getOffset() + setRangeMessage.getValue().length);
-                if (overflowSize < 0) {
-                    size += Math.abs(overflowSize);
-                }
-                byte[] data = new byte[size];
-                ByteBuffer buf = ByteBuffer.wrap(data);
-                buf.put(container.string().value());
-                buf.position(setRangeMessage.getOffset());
-                buf.put(setRangeMessage.getValue());
-
-                result.set(size);
-                return new RedisValueContainer(new StringValue(buf.array()));
-            });
+            RedisValueContainer previous = executeSetRangeCommand(shard, message, result);
+            syncStringOnVolume(shard, message.getKey(), previous);
         } finally {
             lock.writeLock().unlock();
         }
-        shard.persistenceQueue().add(new AppendStringJob(setRangeMessage.getKey()));
         response.writeInteger(result.get());
     }
-
 }

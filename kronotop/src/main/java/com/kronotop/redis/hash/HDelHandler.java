@@ -20,8 +20,8 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HDelMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.redis.storage.RedisValueContainer;
+import com.kronotop.redis.storage.RedisValueKind;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -59,34 +59,34 @@ public class HDelHandler extends BaseHashHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        HDelMessage hdelMessage = request.attr(MessageTypes.HDEL).get();
+        HDelMessage message = request.attr(MessageTypes.HDEL).get();
 
         int total = 0;
 
-        RedisShard shard = service.findShard(hdelMessage.getKey());
-        ReadWriteLock lock = shard.striped().get(hdelMessage.getKey());
+        RedisShard shard = service.findShard(message.getKey());
+        ReadWriteLock lock = shard.striped().get(message.getKey());
         lock.writeLock().lock();
         try {
-            RedisValueContainer container = shard.storage().get(hdelMessage.getKey());
+            RedisValueContainer container = shard.storage().get(message.getKey());
             if (container == null) {
                 response.writeInteger(0);
                 return;
             }
             checkRedisValueKind(container, RedisValueKind.HASH);
 
-            for (FieldValuePair fieldValuePair : hdelMessage.getFieldValuePairs()) {
-                HashFieldValue field = container.hash().remove(fieldValuePair.getField());
-                if (field.value() != null) {
+            for (FieldValuePair fieldValuePair : message.getFieldValuePairs()) {
+                HashFieldValue hashField = container.hash().remove(fieldValuePair.getField());
+                if (hashField.value() != null) {
                     total++;
                 }
+                deleteByVersionstamp(shard, hashField);
             }
             if (container.hash().isEmpty()) {
-                shard.storage().remove(hdelMessage.getKey());
+                shard.storage().remove(message.getKey());
             }
         } finally {
             lock.writeLock().unlock();
         }
-        persistence(shard, hdelMessage.getKey(), hdelMessage.getFieldValuePairs());
         response.writeInteger(total);
     }
 }

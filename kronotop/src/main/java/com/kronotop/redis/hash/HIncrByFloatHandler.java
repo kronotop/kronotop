@@ -22,8 +22,8 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.hash.protocol.HIncrByFloatMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.RedisValueKind;
+import com.kronotop.redis.storage.RedisValueContainer;
+import com.kronotop.redis.storage.RedisValueKind;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -64,44 +64,45 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        HIncrByFloatMessage hincrbyfloatMessage = request.attr(MessageTypes.HINCRBYFLOAT).get();
+        HIncrByFloatMessage message = request.attr(MessageTypes.HINCRBYFLOAT).get();
 
-        RedisShard shard = service.findShard(hincrbyfloatMessage.getKey());
-        ReadWriteLock lock = shard.striped().get(hincrbyfloatMessage.getKey());
+        RedisShard shard = service.findShard(message.getKey());
+        ReadWriteLock lock = shard.striped().get(message.getKey());
         lock.writeLock().lock();
         double newValue;
         try {
             HashValue hashValue;
-            RedisValueContainer container = shard.storage().get(hincrbyfloatMessage.getKey());
+            RedisValueContainer container = shard.storage().get(message.getKey());
             if (container == null) {
                 hashValue = new HashValue();
-                shard.storage().put(hincrbyfloatMessage.getKey(), new RedisValueContainer(hashValue));
+                shard.storage().put(message.getKey(), new RedisValueContainer(hashValue));
             } else {
                 checkRedisValueKind(container, RedisValueKind.HASH);
                 hashValue = container.hash();
             }
 
-            FieldValuePair fieldValuePair = hincrbyfloatMessage.getFieldValuePairs().getFirst();
+            FieldValuePair fieldValuePair = message.getFieldValuePairs().getFirst();
             if (fieldValuePair == null) {
                 throw new KronotopException("field is missing");
             }
 
-            HashFieldValue oldHashField = hashValue.get(fieldValuePair.getField());
-            if (oldHashField == null) {
-                newValue = hincrbyfloatMessage.getIncrement();
+            HashFieldValue previousHashField = hashValue.get(fieldValuePair.getField());
+            if (previousHashField == null) {
+                newValue = message.getIncrement();
             } else {
                 try {
-                    newValue = Double.parseDouble(new String(oldHashField.value())) + hincrbyfloatMessage.getIncrement();
+                    newValue = Double.parseDouble(new String(previousHashField.value())) + message.getIncrement();
                 } catch (NumberFormatException e) {
-                    throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
+                    throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
                 }
+                deleteByVersionstamp(shard, previousHashField);
             }
             hashValue.put(fieldValuePair.getField(), new HashFieldValue(Double.toString(newValue).getBytes()));
+            syncHashField(shard, message.getKey(), fieldValuePair);
         } finally {
             lock.writeLock().unlock();
         }
 
-        persistence(shard, hincrbyfloatMessage.getKey(), hincrbyfloatMessage.getFieldValuePairs());
         ByteBuf buf = response.getChannelContext().alloc().buffer();
         buf.writeBytes(Double.toString(newValue).getBytes());
         response.write(buf);

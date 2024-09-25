@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class MSetHandlerTest extends BaseHandlerTest {
+
     public Map<String, String> getPairs() {
         HashMap<String, String> pairs = new HashMap<>();
         pairs.put("mykey-1{nodeA}", "myvalue-1");
@@ -43,7 +44,7 @@ public class MSetHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testMSET() {
+    public void test_MSET() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.mset(getPairs()).encode(buf);
@@ -56,7 +57,7 @@ public class MSetHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testMSET_GET() {
+    public void test_MSET_GET() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         Map<String, String> pairs = getPairs();
 

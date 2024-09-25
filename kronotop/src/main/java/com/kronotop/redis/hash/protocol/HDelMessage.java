@@ -21,7 +21,7 @@ import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class HDelMessage extends PersistableHashMessage implements KronotopMessage<String> {
+public class HDelMessage extends SyncableHashMessage implements KronotopMessage<String> {
     public static final String COMMAND = "HDEL";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;

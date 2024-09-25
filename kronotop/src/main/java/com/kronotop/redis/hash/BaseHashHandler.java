@@ -20,9 +20,8 @@ import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.hash.protocol.FieldValuePair;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.jobs.AppendHashFieldJob;
-
-import java.util.List;
+import com.kronotop.redis.storage.syncer.jobs.AppendHashFieldJob;
+import com.kronotop.redis.storage.syncer.jobs.DeleteByVersionstampJob;
 
 public class BaseHashHandler extends BaseHandler {
 
@@ -30,10 +29,22 @@ public class BaseHashHandler extends BaseHandler {
         super(service);
     }
 
-    protected void persistence(RedisShard shard, String key, List<FieldValuePair> fieldValuePairs) {
-        for (FieldValuePair fieldValuePair : fieldValuePairs) {
-            AppendHashFieldJob job = new AppendHashFieldJob(key, fieldValuePair.getField());
-            shard.persistenceQueue().add(job);
+    protected void syncHashField(RedisShard shard, String key, FieldValuePair fieldValuePair) {
+        if (!service.isVolumeSyncEnabled()) {
+            return;
         }
+        AppendHashFieldJob job = new AppendHashFieldJob(key, fieldValuePair.getField());
+        shard.volumeSyncQueue().add(job);
+    }
+
+    protected void deleteByVersionstamp(RedisShard shard, HashFieldValue hashField) {
+        if (!service.isVolumeSyncEnabled()) {
+            return;
+        }
+        if (hashField.versionstamp() == null) {
+            return;
+        }
+        DeleteByVersionstampJob job = new DeleteByVersionstampJob(hashField.versionstamp());
+        shard.volumeSyncQueue().add(job);
     }
 }

@@ -20,8 +20,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.generic.protocol.RenameNXMessage;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.persistence.RedisValueContainer;
-import com.kronotop.redis.storage.persistence.jobs.AppendStringJob;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -53,38 +52,22 @@ public class RenameNXHandler extends BaseGenericHandler implements Handler {
         return Collections.singletonList(request.attr(MessageTypes.RENAMENX).get().getKey());
     }
 
-    private int renamenx(Response response, RenameNXMessage renamenxMessage) {
-        List<String> keys = new ArrayList<>();
-        keys.add(renamenxMessage.getKey());
-        keys.add(renamenxMessage.getNewkey());
-
-        RedisShard shard = service.findShard(keys);
-        Iterable<ReadWriteLock> locks = shard.striped().bulkGet(keys);
-        try {
-            for (ReadWriteLock lock : locks) {
-                lock.writeLock().lock();
-            }
-
-            RedisValueContainer container = shard.storage().get(renamenxMessage.getKey());
-            if (container == null) {
-                throw new KronotopException("no such key");
-            }
-
-            if (shard.storage().containsKey(renamenxMessage.getNewkey())) {
-                // newkey already exists.
-                return 0;
-            }
-
-            shard.storage().put(renamenxMessage.getNewkey(), container);
-            shard.persistenceQueue().add(new AppendStringJob(renamenxMessage.getNewkey()));
-            shard.storage().remove(renamenxMessage.getKey(), container);
-        } finally {
-            for (ReadWriteLock lock : locks) {
-                lock.writeLock().unlock();
-            }
+    private int executeRenameNXCommand(RedisShard shard, RenameNXMessage message) {
+        RedisValueContainer previous = shard.storage().get(message.getKey());
+        if (previous == null) {
+            throw new KronotopException("no such key");
         }
 
-        shard.persistenceQueue().add(new AppendStringJob(renamenxMessage.getKey()));
+        if (shard.storage().containsKey(message.getNewkey())) {
+            // newkey already exists.
+            return 0;
+        }
+
+        shard.storage().remove(message.getKey());
+        shard.storage().put(message.getNewkey(), previous);
+
+        shard.index().add(message.getNewkey());
+        syncMutatedStringOnVolume(shard, message.getNewkey(), previous.baseRedisValue().versionstamp());
         return 1;
     }
 
@@ -95,16 +78,25 @@ public class RenameNXHandler extends BaseGenericHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        RenameNXMessage renamenxMessage = request.attr(MessageTypes.RENAMENX).get();
+        RenameNXMessage message = request.attr(MessageTypes.RENAMENX).get();
 
+        List<String> keys = new ArrayList<>();
+        keys.add(message.getKey());
+        keys.add(message.getNewkey());
+
+        RedisShard shard = service.findShard(keys);
+        Iterable<ReadWriteLock> locks = shard.striped().bulkGet(keys);
+        for (ReadWriteLock lock : locks) {
+            lock.writeLock().lock();
+        }
         int result;
         try {
-            result = renamenx(response, renamenxMessage);
-        } catch (KronotopException e) {
-            response.writeError(e.getMessage());
-            return;
+            result = executeRenameNXCommand(shard, message);
+        } finally {
+            for (ReadWriteLock lock : locks) {
+                lock.writeLock().unlock();
+            }
         }
-
         response.writeInteger(result);
     }
 }

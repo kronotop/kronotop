@@ -32,8 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class SetNXHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testSETNX() {
+    public void test_SETNX() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.setnx("mykey", "myvalue").encode(buf);
@@ -46,7 +47,7 @@ public class SetNXHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testSETNX_GET() {
+    public void test_SETNX_GET() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -72,7 +73,7 @@ public class SetNXHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testSETNX_ExistingKey() {
+    public void test_SETNX_ExistingKey() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();

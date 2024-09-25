@@ -17,10 +17,17 @@
 package com.kronotop.redis.generic;
 
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.string.BaseStringHandler;
 
 public class BaseGenericHandler extends BaseStringHandler {
     public BaseGenericHandler(RedisService service) {
         super(service);
+    }
+
+    protected void wipeOutKey(RedisShard shard, String key, RedisValueContainer previous) {
+        shard.index().remove(key);
+        deleteByVersionstamp(shard, previous.baseRedisValue().versionstamp());
     }
 }

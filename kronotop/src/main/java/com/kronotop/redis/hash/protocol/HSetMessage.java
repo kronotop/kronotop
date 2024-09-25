@@ -23,7 +23,7 @@ import com.kronotop.server.WrongNumberOfArgumentsException;
 
 import java.util.List;
 
-public class HSetMessage extends PersistableHashMessage implements KronotopMessage<String> {
+public class HSetMessage extends SyncableHashMessage implements KronotopMessage<String> {
     public static final String COMMAND = "HSET";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;

@@ -33,8 +33,9 @@ import java.util.HashMap;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class HKeysHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void testHKEYS() {
+    public void test_HKEYS() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         HashMap<String, String> map = new HashMap<>();
         {

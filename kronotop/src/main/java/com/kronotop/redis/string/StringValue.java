@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.string;
 
-import com.kronotop.redis.storage.persistence.BaseRedisValue;
+import com.kronotop.redis.storage.BaseRedisValue;
 
 public class StringValue extends BaseRedisValue<byte[]> {
     private long ttl;
