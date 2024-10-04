@@ -18,7 +18,6 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.server.Handlers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -31,6 +30,7 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
 
     void setupVolumeTestEnv() throws IOException {
         VolumeConfig volumeConfig = getVolumeConfig(config, subspace);
+        service = context.getService(VolumeService.NAME);
         volume = service.newVolume(volumeConfig);
 
         // Set an owner for this new Volume instance
@@ -45,7 +45,6 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
 
     @BeforeEach
     public void setupIntegrationTest() {
-        service = new VolumeService(context, new Handlers());
         subspace = getSubspace(database, config);
 
         try {
@@ -57,6 +56,8 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
 
     @AfterEach
     public void tearDownIntegrationTest() {
-        volume.close();
+        if (volume != null) {
+            volume.close();
+        }
     }
 }

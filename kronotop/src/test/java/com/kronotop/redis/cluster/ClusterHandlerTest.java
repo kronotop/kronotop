@@ -44,7 +44,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class ClusterHandlerTest extends BaseHandlerTest {
     private KronotopTestInstance secondInstance;
 
-
     @AfterEach
     public void stopSecondInstance() {
         secondInstance.shutdown();
@@ -52,7 +51,7 @@ class ClusterHandlerTest extends BaseHandlerTest {
 
     @BeforeEach
     public void startSecondInstance() throws UnknownHostException, InterruptedException {
-        Config config = kronotopInstance.getContext().getConfig();
+        Config config = loadConfig("test.conf");
         secondInstance = new KronotopTestInstance(config);
         secondInstance.start();
     }

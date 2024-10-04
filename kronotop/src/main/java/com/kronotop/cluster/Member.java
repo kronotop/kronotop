@@ -19,19 +19,19 @@ package com.kronotop.cluster;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hashing;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.network.Address;
-import io.netty.util.CharsetUtil;
 
+import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 
 import static com.google.common.hash.Hashing.murmur3_32_fixed;
 
 public class Member {
     private String id;
-    private Address address;
+    private Address externalAddress;
+    private Address internalAddress;
+    private int hashCode;
     @JsonSerialize(using = ProcessIdSerializer.class)
     @JsonDeserialize(using = ProcessIdDeserializer.class)
     private Versionstamp processId;
@@ -39,18 +39,28 @@ public class Member {
     Member() {
     }
 
-    public Member(Address address, Versionstamp processId) {
-        this.address = address;
+    public Member(
+            @Nonnull String id,
+            @Nonnull Address externalAddress,
+            @Nonnull Address internalAddress,
+            @Nonnull Versionstamp processId
+    ) {
+        if (id.isEmpty() || id.isBlank()) {
+            throw new IllegalArgumentException("id cannot be blank or empty");
+        }
+        this.id = id;
+        this.externalAddress = externalAddress;
+        this.internalAddress = internalAddress;
         this.processId = processId;
-        HashCode hashCode = Hashing.sha1().newHasher().
-                putString(address.getHost(), CharsetUtil.US_ASCII).
-                putInt(address.getPort()).
-                hash();
-        this.id = hashCode.toString();
+        this.hashCode = murmur3_32_fixed().hashString(id, StandardCharsets.US_ASCII).asInt();
     }
 
-    public Address getAddress() {
-        return address;
+    public Address getExternalAddress() {
+        return externalAddress;
+    }
+
+    public Address getInternalAddress() {
+        return internalAddress;
     }
 
     public String getId() {
@@ -63,7 +73,7 @@ public class Member {
 
     @Override
     public int hashCode() {
-        return murmur3_32_fixed().hashString(id, StandardCharsets.US_ASCII).asInt();
+        return hashCode;
     }
 
     @Override
@@ -71,19 +81,19 @@ public class Member {
         if (this == obj) {
             return true;
         }
-        if (!(obj instanceof Member)) {
+        if (!(obj instanceof Member member)) {
             return false;
         }
-        final Member member = (Member) obj;
         return member.getId().equals(id) && member.getProcessId().equals(processId);
     }
 
     @Override
     public String toString() {
         return String.format(
-                "Member {id=%s address=%s processId=%s}",
+                "Member {id=%s externalAddress=%s internalAddress=%s processId=%s}",
                 id,
-                address,
+                externalAddress,
+                internalAddress,
                 VersionstampUtils.base64Encode(processId)
         );
     }

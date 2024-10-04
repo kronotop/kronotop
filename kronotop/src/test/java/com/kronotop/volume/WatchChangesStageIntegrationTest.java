@@ -43,7 +43,7 @@ public class WatchChangesStageIntegrationTest extends BaseNetworkedVolumeTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(WatchChangesStageIntegrationTest.class);
 
     @TempDir
-    private Path standbyVolumeRootPath;
+    private Path standbyVolumeDataDir;
 
     private Replication newReplication() {
         final Host source;
@@ -61,7 +61,7 @@ public class WatchChangesStageIntegrationTest extends BaseNetworkedVolumeTest {
                 jobId,
                 volume.getConfig().name(),
                 volume.getConfig().segmentSize(),
-                standbyVolumeRootPath.toString(),
+                standbyVolumeDataDir.toString(),
                 true
         );
         return new Replication(context, config);
@@ -83,7 +83,7 @@ public class WatchChangesStageIntegrationTest extends BaseNetworkedVolumeTest {
         VolumeConfig standbyVolumeConfig = new VolumeConfig(
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
-                standbyVolumeRootPath.toString(),
+                standbyVolumeDataDir.toString(),
                 volume.getConfig().segmentSize(),
                 volume.getConfig().allowedGarbageRatio()
         );

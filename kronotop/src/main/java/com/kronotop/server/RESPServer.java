@@ -18,7 +18,6 @@ package com.kronotop.server;
 
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
-import com.kronotop.cluster.Member;
 import com.kronotop.network.Address;
 import com.kronotop.server.resp3.*;
 import io.netty.bootstrap.ServerBootstrap;
@@ -31,14 +30,14 @@ import io.netty.channel.socket.SocketChannel;
  * It provides the basic functionality for starting and shutting down a server.
  */
 public abstract class RESPServer implements KronotopService {
-    private final Handlers commands;
+    private final CommandHandlerRegistry commands;
     private final EventLoopGroup parentGroup;
     private final EventLoopGroup childGroup;
     private final Context context;
     private final Class<? extends ServerSocketChannel> channel;
     private ChannelFuture channelFuture;
 
-    public RESPServer(Context context, Handlers commands, Class<? extends ServerSocketChannel> channel, EventLoopGroup parentGroup, EventLoopGroup childGroup) {
+    public RESPServer(Context context, CommandHandlerRegistry commands, Class<? extends ServerSocketChannel> channel, EventLoopGroup parentGroup, EventLoopGroup childGroup) {
         this.commands = commands;
         this.context = context;
         this.parentGroup = parentGroup;
@@ -46,7 +45,7 @@ public abstract class RESPServer implements KronotopService {
         this.channel = channel;
     }
 
-    public void start(Member member) throws InterruptedException {
+    public void start(Address address) throws InterruptedException {
         ServerBootstrap b = new ServerBootstrap();
         b.group(parentGroup, childGroup)
                 .channel(channel)
@@ -67,7 +66,6 @@ public abstract class RESPServer implements KronotopService {
                 .childOption(ChannelOption.TCP_NODELAY, true)
                 .childOption(ChannelOption.SO_KEEPALIVE, true);
 
-        Address address = member.getAddress();
         channelFuture = b.bind(address.getHost(), address.getPort()).sync();
     }
 

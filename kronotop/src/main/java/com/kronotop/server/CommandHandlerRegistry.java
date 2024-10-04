@@ -25,10 +25,10 @@ import java.util.Set;
  * The Handlers class represents a collection of registered command handlers.
  * It allows registering handlers for specific commands, retrieving the registered handler for a command, and retrieving the set of registered commands.
  */
-public class Handlers {
+public class CommandHandlerRegistry {
     private final HashMap<String, Handler> handlers;
 
-    public Handlers() {
+    public CommandHandlerRegistry() {
         handlers = new HashMap<>();
     }
 
@@ -39,7 +39,7 @@ public class Handlers {
      * @param handler the handler for the command
      * @throws CommandAlreadyRegisteredException if the command is already registered
      */
-    public void register(String command, Handler handler) throws CommandAlreadyRegisteredException {
+    public void handlerMethod(String command, Handler handler) throws CommandAlreadyRegisteredException {
         Preconditions.checkNotNull(handler, "handler cannot be null");
         if (handlers.containsKey(command)) {
             throw new CommandAlreadyRegisteredException(String.format("command already registered '%s'", command));

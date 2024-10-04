@@ -22,15 +22,14 @@ import com.kronotop.cluster.Member;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.common.KronotopException;
 import com.kronotop.journal.Journal;
+import com.kronotop.server.CommandHandlerRegistry;
+import com.kronotop.server.ServerKind;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 
 /**
@@ -40,7 +39,8 @@ public class ContextImpl implements Context {
     private final Config config;
     private final Member member;
     private final Database database;
-    private final ConcurrentMap<String, KronotopService> services = new ConcurrentHashMap<>();
+    private final EnumMap<ServerKind, CommandHandlerRegistry> handlers = new EnumMap<>(ServerKind.class);
+    private final LinkedHashMap<String, KronotopService> services = new LinkedHashMap<>();
     private final String clusterName;
     private final Striped<ReadWriteLock> stripedReadWriteLock = Striped.readWriteLock(3);
     private final Journal journal;
@@ -48,6 +48,7 @@ public class ContextImpl implements Context {
     private final Map<String, CommandMetadata> unmodifiableCommandMetadata = Collections.unmodifiableMap(commandMetadata);
     private final KronotopDirectoryLayer directoryLayer;
     private final ConcurrentHashMap<String, ServiceContext<?>> contexts = new ConcurrentHashMap<>();
+    private final Path dataDir;
 
     public ContextImpl(Config config, Member member, Database database) {
         if (config.hasPath("cluster.name")) {
@@ -61,6 +62,21 @@ public class ContextImpl implements Context {
         this.database = database;
         this.journal = new Journal(config, database);
         this.directoryLayer = new KronotopDirectoryLayer(database, clusterName);
+        this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
+
+        for (ServerKind kind : ServerKind.values()) {
+            this.handlers.put(kind, new CommandHandlerRegistry());
+        }
+    }
+
+    @Override
+    public CommandHandlerRegistry getHandlers(ServerKind serverKind) {
+        return handlers.get(serverKind);
+    }
+
+    @Override
+    public Path getDataDir() {
+        return dataDir;
     }
 
     @Override
@@ -85,12 +101,8 @@ public class ContextImpl implements Context {
 
     @Override
     public void registerService(@Nonnull String id, @Nonnull KronotopService service) {
-        synchronized (services) {
-            if (services.containsKey(id)) {
-                throw new KronotopException(String.format("Service '%s' already registered", id));
-            }
-            services.put(id, service);
-        }
+        // Registration sort is important, this is why we use LinkedHashMap to store services.
+        services.putIfAbsent(id, service);
     }
 
     @SuppressWarnings("unchecked")

@@ -16,64 +16,45 @@
 
 package com.kronotop.cluster;
 
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.kronotop.VersionstampUtils;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
 
-public class MemberEvent {
-    private EventTypes type;
-    @JsonSerialize(using = ProcessIdSerializer.class)
-    @JsonDeserialize(using = ProcessIdDeserializer.class)
-    private Versionstamp processID;
+class MemberEvent extends BaseBroadcastEvent {
+    private String memberId;
     private long createdAt;
-    private String host;
-    private int port;
 
     MemberEvent() {
     }
 
-    public MemberEvent(EventTypes type, String host, int port, Versionstamp processID, long createdAt) {
-        this.type = type;
-        this.processID = processID;
+    public MemberEvent(BroadcastEventKind kind, String memberId, long createdAt) {
+        super(kind);
+        this.memberId = memberId;
         this.createdAt = createdAt;
-        this.host = host;
-        this.port = port;
     }
 
-    public MemberEvent(EventTypes type, String host, int port, Versionstamp processID) {
-        this(type, host, port, processID, Instant.now().toEpochMilli());
+    public MemberEvent(BroadcastEventKind kind, String memberId) {
+        super(kind);
+        this.memberId = memberId;
+        this.createdAt = Instant.now().toEpochMilli();
     }
 
-    public EventTypes getType() {
-        return type;
+    @JsonProperty
+    public String memberId() {
+        return memberId;
     }
 
-    public long getCreatedAt() {
+    @JsonProperty
+    public long createdAt() {
         return createdAt;
     }
 
-    public Versionstamp getProcessID() {
-        return processID;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
+    @Override
     public String toString() {
         return String.format(
-                "MemberEvent {type=%s host=%s port=%d processID=%s, createdAt=%d}",
-                type,
-                host,
-                port,
-                VersionstampUtils.base64Encode(processID),
+                "MemberEvent {kind=%s id=%s createdAt=%d}",
+                kind(),
+                memberId,
                 createdAt
         );
     }

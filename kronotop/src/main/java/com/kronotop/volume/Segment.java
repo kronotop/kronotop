@@ -107,7 +107,7 @@ public class Segment {
     }
 
     private RandomAccessFile createOrOpenSegmentMetadataFile() throws IOException {
-        Path path = Path.of(config.rootPath(), "segments", name + ".metadata");
+        Path path = Path.of(config.dataDir(), "segments", name + ".metadata");
         Files.createDirectories(path.getParent());
         try {
             return new RandomAccessFile(path.toFile(), "rw");
@@ -118,7 +118,7 @@ public class Segment {
     }
 
     private RandomAccessFile createOrOpenSegmentFile() throws IOException {
-        Path path = Path.of(config.rootPath(), "segments", getName());
+        Path path = Path.of(config.dataDir(), "segments", getName());
         Files.createDirectories(path.getParent());
         try {
             RandomAccessFile file = new RandomAccessFile(path.toFile(), "rw");

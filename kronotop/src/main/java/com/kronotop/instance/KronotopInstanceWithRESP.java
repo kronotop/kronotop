@@ -16,13 +16,15 @@
 
 package com.kronotop.instance;
 
+import com.kronotop.Context;
+import com.kronotop.KronotopService;
 import com.kronotop.common.KronotopException;
-import com.kronotop.server.EpollRESPServer;
-import com.kronotop.server.NioRESPServer;
-import com.kronotop.server.RESPServer;
-import com.typesafe.config.Config;
+import com.kronotop.network.Address;
+import com.kronotop.server.*;
 
 import java.net.UnknownHostException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -41,42 +43,79 @@ public class KronotopInstanceWithRESP extends KronotopInstance {
         super();
     }
 
-    public KronotopInstanceWithRESP(Config config) {
-        super(config);
-    }
-
     /**
-     * Starts the TCP server for handling RESP requests.
-     * The server is started based on the configured network transport.
-     * If the network transport is not specified, the default is used.
-     * The server is registered as a service in the context and started.
+     * Initializes and returns a RESP server of the specified kind, using the appropriate network transport
+     * method based on configuration.
      *
-     * @throws InterruptedException if the thread is interrupted while starting the server
-     * @throws KronotopException    if an invalid network transport is specified in the configuration
+     * @param kind The kind of server to initialize, typically either INTERNAL or EXTERNAL.
+     * @return The initialized RESPServer instance.
+     * @throws KronotopException If an invalid network transport method is specified in the configuration.
      */
-    private void startTCPServer() throws InterruptedException {
+    private RESPServer initializeRESPServer(ServerKind kind) {
         checkNotNull(member);
         String nettyTransport = DEFAULT_NETTY_TRANSPORT;
-        if (config.hasPath("network.netty.transport")) {
-            nettyTransport = config.getString("network.netty.transport");
+
+        String transportConfigPath = String.format("network.%s.netty.transport", kind.toString().toLowerCase());
+        if (config.hasPath(transportConfigPath)) {
+            nettyTransport = config.getString(transportConfigPath);
         }
 
+        CommandHandlerRegistry handlers = context.getHandlers(kind);
         RESPServer server;
         if (nettyTransport.equals(NETTY_TRANSPORT_NIO)) {
             server = new NioRESPServer(context, handlers);
         } else if (nettyTransport.equals(NETTY_TRANSPORT_EPOLL)) {
             server = new EpollRESPServer(context, handlers);
         } else {
-            throw new KronotopException(String.format("invalid network.netty.transport: %s", nettyTransport));
+            throw new KronotopException(String.format("invalid %s: %s", transportConfigPath, nettyTransport));
         }
-
-        context.registerService(server.getName(), server);
-        server.start(member);
+        return server;
     }
 
     @Override
     public void start() throws UnknownHostException, InterruptedException {
         super.start();
-        startTCPServer();
+
+        RESPServerContainer container = new RESPServerContainer();
+        container.register(member.getInternalAddress(), initializeRESPServer(ServerKind.INTERNAL));
+        container.register(member.getExternalAddress(), initializeRESPServer(ServerKind.EXTERNAL));
+        context.registerService(container.getName(), container);
+        container.start();
+    }
+
+    /**
+     * RESPServerContainer is a private static class that manages a collection of RESPServer instances associated
+     * with specific addresses. This class implements the KronotopService interface, allowing it to integrate
+     * within the Kronotop service lifecycle.
+     */
+    private static class RESPServerContainer implements KronotopService {
+        private final Map<Address, RESPServer> servers = new LinkedHashMap<>();
+
+        @Override
+        public String getName() {
+            return "RESPServerContainer";
+        }
+
+        protected void register(Address address, RESPServer server) {
+            servers.put(address, server);
+        }
+
+        @Override
+        public Context getContext() {
+            throw new UnsupportedOperationException();
+        }
+
+        protected void start() throws InterruptedException {
+            for (Map.Entry<Address, RESPServer> entry : servers.entrySet()) {
+                entry.getValue().start(entry.getKey());
+            }
+        }
+
+        @Override
+        public void shutdown() {
+            for (RESPServer server : servers.values()) {
+                server.shutdown();
+            }
+        }
     }
 }

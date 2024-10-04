@@ -69,7 +69,7 @@ class NodesSubcommand implements SubcommandExecutor {
 
         items.add(hashCode.toString());
 
-        Address address = range.getOwner().getAddress();
+        Address address = range.getOwner().getExternalAddress();
         items.add(String.format("%s:%d@%d,%s",
                 address.getHost(),
                 address.getPort(),

@@ -24,7 +24,7 @@ public class JournalName {
     private static final String COORDINATOR_EVENTS_JOURNAL_NAME = "coordinator-events";
 
     public static String shardEvents(Member member) {
-        return String.format("%s%s", member.getAddress(), SHARD_EVENTS_JOURNAL_NAME);
+        return String.format("%s%s", member.getExternalAddress(), SHARD_EVENTS_JOURNAL_NAME);
     }
 
     public static String clusterEvents() {

@@ -22,51 +22,48 @@ import com.kronotop.cluster.MockProcessIdGeneratorImpl;
 import com.kronotop.network.Address;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
+import com.typesafe.config.ConfigValueFactory;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 public class BaseTest {
     private final String clusterName = UUID.randomUUID().toString();
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
 
     @TempDir
-    public File volumeIntegrationTestsTempDir;
-
-    @TempDir
-    public File redisIntegrationTestsTempDir;
+    public File temporaryParentDataDir;
 
     protected String getEphemeralTCPPort() {
         // Ephemeral ports (49152 to 65535), as defined by the Internet Assigned Numbers Authority (IANA).
         return Integer.toString(ThreadLocalRandom.current().nextInt(49152, 65535));
     }
 
-    protected Member createMember(String addressString) throws UnknownHostException {
-        Versionstamp processId = processIdGenerator.getProcessID();
-        Address address = Address.parseString(addressString);
-        return new Member(address, processId);
-    }
-
     protected Member createMemberWithEphemeralPort() throws UnknownHostException {
-        String address = String.format("localhost:[%s]", getEphemeralTCPPort());
-        return createMember(address);
+        String externalAddressString = String.format("localhost:[%s]", getEphemeralTCPPort());
+        Address externalAddress = Address.parseString(externalAddressString);
+
+        String internalAddressString = String.format("localhost:[%s]", getEphemeralTCPPort());
+        Address internalAddress = Address.parseString(internalAddressString);
+
+        Versionstamp processId = processIdGenerator.getProcessID();
+        return new Member(UUID.randomUUID().toString(), externalAddress, internalAddress, processId);
     }
 
     protected Config loadConfig(String resourceName) {
-        System.setProperty("cluster.name", clusterName);
-
-        Path volumeIntegrationTestsTempDir = Paths.get(this.volumeIntegrationTestsTempDir.getAbsolutePath(), UUID.randomUUID().toString());
-        System.setProperty("volume_test.volume.root_path", volumeIntegrationTestsTempDir.toString());
-
-        Path redisIntegrationTestsTempDir = Paths.get(this.redisIntegrationTestsTempDir.getAbsolutePath(), UUID.randomUUID().toString());
-        System.setProperty("redis.volume_syncer.root_path", redisIntegrationTestsTempDir.toString());
-
-        ConfigFactory.invalidateCaches();
-        return ConfigFactory.load(resourceName);
+        Path redisIntegrationTestsTempDir = Paths.get(this.temporaryParentDataDir.getAbsolutePath(), UUID.randomUUID().toString());
+        Config preConfig = ConfigFactory.load(resourceName);
+        Map<String, ConfigValue> map = preConfig.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        map.put("cluster.name", ConfigValueFactory.fromAnyRef(clusterName));
+        map.put("data_dir", ConfigValueFactory.fromAnyRef(redisIntegrationTestsTempDir.toString()));
+        return ConfigFactory.parseMap(map);
     }
 }

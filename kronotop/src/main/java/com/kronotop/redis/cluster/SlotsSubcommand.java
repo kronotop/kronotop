@@ -42,12 +42,12 @@ class SlotsSubcommand implements SubcommandExecutor {
         List<RedisMessage> result = new ArrayList<>();
         // HOST
         ByteBuf hostBuf = context.alloc().buffer();
-        hostBuf.writeBytes(member.getAddress().getHost().getBytes());
+        hostBuf.writeBytes(member.getExternalAddress().getHost().getBytes());
         FullBulkStringRedisMessage fullBulkStringRedisMessage = new FullBulkStringRedisMessage(hostBuf);
         result.add(fullBulkStringRedisMessage);
 
         // PORT
-        IntegerRedisMessage integerRedisMessage = new IntegerRedisMessage(member.getAddress().getPort());
+        IntegerRedisMessage integerRedisMessage = new IntegerRedisMessage(member.getExternalAddress().getPort());
         result.add(integerRedisMessage);
 
         // ID

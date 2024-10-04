@@ -14,17 +14,9 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.server;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
-import java.util.UUID;
-
-public class ConfigTestUtil {
-    public static Config load(String resourceName) {
-        System.setProperty("cluster.name", UUID.randomUUID().toString());
-        ConfigFactory.invalidateCaches();
-        return ConfigFactory.load(resourceName);
-    }
+public enum ServerKind {
+    EXTERNAL,
+    INTERNAL
 }

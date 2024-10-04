@@ -23,9 +23,7 @@ import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.server.NioRESPServer;
-import com.kronotop.server.RESPServer;
-import com.kronotop.server.Router;
+import com.kronotop.server.*;
 import com.kronotop.server.resp3.RedisArrayAggregator;
 import com.kronotop.server.resp3.RedisBulkStringAggregator;
 import com.kronotop.server.resp3.RedisDecoder;
@@ -45,16 +43,28 @@ import java.util.concurrent.TimeUnit;
 public class KronotopTestInstance extends KronotopInstance {
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
     private final Object clusterOperable = new Object();
+    private final boolean runWithTCPServer;
     private EmbeddedChannel channel;
-    private boolean runWithTCPServer = false;
 
     public KronotopTestInstance(Config config) {
-        super(config);
+        this(config, false);
     }
 
     public KronotopTestInstance(Config config, boolean runWithTCPServer) {
         super(config);
         this.runWithTCPServer = runWithTCPServer;
+    }
+
+    private CommandHandlerRegistry mergeCommandHandlerRegistries() {
+        CommandHandlerRegistry mergedRegistry = new CommandHandlerRegistry();
+        for (ServerKind kind : ServerKind.values()) {
+            CommandHandlerRegistry registry = super.context.getHandlers(kind);
+            for (String command : registry.getCommands()) {
+                Handler handler = registry.get(command);
+                mergedRegistry.handlerMethod(command, handler);
+            }
+        }
+        return mergedRegistry;
     }
 
     public EmbeddedChannel newChannel() {
@@ -63,7 +73,7 @@ public class KronotopTestInstance extends KronotopInstance {
                 new RedisBulkStringAggregator(),
                 new RedisArrayAggregator(),
                 new RedisMapAggregator(),
-                new Router(super.context, super.handlers)
+                new Router(super.context, mergeCommandHandlerRegistries())
         );
     }
 
@@ -90,9 +100,9 @@ public class KronotopTestInstance extends KronotopInstance {
     public void start() throws UnknownHostException, InterruptedException {
         super.start();
         if (runWithTCPServer) {
-            RESPServer server = new NioRESPServer(context, handlers);
+            RESPServer server = new NioRESPServer(context, mergeCommandHandlerRegistries());
             context.registerService(server.getName(), server);
-            server.start(member);
+            server.start(member.getExternalAddress());
         }
         // TODO: CLUSTER-REFACTORING
         //CheckClusterStatus checkClusterStatus = new CheckClusterStatus();
@@ -142,7 +152,7 @@ public class KronotopTestInstance extends KronotopInstance {
         @Override
         public void run() {
             // TODO: Cant see the exception traceback here. This may lead to critical and subtle issues.
-            int numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
+            int numberOfShards = context.getConfig().getInt("redis.shards");
             for (int shardId = 0; shardId < numberOfShards; shardId++) {
                 Route route = membershipService.getRoutingTable().getRoute(shardId);
                 if (route == null) {

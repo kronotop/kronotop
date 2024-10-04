@@ -41,11 +41,10 @@ public class Route {
             return true;
         }
 
-        if (!(obj instanceof Route)) {
+        if (!(obj instanceof Route route)) {
             return false;
         }
 
-        final Route route = (Route) obj;
         return route.getMember().equals(getMember());
     }
 }

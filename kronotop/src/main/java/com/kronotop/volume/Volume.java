@@ -124,7 +124,7 @@ public class Volume {
 
     // should be protected by segmentsLock
     private Segment openSegment(long segmentId) throws IOException {
-        SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
+        SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
         Segment segment = new Segment(segmentConfig);
         segments.add(segment);
         segmentsByName.put(segment.getName(), segment);
@@ -147,7 +147,7 @@ public class Volume {
     // createsSegment protected by segmentsLock
     private Segment createSegment() throws IOException {
         long segmentId = getAndIncreaseSegmentId();
-        SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
+        SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
         Segment segment = new Segment(segmentConfig);
 
         // After this point, the Segment has been created on the physical medium.

@@ -69,7 +69,7 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId, Versionstamp key) throws IOException, NotEnoughSpaceException {
         Segment segment = openSegments.get(segmentId);
         if (segment == null) {
-            SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
+            SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
             segment = new Segment(segmentConfig);
             openSegments.put(segmentId, segment);
         }

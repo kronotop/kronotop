@@ -16,18 +16,20 @@
 
 package com.kronotop.cluster;
 
-import com.apple.foundationdb.tuple.Versionstamp;
+public class MemberLeftEvent extends MemberEvent implements BroadcastEvent {
 
-public class MemberLeftEvent extends MemberEvent {
-    private MemberLeftEvent() {
-        super();
+    MemberLeftEvent() {
     }
 
-    public MemberLeftEvent(String host, int port, Versionstamp processID, long createdAt) {
-        super(EventTypes.MEMBER_LEFT, host, port, processID, createdAt);
+    MemberLeftEvent(String memberId, long createdAt) {
+        super(BroadcastEventKind.MEMBER_LEFT, memberId, createdAt);
     }
 
-    public MemberLeftEvent(String host, int port, Versionstamp processID) {
-        super(EventTypes.MEMBER_LEFT, host, port, processID);
+    public MemberLeftEvent(String memberId) {
+        super(BroadcastEventKind.MEMBER_LEFT, memberId);
+    }
+
+    public MemberLeftEvent(Member member) {
+        this(member.getId());
     }
 }

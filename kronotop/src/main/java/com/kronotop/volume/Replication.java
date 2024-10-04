@@ -51,7 +51,7 @@ public class Replication {
 
         Member member = config.source().member();
         this.client = RedisClient.create(
-                String.format("redis://%s:%d", member.getAddress().getHost(), member.getAddress().getPort())
+                String.format("redis://%s:%d", member.getExternalAddress().getHost(), member.getExternalAddress().getPort())
         );
         this.connection = InternalClient.connect(client, ByteArrayCodec.INSTANCE);
     }

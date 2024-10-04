@@ -51,7 +51,7 @@ class SnapshotStageRunner extends ReplicationStageRunner implements StageRunner 
 
         Segment segment = openSegments.get(segmentId);
         if (segment == null) {
-            SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.rootPath(), config.segmentSize());
+            SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
             segment = new Segment(segmentConfig);
             openSegments.put(segmentId, segment);
         }

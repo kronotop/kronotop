@@ -27,7 +27,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
  * @see RESPServer
  */
 public class NioRESPServer extends RESPServer {
-    public NioRESPServer(Context context, Handlers commands) {
-        super(context, commands, NioServerSocketChannel.class, new NioEventLoopGroup(), new NioEventLoopGroup());
+    public NioRESPServer(Context context, CommandHandlerRegistry registry) {
+        super(context, registry, NioServerSocketChannel.class, new NioEventLoopGroup(), new NioEventLoopGroup());
     }
 }

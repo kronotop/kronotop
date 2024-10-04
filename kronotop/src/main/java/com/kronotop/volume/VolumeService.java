@@ -21,7 +21,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.server.CommandAlreadyRegisteredException;
-import com.kronotop.server.Handlers;
+import com.kronotop.server.ServerKind;
 import com.kronotop.volume.handlers.SegmentRangeHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,10 +41,10 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final HashMap<String, Volume> volumes = new HashMap<>();
 
-    public VolumeService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
-        super(context, handlers);
+    public VolumeService(Context context) throws CommandAlreadyRegisteredException {
+        super(context);
 
-        registerHandler(new SegmentRangeHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new SegmentRangeHandler(this));
     }
 
     @Override
@@ -70,14 +70,14 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         }
     }
 
-    private void checkAndCreateRootPath(String rootPath) {
+    private void checkAndCreateDataDir(String dataDir) {
         try {
-            Files.createDirectories(Paths.get(rootPath));
+            Files.createDirectories(Paths.get(dataDir));
         } catch (FileAlreadyExistsException e) {
-            LOGGER.error("{} already exists but is not a directory", rootPath, e);
+            LOGGER.error("{} already exists but is not a directory", dataDir, e);
             throw new KronotopException(e);
         } catch (IOException e) {
-            LOGGER.error("{} could not be created", rootPath, e);
+            LOGGER.error("{} could not be created", dataDir, e);
             throw new KronotopException(e);
         }
     }
@@ -91,7 +91,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                     return volume;
                 }
             }
-            checkAndCreateRootPath(config.rootPath());
+            checkAndCreateDataDir(config.dataDir());
             // TODO: Create folders for this specific volume in the constructor.
             Volume volume = new Volume(context, config);
             volumes.put(config.name(), volume);

@@ -35,9 +35,9 @@ class SegmentTest extends BaseMetadataStoreTest {
     }
 
     private SegmentConfig getSegmentConfig() {
-        String rootPath = context.getConfig().getString("volume_test.volume.root_path");
-        long size = context.getConfig().getLong("volume_test.volume.segment_size");
-        return new SegmentConfig(1, rootPath, size);
+        String dataDir = context.getConfig().getString("data_dir");
+        long size = VolumeConfiguration.segmentSize;
+        return new SegmentConfig(1, dataDir, size);
     }
 
     @Test
@@ -56,7 +56,7 @@ class SegmentTest extends BaseMetadataStoreTest {
         Segment segment = new Segment(getSegmentConfig());
         try {
             long bufferSize = 100480;
-            long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
+            long segmentSize = VolumeConfiguration.segmentSize;
             long numIterations = segmentSize / bufferSize;
 
             for (int i = 1; i <= numIterations; i++) {
@@ -94,7 +94,7 @@ class SegmentTest extends BaseMetadataStoreTest {
                 assertDoesNotThrow(() -> segment.append(randomBytes((int) bufferSize)));
                 total += bufferSize;
             }
-            long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
+            long segmentSize = VolumeConfiguration.segmentSize;
             assertEquals(segmentSize - total, segment.getFreeBytes());
         } finally {
             segment.close();

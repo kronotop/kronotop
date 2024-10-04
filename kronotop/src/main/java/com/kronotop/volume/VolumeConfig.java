@@ -21,7 +21,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 public record VolumeConfig(
         DirectorySubspace subspace,
         String name,
-        String rootPath,
+        String dataDir,
         Long segmentSize,
         Float allowedGarbageRatio
 ) {

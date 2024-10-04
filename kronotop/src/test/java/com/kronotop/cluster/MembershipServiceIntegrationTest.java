@@ -65,8 +65,7 @@ public class MembershipServiceIntegrationTest extends BaseClusterTest {
         List<String> members = membershipService.getMembers();
         assertEquals(1, members.size());
 
-        String hostPort = members.get(0);
-        assertEquals(membershipService.getContext().getMember().getAddress().toString(), hostPort);
+        assertEquals(membershipService.getContext().getMember().getId(), members.getFirst());
     }
 
     @Test
@@ -75,7 +74,7 @@ public class MembershipServiceIntegrationTest extends BaseClusterTest {
         KronotopTestInstance kronotopTestInstance = kronotopInstances.values().iterator().next();
         MembershipService membershipService = kronotopTestInstance.getContext().getService(MembershipService.NAME);
 
-        int numberOfShards = membershipService.getContext().getConfig().getInt("cluster.number_of_shards");
+        int numberOfShards = membershipService.getContext().getConfig().getInt("redis.shards");
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             Route route = membershipService.getRoutingTable().getRoute(shardId);
             assertNotNull(route);
@@ -110,8 +109,8 @@ public class MembershipServiceIntegrationTest extends BaseClusterTest {
 
         MembershipService membershipService = instanceOne.getContext().getService(MembershipService.NAME);
         Set<String> addresses = new HashSet<>();
-        addresses.add(instanceOne.getContext().getMember().getAddress().toString());
-        addresses.add(instanceTwo.getContext().getMember().getAddress().toString());
+        addresses.add(instanceOne.getContext().getMember().getId());
+        addresses.add(instanceTwo.getContext().getMember().getId());
 
         List<String> members = membershipService.getMembers();
         assertEquals(2, members.size());
@@ -132,14 +131,14 @@ public class MembershipServiceIntegrationTest extends BaseClusterTest {
         assertEquals(membershipService.getKnownCoordinator(), routingTable.getCoordinator());
 
         Set<String> addresses = new HashSet<>();
-        addresses.add(instanceOne.getContext().getMember().getAddress().toString());
-        addresses.add(instanceTwo.getContext().getMember().getAddress().toString());
+        addresses.add(instanceOne.getContext().getMember().getExternalAddress().toString());
+        addresses.add(instanceTwo.getContext().getMember().getExternalAddress().toString());
 
-        int numberOfShards = membershipService.getContext().getConfig().getInt("cluster.number_of_shards");
+        int numberOfShards = membershipService.getContext().getConfig().getInt("redis.shards");
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             Route route = membershipService.getRoutingTable().getRoute(shardId);
             assertNotNull(route);
-            assertTrue(addresses.contains(route.getMember().getAddress().toString()));
+            assertTrue(addresses.contains(route.getMember().getExternalAddress().toString()));
         }
     }
 }

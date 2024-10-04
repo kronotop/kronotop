@@ -32,11 +32,13 @@ import java.util.UUID;
 public class BaseVolumeTest extends BaseMetadataStoreTest {
 
     public VolumeConfig getVolumeConfig(Config config, DirectorySubspace subspace) {
-        String name = config.getString("volume_test.volume.name");
-        String rootPath = config.getString("volume_test.volume.root_path");
-        Long segmentSize = config.getLong("volume_test.volume.segment_size");
-        Float allowedGarbageRatio = (float) config.getDouble("volume_test.volume.allowed_garbage_ratio");
-        return new VolumeConfig(subspace, name, rootPath, segmentSize, allowedGarbageRatio);
+        String dataDir = config.getString("data_dir");
+        return new VolumeConfig(subspace,
+                VolumeConfiguration.name,
+                dataDir,
+                VolumeConfiguration.segmentSize,
+                VolumeConfiguration.allowedGarbageRatio
+        );
     }
 
     public ByteBuffer[] getEntries(int number) {

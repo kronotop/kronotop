@@ -27,7 +27,7 @@ public record ReplicationConfig(
         Versionstamp jobId,
         String volumeName,
         Long segmentSize,
-        String rootPath,
+        String dataDir,
         boolean cdcOnly) {
 
     String stringifyJobId() {

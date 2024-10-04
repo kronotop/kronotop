@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
     Random random = new Random();
     @TempDir
-    private Path standbyVolumeRootPath;
+    private Path standbyVolumeDataDir;
 
     private ByteBuffer randomBytes(int size) {
         byte[] b = new byte[size];
@@ -57,7 +57,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
                 jobId,
                 volume.getConfig().name(),
                 volume.getConfig().segmentSize(),
-                standbyVolumeRootPath.toString(),
+                standbyVolumeDataDir.toString(),
                 false
         );
         Replication replication = new Replication(context, config);
@@ -85,7 +85,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         VolumeConfig replicaVolumeConfig = new VolumeConfig(
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
-                config.rootPath(),
+                config.dataDir(),
                 volume.getConfig().segmentSize(),
                 volume.getConfig().allowedGarbageRatio()
         );
@@ -124,7 +124,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         Versionstamp[] versionstampedKeys;
 
         long bufferSize = 100480;
-        long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
+        long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
         ByteBuffer[] entries = new ByteBuffer[(int) numIterations];

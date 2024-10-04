@@ -20,8 +20,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.server.CommandAlreadyRegisteredException;
+import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.Handler;
-import com.kronotop.server.Handlers;
+import com.kronotop.server.ServerKind;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.Commands;
 
@@ -35,11 +36,9 @@ import java.util.HashMap;
  */
 public class CommandHandlerService {
     protected final Context context;
-    protected final Handlers handlers;
 
-    public CommandHandlerService(Context context, Handlers handlers) {
+    public CommandHandlerService(Context context) {
         this.context = context;
-        this.handlers = handlers;
     }
 
     /**
@@ -48,17 +47,18 @@ public class CommandHandlerService {
      * @param handlers the handlers to register
      * @throws CommandAlreadyRegisteredException if a command is already registered
      */
-    protected void registerHandler(Handler... handlers) throws CommandAlreadyRegisteredException {
+    protected void handlerMethod(ServerKind kind, Handler... handlers) throws CommandAlreadyRegisteredException {
+        CommandHandlerRegistry registry = context.getHandlers(kind);
         for (Handler handler : handlers) {
             Commands commands = handler.getClass().getAnnotation(Commands.class);
             if (commands != null) {
                 for (Command command : commands.value()) {
-                    this.handlers.register(command.value().toUpperCase(), handler);
+                    registry.handlerMethod(command.value().toUpperCase(), handler);
                     loadDefinition(command.value().toUpperCase());
                 }
             } else {
                 Command command = handler.getClass().getAnnotation(Command.class);
-                this.handlers.register(command.value().toUpperCase(), handler);
+                registry.handlerMethod(command.value().toUpperCase(), handler);
                 loadDefinition(command.value().toUpperCase());
             }
 

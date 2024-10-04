@@ -58,11 +58,14 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
         this.volume = initializeRedisShardVolume();
     }
 
-    private Path getVolumeRootPath(Config config) {
-        return Path.of(config.getString("root_path"), "redis", "shards", Integer.toString(id));
-    }
-
     private Volume initializeRedisShardVolume() {
+        String dataDir = Path.of(
+                context.getDataDir().toString(),
+                "redis",
+                "shards",
+                Integer.toString(id)
+        ).toString(); // $data_dir/redis/shards/$shard_number
+
         Config config = context.getConfig().getConfig("redis.volume_syncer");
         DirectoryLayout layout = DirectoryLayout.Builder.
                 clusterName(context.getClusterName()).
@@ -74,7 +77,7 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
         VolumeConfig volumeConfig = new VolumeConfig(
                 subspace,
                 String.format("redis-shard-%d", id),
-                getVolumeRootPath(config).toString(),
+                dataDir,
                 config.getLong("segment_size"),
                 (float) config.getDouble("allowed_garbage_ratio")
         );

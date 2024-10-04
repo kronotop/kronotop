@@ -16,8 +16,7 @@
 
 package com.kronotop.redis.storage;
 
-import com.apple.foundationdb.directory.DirectoryLayer;
-import com.kronotop.ConfigTestUtil;
+import com.kronotop.BaseTest;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.redis.RedisService;
@@ -29,8 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
 
-public class BaseStorageTest {
-    public final DirectoryLayer directoryLayer = new DirectoryLayer();
+public class BaseStorageTest extends BaseTest {
     protected KronotopTestInstance kronotopInstance;
     protected RedisService redisService;
     protected Context context;
@@ -43,7 +41,7 @@ public class BaseStorageTest {
 
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
-        Config config = ConfigTestUtil.load("test.conf");
+        Config config = loadConfig("test.conf");
         kronotopInstance = new KronotopTestInstance(config);
         kronotopInstance.start();
         context = kronotopInstance.getContext();

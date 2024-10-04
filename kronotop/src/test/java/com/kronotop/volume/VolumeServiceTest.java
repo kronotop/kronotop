@@ -17,7 +17,6 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.server.Handlers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,12 +33,14 @@ public class VolumeServiceTest extends BaseVolumeTest {
     public void setUp() {
         DirectorySubspace subspace = getSubspace(database, config);
         volumeConfig = getVolumeConfig(config, subspace);
-        service = new VolumeService(context, new Handlers());
+        service = context.getService(VolumeService.NAME);
     }
 
     @AfterEach
     public void tearDown() {
-        service.shutdown();
+        if (service != null) {
+            service.shutdown();
+        }
     }
 
     @Test

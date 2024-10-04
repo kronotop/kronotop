@@ -20,10 +20,8 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.Member;
 import com.kronotop.common.utils.DirectoryLayout;
-import com.kronotop.server.Handlers;
 import com.kronotop.volume.VolumeService;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
@@ -31,13 +29,11 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
 import java.util.List;
-import java.util.Random;
 
 public class BaseMetadataStoreTest extends BaseTest {
     protected Database database;
     protected Config config;
     protected Context context;
-    Random random = new Random();
 
     protected DirectorySubspace getClusterSubspace(String subspaceName) {
         try (Transaction tr = database.createTransaction()) {
@@ -49,19 +45,13 @@ public class BaseMetadataStoreTest extends BaseTest {
         }
     }
 
-    protected Versionstamp getVersionstamp() {
-        byte[] data = new byte[10];
-        random.nextBytes(data);
-        return Versionstamp.complete(data);
-    }
-
     @BeforeEach
     public void setup() throws UnknownHostException {
         Member member = createMemberWithEphemeralPort();
         config = loadConfig("test.conf");
         database = FoundationDBFactory.newDatabase(config);
         context = new ContextImpl(config, member, database);
-        context.registerService(VolumeService.NAME, new VolumeService(context, new Handlers()));
+        context.registerService(VolumeService.NAME, new VolumeService(context));
     }
 
     @AfterEach

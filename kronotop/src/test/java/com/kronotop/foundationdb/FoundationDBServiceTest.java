@@ -17,14 +17,11 @@
 package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Database;
-import com.kronotop.ConfigTestUtil;
+import com.kronotop.BaseTest;
 import com.kronotop.Context;
 import com.kronotop.ContextImpl;
 import com.kronotop.FoundationDBFactory;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.MockProcessIdGeneratorImpl;
-import com.kronotop.network.Address;
-import com.kronotop.server.Handlers;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,20 +29,16 @@ import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
 
-public class FoundationDBServiceTest {
+public class FoundationDBServiceTest extends BaseTest {
     private FoundationDBService service;
-    private Handlers handlers;
 
     @BeforeEach
     public void setup() throws UnknownHostException {
-        MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
-        Config config = ConfigTestUtil.load("test.conf");
-        Address address = new Address("localhost", 0);
-        Member member = new Member(address, processIdGenerator.getProcessID());
+        Config config = loadConfig("test.conf");
+        Member member = createMemberWithEphemeralPort();
         Database database = FoundationDBFactory.newDatabase(config);
         Context context = new ContextImpl(config, member, database);
-        handlers = new Handlers();
-        service = new FoundationDBService(context, handlers);
+        service = new FoundationDBService(context);
     }
 
     @AfterEach
@@ -56,6 +49,6 @@ public class FoundationDBServiceTest {
     @Test
     public void test_initializeDefaultDatabase() {
         String name = service.getContext().getConfig().getString("default_namespace");
-        // TODO:!!
+        // TODO: Add an integration test
     }
 }

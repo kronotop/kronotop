@@ -21,9 +21,12 @@ import com.google.common.util.concurrent.Striped;
 import com.kronotop.cluster.Member;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.journal.Journal;
+import com.kronotop.server.CommandHandlerRegistry;
+import com.kronotop.server.ServerKind;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -32,6 +35,11 @@ import java.util.concurrent.locks.ReadWriteLock;
  * The Context interface represents the context of a Kronotop instance.
  */
 public interface Context {
+
+    CommandHandlerRegistry getHandlers(ServerKind kind);
+
+    Path getDataDir();
+
     /**
      * Retrieves the name of the cluster.
      *

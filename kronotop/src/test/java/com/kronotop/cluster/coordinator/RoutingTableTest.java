@@ -24,6 +24,7 @@ import com.kronotop.network.Address;
 import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,7 +33,12 @@ public class RoutingTableTest {
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
 
     private Route newRoute() throws UnknownHostException {
-        Member member = new Member(Address.parseString("localhost:3320"), processIdGenerator.getProcessID());
+        Member member = new Member(
+                UUID.randomUUID().toString(),
+                Address.parseString("localhost:3320"),
+                Address.parseString("localhost:3321"),
+                processIdGenerator.getProcessID()
+        );
         return new Route(member);
     }
 
@@ -66,8 +72,12 @@ public class RoutingTableTest {
     @Test
     public void test_setCoordinator() throws UnknownHostException {
         RoutingTable routingTable = new RoutingTable();
-
-        Member member = new Member(Address.parseString("localhost:3320"), processIdGenerator.getProcessID());
+        Member member = new Member(
+                UUID.randomUUID().toString(),
+                Address.parseString("localhost:3320"),
+                Address.parseString("localhost:3321"),
+                processIdGenerator.getProcessID()
+        );
         assertDoesNotThrow(() -> routingTable.updateCoordinator(member));
     }
 
@@ -75,7 +85,12 @@ public class RoutingTableTest {
     public void test_getCoordinator() throws UnknownHostException {
         RoutingTable routingTable = new RoutingTable();
 
-        Member member = new Member(Address.parseString("localhost:3320"), processIdGenerator.getProcessID());
+        Member member = new Member(
+                UUID.randomUUID().toString(),
+                Address.parseString("localhost:3320"),
+                Address.parseString("localhost:3321"),
+                processIdGenerator.getProcessID()
+        );
         routingTable.updateCoordinator(member);
 
         assertEquals(member, routingTable.getCoordinator());

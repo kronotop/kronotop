@@ -18,9 +18,6 @@ package com.kronotop.cluster;
 
 import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.ServiceContext;
-import com.kronotop.redis.RedisService;
-import com.kronotop.redis.storage.RedisShard;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,25 +38,6 @@ public class BaseClusterTest extends BaseTest {
     @BeforeEach
     public void setup() {
         addNewInstance();
-    }
-
-    /**
-     * Checks if all shards in the Kronotop test instances are operable.
-     *
-     * @return true if all shards are operable, false otherwise
-     */
-    protected boolean areAllShardsOperable() {
-        for (KronotopTestInstance kronotopTestInstance : kronotopInstances.values()) {
-            ServiceContext<RedisShard> redisContext = kronotopTestInstance.getContext().getServiceContext(RedisService.NAME);
-            int numberOfShards = kronotopTestInstance.getContext().getConfig().getInt("cluster.number_of_shards");
-            for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                RedisShard shard = redisContext.shards().get(shardId);
-                if (shard != null && shard.isReadOnly() && !shard.isOperable()) {
-                    return false;
-                }
-            }
-        }
-        return true;
     }
 
     protected KronotopTestInstance addNewInstance() {

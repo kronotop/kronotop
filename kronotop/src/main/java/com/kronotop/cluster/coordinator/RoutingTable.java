@@ -101,11 +101,10 @@ public class RoutingTable {
             return true;
         }
 
-        if (!(obj instanceof RoutingTable)) {
+        if (!(obj instanceof RoutingTable routingTable)) {
             return false;
         }
 
-        final RoutingTable routingTable = (RoutingTable) obj;
         return routingTable.getVersion().equals(routingTable.getVersion())
                 && getCoordinator().equals(routingTable.getCoordinator());
     }

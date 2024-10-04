@@ -26,6 +26,8 @@ import com.kronotop.KronotopService;
 import com.kronotop.ServiceContext;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.coordinator.Coordinator;
+import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
@@ -36,6 +38,7 @@ import com.kronotop.redis.connection.PingHandler;
 import com.kronotop.redis.connection.SelectHandler;
 import com.kronotop.redis.generic.*;
 import com.kronotop.redis.hash.*;
+import com.kronotop.redis.management.coordinator.RedisCoordinator;
 import com.kronotop.redis.server.CommandHandler;
 import com.kronotop.redis.server.FlushAllHandler;
 import com.kronotop.redis.server.FlushDBHandler;
@@ -68,7 +71,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final ServiceContext<RedisShard> serviceContext;
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
-    private final MembershipService membershipService;
+    private final MembershipService membership;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Thread.ofVirtual().name("kr.redis-service", 0L).factory()
@@ -77,14 +80,20 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final int numberOfShards;
     private final List<VolumeSyncWorker> volumeSyncWorkers = new ArrayList<>();
 
-    public RedisService(Context context, Handlers handlers) throws CommandAlreadyRegisteredException {
-        super(context, handlers);
+    public RedisService(Context context) throws CommandAlreadyRegisteredException {
+        super(context);
         this.watcher = context.getService(Watcher.NAME);
-        this.numberOfShards = context.getConfig().getInt("cluster.number_of_shards");
+        this.numberOfShards = context.getConfig().getInt("redis.shards");
         this.isVolumeSyncEnabled = context.getConfig().getBoolean("redis.volume_syncer.enabled");
-        this.membershipService = context.getService(MembershipService.NAME);
+        this.membership = context.getService(MembershipService.NAME);
         this.hashSlots = distributeHashSlots();
         this.serviceContext = context.getServiceContext(NAME);
+
+        RedisCoordinator coordinator = new RedisCoordinator(context);
+        if (isVolumeSyncEnabled) {
+            CoordinatorService coordinatorService = context.getService(CoordinatorService.NAME);
+            coordinatorService.register(Coordinator.Service.REDIS, coordinator);
+        }
 
         // TODO: CLUSTER-REFACTORING
         for (int i = 0; i < this.numberOfShards; i++) {
@@ -100,60 +109,60 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             redisShardLoader.load();
         }
 
-        registerHandler(new PingHandler());
-        registerHandler(new AuthHandler(this));
-        registerHandler(new InfoHandler(this));
-        registerHandler(new SetHandler(this));
-        registerHandler(new GetHandler(this));
-        registerHandler(new SelectHandler(this));
-        registerHandler(new DelHandler(this));
-        registerHandler(new CommandHandler(this));
-        registerHandler(new IncrByHandler(this));
-        registerHandler(new DecrByHandler(this));
-        registerHandler(new IncrHandler(this));
-        registerHandler(new DecrHandler(this));
-        registerHandler(new MSetHandler(this));
-        registerHandler(new MGetHandler(this));
-        registerHandler(new GetDelHandler(this));
-        registerHandler(new AppendHandler(this));
-        registerHandler(new ExistsHandler(this));
-        registerHandler(new IncrByFloatHandler(this));
-        registerHandler(new StrlenHandler(this));
-        registerHandler(new SetRangeHandler(this));
-        registerHandler(new GetRangeHandler(this));
-        registerHandler(new GetSetHandler(this));
-        registerHandler(new SubstrHandler(this));
-        registerHandler(new SetNXHandler(this));
-        registerHandler(new MSetNXHandler(this));
-        registerHandler(new TypeHandler(this));
-        registerHandler(new RenameHandler(this));
-        registerHandler(new RenameNXHandler(this));
-        registerHandler(new RandomKeyHandler(this));
-        registerHandler(new ScanHandler(this));
-        registerHandler(new MultiHandler(this));
-        registerHandler(new DiscardHandler(this));
-        registerHandler(new ExecHandler(this));
-        registerHandler(new WatchHandler(this));
-        registerHandler(new UnwatchHandler(this));
-        registerHandler(new FlushDBHandler(this));
-        registerHandler(new FlushAllHandler(this));
-        registerHandler(new HelloHandler(this));
-        registerHandler(new HSetHandler(this));
-        registerHandler(new HGetHandler(this));
-        registerHandler(new HDelHandler(this));
-        registerHandler(new HKeysHandler(this));
-        registerHandler(new HLenHandler(this));
-        registerHandler(new HValsHandler(this));
-        registerHandler(new HGetAllHandler(this));
-        registerHandler(new HRandFieldHandler(this));
-        registerHandler(new HIncrByHandler(this));
-        registerHandler(new HIncrByFloatHandler(this));
-        registerHandler(new HExistsHandler(this));
-        registerHandler(new HStrlenHandler(this));
-        registerHandler(new HSetNXHandler(this));
-        registerHandler(new HMGetHandler(this));
-        registerHandler(new HMSetHandler(this));
-        registerHandler(new ClusterHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new PingHandler());
+        handlerMethod(ServerKind.EXTERNAL, new AuthHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new InfoHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new SetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new GetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new SelectHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new DelHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new CommandHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new IncrByHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new DecrByHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new IncrHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new DecrHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new MSetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new MGetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new GetDelHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new AppendHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ExistsHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new IncrByFloatHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new StrlenHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new SetRangeHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new GetRangeHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new GetSetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new SubstrHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new SetNXHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new MSetNXHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new TypeHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new RenameHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new RenameNXHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new RandomKeyHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ScanHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new MultiHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new DiscardHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ExecHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new WatchHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new UnwatchHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new FlushDBHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new FlushAllHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HelloHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HSetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HGetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HDelHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HKeysHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HLenHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HValsHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HGetAllHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HRandFieldHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HIncrByHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HIncrByFloatHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HExistsHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HStrlenHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HSetNXHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HMGetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new HMSetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ClusterHandler(this));
     }
 
     public static void checkRedisValueKind(RedisValueContainer container, RedisValueKind kind) {
@@ -172,7 +181,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     public void start() {
         if (isVolumeSyncEnabled()) {
             Config redisConfig = context.getConfig().getConfig("redis");
-            int numVolumeSyncWorkers = redisConfig.getInt("volume_syncer.num_workers");
+            int numVolumeSyncWorkers = redisConfig.getInt("volume_syncer.workers");
             int period = redisConfig.getInt("volume_syncer.period");
             for (int workerId = 0; workerId < numVolumeSyncWorkers; workerId++) {
                 VolumeSyncWorker worker = new VolumeSyncWorker(context, workerId);
@@ -226,7 +235,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
                 }
                 return shard;
             }
-            Route route = membershipService.getRoutingTable().getRoute(shardId);
+            Route route = membership.getRoutingTable().getRoute(shardId);
             if (route == null) {
                 throw new KronotopException(RESPError.ERR, String.format("ShardId: %d not owned by any member yet", shardId));
             }
@@ -343,7 +352,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     }
 
     public MembershipService getClusterService() {
-        return membershipService;
+        return membership;
     }
 
     /**
@@ -362,7 +371,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         if (!route.getMember().equals(getContext().getMember())) {
             throw new KronotopException(
                     RESPError.MOVED,
-                    String.format("%d %s:%d", slot, route.getMember().getAddress().getHost(), route.getMember().getAddress().getPort())
+                    String.format("%d %s:%d", slot, route.getMember().getExternalAddress().getHost(), route.getMember().getExternalAddress().getPort())
             );
         }
         return getShard(shardId);

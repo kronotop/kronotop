@@ -60,10 +60,10 @@ public class Router extends ChannelDuplexHandler {
     private final Watcher watcher;
     private final RedisService redisService;
     private final String defaultNamespace;
-    Handlers commands;
+    CommandHandlerRegistry commands;
     Boolean authEnabled = false;
 
-    public Router(Context context, Handlers commands) {
+    public Router(Context context, CommandHandlerRegistry commands) {
         this.context = context;
         this.commands = commands;
         this.watcher = context.getService(Watcher.NAME);

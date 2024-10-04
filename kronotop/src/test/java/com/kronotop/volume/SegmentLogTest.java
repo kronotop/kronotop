@@ -31,7 +31,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_append() throws IOException {
-        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().rootPath(), 0xfffff);
+        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
         SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
 
@@ -44,7 +44,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_SegmentLogIterable() throws IOException {
-        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().rootPath(), 0xfffff);
+        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
         SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
         List<Versionstamp> keys = new ArrayList<>();
@@ -91,7 +91,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_SegmentLogIterable_range() throws IOException {
-        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().rootPath(), 0xfffff);
+        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
         SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
         List<Versionstamp> keys = new ArrayList<>();
@@ -141,7 +141,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_getCardinality() throws IOException {
-        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().rootPath(), 0xfffff);
+        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
         SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
 

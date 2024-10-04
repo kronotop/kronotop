@@ -18,7 +18,7 @@ package com.kronotop.journal;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.directory.DirectoryLayer;
-import com.kronotop.ConfigTestUtil;
+import com.kronotop.BaseTest;
 import com.kronotop.FoundationDBFactory;
 import com.kronotop.MissingConfigException;
 import com.kronotop.common.utils.DirectoryLayout;
@@ -28,7 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.util.List;
 
-public class BaseJournalTest {
+public class BaseJournalTest extends BaseTest {
     protected String testJournal = "test-journal";
     protected Config config;
     protected Database database;
@@ -36,7 +36,7 @@ public class BaseJournalTest {
 
     @BeforeEach
     public void setup() {
-        config = ConfigTestUtil.load("test.conf");
+        config = loadConfig("test.conf");
         database = FoundationDBFactory.newDatabase(config);
         if (!config.hasPath("cluster.name")) {
             throw new MissingConfigException("cluster.name is missing in configuration");

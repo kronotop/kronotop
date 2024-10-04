@@ -26,7 +26,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.foundationdb.namespace.NamespaceHandler;
 import com.kronotop.foundationdb.zmap.*;
-import com.kronotop.server.Handlers;
+import com.kronotop.server.ServerKind;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,27 +41,27 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
     public static final String NAME = "FoundationDB";
     private final String defaultNamespaceName;
 
-    public FoundationDBService(Context context, Handlers handlers) {
-        super(context, handlers);
+    public FoundationDBService(Context context) {
+        super(context);
         defaultNamespaceName = context.getConfig().getString("default_namespace");
 
         // Register handlers here
-        registerHandler(new BeginHandler(this));
-        registerHandler(new RollbackHandler(this));
-        registerHandler(new CommitHandler(this));
-        registerHandler(new NamespaceHandler(this));
-        registerHandler(new SnapshotReadHandler(this));
-        registerHandler(new GetReadVersionHandler(this));
-        registerHandler(new GetApproximateSizeHandler(this));
-        registerHandler(new ZSetHandler(this));
-        registerHandler(new ZGetHandler(this));
-        registerHandler(new ZDelHandler(this));
-        registerHandler(new ZDelRangeHandler(this));
-        registerHandler(new ZDelPrefixHandler(this));
-        registerHandler(new ZGetRangeHandler(this));
-        registerHandler(new ZGetKeyHandler(this));
-        registerHandler(new ZMutateHandler(this));
-        registerHandler(new ZGetRangeSizeHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BeginHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new RollbackHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new CommitHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new NamespaceHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new SnapshotReadHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new GetReadVersionHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new GetApproximateSizeHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZSetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZGetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZDelHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZDelRangeHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZDelPrefixHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZGetRangeHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZGetKeyHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZMutateHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZGetRangeSizeHandler(this));
 
         initializeDefaultNamespace();
     }

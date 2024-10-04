@@ -16,8 +16,7 @@
 
 package com.kronotop.cluster;
 
-public enum EventTypes {
-    MEMBER_JOIN,
-    MEMBER_LEFT,
-    UPDATE_ROUTING_TABLE,
+@FunctionalInterface
+public interface BroadcastEventHook {
+    void run(BroadcastEvent event);
 }

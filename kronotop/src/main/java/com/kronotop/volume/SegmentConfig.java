@@ -16,5 +16,5 @@
 
 package com.kronotop.volume;
 
-record SegmentConfig(long id, String rootPath, long size) {
+record SegmentConfig(long id, String dataDir, long size) {
 }

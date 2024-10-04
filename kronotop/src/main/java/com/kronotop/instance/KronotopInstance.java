@@ -21,13 +21,13 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
 import com.kronotop.redis.RedisContext;
 import com.kronotop.redis.RedisService;
-import com.kronotop.server.Handlers;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.watcher.Watcher;
 import com.typesafe.config.Config;
@@ -35,8 +35,14 @@ import com.typesafe.config.ConfigFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
 
 /*
 It can scarcely be denied that the supreme goal of all theory is to make the irreducible basic elements as simple and as
@@ -54,7 +60,6 @@ Often quoted as ‘Everything should be made as simple as possible, but not simp
 public class KronotopInstance {
     private static final Logger LOGGER = LoggerFactory.getLogger(KronotopInstance.class);
     protected final Config config;
-    protected final Handlers handlers = new Handlers();
     private final Database database;
     protected Context context;
     protected Member member;
@@ -84,28 +89,45 @@ public class KronotopInstance {
     }
 
     /**
-     * Registers the Kronotop services in the context.
-     *
-     * @throws InterruptedException if the thread is interrupted while registering the services
+     * Registers various Kronotop services within the context.
+     * <p>
+     * This method registers a list of services which are essential
+     * for the proper functioning of a Kronotop instance. The order
+     * of registration is crucial due to dependencies between services.
+     * <p>
+     * After registering the services, the method starts the MembershipService
+     * and RedisService to initialize their functionalities.
      */
-    private void registerKronotopServices() throws InterruptedException {
+    private void registerKronotopServices() {
+        // Registration sort is important here.
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
 
-        FoundationDBService fdb = new FoundationDBService(context, handlers);
-        context.registerService(FoundationDBService.NAME, fdb);
+        FoundationDBService foundationDBService = new FoundationDBService(context);
+        context.registerService(FoundationDBService.NAME, foundationDBService);
 
-        VolumeService volumeService = new VolumeService(context, handlers);
+        VolumeService volumeService = new VolumeService(context);
         context.registerService(VolumeService.NAME, volumeService);
+
+        CoordinatorService coordinatorService = new CoordinatorService(context);
+        context.registerService(CoordinatorService.NAME, coordinatorService);
 
         MembershipService membershipService = new MembershipService(context);
         context.registerService(MembershipService.NAME, membershipService);
-        membershipService.start();
-        membershipService.waitUntilBootstrapped();
 
-        RedisService redisService = new RedisService(context, handlers);
+        RedisService redisService = new RedisService(context);
         context.registerService(RedisService.NAME, redisService);
+
+        membershipService.start();
         redisService.start();
+    }
+
+    private Address getAddress(String kind) throws UnknownHostException {
+        int port = config.getInt(String.format("network.%s.port", kind));
+        String host = getInetAddress(
+                config.getString(String.format("network.%s.host", kind))
+        ).getHostAddress();
+        return new Address(host, port);
     }
 
     /**
@@ -113,16 +135,12 @@ public class KronotopInstance {
      *
      * @throws UnknownHostException if the host address is unknown
      */
-    private void initializeMember() throws UnknownHostException {
-        int inetPort = config.getInt("network.port");
-        String inetHost = getInetAddress(
-                config.getString("network.host")
-        ).getHostAddress();
-        Address address = new Address(inetHost, inetPort);
-
+    private void initializeMember(String id) throws UnknownHostException {
+        Address externalAddress = getAddress("external");
+        Address internalAddress = getAddress("internal");
         ProcessIdGenerator processIDGenerator = new ProcessIdGeneratorImpl(config, database);
         Versionstamp processID = processIDGenerator.getProcessID();
-        this.member = new Member(address, processID);
+        this.member = new Member(id, externalAddress, internalAddress, processID);
     }
 
     /**
@@ -135,6 +153,33 @@ public class KronotopInstance {
         // Register child contexts here.
         RedisContext redisContext = new RedisContext(context);
         context.registerServiceContext(RedisService.NAME, redisContext);
+    }
+
+    private Path prepareOnDiskDataDirectoryLayout() {
+        String dataDir = config.getString("data_dir");
+        String clusterName = config.getString("cluster.name");
+        try {
+            Path parentDataDir = Files.createDirectories(Path.of(dataDir, clusterName));
+            File[] files = parentDataDir.toFile().listFiles();
+            if (files == null) {
+                throw new KronotopException("Failed to list files and directories in " + parentDataDir);
+            }
+            if (files.length > 1) {
+                throw new KronotopException("Found more than one file or directory in " + parentDataDir);
+            }
+            Path directory;
+            if (files.length == 0) {
+                String id = UUID.randomUUID().toString();
+                directory = Files.createDirectories(Path.of(parentDataDir.toString(), id));
+            } else {
+                directory = Path.of(parentDataDir.toString(), files[0].toString());
+            }
+
+            // $data_dir/$cluster_id/$member_id
+            return directory;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
@@ -159,8 +204,11 @@ public class KronotopInstance {
             throw new IllegalStateException("Kronotop instance is already running");
         }
         LOGGER.info("Initializing a new Kronotop instance");
+
+        Path dataDir = prepareOnDiskDataDirectoryLayout();
+        String memberId = dataDir.getFileName().toString();
         try {
-            initializeMember();
+            initializeMember(memberId);
             initializeContext();
             registerKronotopServices();
             setStatus(KronotopInstanceStatus.RUNNING);

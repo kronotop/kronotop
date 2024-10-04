@@ -25,7 +25,7 @@ import io.netty.channel.epoll.EpollServerSocketChannel;
  * It extends the RESPServer abstract class and implements the KronotopService interface.
  */
 public class EpollRESPServer extends RESPServer {
-    public EpollRESPServer(Context context, Handlers commands) {
+    public EpollRESPServer(Context context, CommandHandlerRegistry commands) {
         super(context, commands, EpollServerSocketChannel.class, new EpollEventLoopGroup(), new EpollEventLoopGroup());
     }
 }

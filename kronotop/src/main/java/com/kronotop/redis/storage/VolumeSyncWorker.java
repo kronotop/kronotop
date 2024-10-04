@@ -45,7 +45,7 @@ public class VolumeSyncWorker implements Runnable {
         this.workerId = workerId;
         this.context = context;
         this.redisContext = context.getServiceContext(RedisService.NAME);
-        this.numWorkers = context.getConfig().getInt("redis.volume_syncer.num_workers");
+        this.numWorkers = context.getConfig().getInt("redis.volume_syncer.workers");
     }
 
     public void pause() {

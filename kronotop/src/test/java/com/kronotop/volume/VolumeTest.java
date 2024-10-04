@@ -259,7 +259,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     public void test_create_new_segments() throws IOException {
         long bufferSize = 100480;
-        long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
+        long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -328,7 +328,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     public void test_analyze() throws IOException {
         long bufferSize = 100480;
-        long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
+        long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -409,7 +409,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     public void test_update_segment_cardinality() throws IOException, KeyNotFoundException {
         long bufferSize = 100480;
-        long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
+        long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
         AppendResult result;
@@ -456,7 +456,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     public void test_vacuumSegment() throws IOException {
         long bufferSize = 100480;
-        long segmentSize = context.getConfig().getLong("volume_test.volume.segment_size");
+        long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {

@@ -30,13 +30,13 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class ProcessIdGeneratorImplTest {
+public class ProcessIdGeneratorImplTest extends BaseTest {
     protected Database database;
     protected Config config;
 
     @BeforeEach
     public void setup() {
-        config = ConfigTestUtil.load("test.conf");
+        config = loadConfig("test.conf");
         database = FoundationDBFactory.newDatabase(config);
     }
 

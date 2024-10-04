@@ -40,8 +40,7 @@ public class KronotopInstanceStarter {
                 System.getProperty("os.name"),
                 System.getProperty("os.arch"),
                 System.getProperty("java.version"));
-        LOGGER.info("Member id: {}", member.getId());
-        LOGGER.info("Listening TCP connections on {}", member.getAddress());
+        LOGGER.info("Listening client connections on {}", member.getExternalAddress());
     }
 
     public static void main(String[] args) {
