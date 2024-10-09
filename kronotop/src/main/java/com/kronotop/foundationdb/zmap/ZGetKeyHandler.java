@@ -61,14 +61,14 @@ public class ZGetKeyHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        ZGetKeyMessage zGetKeyMessage = request.attr(MessageTypes.ZGETKEY).get();
+        ZGetKeyMessage message = request.attr(MessageTypes.ZGETKEY).get();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
         KeySelector keySelector = RangeKeySelector.getKeySelector(
-                zGetKeyMessage.getKeySelector(),
-                namespace.getZMap().pack(zGetKeyMessage.getKey())
+                message.getKeySelector(),
+                namespace.getZMap().pack(message.getKey())
         );
 
         CompletableFuture<byte[]> future = getKey(tr, keySelector, TransactionUtils.isSnapshotRead(response.getChannelContext()));

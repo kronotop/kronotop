@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import com.kronotop.BaseTest;
+import com.kronotop.volume.replication.Host;
 import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;

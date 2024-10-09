@@ -25,7 +25,7 @@ import com.kronotop.network.Address;
 import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 
-import static com.google.common.hash.Hashing.murmur3_32_fixed;
+import static com.google.common.hash.Hashing.sipHash24;
 
 public class Member {
     private String id;
@@ -52,7 +52,7 @@ public class Member {
         this.externalAddress = externalAddress;
         this.internalAddress = internalAddress;
         this.processId = processId;
-        this.hashCode = murmur3_32_fixed().hashString(id, StandardCharsets.US_ASCII).asInt();
+        this.hashCode = sipHash24().hashString(id, StandardCharsets.US_ASCII).asInt();
     }
 
     public Address getExternalAddress() {

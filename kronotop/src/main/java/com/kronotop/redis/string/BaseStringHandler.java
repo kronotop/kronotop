@@ -30,20 +30,12 @@ public class BaseStringHandler extends BaseHandler {
     }
 
     protected void deleteByVersionstamp(RedisShard shard, Versionstamp versionstamp) {
-        if (!service.isVolumeSyncEnabled()) {
-            return;
-        }
-
         if (versionstamp != null) {
             shard.volumeSyncQueue().add(new DeleteByVersionstampJob(versionstamp));
         }
     }
 
     protected void syncMutatedStringOnVolume(RedisShard shard, String key, Versionstamp versionstamp) {
-        if (!service.isVolumeSyncEnabled()) {
-            return;
-        }
-
         shard.volumeSyncQueue().add(new AppendStringJob(key));
         if (versionstamp != null) {
             shard.volumeSyncQueue().add(new DeleteByVersionstampJob(versionstamp));
@@ -51,10 +43,6 @@ public class BaseStringHandler extends BaseHandler {
     }
 
     protected void syncStringOnVolume(RedisShard shard, String key, RedisValueContainer previous) {
-        if (!service.isVolumeSyncEnabled()) {
-            return;
-        }
-
         if (previous == null) {
             shard.volumeSyncQueue().add(new AppendStringJob(key));
             shard.index().add(key);

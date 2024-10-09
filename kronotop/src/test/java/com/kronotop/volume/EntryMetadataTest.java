@@ -16,48 +16,52 @@
 
 package com.kronotop.volume;
 
+import com.kronotop.volume.segment.Segment;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class EntryMetadataTest {
 
     @Test
     void decode_should_return_corresponding_EntryMetadata() {
+        Prefix prefix = new Prefix("test");
         // Initialize necessary data
         String segment = Segment.generateName(10);
         long position = 1L;
         long length = 1L;
         ByteBuffer buffer = ByteBuffer.allocate(EntryMetadata.ENTRY_METADATA_SIZE); // Including space for position and length
-        buffer.put(segment.getBytes()).putLong(position).putLong(length).flip();
+        buffer.put(segment.getBytes()).put(EntryMetadata.SUBSPACE_SEPARATOR).put(prefix.asBytes()).putLong(position).putLong(length).flip();
 
         // Invoke method on test
         EntryMetadata result = EntryMetadata.decode(buffer);
 
         // Check that the result has the same values
         assertEquals(segment, result.segment());
+        assertEquals(prefix, Prefix.fromBytes(result.prefix()));
         assertEquals(position, result.position());
         assertEquals(length, result.length());
     }
 
     @Test
     void encode_should_return_corresponding_byte_buffer() {
+        Prefix prefix = new Prefix("test");
+
         // Initialize necessary data
         String segment = Segment.generateName(10);
         long position = 1L;
         long length = 1L;
 
         // Create EntryMetadata instance
-        EntryMetadata entry = new EntryMetadata(segment, position, length);
+        EntryMetadata entry = new EntryMetadata(segment, prefix.asBytes(), position, length);
 
         // Invoke method on test
         ByteBuffer result = entry.encode();
 
-        // Check that the result has the same values
-        assertEquals(segment, new String(result.array(), 0, segment.length()));
-        assertEquals(position, result.getLong(segment.getBytes().length));
-        assertEquals(length, result.getLong(segment.getBytes().length + Long.BYTES));
+        EntryMetadata decoded = EntryMetadata.decode(result);
+        assertThat(entry).usingRecursiveComparison().isEqualTo(decoded);
     }
 }

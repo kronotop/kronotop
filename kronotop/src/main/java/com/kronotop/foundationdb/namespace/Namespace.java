@@ -28,20 +28,26 @@ import javax.annotation.Nonnull;
  */
 public class Namespace {
     private static final byte ZMapSubspaceMagic = 0x01;
+    private static final byte RedisSubspaceMagic = 0x02;
     private final String name;
-    private final DirectorySubspace root;
-    private final Subspace zmap;
-    private long lastAccess;
+    private final DirectorySubspace directorySubspace;
+    private final Subspace zmapSubspace;
+    private final Subspace redisSubspace;
 
     public Namespace(@Nonnull String name, @Nonnull DirectorySubspace root) {
         this.name = name;
-        this.root = root;
-        this.zmap = root.subspace(Tuple.from(ZMapSubspaceMagic));
-        updateLastAccess();
+        this.directorySubspace = root;
+        this.zmapSubspace = root.subspace(Tuple.from(ZMapSubspaceMagic));
+        this.redisSubspace = root.subspace(Tuple.from(RedisSubspaceMagic));
     }
 
-    private void updateLastAccess() {
-        this.lastAccess = System.currentTimeMillis();
+    /**
+     * Returns the root subspace of the Namespace.
+     *
+     * @return The root subspace.
+     */
+    public DirectorySubspace getDirectorySubspace() {
+        return directorySubspace;
     }
 
     /**
@@ -54,30 +60,15 @@ public class Namespace {
     }
 
     /**
-     * Returns the root directory subspace associated with the namespace.
-     * <p>
-     * This method updates the last access time and returns the root directory subspace.
-     *
-     * @return The root directory subspace.
-     */
-    public DirectorySubspace getRoot() {
-        updateLastAccess();
-        return root;
-    }
-
-    /**
      * Returns the Zmap subspace associated with the namespace.
-     * <p>
-     * This method updates the last access time and returns the Zmap subspace.
      *
      * @return The Zmap subspace.
      */
     public Subspace getZMap() {
-        updateLastAccess();
-        return zmap;
+        return zmapSubspace;
     }
 
-    public long getLastAccess() {
-        return lastAccess;
+    public Subspace getRedis() {
+        return redisSubspace;
     }
 }

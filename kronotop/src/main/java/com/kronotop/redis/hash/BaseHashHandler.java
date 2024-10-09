@@ -30,17 +30,11 @@ public class BaseHashHandler extends BaseHandler {
     }
 
     protected void syncHashField(RedisShard shard, String key, FieldValuePair fieldValuePair) {
-        if (!service.isVolumeSyncEnabled()) {
-            return;
-        }
         AppendHashFieldJob job = new AppendHashFieldJob(key, fieldValuePair.getField());
         shard.volumeSyncQueue().add(job);
     }
 
     protected void deleteByVersionstamp(RedisShard shard, HashFieldValue hashField) {
-        if (!service.isVolumeSyncEnabled()) {
-            return;
-        }
         if (hashField.versionstamp() == null) {
             return;
         }

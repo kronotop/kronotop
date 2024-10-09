@@ -24,6 +24,7 @@ import com.kronotop.redis.storage.DataStructurePack;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.DeleteResult;
+import com.kronotop.volume.Prefix;
 import com.kronotop.volume.Session;
 
 import java.io.IOException;
@@ -43,6 +44,7 @@ public class VolumeSyncSession {
     private final RedisShard shard;
     private final LinkedList<ByteBuffer> entries;
     private final LinkedList<Versionstamp> versionstampedKeys;
+    private final Prefix prefix;
     private Versionstamp[] versionstamps;
     private int appendCursor;
 
@@ -51,6 +53,7 @@ public class VolumeSyncSession {
         this.shard = shard;
         this.versionstampedKeys = new LinkedList<>();
         this.entries = new LinkedList<>();
+        this.prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
     }
 
     /**
@@ -84,7 +87,7 @@ public class VolumeSyncSession {
     public void sync() throws IOException {
         // TODO: We should consider the transaction time limit: 5 seconds
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Session session = new Session(tr);
+            Session session = new Session(tr, prefix);
 
             AppendResult appendResult = shard.volume().append(session, entries.toArray(new ByteBuffer[entries.size()]));
             DeleteResult deleteResult = shard.volume().delete(session, versionstampedKeys.toArray(new Versionstamp[versionstampedKeys.size()]));

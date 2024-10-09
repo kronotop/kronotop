@@ -52,12 +52,12 @@ public class ZDelPrefixHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        ZDelPrefixMessage zDelPrefixMessage = request.attr(MessageTypes.ZDELPREFIX).get();
+        ZDelPrefixMessage message = request.attr(MessageTypes.ZDELPREFIX).get();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
         //Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
-        Range range = Range.startsWith(zDelPrefixMessage.getPrefix());
+        Range range = Range.startsWith(message.getPrefix());
         tr.clear(range);
         TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
 

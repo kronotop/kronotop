@@ -19,6 +19,7 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
+import com.kronotop.volume.segment.SegmentAnalysis;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

@@ -18,22 +18,35 @@ package com.kronotop.volume;
 
 import java.nio.ByteBuffer;
 
-import static com.kronotop.volume.Segment.SEGMENT_NAME_SIZE;
+import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
 
-public record EntryMetadata(String segment, long position, long length) {
-
-    public static int ENTRY_METADATA_SIZE = SEGMENT_NAME_SIZE + 16; // position(8 bytes) + length (8 bytes)
+public record EntryMetadata(String segment, byte[] prefix, long position, long length) {
+    public static int ENTRY_PREFIX_SIZE = 8;
+    public static int ENTRY_METADATA_SIZE = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + 17; // position(8 bytes) + length (8 bytes) + subspace seperator
+    static byte SUBSPACE_SEPARATOR = 0x0;
 
     public static EntryMetadata decode(ByteBuffer buffer) {
         byte[] rawSegment = new byte[SEGMENT_NAME_SIZE];
         buffer.get(rawSegment);
+        buffer.get(); // Consume the separator
         String segment = new String(rawSegment);
+        byte[] prefix = new byte[ENTRY_PREFIX_SIZE];
+        buffer.get(prefix);
         long position = buffer.getLong();
         long length = buffer.getLong();
-        return new EntryMetadata(segment, position, length);
+        return new EntryMetadata(segment, prefix, position, length);
     }
 
     public ByteBuffer encode() {
-        return ByteBuffer.allocate(ENTRY_METADATA_SIZE).put(segment.getBytes()).putLong(position).putLong(length).flip();
+        if (prefix.length != ENTRY_PREFIX_SIZE) {
+            throw new IllegalArgumentException("Invalid prefix length");
+        }
+        return ByteBuffer.
+                allocate(ENTRY_METADATA_SIZE).
+                put(segment.getBytes()).
+                put(SUBSPACE_SEPARATOR).
+                put(prefix).
+                putLong(position).
+                putLong(length).flip();
     }
 }

@@ -49,7 +49,7 @@ public class VolumeSyncTest extends BaseStorageTest {
         assertTrue(volumeSyncer.isQueueEmpty());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Session session = new Session(tr);
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
             Iterable<KeyEntry> iterable = shard.volume().getRange(session);
             for (KeyEntry keyEntry : iterable) {
                 StringPack pack = StringPack.unpack(keyEntry.entry());
@@ -81,7 +81,7 @@ public class VolumeSyncTest extends BaseStorageTest {
         assertTrue(volumeSyncer.isQueueEmpty());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Session session = new Session(tr);
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
             Iterable<KeyEntry> iterable = shard.volume().getRange(session);
             for (KeyEntry keyEntry : iterable) {
                 HashFieldPack pack = HashFieldPack.unpack(keyEntry.entry());

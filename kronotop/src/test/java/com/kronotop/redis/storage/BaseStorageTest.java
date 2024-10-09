@@ -20,6 +20,7 @@ import com.kronotop.BaseTest;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.redis.RedisService;
+import com.kronotop.volume.Prefix;
 import com.typesafe.config.Config;
 import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -33,6 +34,7 @@ public class BaseStorageTest extends BaseTest {
     protected RedisService redisService;
     protected Context context;
     protected EmbeddedChannel channel;
+    protected Prefix redisVolumeSyncerPrefix;
 
     protected Integer getShardId(String key) {
         int slot = SlotHash.getSlot(key);
@@ -47,6 +49,7 @@ public class BaseStorageTest extends BaseTest {
         context = kronotopInstance.getContext();
         redisService = kronotopInstance.getContext().getService(RedisService.NAME);
         channel = kronotopInstance.getChannel();
+        redisVolumeSyncerPrefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
     }
 
     @AfterEach

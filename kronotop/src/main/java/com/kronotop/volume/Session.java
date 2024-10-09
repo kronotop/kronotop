@@ -21,15 +21,25 @@ import com.apple.foundationdb.Transaction;
 import javax.annotation.Nonnull;
 
 public class Session {
+    private final UserVersion userVersion = new UserVersion();
     private final Transaction transaction;
-    private final UserVersion userVersion;
+    private final Prefix prefix;
 
-    public Session(@Nonnull Transaction tr) {
-        this.transaction = tr;
-        this.userVersion = new UserVersion();
+    public Session(@Nonnull Prefix prefix) {
+        this.prefix = prefix;
+        this.transaction = null;
     }
 
-    public Transaction getTransaction() {
+    public Session(@Nonnull Transaction tr, @Nonnull Prefix prefix) {
+        this.transaction = tr;
+        this.prefix = prefix;
+    }
+
+    public Prefix prefix() {
+        return prefix;
+    }
+
+    public Transaction transaction() {
         return transaction;
     }
 

@@ -21,7 +21,6 @@ import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.async.AsyncIterator;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 
 import javax.annotation.Nonnull;
@@ -30,51 +29,50 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import static com.kronotop.volume.Prefixes.ENTRY_PREFIX;
-
 
 class VolumeIterable implements Iterable<KeyEntry> {
     private final AsyncIterable<KeyValue> asyncIterable;
     private final Volume volume;
+    private final Session session;
 
     VolumeIterable(Volume volume, Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
         this.volume = volume;
+        this.session = session;
         this.asyncIterable = createAsyncIterable(session, begin, end);
     }
 
     private AsyncIterable<KeyValue> createAsyncIterable(Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+        VolumeSubspace subspace = volume.getSubspace();
         KeySelector beginKeySelector;
         if (begin == null) {
-            beginKeySelector = KeySelector.firstGreaterOrEqual(volume.getConfig().subspace().pack(Tuple.from(ENTRY_PREFIX)));
+            beginKeySelector = KeySelector.firstGreaterOrEqual(subspace.packEntryKeyPrefix(session.prefix()));
         } else {
-            beginKeySelector = new KeySelector(packKey(begin.getKey()), begin.orEqual(), begin.getOffset());
+            beginKeySelector = new KeySelector(subspace.packEntryKey(session.prefix(), begin.getKey()), begin.orEqual(), begin.getOffset());
         }
 
         KeySelector endKeySelector;
         if (end == null) {
             endKeySelector = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(beginKeySelector.getKey()));
         } else {
-            endKeySelector = new KeySelector(packKey(end.getKey()), end.orEqual(), end.getOffset());
+            endKeySelector = new KeySelector(subspace.packEntryKey(session.prefix(), end.getKey()), end.orEqual(), end.getOffset());
         }
-        return session.getTransaction().getRange(beginKeySelector, endKeySelector);
-    }
-
-    private byte[] packKey(Versionstamp key) {
-        return volume.getConfig().subspace().pack(Tuple.from(ENTRY_PREFIX, key));
+        return session.transaction().getRange(beginKeySelector, endKeySelector);
     }
 
     @Nonnull
     @Override
     public Iterator<KeyEntry> iterator() {
-        return new VolumeIterator(volume, asyncIterable.iterator());
+        return new VolumeIterator(volume, session, asyncIterable.iterator());
     }
 
     private static class VolumeIterator implements Iterator<KeyEntry> {
         private final Volume volume;
+        private final Session session;
         private final AsyncIterator<KeyValue> asyncIterator;
 
-        VolumeIterator(Volume volume, AsyncIterator<KeyValue> asyncIterator) {
+        VolumeIterator(Volume volume, Session session, AsyncIterator<KeyValue> asyncIterator) {
             this.volume = volume;
+            this.session = session;
             this.asyncIterator = asyncIterator;
         }
 
@@ -99,10 +97,10 @@ class VolumeIterable implements Iterable<KeyEntry> {
         @Override
         public KeyEntry next() {
             KeyValue keyValue = asyncIterator.next();
-            Versionstamp key = (Versionstamp) volume.getConfig().subspace().unpack(keyValue.getKey()).get(1);
+            Versionstamp key = (Versionstamp) volume.getConfig().subspace().unpack(keyValue.getKey()).get(2);
             EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(keyValue.getValue()));
             try {
-                ByteBuffer entry = volume.getByEntryMetadata(key, entryMetadata);
+                ByteBuffer entry = volume.getByEntryMetadata(session.prefix(), key, entryMetadata);
                 return new KeyEntry(key, entry);
             } catch (IOException e) {
                 throw new RuntimeException(e);

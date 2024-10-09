@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.kronotop.JSONUtils;
+import com.kronotop.volume.replication.Host;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -51,7 +51,7 @@ class CommitHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         // Validates the request
-        CommitMessage commitMessage = request.attr(MessageTypes.COMMIT).get();
+        CommitMessage message = request.attr(MessageTypes.COMMIT).get();
 
         Channel channel = response.getChannelContext().channel();
         Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
@@ -63,9 +63,9 @@ class CommitHandler implements Handler {
         Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
         try (Transaction tr = transactionAttr.get()) {
             CompletableFuture<byte[]> versionstamp;
-            if (commitMessage.getReturning().contains(CommitMessage.Parameter.VERSIONSTAMP)) {
+            if (message.getReturning().contains(CommitMessage.Parameter.VERSIONSTAMP)) {
                 versionstamp = tr.getVersionstamp();
-            } else if (commitMessage.getReturning().contains(CommitMessage.Parameter.FUTURES)) {
+            } else if (message.getReturning().contains(CommitMessage.Parameter.FUTURES)) {
                 versionstamp = tr.getVersionstamp();
             } else {
                 // Effectively final
@@ -76,13 +76,13 @@ class CommitHandler implements Handler {
 
             TransactionUtils.runPostCommitHooks(request.getChannelContext());
 
-            if (commitMessage.getReturning().isEmpty()) {
+            if (message.getReturning().isEmpty()) {
                 response.writeOK();
                 return;
             }
 
             List<RedisMessage> children = new ArrayList<>();
-            commitMessage.getReturning().forEach(parameter -> {
+            message.getReturning().forEach(parameter -> {
                 switch (parameter) {
                     case COMMITTED_VERSION -> {
                         Long committedVersion = tr.getCommittedVersion();

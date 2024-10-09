@@ -58,12 +58,12 @@ public class ZGetHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        ZGetMessage zGetMessage = request.attr(MessageTypes.ZGET).get();
+        ZGetMessage message = request.attr(MessageTypes.ZGET).get();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
-        CompletableFuture<byte[]> future = get(tr, namespace.getZMap().pack(zGetMessage.getKey()), TransactionUtils.isSnapshotRead(request.getChannelContext()));
+        CompletableFuture<byte[]> future = get(tr, namespace.getZMap().pack(message.getKey()), TransactionUtils.isSnapshotRead(request.getChannelContext()));
         byte[] result = future.join();
         if (result == null) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);

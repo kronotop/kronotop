@@ -69,31 +69,31 @@ public class ZGetRangeHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        ZGetRangeMessage zGetRangeMessage = request.attr(MessageTypes.ZGETRANGE).get();
+        ZGetRangeMessage message = request.attr(MessageTypes.ZGETRANGE).get();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
         byte[] begin;
         byte[] end;
-        if (Arrays.equals(zGetRangeMessage.getBegin(), ZGetRangeMessage.ASTERISK)) {
+        if (Arrays.equals(message.getBegin(), ZGetRangeMessage.ASTERISK)) {
             begin = namespace.getZMap().pack();
             end = ByteArrayUtil.strinc(namespace.getZMap().pack());
         } else {
-            begin = namespace.getZMap().pack(zGetRangeMessage.getBegin());
-            if (Arrays.equals(zGetRangeMessage.getEnd(), ZGetRangeMessage.ASTERISK)) {
+            begin = namespace.getZMap().pack(message.getBegin());
+            if (Arrays.equals(message.getEnd(), ZGetRangeMessage.ASTERISK)) {
                 end = ByteArrayUtil.strinc(namespace.getZMap().pack());
             } else {
-                end = namespace.getZMap().pack(zGetRangeMessage.getEnd());
+                end = namespace.getZMap().pack(message.getEnd());
             }
         }
 
-        KeySelector beginKeySelector = RangeKeySelector.getKeySelector(zGetRangeMessage.getBeginKeySelector(), begin);
-        KeySelector endKeySelector = RangeKeySelector.getKeySelector(zGetRangeMessage.getEndKeySelector(), end);
+        KeySelector beginKeySelector = RangeKeySelector.getKeySelector(message.getBeginKeySelector(), begin);
+        KeySelector endKeySelector = RangeKeySelector.getKeySelector(message.getEndKeySelector(), end);
 
         AsyncIterable<KeyValue> asyncIterable = getRange(
-                tr, beginKeySelector, endKeySelector, zGetRangeMessage.getLimit(),
-                zGetRangeMessage.getReverse(), TransactionUtils.isSnapshotRead(response.getChannelContext()));
+                tr, beginKeySelector, endKeySelector, message.getLimit(),
+                message.getReverse(), TransactionUtils.isSnapshotRead(response.getChannelContext()));
 
         List<RedisMessage> upperList = new ArrayList<>();
         for (KeyValue keyValue : asyncIterable) {

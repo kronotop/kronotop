@@ -47,11 +47,11 @@ public class NamespaceHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        NamespaceMessage namespaceMessage = request.attr(MessageTypes.NAMESPACE).get();
+        NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
 
-        SubcommandExecutor executor = executors.get(namespaceMessage.getSubcommand());
+        SubcommandExecutor executor = executors.get(message.getSubcommand());
         if (executor == null) {
-            throw new UnknownSubcommandException(namespaceMessage.getSubcommand().toString());
+            throw new UnknownSubcommandException(message.getSubcommand().toString());
         }
         executor.execute(request, response);
     }

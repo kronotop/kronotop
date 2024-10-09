@@ -16,22 +16,12 @@
 
 package com.kronotop.foundationdb;
 
-import com.apple.foundationdb.FDBException;
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
-import com.kronotop.common.KronotopException;
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.foundationdb.namespace.NamespaceHandler;
 import com.kronotop.foundationdb.zmap.*;
 import com.kronotop.server.ServerKind;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletionException;
 
 /**
  * The FoundationDBService class is an implementation of the KronotopService interface that represents a service for
@@ -39,11 +29,9 @@ import java.util.concurrent.CompletionException;
  */
 public class FoundationDBService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "FoundationDB";
-    private final String defaultNamespaceName;
 
     public FoundationDBService(Context context) {
         super(context);
-        defaultNamespaceName = context.getConfig().getString("default_namespace");
 
         // Register handlers here
         handlerMethod(ServerKind.EXTERNAL, new BeginHandler(this));
@@ -62,27 +50,6 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
         handlerMethod(ServerKind.EXTERNAL, new ZGetKeyHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZMutateHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZGetRangeSizeHandler(this));
-
-        initializeDefaultNamespace();
-    }
-
-    private void initializeDefaultNamespace() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            List<String> namespacePath = new ArrayList<>();
-            Collections.addAll(namespacePath, defaultNamespaceName.split("\\."));
-            List<String> subpath = DirectoryLayout.Builder.clusterName(context.getClusterName()).namespaces().addAll(namespacePath).asList();
-            DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
-            tr.commit().join();
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof FDBException) {
-                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
-                if (((FDBException) e.getCause()).getCode() == 1020) {
-                    // retry
-                    initializeDefaultNamespace();
-                }
-            }
-            throw new KronotopException(e);
-        }
     }
 
     @Override

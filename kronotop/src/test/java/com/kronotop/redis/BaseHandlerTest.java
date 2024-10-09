@@ -18,6 +18,7 @@ package com.kronotop.redis;
 
 import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.volume.Prefix;
 import com.typesafe.config.Config;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.AfterEach;
@@ -28,12 +29,14 @@ import java.net.UnknownHostException;
 public class BaseHandlerTest extends BaseTest {
     protected KronotopTestInstance kronotopInstance;
     protected EmbeddedChannel channel;
+    protected Prefix redisVolumeSyncerPrefix;
 
     protected EmbeddedChannel newChannel() {
         return kronotopInstance.newChannel();
     }
 
     protected void setupCommon(Config config) throws UnknownHostException, InterruptedException {
+        redisVolumeSyncerPrefix = new Prefix(config.getString("redis.volume_syncer.prefix").getBytes());
         kronotopInstance = new KronotopTestInstance(config);
         kronotopInstance.start();
         channel = kronotopInstance.getChannel();

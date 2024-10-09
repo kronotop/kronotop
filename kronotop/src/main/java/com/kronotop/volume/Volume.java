@@ -25,88 +25,63 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
+import com.kronotop.volume.replication.SegmentLog;
+import com.kronotop.volume.replication.SegmentLogValue;
+import com.kronotop.volume.replication.SegmentNotFoundException;
+import com.kronotop.volume.segment.Segment;
+import com.kronotop.volume.segment.SegmentAnalysis;
+import com.kronotop.volume.segment.SegmentAppendResult;
+import com.kronotop.volume.segment.SegmentConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static com.kronotop.volume.Prefixes.*;
+import static com.kronotop.volume.Subspaces.ENTRY_METADATA_SUBSPACE;
+import static com.kronotop.volume.Subspaces.VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE;
 
 public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
-    private static final byte[] SEGMENT_CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
-    private static final byte[] SEGMENT_CARDINALITY_DECREASE_DELTA = new byte[]{-1, -1, -1, -1}; // -1, byte order: little-endian
+    private static final byte[] INCREASE_BY_ONE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
+    private static final byte[] DECREASE_BY_ONE_DELTA = new byte[]{-1, -1, -1, -1}; // -1, byte order: little-endian
     private static final int SEGMENT_VACUUM_BATCH_SIZE = 100;
-    private static final byte[] CDC_TRIGGER_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
 
     private final Context context;
     private final VolumeConfig config;
-    private final LoadingCache<Versionstamp, EntryMetadata> entryMetadataCache;
+    private final VolumeSubspace subspace;
+    private final ConcurrentHashMap<Long, LoadingCache<Versionstamp, EntryMetadata>> entryMetadataCache;
     private final byte[] watchChangesStageTriggerKey;
 
-    // segmentsLock protects segments array
+    // segmentsLock protects segments map
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
-    private final List<Segment> segments = new ArrayList<>();
-    private final HashMap<String, Segment> segmentsByName = new HashMap<>();
-    private final HashMap<String, SegmentLog> segmentLogs = new HashMap<>();
+    private final TreeMap<String, SegmentContainer> segments = new TreeMap<>();
 
     private volatile boolean isClosed;
 
-    public Volume(Context context, VolumeConfig volumeConfig) throws IOException {
+    public Volume(Context context, VolumeConfig config) throws IOException {
         this.context = context;
-        this.config = volumeConfig;
-        this.entryMetadataCache = CacheBuilder.newBuilder().expireAfterAccess(30, TimeUnit.MINUTES).build(new EntryMetadataLoader());
-        this.watchChangesStageTriggerKey = config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_PREFIX));
+        this.config = config;
+        this.subspace = new VolumeSubspace(config.subspace());
+        this.entryMetadataCache = new ConcurrentHashMap<>();
+        this.watchChangesStageTriggerKey = this.config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE));
     }
 
-    protected VolumeConfig getConfig() {
+    protected VolumeSubspace getSubspace() {
+        return subspace;
+    }
+
+    public VolumeConfig getConfig() {
         return config;
     }
 
     private void triggerWatchChangesSubscribers(Transaction tr) {
-        tr.mutate(MutationType.ADD, watchChangesStageTriggerKey, CDC_TRIGGER_DELTA);
-    }
-
-    private void mutateSegmentCardinality(Transaction tr, String name, byte[] delta) {
-        byte[] segmentCardinalityKey = packSegmentCardinalityKey(name);
-        tr.mutate(MutationType.ADD, segmentCardinalityKey, delta);
-    }
-
-    private byte[] packSegmentCardinalityKey(String name) {
-        Tuple key = Tuple.from(SEGMENT_CARDINALITY_PREFIX, name);
-        return config.subspace().pack(key);
-    }
-
-    private int decodeSegmentCardinality(byte[] data) {
-        return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
-    }
-
-    private byte[] encodeSegmentUsedBytes(long length) {
-        return ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(length).array();
-    }
-
-    private byte[] packSegmentUsedBytesKey(String name) {
-        Tuple key = Tuple.from(SEGMENT_USED_BYTES_PREFIX, name);
-        return config.subspace().pack(key);
-    }
-
-    private void mutateSegmentUsedBytes(Transaction tr, String name, byte[] delta) {
-        byte[] segmentUsedBytesKey = packSegmentUsedBytesKey(name);
-        tr.mutate(MutationType.ADD, segmentUsedBytesKey, delta);
-    }
-
-    private long decodeSegmentUsedBytes(byte[] data) {
-        return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
+        tr.mutate(MutationType.ADD, watchChangesStageTriggerKey, INCREASE_BY_ONE_DELTA);
     }
 
     private void flushMutatedSegments(EntryMetadata[] entryMetadataList) throws IOException {
@@ -126,10 +101,9 @@ public class Volume {
     private Segment openSegment(long segmentId) throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
         Segment segment = new Segment(segmentConfig);
-        segments.add(segment);
-        segmentsByName.put(segment.getName(), segment);
-        segmentLogs.put(segment.getName(), new SegmentLog(segment.getName(), config.subspace()));
-        segments.sort(Comparator.comparing(Segment::getName));
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), config.subspace());
+        SegmentMetadata segmentMetadata = new SegmentMetadata(subspace, segment.getName());
+        segments.put(segment.getName(), new SegmentContainer(segment, segmentLog, segmentMetadata));
         return segment;
     }
 
@@ -161,24 +135,26 @@ public class Volume {
         });
 
         // Make it available for the rest of the Volume.
-        segments.add(segment);
-        segments.sort(Comparator.comparing(Segment::getName));
-        segmentsByName.put(segment.getName(), segment);
-        segmentLogs.put(segment.getName(), new SegmentLog(segment.getName(), config.subspace()));
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), config.subspace());
+        SegmentMetadata segmentMetadata = new SegmentMetadata(subspace, segment.getName());
+        segments.put(segment.getName(), new SegmentContainer(segment, segmentLog, segmentMetadata));
+
         return segment;
     }
 
     private Segment getOrCreateLatestSegment(int size) throws IOException {
         segmentsLock.writeLock().lock();
         try {
-            if (segments.isEmpty()) {
+            Map.Entry<String, SegmentContainer> entry = segments.lastEntry();
+            if (entry == null) {
                 return createSegment();
             }
-            Segment latest = segments.getLast();
-            if (size > latest.getFreeBytes()) {
+
+            Segment segment = entry.getValue().segment();
+            if (size > segment.getFreeBytes()) {
                 return createSegment();
             }
-            return latest;
+            return segment;
         } finally {
             segmentsLock.writeLock().unlock();
         }
@@ -187,24 +163,26 @@ public class Volume {
     private Segment getLatestSegment(int size) throws IOException {
         segmentsLock.readLock().lock();
         try {
-            Segment latest = segments.getLast();
-            if (size < latest.getFreeBytes()) {
-                return latest;
+            Map.Entry<String, SegmentContainer> entry = segments.lastEntry();
+            if (entry != null) {
+                Segment latest = entry.getValue().segment();
+                if (size < latest.getFreeBytes()) {
+                    return latest;
+                }
             }
-        } catch (NoSuchElementException e) {
-            // Ignore it, a new Segment will be created after releasing the read lock.
         } finally {
             segmentsLock.readLock().unlock();
         }
         return getOrCreateLatestSegment(size);
     }
 
-    private EntryMetadata tryAppend(ByteBuffer entry) throws IOException {
+    private EntryMetadata tryAppend(Prefix prefix, ByteBuffer entry) throws IOException {
         int size = entry.remaining();
         while (true) {
             Segment segment = getLatestSegment(size);
             try {
-                return segment.append(entry);
+                SegmentAppendResult result = segment.append(entry);
+                return new EntryMetadata(segment.getName(), prefix.asBytes(), result.position(), result.length());
             } catch (NotEnoughSpaceException e) {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("Trying to find a new segment with length {}", size);
@@ -213,43 +191,44 @@ public class Volume {
         }
     }
 
-    private byte[] packEntryKeyWithVersionstamp(int version) {
-        Tuple key = Tuple.from(ENTRY_PREFIX, Versionstamp.incomplete(version));
-        return config.subspace().packWithVersionstamp(key);
-    }
-
-    private byte[] packEntryMetadataKey(byte[] data) {
-        return config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, data));
-    }
-
     private void appendSegmentLog(Session session, OperationKind kind, EntryMetadata entryMetadata) {
-        appendSegmentLog(session.getTransaction(), kind, session.getAndIncrementUserVersion(), entryMetadata);
+        appendSegmentLog(session.transaction(), kind, session.getAndIncrementUserVersion(), entryMetadata);
     }
 
     private void appendSegmentLog(Transaction tr, OperationKind kind, int userVersion, EntryMetadata entryMetadata) {
         segmentsLock.readLock().lock();
         try {
-            SegmentLog segmentLog = segmentLogs.get(entryMetadata.segment());
-            if (segmentLog == null) {
+            SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
+            if (segmentContainer == null) {
                 throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
             }
-            segmentLog.append(tr, userVersion, new SegmentLogValue(kind, entryMetadata.position(), entryMetadata.length()));
+            SegmentLogValue value = new SegmentLogValue(kind, entryMetadata.position(), entryMetadata.length());
+            segmentContainer.log().append(tr, userVersion, value);
         } finally {
             segmentsLock.readLock().unlock();
         }
     }
 
     private CompletableFuture<byte[]> writeMetadata(Session session, EntryMetadata[] entryMetadataList) {
-        Transaction tr = session.getTransaction();
+        Transaction tr = session.transaction();
         for (EntryMetadata entryMetadata : entryMetadataList) {
             int userVersion = session.getAndIncrementUserVersion();
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
 
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, packEntryKeyWithVersionstamp(userVersion), encodedEntryMetadata);
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, packEntryMetadataKey(encodedEntryMetadata), Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp());
+            tr.mutate(
+                    MutationType.SET_VERSIONSTAMPED_KEY,
+                    subspace.packEntryKeyWithVersionstamp(session.prefix(), userVersion),
+                    encodedEntryMetadata
+            );
+            tr.mutate(
+                    MutationType.SET_VERSIONSTAMPED_VALUE,
+                    subspace.packEntryMetadataKey(encodedEntryMetadata),
+                    Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp()
+            );
 
-            mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_INCREASE_DELTA);
-            mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(entryMetadata.length()));
+            SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
+            segmentContainer.metadata().addCardinality(tr, INCREASE_BY_ONE_DELTA);
+            segmentContainer.metadata().addUsedBytes(tr, entryMetadata.length());
 
             appendSegmentLog(tr, OperationKind.APPEND, userVersion, entryMetadata);
             triggerWatchChangesSubscribers(tr);
@@ -257,11 +236,11 @@ public class Volume {
         return tr.getVersionstamp();
     }
 
-    private EntryMetadata[] appendEntries(ByteBuffer[] entries) throws IOException {
+    private EntryMetadata[] appendEntries(Prefix prefix, ByteBuffer[] entries) throws IOException {
         EntryMetadata[] entryMetadataList = new EntryMetadata[entries.length];
         int index = 0;
         for (ByteBuffer entry : entries) {
-            EntryMetadata entryMetadata = tryAppend(entry);
+            EntryMetadata entryMetadata = tryAppend(prefix, entry);
             entryMetadataList[index] = entryMetadata;
             index++;
         }
@@ -273,25 +252,21 @@ public class Volume {
             throw new TooManyEntriesException();
         }
 
-        EntryMetadata[] entryMetadataList = appendEntries(entries);
+        EntryMetadata[] entryMetadataList = appendEntries(session.prefix(), entries);
 
         // Forces any updates to this channel's file to be written to the storage device that contains it.
         flushMutatedSegments(entryMetadataList);
 
         CompletableFuture<byte[]> future = writeMetadata(session, entryMetadataList);
-        return new AppendResult(future, entryMetadataList, entryMetadataCache::put);
-    }
-
-    private byte[] packEntryKey(Versionstamp key) {
-        return config.subspace().pack(Tuple.from(ENTRY_PREFIX, key));
+        return new AppendResult(future, entryMetadataList, getEntryMetadataCache(session.prefix())::put);
     }
 
     private Segment getOrOpenSegmentByName(String name) throws IOException, SegmentNotFoundException {
         segmentsLock.readLock().lock();
         try {
-            Segment segment = segmentsByName.get(name);
-            if (segment != null) {
-                return segment;
+            SegmentContainer segmentContainer = segments.get(name);
+            if (segmentContainer != null) {
+                return segmentContainer.segment();
             }
         } finally {
             segmentsLock.readLock().unlock();
@@ -300,9 +275,9 @@ public class Volume {
         // Try to open the segment but check it first
         segmentsLock.writeLock().lock();
         try {
-            Segment segment = segmentsByName.get(name);
-            if (segment != null) {
-                return segment;
+            SegmentContainer segmentContainer = segments.get(name);
+            if (segmentContainer != null) {
+                return segmentContainer.segment();
             }
             long segmentId = Segment.extractIdFromName(name);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -316,9 +291,17 @@ public class Volume {
         }
     }
 
-    private EntryMetadata loadEntryMetadataFromCache(Versionstamp key) {
+    private LoadingCache<Versionstamp, EntryMetadata> getEntryMetadataCache(Prefix prefix) {
+        return entryMetadataCache.computeIfAbsent(prefix.asLong(), prefixId -> CacheBuilder.
+                newBuilder().
+                expireAfterAccess(30, TimeUnit.MINUTES).
+                build(new EntryMetadataCacheLoader(context, subspace, prefix))
+        );
+    }
+
+    private EntryMetadata loadEntryMetadataFromCache(Prefix prefix, Versionstamp key) {
         try {
-            return entryMetadataCache.get(key);
+            return getEntryMetadataCache(prefix).get(key);
         } catch (CacheLoader.InvalidCacheLoadException e) {
             // The requested key doesn't exist in this Volume.
             return null;
@@ -327,7 +310,7 @@ public class Volume {
         }
     }
 
-    protected ByteBuffer getByEntryMetadata(Versionstamp key, EntryMetadata entryMetadata) throws IOException {
+    protected ByteBuffer getByEntryMetadata(Prefix prefix, Versionstamp key, EntryMetadata entryMetadata) throws IOException {
         Segment segment;
         try {
             segment = getOrOpenSegmentByName(entryMetadata.segment());
@@ -335,36 +318,28 @@ public class Volume {
             // Invalidate the cache and try again.
             // It will load the EntryMetadata from FoundationDB.
             // Possible cause: cleanup up filled segments.
-            entryMetadataCache.invalidate(key);
+            getEntryMetadataCache(prefix).invalidate(key);
             segment = getOrOpenSegmentByName(entryMetadata.segment());
         }
 
         return segment.get(entryMetadata.position(), entryMetadata.length());
     }
 
-    public ByteBuffer get(Session session, @Nonnull Versionstamp key, boolean useCache) throws IOException {
+    public ByteBuffer get(@Nonnull Session session, @Nonnull Versionstamp key) throws IOException {
         EntryMetadata entryMetadata;
-        if (useCache) {
-            entryMetadata = loadEntryMetadataFromCache(key);
+        if (session.transaction() == null) {
+            entryMetadata = loadEntryMetadataFromCache(session.prefix(), key);
             if (entryMetadata == null) {
                 return null;
             }
         } else {
-            byte[] value = session.getTransaction().get(packEntryKey(key)).join();
+            byte[] value = session.transaction().get(subspace.packEntryKey(session.prefix(), key)).join();
             if (value == null) {
                 return null;
             }
             entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(value));
         }
-        return getByEntryMetadata(key, entryMetadata);
-    }
-
-    public ByteBuffer get(@Nonnull Versionstamp key) throws IOException {
-        return get(null, key, true);
-    }
-
-    public ByteBuffer get(@Nonnull Session session, @Nonnull Versionstamp key) throws IOException {
-        return get(session, key, false);
+        return getByEntryMetadata(session.prefix(), key, entryMetadata);
     }
 
     public ByteBuffer[] getSegmentRange(String segmentName, SegmentRange[] segmentRanges) throws IOException {
@@ -378,22 +353,26 @@ public class Volume {
     }
 
     public DeleteResult delete(@Nonnull Session session, @Nonnull Versionstamp... keys) {
-        Transaction tr = session.getTransaction();
-        DeleteResult result = new DeleteResult(keys.length, entryMetadataCache::invalidate);
+        Transaction tr = session.transaction();
+
+        DeleteResult result = new DeleteResult(keys.length, getEntryMetadataCache(session.prefix())::invalidate);
+
         int index = 0;
         for (Versionstamp key : keys) {
-            byte[] entryKey = packEntryKey(key);
+            byte[] entryKey = subspace.packEntryKey(session.prefix(), key);
             byte[] encodedEntryMetadata = tr.get(entryKey).join();
             if (encodedEntryMetadata == null) {
                 // Already deleted by a previously committed transaction.
                 continue;
             }
             tr.clear(entryKey);
-            tr.clear(packEntryMetadataKey(encodedEntryMetadata));
+            tr.clear(subspace.packEntryMetadataKey(encodedEntryMetadata));
 
             EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
-            mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_DECREASE_DELTA);
-            mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(-1 * entryMetadata.length()));
+
+            SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
+            segmentContainer.metadata().addCardinality(tr, DECREASE_BY_ONE_DELTA);
+            segmentContainer.metadata().addUsedBytes(tr, -1 * entryMetadata.length());
 
             appendSegmentLog(session, OperationKind.DELETE, entryMetadata);
             triggerWatchChangesSubscribers(tr);
@@ -409,31 +388,35 @@ public class Volume {
         for (int i = 0; i < pairs.length; i++) {
             entries[i] = pairs[i].entry();
         }
-        EntryMetadata[] entryMetadataList = appendEntries(entries);
+        EntryMetadata[] entryMetadataList = appendEntries(session.prefix(), entries);
         flushMutatedSegments(entryMetadataList);
 
-        Transaction tr = session.getTransaction();
+        Transaction tr = session.transaction();
         int index = 0;
         for (KeyEntry keyEntry : pairs) {
             Versionstamp key = keyEntry.key();
-            byte[] packedKey = packEntryKey(key);
+            byte[] packedKey = subspace.packEntryKey(session.prefix(), key);
             byte[] encodedOldEntryMetadata = tr.get(packedKey).join();
             if (encodedOldEntryMetadata == null) {
                 throw new KeyNotFoundException(key);
             }
 
             EntryMetadata entryMetadata = entryMetadataList[index];
-            EntryMetadata oldEntryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedOldEntryMetadata));
-            if (!oldEntryMetadata.segment().equals(entryMetadata.segment())) {
-                mutateSegmentCardinality(tr, oldEntryMetadata.segment(), SEGMENT_CARDINALITY_DECREASE_DELTA);
-                mutateSegmentCardinality(tr, entryMetadata.segment(), SEGMENT_CARDINALITY_INCREASE_DELTA);
-                mutateSegmentUsedBytes(tr, oldEntryMetadata.segment(), encodeSegmentUsedBytes(-1 * oldEntryMetadata.length()));
-            } else {
-                mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(-1 * oldEntryMetadata.length()));
-            }
-            mutateSegmentUsedBytes(tr, entryMetadata.segment(), encodeSegmentUsedBytes(entryMetadata.length()));
+            SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
 
-            tr.clear(packEntryMetadataKey(encodedOldEntryMetadata));
+            EntryMetadata oldEntryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedOldEntryMetadata));
+            SegmentContainer oldSegmentContainer = segments.get(oldEntryMetadata.segment());
+
+            if (!oldEntryMetadata.segment().equals(entryMetadata.segment())) {
+                oldSegmentContainer.metadata().addCardinality(tr, DECREASE_BY_ONE_DELTA);
+                segmentContainer.metadata().addCardinality(tr, INCREASE_BY_ONE_DELTA);
+                oldSegmentContainer.metadata().addUsedBytes(tr, -1 * oldEntryMetadata.length());
+            } else {
+                segmentContainer.metadata().addUsedBytes(tr, -1 * entryMetadata.length());
+            }
+            segmentContainer.metadata().addUsedBytes(tr, entryMetadata.length());
+
+            tr.clear(subspace.packEntryMetadataKey(encodedOldEntryMetadata));
             tr.set(packedKey, entryMetadata.encode().array());
 
             appendSegmentLog(session, OperationKind.DELETE, oldEntryMetadata);
@@ -442,15 +425,15 @@ public class Volume {
 
             index++;
         }
-        return new UpdateResult(pairs, entryMetadataCache::invalidate);
+        return new UpdateResult(pairs, getEntryMetadataCache(session.prefix())::invalidate);
     }
 
     public void flush(boolean metaData) {
         segmentsLock.readLock().lock();
         try {
-            for (Map.Entry<String, Segment> entry : segmentsByName.entrySet()) {
+            for (Map.Entry<String, SegmentContainer> entry : segments.entrySet()) {
                 try {
-                    entry.getValue().flush(metaData);
+                    entry.getValue().segment().flush(metaData);
                 } catch (IOException e) {
                     LOGGER.error("Failed to flush Segment: {}", entry.getKey(), e);
                 }
@@ -464,8 +447,8 @@ public class Volume {
         isClosed = true;
         segmentsLock.readLock().lock();
         try {
-            for (Map.Entry<String, Segment> entry : segmentsByName.entrySet()) {
-                Segment segment = entry.getValue();
+            for (Map.Entry<String, SegmentContainer> entry : segments.entrySet()) {
+                Segment segment = entry.getValue().segment();
                 try {
                     // This also flushes the underlying files with metadata = true.
                     segment.close();
@@ -490,34 +473,30 @@ public class Volume {
         return new VolumeIterable(this, session, begin, end);
     }
 
-    private SegmentAnalysis analyzeSegment(Transaction tr, Segment segment) {
-        byte[] segmentCardinalityKey = packSegmentCardinalityKey(segment.getName());
-        byte[] segmentCardinalityData = tr.get(segmentCardinalityKey).join();
-        int cardinality = decodeSegmentCardinality(segmentCardinalityData);
-
-        byte[] segmentUsedBytesKey = packSegmentUsedBytesKey(segment.getName());
-        byte[] segmentUsedBytesData = tr.get(segmentUsedBytesKey).join();
-        long usedBytes = decodeSegmentUsedBytes(segmentUsedBytesData);
-
+    private SegmentAnalysis analyzeSegment(Transaction tr, SegmentContainer segmentContainer) {
+        int cardinality = segmentContainer.metadata().getCardinality(tr);
+        long usedBytes = segmentContainer.metadata().getUsedBytes(tr);
+        Segment segment = segmentContainer.segment();
         return new SegmentAnalysis(segment.getName(), segment.getSize(), usedBytes, segment.getFreeBytes(), cardinality);
     }
 
+    @SuppressWarnings("unchecked")
     public List<SegmentAnalysis> analyze(Transaction tr) {
         // Create a read-only copy of segments to prevent acquiring segmentsLock for a long time.
         // Read-only access to the segments is not an issue. A segment can only be removed by the Vacuum daemon.
-        List<Segment> readOnlySegments;
+        TreeMap<String, SegmentContainer> swallowCopy;
         List<SegmentAnalysis> result = new ArrayList<>();
         segmentsLock.readLock().lock();
         try {
             if (segments.isEmpty()) {
                 return result;
             }
-            readOnlySegments = new ArrayList<>(segments);
+            swallowCopy = (TreeMap<String, SegmentContainer>) segments.clone();
         } finally {
             segmentsLock.readLock().unlock();
         }
-        for (Segment segment : readOnlySegments) {
-            result.add(analyzeSegment(tr, segment));
+        for (Map.Entry<String, SegmentContainer> entry : swallowCopy.entrySet()) {
+            result.add(analyzeSegment(tr, entry.getValue()));
         }
         return result;
     }
@@ -530,15 +509,16 @@ public class Volume {
 
     protected void vacuumSegment(String name, long readVersion) throws IOException {
         Segment segment = getOrOpenSegmentByName(name);
-        byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
+        byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.getName().getBytes()));
         byte[] end = ByteArrayUtil.strinc(begin);
 
         while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 tr.setReadVersion(readVersion);
 
+                int batchSize = 0;
                 Range range = new Range(begin, end);
-                List<KeyEntry> pairs = new ArrayList<>();
+                HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
                 for (KeyValue keyValue : tr.getRange(range)) {
                     byte[] key = keyValue.getKey();
                     if (Arrays.equals(key, begin)) {
@@ -554,20 +534,33 @@ public class Volume {
                     EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
 
                     Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
-                    ByteBuffer buffer = getByEntryMetadata(versionstampedKey, entryMetadata);
+                    Prefix prefix = Prefix.fromBytes(entryMetadata.prefix());
+
+                    List<KeyEntry> pairs = pairsByPrefix.computeIfAbsent(prefix, (prefixAsLong) -> new ArrayList<>());
+                    ByteBuffer buffer = getByEntryMetadata(Prefix.fromBytes(entryMetadata.prefix()), versionstampedKey, entryMetadata);
                     pairs.add(new KeyEntry(versionstampedKey, buffer));
-                    if (pairs.size() >= SEGMENT_VACUUM_BATCH_SIZE) {
+                    batchSize++;
+                    if (batchSize >= SEGMENT_VACUUM_BATCH_SIZE) {
                         break;
                     }
                     begin = key;
                 }
-                if (pairs.isEmpty()) {
+                if (pairsByPrefix.isEmpty()) {
                     // End of the segment
                     break;
                 }
-                UpdateResult updateResult = update(new Session(tr), pairs.toArray(new KeyEntry[0]));
-                updateResult.complete();
+
+                List<UpdateResult> results = new ArrayList<>();
+                for (Map.Entry<Prefix, List<KeyEntry>> entry : pairsByPrefix.entrySet()) {
+                    UpdateResult updateResult = update(new Session(tr, entry.getKey()), entry.getValue().toArray(new KeyEntry[0]));
+                    results.add(updateResult);
+                }
+
                 tr.commit().join();
+                for (UpdateResult updateResult : results) {
+                    updateResult.complete();
+                }
+
                 break;
             } catch (CompletionException e) {
                 if (e.getCause() instanceof FDBException fdbException) {
@@ -581,23 +574,9 @@ public class Volume {
                 throw e;
             } catch (Exception e) {
                 // Catch all exceptions and start from scratch
-                begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_PREFIX, segment.getName().getBytes()));
+                begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.getName().getBytes()));
                 LOGGER.error("Vacuum on Segment: {} has failed", segment.getName(), e);
             }
-        }
-    }
-
-    private class EntryMetadataLoader extends CacheLoader<Versionstamp, EntryMetadata> {
-        @Override
-        public @Nonnull EntryMetadata load(@Nonnull Versionstamp key) {
-            // See https://github.com/google/guava/wiki/CachesExplained#when-does-cleanup-happen
-            return context.getFoundationDB().run(tr -> {
-                byte[] value = tr.get(packEntryKey(key)).join();
-                if (value == null) {
-                    return null;
-                }
-                return EntryMetadata.decode(ByteBuffer.wrap(value));
-            });
         }
     }
 }

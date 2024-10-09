@@ -16,52 +16,37 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.Transaction;
+
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
-public class SegmentMetadata {
-    public static final int HEADER_SIZE = 24;
-    private final long id;
-    private final long size;
-    private final ByteBuffer buffer;
-    private long position;
+class SegmentMetadata {
+    private final byte[] cardinalityKey;
+    private final byte[] usedBytesKey;
 
-    public SegmentMetadata(long id, long size) {
-        this.id = id;
-        this.size = size;
-        this.buffer = ByteBuffer.allocate(HEADER_SIZE);
+    SegmentMetadata(VolumeSubspace subspace, String name) {
+        this.cardinalityKey = subspace.packSegmentCardinalityKey(name);
+        this.usedBytesKey = subspace.packSegmentUsedBytesKey(name);
     }
 
-    public static SegmentMetadata decode(ByteBuffer buffer) {
-        buffer.flip();
-        long id = buffer.getLong();
-        long size = buffer.getLong();
-        SegmentMetadata segmentMetadata = new SegmentMetadata(id, size);
-        segmentMetadata.setPosition(buffer.getLong());
-        return segmentMetadata;
+    void addCardinality(Transaction tr, byte[] delta) {
+        tr.mutate(MutationType.ADD, cardinalityKey, delta);
     }
 
-    public long getId() {
-        return id;
+    int getCardinality(Transaction tr) {
+        byte[] data = tr.get(cardinalityKey).join();
+        return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
     }
 
-    public long getSize() {
-        return size;
+    void addUsedBytes(Transaction tr, long length) {
+        byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(length).array();
+        tr.mutate(MutationType.ADD, usedBytesKey, delta);
     }
 
-    public long getPosition() {
-        return position;
-    }
-
-    public void setPosition(long position) {
-        this.position = position;
-    }
-
-    public ByteBuffer encode() {
-        buffer.clear();
-        buffer.putLong(id);
-        buffer.putLong(size);
-        buffer.putLong(position);
-        buffer.flip();
-        return buffer;
+    long getUsedBytes(Transaction tr) {
+        byte[] data = tr.get(usedBytesKey).join();
+        return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
     }
 }

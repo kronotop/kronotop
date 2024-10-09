@@ -95,7 +95,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
             RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
             RedisShard shard = service.findShard(key);
             try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-                Session session = new Session(tr);
+                Session session = new Session(tr, redisVolumeSyncerPrefix);
                 Iterable<KeyEntry> iterable = shard.volume().getRange(session);
 
                 Map<String, String> result = new HashMap<>();

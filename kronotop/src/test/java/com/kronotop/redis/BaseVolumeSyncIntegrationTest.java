@@ -36,7 +36,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseHandlerTest {
         RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
         RedisShard shard = service.findShard(key);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            Session session = new Session(tr);
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
             // TODO: This can be done without a loop
             Iterable<KeyEntry> iterable = shard.volume().getRange(session);
             for (KeyEntry entry : iterable) {
@@ -55,7 +55,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseHandlerTest {
         RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
         RedisShard shard = service.findShard(hashKey);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            Session session = new Session(tr);
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
             // TODO: This can be done without a loop
             Iterable<KeyEntry> iterable = shard.volume().getRange(session);
             for (KeyEntry entry : iterable) {
@@ -74,7 +74,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseHandlerTest {
         RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
         RedisShard shard = service.findShard(key);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            Session session = new Session(tr);
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
             Iterable<KeyEntry> iterable = shard.volume().getRange(session);
             for (KeyEntry entry : iterable) {
                 if (f.test(entry)) {

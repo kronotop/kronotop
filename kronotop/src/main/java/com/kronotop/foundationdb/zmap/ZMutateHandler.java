@@ -59,12 +59,12 @@ public class ZMutateHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        ZMutateMessage zMutateMessage = request.attr(MessageTypes.ZMUTATE).get();
+        ZMutateMessage message = request.attr(MessageTypes.ZMUTATE).get();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
-        tr.mutate(zMutateMessage.getMutationType(), namespace.getZMap().pack(zMutateMessage.getKey()), zMutateMessage.getParam());
+        tr.mutate(message.getMutationType(), namespace.getZMap().pack(message.getKey()), message.getParam());
         TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
 
         response.writeOK();

@@ -119,10 +119,9 @@ public final class Address {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof Address)) {
+        if (!(o instanceof Address address)) {
             return false;
         }
-        final Address address = (Address) o;
         return hashCode == address.hashCode && port == address.port && this.host.equals(address.host);
     }
 

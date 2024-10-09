@@ -56,13 +56,13 @@ public class ZGetRangeSizeHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        ZGetRangeSizeMessage zGetRangeSizeMessage = request.attr(MessageTypes.ZGETRANGESIZE).get();
+        ZGetRangeSizeMessage message = request.attr(MessageTypes.ZGETRANGESIZE).get();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
-        byte[] begin = namespace.getZMap().pack(zGetRangeSizeMessage.getBegin());
-        byte[] end = namespace.getZMap().pack(zGetRangeSizeMessage.getEnd());
+        byte[] begin = namespace.getZMap().pack(message.getBegin());
+        byte[] end = namespace.getZMap().pack(message.getEnd());
         Range range = new Range(begin, end);
         Long size = getEstimatedRangeSizeBytes(tr, range, TransactionUtils.isSnapshotRead(response.getChannelContext())).join();
         response.writeInteger(size);

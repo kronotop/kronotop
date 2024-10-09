@@ -59,12 +59,12 @@ public class ZSetHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        ZSetMessage zSetMessage = request.attr(MessageTypes.ZSET).get();
+        ZSetMessage message = request.attr(MessageTypes.ZSET).get();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
-        tr.set(namespace.getZMap().pack(zSetMessage.getKey()), zSetMessage.getValue());
+        tr.set(namespace.getZMap().pack(message.getKey()), message.getValue());
         TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
 
         response.writeOK();

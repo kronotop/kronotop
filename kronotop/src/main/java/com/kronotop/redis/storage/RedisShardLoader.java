@@ -21,6 +21,7 @@ import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.hash.HashValue;
 import com.kronotop.volume.KeyEntry;
+import com.kronotop.volume.Prefix;
 import com.kronotop.volume.Session;
 
 import java.io.IOException;
@@ -30,10 +31,12 @@ import java.util.concurrent.locks.ReadWriteLock;
 public final class RedisShardLoader {
     private final Context context;
     private final RedisShard shard;
+    private final Prefix prefix;
 
     public RedisShardLoader(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
+        this.prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
     }
 
     private void processStringPack(KeyEntry entry) throws IOException {
@@ -67,7 +70,7 @@ public final class RedisShardLoader {
     }
 
     private void loadFromVolume(Transaction tr) {
-        Session session = new Session(tr);
+        Session session = new Session(tr, prefix);
         Iterable<KeyEntry> iterable = shard.volume().getRange(session);
         iterable.forEach(entry -> {
             try {

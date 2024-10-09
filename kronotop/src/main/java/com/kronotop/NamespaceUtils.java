@@ -16,6 +16,8 @@
 
 package com.kronotop;
 
+import com.apple.foundationdb.Database;
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -27,6 +29,7 @@ import com.kronotop.foundationdb.namespace.NoSuchNamespaceException;
 import com.kronotop.server.ChannelAttributes;
 import io.netty.channel.ChannelHandlerContext;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
@@ -44,6 +47,65 @@ public class NamespaceUtils {
     public static void clearOpenNamespaces(ChannelHandlerContext channelContext) {
         Map<String, Namespace> namespaces = channelContext.channel().attr(ChannelAttributes.OPEN_NAMESPACES).get();
         namespaces.clear();
+    }
+
+    private static List<String> getNamespaceSubpath(String clusterName, String name) {
+        return DirectoryLayout.Builder.
+                clusterName(clusterName).
+                namespaces().
+                addAll(name.split("\\.")).
+                asList();
+    }
+
+    /**
+     * Opens a namespace within the specified cluster and uses the provided transaction
+     * to access the directory subspace associated with the namespace.
+     *
+     * @param clusterName the name of the cluster to which the namespace belongs
+     * @param name        the name of the namespace to open
+     * @param tr          the transaction to use for opening the namespace
+     * @return the Namespace object representing the opened namespace
+     * @throws NoSuchNamespaceException if the specified namespace does not exist
+     * @throws KronotopException        if an exception occurs while opening the namespace
+     */
+    public static Namespace open(String clusterName, @Nonnull String name, Transaction tr) {
+        List<String> subpath = getNamespaceSubpath(clusterName, name);
+        try {
+            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
+            return new Namespace(name, subspace);
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NoSuchDirectoryException) {
+                throw new NoSuchNamespaceException(name);
+            }
+            throw new KronotopException(e.getCause());
+        }
+    }
+
+    /**
+     * Creates or opens a namespace in the database within the specified cluster.
+     *
+     * @param database    The Database instance to be used.
+     * @param clusterName The name of the cluster where the namespace resides.
+     * @param name        The name of the namespace to be created or opened.
+     * @return The Namespace object representing the created or opened namespace.
+     * @throws KronotopException If an error occurs during creation or opening.
+     */
+    public static Namespace createOrOpen(Database database, String clusterName, String name) {
+        try (Transaction tr = database.createTransaction()) {
+            List<String> subpath = getNamespaceSubpath(clusterName, name);
+            DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
+            tr.commit().join();
+            return new Namespace(name, subspace);
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException) {
+                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                if (((FDBException) e.getCause()).getCode() == 1020) {
+                    // retry
+                    createOrOpen(database, clusterName, name);
+                }
+            }
+            throw new KronotopException(e);
+        }
     }
 
     /**
@@ -69,21 +131,9 @@ public class NamespaceUtils {
             return namespace;
         }
 
-        List<String> subpath = DirectoryLayout.Builder.
-                clusterName(context.getClusterName()).
-                namespaces().
-                addAll(name.split("\\.")).
-                asList();
-        try {
-            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
-            namespace = new Namespace(name, subspace);
-            namespaces.put(name, namespace);
-            return namespace;
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new NoSuchNamespaceException(name);
-            }
-            throw new KronotopException(e.getCause());
-        }
+        namespace = open(context.getClusterName(), name, tr);
+        namespaces.put(name, namespace);
+        namespace.getZMap().pack();
+        return namespace;
     }
 }

@@ -55,23 +55,23 @@ public class ZDelRangeHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        ZDelRangeMessage zDelRangeMessage = request.attr(MessageTypes.ZDELRANGE).get();
+        ZDelRangeMessage message = request.attr(MessageTypes.ZDELRANGE).get();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
         byte[] begin;
         byte[] end;
-        if (Arrays.equals(zDelRangeMessage.getBegin(), ZDelRangeMessage.ASTERISK)) {
+        if (Arrays.equals(message.getBegin(), ZDelRangeMessage.ASTERISK)) {
             begin = namespace.getZMap().pack();
         } else {
-            begin = namespace.getZMap().pack(zDelRangeMessage.getBegin());
+            begin = namespace.getZMap().pack(message.getBegin());
         }
 
-        if (Arrays.equals(zDelRangeMessage.getEnd(), ZDelRangeMessage.ASTERISK)) {
+        if (Arrays.equals(message.getEnd(), ZDelRangeMessage.ASTERISK)) {
             end = ByteArrayUtil.strinc(namespace.getZMap().pack());
         } else {
-            end = namespace.getZMap().pack(zDelRangeMessage.getEnd());
+            end = namespace.getZMap().pack(message.getEnd());
         }
 
         Range range = new Range(begin, end);

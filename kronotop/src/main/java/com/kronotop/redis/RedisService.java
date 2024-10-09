@@ -76,7 +76,6 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             Runtime.getRuntime().availableProcessors(),
             Thread.ofVirtual().name("kr.redis-service", 0L).factory()
     );
-    private final boolean isVolumeSyncEnabled;
     private final int numberOfShards;
     private final List<VolumeSyncWorker> volumeSyncWorkers = new ArrayList<>();
 
@@ -84,16 +83,13 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         super(context);
         this.watcher = context.getService(Watcher.NAME);
         this.numberOfShards = context.getConfig().getInt("redis.shards");
-        this.isVolumeSyncEnabled = context.getConfig().getBoolean("redis.volume_syncer.enabled");
         this.membership = context.getService(MembershipService.NAME);
         this.hashSlots = distributeHashSlots();
         this.serviceContext = context.getServiceContext(NAME);
 
         RedisCoordinator coordinator = new RedisCoordinator(context);
-        if (isVolumeSyncEnabled) {
-            CoordinatorService coordinatorService = context.getService(CoordinatorService.NAME);
-            coordinatorService.register(Coordinator.Service.REDIS, coordinator);
-        }
+        CoordinatorService coordinatorService = context.getService(CoordinatorService.NAME);
+        coordinatorService.register(Coordinator.Service.REDIS, coordinator);
 
         // TODO: CLUSTER-REFACTORING
         for (int i = 0; i < this.numberOfShards; i++) {
@@ -174,21 +170,14 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
     }
 
-    public boolean isVolumeSyncEnabled() {
-        return isVolumeSyncEnabled;
-    }
-
     public void start() {
-        if (isVolumeSyncEnabled()) {
-            Config redisConfig = context.getConfig().getConfig("redis");
-            int numVolumeSyncWorkers = redisConfig.getInt("volume_syncer.workers");
-            int period = redisConfig.getInt("volume_syncer.period");
-            for (int workerId = 0; workerId < numVolumeSyncWorkers; workerId++) {
-                VolumeSyncWorker worker = new VolumeSyncWorker(context, workerId);
-                volumeSyncWorkers.add(worker);
-                scheduledExecutorService.scheduleAtFixedRate(worker, 0, period, TimeUnit.MILLISECONDS);
-            }
-            LOGGER.info("Volume sync has been enabled");
+        Config redisConfig = context.getConfig().getConfig("redis");
+        int numVolumeSyncWorkers = redisConfig.getInt("volume_syncer.workers");
+        int period = redisConfig.getInt("volume_syncer.period");
+        for (int workerId = 0; workerId < numVolumeSyncWorkers; workerId++) {
+            VolumeSyncWorker worker = new VolumeSyncWorker(context, workerId);
+            volumeSyncWorkers.add(worker);
+            scheduledExecutorService.scheduleAtFixedRate(worker, 0, period, TimeUnit.MILLISECONDS);
         }
     }
 

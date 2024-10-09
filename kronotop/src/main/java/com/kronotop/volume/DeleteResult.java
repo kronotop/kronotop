@@ -35,6 +35,9 @@ public class DeleteResult {
 
     public void complete() {
         for (Versionstamp key : keys) {
+            if (key == null) {
+                continue;
+            }
             cacheUpdater.accept(key);
         }
     }

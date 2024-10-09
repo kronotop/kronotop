@@ -41,10 +41,10 @@ class SnapshotReadHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        SnapshotReadMessage snapshotReadMessage = request.attr(MessageTypes.SNAPSHOT_READ).get();
+        SnapshotReadMessage message = request.attr(MessageTypes.SNAPSHOT_READ).get();
         Channel channel = response.getChannelContext().channel();
         Attribute<Boolean> snapshotReadAttr = channel.attr(ChannelAttributes.SNAPSHOT_READ);
-        if (snapshotReadMessage.getOption().equals(SnapshotReadMessage.ON_KEYWORD)) {
+        if (message.getOption().equals(SnapshotReadMessage.ON_KEYWORD)) {
             snapshotReadAttr.set(true);
         } else {
             snapshotReadAttr.set(null);

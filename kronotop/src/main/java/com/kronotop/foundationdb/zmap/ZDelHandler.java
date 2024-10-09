@@ -60,12 +60,12 @@ public class ZDelHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        ZDelMessage zDelMessage = request.attr(MessageTypes.ZDEL).get();
+        ZDelMessage message = request.attr(MessageTypes.ZDEL).get();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
-        tr.clear(namespace.getZMap().pack(zDelMessage.getKey()));
+        tr.clear(namespace.getZMap().pack(message.getKey()));
         TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
 
         response.writeOK();

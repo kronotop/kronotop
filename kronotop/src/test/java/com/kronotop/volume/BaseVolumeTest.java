@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class BaseVolumeTest extends BaseMetadataStoreTest {
+    protected Prefix prefix = new Prefix("test-prefix".getBytes());
 
     public VolumeConfig getVolumeConfig(Config config, DirectorySubspace subspace) {
         String dataDir = config.getString("data_dir");
