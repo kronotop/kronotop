@@ -1,6 +1,6 @@
 # Kronotop
 
-Kronotop is a Redis-like NoSQL database backed by FoundationDB.
+Kronotop is a Redis-compatible, distributed document database, backed by FoundationDB.
 
 Kronotop is still in its early stages.
 
