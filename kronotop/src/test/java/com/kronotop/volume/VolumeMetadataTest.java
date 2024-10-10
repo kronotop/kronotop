@@ -46,22 +46,22 @@ class VolumeMetadataTest extends BaseTest {
     @Test
     public void test_setPrimary() throws UnknownHostException {
         VolumeMetadata volumeMetadata = new VolumeMetadata();
-        Host owner = new Host(Role.PRIMARY, createMemberWithEphemeralPort());
-        volumeMetadata.setPrimary(owner);
-        assertEquals(owner, volumeMetadata.getPrimary());
+        Host primary = new Host(Role.PRIMARY, createMemberWithEphemeralPort());
+        volumeMetadata.setPrimary(primary);
+        assertEquals(primary, volumeMetadata.getPrimary());
     }
 
     @Test
     public void test_setPrimary_idempotency() throws UnknownHostException {
         VolumeMetadata volumeMetadata = new VolumeMetadata();
-        Host owner = new Host(Role.PRIMARY, createMemberWithEphemeralPort());
-        volumeMetadata.setPrimary(owner);
-        volumeMetadata.setPrimary(owner);
+        Host primary = new Host(Role.PRIMARY, createMemberWithEphemeralPort());
+        volumeMetadata.setPrimary(primary);
+        volumeMetadata.setPrimary(primary);
         assertEquals(1, volumeMetadata.getHosts().size());
     }
 
     @Test
-    public void test_when_no_owner_found() {
+    public void test_when_no_primary_found() {
         VolumeMetadata volumeMetadata = new VolumeMetadata();
         assertThrows(IllegalStateException.class, volumeMetadata::getPrimary);
     }
@@ -69,8 +69,8 @@ class VolumeMetadataTest extends BaseTest {
     @Test
     public void test_setPrimary_IllegalArgumentException() throws UnknownHostException {
         VolumeMetadata volumeMetadata = new VolumeMetadata();
-        Host owner = new Host(Role.STANDBY, createMemberWithEphemeralPort());
-        assertThrows(IllegalArgumentException.class, () -> volumeMetadata.setPrimary(owner));
+        Host primary = new Host(Role.STANDBY, createMemberWithEphemeralPort());
+        assertThrows(IllegalArgumentException.class, () -> volumeMetadata.setPrimary(primary));
     }
 
     @Test
@@ -93,9 +93,9 @@ class VolumeMetadataTest extends BaseTest {
     @Test
     public void test_unsetPrimary() throws UnknownHostException {
         VolumeMetadata volumeMetadata = new VolumeMetadata();
-        Host owner = new Host(Role.PRIMARY, createMemberWithEphemeralPort());
-        volumeMetadata.setPrimary(owner);
-        volumeMetadata.unsetPrimary(owner);
+        Host primary = new Host(Role.PRIMARY, createMemberWithEphemeralPort());
+        volumeMetadata.setPrimary(primary);
+        volumeMetadata.unsetPrimary(primary);
         assertThrows(IllegalStateException.class, volumeMetadata::getPrimary);
     }
 
@@ -103,8 +103,8 @@ class VolumeMetadataTest extends BaseTest {
     public void test_unsetStandby() throws UnknownHostException {
         VolumeMetadata volumeMetadata = new VolumeMetadata();
 
-        Host owner = new Host(Role.PRIMARY, createMemberWithEphemeralPort());
-        volumeMetadata.setPrimary(owner);
+        Host primary = new Host(Role.PRIMARY, createMemberWithEphemeralPort());
+        volumeMetadata.setPrimary(primary);
 
         Host standby = new Host(Role.STANDBY, createMemberWithEphemeralPort());
         volumeMetadata.setStandby(standby);
