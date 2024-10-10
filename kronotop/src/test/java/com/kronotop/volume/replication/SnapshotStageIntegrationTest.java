@@ -43,17 +43,17 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     private void checkSnapshotStage(Versionstamp[] versionstampedKeys) throws IOException {
-        final Host source;
+        final Host primary;
         final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            source = volumeMetadata.getPrimary();
+            primary = volumeMetadata.getPrimary();
         }
 
-        Host destination = new Host(Role.STANDBY, context.getMember());
+        Host standby = new Host(Role.STANDBY, context.getMember());
         ReplicationConfig config = new ReplicationConfig(
-                source,
-                destination,
+                primary,
+                standby,
                 volume.getConfig().subspace(),
                 jobId,
                 volume.getConfig().name(),

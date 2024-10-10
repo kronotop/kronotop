@@ -48,8 +48,10 @@ public class ReplicationJob {
         try (Transaction tr = database.createTransaction()) {
             ReplicationJob replicationJob = new ReplicationJob();
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, subspace);
+
             for (Long segmentId : volumeMetadata.getSegments()) {
                 String segmentName = Segment.generateName(segmentId);
+
                 SegmentLogEntry firstEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1).iterator().next();
                 SegmentLogEntry lastEntry = new SegmentLogIterable(tr, subspace, segmentName, null, null, 1, true).iterator().next();
 
@@ -69,6 +71,7 @@ public class ReplicationJob {
             future = tr.getVersionstamp();
             tr.commit().join();
         }
+
         byte[] trVersion = future.join();
         return Versionstamp.complete(trVersion);
     }
