@@ -31,7 +31,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_SUBSPACE;
+import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_JOB_SUBSPACE;
 
 public class ReplicationJob {
 
@@ -43,7 +43,9 @@ public class ReplicationJob {
 
     private byte[] latestVersionstampedKey;
 
-    public static Versionstamp newJob(Database database, DirectorySubspace subspace, Member member) {
+    public static Versionstamp newJob(Database database, DirectorySubspace subspace, Member standbyMember) {
+        // A replication job can only be started on a standby server, the primary owner only responds to SEGMENTRANGE requests
+        // It doesn't have any idea about the standby servers and the current replication status.
         CompletableFuture<byte[]> future;
         try (Transaction tr = database.createTransaction()) {
             ReplicationJob replicationJob = new ReplicationJob();
@@ -66,7 +68,7 @@ public class ReplicationJob {
                 replicationJob.getSnapshots().put(segmentId, snapshot);
             }
 
-            byte[] key = subspace.packWithVersionstamp(Tuple.from(SEGMENT_REPLICATION_SUBSPACE, member.getId(), Versionstamp.incomplete()));
+            byte[] key = subspace.packWithVersionstamp(Tuple.from(SEGMENT_REPLICATION_JOB_SUBSPACE, standbyMember.getId(), Versionstamp.incomplete()));
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(replicationJob));
             future = tr.getVersionstamp();
             tr.commit().join();
@@ -77,7 +79,7 @@ public class ReplicationJob {
     }
 
     public static ReplicationJob load(Transaction tr, ReplicationConfig config) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SUBSPACE, config.standby().member().getId(), config.jobId());
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_JOB_SUBSPACE, config.standby().member().getId(), config.jobId());
         byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
@@ -87,7 +89,7 @@ public class ReplicationJob {
     }
 
     public static ReplicationJob compute(Transaction tr, ReplicationConfig config, Consumer<ReplicationJob> remappingFunction) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SUBSPACE, config.standby().member().getId(), config.jobId());
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_JOB_SUBSPACE, config.standby().member().getId(), config.jobId());
         byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
