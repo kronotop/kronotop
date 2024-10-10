@@ -44,7 +44,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static com.kronotop.volume.Subspaces.ENTRY_METADATA_SUBSPACE;
-import static com.kronotop.volume.Subspaces.VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE;
+import static com.kronotop.volume.Subspaces.VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE;
 
 public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
@@ -56,7 +56,7 @@ public class Volume {
     private final VolumeConfig config;
     private final VolumeSubspace subspace;
     private final ConcurrentHashMap<Long, LoadingCache<Versionstamp, EntryMetadata>> entryMetadataCache;
-    private final byte[] streamingStageTriggerKey;
+    private final byte[] streamingSubscribersTriggerKey;
 
     // segmentsLock protects segments map
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
@@ -69,7 +69,7 @@ public class Volume {
         this.config = config;
         this.subspace = new VolumeSubspace(config.subspace());
         this.entryMetadataCache = new ConcurrentHashMap<>();
-        this.streamingStageTriggerKey = this.config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE));
+        this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE));
     }
 
     protected VolumeSubspace getSubspace() {
@@ -81,7 +81,7 @@ public class Volume {
     }
 
     private void triggerStreamingSubscribers(Transaction tr) {
-        tr.mutate(MutationType.ADD, streamingStageTriggerKey, INCREASE_BY_ONE_DELTA);
+        tr.mutate(MutationType.ADD, streamingSubscribersTriggerKey, INCREASE_BY_ONE_DELTA);
     }
 
     private void flushMutatedSegments(EntryMetadata[] entryMetadataList) throws IOException {

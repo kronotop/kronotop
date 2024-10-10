@@ -111,7 +111,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     @Test
-    public void test_watch_changes_stage() throws IOException {
+    public void test_streaming_stage() throws IOException {
         Replication replication = newReplication();
         Volume standbyVolume = standbyVolume();
         try {
@@ -119,7 +119,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
 
             await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
             StreamingStageRunner streamingStageRunner = (StreamingStageRunner) replication.getActiveStageRunner();
-            await().atMost(10, TimeUnit.SECONDS).until(streamingStageRunner::isWatching);
+            await().atMost(10, TimeUnit.SECONDS).until(streamingStageRunner::isStreaming);
 
             Versionstamp[] versionstampedKeys = appendKeys(10);
             await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(versionstampedKeys, standbyVolume));
@@ -129,7 +129,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     @Test
-    public void test_watch_changes_stage_concurrently_appending_keys() throws IOException, InterruptedException {
+    public void test_streaming_stage_concurrently_appending_keys() throws IOException, InterruptedException {
         Replication replication = newReplication();
         Volume standbyVolume = standbyVolume();
         try {
@@ -137,7 +137,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
 
             await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
             StreamingStageRunner streamingStageRunner = (StreamingStageRunner) replication.getActiveStageRunner();
-            await().atMost(10, TimeUnit.SECONDS).until(streamingStageRunner::isWatching);
+            await().atMost(10, TimeUnit.SECONDS).until(streamingStageRunner::isStreaming);
 
             CountDownLatch latch = new CountDownLatch(10);
             List<Versionstamp> versionstampedKeys = new ArrayList<>();

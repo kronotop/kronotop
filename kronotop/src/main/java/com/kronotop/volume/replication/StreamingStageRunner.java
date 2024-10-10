@@ -43,7 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.kronotop.volume.Subspaces.ENTRY_SUBSPACE;
-import static com.kronotop.volume.Subspaces.VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE;
+import static com.kronotop.volume.Subspaces.VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE;
 
 /**
  * This class represents a stage runner for watching changes in a database segment log.
@@ -51,7 +51,7 @@ import static com.kronotop.volume.Subspaces.VOLUME_WATCH_CHANGES_TRIGGER_SUBSPAC
 public class StreamingStageRunner extends ReplicationStageRunner implements StageRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(StreamingStageRunner.class);
     private final KeyWatcher keyWatcher = new KeyWatcher();
-    private final AtomicBoolean isWatching = new AtomicBoolean();
+    private final AtomicBoolean isStreaming = new AtomicBoolean();
 
     public StreamingStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
         super(context, config, connection);
@@ -117,7 +117,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
     /**
      * Fetches changes by iterating over segment log entries and finding the next segment ID.
      */
-    private void fetchChanges() {
+    private void streamChanges() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationJob.compute(tr, config, (job) -> {
                 Versionstamp key = job.getLatestVersionstampedKey() != null ? Versionstamp.fromBytes(job.getLatestVersionstampedKey()) : null;
@@ -155,8 +155,8 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
         }
     }
 
-    protected boolean isWatching() {
-        return isWatching.get();
+    protected boolean isStreaming() {
+        return isStreaming.get();
     }
 
     /**
@@ -166,13 +166,13 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
     private void startStreaming() {
         while (!isStopped()) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE)));
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, config.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE)));
                 tr.commit().join();
 
                 try {
-                    // fetch events here
-                    fetchChanges();
-                    isWatching.set(true);
+                    // stream segment log entries here
+                    streamChanges();
+                    isStreaming.set(true);
                     watcher.join();
                 } catch (CancellationException e) {
                     LOGGER.atInfo()
@@ -182,10 +182,10 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                             .log();
                     return; // cancelled
                 } finally {
-                    isWatching.set(false);
+                    isStreaming.set(false);
                 }
                 // fetch events here
-                fetchChanges();
+                streamChanges();
             } catch (Exception e) {
                 LOGGER.atError()
                         .setMessage("Error while watching changes, jobId = {}")
@@ -218,7 +218,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
 
     @Override
     public void stop() {
-        keyWatcher.unwatch(config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE)));
+        keyWatcher.unwatch(config.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE)));
         super.stop();
     }
 
