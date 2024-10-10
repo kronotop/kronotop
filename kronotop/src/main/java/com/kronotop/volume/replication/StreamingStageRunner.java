@@ -48,17 +48,17 @@ import static com.kronotop.volume.Subspaces.VOLUME_WATCH_CHANGES_TRIGGER_SUBSPAC
 /**
  * This class represents a stage runner for watching changes in a database segment log.
  */
-public class WatchChangesStageRunner extends ReplicationStageRunner implements StageRunner {
-    private static final Logger LOGGER = LoggerFactory.getLogger(WatchChangesStageRunner.class);
+public class StreamingStageRunner extends ReplicationStageRunner implements StageRunner {
+    private static final Logger LOGGER = LoggerFactory.getLogger(StreamingStageRunner.class);
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final AtomicBoolean isWatching = new AtomicBoolean();
 
-    public WatchChangesStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
+    public StreamingStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
         super(context, config, connection);
     }
 
     public String name() {
-        return "WatchChanges";
+        return "Streaming";
     }
 
     /**
@@ -163,7 +163,7 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
      * Watches for changes by continuously iterating over segment log entries and fetching events.
      * When the stage is stopped, the method terminates.
      */
-    private void watchChanges() {
+    private void startStreaming() {
         while (!isStopped()) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 CompletableFuture<Void> watcher = keyWatcher.watch(tr, config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE)));
@@ -230,7 +230,7 @@ public class WatchChangesStageRunner extends ReplicationStageRunner implements S
 
         try {
             findStartingPoint();
-            watchChanges();
+            startStreaming();
         } catch (Exception e) {
             LOGGER.atError().setMessage("{} stage has failed, jobId = {}").
                     addArgument(name()).

@@ -40,8 +40,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static org.awaitility.Awaitility.await;
 
-public class WatchChangesStageIntegrationTest extends BaseNetworkedVolumeTest {
-    private static final Logger LOGGER = LoggerFactory.getLogger(WatchChangesStageIntegrationTest.class);
+public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
+    private static final Logger LOGGER = LoggerFactory.getLogger(StreamingStageIntegrationTest.class);
 
     @TempDir
     private Path standbyVolumeDataDir;
@@ -118,8 +118,8 @@ public class WatchChangesStageIntegrationTest extends BaseNetworkedVolumeTest {
             replication.start();
 
             await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
-            WatchChangesStageRunner watchChangesStageRunner = (WatchChangesStageRunner) replication.getActiveStageRunner();
-            await().atMost(10, TimeUnit.SECONDS).until(watchChangesStageRunner::isWatching);
+            StreamingStageRunner streamingStageRunner = (StreamingStageRunner) replication.getActiveStageRunner();
+            await().atMost(10, TimeUnit.SECONDS).until(streamingStageRunner::isWatching);
 
             Versionstamp[] versionstampedKeys = appendKeys(10);
             await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(versionstampedKeys, standbyVolume));
@@ -136,8 +136,8 @@ public class WatchChangesStageIntegrationTest extends BaseNetworkedVolumeTest {
             replication.start();
 
             await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
-            WatchChangesStageRunner watchChangesStageRunner = (WatchChangesStageRunner) replication.getActiveStageRunner();
-            await().atMost(10, TimeUnit.SECONDS).until(watchChangesStageRunner::isWatching);
+            StreamingStageRunner streamingStageRunner = (StreamingStageRunner) replication.getActiveStageRunner();
+            await().atMost(10, TimeUnit.SECONDS).until(streamingStageRunner::isWatching);
 
             CountDownLatch latch = new CountDownLatch(10);
             List<Versionstamp> versionstampedKeys = new ArrayList<>();

@@ -56,7 +56,7 @@ public class Volume {
     private final VolumeConfig config;
     private final VolumeSubspace subspace;
     private final ConcurrentHashMap<Long, LoadingCache<Versionstamp, EntryMetadata>> entryMetadataCache;
-    private final byte[] watchChangesStageTriggerKey;
+    private final byte[] streamingStageTriggerKey;
 
     // segmentsLock protects segments map
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
@@ -69,7 +69,7 @@ public class Volume {
         this.config = config;
         this.subspace = new VolumeSubspace(config.subspace());
         this.entryMetadataCache = new ConcurrentHashMap<>();
-        this.watchChangesStageTriggerKey = this.config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE));
+        this.streamingStageTriggerKey = this.config.subspace().pack(Tuple.from(VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE));
     }
 
     protected VolumeSubspace getSubspace() {
@@ -80,8 +80,8 @@ public class Volume {
         return config;
     }
 
-    private void triggerWatchChangesSubscribers(Transaction tr) {
-        tr.mutate(MutationType.ADD, watchChangesStageTriggerKey, INCREASE_BY_ONE_DELTA);
+    private void triggerStreamingSubscribers(Transaction tr) {
+        tr.mutate(MutationType.ADD, streamingStageTriggerKey, INCREASE_BY_ONE_DELTA);
     }
 
     private void flushMutatedSegments(EntryMetadata[] entryMetadataList) throws IOException {
@@ -231,7 +231,7 @@ public class Volume {
             segmentContainer.metadata().addUsedBytes(tr, entryMetadata.length());
 
             appendSegmentLog(tr, OperationKind.APPEND, userVersion, entryMetadata);
-            triggerWatchChangesSubscribers(tr);
+            triggerStreamingSubscribers(tr);
         }
         return tr.getVersionstamp();
     }
@@ -375,7 +375,7 @@ public class Volume {
             segmentContainer.metadata().addUsedBytes(tr, -1 * entryMetadata.length());
 
             appendSegmentLog(session, OperationKind.DELETE, entryMetadata);
-            triggerWatchChangesSubscribers(tr);
+            triggerStreamingSubscribers(tr);
 
             result.add(index, key);
             index++;
@@ -421,7 +421,7 @@ public class Volume {
 
             appendSegmentLog(session, OperationKind.DELETE, oldEntryMetadata);
             appendSegmentLog(session, OperationKind.APPEND, entryMetadata);
-            triggerWatchChangesSubscribers(tr);
+            triggerStreamingSubscribers(tr);
 
             index++;
         }

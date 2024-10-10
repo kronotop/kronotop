@@ -86,18 +86,18 @@ public class Replication {
             List<StageRunner> runners = new ArrayList<>();
 
             if (config.cdcOnly()) {
-                StageRunner changeDataCaptureStageRunner = new WatchChangesStageRunner(context, config, connection);
+                StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, config, connection);
                 runners.add(changeDataCaptureStageRunner);
             } else {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     if (ReplicationJob.load(tr, config).isSnapshotCompleted()) {
-                        StageRunner changeDataCaptureStageRunner = new WatchChangesStageRunner(context, config, connection);
+                        StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, config, connection);
                         runners.add(changeDataCaptureStageRunner);
                     } else {
                         StageRunner snapshotStageRunner = new SnapshotStageRunner(context, config, connection);
                         runners.add(snapshotStageRunner);
 
-                        StageRunner changeDataCaptureStageRunner = new WatchChangesStageRunner(context, config, connection);
+                        StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, config, connection);
                         runners.add(changeDataCaptureStageRunner);
                     }
                 }
