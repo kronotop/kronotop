@@ -69,7 +69,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     private Versionstamp[] appendKeys(int number) throws IOException {
-        ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
+        ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(number);
         try (Transaction tr = database.createTransaction()) {
             Session session = new Session(tr, prefix);
             AppendResult result = volume.append(session, entries);
