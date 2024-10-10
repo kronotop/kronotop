@@ -21,14 +21,14 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.VersionstampUtils;
 
 public record ReplicationConfig(
-        Host source,
-        Host destination,
+        Host primary,
+        Host standby,
         DirectorySubspace subspace,
         Versionstamp jobId,
         String volumeName,
         Long segmentSize,
         String dataDir,
-        boolean cdcOnly) {
+        boolean streamingOnly) {
 
     public String stringifyJobId() {
         return VersionstampUtils.base64Encode(jobId);

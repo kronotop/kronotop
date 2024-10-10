@@ -52,8 +52,8 @@ public class BaseNetworkedVolumeTest extends BaseClusterTestWithTCPServer {
             // Set an owner for this new Volume instance
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeMetadata.compute(tr, subspace, (volumeMetadata -> {
-                    Host host = new Host(Role.OWNER, context.getMember());
-                    volumeMetadata.setOwner(host);
+                    Host host = new Host(Role.PRIMARY, context.getMember());
+                    volumeMetadata.setPrimary(host);
                 }));
                 tr.commit().join();
             }

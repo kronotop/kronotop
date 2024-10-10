@@ -17,6 +17,6 @@
 package com.kronotop.volume;
 
 public enum Role {
-    OWNER,
+    PRIMARY,
     STANDBY
 }

@@ -49,7 +49,7 @@ public class Replication {
         this.context = context;
         this.config = config;
 
-        Member member = config.source().member();
+        Member member = config.primary().member();
         this.client = RedisClient.create(
                 String.format("redis://%s:%d", member.getExternalAddress().getHost(), member.getExternalAddress().getPort())
         );
@@ -85,7 +85,7 @@ public class Replication {
         return executor.submit(() -> {
             List<StageRunner> runners = new ArrayList<>();
 
-            if (config.cdcOnly()) {
+            if (config.streamingOnly()) {
                 StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, config, connection);
                 runners.add(changeDataCaptureStageRunner);
             } else {

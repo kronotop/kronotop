@@ -47,7 +47,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            source = volumeMetadata.getOwner();
+            source = volumeMetadata.getPrimary();
         }
 
         Host destination = new Host(Role.STANDBY, context.getMember());

@@ -47,17 +47,17 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
     private Path standbyVolumeDataDir;
 
     private Replication newReplication() {
-        final Host source;
+        final Host primary;
         final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            source = volumeMetadata.getOwner();
+            primary = volumeMetadata.getPrimary();
         }
 
-        Host destination = new Host(Role.STANDBY, context.getMember());
+        Host standby = new Host(Role.STANDBY, context.getMember());
         ReplicationConfig config = new ReplicationConfig(
-                source,
-                destination,
+                primary,
+                standby,
                 volume.getConfig().subspace(),
                 jobId,
                 volume.getConfig().name(),

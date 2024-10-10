@@ -74,7 +74,7 @@ public class ReplicationJob {
     }
 
     public static ReplicationJob load(Transaction tr, ReplicationConfig config) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SUBSPACE, config.destination().member().getId(), config.jobId());
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SUBSPACE, config.standby().member().getId(), config.jobId());
         byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
@@ -84,7 +84,7 @@ public class ReplicationJob {
     }
 
     public static ReplicationJob compute(Transaction tr, ReplicationConfig config, Consumer<ReplicationJob> remappingFunction) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SUBSPACE, config.destination().member().getId(), config.jobId());
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SUBSPACE, config.standby().member().getId(), config.jobId());
         byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
