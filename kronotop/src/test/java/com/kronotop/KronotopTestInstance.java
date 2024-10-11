@@ -22,6 +22,7 @@ import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.RedisArrayAggregator;
@@ -32,7 +33,9 @@ import com.typesafe.config.Config;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import java.net.UnknownHostException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -42,6 +45,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class KronotopTestInstance extends KronotopInstance {
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+    private final Set<String> duplicatedCommands = new HashSet<>(List.of(ClientMessage.COMMAND));
     private final Object clusterOperable = new Object();
     private final boolean runWithTCPServer;
     private EmbeddedChannel channel;
@@ -61,7 +65,14 @@ public class KronotopTestInstance extends KronotopInstance {
             CommandHandlerRegistry registry = super.context.getHandlers(kind);
             for (String command : registry.getCommands()) {
                 Handler handler = registry.get(command);
-                mergedRegistry.handlerMethod(command, handler);
+
+                try {
+                    mergedRegistry.handlerMethod(command, handler);
+                } catch (CommandAlreadyRegisteredException e) {
+                    if (!duplicatedCommands.contains(command)) {
+                        throw e;
+                    }
+                }
             }
         }
         return mergedRegistry;
