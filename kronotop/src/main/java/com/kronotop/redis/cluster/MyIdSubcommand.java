@@ -17,6 +17,7 @@
 package com.kronotop.redis.cluster;
 
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.server.SubcommandExecutor;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;

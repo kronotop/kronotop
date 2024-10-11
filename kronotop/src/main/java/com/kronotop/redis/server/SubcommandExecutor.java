@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.cluster;
+package com.kronotop.redis.server;
 
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
-interface SubcommandExecutor {
+public interface SubcommandExecutor {
     void execute(Request request, Response response);
 }
 
