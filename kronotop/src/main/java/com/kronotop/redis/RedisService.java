@@ -37,6 +37,7 @@ import com.kronotop.redis.connection.HelloHandler;
 import com.kronotop.redis.connection.PingHandler;
 import com.kronotop.redis.connection.SelectHandler;
 import com.kronotop.redis.generic.*;
+import com.kronotop.redis.handlers.client.ClientHandler;
 import com.kronotop.redis.hash.*;
 import com.kronotop.redis.management.coordinator.RedisCoordinator;
 import com.kronotop.redis.server.CommandHandler;
@@ -159,6 +160,10 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         handlerMethod(ServerKind.EXTERNAL, new HMGetHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new HMSetHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ClusterHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ClientHandler(this));
+
+        // Internals
+        handlerMethod(ServerKind.INTERNAL, new ClientHandler(this));
     }
 
     public static void checkRedisValueKind(RedisValueContainer container, RedisValueKind kind) {

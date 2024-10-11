@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.cluster.protocol;
+package com.kronotop.redis.handlers.client.protocol;
 
 import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
@@ -22,24 +22,24 @@ import com.kronotop.server.UnknownSubcommandException;
 
 import java.util.List;
 
-public class ClusterMessage implements KronotopMessage<String> {
-    public static final String COMMAND = "CLUSTER";
+public class ClientMessage implements KronotopMessage<String> {
+    public static final String COMMAND = "CLIENT";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;
-    private ClusterSubcommand subcommand;
+    private ClientSubcommand subcommand;
     private String key = null;
 
-    public ClusterMessage(Request request) {
+    public ClientMessage(Request request) {
         this.request = request;
         parse();
     }
 
     private void parse() {
-        byte[] rawSubcommand = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawSubcommand);
+        byte[] rawSubcommand = new byte[request.getParams().getFirst().readableBytes()];
+        request.getParams().getFirst().readBytes(rawSubcommand);
         String cmd = new String(rawSubcommand);
         try {
-            subcommand = ClusterSubcommand.valueOf(cmd.toUpperCase());
+            subcommand = ClientSubcommand.valueOf(cmd.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new UnknownSubcommandException(cmd);
         }
@@ -50,7 +50,7 @@ public class ClusterMessage implements KronotopMessage<String> {
         }
     }
 
-    public ClusterSubcommand getSubcommand() {
+    public ClientSubcommand getSubcommand() {
         return subcommand;
     }
 

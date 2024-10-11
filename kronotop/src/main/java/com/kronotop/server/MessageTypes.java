@@ -25,6 +25,7 @@ import com.kronotop.redis.connection.protocol.HelloMessage;
 import com.kronotop.redis.connection.protocol.PingMessage;
 import com.kronotop.redis.connection.protocol.SelectMessage;
 import com.kronotop.redis.generic.protocol.*;
+import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.hash.protocol.*;
 import com.kronotop.redis.protocol.InfoMessage;
 import com.kronotop.redis.server.protocol.CommandMessage;
@@ -65,6 +66,7 @@ public class MessageTypes {
     public static final AttributeKey<ScanMessage> SCAN = AttributeKey.valueOf(ScanMessage.COMMAND);
     public static final AttributeKey<TypeMessage> TYPE = AttributeKey.valueOf(TypeMessage.COMMAND);
     public static final AttributeKey<ClusterMessage> CLUSTER = AttributeKey.valueOf(ClusterMessage.COMMAND);
+    public static final AttributeKey<ClientMessage> CLIENT = AttributeKey.valueOf(ClientMessage.COMMAND);
     public static final AttributeKey<AuthMessage> AUTH = AttributeKey.valueOf(AuthMessage.COMMAND);
     public static final AttributeKey<HelloMessage> HELLO = AttributeKey.valueOf(HelloMessage.COMMAND);
     public static final AttributeKey<PingMessage> PING = AttributeKey.valueOf(PingMessage.COMMAND);
