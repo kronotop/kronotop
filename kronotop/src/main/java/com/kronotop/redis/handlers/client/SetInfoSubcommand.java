@@ -18,7 +18,6 @@ package com.kronotop.redis.handlers.client;
 
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.cluster.protocol.ClusterMessage;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.server.SubcommandExecutor;
 import com.kronotop.server.*;
@@ -35,7 +34,7 @@ public class SetInfoSubcommand implements SubcommandExecutor {
     @Override
     public void execute(Request request, Response response) {
         ClientMessage clientMessage = request.attr(MessageTypes.CLIENT).get();
-        if (request.getParams().size() < 2) {
+        if (request.getParams().size() < 2 || request.getParams().size() > 3) {
             // ERR wrong number of arguments for 'client|setinfo' command
             throw new WrongNumberOfArgumentsException(
                     String.format("wrong number of arguments for 'CLIENT|%s' command", clientMessage.getSubcommand())
@@ -46,11 +45,15 @@ public class SetInfoSubcommand implements SubcommandExecutor {
         request.getParams().get(1).readBytes(rawAttribute);
         String attribute = new String(rawAttribute);
 
+        byte[] rawValue = new byte[request.getParams().get(2).readableBytes()];
+        request.getParams().get(2).readBytes(rawValue);
+        String value = new String(rawValue);
+
         HashMap<String, Object> channelAttributes = request.getChannelContext().channel().attr(ChannelAttributes.CLIENT_ATTRIBUTES).get();
         if (attribute.equalsIgnoreCase(Attribute.LIBNAME.toString())) {
-            channelAttributes.put(Attribute.LIBNAME.toString(), attribute);
+            channelAttributes.put(Attribute.LIBNAME.toString(), value);
         } else if (attribute.equalsIgnoreCase(Attribute.LIBVER.toString())) {
-            channelAttributes.put(Attribute.LIBVER.toString(), attribute);
+            channelAttributes.put(Attribute.LIBVER.toString(), value);
         } else {
             throw new KronotopException(String.format("Unrecognized option '%s'", attribute));
         }
