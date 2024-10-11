@@ -19,7 +19,7 @@ package com.kronotop.redis.handlers.generic;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.RedisValueContainer;
-import com.kronotop.redis.string.BaseStringHandler;
+import com.kronotop.redis.handlers.string.BaseStringHandler;
 
 public class BaseGenericHandler extends BaseStringHandler {
     public BaseGenericHandler(RedisService service) {

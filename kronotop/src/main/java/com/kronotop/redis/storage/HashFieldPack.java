@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.redis.hash.HashFieldValue;
+import com.kronotop.redis.handlers.hash.HashFieldValue;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

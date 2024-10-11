@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.redis.string.StringValue;
+import com.kronotop.redis.handlers.string.StringValue;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

@@ -17,7 +17,7 @@
 package com.kronotop.redis.storage.syncer;
 
 import com.kronotop.redis.storage.StringPack;
-import com.kronotop.redis.string.StringValue;
+import com.kronotop.redis.handlers.string.StringValue;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

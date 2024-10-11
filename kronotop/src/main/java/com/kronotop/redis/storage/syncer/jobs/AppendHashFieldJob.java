@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.storage.syncer.jobs;
 
-import com.kronotop.redis.hash.HashFieldValue;
+import com.kronotop.redis.handlers.hash.HashFieldValue;
 import com.kronotop.redis.storage.HashFieldPack;
 import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.storage.syncer.VolumeSyncSession;
