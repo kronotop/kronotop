@@ -36,7 +36,8 @@ public class ClientHandler extends BaseHandler implements Handler {
     public ClientHandler(RedisService service) {
         super(service);
 
-        executors.put(ClientSubcommand.SETINFO, new SetInfoSubcommand(service));
+        executors.put(ClientSubcommand.SETINFO, new SetInfoSubcommand());
+        executors.put(ClientSubcommand.SETNAME, new SetNameSubcommand());
     }
 
     @Override

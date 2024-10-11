@@ -16,21 +16,17 @@
 
 package com.kronotop.redis.handlers.client;
 
-import com.kronotop.common.KronotopException;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.server.SubcommandExecutor;
 import com.kronotop.server.*;
 
 import java.util.HashMap;
 
-public class SetInfoSubcommand implements SubcommandExecutor {
-
-    public SetInfoSubcommand() {
-    }
+public class SetNameSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        if (request.getParams().size() < 2 || request.getParams().size() > 3) {
+        if (request.getParams().size() != 2) {
             ClientMessage clientMessage = request.attr(MessageTypes.CLIENT).get();
             // ERR wrong number of arguments for 'client|setinfo' command
             throw new WrongNumberOfArgumentsException(
@@ -38,43 +34,13 @@ public class SetInfoSubcommand implements SubcommandExecutor {
             );
         }
 
-        byte[] rawAttribute = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(rawAttribute);
-        String attribute = new String(rawAttribute);
-
-        byte[] rawValue = new byte[request.getParams().get(2).readableBytes()];
-        request.getParams().get(2).readBytes(rawValue);
-        String value = new String(rawValue);
+        byte[] rawName = new byte[request.getParams().get(1).readableBytes()];
+        request.getParams().get(1).readBytes(rawName);
+        String name = new String(rawName);
 
         HashMap<String, Object> channelAttributes = request.getChannelContext().channel().attr(ChannelAttributes.CLIENT_ATTRIBUTES).get();
-        if (attribute.equalsIgnoreCase(Attribute.LIBNAME.toString())) {
-            channelAttributes.put(Attribute.LIBNAME.toString(), value);
-        } else if (attribute.equalsIgnoreCase(Attribute.LIBVER.toString())) {
-            channelAttributes.put(Attribute.LIBVER.toString(), value);
-        } else {
-            throw new KronotopException(String.format("Unrecognized option '%s'", attribute));
-        }
+        channelAttributes.put("name", name);
 
         response.writeOK();
-    }
-
-    enum Attribute {
-        LIBNAME("lib-name"),
-        LIBVER("lib-ver");
-
-        private final String value;
-
-        Attribute(String value) {
-            this.value = value;
-        }
-
-        public String getValue() {
-            return value;
-        }
-
-        @Override
-        public String toString() {
-            return String.valueOf(value);
-        }
     }
 }

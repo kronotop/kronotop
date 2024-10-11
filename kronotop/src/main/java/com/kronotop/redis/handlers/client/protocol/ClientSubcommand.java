@@ -17,5 +17,6 @@
 package com.kronotop.redis.handlers.client.protocol;
 
 public enum ClientSubcommand {
-    SETINFO
+    SETINFO,
+    SETNAME
 }

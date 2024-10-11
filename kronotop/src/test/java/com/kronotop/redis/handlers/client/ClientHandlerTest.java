@@ -61,4 +61,20 @@ public class ClientHandlerTest extends BaseHandlerTest {
         String value = (String)channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("lib-ver");
         assertEquals("1.1.1", value);
     }
+
+    @Test
+    public void test_CLIENT_SETNAMe() {
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.clientSetname("kronotop").encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertEquals("OK", actualMessage.content());
+
+        String value = (String)channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("name");
+        assertEquals("kronotop", value);
+    }
 }
