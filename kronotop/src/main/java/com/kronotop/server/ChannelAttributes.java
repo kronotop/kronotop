@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The ChannelAttributes class defines static final AttributeKey objects to be used as attribute keys in the ChannelHandlerContext.

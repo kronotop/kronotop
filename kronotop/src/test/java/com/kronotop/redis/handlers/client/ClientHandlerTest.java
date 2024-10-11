@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.handlers.client;
 
-import com.kronotop.redis.BaseHandlerTest;
+import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -42,7 +42,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals("OK", actualMessage.content());
 
-        String value = (String)channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("lib-name");
+        String value = (String) channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("lib-name");
         assertEquals("kronotop", value);
     }
 
@@ -58,7 +58,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals("OK", actualMessage.content());
 
-        String value = (String)channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("lib-ver");
+        String value = (String) channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("lib-ver");
         assertEquals("1.1.1", value);
     }
 
@@ -74,7 +74,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals("OK", actualMessage.content());
 
-        String value = (String)channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("name");
+        String value = (String) channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("name");
         assertEquals("kronotop", value);
     }
 }

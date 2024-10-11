@@ -14,42 +14,43 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.transactions;
+package com.kronotop.redis.handlers.transactions;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.transactions.protocol.DiscardMessage;
+import com.kronotop.redis.handlers.transactions.protocol.ExecMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
-@Command(DiscardMessage.COMMAND)
-@MaximumParameterCount(DiscardMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(DiscardMessage.MINIMUM_PARAMETER_COUNT)
-public class DiscardHandler implements Handler {
+@Command(ExecMessage.COMMAND)
+@MaximumParameterCount(ExecMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(ExecMessage.MINIMUM_PARAMETER_COUNT)
+public class ExecHandler implements Handler {
     private final RedisService service;
 
-    public DiscardHandler(RedisService service) {
+    public ExecHandler(RedisService service) {
         this.service = service;
     }
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.DISCARD).set(new DiscardMessage());
+        request.attr(MessageTypes.EXEC).set(new ExecMessage());
     }
 
     @Override
     public void execute(Request request, Response response) {
-        ChannelHandlerContext ctx = response.getChannelContext();
-        Attribute<Boolean> redisMulti = ctx.channel().attr(ChannelAttributes.REDIS_MULTI);
+        Channel channel = response.getChannelContext().channel();
+        Attribute<Boolean> redisMulti = channel.attr(ChannelAttributes.REDIS_MULTI);
         if (!Boolean.TRUE.equals(redisMulti.get())) {
-            response.writeError("DISCARD without MULTI");
+            response.writeError("EXEC without MULTI");
             return;
         }
-        service.cleanupRedisTransaction(ctx);
-        response.writeOK();
+
+        // Impossible!
+        response.writeError("There is a critical bug in Redis transaction handling. Please report this.");
     }
 }
 

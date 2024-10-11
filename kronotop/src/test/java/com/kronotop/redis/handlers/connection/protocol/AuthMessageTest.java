@@ -18,7 +18,6 @@ package com.kronotop.redis.handlers.connection.protocol;
 
 import com.kronotop.BaseProtocolTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
-import com.kronotop.redis.handlers.connection.protocol.AuthMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.impl.RespRequest;
 import io.lettuce.core.codec.StringCodec;

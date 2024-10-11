@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.handlers.cluster;
 
-import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
 import com.kronotop.redis.handlers.cluster.protocol.ClusterSubcommand;
 import com.kronotop.redis.server.SubcommandExecutor;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.protocol;
+package com.kronotop.redis.handlers.transactions.protocol;
 
 import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
@@ -23,13 +23,13 @@ import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.List;
 
-public class InfoMessage implements KronotopMessage<Void> {
-    public static final String COMMAND = "INFO";
+public class WatchMessage implements KronotopMessage<String> {
+    public static final String COMMAND = "WATCH";
+    public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;
-    private final List<String> sections = new ArrayList<>();
-    private String message;
+    private final List<String> keys = new ArrayList<>();
 
-    public InfoMessage(Request request) {
+    public WatchMessage(Request request) {
         this.request = request;
         parse();
     }
@@ -42,22 +42,18 @@ public class InfoMessage implements KronotopMessage<Void> {
 
     private void parse() {
         for (ByteBuf buf : request.getParams()) {
-            sections.add(readFromByteBuf(buf));
+            keys.add(readFromByteBuf(buf));
         }
     }
 
-    public List<String> getSections() {
-        return sections;
-    }
-
     @Override
-    public Void getKey() {
+    public String getKey() {
         return null;
     }
 
     @Override
-    public List<Void> getKeys() {
-        return null;
+    public List<String> getKeys() {
+        return keys;
     }
 
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.redis.handlers;
 
 import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;

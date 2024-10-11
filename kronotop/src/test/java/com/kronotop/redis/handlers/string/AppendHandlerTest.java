@@ -17,7 +17,7 @@
 package com.kronotop.redis.handlers.string;
 
 
-import com.kronotop.redis.BaseHandlerTest;
+import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;

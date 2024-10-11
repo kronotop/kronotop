@@ -14,37 +14,41 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.transactions;
+package com.kronotop.redis.handlers.transactions;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.transactions.protocol.MultiMessage;
+import com.kronotop.redis.handlers.transactions.protocol.DiscardMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 
-@Command(MultiMessage.COMMAND)
-@MaximumParameterCount(MultiMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(MultiMessage.MINIMUM_PARAMETER_COUNT)
-public class MultiHandler implements Handler {
+@Command(DiscardMessage.COMMAND)
+@MaximumParameterCount(DiscardMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(DiscardMessage.MINIMUM_PARAMETER_COUNT)
+public class DiscardHandler implements Handler {
     private final RedisService service;
 
-    public MultiHandler(RedisService service) {
+    public DiscardHandler(RedisService service) {
         this.service = service;
     }
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.MULTI).set(new MultiMessage());
+        request.attr(MessageTypes.DISCARD).set(new DiscardMessage());
     }
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> redisTransaction = channel.attr(ChannelAttributes.REDIS_MULTI);
-        redisTransaction.set(true);
+        ChannelHandlerContext ctx = response.getChannelContext();
+        Attribute<Boolean> redisMulti = ctx.channel().attr(ChannelAttributes.REDIS_MULTI);
+        if (!Boolean.TRUE.equals(redisMulti.get())) {
+            response.writeError("DISCARD without MULTI");
+            return;
+        }
+        service.cleanupRedisTransaction(ctx);
         response.writeOK();
     }
 }

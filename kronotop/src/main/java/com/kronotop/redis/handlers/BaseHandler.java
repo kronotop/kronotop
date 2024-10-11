@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.redis.handlers;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.redis.RedisService;
 
-public class TransactionSizeLimitExceeded extends KronotopException {
-    public TransactionSizeLimitExceeded() {
-        super();
+public class BaseHandler {
+    public final RedisService service;
+
+    public BaseHandler(RedisService service) {
+        this.service = service;
     }
 }

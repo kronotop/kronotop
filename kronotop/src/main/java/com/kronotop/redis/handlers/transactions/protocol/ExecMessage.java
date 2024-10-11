@@ -14,12 +14,26 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.redis.handlers.transactions.protocol;
 
-public class BaseHandler {
-    public final RedisService service;
+import com.kronotop.server.KronotopMessage;
 
-    public BaseHandler(RedisService service) {
-        this.service = service;
+import java.util.List;
+
+public class ExecMessage implements KronotopMessage<Void> {
+    public static final String COMMAND = "EXEC";
+    public static final int MINIMUM_PARAMETER_COUNT = 0;
+    public static final int MAXIMUM_PARAMETER_COUNT = 0;
+
+    @Override
+    public Void getKey() {
+        return null;
     }
+
+    @Override
+    public List<Void> getKeys() {
+        return null;
+    }
+
+
 }

@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop.redis.handlers;
 
-import com.kronotop.redis.protocol.InfoMessage;
+import com.kronotop.redis.RedisService;
+import com.kronotop.redis.handlers.protocol.InfoMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;

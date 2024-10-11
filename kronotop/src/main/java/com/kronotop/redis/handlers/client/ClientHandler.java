@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.handlers.client;
 
-import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.handlers.client.protocol.ClientSubcommand;
 import com.kronotop.redis.server.SubcommandExecutor;

@@ -14,36 +14,37 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.transactions;
+package com.kronotop.redis.handlers.transactions;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.transactions.protocol.UnwatchMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.redis.handlers.transactions.protocol.MultiMessage;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import io.netty.channel.Channel;
+import io.netty.util.Attribute;
 
-@Command(UnwatchMessage.COMMAND)
-@MaximumParameterCount(UnwatchMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(UnwatchMessage.MINIMUM_PARAMETER_COUNT)
-public class UnwatchHandler implements Handler {
+@Command(MultiMessage.COMMAND)
+@MaximumParameterCount(MultiMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(MultiMessage.MINIMUM_PARAMETER_COUNT)
+public class MultiHandler implements Handler {
     private final RedisService service;
 
-    public UnwatchHandler(RedisService service) {
+    public MultiHandler(RedisService service) {
         this.service = service;
     }
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.UNWATCH).set(new UnwatchMessage());
+        request.attr(MessageTypes.MULTI).set(new MultiMessage());
     }
 
     @Override
     public void execute(Request request, Response response) {
-        service.getWatcher().cleanupChannelHandlerContext(request.getChannelContext());
+        Channel channel = response.getChannelContext().channel();
+        Attribute<Boolean> redisTransaction = channel.attr(ChannelAttributes.REDIS_MULTI);
+        redisTransaction.set(true);
         response.writeOK();
     }
 }

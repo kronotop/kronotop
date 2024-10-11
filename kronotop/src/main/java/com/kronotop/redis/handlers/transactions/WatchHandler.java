@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.transactions;
+package com.kronotop.redis.handlers.transactions;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.transactions.protocol.WatchMessage;
+import com.kronotop.redis.handlers.transactions.protocol.WatchMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;

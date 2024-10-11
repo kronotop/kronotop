@@ -18,7 +18,7 @@ package com.kronotop.redis.handlers.connection;
 
 import com.kronotop.network.clients.Client;
 import com.kronotop.network.clients.Clients;
-import com.kronotop.redis.BaseHandlerTest;
+import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.redis.handlers.connection.protocol.HelloMessage;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.ChannelAttributes;

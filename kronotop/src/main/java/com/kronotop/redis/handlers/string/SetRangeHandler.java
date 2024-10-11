@@ -17,9 +17,9 @@
 package com.kronotop.redis.handlers.string;
 
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.handlers.string.protocol.SetRangeMessage;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.RedisValueContainer;
-import com.kronotop.redis.handlers.string.protocol.SetRangeMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;

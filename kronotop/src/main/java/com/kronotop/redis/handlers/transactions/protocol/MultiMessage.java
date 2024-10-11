@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.transactions.protocol;
-
+package com.kronotop.redis.handlers.transactions.protocol;
 
 import com.kronotop.server.KronotopMessage;
 
 import java.util.List;
 
-public class UnwatchMessage implements KronotopMessage<Void> {
-    public static final String COMMAND = "UNWATCH";
+public class MultiMessage implements KronotopMessage<Void> {
+    public static final String COMMAND = "MULTI";
     public static final int MINIMUM_PARAMETER_COUNT = 0;
     public static final int MAXIMUM_PARAMETER_COUNT = 0;
 

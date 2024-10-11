@@ -17,6 +17,7 @@
 package com.kronotop.redis;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.redis.storage.HashFieldPack;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.StringPack;

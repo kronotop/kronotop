@@ -14,43 +14,37 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.transactions;
+package com.kronotop.redis.handlers.transactions;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.transactions.protocol.ExecMessage;
-import com.kronotop.server.*;
+import com.kronotop.redis.handlers.transactions.protocol.UnwatchMessage;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import io.netty.channel.Channel;
-import io.netty.util.Attribute;
 
-@Command(ExecMessage.COMMAND)
-@MaximumParameterCount(ExecMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(ExecMessage.MINIMUM_PARAMETER_COUNT)
-public class ExecHandler implements Handler {
+@Command(UnwatchMessage.COMMAND)
+@MaximumParameterCount(UnwatchMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(UnwatchMessage.MINIMUM_PARAMETER_COUNT)
+public class UnwatchHandler implements Handler {
     private final RedisService service;
 
-    public ExecHandler(RedisService service) {
+    public UnwatchHandler(RedisService service) {
         this.service = service;
     }
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.EXEC).set(new ExecMessage());
+        request.attr(MessageTypes.UNWATCH).set(new UnwatchMessage());
     }
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> redisMulti = channel.attr(ChannelAttributes.REDIS_MULTI);
-        if (!Boolean.TRUE.equals(redisMulti.get())) {
-            response.writeError("EXEC without MULTI");
-            return;
-        }
-
-        // Impossible!
-        response.writeError("There is a critical bug in Redis transaction handling. Please report this.");
+        service.getWatcher().cleanupChannelHandlerContext(request.getChannelContext());
+        response.writeOK();
     }
 }
 

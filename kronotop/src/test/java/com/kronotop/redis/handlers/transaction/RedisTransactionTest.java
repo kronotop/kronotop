@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.transaction;
+package com.kronotop.redis.handlers.transaction;
 
-import com.kronotop.redis.BaseHandlerTest;
+import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.Request;
