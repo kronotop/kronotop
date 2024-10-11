@@ -37,6 +37,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.ReferenceCountUtil;
+import org.checkerframework.checker.units.qual.C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -109,6 +111,7 @@ public class Router extends ChannelDuplexHandler {
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         ctx.channel().attr(ChannelAttributes.OPEN_NAMESPACES).set(new HashMap<>());
         ctx.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).set(defaultNamespace);
+        ctx.channel().attr(ChannelAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
 
         Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
         autoCommitAttr.set(false);

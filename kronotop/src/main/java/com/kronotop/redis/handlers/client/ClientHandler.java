@@ -26,6 +26,8 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Command(ClientMessage.COMMAND)
 @MinimumParameterCount(ClientMessage.MINIMUM_PARAMETER_COUNT)
@@ -51,6 +53,7 @@ public class ClientHandler extends BaseHandler implements Handler {
         if (executor == null) {
             throw new UnknownSubcommandException(clientMessage.getSubcommand().toString());
         }
+
         executor.execute(request, response);
     }
 }

@@ -27,7 +27,6 @@ public class ClientMessage implements KronotopMessage<String> {
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;
     private ClientSubcommand subcommand;
-    private String key = null;
 
     public ClientMessage(Request request) {
         this.request = request;
@@ -43,11 +42,6 @@ public class ClientMessage implements KronotopMessage<String> {
         } catch (IllegalArgumentException e) {
             throw new UnknownSubcommandException(cmd);
         }
-        if (request.getParams().size() > 1) {
-            byte[] rawKey = new byte[request.getParams().get(1).readableBytes()];
-            request.getParams().get(1).readBytes(rawKey);
-            key = new String(rawKey);
-        }
     }
 
     public ClientSubcommand getSubcommand() {
@@ -56,7 +50,7 @@ public class ClientMessage implements KronotopMessage<String> {
 
     @Override
     public String getKey() {
-        return key;
+        return null;
     }
 
     @Override
