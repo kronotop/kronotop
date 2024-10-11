@@ -63,7 +63,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_CLIENT_SETNAMe() {
+    public void test_CLIENT_SETNAME() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.clientSetname("kronotop").encode(buf);

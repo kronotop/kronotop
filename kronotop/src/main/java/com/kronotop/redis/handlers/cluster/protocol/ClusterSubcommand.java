@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.cluster.protocol;
+package com.kronotop.redis.handlers.cluster.protocol;
 
 public enum ClusterSubcommand {
     NODES,

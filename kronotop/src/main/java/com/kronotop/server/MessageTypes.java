@@ -19,7 +19,7 @@ package com.kronotop.server;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.foundationdb.protocol.*;
 import com.kronotop.foundationdb.zmap.protocol.*;
-import com.kronotop.redis.cluster.protocol.ClusterMessage;
+import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
 import com.kronotop.redis.connection.protocol.AuthMessage;
 import com.kronotop.redis.connection.protocol.HelloMessage;
 import com.kronotop.redis.connection.protocol.PingMessage;

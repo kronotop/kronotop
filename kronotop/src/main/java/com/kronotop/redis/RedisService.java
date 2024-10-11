@@ -31,7 +31,7 @@ import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.redis.cluster.ClusterHandler;
+import com.kronotop.redis.handlers.cluster.ClusterHandler;
 import com.kronotop.redis.connection.AuthHandler;
 import com.kronotop.redis.connection.HelloHandler;
 import com.kronotop.redis.connection.PingHandler;

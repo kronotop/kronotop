@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.cluster.protocol;
+package com.kronotop.redis.handlers.cluster.protocol;
 
 import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;

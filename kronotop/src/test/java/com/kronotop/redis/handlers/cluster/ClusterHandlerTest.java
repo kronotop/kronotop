@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.cluster;
+package com.kronotop.redis.handlers.cluster;
 
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.MembershipService;

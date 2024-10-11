@@ -14,20 +14,27 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.cluster;
+package com.kronotop.redis.handlers.cluster;
 
-import com.kronotop.redis.cluster.protocol.ClusterMessage;
+import com.kronotop.redis.RedisService;
 import com.kronotop.redis.server.SubcommandExecutor;
-import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import io.lettuce.core.cluster.SlotHash;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import io.netty.buffer.ByteBuf;
 
-class KeySlotSubcommand implements SubcommandExecutor {
+class MyIdSubcommand implements SubcommandExecutor {
+    private final RedisService service;
+
+    MyIdSubcommand(RedisService service) {
+        this.service = service;
+    }
 
     @Override
     public void execute(Request request, Response response) {
-        ClusterMessage clusterMessage = request.attr(MessageTypes.CLUSTER).get();
-        response.writeInteger(SlotHash.getSlot(clusterMessage.getKey()));
+        ByteBuf buf = response.getChannelContext().alloc().buffer();
+        String id = service.getContext().getMember().getId();
+        buf.writeBytes(id.getBytes());
+        response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
     }
 }
