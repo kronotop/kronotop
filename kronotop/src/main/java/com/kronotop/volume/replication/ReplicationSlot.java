@@ -31,9 +31,9 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_JOB_SUBSPACE;
+import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_SLOT_SUBSPACE;
 
-public class ReplicationJob {
+public class ReplicationSlot {
 
     private final TreeMap<Long, Snapshot> snapshots = new TreeMap<>();
 
@@ -43,12 +43,12 @@ public class ReplicationJob {
 
     private byte[] latestVersionstampedKey;
 
-    public static Versionstamp newJob(Database database, DirectorySubspace subspace, Member standbyMember) {
-        // A replication job can only be started on a standby server, the primary owner only responds to SEGMENTRANGE requests
+    public static Versionstamp newSlot(Database database, DirectorySubspace subspace, Member standbyMember) {
+        // A replication slot can only be started on a standby server, the primary owner only responds to SEGMENTRANGE requests
         // It doesn't have any idea about the standby servers and the current replication status.
         CompletableFuture<byte[]> future;
         try (Transaction tr = database.createTransaction()) {
-            ReplicationJob replicationJob = new ReplicationJob();
+            ReplicationSlot replicationSlot = new ReplicationSlot();
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, subspace);
 
             for (Long segmentId : volumeMetadata.getSegments()) {
@@ -65,11 +65,11 @@ public class ReplicationJob {
                         firstEntry.key().getBytes(),
                         lastEntry.key().getBytes()
                 );
-                replicationJob.getSnapshots().put(segmentId, snapshot);
+                replicationSlot.getSnapshots().put(segmentId, snapshot);
             }
 
-            byte[] key = subspace.packWithVersionstamp(Tuple.from(SEGMENT_REPLICATION_JOB_SUBSPACE, standbyMember.getId(), Versionstamp.incomplete()));
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(replicationJob));
+            byte[] key = subspace.packWithVersionstamp(Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, standbyMember.getId(), Versionstamp.incomplete()));
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(replicationSlot));
             future = tr.getVersionstamp();
             tr.commit().join();
         }
@@ -78,27 +78,27 @@ public class ReplicationJob {
         return Versionstamp.complete(trVersion);
     }
 
-    public static ReplicationJob load(Transaction tr, ReplicationConfig config) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_JOB_SUBSPACE, config.standby().member().getId(), config.jobId());
+    public static ReplicationSlot load(Transaction tr, ReplicationConfig config) {
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.standby().member().getId(), config.slotId());
         byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
             throw new ReplicationNotFoundException();
         }
-        return JSONUtils.readValue(value, ReplicationJob.class);
+        return JSONUtils.readValue(value, ReplicationSlot.class);
     }
 
-    public static ReplicationJob compute(Transaction tr, ReplicationConfig config, Consumer<ReplicationJob> remappingFunction) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_JOB_SUBSPACE, config.standby().member().getId(), config.jobId());
+    public static ReplicationSlot compute(Transaction tr, ReplicationConfig config, Consumer<ReplicationSlot> remappingFunction) {
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.standby().member().getId(), config.slotId());
         byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
             throw new ReplicationNotFoundException();
         }
-        ReplicationJob replicationJob = JSONUtils.readValue(value, ReplicationJob.class);
-        remappingFunction.accept(replicationJob);
-        tr.set(packedKey, JSONUtils.writeValueAsBytes(replicationJob));
-        return replicationJob;
+        ReplicationSlot replicationSlot = JSONUtils.readValue(value, ReplicationSlot.class);
+        remappingFunction.accept(replicationSlot);
+        tr.set(packedKey, JSONUtils.writeValueAsBytes(replicationSlot));
+        return replicationSlot;
     }
 
     public TreeMap<Long, Snapshot> getSnapshots() {

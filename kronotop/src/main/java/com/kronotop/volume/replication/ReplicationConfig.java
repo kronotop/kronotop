@@ -24,13 +24,13 @@ public record ReplicationConfig(
         Host primary,
         Host standby,
         DirectorySubspace subspace,
-        Versionstamp jobId,
+        Versionstamp slotId,
         String volumeName,
         Long segmentSize,
         String dataDir,
         boolean streamingOnly) {
 
-    public String stringifyJobId() {
-        return VersionstampUtils.base64Encode(jobId);
+    public String stringifySlotId() {
+        return VersionstampUtils.base64Encode(slotId);
     }
 }

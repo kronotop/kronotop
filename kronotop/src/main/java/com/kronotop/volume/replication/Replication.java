@@ -62,9 +62,9 @@ public class Replication {
                 break;
             }
             LOGGER.atInfo().
-                    setMessage("{} state is about to be started, jobId = {}").
+                    setMessage("{} state is about to be started, slotId = {}").
                     addArgument(stageRunner.name()).
-                    addArgument(config.stringifyJobId()).
+                    addArgument(config.stringifySlotId()).
                     log();
             activeStageRunner.set(stageRunner);
             try {
@@ -90,7 +90,7 @@ public class Replication {
                 runners.add(changeDataCaptureStageRunner);
             } else {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    if (ReplicationJob.load(tr, config).isSnapshotCompleted()) {
+                    if (ReplicationSlot.load(tr, config).isSnapshotCompleted()) {
                         StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, config, connection);
                         runners.add(changeDataCaptureStageRunner);
                     } else {
@@ -125,9 +125,9 @@ public class Replication {
         StageRunner stageRunner = activeStageRunner.get();
         if (stageRunner != null) {
             LOGGER.atInfo().
-                    setMessage("Stopping {} stage, jobId = {}").
+                    setMessage("Stopping {} stage, slotId = {}").
                     addArgument(stageRunner.name()).
-                    addArgument(config.stringifyJobId()).
+                    addArgument(config.stringifySlotId()).
                     log();
             stageRunner.stop();
         }
@@ -135,8 +135,8 @@ public class Replication {
         executor.shutdown();
         client.shutdown();
 
-        LOGGER.atInfo().setMessage("Replication has stopped, jobId = {}")
-                .addArgument(config.stringifyJobId())
+        LOGGER.atInfo().setMessage("Replication has stopped, slotId = {}")
+                .addArgument(config.stringifySlotId())
                 .log();
     }
 }

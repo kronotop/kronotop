@@ -119,35 +119,35 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
      */
     private void streamChanges() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationJob.compute(tr, config, (job) -> {
-                Versionstamp key = job.getLatestVersionstampedKey() != null ? Versionstamp.fromBytes(job.getLatestVersionstampedKey()) : null;
+            ReplicationSlot.compute(tr, config, (slot) -> {
+                Versionstamp key = slot.getLatestVersionstampedKey() != null ? Versionstamp.fromBytes(slot.getLatestVersionstampedKey()) : null;
                 try {
-                    IterationResult iterationResult = iterateSegmentLogEntries(tr, job.getLatestSegmentId(), key);
+                    IterationResult iterationResult = iterateSegmentLogEntries(tr, slot.getLatestSegmentId(), key);
                     if (iterationResult.processedKeys() != 0) {
                         // Segment id not changed yet
-                        job.setLatestVersionstampedKey(iterationResult.latestKey().getBytes());
+                        slot.setLatestVersionstampedKey(iterationResult.latestKey().getBytes());
                         return;
                     }
 
                     if (key == null) {
                         LOGGER.atDebug()
-                                .setMessage("It's not possible to find a new segmentId because key is null, jobId = {}")
-                                .addArgument(config.stringifyJobId())
+                                .setMessage("It's not possible to find a new segmentId because key is null, slotId = {}")
+                                .addArgument(config.stringifySlotId())
                                 .log();
                         return;
                     }
 
                     // Need to find a new segment id
                     long segmentId = findNextSegmentId(tr, key);
-                    job.setLatestSegmentId(segmentId);
+                    slot.setLatestSegmentId(segmentId);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 } catch (NotEnoughSpaceException e) {
                     throw new RuntimeException(e);
                 } catch (NoSegmentExistsException e) {
                     LOGGER.atDebug()
-                            .setMessage("No new segment found, jobId = {}")
-                            .addArgument(config.stringifyJobId())
+                            .setMessage("No new segment found, slotId = {}")
+                            .addArgument(config.stringifySlotId())
                             .log();
                 }
             });
@@ -176,9 +176,9 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                     watcher.join();
                 } catch (CancellationException e) {
                     LOGGER.atInfo()
-                            .setMessage("{} stage has cancelled, jobId = {}")
+                            .setMessage("{} stage has cancelled, slotId = {}")
                             .addArgument(name())
-                            .addArgument(config.stringifyJobId())
+                            .addArgument(config.stringifySlotId())
                             .log();
                     return; // cancelled
                 } finally {
@@ -188,8 +188,8 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                 streamChanges();
             } catch (Exception e) {
                 LOGGER.atError()
-                        .setMessage("Error while watching changes, jobId = {}")
-                        .addArgument(config.stringifyJobId())
+                        .setMessage("Error while watching changes, slotId = {}")
+                        .addArgument(config.stringifySlotId())
                         .log();
                 // Retrying...
             }
@@ -197,20 +197,20 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
     }
 
     /**
-     * Finds the starting point for the replication job by computing the latest segment ID and the latest versionstamped key.
+     * Finds the starting point for the replication slot by computing the latest segment ID and the latest versionstamped key.
      *
      * @throws RuntimeException if an error occurs during computation or transaction commit.
      */
     private void findStartingPoint() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationJob.compute(tr, config, (job) -> {
-                if (job.getSnapshots().isEmpty()) {
+            ReplicationSlot.compute(tr, config, (slot) -> {
+                if (slot.getSnapshots().isEmpty()) {
                     return;
                 }
-                Map.Entry<Long, Snapshot> entry = job.getSnapshots().lastEntry();
+                Map.Entry<Long, Snapshot> entry = slot.getSnapshots().lastEntry();
                 Snapshot snapshot = entry.getValue();
-                job.setLatestSegmentId(snapshot.getSegmentId());
-                job.setLatestVersionstampedKey(snapshot.getEnd());
+                slot.setLatestSegmentId(snapshot.getSegmentId());
+                slot.setLatestVersionstampedKey(snapshot.getEnd());
             });
             tr.commit().join();
         }
@@ -232,9 +232,9 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
             findStartingPoint();
             startStreaming();
         } catch (Exception e) {
-            LOGGER.atError().setMessage("{} stage has failed, jobId = {}").
+            LOGGER.atError().setMessage("{} stage has failed, slotId = {}").
                     addArgument(name()).
-                    addArgument(config.stringifyJobId()).
+                    addArgument(config.stringifySlotId()).
                     setCause(e).
                     log();
         }

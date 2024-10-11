@@ -44,14 +44,14 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
     }
 
     private boolean isSnapshotCompleted(Transaction tr, long segmentId) {
-        ReplicationJob replicationJob = ReplicationJob.load(tr, config);
-        Snapshot snapshot = replicationJob.getSnapshots().get(segmentId);
+        ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config);
+        Snapshot snapshot = replicationSlot.getSnapshots().get(segmentId);
         return snapshot.getProcessedEntries() == snapshot.getTotalEntries();
     }
 
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId) throws IOException, NotEnoughSpaceException {
-        ReplicationJob replicationJob = ReplicationJob.load(tr, config);
-        Snapshot snapshot = replicationJob.getSnapshots().get(segmentId);
+        ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config);
+        Snapshot snapshot = replicationSlot.getSnapshots().get(segmentId);
 
         Segment segment = openSegments.get(segmentId);
         if (segment == null) {
@@ -96,8 +96,8 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                 }
                 IterationResult result = iterateSegmentLogEntries(tr, segmentId);
                 if (result.processedKeys() > 0) {
-                    ReplicationJob replicationJob = ReplicationJob.compute(tr, config, (job) -> {
-                        Snapshot snapshot = job.getSnapshots().get(segmentId);
+                    ReplicationSlot replicationSlot = ReplicationSlot.compute(tr, config, (slot) -> {
+                        Snapshot snapshot = slot.getSnapshots().get(segmentId);
                         snapshot.setBegin(result.latestKey().getBytes());
                         snapshot.setProcessedEntries(result.processedKeys() + snapshot.getProcessedEntries());
                         snapshot.setLastUpdate(Instant.now().toEpochMilli());
@@ -105,7 +105,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                     tr.commit().join();
 
                     // The end key fetched: [begin, end]
-                    Snapshot snapshot = replicationJob.getSnapshots().get(segmentId);
+                    Snapshot snapshot = replicationSlot.getSnapshots().get(segmentId);
                     if (Arrays.equals(snapshot.getBegin(), snapshot.getEnd())) {
                         break;
                     }
@@ -113,9 +113,9 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                 }
                 break;
             } catch (IOException | NotEnoughSpaceException e) {
-                LOGGER.atError().setMessage("An error has occurred while running {} stage, retrying, jobId = {}").
+                LOGGER.atError().setMessage("An error has occurred while running {} stage, retrying, slotId = {}").
                         addArgument(name()).
-                        addArgument(config.stringifyJobId()).
+                        addArgument(config.stringifySlotId()).
                         setCause(e).
                         log();
             }
@@ -123,16 +123,16 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
     }
 
     private void snapshotLoop() {
-        ReplicationJob replicationJob;
+        ReplicationSlot replicationSlot;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            replicationJob = ReplicationJob.load(tr, config);
+            replicationSlot = ReplicationSlot.load(tr, config);
         }
 
-        if (replicationJob.getSnapshots().isEmpty()) {
+        if (replicationSlot.getSnapshots().isEmpty()) {
             throw new IllegalStateException("No segment found to take a snapshot");
         }
 
-        for (Map.Entry<Long, Snapshot> entry : replicationJob.getSnapshots().entrySet()) {
+        for (Map.Entry<Long, Snapshot> entry : replicationSlot.getSnapshots().entrySet()) {
             if (isStopped()) {
                 // Replication has stopped.
                 break;
@@ -149,31 +149,31 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
 
     private void isSnapshotCompleted() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationJob replicationJob = ReplicationJob.compute(tr, config, (job) -> {
+            ReplicationSlot replicationSlot = ReplicationSlot.compute(tr, config, (slot) -> {
                 boolean completed = true;
-                for (Map.Entry<Long, Snapshot> entry : job.getSnapshots().entrySet()) {
+                for (Map.Entry<Long, Snapshot> entry : slot.getSnapshots().entrySet()) {
                     Snapshot snapshot = entry.getValue();
                     if (snapshot.getProcessedEntries() != snapshot.getTotalEntries()) {
                         completed = false;
                         break;
                     }
                 }
-                job.setSnapshotCompleted(completed);
+                slot.setSnapshotCompleted(completed);
             });
             tr.commit().join();
-            if (replicationJob.isSnapshotCompleted()) {
+            if (replicationSlot.isSnapshotCompleted()) {
                 long totalProcessedEntries = 0;
-                for (Map.Entry<Long, Snapshot> entry : replicationJob.getSnapshots().entrySet()) {
+                for (Map.Entry<Long, Snapshot> entry : replicationSlot.getSnapshots().entrySet()) {
                     totalProcessedEntries += entry.getValue().getProcessedEntries();
                 }
-                LOGGER.atInfo().setMessage("{} stage has completed, jobId = {}").
+                LOGGER.atInfo().setMessage("{} stage has completed, slotId = {}").
                         addArgument(name()).
-                        addArgument(config.stringifyJobId()).
+                        addArgument(config.stringifySlotId()).
                         log();
-                LOGGER.atInfo().setMessage("Number of processed keys during {} stage: {}, jobId = {}").
+                LOGGER.atInfo().setMessage("Number of processed keys during {} stage: {}, slotId = {}").
                         addArgument(name()).
                         addArgument(totalProcessedEntries).
-                        addArgument(config.stringifyJobId()).
+                        addArgument(config.stringifySlotId()).
                         log();
             }
         }
@@ -185,9 +185,9 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
             snapshotLoop();
             isSnapshotCompleted();
         } catch (Exception e) {
-            LOGGER.atError().setMessage("{} stage has failed, jobId = {}").
+            LOGGER.atError().setMessage("{} stage has failed, slotId = {}").
                     addArgument(name()).
-                    addArgument(config.stringifyJobId()).
+                    addArgument(config.stringifySlotId()).
                     setCause(e).
                     log();
         }

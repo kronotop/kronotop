@@ -48,7 +48,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
 
     private Replication newReplication() {
         final Host primary;
-        final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
+        final Versionstamp slotId = ReplicationSlot.newSlot(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
             primary = volumeMetadata.getPrimary();
@@ -59,7 +59,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
                 primary,
                 standby,
                 volume.getConfig().subspace(),
-                jobId,
+                slotId,
                 volume.getConfig().name(),
                 volume.getConfig().segmentSize(),
                 standbyVolumeDataDir.toString(),
