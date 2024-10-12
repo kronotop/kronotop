@@ -350,4 +350,37 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
             }
         }));
     }
+
+    private String setSameKeyManyTimes(RedisCommandBuilder<String, String> cmd) throws InterruptedException {
+        String latestValue = null;
+        for (int i = 0; i < 10; i++) {
+            ByteBuf buf = Unpooled.buffer();
+            latestValue = String.format("value-%d", i);
+            cmd.set(key, latestValue).encode(buf);
+            channel.writeInbound(buf);
+            Thread.sleep(100);
+            channel.readOutbound(); // consume the response
+        }
+        return latestValue;
+    }
+
+    @Test
+    public void when_update_key_sequentially() throws InterruptedException {
+        // memtier_benchmark sets the same key many times, and this triggers a bizarre bug in VolumeSyncer
+        // See https://forums.foundationdb.org/t/why-is-read-or-wrote-unreadable-key-necessary/3753
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+        String latestValue = setSameKeyManyTimes(cmd);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, keyEntry -> {
+            try {
+                StringPack pack = StringPack.unpack(keyEntry.entry());
+                if (!pack.key().equals(key)) {
+                    return false;
+                }
+                String syncedValue = new String(pack.stringValue().value());
+                return syncedValue.equals(latestValue);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }));
+    }
 }
