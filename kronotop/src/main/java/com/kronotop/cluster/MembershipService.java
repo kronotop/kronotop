@@ -28,10 +28,12 @@ import com.kronotop.*;
 import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.cluster.coordinator.RoutingTable;
+import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.common.KronotopException;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
 import com.kronotop.network.Address;
+import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Membership service implements all business logic around cluster membership and health checks.
  */
-public class MembershipService implements KronotopService {
+public class MembershipService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Membership";
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipService.class);
     private final Context context;
@@ -63,6 +65,8 @@ public class MembershipService implements KronotopService {
     private volatile boolean isShutdown;
 
     public MembershipService(Context context) {
+        super(context);
+
         this.context = context;
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
@@ -79,6 +83,8 @@ public class MembershipService implements KronotopService {
 
         ThreadFactory factory = Thread.ofVirtual().name("kr.membership").factory();
         this.scheduler = new ScheduledThreadPoolExecutor(2, factory);
+
+        handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));
     }
 
     private void removeMemberOnFDB(Member member) {

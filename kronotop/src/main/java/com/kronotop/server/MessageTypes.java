@@ -16,6 +16,7 @@
 
 package com.kronotop.server;
 
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.foundationdb.protocol.*;
 import com.kronotop.foundationdb.zmap.protocol.*;
@@ -41,6 +42,7 @@ import io.netty.util.AttributeKey;
  * Each constant represents a specific message type and has an associated AttributeKey.
  */
 public class MessageTypes {
+    // External commands
     public static final AttributeKey<SetMessage> SET = AttributeKey.valueOf(SetMessage.COMMAND);
     public static final AttributeKey<SetNXMessage> SETNX = AttributeKey.valueOf(SetNXMessage.COMMAND);
     public static final AttributeKey<GetMessage> GET = AttributeKey.valueOf(GetMessage.COMMAND);
@@ -113,5 +115,5 @@ public class MessageTypes {
 
     // Internal commands
     public static final AttributeKey<SegmentRangeMessage> SEGMENTRANGE = AttributeKey.valueOf(SegmentRangeMessage.COMMAND);
-
+    public static final AttributeKey<KrAdminMessage> KRADMIN = AttributeKey.valueOf(KrAdminMessage.COMMAND);
 }
