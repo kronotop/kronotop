@@ -16,7 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.membership.MembershipService;
 
 public class BaseHandler {
     private final MembershipService service;

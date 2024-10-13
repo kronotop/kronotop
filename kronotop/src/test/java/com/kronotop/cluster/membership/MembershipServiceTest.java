@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster;
+package com.kronotop.cluster.membership;
 
+import com.kronotop.cluster.BaseClusterTest;
+import com.kronotop.cluster.Member;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedList;

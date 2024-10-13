@@ -25,15 +25,6 @@ public enum KrAdminSubcommand {
         this.value = value;
     }
 
-    public String getValue() {
-        return value;
-    }
-
-    @Override
-    public String toString() {
-        return String.valueOf(value);
-    }
-
     public static KrAdminSubcommand valueOfSubcommand(String command) {
         for (KrAdminSubcommand value : values()) {
             if (value.value.equalsIgnoreCase(command)) {
@@ -41,5 +32,14 @@ public enum KrAdminSubcommand {
             }
         }
         return null;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    @Override
+    public String toString() {
+        return String.valueOf(value);
     }
 }

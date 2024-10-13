@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster;
+package com.kronotop.cluster.membership;
 
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.MutationType;
@@ -25,6 +25,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
+import com.kronotop.cluster.*;
 import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.cluster.coordinator.RoutingTable;

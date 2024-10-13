@@ -16,7 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.redis.server.SubcommandExecutor;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;

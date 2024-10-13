@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster;
+package com.kronotop.cluster.membership;
 
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.cluster.BaseClusterTest;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.cluster.coordinator.RoutingTable;
 import org.junit.jupiter.api.Disabled;

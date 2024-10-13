@@ -19,7 +19,7 @@ package com.kronotop.redis.handlers.cluster;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.network.Address;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.SlotRange;
