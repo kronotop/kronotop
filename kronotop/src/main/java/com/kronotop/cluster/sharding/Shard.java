@@ -30,13 +30,5 @@ public interface Shard {
         this.status.set(status);
     }
 
-    ShardLocator getShardLocator();
-
-    ShardStatistics getShardStatistics();
-
     Integer id();
-
-    void start();
-
-    void shutdown();
 }

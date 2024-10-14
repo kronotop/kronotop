@@ -18,14 +18,9 @@ package com.kronotop.cluster.sharding.impl;
 
 import com.kronotop.Context;
 import com.kronotop.cluster.sharding.Shard;
-import com.kronotop.cluster.sharding.ShardLocator;
-import com.kronotop.cluster.sharding.ShardStatistics;
 import com.kronotop.volume.VolumeService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ShardImpl implements Shard {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ShardImpl.class);
     protected final Context context;
     protected final VolumeService volumeService;
     protected final int id;
@@ -44,23 +39,5 @@ public class ShardImpl implements Shard {
     @Override
     public Integer id() {
         return id;
-    }
-
-    @Override
-    public ShardLocator getShardLocator() {
-        return null;
-    }
-
-    @Override
-    public ShardStatistics getShardStatistics() {
-        return null;
-    }
-
-    @Override
-    public void start() {
-    }
-
-    @Override
-    public void shutdown() {
     }
 }
