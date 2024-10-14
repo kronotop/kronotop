@@ -16,10 +16,20 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.kronotop.VersionstampUtils;
+import com.kronotop.cluster.Member;
 import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.redis.server.SubcommandExecutor;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.resp3.IntegerRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.TreeSet;
 
 public class ListMembersSubcommand implements SubcommandExecutor {
     private final MembershipService service;
@@ -30,6 +40,25 @@ public class ListMembersSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        response.writeOK();
+        TreeSet<Member> sortedMembers = service.getSortedMembers();
+        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
+        for (Member member : sortedMembers) {
+            Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
+
+            String processId = VersionstampUtils.base64Encode(member.getProcessId());
+            current.put(new SimpleStringRedisMessage("process_id"), new SimpleStringRedisMessage(processId));
+
+            current.put(new SimpleStringRedisMessage("external_host"), new SimpleStringRedisMessage(member.getExternalAddress().getHost()));
+            current.put(new SimpleStringRedisMessage("external_port"), new IntegerRedisMessage(member.getExternalAddress().getPort()));
+
+            current.put(new SimpleStringRedisMessage("internal_host"), new SimpleStringRedisMessage(member.getInternalAddress().getHost()));
+            current.put(new SimpleStringRedisMessage("internal_port"), new IntegerRedisMessage(member.getInternalAddress().getPort()));
+
+            Map<Member, Long> latestHeartbeats = service.getLatestHeartbeats(member);
+            current.put(new SimpleStringRedisMessage("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeats.get(member)));
+
+            result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));
+        }
+        response.writeMap(result);
     }
 }
