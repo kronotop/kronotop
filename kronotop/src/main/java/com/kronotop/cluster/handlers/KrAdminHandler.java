@@ -34,6 +34,7 @@ public class KrAdminHandler extends BaseHandler implements Handler {
         super(service);
 
         executors.put(KrAdminSubcommand.LIST_MEMBERS, new ListMembersSubcommand(service));
+        executors.put(KrAdminSubcommand.INITIALIZE_CLUSTER, new InitializeClusterSubcommand(service));
     }
 
     @Override

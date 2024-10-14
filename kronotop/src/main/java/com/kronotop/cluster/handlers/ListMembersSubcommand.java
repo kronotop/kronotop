@@ -31,10 +31,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeSet;
 
-public class ListMembersSubcommand implements SubcommandExecutor {
+class ListMembersSubcommand implements SubcommandExecutor {
     private final MembershipService service;
 
-    public ListMembersSubcommand(MembershipService service) {
+    ListMembersSubcommand(MembershipService service) {
         this.service = service;
     }
 

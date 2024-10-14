@@ -267,6 +267,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
                 serviceContext.shards().values().forEach(shard -> {
                     for (DataStructure dataStructure : DataStructure.values()) {
                         try {
+                            // TODO: This should be removed!
                             DirectorySubspace shardSubspace = context.getDirectoryLayer().openDataStructure(shard.id(), dataStructure);
                             tr.clear(Range.startsWith(shardSubspace.pack()));
                         } catch (CompletionException e) {

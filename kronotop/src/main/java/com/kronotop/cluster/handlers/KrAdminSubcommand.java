@@ -17,6 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 public enum KrAdminSubcommand {
+    INITIALIZE_CLUSTER("initialize-cluster"),
     LIST_MEMBERS("list-members");
 
     private final String value;
@@ -31,7 +32,7 @@ public enum KrAdminSubcommand {
                 return value;
             }
         }
-        return null;
+        throw new IllegalArgumentException();
     }
 
     public String getValue() {
