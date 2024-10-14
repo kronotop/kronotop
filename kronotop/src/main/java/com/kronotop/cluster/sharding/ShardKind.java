@@ -16,12 +16,6 @@
 
 package com.kronotop.cluster.sharding;
 
-public interface Shard {
-    Integer id();
-
-    ShardStatus status();
-
-    void setStatus(ShardStatus status);
-
-    ShardKind kind();
+public enum ShardKind {
+    REDIS
 }

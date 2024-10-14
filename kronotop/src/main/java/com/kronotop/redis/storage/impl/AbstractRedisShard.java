@@ -20,6 +20,7 @@ package com.kronotop.redis.storage.impl;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.google.common.util.concurrent.Striped;
 import com.kronotop.Context;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.impl.ShardImpl;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.storage.RedisShard;
@@ -86,6 +87,11 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    @Override
+    public ShardKind kind() {
+        return ShardKind.REDIS;
     }
 
     @Override
