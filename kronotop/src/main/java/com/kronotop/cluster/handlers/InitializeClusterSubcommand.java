@@ -30,6 +30,7 @@ import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
+import java.util.Arrays;
 import java.util.concurrent.CompletionException;
 
 class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHandler {
@@ -47,7 +48,7 @@ class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHa
                     metadata().
                     shards().
                     redis().
-                    shard(1);
+                    shard(i);
             subspace.create(tr, directory.excludeSubspace(subspace)).join();
         }
     }
@@ -57,16 +58,27 @@ class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHa
         tr.set(key, MembershipConstants.TRUE);
     }
 
+    private boolean isClusterInitialized(Transaction tr, DirectorySubspace subspace) {
+        byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+        return Arrays.equals(tr.get(key).join(), MembershipConstants.TRUE);
+    }
+
     @Override
     public void execute(Request request, Response response) {
         DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(service.getContext());
+
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
+            if (isClusterInitialized(tr, subspace)) {
+                throw new KronotopException("cluster has already been initialized");
+            }
             initializeRedisSection(tr, subspace);
             setClusterInitializedTrue(tr, subspace);
             tr.commit().join();
         } catch (CompletionException e) {
-            if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                throw new KronotopException("cluster has already been initialized");
+            if (e.getCause() instanceof DirectoryAlreadyExistsException ex) {
+                throw new KronotopException(
+                        String.format("KronotopDirectory: '%s' has already been created", String.join(".", ex.path))
+                );
             }
         }
         response.writeOK();
