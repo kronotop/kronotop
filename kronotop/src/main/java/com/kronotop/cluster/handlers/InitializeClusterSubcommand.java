@@ -20,13 +20,13 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.membership.MembershipService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.common.KronotopException;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
-import java.util.List;
 import java.util.concurrent.CompletionException;
 
 class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHandler {
@@ -37,18 +37,20 @@ class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHa
 
     private void initializeRedisSection(Transaction tr, DirectorySubspace subspace) {
         int numberOfRedisShards = service.getContext().getConfig().getInt("redis.shards");
-        String kind = ShardKind.REDIS.toString().toLowerCase();
         for (int i = 0; i < numberOfRedisShards; i++) {
-            subspace.create(tr, List.of("shards", kind, Integer.toString(i))).join();
+            KronotopDirectoryNode directory = KronotopDirectory.
+                    kronotop().
+                    cluster(service.getContext().getClusterName()).
+                    metadata().
+                    shards().
+                    redis().
+                    shard(1);
+            subspace.create(tr, directory.excludeSubspace(subspace)).join();
         }
     }
 
     @Override
     public void execute(Request request, Response response) {
-        // [kronotop, development, metadata, shards, redis, 0 ]
-        // [kronotop, development, metadata, shards, redis, 1 ]
-        // [kronotop, development, metadata, shards, redis, 2 ]
-        // [kronotop, development, metadata, shards, redis, 3 ]
         DirectorySubspace subspace = createOrOpenClusterMetadataSubspace();
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             initializeRedisSection(tr, subspace);

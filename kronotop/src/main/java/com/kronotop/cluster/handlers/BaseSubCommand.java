@@ -20,7 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.membership.MembershipService;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 
 class BaseSubCommand {
     protected final MembershipService service;
@@ -30,13 +31,14 @@ class BaseSubCommand {
     }
 
     protected DirectorySubspace createOrOpenClusterMetadataSubspace() {
-        DirectoryLayout clusterMetadataPath = DirectoryLayout.Builder.
-                clusterName(service.getContext().getClusterName()).
+        KronotopDirectoryNode directory = KronotopDirectory.
+                kronotop().
+                cluster(service.getContext().getClusterName()).
                 metadata();
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             DirectorySubspace subspace = DirectoryLayer.
                     getDefault().
-                    createOrOpen(tr, clusterMetadataPath.asList()).
+                    createOrOpen(tr, directory.toList()).
                     join();
             tr.commit().join();
             return subspace;
