@@ -23,7 +23,7 @@ import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.network.Address;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.SlotRange;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
-class NodesSubcommand implements SubcommandExecutor {
+class NodesSubcommand implements SubcommandHandler {
     private final RedisService service;
 
     NodesSubcommand(RedisService service) {

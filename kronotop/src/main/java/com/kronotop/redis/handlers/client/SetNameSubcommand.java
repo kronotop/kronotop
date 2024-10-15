@@ -17,12 +17,12 @@
 package com.kronotop.redis.handlers.client;
 
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 
 import java.util.HashMap;
 
-public class SetNameSubcommand implements SubcommandExecutor {
+public class SetNameSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {

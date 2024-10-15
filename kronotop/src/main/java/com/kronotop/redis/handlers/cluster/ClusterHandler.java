@@ -20,7 +20,7 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
 import com.kronotop.redis.handlers.cluster.protocol.ClusterSubcommand;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -30,15 +30,15 @@ import java.util.EnumMap;
 @Command(ClusterMessage.COMMAND)
 @MinimumParameterCount(ClusterMessage.MINIMUM_PARAMETER_COUNT)
 public class ClusterHandler extends BaseHandler implements Handler {
-    private final EnumMap<ClusterSubcommand, SubcommandExecutor> executors = new EnumMap<>(ClusterSubcommand.class);
+    private final EnumMap<ClusterSubcommand, SubcommandHandler> handlers = new EnumMap<>(ClusterSubcommand.class);
 
     public ClusterHandler(RedisService service) {
         super(service);
 
-        executors.put(ClusterSubcommand.NODES, new NodesSubcommand(service));
-        executors.put(ClusterSubcommand.SLOTS, new SlotsSubcommand(service));
-        executors.put(ClusterSubcommand.MYID, new MyIdSubcommand(service));
-        executors.put(ClusterSubcommand.KEYSLOT, new KeySlotSubcommand());
+        handlers.put(ClusterSubcommand.NODES, new NodesSubcommand(service));
+        handlers.put(ClusterSubcommand.SLOTS, new SlotsSubcommand(service));
+        handlers.put(ClusterSubcommand.MYID, new MyIdSubcommand(service));
+        handlers.put(ClusterSubcommand.KEYSLOT, new KeySlotSubcommand());
     }
 
     @Override
@@ -49,7 +49,7 @@ public class ClusterHandler extends BaseHandler implements Handler {
     @Override
     public void execute(Request request, Response response) throws Exception {
         ClusterMessage clusterMessage = request.attr(MessageTypes.CLUSTER).get();
-        SubcommandExecutor executor = executors.get(clusterMessage.getSubcommand());
+        SubcommandHandler executor = handlers.get(clusterMessage.getSubcommand());
         if (executor == null) {
             throw new UnknownSubcommandException(clusterMessage.getSubcommand().toString());
         }

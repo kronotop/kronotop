@@ -19,7 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.membership.MembershipService;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.IntegerRedisMessage;
@@ -31,7 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeSet;
 
-class ListMembersSubcommand implements SubcommandExecutor {
+class ListMembersSubcommand implements SubcommandHandler {
     private final MembershipService service;
 
     ListMembersSubcommand(MembershipService service) {

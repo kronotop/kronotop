@@ -17,13 +17,13 @@
 package com.kronotop.redis.handlers.cluster;
 
 import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import io.lettuce.core.cluster.SlotHash;
 
-class KeySlotSubcommand implements SubcommandExecutor {
+class KeySlotSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {

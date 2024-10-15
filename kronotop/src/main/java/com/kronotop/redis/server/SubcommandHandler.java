@@ -19,7 +19,7 @@ package com.kronotop.redis.server;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
-public interface SubcommandExecutor {
+public interface SubcommandHandler {
     void execute(Request request, Response response);
 }
 

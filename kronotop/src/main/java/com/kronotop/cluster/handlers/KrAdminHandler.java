@@ -18,7 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.cluster.membership.MembershipService;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -28,14 +28,14 @@ import java.util.EnumMap;
 @Command(KrAdminMessage.COMMAND)
 @MinimumParameterCount(KrAdminMessage.MINIMUM_PARAMETER_COUNT)
 public class KrAdminHandler extends BaseHandler implements Handler {
-    private final EnumMap<KrAdminSubcommand, SubcommandExecutor> executors = new EnumMap<>(KrAdminSubcommand.class);
+    private final EnumMap<KrAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(KrAdminSubcommand.class);
 
     public KrAdminHandler(MembershipService service) {
         super(service);
 
-        executors.put(KrAdminSubcommand.LIST_MEMBERS, new ListMembersSubcommand(service));
-        executors.put(KrAdminSubcommand.INITIALIZE_CLUSTER, new InitializeClusterSubcommand(service));
-        executors.put(KrAdminSubcommand.DESCRIBE_CLUSTER, new DescribeClusterSubCommand(service));
+        handlers.put(KrAdminSubcommand.LIST_MEMBERS, new ListMembersSubcommand(service));
+        handlers.put(KrAdminSubcommand.INITIALIZE_CLUSTER, new InitializeClusterSubcommand(service));
+        handlers.put(KrAdminSubcommand.DESCRIBE_CLUSTER, new DescribeClusterSubCommand(service));
     }
 
     @Override
@@ -46,7 +46,7 @@ public class KrAdminHandler extends BaseHandler implements Handler {
     @Override
     public void execute(Request request, Response response) throws Exception {
         KrAdminMessage message = request.attr(MessageTypes.KRADMIN).get();
-        SubcommandExecutor executor = executors.get(message.getSubcommand());
+        SubcommandHandler executor = handlers.get(message.getSubcommand());
         if (executor == null) {
             throw new UnknownSubcommandException(message.getSubcommand().toString());
         }

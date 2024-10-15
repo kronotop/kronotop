@@ -22,14 +22,14 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.common.KronotopException;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
-class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandExecutor {
+class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHandler {
 
     InitializeClusterSubcommand(MembershipService service) {
         super(service);

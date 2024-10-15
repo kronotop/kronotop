@@ -18,12 +18,12 @@ package com.kronotop.redis.handlers.client;
 
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 
 import java.util.HashMap;
 
-public class SetInfoSubcommand implements SubcommandExecutor {
+public class SetInfoSubcommand implements SubcommandHandler {
 
     public SetInfoSubcommand() {
     }

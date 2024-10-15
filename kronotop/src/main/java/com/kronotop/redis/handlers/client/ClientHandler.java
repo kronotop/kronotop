@@ -20,7 +20,7 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.handlers.client.protocol.ClientSubcommand;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -30,7 +30,7 @@ import java.util.EnumMap;
 @Command(ClientMessage.COMMAND)
 @MinimumParameterCount(ClientMessage.MINIMUM_PARAMETER_COUNT)
 public class ClientHandler extends BaseHandler implements Handler {
-    private final EnumMap<ClientSubcommand, SubcommandExecutor> executors = new EnumMap<>(ClientSubcommand.class);
+    private final EnumMap<ClientSubcommand, SubcommandHandler> executors = new EnumMap<>(ClientSubcommand.class);
 
 
     public ClientHandler(RedisService service) {
@@ -48,7 +48,7 @@ public class ClientHandler extends BaseHandler implements Handler {
     @Override
     public void execute(Request request, Response response) throws Exception {
         ClientMessage clientMessage = request.attr(MessageTypes.CLIENT).get();
-        SubcommandExecutor executor = executors.get(clientMessage.getSubcommand());
+        SubcommandHandler executor = executors.get(clientMessage.getSubcommand());
         if (executor == null) {
             throw new UnknownSubcommandException(clientMessage.getSubcommand().toString());
         }

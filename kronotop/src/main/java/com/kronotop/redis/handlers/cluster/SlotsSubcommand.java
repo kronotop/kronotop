@@ -19,7 +19,7 @@ package com.kronotop.redis.handlers.cluster;
 import com.kronotop.cluster.Member;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.SlotRange;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -32,7 +32,7 @@ import io.netty.channel.ChannelHandlerContext;
 import java.util.ArrayList;
 import java.util.List;
 
-class SlotsSubcommand implements SubcommandExecutor {
+class SlotsSubcommand implements SubcommandHandler {
     private final RedisService service;
 
     SlotsSubcommand(RedisService service) {

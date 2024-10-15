@@ -21,17 +21,16 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
-import com.kronotop.redis.server.SubcommandExecutor;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-class DescribeClusterSubCommand extends BaseSubCommand implements SubcommandExecutor {
+class DescribeClusterSubCommand extends BaseSubCommand implements SubcommandHandler {
 
     DescribeClusterSubCommand(MembershipService service) {
         super(service);
