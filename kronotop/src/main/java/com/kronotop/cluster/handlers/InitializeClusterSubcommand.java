@@ -18,12 +18,10 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.common.KronotopException;
-import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.redis.server.SubcommandExecutor;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -31,25 +29,10 @@ import com.kronotop.server.Response;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
-class InitializeClusterSubcommand implements SubcommandExecutor {
-    MembershipService service;
+class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandExecutor {
 
     InitializeClusterSubcommand(MembershipService service) {
-        this.service = service;
-    }
-
-    private DirectorySubspace createOrOpenClusterMetadataSubspace() {
-        DirectoryLayout clusterMetadataPath = DirectoryLayout.Builder.
-                clusterName(service.getContext().getClusterName()).
-                metadata();
-        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = DirectoryLayer.
-                    getDefault().
-                    createOrOpen(tr, clusterMetadataPath.asList()).
-                    join();
-            tr.commit().join();
-            return subspace;
-        }
+        super(service);
     }
 
     private void initializeRedisSection(Transaction tr, DirectorySubspace subspace) {

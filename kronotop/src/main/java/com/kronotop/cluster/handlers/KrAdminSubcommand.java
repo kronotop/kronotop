@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 public enum KrAdminSubcommand {
     INITIALIZE_CLUSTER("initialize-cluster"),
+    DESCRIBE_CLUSTER("describe-cluster"),
     LIST_MEMBERS("list-members");
 
     private final String value;
