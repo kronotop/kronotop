@@ -60,7 +60,7 @@ class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHa
 
     private boolean isClusterInitialized(Transaction tr, DirectorySubspace subspace) {
         byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
-        return Arrays.equals(tr.get(key).join(), MembershipConstants.TRUE);
+        return MembershipUtils.isTrue(tr.get(key).join());
     }
 
     @Override

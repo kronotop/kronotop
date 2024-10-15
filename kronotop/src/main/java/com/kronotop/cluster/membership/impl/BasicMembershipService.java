@@ -23,6 +23,7 @@ import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
 import com.kronotop.cluster.*;
@@ -30,9 +31,7 @@ import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.cluster.coordinator.RoutingTable;
 import com.kronotop.cluster.handlers.KrAdminHandler;
-import com.kronotop.cluster.membership.MemberView;
-import com.kronotop.cluster.membership.MembershipService;
-import com.kronotop.cluster.membership.NoSuchMemberException;
+import com.kronotop.cluster.membership.*;
 import com.kronotop.common.KronotopException;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
@@ -268,6 +267,20 @@ public class BasicMembershipService extends CommandHandlerService implements Mem
         if (coordinator != null) {
             LOGGER.info("Cluster coordinator found: {}", coordinator.getExternalAddress());
         }
+    }
+
+    private boolean isClusterInitialized() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
+            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+            byte[] data = tr.get(key).join();
+            if (data != null) {
+                if (MembershipUtils.isTrue(data)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private Member getMember(String id) {

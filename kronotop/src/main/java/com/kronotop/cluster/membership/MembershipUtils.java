@@ -23,6 +23,8 @@ import com.kronotop.Context;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 
+import java.util.Arrays;
+
 public final class MembershipUtils {
 
     public static DirectorySubspace createOrOpenClusterMetadataSubspace(Context context) {
@@ -38,5 +40,9 @@ public final class MembershipUtils {
             tr.commit().join();
             return subspace;
         }
+    }
+
+    public static boolean isTrue(byte[] data) {
+        return Arrays.equals(data, MembershipConstants.TRUE);
     }
 }
