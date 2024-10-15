@@ -18,7 +18,7 @@ package com.kronotop.cluster;
 
 import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -82,7 +82,7 @@ public class BaseClusterTest extends BaseTest {
      */
     protected KronotopTestInstance getClusterCoordinator() {
         KronotopTestInstance instance = kronotopInstances.values().iterator().next();
-        MembershipService membershipService = instance.getContext().getService(MembershipService.NAME);
+        BasicMembershipService membershipService = instance.getContext().getService(BasicMembershipService.NAME);
         Member coordinator = membershipService.getKnownCoordinator();
         for (KronotopTestInstance coordinatorInstance : kronotopInstances.values()) {
             if (coordinatorInstance.getContext().getMember().equals(coordinator)) {

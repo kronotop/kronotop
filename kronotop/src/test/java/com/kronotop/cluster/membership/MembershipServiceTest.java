@@ -18,6 +18,7 @@ package com.kronotop.cluster.membership;
 
 import com.kronotop.cluster.BaseClusterTest;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedList;
@@ -38,7 +39,7 @@ public class MembershipServiceTest extends BaseClusterTest {
             members.add(member);
         });
 
-        MembershipService membershipService = kronotopInstances.get(members.getFirst()).getContext().getService(MembershipService.NAME);
+        BasicMembershipService membershipService = kronotopInstances.get(members.getFirst()).getContext().getService(BasicMembershipService.NAME);
 
         Map<Member, Long> latestHeartbeats = membershipService.getLatestHeartbeats(members.toArray(new Member[members.size()]));
         assertEquals(3, latestHeartbeats.size());

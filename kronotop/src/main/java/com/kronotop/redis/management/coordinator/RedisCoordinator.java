@@ -22,7 +22,7 @@ import com.kronotop.cluster.BroadcastEvent;
 import com.kronotop.cluster.BroadcastEventHook;
 import com.kronotop.cluster.BroadcastEventKind;
 import com.kronotop.cluster.coordinator.Coordinator;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.management.coordinator.hooks.MemberJoinHook;
 import com.kronotop.redis.management.coordinator.hooks.MemberLeftHook;
@@ -39,14 +39,14 @@ public class RedisCoordinator implements Coordinator {
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisCoordinator.class);
     private final Context context;
     private final ServiceContext<RedisShard> redis;
-    private final MembershipService membership;
+    private final BasicMembershipService membership;
     private final EnumMap<BroadcastEventKind, BroadcastEventHook> hooks = new EnumMap<>(BroadcastEventKind.class);
     private final ExecutorService executorService = Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
     private volatile boolean started = false;
 
     public RedisCoordinator(Context context) {
         this.context = context;
-        this.membership = context.getService(MembershipService.NAME);
+        this.membership = context.getService(BasicMembershipService.NAME);
         this.redis = context.getServiceContext(RedisService.NAME);
         this.hooks.put(BroadcastEventKind.MEMBER_JOIN, new MemberJoinHook(this));
         this.hooks.put(BroadcastEventKind.MEMBER_LEFT, new MemberLeftHook(this));

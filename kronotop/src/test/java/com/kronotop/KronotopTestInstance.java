@@ -18,7 +18,7 @@ package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.cluster.coordinator.Route;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.RedisService;
@@ -152,11 +152,11 @@ public class KronotopTestInstance extends KronotopInstance {
      * Once all the shards have been checked and no issues are found, it notifies the clusterOperable object.
      */
     private class CheckClusterStatus implements Runnable {
-        private final MembershipService membershipService;
+        private final BasicMembershipService membershipService;
         private final RedisService redisService;
 
         public CheckClusterStatus() {
-            this.membershipService = context.getService(MembershipService.NAME);
+            this.membershipService = context.getService(BasicMembershipService.NAME);
             this.redisService = context.getService(RedisService.NAME);
         }
 

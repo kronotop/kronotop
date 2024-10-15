@@ -19,14 +19,14 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 
 class BaseSubCommand {
-    protected final MembershipService service;
+    protected final BasicMembershipService service;
 
-    BaseSubCommand(MembershipService service) {
+    BaseSubCommand(BasicMembershipService service) {
         this.service = service;
     }
 

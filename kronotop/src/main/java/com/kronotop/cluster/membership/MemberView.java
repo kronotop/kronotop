@@ -21,7 +21,7 @@ public class MemberView {
     private long expectedHeartbeat;
     private boolean alive;
 
-    MemberView(long lastHeartbeat) {
+    public MemberView(long lastHeartbeat) {
         this.lastHeartbeat = lastHeartbeat;
         this.expectedHeartbeat = lastHeartbeat + 1;
         this.alive = true;

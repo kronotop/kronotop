@@ -19,7 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
@@ -31,7 +31,7 @@ import java.util.concurrent.CompletionException;
 
 class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHandler {
 
-    InitializeClusterSubcommand(MembershipService service) {
+    InitializeClusterSubcommand(BasicMembershipService service) {
         super(service);
     }
 

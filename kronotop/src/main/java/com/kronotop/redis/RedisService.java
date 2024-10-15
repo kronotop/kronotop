@@ -28,7 +28,7 @@ import com.kronotop.cluster.Member;
 import com.kronotop.cluster.coordinator.Coordinator;
 import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.cluster.coordinator.Route;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.handlers.InfoHandler;
@@ -73,7 +73,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final ServiceContext<RedisShard> serviceContext;
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
-    private final MembershipService membership;
+    private final BasicMembershipService membership;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Thread.ofVirtual().name("kr.redis-service", 0L).factory()
@@ -85,7 +85,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         super(context);
         this.watcher = context.getService(Watcher.NAME);
         this.numberOfShards = context.getConfig().getInt("redis.shards");
-        this.membership = context.getService(MembershipService.NAME);
+        this.membership = context.getService(BasicMembershipService.NAME);
         this.hashSlots = distributeHashSlots();
         this.serviceContext = context.getServiceContext(NAME);
 
@@ -347,7 +347,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
     }
 
-    public MembershipService getClusterService() {
+    public BasicMembershipService getClusterService() {
         return membership;
     }
 
