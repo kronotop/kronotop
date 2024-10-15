@@ -16,32 +16,12 @@
 
 package com.kronotop.cluster.handlers;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.membership.impl.BasicMembershipService;
-import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.directory.KronotopDirectoryNode;
 
 class BaseSubCommand {
     protected final BasicMembershipService service;
 
     BaseSubCommand(BasicMembershipService service) {
         this.service = service;
-    }
-
-    protected DirectorySubspace createOrOpenClusterMetadataSubspace() {
-        KronotopDirectoryNode directory = KronotopDirectory.
-                kronotop().
-                cluster(service.getContext().getClusterName()).
-                metadata();
-        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = DirectoryLayer.
-                    getDefault().
-                    createOrOpen(tr, directory.toList()).
-                    join();
-            tr.commit().join();
-            return subspace;
-        }
     }
 }

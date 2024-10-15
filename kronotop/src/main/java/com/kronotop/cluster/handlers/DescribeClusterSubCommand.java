@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.cluster.membership.MembershipUtils;
 import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
@@ -48,7 +49,7 @@ class DescribeClusterSubCommand extends BaseSubCommand implements SubcommandHand
 
     @Override
     public void execute(Request request, Response response) {
-        DirectorySubspace subspace = createOrOpenClusterMetadataSubspace();
+        DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(service.getContext());
 
         Map<RedisMessage, RedisMessage> result =  new LinkedHashMap<>();
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
