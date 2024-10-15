@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.membership;
+package com.kronotop.cluster.membership.impl;
 
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.BaseClusterTest;
 import com.kronotop.cluster.coordinator.Route;
 import com.kronotop.cluster.coordinator.RoutingTable;
-import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -47,7 +46,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * to set up and tear down the Kronotop instances for testing.
  * </p>
  */
-public class MembershipServiceIntegrationTest extends BaseClusterTest {
+public class BasicMembershipServiceIntegrationTest extends BaseClusterTest {
 
     @Test
     public void test_singleKronotopInstance_getKnownCoordinator() {

@@ -19,6 +19,8 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.cluster.membership.MembershipConstants;
 import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
@@ -49,11 +51,17 @@ class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHa
         }
     }
 
+    private void setClusterInitializedTrue(Transaction tr, DirectorySubspace subspace) {
+        byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+        tr.set(key, MembershipConstants.TRUE);
+    }
+
     @Override
     public void execute(Request request, Response response) {
         DirectorySubspace subspace = createOrOpenClusterMetadataSubspace();
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             initializeRedisSection(tr, subspace);
+            setClusterInitializedTrue(tr, subspace);
             tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {

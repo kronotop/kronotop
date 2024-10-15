@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.membership;
+package com.kronotop.cluster.membership.impl;
 
 import com.kronotop.cluster.BaseClusterTest;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedList;
@@ -27,7 +26,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class MembershipServiceTest extends BaseClusterTest {
+public class BasicMembershipServiceTest extends BaseClusterTest {
 
     @Test
     public void test_getLatestHeartbeats() {
