@@ -37,7 +37,13 @@ public abstract class RESPServer implements KronotopService {
     private final Class<? extends ServerSocketChannel> channel;
     private ChannelFuture channelFuture;
 
-    public RESPServer(Context context, CommandHandlerRegistry commands, Class<? extends ServerSocketChannel> channel, EventLoopGroup parentGroup, EventLoopGroup childGroup) {
+    public RESPServer(
+            Context context,
+            CommandHandlerRegistry commands,
+            Class<? extends ServerSocketChannel> channel,
+            EventLoopGroup parentGroup,
+            EventLoopGroup childGroup
+    ) {
         this.commands = commands;
         this.context = context;
         this.parentGroup = parentGroup;
