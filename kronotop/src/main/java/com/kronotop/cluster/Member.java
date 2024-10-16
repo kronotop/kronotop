@@ -16,7 +16,9 @@
 
 package com.kronotop.cluster;
 
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.kronotop.VersionstampUtils;
@@ -36,6 +38,9 @@ public class Member {
     @JsonSerialize(using = ProcessIdSerializer.class)
     @JsonDeserialize(using = ProcessIdDeserializer.class)
     private Versionstamp processId;
+
+    @JsonIgnore
+    private volatile DirectorySubspace subspace;
 
     Member() {
     }
@@ -78,6 +83,16 @@ public class Member {
 
     public MemberStatus getStatus() {
         return status;
+    }
+
+    public void setSubspace(DirectorySubspace subspace) {
+        if (subspace != null) {
+            this.subspace = subspace;
+        }
+    }
+
+    public DirectorySubspace getSubspace() {
+        return subspace;
     }
 
     @Override
