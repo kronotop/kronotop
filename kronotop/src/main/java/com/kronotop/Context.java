@@ -104,15 +104,6 @@ public interface Context {
     List<KronotopService> getServices();
 
     /**
-     * Retrieves a Striped object that provides striped read-write locks.
-     * The returned Striped object can be used to obtain a specific stripe
-     * for locking purposes.
-     *
-     * @return a Striped object that provides striped read-write locks
-     */
-    Striped<ReadWriteLock> getStripedReadWriteLock();
-
-    /**
      * Retrieves the Journal object associated with the Context.
      *
      * @return The Journal object.

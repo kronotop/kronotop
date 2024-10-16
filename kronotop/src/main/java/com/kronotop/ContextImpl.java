@@ -116,10 +116,6 @@ public class ContextImpl implements Context {
         return new ArrayList<>(services.values());
     }
 
-    public Striped<ReadWriteLock> getStripedReadWriteLock() {
-        return stripedReadWriteLock;
-    }
-
     @Override
     public Journal getJournal() {
         return journal;

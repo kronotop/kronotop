@@ -79,6 +79,7 @@ public class KronotopInstanceWithRESP extends KronotopInstance {
         RESPServerContainer container = new RESPServerContainer();
         container.register(member.getInternalAddress(), initializeRESPServer(ServerKind.INTERNAL));
         container.register(member.getExternalAddress(), initializeRESPServer(ServerKind.EXTERNAL));
+
         context.registerService(container.getName(), container);
         container.start();
     }
