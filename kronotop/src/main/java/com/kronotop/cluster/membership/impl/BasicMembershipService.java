@@ -66,6 +66,7 @@ public class BasicMembershipService extends CommandHandlerService implements Mem
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
     private volatile boolean isShutdown;
+    private volatile boolean clusterInitialized;
 
     public BasicMembershipService(Context context) {
         super(context);
@@ -269,7 +270,11 @@ public class BasicMembershipService extends CommandHandlerService implements Mem
         }
     }
 
-    private boolean isClusterInitialized() {
+    public boolean isClusterInitialized() {
+        return clusterInitialized;
+    }
+
+    private boolean isClusterInitialized_internal() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
             byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));

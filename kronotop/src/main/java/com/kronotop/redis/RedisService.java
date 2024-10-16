@@ -28,6 +28,7 @@ import com.kronotop.cluster.Member;
 import com.kronotop.cluster.coordinator.Coordinator;
 import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.cluster.coordinator.Route;
+import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.cluster.membership.impl.BasicMembershipService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
@@ -73,7 +74,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final ServiceContext<RedisShard> serviceContext;
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
-    private final BasicMembershipService membership;
+    private final MembershipService membership;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Thread.ofVirtual().name("kr.redis-service", 0L).factory()
@@ -347,10 +348,6 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
     }
 
-    public BasicMembershipService getClusterService() {
-        return membership;
-    }
-
     /**
      * Find the shard associated with the given slot.
      *
@@ -360,7 +357,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      */
     private RedisShard findShard_internal(int slot) {
         int shardId = getHashSlots().get(slot);
-        Route route = getClusterService().getRoutingTable().getRoute(shardId);
+        Route route = membership.getRoutingTable().getRoute(shardId);
         if (route == null) {
             throw new KronotopException(RESPError.ERR, String.format("slot %d isn't owned by any member yet", slot));
         }
@@ -381,6 +378,9 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @throws KronotopException if the key's slot is not owned by any member yet or not owned by the current member
      */
     public RedisShard findShard(String key) {
+        if (!membership.isClusterInitialized()) {
+            throw new KronotopException("cluster has not been initialized yet");
+        }
         int slot = SlotHash.getSlot(key);
         return findShard_internal(slot);
     }
@@ -433,7 +433,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             int shardId = getHashSlots().get(hashSlot);
             if (currentShardId != null && shardId != currentShardId) {
                 currentRange.setEnd(hashSlot - 1);
-                Member owner = getClusterService().getRoutingTable().getRoute(currentShardId).getMember();
+                Member owner = membership.getRoutingTable().getRoute(currentShardId).getMember();
                 currentRange.setOwner(owner);
                 currentRange.setShardId(currentShardId);
                 ranges.add(currentRange);
@@ -444,7 +444,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
 
         currentRange.setEnd(latestHashSlot);
-        Member owner = getClusterService().getRoutingTable().getRoute(currentShardId).getMember();
+        Member owner = membership.getRoutingTable().getRoute(currentShardId).getMember();
         currentRange.setOwner(owner);
         ranges.add(currentRange);
 

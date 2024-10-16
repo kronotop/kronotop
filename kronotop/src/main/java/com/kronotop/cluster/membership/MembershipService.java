@@ -17,6 +17,10 @@
 package com.kronotop.cluster.membership;
 
 import com.kronotop.KronotopService;
+import com.kronotop.cluster.coordinator.RoutingTable;
 
 public interface MembershipService extends KronotopService {
+    boolean isClusterInitialized();
+
+    RoutingTable getRoutingTable();
 }
