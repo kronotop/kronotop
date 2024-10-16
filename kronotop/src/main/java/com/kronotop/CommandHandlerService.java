@@ -61,7 +61,6 @@ public class CommandHandlerService {
                 registry.handlerMethod(command.value().toUpperCase(), handler);
                 loadDefinition(command.value().toUpperCase());
             }
-
         }
     }
 

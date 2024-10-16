@@ -23,7 +23,8 @@ import java.util.Set;
 
 /**
  * The Handlers class represents a collection of registered command handlers.
- * It allows registering handlers for specific commands, retrieving the registered handler for a command, and retrieving the set of registered commands.
+ * It allows registering handlers for specific commands, retrieving the registered handler for a command,
+ * and retrieving the set of registered commands.
  */
 public class CommandHandlerRegistry {
     private final HashMap<String, Handler> handlers;
