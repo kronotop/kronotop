@@ -117,6 +117,12 @@ public class SimpleMembershipService extends CommandHandlerService implements Me
         if (coordinator != null) {
             LOGGER.info("Cluster coordinator found: {}", coordinator.getExternalAddress());
         }
+
+        if (isClusterInitialized_internal()) {
+            clusterInitialized = true;
+        } else {
+            scheduler.execute(new ClusterInitializationWatcher());
+        }
     }
 
     public boolean isClusterInitialized() {
@@ -314,20 +320,6 @@ public class SimpleMembershipService extends CommandHandlerService implements Me
             LOGGER.warn("But this can be risky, you have been warned.");
             throw e;
         }
-    }
-
-    private boolean isClusterInitialized_internal() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
-            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
-            byte[] data = tr.get(key).join();
-            if (data != null) {
-                if (MembershipUtils.isTrue(data)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private Member getMember(String id) {
@@ -648,6 +640,55 @@ public class SimpleMembershipService extends CommandHandlerService implements Me
             } finally {
                 if (!isShutdown) {
                     scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);
+                }
+            }
+        }
+    }
+
+    private boolean isClusterInitialized_internal() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
+            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+            byte[] data = tr.get(key).join();
+            if (data != null) {
+                if (MembershipUtils.isTrue(data)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private class ClusterInitializationWatcher implements Runnable {
+
+        @Override
+        public void run() {
+            if (isShutdown) {
+                return;
+            }
+
+            // TODO: Add unwatch logic to shutdown
+
+            DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
+            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
+                tr.commit().join();
+                try {
+                    clusterInitialized = isClusterInitialized_internal();
+                    watcher.join();
+                } catch (CancellationException e) {
+                    LOGGER.info("Cluster initialization watcher has been cancelled");
+                    return;
+                }
+                clusterInitialized = isClusterInitialized_internal();
+            } catch (Exception e) {
+                LOGGER.error("Error while waiting for cluster initialization: {}", JournalName.clusterEvents(), e);
+            } finally {
+                if (!isShutdown && !clusterInitialized) {
+                    // Try again
+                    scheduler.execute(this);
                 }
             }
         }
