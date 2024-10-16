@@ -14,22 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.directory;
+package com.kronotop.cluster;
 
-import java.util.List;
-
-public class Metadata extends KronotopDirectoryNode {
-
-    Metadata(List<String> layout) {
-        super(layout);
-        layout.add("metadata");
-    }
-
-    public Shards shards() {
-        return new Shards(layout);
-    }
-
-    public Members members() {
-        return new Members(layout);
-    }
+public enum MemberStatus {
+    RUNNING,
+    SUSPECTED_UNAVAILABLE,
+    UNAVAILABLE,
+    STOPPED,
+    UNKNOWN
 }

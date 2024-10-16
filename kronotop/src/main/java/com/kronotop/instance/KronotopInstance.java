@@ -20,6 +20,7 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.cluster.membership.impl.SimpleMembershipService;
 import com.kronotop.common.KronotopException;
@@ -140,7 +141,9 @@ public class KronotopInstance {
         Address internalAddress = getAddress("internal");
         ProcessIdGenerator processIDGenerator = new ProcessIdGeneratorImpl(config, database);
         Versionstamp processID = processIDGenerator.getProcessID();
-        this.member = new Member(id, externalAddress, internalAddress, processID);
+        Member member = new Member(id, externalAddress, internalAddress, processID);
+        member.setStatus(MemberStatus.RUNNING);
+        this.member = member;
     }
 
     /**

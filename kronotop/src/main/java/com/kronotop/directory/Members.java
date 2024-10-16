@@ -16,20 +16,31 @@
 
 package com.kronotop.directory;
 
+import com.kronotop.common.KronotopException;
+
 import java.util.List;
+import java.util.UUID;
 
-public class Metadata extends KronotopDirectoryNode {
+public class Members extends KronotopDirectoryNode {
 
-    Metadata(List<String> layout) {
+    public Members(List<String> layout) {
         super(layout);
-        layout.add("metadata");
+        layout.add("members");
     }
 
-    public Shards shards() {
-        return new Shards(layout);
+    public Member member(String memberId) {
+        try {
+            UUID.fromString(memberId);
+        } catch (IllegalArgumentException e) {
+            throw new KronotopException("Invalid member ID: " + memberId, e);
+        }
+        return new Member(layout, memberId);
     }
 
-    public Members members() {
-        return new Members(layout);
+    public static class Member extends KronotopDirectoryNode {
+        public Member(List<String> layout, String memberId) {
+            super(layout);
+            layout.add(memberId);
+        }
     }
 }

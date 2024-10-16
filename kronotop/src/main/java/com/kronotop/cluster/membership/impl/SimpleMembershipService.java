@@ -33,6 +33,8 @@ import com.kronotop.cluster.coordinator.RoutingTable;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.cluster.membership.*;
 import com.kronotop.common.KronotopException;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
 import com.kronotop.network.Address;
@@ -204,23 +206,29 @@ public class SimpleMembershipService extends CommandHandlerService implements Me
      * @throws KronotopException                if an unexpected exception occurs during the registration process
      */
     private void registerMember_internal(Member member) {
-        List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(member.getId())).asList();
+        // [kronotop, development, metadata, members, <UUID>]
+        KronotopDirectoryNode directory = KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                members().
+                member(member.getId());
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace subspace = DirectoryLayer.getDefault().create(tr, directory.toList()).join();
 
-            DirectorySubspace memberSubspace = DirectoryLayer.getDefault().create(tr, subpath).join();
-
-            byte[] processIDKey = memberSubspace.pack(Keys.PROCESS_ID.toString());
+            byte[] processIDKey = subspace.pack(Keys.PROCESS_ID.toString());
             tr.set(processIDKey, context.getMember().getProcessId().getBytes());
 
-            byte[] externalAddressKey = memberSubspace.pack(Keys.EXTERNAL_ADDRESS.toString());
+            byte[] externalAddressKey = subspace.pack(Keys.EXTERNAL_ADDRESS.toString());
             tr.set(externalAddressKey, member.getExternalAddress().toString().getBytes());
 
-            byte[] internalAddressKey = memberSubspace.pack(Keys.INTERNAL_ADDRESS.toString());
+            byte[] internalAddressKey = subspace.pack(Keys.INTERNAL_ADDRESS.toString());
             tr.set(internalAddressKey, member.getInternalAddress().toString().getBytes());
 
             tr.commit().join();
 
-            memberSubspaces.put(context.getMember(), memberSubspace);
+            memberSubspaces.put(context.getMember(), subspace);
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
                 throw new MemberAlreadyRegisteredException(String.format("Member: %s already registered or not gracefully stopped", member.getId()));
@@ -516,7 +524,7 @@ public class SimpleMembershipService extends CommandHandlerService implements Me
     }
 
     public enum Keys {
-        EXTERNAL_ADDRESS, INTERNAL_ADDRESS, PROCESS_ID, LAST_HEARTBEAT,
+        EXTERNAL_ADDRESS, INTERNAL_ADDRESS, PROCESS_ID, LAST_HEARTBEAT, STATUS
     }
 
     /**

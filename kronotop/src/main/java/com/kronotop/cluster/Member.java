@@ -29,6 +29,7 @@ import static com.google.common.hash.Hashing.sipHash24;
 
 public class Member {
     private String id;
+    private MemberStatus status = MemberStatus.UNKNOWN;
     private Address externalAddress;
     private Address internalAddress;
     private int hashCode;
@@ -71,6 +72,14 @@ public class Member {
         return processId;
     }
 
+    public void setStatus(MemberStatus status) {
+        this.status = status;
+    }
+
+    public MemberStatus getStatus() {
+        return status;
+    }
+
     @Override
     public int hashCode() {
         return hashCode;
@@ -90,11 +99,12 @@ public class Member {
     @Override
     public String toString() {
         return String.format(
-                "Member {id=%s externalAddress=%s internalAddress=%s processId=%s}",
+                "Member {id=%s externalAddress=%s internalAddress=%s processId=%s status=%s}",
                 id,
                 externalAddress,
                 internalAddress,
-                VersionstampUtils.base64Encode(processId)
+                VersionstampUtils.base64Encode(processId),
+                status
         );
     }
 }
