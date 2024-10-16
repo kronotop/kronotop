@@ -53,9 +53,9 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Membership service implements all business logic around cluster membership and health checks.
  */
-public class SimpleMembershipService extends CommandHandlerService implements MembershipService {
-    public static final String NAME = "Simple Membership";
-    private static final Logger LOGGER = LoggerFactory.getLogger(SimpleMembershipService.class);
+public class MembershipServiceImpl extends CommandHandlerService implements MembershipService {
+    public static final String NAME = "Membership";
+    private static final Logger LOGGER = LoggerFactory.getLogger(MembershipServiceImpl.class);
     private final Context context;
     private final ScheduledThreadPoolExecutor scheduler;
     private final KeyWatcher keyWatcher = new KeyWatcher();
@@ -70,7 +70,7 @@ public class SimpleMembershipService extends CommandHandlerService implements Me
     private volatile boolean isShutdown;
     private volatile boolean clusterInitialized;
 
-    public SimpleMembershipService(Context context) {
+    public MembershipServiceImpl(Context context) {
         super(context);
 
         this.context = context;

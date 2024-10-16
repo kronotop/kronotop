@@ -22,7 +22,7 @@ import com.kronotop.*;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.coordinator.CoordinatorService;
-import com.kronotop.cluster.membership.impl.SimpleMembershipService;
+import com.kronotop.cluster.membership.impl.MembershipServiceImpl;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.network.Address;
@@ -113,8 +113,8 @@ public class KronotopInstance {
         CoordinatorService coordinatorService = new CoordinatorService(context);
         context.registerService(CoordinatorService.NAME, coordinatorService);
 
-        SimpleMembershipService membershipService = new SimpleMembershipService(context);
-        context.registerService(SimpleMembershipService.NAME, membershipService);
+        MembershipServiceImpl membershipService = new MembershipServiceImpl(context);
+        context.registerService(MembershipServiceImpl.NAME, membershipService);
 
         RedisService redisService = new RedisService(context);
         context.registerService(RedisService.NAME, redisService);

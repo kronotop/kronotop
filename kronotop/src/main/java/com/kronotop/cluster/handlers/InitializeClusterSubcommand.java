@@ -22,7 +22,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.cluster.membership.MembershipConstants;
 import com.kronotop.cluster.membership.MembershipUtils;
-import com.kronotop.cluster.membership.impl.SimpleMembershipService;
+import com.kronotop.cluster.membership.impl.MembershipServiceImpl;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
@@ -34,7 +34,7 @@ import java.util.concurrent.CompletionException;
 
 class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHandler {
 
-    InitializeClusterSubcommand(SimpleMembershipService service) {
+    InitializeClusterSubcommand(MembershipServiceImpl service) {
         super(service);
     }
 
