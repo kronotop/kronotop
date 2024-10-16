@@ -91,7 +91,7 @@ public class Members {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             if (isRegistered(tr, member.getId())) {
                 throw new MemberAlreadyRegisteredException(
-                        String.format("Member: %s already registered or not gracefully stopped", member.getId())
+                        String.format("Member: %s already registered", member.getId())
                 );
             }
 
@@ -150,6 +150,33 @@ public class Members {
             tr.commit().join();
 
             return member;
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NoSuchDirectoryException) {
+                throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Retrieves the Member object associated with the specified member ID.
+     *
+     * @param memberId the unique identifier of the member to be retrieved
+     * @return the Member object associated with the specified member ID
+     * @throws KronotopException if the member is not registered properly
+     */
+    public Member getMember(String memberId) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            KronotopDirectoryNode directory = getDirectoryNode(memberId);
+
+            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+            byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
+            byte[] data = tr.get(key).join();
+            if (data == null) {
+                throw new KronotopException(String.format("Member: %s not registered properly", memberId));
+            }
+
+            return JSONUtils.readValue(data, Member.class);
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
                 throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));

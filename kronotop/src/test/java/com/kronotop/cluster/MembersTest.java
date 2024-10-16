@@ -81,4 +81,19 @@ public class MembersTest extends BaseMetadataStoreTest {
         Member updatedMember = members.setStatus(member.getId(), MemberStatus.RUNNING);
         assertEquals(MemberStatus.RUNNING, updatedMember.getStatus());
     }
+
+    @Test
+    public void test_getMember() throws UnknownHostException {
+        Members members = new Members(context);
+        Member member = createMemberWithEphemeralPort();
+        assertDoesNotThrow(() -> members.register(member));
+
+        assertEquals(member, members.getMember(member.getId()));
+    }
+
+    @Test
+    public void test_getMember_MemberNotRegisteredException() {
+        Members members = new Members(context);
+        assertThrows(MemberNotRegisteredException.class, () -> members.getMember(UUID.randomUUID().toString()));
+    }
 }

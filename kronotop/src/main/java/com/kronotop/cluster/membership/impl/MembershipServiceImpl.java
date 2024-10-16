@@ -57,6 +57,7 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
     public static final String NAME = "Membership";
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipServiceImpl.class);
     private final Context context;
+    private final Members members;
     private final ScheduledThreadPoolExecutor scheduler;
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
@@ -74,6 +75,7 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
         super(context);
 
         this.context = context;
+        this.members = new Members(context);
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
         this.coordinatorService = context.getService(CoordinatorService.NAME);
@@ -94,8 +96,6 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
     }
 
     public void start() {
-        registerMember();
-
         TreeSet<Member> members = getSortedMembers();
         for (Member member : members) {
             openMemberSubspace(member);
@@ -167,81 +167,8 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-
-        if (memberSubspaces.containsKey(context.getMember())) {
-            unregisterMember(context.getMember());
-        }
     }
 
-    private void removeMemberOnFDB(Member member) {
-        List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(member.getId())).asList();
-        try {
-            context.getFoundationDB().run(tr -> DirectoryLayer.getDefault().remove(tr, subpath).join());
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NoSuchDirectoryException) {
-                LOGGER.error("No such member exists {}", member.getId());
-                return;
-            }
-            throw new KronotopException(e);
-        }
-    }
-
-    /**
-     * Unregisters a member from the cluster.
-     *
-     * @param member the member to unregister
-     */
-    private void unregisterMember(Member member) {
-        removeMemberOnFDB(member);
-        context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberLeftEvent(member));
-        LOGGER.info("Member: {} has been unregistered", member.getId());
-    }
-
-    /**
-     * Registers a member in the cluster by creating its directory subspace and storing its process ID.
-     * Retries the registration if a retryable FDBException is encountered.
-     *
-     * @param member the member to be registered
-     * @throws MemberAlreadyRegisteredException if the member is already registered or not gracefully stopped
-     * @throws KronotopException                if an unexpected exception occurs during the registration process
-     */
-    private void registerMember_internal(Member member) {
-        // [kronotop, development, metadata, members, <UUID>]
-        KronotopDirectoryNode directory = KronotopDirectory.
-                kronotop().
-                cluster(context.getClusterName()).
-                metadata().
-                members().
-                member(member.getId());
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = DirectoryLayer.getDefault().create(tr, directory.toList()).join();
-
-            byte[] processIDKey = subspace.pack(Keys.PROCESS_ID.toString());
-            tr.set(processIDKey, context.getMember().getProcessId().getBytes());
-
-            byte[] externalAddressKey = subspace.pack(Keys.EXTERNAL_ADDRESS.toString());
-            tr.set(externalAddressKey, member.getExternalAddress().toString().getBytes());
-
-            byte[] internalAddressKey = subspace.pack(Keys.INTERNAL_ADDRESS.toString());
-            tr.set(internalAddressKey, member.getInternalAddress().toString().getBytes());
-
-            tr.commit().join();
-
-            memberSubspaces.put(context.getMember(), subspace);
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                throw new MemberAlreadyRegisteredException(String.format("Member: %s already registered or not gracefully stopped", member.getId()));
-            }
-            if (e.getCause() instanceof FDBException exception) {
-                if (exception.isRetryable()) {
-                    registerMember_internal(member);
-                    return;
-                }
-            }
-            throw new KronotopException(e);
-        }
-    }
 
     /**
      * Retrieves the last heartbeat timestamp for a given member.
@@ -311,23 +238,6 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
 
     public RoutingTable getRoutingTable() {
         return routingTable.get();
-    }
-
-    private void registerMember() {
-        try {
-            if (context.getConfig().hasPath("cluster.force_register")) {
-                if (context.getConfig().getBoolean("cluster.force_register")) {
-                    removeMemberOnFDB(context.getMember());
-                }
-            }
-            registerMember_internal(context.getMember());
-        } catch (MemberAlreadyRegisteredException e) {
-            LOGGER.warn("Kronotop failed at initialization because Member: {} is already registered by a different cluster member.", context.getMember().getId());
-            LOGGER.warn("If Member: {} is a dead member, the cluster coordinator will eventually remove it from the cluster after a grace period.", context.getMember().getId());
-            LOGGER.warn("If you want to remove Member: {} from the cluster yourself, set JVM property -Dcluster.force_register=true and start the process again.", context.getMember().getId());
-            LOGGER.warn("But this can be risky, you have been warned.");
-            throw e;
-        }
     }
 
     private Member getMember(String id) {
@@ -485,8 +395,6 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
      * @param dead    The dead member to be pruned
      */
     private void pruneDeadMembers(TreeSet<Member> members, Member dead) {
-        unregisterMember(dead);
-
         Member closest = members.higher(dead);
         if (closest == null) {
             return;
@@ -638,7 +546,7 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
                     for (Member member : knownMembers.keySet()) {
                         MemberView memberView = knownMembers.get(member);
                         if (!memberView.getAlive()) {
-                            unregisterMember(member);
+                            //unregisterMember(member);
                         }
                     }
                 }
