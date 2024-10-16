@@ -36,8 +36,19 @@ import java.util.concurrent.locks.ReadWriteLock;
  */
 public interface Context {
 
+    /**
+     * Retrieves the command handler registry for the specified server kind.
+     *
+     * @param kind the kind of server for which to retrieve the command handler registry.
+     * @return the command handler registry associated with the specified server kind.
+     */
     CommandHandlerRegistry getHandlers(ServerKind kind);
 
+    /**
+     * Retrieves the directory path where data is stored.
+     *
+     * @return the directory path as a Path object.
+     */
     Path getDataDir();
 
     /**
