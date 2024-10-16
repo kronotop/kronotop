@@ -40,7 +40,6 @@ public class ContextImpl implements Context {
     private final Config config;
     private final Member member;
     private final Database database;
-    private final Namespace defaultNamespace;
     private final EnumMap<ServerKind, CommandHandlerRegistry> handlers = new EnumMap<>(ServerKind.class);
     private final LinkedHashMap<String, KronotopService> services = new LinkedHashMap<>();
     private final String clusterName;
@@ -65,7 +64,6 @@ public class ContextImpl implements Context {
         this.journal = new Journal(config, database);
         this.directoryLayer = new KronotopDirectoryLayer(database, clusterName);
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
-        this.defaultNamespace = NamespaceUtils.createOrOpen(database, clusterName, config.getString("default_namespace"));
 
         for (ServerKind kind : ServerKind.values()) {
             this.handlers.put(kind, new CommandHandlerRegistry());
@@ -75,11 +73,6 @@ public class ContextImpl implements Context {
     @Override
     public CommandHandlerRegistry getHandlers(ServerKind serverKind) {
         return handlers.get(serverKind);
-    }
-
-    @Override
-    public Namespace getDefaultNamespace() {
-        return defaultNamespace;
     }
 
     @Override

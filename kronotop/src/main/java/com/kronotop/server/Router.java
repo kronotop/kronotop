@@ -57,6 +57,7 @@ public class Router extends ChannelDuplexHandler {
     private static final String WATCH_COMMAND = "WATCH";
     private static final Logger LOGGER = LoggerFactory.getLogger(Router.class);
 
+    private final Context context;
     private final ReadWriteLock redisTransactionLock = new ReentrantReadWriteLock(true);
     private final Watcher watcher;
     private final RedisService redisService;
@@ -66,6 +67,7 @@ public class Router extends ChannelDuplexHandler {
     private boolean authEnabled = false;
 
     public Router(Context context, CommandHandlerRegistry commands) {
+        this.context = context;
         this.commands = commands;
         this.watcher = context.getService(Watcher.NAME);
         this.redisService = context.getService(RedisService.NAME);
