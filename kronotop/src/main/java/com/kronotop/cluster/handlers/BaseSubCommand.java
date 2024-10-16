@@ -16,12 +16,12 @@
 
 package com.kronotop.cluster.handlers;
 
-import com.kronotop.cluster.membership.impl.BasicMembershipService;
+import com.kronotop.cluster.membership.impl.SimpleMembershipService;
 
 class BaseSubCommand {
-    protected final BasicMembershipService service;
+    protected final SimpleMembershipService service;
 
-    BaseSubCommand(BasicMembershipService service) {
+    BaseSubCommand(SimpleMembershipService service) {
         this.service = service;
     }
 }

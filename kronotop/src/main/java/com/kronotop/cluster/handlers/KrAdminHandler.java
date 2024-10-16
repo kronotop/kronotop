@@ -17,7 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
-import com.kronotop.cluster.membership.impl.BasicMembershipService;
+import com.kronotop.cluster.membership.impl.SimpleMembershipService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -30,7 +30,7 @@ import java.util.EnumMap;
 public class KrAdminHandler extends BaseHandler implements Handler {
     private final EnumMap<KrAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(KrAdminSubcommand.class);
 
-    public KrAdminHandler(BasicMembershipService service) {
+    public KrAdminHandler(SimpleMembershipService service) {
         super(service);
 
         handlers.put(KrAdminSubcommand.LIST_MEMBERS, new ListMembersSubcommand(service));

@@ -18,7 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.membership.impl.BasicMembershipService;
+import com.kronotop.cluster.membership.impl.SimpleMembershipService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -32,9 +32,9 @@ import java.util.Map;
 import java.util.TreeSet;
 
 class ListMembersSubcommand implements SubcommandHandler {
-    private final BasicMembershipService service;
+    private final SimpleMembershipService service;
 
-    ListMembersSubcommand(BasicMembershipService service) {
+    ListMembersSubcommand(SimpleMembershipService service) {
         this.service = service;
     }
 

@@ -51,9 +51,9 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Membership service implements all business logic around cluster membership and health checks.
  */
-public class BasicMembershipService extends CommandHandlerService implements MembershipService {
-    public static final String NAME = "Basic Membership";
-    private static final Logger LOGGER = LoggerFactory.getLogger(BasicMembershipService.class);
+public class SimpleMembershipService extends CommandHandlerService implements MembershipService {
+    public static final String NAME = "Simple Membership";
+    private static final Logger LOGGER = LoggerFactory.getLogger(SimpleMembershipService.class);
     private final Context context;
     private final ScheduledThreadPoolExecutor scheduler;
     private final KeyWatcher keyWatcher = new KeyWatcher();
@@ -68,7 +68,7 @@ public class BasicMembershipService extends CommandHandlerService implements Mem
     private volatile boolean isShutdown;
     private volatile boolean clusterInitialized;
 
-    public BasicMembershipService(Context context) {
+    public SimpleMembershipService(Context context) {
         super(context);
 
         this.context = context;
@@ -89,6 +89,80 @@ public class BasicMembershipService extends CommandHandlerService implements Mem
         this.scheduler = new ScheduledThreadPoolExecutor(2, factory);
 
         handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));
+    }
+
+    public void start() {
+        registerMember();
+
+        TreeSet<Member> members = getSortedMembers();
+        for (Member member : members) {
+            openMemberSubspace(member);
+            long lastHeartbeat = getLatestHeartbeat(member);
+            knownMembers.putIfAbsent(member, new MemberView(lastHeartbeat));
+        }
+
+        Member member = context.getMember();
+        context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberJoinEvent(member));
+        LOGGER.info("Member: {} has been registered", context.getMember().getId());
+
+        byte[] key = context.getFoundationDB().run(tr -> context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.clusterEvents()));
+        this.latestClusterEventKey.set(key);
+
+        scheduler.execute(new ClusterEventsJournalWatcher());
+        scheduler.execute(new HeartbeatTask());
+        scheduler.execute(new FailureDetectionTask());
+
+        findClusterCoordinator();
+        Member coordinator = knownCoordinator.get();
+        if (coordinator != null) {
+            LOGGER.info("Cluster coordinator found: {}", coordinator.getExternalAddress());
+        }
+    }
+
+    public boolean isClusterInitialized() {
+        return clusterInitialized;
+    }
+
+    /**
+     * Returns the service name
+     *
+     * @return service name
+     */
+    @Override
+    public String getName() {
+        return NAME;
+    }
+
+    /**
+     * Returns the global context
+     *
+     * @return global context
+     */
+    @Override
+    public Context getContext() {
+        return context;
+    }
+
+    /**
+     * Shuts down the cluster service. It stops the background services and
+     * frees allocated resources before quit.
+     */
+    @Override
+    public void shutdown() {
+        isShutdown = true;
+        keyWatcher.unwatch(context.getJournal().getJournalMetadata(JournalName.clusterEvents()).getTrigger());
+        scheduler.shutdownNow();
+        try {
+            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
+                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        if (memberSubspaces.containsKey(context.getMember())) {
+            unregisterMember(context.getMember());
+        }
     }
 
     private void removeMemberOnFDB(Member member) {
@@ -242,38 +316,6 @@ public class BasicMembershipService extends CommandHandlerService implements Mem
         }
     }
 
-    public void start() {
-        registerMember();
-
-        TreeSet<Member> members = getSortedMembers();
-        for (Member member : members) {
-            openMemberSubspace(member);
-            long lastHeartbeat = getLatestHeartbeat(member);
-            knownMembers.putIfAbsent(member, new MemberView(lastHeartbeat));
-        }
-
-        Member member = context.getMember();
-        context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberJoinEvent(member));
-        LOGGER.info("Member: {} has been registered", context.getMember().getId());
-
-        byte[] key = context.getFoundationDB().run(tr -> context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.clusterEvents()));
-        this.latestClusterEventKey.set(key);
-
-        scheduler.execute(new ClusterEventsJournalWatcher());
-        scheduler.execute(new HeartbeatTask());
-        scheduler.execute(new FailureDetectionTask());
-
-        findClusterCoordinator();
-        Member coordinator = knownCoordinator.get();
-        if (coordinator != null) {
-            LOGGER.info("Cluster coordinator found: {}", coordinator.getExternalAddress());
-        }
-    }
-
-    public boolean isClusterInitialized() {
-        return clusterInitialized;
-    }
-
     private boolean isClusterInitialized_internal() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
@@ -349,48 +391,6 @@ public class BasicMembershipService extends CommandHandlerService implements Mem
                 return List.of();
             }
             throw new KronotopException(e);
-        }
-    }
-
-    /**
-     * Returns the service name
-     *
-     * @return service name
-     */
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    /**
-     * Returns the global context
-     *
-     * @return global context
-     */
-    @Override
-    public Context getContext() {
-        return context;
-    }
-
-    /**
-     * Shuts down the cluster service. It stops the background services and
-     * frees allocated resources before quit.
-     */
-    @Override
-    public void shutdown() {
-        isShutdown = true;
-        keyWatcher.unwatch(context.getJournal().getJournalMetadata(JournalName.clusterEvents()).getTrigger());
-        scheduler.shutdownNow();
-        try {
-            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
-                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-        if (memberSubspaces.containsKey(context.getMember())) {
-            unregisterMember(context.getMember());
         }
     }
 

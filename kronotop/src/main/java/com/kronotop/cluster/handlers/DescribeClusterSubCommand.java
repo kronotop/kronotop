@@ -19,7 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.membership.MembershipUtils;
-import com.kronotop.cluster.membership.impl.BasicMembershipService;
+import com.kronotop.cluster.membership.impl.SimpleMembershipService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -33,7 +33,7 @@ import java.util.Map;
 
 class DescribeClusterSubCommand extends BaseSubCommand implements SubcommandHandler {
 
-    DescribeClusterSubCommand(BasicMembershipService service) {
+    DescribeClusterSubCommand(SimpleMembershipService service) {
         super(service);
     }
     private int getNumberOfShards(ShardKind kind) {

@@ -38,7 +38,7 @@ public class BasicMembershipServiceTest extends BaseClusterTest {
             members.add(member);
         });
 
-        BasicMembershipService membershipService = kronotopInstances.get(members.getFirst()).getContext().getService(BasicMembershipService.NAME);
+        SimpleMembershipService membershipService = kronotopInstances.get(members.getFirst()).getContext().getService(SimpleMembershipService.NAME);
 
         Map<Member, Long> latestHeartbeats = membershipService.getLatestHeartbeats(members.toArray(new Member[members.size()]));
         assertEquals(3, latestHeartbeats.size());

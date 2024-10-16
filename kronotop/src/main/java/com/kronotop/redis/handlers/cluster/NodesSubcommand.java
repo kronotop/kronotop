@@ -19,7 +19,7 @@ package com.kronotop.redis.handlers.cluster;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.membership.impl.BasicMembershipService;
+import com.kronotop.cluster.membership.impl.SimpleMembershipService;
 import com.kronotop.network.Address;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.SlotRange;
@@ -45,7 +45,7 @@ class NodesSubcommand implements SubcommandHandler {
     public void execute(Request request, Response response) {
         // <id> <ip:port@cport[,hostname]> <flags> <master> <ping-sent> <pong-recv> <config-epoch> <link-state> <slot> <slot> ... <slot>
         List<String> result = new ArrayList<>();
-        BasicMembershipService membershipService = service.getContext().getService(BasicMembershipService.NAME);
+        SimpleMembershipService membershipService = service.getContext().getService(SimpleMembershipService.NAME);
         TreeSet<Member> members = membershipService.getSortedMembers();
 
         Long configEpoch = membershipService.getRoutingTable().getVersion();
