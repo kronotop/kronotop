@@ -16,37 +16,33 @@
 
 package com.kronotop.cluster.membership.impl;
 
-import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.*;
+import com.kronotop.CommandHandlerService;
+import com.kronotop.Context;
+import com.kronotop.JSONUtils;
+import com.kronotop.KeyWatcher;
 import com.kronotop.cluster.*;
-import com.kronotop.cluster.coordinator.CoordinatorService;
-import com.kronotop.cluster.coordinator.Route;
-import com.kronotop.cluster.coordinator.RoutingTable;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingTable;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.cluster.membership.*;
 import com.kronotop.common.KronotopException;
-import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
-import com.kronotop.network.Address;
 import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.UncheckedIOException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.TreeSet;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -57,15 +53,12 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
     public static final String NAME = "Membership";
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipServiceImpl.class);
     private final Context context;
-    private final Members members;
+    private final MemberRegistry registry;
     private final ScheduledThreadPoolExecutor scheduler;
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
     private final AtomicReference<Member> knownCoordinator = new AtomicReference<>();
-    private final ConcurrentHashMap<Member, MemberView> knownMembers = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Member, DirectorySubspace> memberSubspaces = new ConcurrentHashMap<>();
     private final AtomicReference<byte[]> latestClusterEventKey = new AtomicReference<>();
-    private final CoordinatorService coordinatorService;
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
     private volatile boolean isShutdown;
@@ -75,10 +68,9 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
         super(context);
 
         this.context = context;
-        this.members = new Members(context);
+        this.registry = new MemberRegistry(context);
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
-        this.coordinatorService = context.getService(CoordinatorService.NAME);
 
         // TODO: CLUSTER-REFACTORING
         RoutingTable table = new RoutingTable();
@@ -96,13 +88,6 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
     }
 
     public void start() {
-        TreeSet<Member> members = getSortedMembers();
-        for (Member member : members) {
-            openMemberSubspace(member);
-            long lastHeartbeat = getLatestHeartbeat(member);
-            knownMembers.putIfAbsent(member, new MemberView(lastHeartbeat));
-        }
-
         Member member = context.getMember();
         context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberJoinEvent(member));
         LOGGER.info("Member: {} has been registered", context.getMember().getId());
@@ -125,6 +110,10 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
         } else {
             scheduler.execute(new ClusterInitializationWatcher());
         }
+    }
+
+    public TreeSet<Member> listMembers() {
+        return registry.listMembers();
     }
 
     public boolean isClusterInitialized() {
@@ -220,12 +209,12 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
      * Tries to find a cluster coordinator.
      */
     private synchronized void findClusterCoordinator() {
-        TreeSet<Member> members = getSortedMembers();
+        TreeSet<Member> members = registry.listMembers();
         try {
             Member coordinator = members.first();
-            Member myself = context.getMember();
-            if (coordinator.equals(myself)) {
-                if (knownCoordinator.get() == null || !knownCoordinator.get().equals(myself)) {
+            Member me = context.getMember();
+            if (coordinator.equals(me)) {
+                if (knownCoordinator.get() == null || !knownCoordinator.get().equals(me)) {
                     LOGGER.info("Propagating myself as the cluster coordinator");
                     coordinatorService.start();
                 }
@@ -240,106 +229,23 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
         return routingTable.get();
     }
 
-    private Member getMember(String id) {
-        List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(id)).asList();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
-            byte[] processIDKey = subspace.pack(Keys.PROCESS_ID.toString());
-            byte[] rawProcessID = tr.get(processIDKey).join();
-            Versionstamp processID = Versionstamp.fromBytes(rawProcessID);
-
-            byte[] externalAddressKey = subspace.pack(Keys.EXTERNAL_ADDRESS.toString());
-            byte[] rawExternalAddress = tr.get(externalAddressKey).join();
-            Address externalAddress = Address.parseString(new String(rawExternalAddress));
-
-            byte[] internalAddressKey = subspace.pack(Keys.INTERNAL_ADDRESS.toString());
-            byte[] rawInternalAddress = tr.get(internalAddressKey).join();
-            Address internalAddress = Address.parseString(new String(rawInternalAddress));
-
-            return new Member(id, externalAddress, internalAddress, processID);
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new NoSuchMemberException(String.format("No such member: %s", id));
-            }
-            throw new KronotopException(e);
-        } catch (UnknownHostException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    /**
-     * Returns a sorted set of registered cluster members. The members are sorted by process ID.
-     * The process IDs are implemented as an atomically increased long integer on FoundationDB.
-     *
-     * @return sorted set of registered cluster members.
-     */
-    public TreeSet<Member> getSortedMembers() {
-        List<String> memberIds = getMembers();
-        TreeSet<Member> members = new TreeSet<>(Comparator.comparing(Member::getProcessId));
-        for (String memberId : memberIds) {
-            try {
-                Member member = getMember(memberId);
-                members.add(member);
-            } catch (NoSuchMemberException e) {
-                // Ignore it, it's just removed itself before we try to get it from FDB.
-            }
-        }
-        return members;
-    }
-
-    /**
-     * Returns a list of registered cluster members. The current status of member aliveness isn't guaranteed.
-     *
-     * @return a list of Member ids.
-     */
-    public List<String> getMembers() {
-        List<String> subpath = ClusterLayout.getMemberlist(context).asList();
-        try {
-            return context.getFoundationDB().run(tr -> DirectoryLayer.getDefault().list(tr, subpath).join());
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NoSuchDirectoryException) {
-                return List.of();
-            }
-            throw new KronotopException(e);
-        }
-    }
-
     public Member getKnownCoordinator() {
         return knownCoordinator.get();
     }
 
-    private void openMemberSubspace(Member member) {
-        List<String> subpath = ClusterLayout.getMemberlist(context).addAll(List.of(member.getId())).asList();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
-            memberSubspaces.put(member, subspace);
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new NoSuchMemberException(String.format("No such member: %s", member.getExternalAddress()));
-            }
-        }
-    }
-
     private MemberJoinEvent processMemberJoinEvent(byte[] data) {
         MemberJoinEvent event = JSONUtils.readValue(data, MemberJoinEvent.class);
-        Member member = getMember(event.memberId());
+        Member member = registry.findMember(event.memberId());
 
         // A new cluster member has joined.
-        openMemberSubspace(member);
-        long lastHeartbeat = getLatestHeartbeat(member);
-        knownMembers.putIfAbsent(member, new MemberView(lastHeartbeat));
         LOGGER.info("Member join: {}", member.getExternalAddress());
-
         return event;
     }
 
     private MemberLeftEvent processMemberLeftEvent(byte[] data) {
         MemberLeftEvent event = JSONUtils.readValue(data, MemberLeftEvent.class);
-        Member member = getMember(event.memberId());
+        Member member = registry.findMember(event.memberId());
 
-        // A registered cluster member has left the cluster.
-        memberSubspaces.remove(member);
-        knownMembers.remove(member);
         LOGGER.info("Member left: {}", member.getExternalAddress());
         return event;
     }
@@ -429,6 +335,20 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
         }
 
         findDeadCoordinator(members, closest);
+    }
+
+    private boolean isClusterInitialized_internal() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
+            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+            byte[] data = tr.get(key).join();
+            if (data != null) {
+                if (MembershipUtils.isTrue(data)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public enum Keys {
@@ -538,7 +458,7 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
                 }
 
                 if (!isCoordinatorAlive) {
-                    TreeSet<Member> members = getSortedMembers();
+                    TreeSet<Member> members = registry.listMembers();
                     findDeadCoordinator(members, context.getMember());
                 }
 
@@ -559,20 +479,6 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
                 }
             }
         }
-    }
-
-    private boolean isClusterInitialized_internal() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
-            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
-            byte[] data = tr.get(key).join();
-            if (data != null) {
-                if (MembershipUtils.isTrue(data)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private class ClusterInitializationWatcher implements Runnable {

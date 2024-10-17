@@ -17,7 +17,7 @@
 package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
-import com.kronotop.cluster.coordinator.Route;
+import com.kronotop.cluster.Route;
 import com.kronotop.cluster.membership.impl.MembershipServiceImpl;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.instance.KronotopInstance;

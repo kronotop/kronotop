@@ -25,9 +25,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.ServiceContext;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.coordinator.Coordinator;
-import com.kronotop.cluster.coordinator.CoordinatorService;
-import com.kronotop.cluster.coordinator.Route;
+import com.kronotop.cluster.Route;
 import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.cluster.membership.impl.MembershipServiceImpl;
 import com.kronotop.common.KronotopException;
@@ -43,7 +41,6 @@ import com.kronotop.redis.handlers.generic.*;
 import com.kronotop.redis.handlers.hash.*;
 import com.kronotop.redis.handlers.string.*;
 import com.kronotop.redis.handlers.transactions.*;
-import com.kronotop.redis.management.coordinator.RedisCoordinator;
 import com.kronotop.redis.server.CommandHandler;
 import com.kronotop.redis.server.FlushAllHandler;
 import com.kronotop.redis.server.FlushDBHandler;
@@ -89,10 +86,6 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         this.membership = context.getService(MembershipServiceImpl.NAME);
         this.hashSlots = distributeHashSlots();
         this.serviceContext = context.getServiceContext(NAME);
-
-        RedisCoordinator coordinator = new RedisCoordinator(context);
-        CoordinatorService coordinatorService = context.getService(CoordinatorService.NAME);
-        coordinatorService.register(Coordinator.Service.REDIS, coordinator);
 
         // TODO: CLUSTER-REFACTORING
         for (int i = 0; i < this.numberOfShards; i++) {

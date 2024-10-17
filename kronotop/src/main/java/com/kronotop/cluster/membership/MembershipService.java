@@ -17,10 +17,21 @@
 package com.kronotop.cluster.membership;
 
 import com.kronotop.KronotopService;
-import com.kronotop.cluster.coordinator.RoutingTable;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.RoutingTable;
+
+import java.util.TreeSet;
 
 public interface MembershipService extends KronotopService {
+    String NAME = "Membership";
+
+    void start();
+
     boolean isClusterInitialized();
 
     RoutingTable getRoutingTable();
+
+    TreeSet<Member> listMembers();
+
+    Long getLatestHeartbeat(Member member);
 }

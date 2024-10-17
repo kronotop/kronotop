@@ -20,6 +20,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MockProcessIdGeneratorImpl;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingTable;
 import com.kronotop.network.Address;
 import org.junit.jupiter.api.Test;
 

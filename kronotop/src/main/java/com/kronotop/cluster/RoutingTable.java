@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.coordinator;
+package com.kronotop.cluster;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -25,7 +25,6 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.kronotop.cluster.Member;
 
 import java.io.IOException;
 import java.util.HashMap;

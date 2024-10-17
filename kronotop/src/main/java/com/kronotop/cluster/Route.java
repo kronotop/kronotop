@@ -14,18 +14,35 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.coordinator;
+package com.kronotop.cluster;
 
-import com.kronotop.cluster.BroadcastEvent;
+/**
+ * The Route class represents a route in a routing table. It is associated with a Member object.
+ */
+public class Route {
+    private Member member;
 
-public interface Coordinator {
-    void submit(BroadcastEvent event);
+    Route() {
+    }
 
-    void start();
+    public Route(Member member) {
+        this.member = member;
+    }
 
-    void shutdown();
+    public Member getMember() {
+        return member;
+    }
 
-    enum Service {
-        REDIS,
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
+        if (!(obj instanceof Route route)) {
+            return false;
+        }
+
+        return route.getMember().equals(getMember());
     }
 }
