@@ -19,8 +19,10 @@ package com.kronotop.cluster.membership;
 import com.kronotop.KronotopService;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.RoutingTable;
+import com.kronotop.cluster.runnables.ClusterRunnable;
 
 import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 
 public interface MembershipService extends KronotopService {
     String NAME = "Membership";
@@ -31,7 +33,11 @@ public interface MembershipService extends KronotopService {
 
     RoutingTable getRoutingTable();
 
+    Member getCoordinator();
+
     TreeSet<Member> listMembers();
 
     Long getLatestHeartbeat(Member member);
+
+    void scheduleRunnable(ClusterRunnable runnable, long delay, TimeUnit unit);
 }

@@ -26,10 +26,9 @@ import com.kronotop.Context;
 import com.kronotop.JSONUtils;
 import com.kronotop.KeyWatcher;
 import com.kronotop.cluster.*;
-import com.kronotop.cluster.Route;
-import com.kronotop.cluster.RoutingTable;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.cluster.membership.*;
+import com.kronotop.cluster.runnables.ClusterRunnable;
 import com.kronotop.common.KronotopException;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
@@ -110,6 +109,16 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
         } else {
             scheduler.execute(new ClusterInitializationWatcher());
         }
+    }
+
+    @Override
+    public Member getCoordinator() {
+        return knownCoordinator.get();
+    }
+
+    @Override
+    public void scheduleRunnable(ClusterRunnable runnable, long delay, TimeUnit unit) {
+        scheduler.schedule(runnable, delay, unit);
     }
 
     public TreeSet<Member> listMembers() {
@@ -385,32 +394,6 @@ public class MembershipServiceImpl extends CommandHandlerService implements Memb
             } finally {
                 if (!isShutdown) {
                     scheduler.execute(this);
-                }
-            }
-        }
-    }
-
-    /**
-     * Runnable class representing a heartbeat task.
-     * This task is responsible for updating the last heartbeat timestamp of a member in the cluster.
-     */
-    private class HeartbeatTask implements Runnable {
-        private static final byte[] HEARTBEAT_DELTA = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1, byte order: little-endian
-
-        @Override
-        public void run() {
-            if (isShutdown) {
-                return;
-            }
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                DirectorySubspace subspace = memberSubspaces.get(context.getMember());
-                tr.mutate(MutationType.ADD, subspace.pack(Keys.LAST_HEARTBEAT.toString()), HEARTBEAT_DELTA);
-                tr.commit().join();
-            } catch (Exception e) {
-                LOGGER.error("Error while running heartbeat task", e);
-            } finally {
-                if (!isShutdown) {
-                    scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);
                 }
             }
         }
