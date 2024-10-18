@@ -92,6 +92,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             LOGGER.info("Member: {} has been registered", memberId);
         }
 
+
+
         // Publish a MemberJoinEvent
         context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberJoinEvent(member));
         configureClusterEventsWatcher();
@@ -105,6 +107,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         } else {
             scheduler.execute(new ClusterInitializationWatcher());
         }
+
+        findClusterCoordinator();
     }
 
     public TreeSet<Member> listMembers() {
@@ -139,9 +143,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-    /**
-     * Tries to find a cluster coordinator.
-     */
     private synchronized void findClusterCoordinator() {
         TreeSet<Member> members = registry.listMembers();
         try {
