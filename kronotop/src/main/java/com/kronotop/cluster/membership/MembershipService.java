@@ -23,8 +23,6 @@ import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
 import com.kronotop.cluster.*;
-import com.kronotop.cluster.Route;
-import com.kronotop.cluster.RoutingTable;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.common.KronotopException;
 import com.kronotop.journal.Event;
@@ -166,8 +164,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     private long getLatestHeartbeat(Transaction tr, Member member) {
         long lastHeartbeat = 0;
         try {
-            DirectorySubspace subspace = memberSubspaces.get(member);
-            byte[] data = tr.get(subspace.pack(Keys.LAST_HEARTBEAT.toString())).join();
+
+            byte[] data = tr.get(member.getSubspace().pack(Keys.LAST_HEARTBEAT.toString())).join();
             if (data != null) {
                 lastHeartbeat = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
             }
@@ -212,7 +210,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             if (coordinator.equals(me)) {
                 if (knownCoordinator.get() == null || !knownCoordinator.get().equals(me)) {
                     LOGGER.info("Propagating myself as the cluster coordinator");
-                    coordinatorService.start();
                 }
             }
             knownCoordinator.set(coordinator);
@@ -262,10 +259,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-    private void submitBroadcastEvent(BroadcastEvent event) {
-        coordinatorService.submitEvent(event);
-    }
-
     /**
      * fetchClusterEvents tries to fetch the latest events from the cluster's global journal and processes them.
      */
@@ -279,7 +272,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
 
                 try {
                     BroadcastEvent broadcastEvent = processClusterEvent(event);
-                    submitBroadcastEvent(broadcastEvent);
                 } catch (Exception e) {
                     LOGGER.error("Failed to process a broadcast event, passing it", e);
                 } finally {
