@@ -128,7 +128,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     @Override
     public void shutdown() {
         isShutdown = true;
-        keyWatcher.unwatch(context.getJournal().getJournalMetadata(JournalName.clusterEvents()).getTrigger());
+        keyWatcher.unwatchAll();
         scheduler.shutdownNow();
         try {
             if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
@@ -400,7 +400,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 try {
                     clusterInitialized = isClusterInitialized_internal();
                     if (clusterInitialized) {
-                        // TODO: Cancel the watcher?
+                        keyWatcher.unwatch(key);
                         return;
                     }
                     watcher.join();
