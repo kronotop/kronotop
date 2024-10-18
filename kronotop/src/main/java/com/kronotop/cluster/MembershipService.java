@@ -85,10 +85,14 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-    private DirectorySubspace openMemberSubspace(Member member) {
+    private DirectorySubspace openMemberSubspace(Transaction tr, Member member) {
         KronotopDirectoryNode directory = registry.getDirectoryNode(member.getId());
+        return DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+    }
+
+    private DirectorySubspace openMemberSubspace(Member member) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+            return openMemberSubspace(tr, member);
         }
     }
 
@@ -183,8 +187,9 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         Member member = registry.findMember(event.memberId());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            long heartbeat = Heartbeat.get(tr, member);
-            subspaces.put(member, openMemberSubspace(member));
+            DirectorySubspace subspace = openMemberSubspace(tr, member);
+            long heartbeat = Heartbeat.get(tr, subspace);
+            subspaces.put(member, subspace);
             others.put(member, new MemberView(heartbeat));
         }
 
@@ -315,6 +320,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     }
 
     private class HeartbeatTask implements Runnable {
+        DirectorySubspace subspace = subspaces.get(context.getMember());
 
         @Override
         public void run() {
@@ -322,7 +328,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 return;
             }
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Heartbeat.set(tr, context.getMember());
+                Heartbeat.set(tr, subspace);
                 tr.commit().join();
             } catch (Exception e) {
                 LOGGER.error("Error while running heartbeat task", e);
@@ -346,7 +352,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             Member coordinator = knownCoordinator.get();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 for (Member member : others.keySet()) {
-                    long lastHeartbeat = Heartbeat.get(tr, member);
+                    DirectorySubspace subspace = subspaces.get(member);
+                    long lastHeartbeat = Heartbeat.get(tr, subspace);
                     MemberView view = others.computeIfPresent(member, (m, memberView) -> {
                         if (memberView.getLastHeartbeat() != lastHeartbeat) {
                             memberView.setLastHeartbeat(lastHeartbeat);

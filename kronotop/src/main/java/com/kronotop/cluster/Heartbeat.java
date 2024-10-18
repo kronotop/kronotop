@@ -18,43 +18,25 @@ package com.kronotop.cluster;
 
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.apple.foundationdb.directory.DirectorySubspace;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletionException;
 
-public class Heartbeat {
+class Heartbeat {
     private static final byte[] HEARTBEAT_DELTA = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1, byte order: little-endian
 
-    public static long get(Transaction tr, Member member) {
+    static long get(Transaction tr, DirectorySubspace subspace) {
         long heartbeat = 0;
-        try {
-            byte[] data = tr.get(member.getSubspace().pack(Member.HEARTBEAT_KEY)).join();
-            if (data != null) {
-                heartbeat = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
-            }
-        } catch (CompletionException e) {
-            if (!(e.getCause() instanceof NoSuchDirectoryException)) {
-                throw new NoSuchMemberException(String.format("No such member: %s", member.getExternalAddress()));
-            }
+        byte[] data = tr.get(subspace.pack(Member.HEARTBEAT_KEY)).join();
+        if (data != null) {
+            heartbeat = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
         }
         return heartbeat;
     }
 
-    public static void set(Transaction tr, Member member) {
-        byte[] key = member.getSubspace().pack(Member.HEARTBEAT_KEY);
+    static void set(Transaction tr, DirectorySubspace subspace) {
+        byte[] key = subspace.pack(Member.HEARTBEAT_KEY);
         tr.mutate(MutationType.ADD, key, HEARTBEAT_DELTA);
-    }
-
-    public static Map<Member, Long> get(Transaction tr, Member... members) {
-        Map<Member, Long> result = new HashMap<>();
-        for (Member member : members) {
-            long latestHeartbeat = get(tr, member);
-            result.put(member, latestHeartbeat);
-        }
-        return result;
     }
 }
