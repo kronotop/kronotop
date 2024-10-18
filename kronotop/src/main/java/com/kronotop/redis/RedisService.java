@@ -27,7 +27,6 @@ import com.kronotop.ServiceContext;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.membership.MembershipService;
-import com.kronotop.cluster.membership.impl.MembershipServiceImpl;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.handlers.InfoHandler;
@@ -83,7 +82,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         super(context);
         this.watcher = context.getService(Watcher.NAME);
         this.numberOfShards = context.getConfig().getInt("redis.shards");
-        this.membership = context.getService(MembershipServiceImpl.NAME);
+        this.membership = context.getService(MembershipService.NAME);
         this.hashSlots = distributeHashSlots();
         this.serviceContext = context.getServiceContext(NAME);
 

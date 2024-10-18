@@ -22,7 +22,6 @@ import com.kronotop.*;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.membership.MembershipService;
-import com.kronotop.cluster.membership.impl.MembershipServiceImpl;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.network.Address;
@@ -110,7 +109,7 @@ public class KronotopInstance {
         VolumeService volumeService = new VolumeService(context);
         context.registerService(VolumeService.NAME, volumeService);
 
-        MembershipService membershipService = new MembershipServiceImpl(context);
+        MembershipService membershipService = new MembershipService(context);
         context.registerService(MembershipService.NAME, membershipService);
 
         RedisService redisService = new RedisService(context);
