@@ -16,10 +16,8 @@
 
 package com.kronotop.redis.handlers.cluster;
 
-import com.apple.foundationdb.Transaction;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import com.kronotop.cluster.Heartbeat;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.network.Address;
@@ -31,10 +29,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeSet;
+import java.util.*;
 
 class NodesSubcommand implements SubcommandHandler {
     private final RedisService service;
@@ -47,18 +42,19 @@ class NodesSubcommand implements SubcommandHandler {
     public void execute(Request request, Response response) {
         // <id> <ip:port@cport[,hostname]> <flags> <master> <ping-sent> <pong-recv> <config-epoch> <link-state> <slot> <slot> ... <slot>
         List<String> result = new ArrayList<>();
-        MembershipService membershipService = service.getContext().getService(MembershipService.NAME);
-        TreeSet<Member> members = membershipService.listMembers();
+        MembershipService membership = service.getContext().getService(MembershipService.NAME);
+        TreeSet<Member> members = membership.listMembers();
 
-        Long configEpoch = membershipService.getRoutingTable().getVersion();
+        Long configEpoch = membership.getRoutingTable().getVersion();
 
-        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            Map<Member, Long> latestHeartbeats = Heartbeat.get(tr, members.toArray(new Member[members.size()]));
-            List<SlotRange> slotRanges = service.getSlotRanges();
-            for (SlotRange slotRange : slotRanges) {
-                long latestHeartbeat = latestHeartbeats.get(slotRange.getOwner());
-                result.add(getLine(slotRange, configEpoch, latestHeartbeat));
-            }
+        Map<Member, Long> latestHeartbeats = new HashMap<>();
+        for (Member member : members) {
+            latestHeartbeats.put(member, membership.getLatestHeartbeat(member));
+        }
+        List<SlotRange> slotRanges = service.getSlotRanges();
+        for (SlotRange slotRange : slotRanges) {
+            long latestHeartbeat = latestHeartbeats.get(slotRange.getOwner());
+            result.add(getLine(slotRange, configEpoch, latestHeartbeat));
         }
 
         ByteBuf buf = response.getChannelContext().alloc().buffer();

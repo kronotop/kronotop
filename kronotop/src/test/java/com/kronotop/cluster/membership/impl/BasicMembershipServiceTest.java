@@ -16,39 +16,8 @@
 
 package com.kronotop.cluster.membership.impl;
 
-import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.BaseClusterTest;
-import com.kronotop.cluster.Heartbeat;
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.MembershipService;
-import org.junit.jupiter.api.Test;
-
-import java.util.LinkedList;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class BasicMembershipServiceTest extends BaseClusterTest {
 
-    @Test
-    public void test_getLatestHeartbeats() {
-        addNewInstance(); // Second
-        addNewInstance(); // Third
-
-        LinkedList<Member> members = new LinkedList<>();
-        kronotopInstances.forEach((member, instance) -> {
-            members.add(member);
-        });
-
-        MembershipService membershipService = kronotopInstances.get(members.getFirst()).getContext().getService(MembershipService.NAME);
-
-        try (Transaction tr = membershipService.getContext().getFoundationDB().createTransaction()) {
-            Map<Member, Long> latestHeartbeats = Heartbeat.get(tr, members.toArray(new Member[members.size()]));
-            assertEquals(3, latestHeartbeats.size());
-            kronotopInstances.forEach((member, instance) -> {
-                assertTrue(latestHeartbeats.containsKey(member));
-            });
-        }
-    }
 }

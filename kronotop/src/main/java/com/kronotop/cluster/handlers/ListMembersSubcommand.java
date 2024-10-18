@@ -18,7 +18,6 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.VersionstampUtils;
-import com.kronotop.cluster.Heartbeat;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -58,7 +57,7 @@ class ListMembersSubcommand implements SubcommandHandler {
                 current.put(new SimpleStringRedisMessage("internal_host"), new SimpleStringRedisMessage(member.getInternalAddress().getHost()));
                 current.put(new SimpleStringRedisMessage("internal_port"), new IntegerRedisMessage(member.getInternalAddress().getPort()));
 
-                long latestHeartbeat = Heartbeat.get(tr, member);
+                long latestHeartbeat = service.getLatestHeartbeat(member);
                 current.put(new SimpleStringRedisMessage("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeat));
 
                 result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));

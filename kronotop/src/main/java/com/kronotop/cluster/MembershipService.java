@@ -48,7 +48,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     private final ConcurrentHashMap<Member, DirectorySubspace> subspaces = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Member, MemberView> others = new ConcurrentHashMap<>();
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
-    private final AtomicReference<Member> knownCoordinator = new AtomicReference<>();
+    private final AtomicReference<Member> coordinator = new AtomicReference<>();
     private final AtomicReference<byte[]> latestClusterEventKey = new AtomicReference<>();
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
@@ -126,6 +126,14 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         findClusterCoordinator();
     }
 
+    public long getLatestHeartbeat(Member member) {
+        MemberView memberView = others.get(member);
+        if (memberView == null) {
+            throw new IllegalArgumentException("Member: " + member.getId() + " not found");
+        }
+        return memberView.getLatestHeartbeat();
+    }
+
     public TreeSet<Member> listMembers() {
         return registry.listMembers();
     }
@@ -161,14 +169,14 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     private synchronized void findClusterCoordinator() {
         TreeSet<Member> members = registry.listMembers();
         try {
-            Member coordinator = members.first();
+            Member assumedCoordinator = members.first();
             Member me = context.getMember();
-            if (coordinator.equals(me)) {
-                if (this.knownCoordinator.get() == null || !this.knownCoordinator.get().equals(me)) {
+            if (assumedCoordinator.equals(me)) {
+                if (coordinator.get() == null || !coordinator.get().equals(me)) {
                     LOGGER.info("Propagating myself as the cluster coordinator");
                 }
             }
-            this.knownCoordinator.set(coordinator);
+            coordinator.set(assumedCoordinator);
         } catch (NoSuchElementException e) {
             LOGGER.warn("No cluster coordinator found");
         }
@@ -178,8 +186,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return routingTable.get();
     }
 
-    public Member getKnownCoordinator() {
-        return knownCoordinator.get();
+    public Member getCoordinator() {
+        return coordinator.get();
     }
 
     private void processMemberJoinEvent(byte[] data) {
@@ -260,12 +268,12 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             return;
         }
 
-        Member coordinator = this.knownCoordinator.get();
+        Member knownCoordinator = this.coordinator.get();
         MemberView memberView = others.get(closest);
         if (memberView.getAlive()) {
             return;
         }
-        if (coordinator.equals(closest)) {
+        if (knownCoordinator.equals(closest)) {
             // Remove it from FDB.
             pruneDeadMembers(members, closest);
             return;
@@ -349,13 +357,13 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 return;
             }
             boolean isCoordinatorAlive = true;
-            Member coordinator = knownCoordinator.get();
+            Member knownCoordinator = coordinator.get();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 for (Member member : others.keySet()) {
                     DirectorySubspace subspace = subspaces.get(member);
                     long lastHeartbeat = Heartbeat.get(tr, subspace);
                     MemberView view = others.computeIfPresent(member, (m, memberView) -> {
-                        if (memberView.getLastHeartbeat() != lastHeartbeat) {
+                        if (memberView.getLatestHeartbeat() != lastHeartbeat) {
                             memberView.setLastHeartbeat(lastHeartbeat);
                         } else {
                             memberView.increaseExpectedHeartbeat();
@@ -367,13 +375,13 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                         continue;
                     }
 
-                    long silentPeriod = view.getExpectedHeartbeat() - view.getLastHeartbeat();
+                    long silentPeriod = view.getExpectedHeartbeat() - view.getLatestHeartbeat();
                     if (silentPeriod > maxSilentPeriod) {
                         LOGGER.warn("{} has been suspected to be dead", member.getExternalAddress());
                         view.setAlive(false);
-                        if (coordinator.equals(member)) {
+                        if (knownCoordinator.equals(member)) {
                             isCoordinatorAlive = false;
-                            LOGGER.info("Cluster coordinator is dead {}", coordinator.getExternalAddress());
+                            LOGGER.info("Cluster coordinator is dead {}", knownCoordinator.getExternalAddress());
                         }
                     }
                 }
@@ -383,7 +391,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                     findDeadCoordinator(members, context.getMember());
                 }
 
-                if (coordinator != null && coordinator.equals(context.getMember())) {
+                if (knownCoordinator != null && knownCoordinator.equals(context.getMember())) {
                     for (Member member : others.keySet()) {
                         MemberView memberView = others.get(member);
                         if (!memberView.getAlive()) {

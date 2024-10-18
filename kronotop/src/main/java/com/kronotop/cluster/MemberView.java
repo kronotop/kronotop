@@ -31,7 +31,7 @@ public class MemberView {
         return expectedHeartbeat;
     }
 
-    public long getLastHeartbeat() {
+    public long getLatestHeartbeat() {
         return lastHeartbeat;
     }
 
