@@ -16,7 +16,9 @@
 
 package com.kronotop.cluster.membership.impl;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.BaseClusterTest;
+import com.kronotop.cluster.Heartbeat;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.membership.MembershipService;
 import org.junit.jupiter.api.Test;
@@ -41,11 +43,12 @@ public class BasicMembershipServiceTest extends BaseClusterTest {
 
         MembershipService membershipService = kronotopInstances.get(members.getFirst()).getContext().getService(MembershipService.NAME);
 
-        Map<Member, Long> latestHeartbeats = membershipService.getLatestHeartbeats(members.toArray(new Member[members.size()]));
-        assertEquals(3, latestHeartbeats.size());
-
-        kronotopInstances.forEach((member, instance) -> {
-            assertTrue(latestHeartbeats.containsKey(member));
-        });
+        try (Transaction tr = membershipService.getContext().getFoundationDB().createTransaction()) {
+            Map<Member, Long> latestHeartbeats = Heartbeat.get(tr, members.toArray(new Member[members.size()]));
+            assertEquals(3, latestHeartbeats.size());
+            kronotopInstances.forEach((member, instance) -> {
+                assertTrue(latestHeartbeats.containsKey(member));
+            });
+        }
     }
 }

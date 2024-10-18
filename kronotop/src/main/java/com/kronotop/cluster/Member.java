@@ -30,6 +30,9 @@ import java.nio.charset.StandardCharsets;
 import static com.google.common.hash.Hashing.sipHash24;
 
 public class Member {
+    @JsonIgnore
+    public static final String HEARTBEAT_KEY = "heartbeat";
+
     private String id;
     private MemberStatus status = MemberStatus.UNKNOWN;
     private Address externalAddress;

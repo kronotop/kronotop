@@ -139,33 +139,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-    private long getLatestHeartbeat(Transaction tr, Member member) {
-        long lastHeartbeat = 0;
-        try {
-
-            byte[] data = tr.get(member.getSubspace().pack(Keys.LAST_HEARTBEAT.toString())).join();
-            if (data != null) {
-                lastHeartbeat = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
-            }
-        } catch (CompletionException e) {
-            if (!(e.getCause() instanceof NoSuchDirectoryException)) {
-                throw new NoSuchMemberException(String.format("No such member: %s", member.getExternalAddress()));
-            }
-        }
-        return lastHeartbeat;
-    }
-
-    public Map<Member, Long> getLatestHeartbeats(Member... members) {
-        Map<Member, Long> result = new HashMap<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            for (Member member : members) {
-                long latestHeartbeat = getLatestHeartbeat(tr, member);
-                result.put(member, latestHeartbeat);
-            }
-        }
-        return result;
-    }
-
     /**
      * Tries to find a cluster coordinator.
      */
@@ -291,14 +264,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return false;
     }
 
-    public enum Keys {
-        LAST_HEARTBEAT
-    }
-
-    /**
-     * This class represents a runnable object that watches the cluster events journal.
-     * It fetches the latest events from the journal and processes them.
-     */
     private class ClusterEventsJournalWatcher implements Runnable {
         @Override
         public void run() {
@@ -331,7 +296,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     }
 
     private class HeartbeatTask implements Runnable {
-        private static final byte[] HEARTBEAT_DELTA = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1, byte order: little-endian
 
         @Override
         public void run() {
@@ -339,8 +303,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 return;
             }
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                byte[] key = context.getMember().getSubspace().pack(Keys.LAST_HEARTBEAT.toString());
-                tr.mutate(MutationType.ADD, key, HEARTBEAT_DELTA);
+                Heartbeat.set(tr, context.getMember());
                 tr.commit().join();
             } catch (Exception e) {
                 LOGGER.error("Error while running heartbeat task", e);
@@ -364,7 +327,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             Member coordinator = knownCoordinator.get();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 for (Member member : knownMembers.keySet()) {
-                    long lastHeartbeat = getLatestHeartbeat(tr, member);
+                    long lastHeartbeat = Heartbeat.get(tr, member);
                     MemberView view = knownMembers.computeIfPresent(member, (m, memberView) -> {
                         if (memberView.getLastHeartbeat() != lastHeartbeat) {
                             memberView.setLastHeartbeat(lastHeartbeat);

@@ -16,8 +16,10 @@
 
 package com.kronotop.redis.handlers.cluster;
 
+import com.apple.foundationdb.Transaction;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
+import com.kronotop.cluster.Heartbeat;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.network.Address;
@@ -49,11 +51,14 @@ class NodesSubcommand implements SubcommandHandler {
         TreeSet<Member> members = membershipService.listMembers();
 
         Long configEpoch = membershipService.getRoutingTable().getVersion();
-        Map<Member, Long> latestHeartbeats = membershipService.getLatestHeartbeats(members.toArray(new Member[members.size()]));
-        List<SlotRange> slotRanges = service.getSlotRanges();
-        for (SlotRange slotRange : slotRanges) {
-            long latestHeartbeat = latestHeartbeats.get(slotRange.getOwner());
-            result.add(getLine(slotRange, configEpoch, latestHeartbeat));
+
+        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
+            Map<Member, Long> latestHeartbeats = Heartbeat.get(tr, members.toArray(new Member[members.size()]));
+            List<SlotRange> slotRanges = service.getSlotRanges();
+            for (SlotRange slotRange : slotRanges) {
+                long latestHeartbeat = latestHeartbeats.get(slotRange.getOwner());
+                result.add(getLine(slotRange, configEpoch, latestHeartbeat));
+            }
         }
 
         ByteBuf buf = response.getChannelContext().alloc().buffer();

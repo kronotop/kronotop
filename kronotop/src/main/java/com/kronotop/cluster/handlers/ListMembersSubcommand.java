@@ -16,7 +16,9 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.VersionstampUtils;
+import com.kronotop.cluster.Heartbeat;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.membership.MembershipService;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -42,22 +44,25 @@ class ListMembersSubcommand implements SubcommandHandler {
     public void execute(Request request, Response response) {
         TreeSet<Member> sortedMembers = service.listMembers();
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-        for (Member member : sortedMembers) {
-            Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
 
-            String processId = VersionstampUtils.base64Encode(member.getProcessId());
-            current.put(new SimpleStringRedisMessage("process_id"), new SimpleStringRedisMessage(processId));
+        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
+            for (Member member : sortedMembers) {
+                Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
 
-            current.put(new SimpleStringRedisMessage("external_host"), new SimpleStringRedisMessage(member.getExternalAddress().getHost()));
-            current.put(new SimpleStringRedisMessage("external_port"), new IntegerRedisMessage(member.getExternalAddress().getPort()));
+                String processId = VersionstampUtils.base64Encode(member.getProcessId());
+                current.put(new SimpleStringRedisMessage("process_id"), new SimpleStringRedisMessage(processId));
 
-            current.put(new SimpleStringRedisMessage("internal_host"), new SimpleStringRedisMessage(member.getInternalAddress().getHost()));
-            current.put(new SimpleStringRedisMessage("internal_port"), new IntegerRedisMessage(member.getInternalAddress().getPort()));
+                current.put(new SimpleStringRedisMessage("external_host"), new SimpleStringRedisMessage(member.getExternalAddress().getHost()));
+                current.put(new SimpleStringRedisMessage("external_port"), new IntegerRedisMessage(member.getExternalAddress().getPort()));
 
-            Map<Member, Long> latestHeartbeats = service.getLatestHeartbeats(member);
-            current.put(new SimpleStringRedisMessage("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeats.get(member)));
+                current.put(new SimpleStringRedisMessage("internal_host"), new SimpleStringRedisMessage(member.getInternalAddress().getHost()));
+                current.put(new SimpleStringRedisMessage("internal_port"), new IntegerRedisMessage(member.getInternalAddress().getPort()));
 
-            result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));
+                long latestHeartbeat = Heartbeat.get(tr, member);
+                current.put(new SimpleStringRedisMessage("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeat));
+
+                result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));
+            }
         }
         response.writeMap(result);
     }
