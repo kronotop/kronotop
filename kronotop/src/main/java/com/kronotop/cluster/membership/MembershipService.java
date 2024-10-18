@@ -52,7 +52,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final ConcurrentHashMap<Member, MemberView> knownMembers = new ConcurrentHashMap<>();
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
-    private final AtomicReference<Member> coordinator = new AtomicReference<>();
+    private final AtomicReference<Member> knownCoordinator = new AtomicReference<>();
     private final AtomicReference<byte[]> latestClusterEventKey = new AtomicReference<>();
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
@@ -95,7 +95,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         scheduler.execute(new FailureDetectionTask());
 
         findClusterCoordinator();
-        Member coordinator = this.coordinator.get();
+        Member coordinator = this.knownCoordinator.get();
         if (coordinator != null) {
             LOGGER.info("Cluster coordinator found: {}", coordinator.getExternalAddress());
         }
@@ -115,30 +115,16 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return clusterInitialized;
     }
 
-    /**
-     * Returns the service name
-     *
-     * @return service name
-     */
     @Override
     public String getName() {
         return NAME;
     }
 
-    /**
-     * Returns the global context
-     *
-     * @return global context
-     */
     @Override
     public Context getContext() {
         return context;
     }
 
-    /**
-     * Shuts down the cluster service. It stops the background services and
-     * frees allocated resources before quit.
-     */
     @Override
     public void shutdown() {
         isShutdown = true;
@@ -153,15 +139,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-
-    /**
-     * Retrieves the last heartbeat timestamp for a given member.
-     *
-     * @param tr     FoundationDB transaction to use for the operation
-     * @param member Member for which to retrieve the last heartbeat timestamp
-     * @return The last heartbeat timestamp for the member, or 0 if it has not been set
-     * @throws NoSuchMemberException if the member does not exist
-     */
     private long getLatestHeartbeat(Transaction tr, Member member) {
         long lastHeartbeat = 0;
         try {
@@ -178,17 +155,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return lastHeartbeat;
     }
 
-    private long getLatestHeartbeat(Member member) {
-        return getLatestHeartbeats(member).get(member);
-    }
-
-    /**
-     * Retrieves the latest heartbeat timestamps for the given members.
-     *
-     * @param members The members for which to retrieve the latest heartbeat timestamps
-     * @return A map containing the members as keys and their latest heartbeat timestamps as values
-     * @throws NoSuchMemberException If a member does not exist
-     */
     public Map<Member, Long> getLatestHeartbeats(Member... members) {
         Map<Member, Long> result = new HashMap<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -209,11 +175,11 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             Member coordinator = members.first();
             Member me = context.getMember();
             if (coordinator.equals(me)) {
-                if (this.coordinator.get() == null || !this.coordinator.get().equals(me)) {
+                if (this.knownCoordinator.get() == null || !this.knownCoordinator.get().equals(me)) {
                     LOGGER.info("Propagating myself as the cluster coordinator");
                 }
             }
-            this.coordinator.set(coordinator);
+            this.knownCoordinator.set(coordinator);
         } catch (NoSuchElementException e) {
             LOGGER.warn("No cluster coordinator found");
         }
@@ -223,8 +189,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return routingTable.get();
     }
 
-    public Member getCoordinator() {
-        return coordinator.get();
+    public Member getKnownCoordinator() {
+        return knownCoordinator.get();
     }
 
     private MemberJoinEvent processMemberJoinEvent(byte[] data) {
@@ -260,9 +226,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-    /**
-     * fetchClusterEvents tries to fetch the latest events from the cluster's global journal and processes them.
-     */
     private synchronized void fetchClusterEvents() {
         context.getFoundationDB().run(tr -> {
             while (true) {
@@ -283,12 +246,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         });
     }
 
-    /**
-     * Removes a dead member from the TreeSet of members by recursively pruning dead members.
-     *
-     * @param members The TreeSet of members
-     * @param dead    The dead member to be pruned
-     */
     private void pruneDeadMembers(TreeSet<Member> members, Member dead) {
         Member closest = members.higher(dead);
         if (closest == null) {
@@ -300,19 +257,13 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-    /**
-     * Finds the dead coordinator in the given TreeSet of members and recursively prunes dead members.
-     *
-     * @param members The TreeSet of members
-     * @param member  The member to start the search from
-     */
     private void findDeadCoordinator(TreeSet<Member> members, Member member) {
         Member closest = members.lower(member);
         if (closest == null) {
             return;
         }
 
-        Member coordinator = this.coordinator.get();
+        Member coordinator = this.knownCoordinator.get();
         MemberView memberView = knownMembers.get(closest);
         if (memberView.getAlive()) {
             return;
@@ -341,7 +292,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     }
 
     public enum Keys {
-        EXTERNAL_ADDRESS, INTERNAL_ADDRESS, PROCESS_ID, LAST_HEARTBEAT, STATUS
+        LAST_HEARTBEAT
     }
 
     /**
@@ -379,10 +330,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-    /**
-     * Runnable class representing a heartbeat task.
-     * This task is responsible for updating the last heartbeat timestamp of a member in the cluster.
-     */
     private class HeartbeatTask implements Runnable {
         private static final byte[] HEARTBEAT_DELTA = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1, byte order: little-endian
 
@@ -405,10 +352,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-    /**
-     * FailureDetectionTask is a private nested class that implements the Runnable interface.
-     * It is responsible for monitoring the heartbeat of cluster members and detecting failures.
-     */
     private class FailureDetectionTask implements Runnable {
         private final long maxSilentPeriod = (long) Math.ceil((double) heartbeatMaximumSilentPeriod / heartbeatInterval);
 
@@ -417,8 +360,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             if (isShutdown) {
                 return;
             }
-            Member coordinator = MembershipService.this.coordinator.get();
             boolean isCoordinatorAlive = true;
+            Member coordinator = knownCoordinator.get();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 for (Member member : knownMembers.keySet()) {
                     long lastHeartbeat = getLatestHeartbeat(tr, member);
