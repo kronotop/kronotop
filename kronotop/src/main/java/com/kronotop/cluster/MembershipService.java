@@ -23,7 +23,6 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.common.KronotopException;
-import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
@@ -47,7 +46,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     private final ScheduledThreadPoolExecutor scheduler;
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final ConcurrentHashMap<Member, DirectorySubspace> subspaces = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Member, MemberView> knownMembers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Member, MemberView> others = new ConcurrentHashMap<>();
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
     private final AtomicReference<Member> knownCoordinator = new AtomicReference<>();
     private final AtomicReference<byte[]> latestClusterEventKey = new AtomicReference<>();
@@ -183,21 +182,23 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         MemberJoinEvent event = JSONUtils.readValue(data, MemberJoinEvent.class);
         Member member = registry.findMember(event.memberId());
 
-        // A new cluster member has joined.
-        LOGGER.info("Member join: {}", member.getExternalAddress());
-
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             long heartbeat = Heartbeat.get(tr, member);
-            knownMembers.put(member, new MemberView(heartbeat));
+            subspaces.put(member, openMemberSubspace(member));
+            others.put(member, new MemberView(heartbeat));
         }
+
+        // A new cluster member has joined.
+        LOGGER.info("Member join: {}", member.getExternalAddress());
     }
 
     private void processMemberLeftEvent(byte[] data) {
         MemberLeftEvent event = JSONUtils.readValue(data, MemberLeftEvent.class);
         Member member = registry.findMember(event.memberId());
+        subspaces.remove(member);
+        others.remove(member);
 
         LOGGER.info("Member left: {}", member.getExternalAddress());
-        knownMembers.remove(member);
     }
 
     private void processClusterEvent(Event event) {
@@ -242,7 +243,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         if (closest == null) {
             return;
         }
-        MemberView memberView = knownMembers.get(closest);
+        MemberView memberView = others.get(closest);
         if (!memberView.getAlive()) {
             pruneDeadMembers(members, closest);
         }
@@ -255,7 +256,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
 
         Member coordinator = this.knownCoordinator.get();
-        MemberView memberView = knownMembers.get(closest);
+        MemberView memberView = others.get(closest);
         if (memberView.getAlive()) {
             return;
         }
@@ -344,9 +345,9 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             boolean isCoordinatorAlive = true;
             Member coordinator = knownCoordinator.get();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                for (Member member : knownMembers.keySet()) {
+                for (Member member : others.keySet()) {
                     long lastHeartbeat = Heartbeat.get(tr, member);
-                    MemberView view = knownMembers.computeIfPresent(member, (m, memberView) -> {
+                    MemberView view = others.computeIfPresent(member, (m, memberView) -> {
                         if (memberView.getLastHeartbeat() != lastHeartbeat) {
                             memberView.setLastHeartbeat(lastHeartbeat);
                         } else {
@@ -376,8 +377,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 }
 
                 if (coordinator != null && coordinator.equals(context.getMember())) {
-                    for (Member member : knownMembers.keySet()) {
-                        MemberView memberView = knownMembers.get(member);
+                    for (Member member : others.keySet()) {
+                        MemberView memberView = others.get(member);
                         if (!memberView.getAlive()) {
                             //unregisterMember(member);
                         }
