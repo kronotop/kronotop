@@ -39,7 +39,7 @@ import java.util.concurrent.CompletionException;
  * This includes registering, unregistering, checking registration status, updating member status,
  * and retrieving member details from a FoundationDB backend.
  */
-public class MemberRegistry {
+class MemberRegistry {
     private static final String MEMBER_KEY = "member";
     private final Context context;
 
@@ -71,7 +71,7 @@ public class MemberRegistry {
      * @param memberId the unique identifier of the member to be checked
      * @return true if the member's directory exists, false otherwise
      */
-    public boolean isAdded(Transaction tr, String memberId) {
+    boolean isAdded(Transaction tr, String memberId) {
         KronotopDirectoryNode directory = getDirectoryNode(memberId);
         return DirectoryLayer.getDefault().exists(tr, directory.toList()).join();
     }
@@ -83,7 +83,7 @@ public class MemberRegistry {
      * @param memberId the unique identifier of the member to be checked
      * @return true if the member's directory exists, false otherwise
      */
-    public boolean isAdded(String memberId) {
+    boolean isAdded(String memberId) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return isAdded(tr, memberId);
         }
@@ -96,7 +96,7 @@ public class MemberRegistry {
      * @return the DirectorySubspace associated with the added member
      * @throws MemberAlreadyRegisteredException if the member is already registered
      */
-    public DirectorySubspace add(Member member) {
+    DirectorySubspace add(Member member) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             if (isAdded(tr, member.getId())) {
                 throw new MemberAlreadyRegisteredException(
@@ -120,7 +120,7 @@ public class MemberRegistry {
      * @param memberId the unique identifier of the member to be removed
      * @throws MemberNotRegisteredException if the specified member is not registered
      */
-    public void remove(String memberId) {
+    void remove(String memberId) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             KronotopDirectoryNode directory = getDirectoryNode(memberId);
             DirectoryLayer.getDefault().remove(tr, directory.toList()).join();
@@ -142,7 +142,7 @@ public class MemberRegistry {
      * @throws MemberNotRegisteredException if the specified member is not registered
      * @throws CompletionException          if there is an exception during the transaction completion
      */
-    public Member setStatus(String memberId, MemberStatus status) {
+    Member setStatus(String memberId, MemberStatus status) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Member member = findMember(tr, memberId);
             if (member.getSubspace() == null) {
@@ -191,7 +191,7 @@ public class MemberRegistry {
      * @return the Member object associated with the specified member ID
      * @throws KronotopException if the member is not registered properly
      */
-    public Member findMember(String memberId) {
+    Member findMember(String memberId) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return findMember(tr, memberId);
         } catch (CompletionException e) {
@@ -207,7 +207,7 @@ public class MemberRegistry {
      *
      * @return a TreeSet containing Member objects sorted by their process IDs.
      */
-    public TreeSet<Member> listMembers() {
+    TreeSet<Member> listMembers() {
         DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
         KronotopDirectoryNode directory = KronotopDirectory.
                 kronotop().
