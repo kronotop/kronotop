@@ -24,7 +24,6 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
-import com.google.common.collect.ImmutableList;
 import com.kronotop.Context;
 import com.kronotop.JSONUtils;
 import com.kronotop.cluster.membership.MembershipUtils;
@@ -32,8 +31,6 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.TreeSet;
 import java.util.concurrent.CompletionException;
@@ -71,7 +68,7 @@ public class MemberRegistry {
      * Determines if a member is registered in the system by checking the existence of
      * its directory within the database.
      *
-     * @param tr the transaction object used for database operations
+     * @param tr       the transaction object used for database operations
      * @param memberId the unique identifier of the member to be checked
      * @return true if the member's directory exists, false otherwise
      */
