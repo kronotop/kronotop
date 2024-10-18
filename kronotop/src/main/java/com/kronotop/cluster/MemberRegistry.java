@@ -111,6 +111,26 @@ class MemberRegistry {
     }
 
     /**
+     * Updates the member information in the database. If the member is not registered,
+     * a MemberNotRegisteredException is thrown.
+     *
+     * @param member the member whose information is to be updated
+     * @throws MemberNotRegisteredException if the member is not registered
+     */
+    void update(Member member) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            if (!isAdded(tr, member.getId())) {
+                throw new MemberNotRegisteredException(String.format("Member: %s not registered", member.getId()));
+            }
+
+            KronotopDirectoryNode directory = getDirectoryNode(member.getId());
+            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+            tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtils.writeValueAsBytes(member));
+            tr.commit().join();
+        }
+    }
+
+    /**
      * Removes the member identified by the provided memberId from the system by deleting their directory entry
      * in the database.
      *
@@ -202,7 +222,7 @@ class MemberRegistry {
      */
     TreeSet<Member> listMembers() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-           return listMembers(tr);
+            return listMembers(tr);
         }
     }
 

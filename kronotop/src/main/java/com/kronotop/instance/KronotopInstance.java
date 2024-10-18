@@ -137,9 +137,7 @@ public class KronotopInstance {
         Address internalAddress = getAddress("internal");
         ProcessIdGenerator processIDGenerator = new ProcessIdGeneratorImpl(config, database);
         Versionstamp processID = processIDGenerator.getProcessID();
-        Member member = new Member(id, externalAddress, internalAddress, processID);
-        member.setStatus(MemberStatus.RUNNING);
-        this.member = member;
+        this.member = new Member(id, externalAddress, internalAddress, processID);
     }
 
     /**

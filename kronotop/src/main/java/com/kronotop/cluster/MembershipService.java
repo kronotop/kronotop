@@ -104,9 +104,12 @@ public class MembershipService extends CommandHandlerService implements Kronotop
 
     public void start() {
         Member member = context.getMember();
+        member.setStatus(MemberStatus.RUNNING);
         if (!registry.isAdded(member.getId())) {
             registry.add(member);
             LOGGER.info("Member: {} has been registered", member.getId());
+        } else {
+            registry.update(member);
         }
 
         initializeInternalState();
@@ -119,9 +122,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         scheduler.execute(new HeartbeatTask());
         scheduler.execute(new FailureDetectionTask());
 
-        if (isClusterInitialized_internal()) {
-            clusterInitialized = true;
-        } else {
+        clusterInitialized = isClusterInitialized_internal();
+        if (!clusterInitialized) {
             scheduler.execute(new ClusterInitializationWatcher());
         }
 
@@ -156,15 +158,21 @@ public class MembershipService extends CommandHandlerService implements Kronotop
 
     @Override
     public void shutdown() {
-        isShutdown = true;
-        keyWatcher.unwatchAll();
-        scheduler.shutdownNow();
         try {
+            isShutdown = true;
+            keyWatcher.unwatchAll();
+            scheduler.shutdownNow();
+
             if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
                 LOGGER.warn("{} service cannot be stopped gracefully", NAME);
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
+        } finally {
+            // TODO: Publish member left event
+            Member member = context.getMember();
+            member.setStatus(MemberStatus.STOPPED);
+            registry.update(context.getMember());
         }
     }
 
