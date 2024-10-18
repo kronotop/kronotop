@@ -16,10 +16,8 @@
 
 package com.kronotop.cluster.membership;
 
-import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
 import com.kronotop.cluster.*;
@@ -31,10 +29,6 @@ import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import java.util.concurrent.*;
@@ -82,23 +76,29 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));
     }
 
+    private void configureClusterEventsWatcher() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] key = context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.clusterEvents());
+            this.latestClusterEventKey.set(key);
+        }
+    }
+
     public void start() {
         Member member = context.getMember();
-        context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberJoinEvent(member));
-        LOGGER.info("Member: {} has been registered", context.getMember().getId());
+        String memberId = member.getId();
 
-        byte[] key = context.getFoundationDB().run(tr -> context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.clusterEvents()));
-        this.latestClusterEventKey.set(key);
+        if (!registry.isAdded(memberId)) {
+            registry.add(member);
+            LOGGER.info("Member: {} has been registered", memberId);
+        }
+
+        // Publish a MemberJoinEvent
+        context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberJoinEvent(member));
+        configureClusterEventsWatcher();
 
         scheduler.execute(new ClusterEventsJournalWatcher());
         scheduler.execute(new HeartbeatTask());
         scheduler.execute(new FailureDetectionTask());
-
-        findClusterCoordinator();
-        Member coordinator = this.knownCoordinator.get();
-        if (coordinator != null) {
-            LOGGER.info("Cluster coordinator found: {}", coordinator.getExternalAddress());
-        }
 
         if (isClusterInitialized_internal()) {
             clusterInitialized = true;
@@ -166,32 +166,37 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return knownCoordinator.get();
     }
 
-    private MemberJoinEvent processMemberJoinEvent(byte[] data) {
+    private void processMemberJoinEvent(byte[] data) {
         MemberJoinEvent event = JSONUtils.readValue(data, MemberJoinEvent.class);
         Member member = registry.findMember(event.memberId());
 
         // A new cluster member has joined.
         LOGGER.info("Member join: {}", member.getExternalAddress());
-        return event;
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            long heartbeat = Heartbeat.get(tr, member);
+            knownMembers.put(member, new MemberView(heartbeat));
+        }
     }
 
-    private MemberLeftEvent processMemberLeftEvent(byte[] data) {
+    private void processMemberLeftEvent(byte[] data) {
         MemberLeftEvent event = JSONUtils.readValue(data, MemberLeftEvent.class);
         Member member = registry.findMember(event.memberId());
 
         LOGGER.info("Member left: {}", member.getExternalAddress());
-        return event;
+        knownMembers.remove(member);
     }
 
-    private BroadcastEvent processClusterEvent(Event event) {
+    private void processClusterEvent(Event event) {
         BaseBroadcastEvent baseBroadcastEvent = JSONUtils.readValue(event.getValue(), BaseBroadcastEvent.class);
         LOGGER.debug("Received broadcast event: {}", baseBroadcastEvent.kind());
         try {
-            return switch (baseBroadcastEvent.kind()) {
+            switch (baseBroadcastEvent.kind()) {
                 case MEMBER_JOIN -> processMemberJoinEvent(event.getValue());
                 case MEMBER_LEFT -> processMemberLeftEvent(event.getValue());
                 default -> throw new KronotopException("Unknown broadcast event: " + baseBroadcastEvent.kind());
-            };
+            }
+            ;
         } finally {
             if (baseBroadcastEvent.kind().equals(BroadcastEventKind.MEMBER_LEFT)) {
                 findClusterCoordinator();
@@ -208,7 +213,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 if (event == null) return null;
 
                 try {
-                    BroadcastEvent broadcastEvent = processClusterEvent(event);
+                    processClusterEvent(event);
                 } catch (Exception e) {
                     LOGGER.error("Failed to process a broadcast event, passing it", e);
                 } finally {
@@ -394,6 +399,10 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 tr.commit().join();
                 try {
                     clusterInitialized = isClusterInitialized_internal();
+                    if (clusterInitialized) {
+                        // TODO: Cancel the watcher?
+                        return;
+                    }
                     watcher.join();
                 } catch (CancellationException e) {
                     LOGGER.info("Cluster initialization watcher has been cancelled");
