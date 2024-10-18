@@ -30,10 +30,12 @@ import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Comparator;
 import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  * Membership service implements all business logic around cluster membership and health checks.
@@ -174,12 +176,16 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 registry.update(tr, member);
                 context.getJournal().getPublisher().publish(tr, JournalName.clusterEvents(), new MemberLeftEvent(member));
+                tr.commit().join();
             }
         }
     }
 
     private synchronized void findClusterCoordinator() {
-        TreeSet<Member> members = registry.listMembers();
+        TreeSet<Member> members = registry.
+                listMembers().
+                stream().filter(member -> member.getStatus().equals(MemberStatus.RUNNING)).
+                collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(Member::getProcessId))));
         try {
             Member assumedCoordinator = members.first();
             Member thisMember = context.getMember();
@@ -280,13 +286,12 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             return;
         }
 
-        Member knownCoordinator = this.coordinator.get();
+        Member knownCoordinator = coordinator.get();
         MemberView memberView = others.get(closest);
         if (memberView.getAlive()) {
             return;
         }
         if (knownCoordinator.equals(closest)) {
-            // Remove it from FDB.
             pruneDeadMembers(members, closest);
             return;
         }
@@ -429,8 +434,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             if (isShutdown) {
                 return;
             }
-
-            // TODO: Add unwatch logic to shutdown
 
             DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
             byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
