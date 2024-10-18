@@ -54,7 +54,7 @@ class MemberRegistry {
      * @param memberId the unique identifier of the member whose directory node is to be retrieved
      * @return the KronotopDirectoryNode associated with the specified member ID
      */
-    private KronotopDirectoryNode getDirectoryNode(String memberId) {
+    protected KronotopDirectoryNode getDirectoryNode(String memberId) {
         return KronotopDirectory.
                 kronotop().
                 cluster(context.getClusterName()).

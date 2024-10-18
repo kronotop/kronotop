@@ -17,11 +17,14 @@
 package com.kronotop.cluster;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.common.KronotopException;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
 import com.kronotop.server.ServerKind;
@@ -43,6 +46,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     private final MemberRegistry registry;
     private final ScheduledThreadPoolExecutor scheduler;
     private final KeyWatcher keyWatcher = new KeyWatcher();
+    private final ConcurrentHashMap<Member, DirectorySubspace> subspaces = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Member, MemberView> knownMembers = new ConcurrentHashMap<>();
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
     private final AtomicReference<Member> knownCoordinator = new AtomicReference<>();
@@ -82,15 +86,25 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
+    private DirectorySubspace openMemberSubspace(Member member) {
+        KronotopDirectoryNode directory = registry.getDirectoryNode(member.getId());
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+        }
+    }
+
     public void start() {
         Member member = context.getMember();
         String memberId = member.getId();
 
+        DirectorySubspace subspace;
         if (!registry.isAdded(memberId)) {
-            registry.add(member);
+            subspace = registry.add(member);
             LOGGER.info("Member: {} has been registered", memberId);
+        } else {
+            subspace = openMemberSubspace(member);
         }
-
+        subspaces.put(member, subspace);
 
         // Publish a MemberJoinEvent
         context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberJoinEvent(member));
