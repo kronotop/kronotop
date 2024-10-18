@@ -97,13 +97,11 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     }
 
     public void start() {
-        Member member = context.getMember();
-        String memberId = member.getId();
-
         DirectorySubspace subspace;
-        if (!registry.isAdded(memberId)) {
+        Member member = context.getMember();
+        if (!registry.isAdded(member.getId())) {
             subspace = registry.add(member);
-            LOGGER.info("Member: {} has been registered", memberId);
+            LOGGER.info("Member: {} has been registered", member.getId());
         } else {
             subspace = openMemberSubspace(member);
         }
@@ -170,9 +168,9 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         TreeSet<Member> members = registry.listMembers();
         try {
             Member assumedCoordinator = members.first();
-            Member me = context.getMember();
-            if (assumedCoordinator.equals(me)) {
-                if (coordinator.get() == null || !coordinator.get().equals(me)) {
+            Member thisMember = context.getMember();
+            if (assumedCoordinator.equals(thisMember)) {
+                if (coordinator.get() == null || !coordinator.get().equals(thisMember)) {
                     LOGGER.info("Propagating myself as the cluster coordinator");
                 }
             }
