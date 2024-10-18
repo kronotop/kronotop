@@ -17,13 +17,13 @@
 package com.kronotop.cluster;
 
 public class MemberView {
-    private long lastHeartbeat;
+    private long latestHeartbeat;
     private long expectedHeartbeat;
     private boolean alive;
 
-    public MemberView(long lastHeartbeat) {
-        this.lastHeartbeat = lastHeartbeat;
-        this.expectedHeartbeat = lastHeartbeat + 1;
+    public MemberView(long latestHeartbeat) {
+        this.latestHeartbeat = latestHeartbeat;
+        this.expectedHeartbeat = latestHeartbeat + 1;
         this.alive = true;
     }
 
@@ -32,11 +32,11 @@ public class MemberView {
     }
 
     public long getLatestHeartbeat() {
-        return lastHeartbeat;
+        return latestHeartbeat;
     }
 
-    public void setLastHeartbeat(long lastHeartbeat) {
-        this.lastHeartbeat = lastHeartbeat;
+    public void setLatestHeartbeat(long lastHeartbeat) {
+        this.latestHeartbeat = lastHeartbeat;
         this.expectedHeartbeat = lastHeartbeat + 1;
     }
 
@@ -44,7 +44,7 @@ public class MemberView {
         expectedHeartbeat++;
     }
 
-    public boolean getAlive() {
+    public boolean isAlive() {
         return alive;
     }
 

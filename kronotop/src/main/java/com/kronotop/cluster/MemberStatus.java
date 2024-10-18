@@ -18,7 +18,6 @@ package com.kronotop.cluster;
 
 public enum MemberStatus {
     RUNNING,
-    SUSPECTED_UNAVAILABLE,
     UNAVAILABLE,
     STOPPED,
     UNKNOWN

@@ -128,7 +128,7 @@ class MemberRegistry {
      * Updates the member information in the database. If the member is not registered,
      * a MemberNotRegisteredException is thrown.
      *
-     * @param tr the transaction object used for database operations
+     * @param tr     the transaction object used for database operations
      * @param member the member whose information is to be updated
      * @throws MemberNotRegisteredException if the member is not registered
      */

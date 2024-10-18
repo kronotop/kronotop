@@ -75,7 +75,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         // TODO: CLUSTER-REFACTORING
 
         ThreadFactory factory = Thread.ofVirtual().name("kr.membership").factory();
-        this.scheduler = new ScheduledThreadPoolExecutor(2, factory);
+        this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
 
         handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));
     }
@@ -107,6 +107,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     public void start() {
         Member member = context.getMember();
         member.setStatus(MemberStatus.RUNNING);
+
         if (!registry.isAdded(member.getId())) {
             registry.add(member);
             LOGGER.info("Member: {} has been registered", member.getId());
@@ -172,12 +173,16 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             throw new RuntimeException(e);
         } finally {
             Member member = context.getMember();
-            member.setStatus(MemberStatus.STOPPED);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                registry.update(tr, member);
-                context.getJournal().getPublisher().publish(tr, JournalName.clusterEvents(), new MemberLeftEvent(member));
-                tr.commit().join();
-            }
+            deregisterMember(member, MemberStatus.STOPPED);
+        }
+    }
+
+    private void deregisterMember(Member member, MemberStatus status) {
+        member.setStatus(status);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            registry.update(tr, member);
+            context.getJournal().getPublisher().publish(tr, JournalName.clusterEvents(), new MemberLeftEvent(member));
+            tr.commit().join();
         }
     }
 
@@ -275,7 +280,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             return;
         }
         MemberView memberView = others.get(closest);
-        if (!memberView.getAlive()) {
+        if (!memberView.isAlive()) {
             pruneDeadMembers(members, closest);
         }
     }
@@ -288,7 +293,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
 
         Member knownCoordinator = coordinator.get();
         MemberView memberView = others.get(closest);
-        if (memberView.getAlive()) {
+        if (memberView.isAlive()) {
             return;
         }
         if (knownCoordinator.equals(closest)) {
@@ -378,10 +383,10 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 for (Member member : others.keySet()) {
                     DirectorySubspace subspace = subspaces.get(member);
-                    long lastHeartbeat = Heartbeat.get(tr, subspace);
+                    long latestHeartbeat = Heartbeat.get(tr, subspace);
                     MemberView view = others.computeIfPresent(member, (m, memberView) -> {
-                        if (memberView.getLatestHeartbeat() != lastHeartbeat) {
-                            memberView.setLastHeartbeat(lastHeartbeat);
+                        if (memberView.getLatestHeartbeat() != latestHeartbeat) {
+                            memberView.setLatestHeartbeat(latestHeartbeat);
                         } else {
                             memberView.increaseExpectedHeartbeat();
                         }
@@ -411,8 +416,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 if (knownCoordinator != null && knownCoordinator.equals(context.getMember())) {
                     for (Member member : others.keySet()) {
                         MemberView memberView = others.get(member);
-                        if (!memberView.getAlive()) {
-                            //unregisterMember(member);
+                        if (!memberView.isAlive()) {
+                            deregisterMember(member, MemberStatus.UNAVAILABLE);
                         }
                     }
                 }
