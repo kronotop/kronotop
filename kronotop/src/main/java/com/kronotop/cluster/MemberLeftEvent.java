@@ -25,11 +25,11 @@ public class MemberLeftEvent extends MemberEvent implements BroadcastEvent {
         super(BroadcastEventKind.MEMBER_LEFT, memberId, createdAt);
     }
 
-    public MemberLeftEvent(String memberId) {
+    MemberLeftEvent(String memberId) {
         super(BroadcastEventKind.MEMBER_LEFT, memberId);
     }
 
-    public MemberLeftEvent(Member member) {
+    MemberLeftEvent(Member member) {
         this(member.getId());
     }
 }
