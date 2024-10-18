@@ -18,8 +18,8 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -36,6 +36,7 @@ class DescribeClusterSubCommand extends BaseSubCommand implements SubcommandHand
     DescribeClusterSubCommand(MembershipService service) {
         super(service);
     }
+
     private int getNumberOfShards(ShardKind kind) {
         if (kind.equals(ShardKind.REDIS)) {
             return service.getContext().getConfig().getInt("redis.shards");
@@ -51,15 +52,15 @@ class DescribeClusterSubCommand extends BaseSubCommand implements SubcommandHand
     public void execute(Request request, Response response) {
         DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(service.getContext());
 
-        Map<RedisMessage, RedisMessage> result =  new LinkedHashMap<>();
+        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             for (ShardKind kind : ShardKind.values()) {
-                Map<RedisMessage, RedisMessage> shardsByKind =  new LinkedHashMap<>();
+                Map<RedisMessage, RedisMessage> shardsByKind = new LinkedHashMap<>();
                 int numberOfShards = getNumberOfShards(kind);
                 for (int shardId = 0; shardId < numberOfShards; shardId++) {
                     DirectorySubspace shardSubspace = openShardSubspace(tr, subspace, kind, shardId);
                     // TODO: To be filled...
-                    Map<RedisMessage, RedisMessage> shard =  new LinkedHashMap<>();
+                    Map<RedisMessage, RedisMessage> shard = new LinkedHashMap<>();
                     shard.put(new SimpleStringRedisMessage("owner"), new SimpleStringRedisMessage(""));
                     shard.put(new SimpleStringRedisMessage("standbys"), new ArrayRedisMessage(List.of()));
                     shard.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(ShardStatus.INOPERABLE.toString()));

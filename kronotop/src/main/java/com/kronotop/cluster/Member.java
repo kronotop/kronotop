@@ -80,22 +80,22 @@ public class Member {
         return processId;
     }
 
+    public MemberStatus getStatus() {
+        return status;
+    }
+
     public void setStatus(MemberStatus status) {
         this.status = status;
     }
 
-    public MemberStatus getStatus() {
-        return status;
+    public DirectorySubspace getSubspace() {
+        return subspace;
     }
 
     public void setSubspace(DirectorySubspace subspace) {
         if (subspace != null) {
             this.subspace = subspace;
         }
-    }
-
-    public DirectorySubspace getSubspace() {
-        return subspace;
     }
 
     @Override

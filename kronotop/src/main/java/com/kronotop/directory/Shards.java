@@ -25,10 +25,18 @@ public class Shards extends KronotopDirectoryNode {
         layout.add("shards");
     }
 
+    public Redis redis() {
+        return new Redis(layout);
+    }
+
     public static class Redis extends KronotopDirectoryNode {
         public Redis(List<String> layout) {
             super(layout);
             layout.add("redis");
+        }
+
+        public Shard shard(int shardId) {
+            return new Shard(layout, shardId);
         }
 
         public static class Shard extends KronotopDirectoryNode {
@@ -37,13 +45,5 @@ public class Shards extends KronotopDirectoryNode {
                 layout.add(Integer.toString(shardId));
             }
         }
-
-        public Shard shard(int shardId) {
-            return new Shard(layout, shardId);
-        }
-    }
-
-    public Redis redis() {
-        return new Redis(layout);
     }
 }

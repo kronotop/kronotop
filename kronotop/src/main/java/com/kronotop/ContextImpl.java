@@ -21,7 +21,6 @@ import com.google.common.util.concurrent.Striped;
 import com.kronotop.cluster.Member;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.common.KronotopException;
-import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.journal.Journal;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;

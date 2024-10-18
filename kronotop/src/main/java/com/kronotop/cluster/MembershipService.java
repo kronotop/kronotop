@@ -92,7 +92,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
 
 
-
         // Publish a MemberJoinEvent
         context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberJoinEvent(member));
         configureClusterEventsWatcher();

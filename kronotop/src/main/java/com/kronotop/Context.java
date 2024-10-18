@@ -17,7 +17,6 @@
 package com.kronotop;
 
 import com.apple.foundationdb.Database;
-import com.google.common.util.concurrent.Striped;
 import com.kronotop.cluster.Member;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.journal.Journal;
@@ -29,7 +28,6 @@ import javax.annotation.Nonnull;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.locks.ReadWriteLock;
 
 /**
  * The Context interface represents the context of a Kronotop instance.

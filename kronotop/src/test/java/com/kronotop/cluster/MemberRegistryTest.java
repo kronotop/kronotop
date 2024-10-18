@@ -21,7 +21,6 @@ import com.kronotop.BaseMetadataStoreTest;
 import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
-import java.util.List;
 import java.util.TreeSet;
 import java.util.UUID;
 
