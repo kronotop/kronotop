@@ -169,10 +169,12 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } finally {
-            // TODO: Publish member left event
             Member member = context.getMember();
             member.setStatus(MemberStatus.STOPPED);
-            registry.update(context.getMember());
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                registry.update(tr, member);
+                context.getJournal().getPublisher().publish(tr, JournalName.clusterEvents(), new MemberLeftEvent(member));
+            }
         }
     }
 

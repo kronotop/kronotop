@@ -119,15 +119,27 @@ class MemberRegistry {
      */
     void update(Member member) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            if (!isAdded(tr, member.getId())) {
-                throw new MemberNotRegisteredException(String.format("Member: %s not registered", member.getId()));
-            }
-
-            KronotopDirectoryNode directory = getDirectoryNode(member.getId());
-            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
-            tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtils.writeValueAsBytes(member));
+            update(tr, member);
             tr.commit().join();
         }
+    }
+
+    /**
+     * Updates the member information in the database. If the member is not registered,
+     * a MemberNotRegisteredException is thrown.
+     *
+     * @param tr the transaction object used for database operations
+     * @param member the member whose information is to be updated
+     * @throws MemberNotRegisteredException if the member is not registered
+     */
+    void update(Transaction tr, Member member) {
+        if (!isAdded(tr, member.getId())) {
+            throw new MemberNotRegisteredException(String.format("Member: %s not registered", member.getId()));
+        }
+
+        KronotopDirectoryNode directory = getDirectoryNode(member.getId());
+        DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+        tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtils.writeValueAsBytes(member));
     }
 
     /**
