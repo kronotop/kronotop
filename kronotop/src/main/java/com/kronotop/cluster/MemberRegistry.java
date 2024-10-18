@@ -16,13 +16,10 @@
 
 package com.kronotop.cluster;
 
-import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.JSONUtils;
@@ -31,6 +28,7 @@ import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.TreeSet;
 import java.util.concurrent.CompletionException;
 
@@ -108,7 +106,6 @@ class MemberRegistry {
             DirectorySubspace subspace = DirectoryLayer.getDefault().create(tr, directory.toList()).join();
             tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtils.writeValueAsBytes(member));
             tr.commit().join();
-            member.setSubspace(subspace);
             return subspace;
         }
     }
@@ -145,12 +142,10 @@ class MemberRegistry {
     Member setStatus(String memberId, MemberStatus status) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Member member = findMember(tr, memberId);
-            if (member.getSubspace() == null) {
-                throw new KronotopException(String.format("Member: %s has no subspace", memberId));
-            }
             member.setStatus(status);
 
-            byte[] key = member.getSubspace().pack(Tuple.from(MEMBER_KEY));
+            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, getDirectoryNode(memberId).toList()).join();
+            byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
             tr.set(key, JSONUtils.writeValueAsBytes(member));
             tr.commit().join();
 
@@ -179,9 +174,7 @@ class MemberRegistry {
         if (data == null) {
             throw new KronotopException(String.format("Member: %s not registered properly", memberId));
         }
-        Member member = JSONUtils.readValue(data, Member.class);
-        member.setSubspace(subspace);
-        return member;
+        return JSONUtils.readValue(data, Member.class);
     }
 
     /**
@@ -208,20 +201,26 @@ class MemberRegistry {
      * @return a TreeSet containing Member objects sorted by their process IDs.
      */
     TreeSet<Member> listMembers() {
-        DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+           return listMembers(tr);
+        }
+    }
+
+    TreeSet<Member> listMembers(Transaction tr) {
+        TreeSet<Member> members = new TreeSet<>(Comparator.comparing(Member::getProcessId));
+
         KronotopDirectoryNode directory = KronotopDirectory.
                 kronotop().
                 cluster(context.getClusterName()).
                 metadata().
                 members();
-        TreeSet<Member> members = new TreeSet<>(Comparator.comparing(Member::getProcessId));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace membersSubspace = subspace.open(tr, directory.excludeSubspace(subspace)).join();
-            AsyncIterable<KeyValue> iterable = tr.getRange(membersSubspace.pack(), ByteArrayUtil.strinc(membersSubspace.pack()));
-            for (KeyValue keyValue : iterable) {
-                Member member = JSONUtils.readValue(keyValue.getValue(), Member.class);
-                members.add(member);
-            }
+        List<String> memberIds = DirectoryLayer.getDefault().list(tr, directory.toList()).join();
+        for (String memberId : memberIds) {
+            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, getDirectoryNode(memberId).toList()).join();
+            byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
+            byte[] value = tr.get(key).join();
+            Member member = JSONUtils.readValue(value, Member.class);
+            members.add(member);
         }
         return members;
     }

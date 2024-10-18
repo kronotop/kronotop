@@ -42,9 +42,6 @@ public class Member {
     @JsonDeserialize(using = ProcessIdDeserializer.class)
     private Versionstamp processId;
 
-    @JsonIgnore
-    private volatile DirectorySubspace subspace;
-
     Member() {
     }
 
@@ -88,18 +85,12 @@ public class Member {
         this.status = status;
     }
 
-    public DirectorySubspace getSubspace() {
-        return subspace;
-    }
-
-    public void setSubspace(DirectorySubspace subspace) {
-        if (subspace != null) {
-            this.subspace = subspace;
-        }
-    }
-
     @Override
     public int hashCode() {
+        if (hashCode == 0) {
+            // Hacky?
+            hashCode = sipHash24().hashString(id, StandardCharsets.US_ASCII).asInt();
+        }
         return hashCode;
     }
 
@@ -111,7 +102,7 @@ public class Member {
         if (!(obj instanceof Member member)) {
             return false;
         }
-        return member.getId().equals(id) && member.getProcessId().equals(processId);
+        return member.getId().equals(id);
     }
 
     @Override

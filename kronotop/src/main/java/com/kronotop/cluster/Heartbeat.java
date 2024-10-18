@@ -20,13 +20,14 @@ import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 
+import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 class Heartbeat {
     private static final byte[] HEARTBEAT_DELTA = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1, byte order: little-endian
 
-    static long get(Transaction tr, DirectorySubspace subspace) {
+    static long get(@Nonnull Transaction tr, @Nonnull DirectorySubspace subspace) {
         long heartbeat = 0;
         byte[] data = tr.get(subspace.pack(Member.HEARTBEAT_KEY)).join();
         if (data != null) {
@@ -35,7 +36,7 @@ class Heartbeat {
         return heartbeat;
     }
 
-    static void set(Transaction tr, DirectorySubspace subspace) {
+    static void set(@Nonnull Transaction tr, @Nonnull DirectorySubspace subspace) {
         byte[] key = subspace.pack(Member.HEARTBEAT_KEY);
         tr.mutate(MutationType.ADD, key, HEARTBEAT_DELTA);
     }

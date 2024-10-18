@@ -90,22 +90,26 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return DirectoryLayer.getDefault().open(tr, directory.toList()).join();
     }
 
-    private DirectorySubspace openMemberSubspace(Member member) {
+    private void initializeInternalState() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return openMemberSubspace(tr, member);
+            for (Member member : registry.listMembers(tr)) {
+                DirectorySubspace subspace = openMemberSubspace(tr, member);
+                long heartbeat = Heartbeat.get(tr, subspace);
+                MemberView memberView = new MemberView(heartbeat);
+                others.put(member, memberView);
+                subspaces.put(member, subspace);
+            }
         }
     }
 
     public void start() {
-        DirectorySubspace subspace;
         Member member = context.getMember();
         if (!registry.isAdded(member.getId())) {
-            subspace = registry.add(member);
+            registry.add(member);
             LOGGER.info("Member: {} has been registered", member.getId());
-        } else {
-            subspace = openMemberSubspace(member);
         }
-        subspaces.put(member, subspace);
+
+        initializeInternalState();
 
         // Publish a MemberJoinEvent
         context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberJoinEvent(member));
@@ -326,7 +330,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     }
 
     private class HeartbeatTask implements Runnable {
-        DirectorySubspace subspace = subspaces.get(context.getMember());
+        private final DirectorySubspace subspace = subspaces.get(context.getMember());
 
         @Override
         public void run() {
