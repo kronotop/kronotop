@@ -46,7 +46,7 @@ class NodesSubcommand implements SubcommandHandler {
         // <id> <ip:port@cport[,hostname]> <flags> <master> <ping-sent> <pong-recv> <config-epoch> <link-state> <slot> <slot> ... <slot>
         List<String> result = new ArrayList<>();
         MembershipService membershipService = service.getContext().getService(MembershipService.NAME);
-        TreeSet<Member> members = membershipService.getSortedMembers();
+        TreeSet<Member> members = membershipService.listMembers();
 
         Long configEpoch = membershipService.getRoutingTable().getVersion();
         Map<Member, Long> latestHeartbeats = membershipService.getLatestHeartbeats(members.toArray(new Member[members.size()]));

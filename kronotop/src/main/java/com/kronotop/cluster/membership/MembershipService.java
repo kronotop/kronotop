@@ -50,8 +50,9 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     private final MemberRegistry registry;
     private final ScheduledThreadPoolExecutor scheduler;
     private final KeyWatcher keyWatcher = new KeyWatcher();
+    private final ConcurrentHashMap<Member, MemberView> knownMembers = new ConcurrentHashMap<>();
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
-    private final AtomicReference<Member> knownCoordinator = new AtomicReference<>();
+    private final AtomicReference<Member> coordinator = new AtomicReference<>();
     private final AtomicReference<byte[]> latestClusterEventKey = new AtomicReference<>();
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
@@ -94,7 +95,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         scheduler.execute(new FailureDetectionTask());
 
         findClusterCoordinator();
-        Member coordinator = knownCoordinator.get();
+        Member coordinator = this.coordinator.get();
         if (coordinator != null) {
             LOGGER.info("Cluster coordinator found: {}", coordinator.getExternalAddress());
         }
@@ -208,11 +209,11 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             Member coordinator = members.first();
             Member me = context.getMember();
             if (coordinator.equals(me)) {
-                if (knownCoordinator.get() == null || !knownCoordinator.get().equals(me)) {
+                if (this.coordinator.get() == null || !this.coordinator.get().equals(me)) {
                     LOGGER.info("Propagating myself as the cluster coordinator");
                 }
             }
-            knownCoordinator.set(coordinator);
+            this.coordinator.set(coordinator);
         } catch (NoSuchElementException e) {
             LOGGER.warn("No cluster coordinator found");
         }
@@ -222,8 +223,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return routingTable.get();
     }
 
-    public Member getKnownCoordinator() {
-        return knownCoordinator.get();
+    public Member getCoordinator() {
+        return coordinator.get();
     }
 
     private MemberJoinEvent processMemberJoinEvent(byte[] data) {
@@ -311,7 +312,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             return;
         }
 
-        Member coordinator = knownCoordinator.get();
+        Member coordinator = this.coordinator.get();
         MemberView memberView = knownMembers.get(closest);
         if (memberView.getAlive()) {
             return;
@@ -416,7 +417,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             if (isShutdown) {
                 return;
             }
-            Member coordinator = knownCoordinator.get();
+            Member coordinator = MembershipService.this.coordinator.get();
             boolean isCoordinatorAlive = true;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 for (Member member : knownMembers.keySet()) {

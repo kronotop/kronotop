@@ -83,7 +83,7 @@ public class BaseClusterTest extends BaseTest {
     protected KronotopTestInstance getClusterCoordinator() {
         KronotopTestInstance instance = kronotopInstances.values().iterator().next();
         MembershipService membershipService = instance.getContext().getService(MembershipService.NAME);
-        Member coordinator = membershipService.getKnownCoordinator();
+        Member coordinator = membershipService.getCoordinator();
         for (KronotopTestInstance coordinatorInstance : kronotopInstances.values()) {
             if (coordinatorInstance.getContext().getMember().equals(coordinator)) {
                 return coordinatorInstance;
