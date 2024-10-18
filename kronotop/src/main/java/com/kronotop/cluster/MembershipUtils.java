@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.membership;
+package com.kronotop.cluster;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;

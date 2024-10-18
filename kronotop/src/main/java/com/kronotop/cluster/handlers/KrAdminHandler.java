@@ -17,7 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.MembershipService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;

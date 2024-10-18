@@ -21,7 +21,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.MembershipService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.network.Address;

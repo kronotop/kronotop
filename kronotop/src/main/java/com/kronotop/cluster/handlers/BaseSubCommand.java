@@ -16,7 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.MembershipService;
 
 class BaseSubCommand {
     protected final MembershipService service;

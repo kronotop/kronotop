@@ -14,12 +14,9 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.membership;
+package com.kronotop.cluster;
 
-import com.kronotop.common.KronotopException;
-
-public class NoSuchMemberException extends KronotopException {
-    public NoSuchMemberException(String content) {
-        super(content);
-    }
+public final class MembershipConstants {
+    public static final byte[] TRUE = new byte[]{0x01};
+    public static final byte CLUSTER_INITIALIZED = 0x02;
 }

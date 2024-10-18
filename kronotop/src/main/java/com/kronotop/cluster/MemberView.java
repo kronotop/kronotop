@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.membership;
+package com.kronotop.cluster;
 
 public class MemberView {
     private long lastHeartbeat;

@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.BaseClusterTest;
 import com.kronotop.cluster.Heartbeat;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.MembershipService;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedList;

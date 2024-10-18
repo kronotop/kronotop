@@ -19,8 +19,6 @@ package com.kronotop.cluster;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
-import com.kronotop.cluster.membership.MembershipService;
-import com.kronotop.cluster.membership.NoSuchMemberException;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

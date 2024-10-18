@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.membership;
+package com.kronotop.cluster;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
-import com.kronotop.cluster.*;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.common.KronotopException;
 import com.kronotop.journal.Event;

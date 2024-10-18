@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.Heartbeat;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.MembershipService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;

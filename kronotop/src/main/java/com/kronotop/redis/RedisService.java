@@ -26,7 +26,7 @@ import com.kronotop.KronotopService;
 import com.kronotop.ServiceContext;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.Route;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.MembershipService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.handlers.InfoHandler;

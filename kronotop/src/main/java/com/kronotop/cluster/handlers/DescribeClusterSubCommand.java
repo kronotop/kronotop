@@ -18,8 +18,8 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.membership.MembershipUtils;
-import com.kronotop.cluster.membership.MembershipService;
+import com.kronotop.cluster.MembershipUtils;
+import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.server.SubcommandHandler;
