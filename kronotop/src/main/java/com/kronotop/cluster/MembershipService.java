@@ -80,6 +80,11 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));
     }
 
+    private boolean isCoordinator() {
+        Member knownCoordinator = coordinator.get();
+        return knownCoordinator != null && knownCoordinator.equals(context.getMember());
+    }
+
     private void configureClusterEventsWatcher() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] key = context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.clusterEvents());
@@ -173,11 +178,11 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             throw new RuntimeException(e);
         } finally {
             Member member = context.getMember();
-            deregisterMember(member, MemberStatus.STOPPED);
+            unregisterMember(member, MemberStatus.STOPPED);
         }
     }
 
-    private void deregisterMember(Member member, MemberStatus status) {
+    private void unregisterMember(Member member, MemberStatus status) {
         member.setStatus(status);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             registry.update(tr, member);
@@ -240,17 +245,10 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     private void processClusterEvent(Event event) {
         BaseBroadcastEvent baseBroadcastEvent = JSONUtils.readValue(event.getValue(), BaseBroadcastEvent.class);
         LOGGER.debug("Received broadcast event: {}", baseBroadcastEvent.kind());
-        try {
-            switch (baseBroadcastEvent.kind()) {
-                case MEMBER_JOIN -> processMemberJoinEvent(event.getValue());
-                case MEMBER_LEFT -> processMemberLeftEvent(event.getValue());
-                default -> throw new KronotopException("Unknown broadcast event: " + baseBroadcastEvent.kind());
-            }
-            ;
-        } finally {
-            if (baseBroadcastEvent.kind().equals(BroadcastEventKind.MEMBER_LEFT)) {
-                findClusterCoordinator();
-            }
+        switch (baseBroadcastEvent.kind()) {
+            case MEMBER_JOIN -> processMemberJoinEvent(event.getValue());
+            case MEMBER_LEFT -> processMemberLeftEvent(event.getValue());
+            default -> throw new KronotopException("Unknown broadcast event: " + baseBroadcastEvent.kind());
         }
     }
 
@@ -272,36 +270,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 }
             }
         });
-    }
-
-    private void pruneDeadMembers(TreeSet<Member> members, Member dead) {
-        Member closest = members.higher(dead);
-        if (closest == null) {
-            return;
-        }
-        MemberView memberView = others.get(closest);
-        if (!memberView.isAlive()) {
-            pruneDeadMembers(members, closest);
-        }
-    }
-
-    private void findDeadCoordinator(TreeSet<Member> members, Member member) {
-        Member closest = members.lower(member);
-        if (closest == null) {
-            return;
-        }
-
-        Member knownCoordinator = coordinator.get();
-        MemberView memberView = others.get(closest);
-        if (memberView.isAlive()) {
-            return;
-        }
-        if (knownCoordinator.equals(closest)) {
-            pruneDeadMembers(members, closest);
-            return;
-        }
-
-        findDeadCoordinator(members, closest);
     }
 
     private boolean isClusterInitialized_internal() {
@@ -409,15 +377,16 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 }
 
                 if (!isCoordinatorAlive) {
-                    TreeSet<Member> members = registry.listMembers();
-                    findDeadCoordinator(members, context.getMember());
+                    findClusterCoordinator();
                 }
 
-                if (knownCoordinator != null && knownCoordinator.equals(context.getMember())) {
+                // Coordinator routines
+                if (isCoordinator()) {
                     for (Member member : others.keySet()) {
                         MemberView memberView = others.get(member);
                         if (!memberView.isAlive()) {
-                            deregisterMember(member, MemberStatus.UNAVAILABLE);
+                            LOGGER.info("Marking Member: {} as {}", member.getId(), MemberStatus.UNAVAILABLE);
+                            unregisterMember(member, MemberStatus.UNAVAILABLE);
                         }
                     }
                 }
