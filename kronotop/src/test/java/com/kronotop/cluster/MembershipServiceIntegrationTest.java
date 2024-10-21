@@ -14,9 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.membership.impl;
+package com.kronotop.cluster;
 
-import com.kronotop.cluster.BaseClusterTest;
+import com.kronotop.KronotopTestInstance;
+import org.junit.jupiter.api.Test;
 
-public class BasicMembershipServiceIntegrationTest extends BaseClusterTest {
+public class MembershipServiceIntegrationTest extends BaseClusterTest {
+    @Test
+    public void test() {
+        KronotopTestInstance instance = getInstances().getFirst();
+        MembershipService membership = instance.getContext().getService(MembershipService.NAME);
+
+        System.out.println(membership.isClusterInitialized());
+    }
 }

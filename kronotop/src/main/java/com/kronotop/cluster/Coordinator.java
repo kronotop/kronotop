@@ -64,6 +64,12 @@ class Coordinator {
     }
 
     void initiateCoordinatorElection() {
+        // 1- 2. node bunu calistirir
+        // 2- eger baska bi node, ayni node bile olsa processID'si tutmuyorsa,
+        // yeni election baslatamaz.
+        // 3- stuck olma durumunda insan mudahalesi gerekir.
+        // 4- tum node'lar kendi bildikleri coordinator icin oy verirler
+        // 5-
 
     }
 }

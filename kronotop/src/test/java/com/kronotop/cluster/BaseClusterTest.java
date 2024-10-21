@@ -18,11 +18,15 @@ package com.kronotop.cluster;
 
 import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.instance.KronotopInstance;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -38,6 +42,11 @@ public class BaseClusterTest extends BaseTest {
     @BeforeEach
     public void setup() {
         addNewInstance();
+    }
+
+    protected List<KronotopTestInstance> getInstances() {
+        List<KronotopTestInstance> instances = new LinkedList<>(kronotopInstances.values());
+        return Collections.unmodifiableList(instances);
     }
 
     protected KronotopTestInstance addNewInstance() {
