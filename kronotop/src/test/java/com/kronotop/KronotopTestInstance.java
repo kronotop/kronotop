@@ -41,8 +41,7 @@ import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * KronotopTestInstance is a class that extends KronotopInstance and represents a standalone instance of
@@ -139,10 +138,16 @@ public class KronotopTestInstance extends KronotopInstance {
         cmd.initializeCluster().encode(buf);
         channel.writeInbound(buf);
 
-        Object msg = channel.readOutbound();
-        assertInstanceOf(SimpleStringRedisMessage.class, msg);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-        assertEquals(Response.OK, actualMessage.content());
+        Object raw = channel.readOutbound();
+        if (raw instanceof SimpleStringRedisMessage message) {
+            assertEquals(Response.OK, message.content());
+        } else if (raw instanceof ErrorRedisMessage message) {
+            if (message.content().equals("ERR cluster has already been initialized")) {
+                // It's okay.
+                return;
+            }
+            fail(message.content());
+        }
     }
 
     /**

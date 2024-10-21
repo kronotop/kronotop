@@ -19,12 +19,34 @@ package com.kronotop.cluster;
 import com.kronotop.KronotopTestInstance;
 import org.junit.jupiter.api.Test;
 
+import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
+
+import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 public class MembershipServiceIntegrationTest extends BaseClusterTest {
     @Test
-    public void test() {
+    public void test_isClusterInitialized() {
         KronotopTestInstance instance = getInstances().getFirst();
         MembershipService membership = instance.getContext().getService(MembershipService.NAME);
+        await().atMost(5, TimeUnit.SECONDS).until(membership::isClusterInitialized);
+    }
 
-        System.out.println(membership.isClusterInitialized());
+    @Test
+    public void test_getLatestHeartbeat() {
+        KronotopTestInstance instance = getInstances().getFirst();
+        MembershipService membership = instance.getContext().getService(MembershipService.NAME);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> membership.getLatestHeartbeat(instance.getContext().getMember()) > 0);
+    }
+
+    @Test
+    public void test_listMembers() {
+        addNewInstance();
+
+        KronotopTestInstance instance = getInstances().getFirst();
+        MembershipService membership = instance.getContext().getService(MembershipService.NAME);
+        TreeSet<Member> members = membership.listMembers();
+        assertEquals(2, members.size());
     }
 }
