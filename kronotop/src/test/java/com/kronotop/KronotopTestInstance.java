@@ -19,17 +19,19 @@ package com.kronotop;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.Route;
+import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
+import com.kronotop.redis.handlers.connection.protocol.PingMessage;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
-import com.kronotop.server.resp3.RedisArrayAggregator;
-import com.kronotop.server.resp3.RedisBulkStringAggregator;
-import com.kronotop.server.resp3.RedisDecoder;
-import com.kronotop.server.resp3.RedisMapAggregator;
+import com.kronotop.server.resp3.*;
 import com.typesafe.config.Config;
+import io.lettuce.core.codec.StringCodec;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import java.net.UnknownHostException;
@@ -39,13 +41,19 @@ import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+
 /**
  * KronotopTestInstance is a class that extends KronotopInstance and represents a standalone instance of
  * Kronotop for testing.
  */
 public class KronotopTestInstance extends KronotopInstance {
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
-    private final Set<String> duplicatedCommands = new HashSet<>(List.of(ClientMessage.COMMAND));
+    private final Set<String> duplicatedCommands = new HashSet<>(List.of(
+            ClientMessage.COMMAND,
+            PingMessage.COMMAND
+    ));
     private final Object clusterOperable = new Object();
     private final boolean runWithTCPServer;
     private EmbeddedChannel channel;
@@ -122,6 +130,19 @@ public class KronotopTestInstance extends KronotopInstance {
         //    clusterOperable.wait();
         //}
         channel = newChannel();
+        initializeTestCluster();
+    }
+
+    private void initializeTestCluster() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.initializeCluster().encode(buf);
+        channel.writeInbound(buf);
+
+        Object msg = channel.readOutbound();
+        assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertEquals("OK", actualMessage.content());
     }
 
     /**

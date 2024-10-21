@@ -158,6 +158,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
 
         // Internals
         handlerMethod(ServerKind.INTERNAL, new ClientHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new PingHandler());
     }
 
     public static void checkRedisValueKind(RedisValueContainer container, RedisValueKind kind) {
