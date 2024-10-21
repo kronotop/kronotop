@@ -16,12 +16,28 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.replication.BaseNetworkedVolumeTest;
+import io.lettuce.core.codec.StringCodec;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
     @Test
     public void test() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.initializeCluster().encode(buf);
 
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertEquals("OK", actualMessage.content());
     }
 }

@@ -18,7 +18,7 @@ package com.kronotop.redis.handlers.generic;
 
 import com.kronotop.redis.BaseVolumeSyncIntegrationTest;
 import com.kronotop.redis.storage.StringPack;
-import com.kronotop.redistest.RedisCommandBuilder;
+import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

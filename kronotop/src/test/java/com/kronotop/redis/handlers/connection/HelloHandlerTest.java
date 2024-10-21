@@ -20,7 +20,7 @@ import com.kronotop.network.clients.Client;
 import com.kronotop.network.clients.Clients;
 import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.redis.handlers.connection.protocol.HelloMessage;
-import com.kronotop.redistest.RedisCommandBuilder;
+import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;

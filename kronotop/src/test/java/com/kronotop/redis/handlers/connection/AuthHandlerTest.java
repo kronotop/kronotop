@@ -17,7 +17,7 @@
 package com.kronotop.redis.handlers.connection;
 
 import com.kronotop.redis.handlers.BaseHandlerTest;
-import com.kronotop.redistest.RedisCommandBuilder;
+import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.typesafe.config.Config;

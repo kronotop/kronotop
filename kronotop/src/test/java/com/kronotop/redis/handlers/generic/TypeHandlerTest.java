@@ -18,7 +18,7 @@ package com.kronotop.redis.handlers.generic;
 
 
 import com.kronotop.redis.handlers.BaseHandlerTest;
-import com.kronotop.redistest.RedisCommandBuilder;
+import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
