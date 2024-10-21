@@ -16,6 +16,7 @@
 
 package com.kronotop.cluster;
 
+import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -197,7 +198,7 @@ class MemberRegistry {
      * @return the Member object associated with the specified member ID
      * @throws KronotopException if the member is not registered properly
      */
-    private Member findMember(Transaction tr, String memberId) {
+    Member findMember(ReadTransaction tr, String memberId) {
         KronotopDirectoryNode directory = getDirectoryNode(memberId);
 
         DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();

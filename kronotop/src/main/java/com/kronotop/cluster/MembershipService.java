@@ -329,7 +329,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                 Heartbeat.set(tr, subspace);
                 tr.commit().join();
             } catch (Exception e) {
-                LOGGER.error("Error while running heartbeat task", e);
+                LOGGER.error("Error while updating heartbeat", e);
             } finally {
                 if (!isShutdown) {
                     scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);
