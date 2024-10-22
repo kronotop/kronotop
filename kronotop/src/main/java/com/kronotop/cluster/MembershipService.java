@@ -178,16 +178,20 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             throw new RuntimeException(e);
         } finally {
             Member member = context.getMember();
-            unregisterMember(member, MemberStatus.STOPPED);
+            updateMemberStatusAndLeftCluster(member, MemberStatus.STOPPED);
         }
     }
 
-    private void unregisterMember(Member member, MemberStatus status) {
-        member.setStatus(status);
+    private void updateMemberStatusAndLeftCluster(Member member, MemberStatus status) {
+        MemberStatus initialStatus = member.getStatus();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            member.setStatus(status);
             registry.update(tr, member);
             context.getJournal().getPublisher().publish(tr, JournalName.clusterEvents(), new MemberLeftEvent(member));
             tr.commit().join();
+        } catch (Exception e) {
+            // Rollback the internal state
+            member.setStatus(initialStatus);
         }
     }
 
@@ -386,7 +390,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                         MemberView memberView = others.get(member);
                         if (!memberView.isAlive()) {
                             LOGGER.info("Marking Member: {} as {}", member.getId(), MemberStatus.UNAVAILABLE);
-                            unregisterMember(member, MemberStatus.UNAVAILABLE);
+                            updateMemberStatusAndLeftCluster(member, MemberStatus.UNAVAILABLE);
                         }
                     }
                 }

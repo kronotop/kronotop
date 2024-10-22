@@ -49,4 +49,29 @@ public class MembershipServiceIntegrationTest extends BaseClusterTest {
         TreeSet<Member> members = membership.listMembers();
         assertEquals(2, members.size());
     }
+
+    @Test
+    public void test_member_shutdown_then_check_MemberStatus() {
+        addNewInstance();
+
+        KronotopTestInstance first = getInstances().getFirst();
+
+        first.shutdownWithoutCleanup();
+        kronotopInstances.remove(first.getMember());
+
+        KronotopTestInstance second = getInstances().getFirst();
+
+        MembershipService membership = second.getContext().getService(MembershipService.NAME);
+
+        TreeSet<Member> members = membership.listMembers();
+        assertEquals(2, members.size());
+
+        MemberStatus status = MemberStatus.UNKNOWN;
+        for (Member member : members) {
+            if (member.equals(first.getMember())) {
+                status = member.getStatus();
+            }
+        }
+        assertEquals(MemberStatus.STOPPED, status);
+    }
 }

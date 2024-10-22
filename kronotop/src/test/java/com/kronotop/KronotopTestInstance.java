@@ -160,12 +160,16 @@ public class KronotopTestInstance extends KronotopInstance {
         });
     }
 
+    public void shutdownWithoutCleanup() {
+        super.shutdown();
+        executor.shutdownNow();
+        channel.finishAndReleaseAll();
+    }
+
     @Override
     public void shutdown() {
         try {
-            super.shutdown();
-            executor.shutdownNow();
-            channel.finishAndReleaseAll();
+            shutdownWithoutCleanup();
         } finally {
             cleanupTestCluster();
         }
