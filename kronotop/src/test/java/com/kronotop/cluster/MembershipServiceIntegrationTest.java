@@ -60,9 +60,7 @@ public class MembershipServiceIntegrationTest extends BaseClusterTest {
         kronotopInstances.remove(first.getMember());
 
         KronotopTestInstance second = getInstances().getFirst();
-
         MembershipService membership = second.getContext().getService(MembershipService.NAME);
-
         TreeSet<Member> members = membership.listMembers();
         assertEquals(2, members.size());
 
