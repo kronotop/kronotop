@@ -17,12 +17,14 @@
 package com.kronotop.commandbuilder.kronotop;
 
 import io.lettuce.core.codec.RedisCodec;
+import io.lettuce.core.output.MapOutput;
 import io.lettuce.core.output.StatusOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 import io.lettuce.core.protocol.ProtocolKeyword;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
 
@@ -33,6 +35,13 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
     public Command<K, V, String> initializeCluster() {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.INITIALIZE_CLUSTER);
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Command<K, V, Map<String, Object>> listMembers() {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.LIST_MEMBERS);
+        return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
+
     }
 
     enum CommandType implements ProtocolKeyword {
@@ -51,7 +60,8 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
     }
 
     enum CommandKeyword implements ProtocolKeyword {
-        INITIALIZE_CLUSTER("INITIALIZE-CLUSTER");
+        INITIALIZE_CLUSTER("INITIALIZE-CLUSTER"),
+        LIST_MEMBERS("LIST-MEMBERS");
 
         public final byte[] bytes;
 
