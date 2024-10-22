@@ -42,7 +42,7 @@ public class BaseNetworkedVolumeTest extends BaseClusterTestWithTCPServer {
     @BeforeEach
     public void setup() {
         super.setup();
-        kronotopInstance = getClusterCoordinator();
+        kronotopInstance = getInstances().getFirst();
         channel = kronotopInstance.getChannel();
         context = kronotopInstance.getContext();
         database = kronotopInstance.getContext().getFoundationDB();

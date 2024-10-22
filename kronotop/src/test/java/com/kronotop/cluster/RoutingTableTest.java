@@ -14,14 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.coordinator;
+package com.kronotop.cluster;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.MockProcessIdGeneratorImpl;
-import com.kronotop.cluster.Route;
-import com.kronotop.cluster.RoutingTable;
 import com.kronotop.network.Address;
 import org.junit.jupiter.api.Test;
 
@@ -72,37 +68,9 @@ public class RoutingTableTest {
     }
 
     @Test
-    public void test_setCoordinator() throws UnknownHostException {
-        RoutingTable routingTable = new RoutingTable();
-        Member member = new Member(
-                UUID.randomUUID().toString(),
-                Address.parseString("localhost:3320"),
-                Address.parseString("localhost:3321"),
-                processIdGenerator.getProcessID()
-        );
-        assertDoesNotThrow(() -> routingTable.updateCoordinator(member));
-    }
-
-    @Test
-    public void test_getCoordinator() throws UnknownHostException {
-        RoutingTable routingTable = new RoutingTable();
-
-        Member member = new Member(
-                UUID.randomUUID().toString(),
-                Address.parseString("localhost:3320"),
-                Address.parseString("localhost:3321"),
-                processIdGenerator.getProcessID()
-        );
-        routingTable.updateCoordinator(member);
-
-        assertEquals(member, routingTable.getCoordinator());
-    }
-
-    @Test
     public void test_encode() throws UnknownHostException, JsonProcessingException {
         RoutingTable routingTable = new RoutingTable();
         Route route = newRoute();
-        routingTable.updateCoordinator(route.getMember());
         routingTable.setRoute(1, route);
         routingTable.setRoute(2, route);
 

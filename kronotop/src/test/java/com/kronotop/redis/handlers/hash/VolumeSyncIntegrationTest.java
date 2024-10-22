@@ -17,11 +17,11 @@
 package com.kronotop.redis.handlers.hash;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.BaseVolumeSyncIntegrationTest;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.HashFieldPack;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.volume.KeyEntry;
 import com.kronotop.volume.Session;
 import io.lettuce.core.codec.StringCodec;

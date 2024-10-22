@@ -31,39 +31,14 @@ import java.util.HashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-/**
- * The RoutingTable class represents a routing table used in a distributed system. It maintains a mapping of shard identifiers to routes,
- * and keeps track of the coordinator member and version number.
- */
 public class RoutingTable {
     @JsonSerialize(using = RoutesSerializer.class)
     @JsonDeserialize(using = RoutesDeserializer.class)
     private final HashMap<Integer, Route> routes = new HashMap<>();
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     private Long version = 0L;
-    @JsonDeserialize(using = CoordinatorDeserializer.class)
-    private Member coordinator;
 
     public RoutingTable() {
-    }
-
-    public Member getCoordinator() {
-        readWriteLock.readLock().lock();
-        try {
-            return coordinator;
-        } finally {
-            readWriteLock.readLock().unlock();
-        }
-    }
-
-    public void updateCoordinator(Member member) {
-        readWriteLock.writeLock().lock();
-        try {
-            version++;
-            coordinator = member;
-        } finally {
-            readWriteLock.writeLock().unlock();
-        }
     }
 
     public void setRoute(int shardId, Route route) {
@@ -104,21 +79,12 @@ public class RoutingTable {
             return false;
         }
 
-        return routingTable.getVersion().equals(routingTable.getVersion())
-                && getCoordinator().equals(routingTable.getCoordinator());
+        return routingTable.getVersion().equals(routingTable.getVersion());
     }
 
     @Override
     public String toString() {
-        return String.format("RoutingTable {coordinator=%s version=%d}", getCoordinator(), getVersion());
-    }
-
-    private static class CoordinatorDeserializer extends JsonDeserializer<Member> {
-
-        @Override
-        public Member deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-            return p.readValueAs(Member.class);
-        }
+        return String.format("RoutingTable {version=%d}", getVersion());
     }
 
     private static class RoutesSerializer extends JsonSerializer<HashMap<Integer, Route>> {

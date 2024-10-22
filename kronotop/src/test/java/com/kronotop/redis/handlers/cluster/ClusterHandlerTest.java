@@ -18,8 +18,8 @@ package com.kronotop.redis.handlers.cluster;
 
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.MembershipService;
-import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
+import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
@@ -65,7 +65,7 @@ class ClusterHandlerTest extends BaseHandlerTest {
     @Test
     public void test_CLUSTER_NODES() {
         Map<Integer, KronotopTestInstance> instances = new HashMap<>();
-        instances.put(0, kronotopInstance); // Cluster coordinator
+        instances.put(0, kronotopInstance);
         instances.put(1, secondInstance);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> isJoinCompleted(instances.size()));
@@ -92,7 +92,7 @@ class ClusterHandlerTest extends BaseHandlerTest {
     @Test
     public void test_CLUSTER_SLOTS() {
         Map<Integer, KronotopTestInstance> instances = new HashMap<>();
-        instances.put(0, kronotopInstance); // Cluster coordinator
+        instances.put(0, kronotopInstance);
         instances.put(1, secondInstance);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> isJoinCompleted(instances.size()));

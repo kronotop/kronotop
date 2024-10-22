@@ -30,12 +30,9 @@ import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Comparator;
-import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 /**
  * Membership service implements all business logic around cluster membership and health checks.
@@ -50,7 +47,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     private final ConcurrentHashMap<Member, DirectorySubspace> subspaces = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Member, MemberView> others = new ConcurrentHashMap<>();
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
-    private final AtomicReference<Member> coordinator = new AtomicReference<>();
     private final AtomicReference<byte[]> latestClusterEventKey = new AtomicReference<>();
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
@@ -78,11 +74,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
 
         handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));
-    }
-
-    private boolean isCoordinator() {
-        Member knownCoordinator = coordinator.get();
-        return knownCoordinator != null && knownCoordinator.equals(context.getMember());
     }
 
     private void configureClusterEventsWatcher() {
@@ -134,8 +125,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         if (!clusterInitialized) {
             scheduler.execute(new ClusterInitializationWatcher());
         }
-
-        findClusterCoordinator();
     }
 
     public long getLatestHeartbeat(Member member) {
@@ -195,31 +184,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-    private synchronized void findClusterCoordinator() {
-        TreeSet<Member> members = registry.
-                listMembers().
-                stream().filter(member -> member.getStatus().equals(MemberStatus.RUNNING)).
-                collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(Member::getProcessId))));
-        try {
-            Member assumedCoordinator = members.first();
-            Member thisMember = context.getMember();
-            if (assumedCoordinator.equals(thisMember)) {
-                if (coordinator.get() == null || !coordinator.get().equals(thisMember)) {
-                    LOGGER.info("Propagating myself as the cluster coordinator");
-                }
-            }
-            coordinator.set(assumedCoordinator);
-        } catch (NoSuchElementException e) {
-            LOGGER.warn("No cluster coordinator found");
-        }
-    }
-
     public RoutingTable getRoutingTable() {
         return routingTable.get();
-    }
-
-    public Member getCoordinator() {
-        return coordinator.get();
     }
 
     private void processMemberJoinEvent(byte[] data) {
@@ -350,8 +316,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             if (isShutdown) {
                 return;
             }
-            boolean isCoordinatorAlive = true;
-            Member knownCoordinator = coordinator.get();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 for (Member member : others.keySet()) {
                     DirectorySubspace subspace = subspaces.get(member);
@@ -373,28 +337,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                     if (silentPeriod > maxSilentPeriod) {
                         LOGGER.warn("{} has been suspected to be dead", member.getExternalAddress());
                         view.setAlive(false);
-                        if (knownCoordinator.equals(member)) {
-                            isCoordinatorAlive = false;
-                            LOGGER.info("Cluster coordinator is dead {}", knownCoordinator.getExternalAddress());
-                        }
                     }
                 }
-
-                if (!isCoordinatorAlive) {
-                    findClusterCoordinator();
-                }
-
-                // Coordinator routines
-                if (isCoordinator()) {
-                    for (Member member : others.keySet()) {
-                        MemberView memberView = others.get(member);
-                        if (!memberView.isAlive()) {
-                            LOGGER.info("Marking Member: {} as {}", member.getId(), MemberStatus.UNAVAILABLE);
-                            updateMemberStatusAndLeftCluster(member, MemberStatus.UNAVAILABLE);
-                        }
-                    }
-                }
-
             } catch (Exception e) {
                 LOGGER.error("Error while running failure detection task", e);
             } finally {

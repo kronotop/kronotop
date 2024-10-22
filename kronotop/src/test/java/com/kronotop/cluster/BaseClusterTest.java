@@ -18,7 +18,6 @@ package com.kronotop.cluster;
 
 import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.instance.KronotopInstance;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,33 +70,6 @@ public class BaseClusterTest extends BaseTest {
 
         kronotopInstances.put(kronotopInstance.getMember(), kronotopInstance);
         return kronotopInstance;
-    }
-
-    /**
-     * Retrieves the cluster coordinator instance from the Kronotop test instances.
-     *
-     * <p>
-     * This method iterates through the Kronotop test instances and checks if the instance's member
-     * is equal to the known coordinator member obtained from the membership service. If a matching coordinator
-     * instance is found, it is returned.
-     * </p>
-     * <p>
-     * If no coordinator instance is found, an {@code IllegalStateException} is thrown.
-     * </p>
-     *
-     * @return the cluster coordinator instance
-     * @throws IllegalStateException if no coordinator instance is found
-     */
-    protected KronotopTestInstance getClusterCoordinator() {
-        KronotopTestInstance instance = kronotopInstances.values().iterator().next();
-        MembershipService membershipService = instance.getContext().getService(MembershipService.NAME);
-        Member coordinator = membershipService.getCoordinator();
-        for (KronotopTestInstance coordinatorInstance : kronotopInstances.values()) {
-            if (coordinatorInstance.getContext().getMember().equals(coordinator)) {
-                return coordinatorInstance;
-            }
-        }
-        throw new IllegalStateException("No coordinator found");
     }
 
     /**
