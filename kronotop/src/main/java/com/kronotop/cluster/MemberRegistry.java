@@ -157,6 +157,14 @@ class MemberRegistry {
         }
     }
 
+    /**
+     * Removes the member identified by the provided memberId from the system by deleting their directory entry
+     * in the database within the provided transaction context.
+     *
+     * @param tr       the transaction object used for database operations
+     * @param memberId the unique identifier of the member to be removed
+     * @throws MemberNotRegisteredException if the specified member is not registered
+     */
     void remove(Transaction tr, String memberId) {
         try {
             KronotopDirectoryNode directory = getDirectoryNode(memberId);

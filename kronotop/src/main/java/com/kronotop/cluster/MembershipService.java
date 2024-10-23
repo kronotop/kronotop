@@ -100,6 +100,9 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
+    /**
+     * Starts the MembershipService, initializing the member and configuring the necessary components.
+     */
     public void start() {
         Member member = context.getMember();
         member.setStatus(MemberStatus.RUNNING);
@@ -127,6 +130,13 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
+    /**
+     * Retrieves the latest heartbeat for the specified member.
+     *
+     * @param member The member for whom the latest heartbeat timestamp is being retrieved.
+     * @return The latest heartbeat timestamp for the specified member.
+     * @throws IllegalArgumentException if the specified member is not found.
+     */
     public long getLatestHeartbeat(Member member) {
         MemberView memberView = others.get(member);
         if (memberView == null) {
@@ -135,18 +145,40 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return memberView.getLatestHeartbeat();
     }
 
+    /**
+     * Retrieves a sorted set of members. Members are sorted by their process id.
+     *
+     * @return a TreeSet containing Member objects sorted by their process IDs.
+     */
     public TreeSet<Member> listMembers() {
         return registry.listMembers();
     }
 
+    /**
+     * Finds and returns the Member object associated with the specified member ID.
+     *
+     * @param memberId the unique identifier of the member to be retrieved
+     * @return the Member object associated with the specified member ID
+     */
     public Member findMember(String memberId) {
         return registry.findMember(memberId);
     }
 
+    /**
+     * Updates the information of a specified member in the registry.
+     *
+     * @param member The Member object containing the updated information.
+     */
     public void updateMember(Member member) {
         registry.update(member);
     }
 
+    /**
+     * Removes the member identified by the provided memberId from the system.
+     *
+     * @param memberId the unique identifier of the member to be removed
+     * @throws KronotopException if the member is in RUNNING status and cannot be removed
+     */
     public void removeMember(String memberId) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Member member = registry.findMember(tr, memberId);
@@ -158,6 +190,11 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
+    /**
+     * Checks if the cluster has been initialized.
+     *
+     * @return true if the cluster is initialized, otherwise false.
+     */
     public boolean isClusterInitialized() {
         return clusterInitialized;
     }
