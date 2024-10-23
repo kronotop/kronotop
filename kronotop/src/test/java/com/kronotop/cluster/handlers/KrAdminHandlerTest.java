@@ -16,6 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.kronotop.KronotopTestInstance;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
@@ -195,5 +196,44 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR Member: ccd59ec6-41e4-4f31-80ab-941c19238a6a not registered", actualMessage.content());
+    }
+
+    @Test
+    public void test_removeMember() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        KronotopTestInstance secondInstance = addNewInstance();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.setStatus(secondInstance.getMember().getId(), "STOPPED").encode(buf);
+
+            channel.writeInbound(buf);
+            channel.readOutbound(); // consume the response
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.removeMember(secondInstance.getMember().getId()).encode(buf);
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+    }
+
+    @Test
+    public void test_removeMember_RUNNING_status() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        KronotopTestInstance secondInstance = addNewInstance();
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.removeMember(secondInstance.getMember().getId()).encode(buf);
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Member in RUNNING status cannot be removed", actualMessage.content());
     }
 }

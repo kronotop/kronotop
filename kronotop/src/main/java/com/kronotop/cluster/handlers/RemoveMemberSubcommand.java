@@ -34,6 +34,7 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
     public void execute(Request request, Response response) {
         RemoveMemberParameters parameters = new RemoveMemberParameters(request.getParams());
         service.removeMember(parameters.memberId);
+        response.writeOK();
     }
 
     private class RemoveMemberParameters {

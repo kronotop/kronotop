@@ -54,6 +54,11 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
+    public Command<K, V, String> removeMember(String memberID) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.REMOVE_MEMBER).add(memberID);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         KR_ADMIN("KR.ADMIN");
 
@@ -73,7 +78,8 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         INITIALIZE_CLUSTER("INITIALIZE-CLUSTER"),
         LIST_MEMBERS("LIST-MEMBERS"),
         FIND_MEMBER("FIND-MEMBER"),
-        SET_STATUS("set-status");
+        SET_STATUS("SET-STATUS"),
+        REMOVE_MEMBER("REMOVE-MEMBER");
 
         public final byte[] bytes;
 
