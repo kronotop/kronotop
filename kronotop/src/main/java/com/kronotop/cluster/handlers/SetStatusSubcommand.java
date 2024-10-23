@@ -47,6 +47,9 @@ class SetStatusSubcommand extends BaseKrAdminSubcommandHandler implements Subcom
         private final MemberStatus status;
 
         private SetStatusParameters(ArrayList<ByteBuf> params) {
+            if (params.size() != 3) {
+                throw new KronotopException("Invalid number of parameters");
+            }
             memberId = readMemberId(params.get(1));
 
             ByteBuf statusBuf = params.get(2);
