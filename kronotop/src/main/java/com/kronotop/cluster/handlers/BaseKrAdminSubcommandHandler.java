@@ -36,6 +36,13 @@ public class BaseKrAdminSubcommandHandler {
         this.service = service;
     }
 
+    /**
+     * Reads the member ID from the provided buffer, validates it, and returns it as a string.
+     *
+     * @param memberIdBuf the buffer containing the raw member ID bytes
+     * @return the validated member ID as a string
+     * @throws KronotopException if the member ID is invalid or cannot be parsed as a UUID
+     */
     protected String readMemberId(ByteBuf memberIdBuf) {
         byte[] rawMemberId = new byte[memberIdBuf.readableBytes()];
         memberIdBuf.readBytes(rawMemberId);
@@ -48,6 +55,12 @@ public class BaseKrAdminSubcommandHandler {
         }
     }
 
+    /**
+     * Converts a given Member object into a Map of RedisMessage key-value pairs.
+     *
+     * @param member the Member object to be converted
+     * @return a Map containing RedisMessage key-value pairs representing the attributes of the Member object
+     */
     protected Map<RedisMessage, RedisMessage> memberToRedisMessage(Member member) {
         Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
 
