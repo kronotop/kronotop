@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
+import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -42,6 +43,9 @@ class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements Subco
         private final String memberId;
 
         FindMemberParameters(ArrayList<ByteBuf> params) {
+            if (params.size() < 2) {
+                throw new KronotopException("Member ID is required");
+            }
             memberId = readMemberId(params.get(1));
         }
     }

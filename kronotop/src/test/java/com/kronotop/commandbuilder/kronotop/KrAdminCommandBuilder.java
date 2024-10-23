@@ -41,6 +41,12 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
     public Command<K, V, Map<String, Object>> listMembers() {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.LIST_MEMBERS);
         return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Command<K, V, Map<String, Object>> findMember(String memberId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.FIND_MEMBER).add(memberId);
+        return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
 
     }
 
@@ -61,7 +67,8 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
 
     enum CommandKeyword implements ProtocolKeyword {
         INITIALIZE_CLUSTER("INITIALIZE-CLUSTER"),
-        LIST_MEMBERS("LIST-MEMBERS");
+        LIST_MEMBERS("LIST-MEMBERS"),
+        FIND_MEMBER("FIND-MEMBER");
 
         public final byte[] bytes;
 
