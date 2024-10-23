@@ -32,7 +32,7 @@ import com.kronotop.server.Response;
 
 import java.util.concurrent.CompletionException;
 
-class InitializeClusterSubcommand extends BaseSubCommand implements SubcommandHandler {
+class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
     InitializeClusterSubcommand(MembershipService service) {
         super(service);

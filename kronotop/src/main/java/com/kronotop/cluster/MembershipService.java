@@ -139,6 +139,25 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return registry.listMembers();
     }
 
+    public Member findMember(String memberId) {
+        return registry.findMember(memberId);
+    }
+
+    public void updateMember(Member member) {
+        registry.update(member);
+    }
+
+    public void removeMember(String memberId) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Member member = registry.findMember(tr, memberId);
+            if (member.getStatus().equals(MemberStatus.RUNNING)) {
+                throw new KronotopException("Member in " + MemberStatus.RUNNING + " status cannot be removed");
+            }
+            registry.remove(tr, memberId);
+            tr.commit().join();
+        }
+    }
+
     public boolean isClusterInitialized() {
         return clusterInitialized;
     }

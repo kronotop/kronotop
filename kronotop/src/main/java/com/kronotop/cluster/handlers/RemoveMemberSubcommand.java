@@ -16,35 +16,31 @@
 
 package com.kronotop.cluster.handlers;
 
-import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import io.netty.buffer.ByteBuf;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.TreeSet;
+import java.util.ArrayList;
 
-class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
+class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    ListMembersSubcommand(MembershipService service) {
+    RemoveMemberSubcommand(MembershipService service) {
         super(service);
     }
 
     @Override
     public void execute(Request request, Response response) {
-        TreeSet<Member> sortedMembers = service.listMembers();
-        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
+        RemoveMemberParameters parameters = new RemoveMemberParameters(request.getParams());
+        service.removeMember(parameters.memberId);
+    }
 
-        for (Member member : sortedMembers) {
-            Map<RedisMessage, RedisMessage> current = memberToRedisMessage(member);
-            result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));
+    private class RemoveMemberParameters {
+        private final String memberId;
+
+        RemoveMemberParameters(ArrayList<ByteBuf> params) {
+            memberId = readMemberId(params.get(1));
         }
-
-        response.writeMap(result);
     }
 }

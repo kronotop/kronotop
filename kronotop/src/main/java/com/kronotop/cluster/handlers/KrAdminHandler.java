@@ -36,6 +36,9 @@ public class KrAdminHandler extends BaseHandler implements Handler {
         handlers.put(KrAdminSubcommand.LIST_MEMBERS, new ListMembersSubcommand(service));
         handlers.put(KrAdminSubcommand.INITIALIZE_CLUSTER, new InitializeClusterSubcommand(service));
         handlers.put(KrAdminSubcommand.DESCRIBE_CLUSTER, new DescribeClusterSubCommand(service));
+        handlers.put(KrAdminSubcommand.SET_STATUS, new SetStatusSubcommand(service));
+        handlers.put(KrAdminSubcommand.FIND_MEMBER, new FindMemberSubcommand(service));
+        handlers.put(KrAdminSubcommand.REMOVE_MEMBER, new RemoveMemberSubcommand(service));
     }
 
     @Override

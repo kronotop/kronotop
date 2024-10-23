@@ -17,6 +17,8 @@
 package com.kronotop.cluster.handlers;
 
 import com.kronotop.VersionstampUtils;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.MemberStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
@@ -64,6 +66,11 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
             MapRedisMessage m = (MapRedisMessage) memberPropertiesMessage;
             m.children().forEach((keyMessage, valueMessage) -> {
                 SimpleStringRedisMessage key = (SimpleStringRedisMessage) keyMessage;
+
+                if (key.content().equals("status")) {
+                    SimpleStringRedisMessage value = (SimpleStringRedisMessage) valueMessage;
+                    assertEquals(MemberStatus.valueOf(value.content()), context.getMember().getStatus());
+                }
 
                 if (key.content().equals("process_id")) {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) valueMessage;

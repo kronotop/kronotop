@@ -31,7 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-class DescribeClusterSubCommand extends BaseSubCommand implements SubcommandHandler {
+class DescribeClusterSubCommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
     DescribeClusterSubCommand(MembershipService service) {
         super(service);

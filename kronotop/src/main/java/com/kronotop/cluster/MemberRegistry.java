@@ -152,13 +152,20 @@ class MemberRegistry {
      */
     void remove(String memberId) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            remove(tr, memberId);
+            tr.commit().join();
+        }
+    }
+
+    void remove(Transaction tr, String memberId) {
+        try {
             KronotopDirectoryNode directory = getDirectoryNode(memberId);
             DirectoryLayer.getDefault().remove(tr, directory.toList()).join();
-            tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
                 throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
             }
+            throw e;
         }
     }
 
@@ -201,13 +208,20 @@ class MemberRegistry {
     Member findMember(ReadTransaction tr, String memberId) {
         KronotopDirectoryNode directory = getDirectoryNode(memberId);
 
-        DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
-        byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
-        byte[] data = tr.get(key).join();
-        if (data == null) {
-            throw new KronotopException(String.format("Member: %s not registered properly", memberId));
+        try {
+            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+            byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
+            byte[] data = tr.get(key).join();
+            if (data == null) {
+                throw new KronotopException(String.format("Member: %s not registered properly", memberId));
+            }
+            return JSONUtils.readValue(data, Member.class);
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NoSuchDirectoryException) {
+                throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
+            }
+            throw e;
         }
-        return JSONUtils.readValue(data, Member.class);
     }
 
     /**
