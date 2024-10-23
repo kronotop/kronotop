@@ -27,12 +27,11 @@ import java.util.EnumMap;
 
 @Command(KrAdminMessage.COMMAND)
 @MinimumParameterCount(KrAdminMessage.MINIMUM_PARAMETER_COUNT)
-public class KrAdminHandler extends BaseHandler implements Handler {
+public class KrAdminHandler implements Handler {
+
     private final EnumMap<KrAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(KrAdminSubcommand.class);
 
     public KrAdminHandler(MembershipService service) {
-        super(service);
-
         handlers.put(KrAdminSubcommand.LIST_MEMBERS, new ListMembersSubcommand(service));
         handlers.put(KrAdminSubcommand.INITIALIZE_CLUSTER, new InitializeClusterSubcommand(service));
         handlers.put(KrAdminSubcommand.DESCRIBE_CLUSTER, new DescribeClusterSubCommand(service));
