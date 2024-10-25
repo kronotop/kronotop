@@ -18,17 +18,16 @@ package com.kronotop.cluster.sharding.impl;
 
 import com.kronotop.Context;
 import com.kronotop.cluster.sharding.Shard;
-import com.kronotop.cluster.sharding.ShardLocator;
-import com.kronotop.cluster.sharding.ShardStatistics;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.volume.VolumeService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class ShardImpl implements Shard {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ShardImpl.class);
+import java.util.concurrent.atomic.AtomicReference;
+
+public abstract class ShardImpl implements Shard {
     protected final Context context;
     protected final VolumeService volumeService;
     protected final int id;
+    protected final AtomicReference<ShardStatus> status = new AtomicReference<>(ShardStatus.INOPERABLE);
 
     public ShardImpl(Context context, int id) {
         this.context = context;
@@ -36,31 +35,18 @@ public class ShardImpl implements Shard {
         this.id = id;
     }
 
-    /**
-     * Retrieves the ID associated with this shard.
-     *
-     * @return the ID associated with this shard
-     */
+    @Override
+    public ShardStatus status() {
+        return status.get();
+    }
+
+    @Override
+    public void setStatus(ShardStatus status) {
+        this.status.set(status);
+    }
+
     @Override
     public Integer id() {
         return id;
-    }
-
-    @Override
-    public ShardLocator getShardLocator() {
-        return null;
-    }
-
-    @Override
-    public ShardStatistics getShardStatistics() {
-        return null;
-    }
-
-    @Override
-    public void start() {
-    }
-
-    @Override
-    public void shutdown() {
     }
 }

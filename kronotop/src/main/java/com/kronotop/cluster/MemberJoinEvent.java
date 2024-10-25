@@ -16,7 +16,7 @@
 
 package com.kronotop.cluster;
 
-public class MemberJoinEvent extends MemberEvent implements BroadcastEvent {
+class MemberJoinEvent extends MemberEvent implements BroadcastEvent {
 
     MemberJoinEvent() {
     }
@@ -25,11 +25,11 @@ public class MemberJoinEvent extends MemberEvent implements BroadcastEvent {
         super(BroadcastEventKind.MEMBER_JOIN, id, createdAt);
     }
 
-    public MemberJoinEvent(String id) {
+    MemberJoinEvent(String id) {
         super(BroadcastEventKind.MEMBER_JOIN, id);
     }
 
-    public MemberJoinEvent(Member member) {
+    MemberJoinEvent(Member member) {
         this(member.getId());
     }
 }

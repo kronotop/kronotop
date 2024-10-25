@@ -16,27 +16,12 @@
 
 package com.kronotop.cluster.sharding;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 public interface Shard {
-
-    AtomicReference<ShardStatus> status = new AtomicReference<>(ShardStatus.INOPERABLE);
-
-    default ShardStatus status() {
-        return this.status.get();
-    }
-
-    default void setStatus(ShardStatus status) {
-        this.status.set(status);
-    }
-
-    ShardLocator getShardLocator();
-
-    ShardStatistics getShardStatistics();
-
     Integer id();
 
-    void start();
+    ShardStatus status();
 
-    void shutdown();
+    void setStatus(ShardStatus status);
+
+    ShardKind kind();
 }

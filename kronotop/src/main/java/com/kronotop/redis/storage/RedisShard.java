@@ -72,6 +72,7 @@ public interface RedisShard extends Shard {
      *
      * @return true if the shard is operable, false otherwise
      */
+    // TODO: This should be deleted
     boolean isOperable();
 
     /**
@@ -79,6 +80,7 @@ public interface RedisShard extends Shard {
      *
      * @param operable true to set the shard as operable, false otherwise
      */
+    // TODO: This should be deleted
     void setOperable(boolean operable);
 
     /**

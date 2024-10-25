@@ -18,23 +18,32 @@ package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.coordinator.Route;
+import com.kronotop.cluster.RouteLegacy;
+import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
+import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.common.utils.DirectoryLayout;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.handlers.client.protocol.ClientMessage;
+import com.kronotop.redis.handlers.connection.protocol.PingMessage;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
-import com.kronotop.server.resp3.RedisArrayAggregator;
-import com.kronotop.server.resp3.RedisBulkStringAggregator;
-import com.kronotop.server.resp3.RedisDecoder;
-import com.kronotop.server.resp3.RedisMapAggregator;
+import com.kronotop.server.resp3.*;
 import com.typesafe.config.Config;
+import io.lettuce.core.codec.StringCodec;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import java.net.UnknownHostException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * KronotopTestInstance is a class that extends KronotopInstance and represents a standalone instance of
@@ -42,6 +51,10 @@ import java.util.concurrent.TimeUnit;
  */
 public class KronotopTestInstance extends KronotopInstance {
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+    private final Set<String> duplicatedCommands = new HashSet<>(List.of(
+            ClientMessage.COMMAND,
+            PingMessage.COMMAND
+    ));
     private final Object clusterOperable = new Object();
     private final boolean runWithTCPServer;
     private EmbeddedChannel channel;
@@ -61,7 +74,14 @@ public class KronotopTestInstance extends KronotopInstance {
             CommandHandlerRegistry registry = super.context.getHandlers(kind);
             for (String command : registry.getCommands()) {
                 Handler handler = registry.get(command);
-                mergedRegistry.handlerMethod(command, handler);
+
+                try {
+                    mergedRegistry.handlerMethod(command, handler);
+                } catch (CommandAlreadyRegisteredException e) {
+                    if (!duplicatedCommands.contains(command)) {
+                        throw e;
+                    }
+                }
             }
         }
         return mergedRegistry;
@@ -111,6 +131,48 @@ public class KronotopTestInstance extends KronotopInstance {
         //    clusterOperable.wait();
         //}
         channel = newChannel();
+        initializeTestCluster();
+
+        String namespace = config.getString("default_namespace");
+        NamespaceUtils.createOrOpen(context.getFoundationDB(), context.getClusterName(), namespace);
+    }
+
+    private void initializeTestCluster() {
+        {
+            RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+            boolean authRequired = config.hasPath("auth.users") || config.hasPath("auth.requirepass");
+            if (authRequired) {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.auth("devuser", "devpass").encode(buf);
+
+                channel.writeInbound(buf);
+                Object msg = channel.readOutbound();
+                assertInstanceOf(SimpleStringRedisMessage.class, msg);
+                SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+                assertEquals(Response.OK, actualMessage.content());
+            }
+        }
+
+        {
+            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf buf = Unpooled.buffer();
+            cmd.initializeCluster().encode(buf);
+            channel.writeInbound(buf);
+
+            Object raw = channel.readOutbound();
+            if (raw instanceof SimpleStringRedisMessage message) {
+                assertEquals(Response.OK, message.content());
+            } else if (raw instanceof ErrorRedisMessage message) {
+                if (message.content().equals("ERR cluster has already been initialized")) {
+                    // It's okay.
+                    return;
+                }
+                fail(message.content());
+            }
+
+            MembershipService service = context.getService(MembershipService.NAME);
+            await().atMost(5000, TimeUnit.MILLISECONDS).until(service::isClusterInitialized);
+        }
     }
 
     /**
@@ -123,12 +185,16 @@ public class KronotopTestInstance extends KronotopInstance {
         });
     }
 
+    public void shutdownWithoutCleanup() {
+        super.shutdown();
+        executor.shutdownNow();
+        channel.finishAndReleaseAll();
+    }
+
     @Override
     public void shutdown() {
         try {
-            super.shutdown();
-            executor.shutdownNow();
-            channel.finishAndReleaseAll();
+            shutdownWithoutCleanup();
         } finally {
             cleanupTestCluster();
         }
@@ -154,7 +220,7 @@ public class KronotopTestInstance extends KronotopInstance {
             // TODO: Cant see the exception traceback here. This may lead to critical and subtle issues.
             int numberOfShards = context.getConfig().getInt("redis.shards");
             for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                Route route = membershipService.getRoutingTable().getRoute(shardId);
+                RouteLegacy route = membershipService.getRoutingTableLegacy().getRoute(shardId);
                 if (route == null) {
                     executor.schedule(this, 20, TimeUnit.MILLISECONDS);
                     return;

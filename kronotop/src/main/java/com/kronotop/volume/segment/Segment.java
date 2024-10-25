@@ -156,8 +156,8 @@ public class Segment {
         try {
             long position = forwardMetadataPosition(entry.remaining());
             int length = segmentFile.getChannel().write(entry, position);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{} bytes has been written to segment {}", length, getName());
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("{} bytes has been written to segment {}", length, getName());
             }
             return new SegmentAppendResult(position, length);
         } finally {
@@ -184,8 +184,8 @@ public class Segment {
     public void insert(ByteBuffer entry, long position) throws IOException, NotEnoughSpaceException {
         try {
             int length = segmentFile.getChannel().write(entry, position);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{} bytes has been inserted to segment {}", length, getName());
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("{} bytes has been inserted to segment {}", length, getName());
             }
             updateMetadataPosition(position);
         } finally {
@@ -201,8 +201,8 @@ public class Segment {
         }
         ByteBuffer buffer = ByteBuffer.allocate((int) length);
         int nr = segmentFile.getChannel().read(buffer, position);
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{} bytes has been read from segment {}", nr, getName());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("{} bytes has been read from segment {}", nr, getName());
         }
         return buffer.flip();
     }

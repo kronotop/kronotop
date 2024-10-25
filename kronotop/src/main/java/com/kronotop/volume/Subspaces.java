@@ -23,6 +23,6 @@ public class Subspaces {
     public static final byte SEGMENT_USED_BYTES_SUBSPACE = 0x4;
     public static final byte SEGMENT_LOG_SUBSPACE = 0x5;
     public static final byte SEGMENT_LOG_CARDINALITY_SUBSPACE = 0x6;
-    public static final byte SEGMENT_REPLICATION_SUBSPACE = 0x7;
-    public static final byte VOLUME_WATCH_CHANGES_TRIGGER_SUBSPACE = 0x8;
+    public static final byte SEGMENT_REPLICATION_SLOT_SUBSPACE = 0x7;
+    public static final byte VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE = 0x8;
 }

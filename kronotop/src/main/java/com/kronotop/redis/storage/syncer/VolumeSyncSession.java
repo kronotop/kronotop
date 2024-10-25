@@ -87,6 +87,11 @@ public class VolumeSyncSession {
     public void sync() throws IOException {
         // TODO: We should consider the transaction time limit: 5 seconds
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+
+            // memtier_benchmark sets the same key many times, and this triggers a bizarre bug in VolumeSyncer
+            // See https://forums.foundationdb.org/t/why-is-read-or-wrote-unreadable-key-necessary/3753
+            tr.options().setBypassUnreadable();
+
             Session session = new Session(tr, prefix);
 
             AppendResult appendResult = shard.volume().append(session, entries.toArray(new ByteBuffer[entries.size()]));

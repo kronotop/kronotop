@@ -61,4 +61,15 @@ public class KeyWatcher {
             return null;
         });
     }
+
+    /**
+     * Cancels all active watchers.
+     * This method iterates over all entries in the `watchers` map and cancels
+     * each watcher by calling `cancel(true)` on it.
+     */
+    public void unwatchAll() {
+        watchers.forEach((k, watcher) -> {
+            watcher.cancel(true);
+        });
+    }
 }

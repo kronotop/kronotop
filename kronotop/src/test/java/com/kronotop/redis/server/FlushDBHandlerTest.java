@@ -18,12 +18,12 @@ package com.kronotop.redis.server;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.BaseStorageTest;
 import com.kronotop.redis.storage.DataStructure;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.syncer.VolumeSyncer;
-import com.kronotop.redistest.RedisCommandBuilder;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;

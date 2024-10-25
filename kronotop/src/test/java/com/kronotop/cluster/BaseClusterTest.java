@@ -23,6 +23,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -38,6 +41,11 @@ public class BaseClusterTest extends BaseTest {
     @BeforeEach
     public void setup() {
         addNewInstance();
+    }
+
+    protected List<KronotopTestInstance> getInstances() {
+        List<KronotopTestInstance> instances = new LinkedList<>(kronotopInstances.values());
+        return Collections.unmodifiableList(instances);
     }
 
     protected KronotopTestInstance addNewInstance() {
@@ -62,33 +70,6 @@ public class BaseClusterTest extends BaseTest {
 
         kronotopInstances.put(kronotopInstance.getMember(), kronotopInstance);
         return kronotopInstance;
-    }
-
-    /**
-     * Retrieves the cluster coordinator instance from the Kronotop test instances.
-     *
-     * <p>
-     * This method iterates through the Kronotop test instances and checks if the instance's member
-     * is equal to the known coordinator member obtained from the membership service. If a matching coordinator
-     * instance is found, it is returned.
-     * </p>
-     * <p>
-     * If no coordinator instance is found, an {@code IllegalStateException} is thrown.
-     * </p>
-     *
-     * @return the cluster coordinator instance
-     * @throws IllegalStateException if no coordinator instance is found
-     */
-    protected KronotopTestInstance getClusterCoordinator() {
-        KronotopTestInstance instance = kronotopInstances.values().iterator().next();
-        MembershipService membershipService = instance.getContext().getService(MembershipService.NAME);
-        Member coordinator = membershipService.getKnownCoordinator();
-        for (KronotopTestInstance coordinatorInstance : kronotopInstances.values()) {
-            if (coordinatorInstance.getContext().getMember().equals(coordinator)) {
-                return coordinatorInstance;
-            }
-        }
-        throw new IllegalStateException("No coordinator found");
     }
 
     /**

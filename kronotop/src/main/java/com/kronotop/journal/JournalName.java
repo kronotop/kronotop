@@ -16,22 +16,10 @@
 
 package com.kronotop.journal;
 
-import com.kronotop.cluster.Member;
-
 public class JournalName {
-    private static final String SHARD_EVENTS_JOURNAL_NAME = ".shard-events";
     private static final String CLUSTER_EVENTS_JOURNAL_NAME = "cluster-events";
-    private static final String COORDINATOR_EVENTS_JOURNAL_NAME = "coordinator-events";
-
-    public static String shardEvents(Member member) {
-        return String.format("%s%s", member.getExternalAddress(), SHARD_EVENTS_JOURNAL_NAME);
-    }
 
     public static String clusterEvents() {
         return CLUSTER_EVENTS_JOURNAL_NAME;
-    }
-
-    public static String coordinatorEvents() {
-        return COORDINATOR_EVENTS_JOURNAL_NAME;
     }
 }

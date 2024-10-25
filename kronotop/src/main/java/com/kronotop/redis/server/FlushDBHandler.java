@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.server;
 
-import com.kronotop.redis.BaseHandler;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;

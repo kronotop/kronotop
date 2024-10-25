@@ -21,7 +21,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.coordinator.CoordinatorService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.network.Address;
@@ -108,9 +107,6 @@ public class KronotopInstance {
 
         VolumeService volumeService = new VolumeService(context);
         context.registerService(VolumeService.NAME, volumeService);
-
-        CoordinatorService coordinatorService = new CoordinatorService(context);
-        context.registerService(CoordinatorService.NAME, coordinatorService);
 
         MembershipService membershipService = new MembershipService(context);
         context.registerService(MembershipService.NAME, membershipService);

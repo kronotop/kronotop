@@ -84,7 +84,7 @@ public class VolumeMetadata {
 
     @JsonIgnore
     public void setStandby(Host host) {
-        if (host.role() == Role.OWNER) {
+        if (host.role() == Role.PRIMARY) {
             throw new IllegalArgumentException("Cannot set an owner host as a standby");
         }
         for (Host existing : hosts) {
@@ -108,7 +108,7 @@ public class VolumeMetadata {
 
     @JsonIgnore
     public void unsetStandby(Host host) {
-        if (host.role() == Role.OWNER) {
+        if (host.role() == Role.PRIMARY) {
             throw new IllegalArgumentException("Host is an owner");
         }
         unsetHost(host);
@@ -120,19 +120,19 @@ public class VolumeMetadata {
     }
 
     @JsonIgnore
-    public Host getOwner() {
+    public Host getPrimary() {
         for (Host host : hosts) {
-            if (host.role() == Role.OWNER) {
+            if (host.role() == Role.PRIMARY) {
                 return host;
             }
         }
-        throw new IllegalStateException("No owner host found");
+        throw new IllegalStateException(String.format("No host found in %s role", Role.PRIMARY));
     }
 
     @JsonIgnore
-    public void setOwner(Host host) {
+    public void setPrimary(Host host) {
         if (host.role() == Role.STANDBY) {
-            throw new IllegalArgumentException("Cannot set a standby host as a owner");
+            throw new IllegalArgumentException("Cannot set a standby host as primary");
         }
         for (Host existing : hosts) {
             if (existing.equals(host)) {
@@ -143,7 +143,7 @@ public class VolumeMetadata {
     }
 
     @JsonIgnore
-    public void unsetOwner(Host host) {
+    public void unsetPrimary(Host host) {
         if (host.role() == Role.STANDBY) {
             throw new IllegalArgumentException("Host is a standby");
         }

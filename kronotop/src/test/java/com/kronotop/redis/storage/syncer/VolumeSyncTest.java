@@ -17,13 +17,13 @@
 package com.kronotop.redis.storage.syncer;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.redis.hash.HashFieldValue;
-import com.kronotop.redis.hash.HashValue;
+import com.kronotop.redis.handlers.hash.HashFieldValue;
+import com.kronotop.redis.handlers.hash.HashValue;
+import com.kronotop.redis.handlers.string.StringValue;
 import com.kronotop.redis.storage.*;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.syncer.jobs.AppendHashFieldJob;
 import com.kronotop.redis.storage.syncer.jobs.AppendStringJob;
-import com.kronotop.redis.string.StringValue;
 import com.kronotop.volume.KeyEntry;
 import com.kronotop.volume.Session;
 import org.junit.jupiter.api.Test;

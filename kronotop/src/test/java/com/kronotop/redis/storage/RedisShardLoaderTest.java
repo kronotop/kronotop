@@ -17,12 +17,12 @@
 package com.kronotop.redis.storage;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.hash.HashFieldValue;
-import com.kronotop.redis.hash.HashValue;
+import com.kronotop.redis.handlers.hash.HashFieldValue;
+import com.kronotop.redis.handlers.hash.HashValue;
+import com.kronotop.redis.handlers.string.StringValue;
 import com.kronotop.redis.storage.syncer.VolumeSyncer;
 import com.kronotop.redis.storage.syncer.jobs.AppendHashFieldJob;
 import com.kronotop.redis.storage.syncer.jobs.AppendStringJob;
-import com.kronotop.redis.string.StringValue;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

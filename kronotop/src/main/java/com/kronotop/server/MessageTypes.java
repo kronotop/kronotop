@@ -16,22 +16,24 @@
 
 package com.kronotop.server;
 
+import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.foundationdb.protocol.*;
 import com.kronotop.foundationdb.zmap.protocol.*;
-import com.kronotop.redis.cluster.protocol.ClusterMessage;
-import com.kronotop.redis.connection.protocol.AuthMessage;
-import com.kronotop.redis.connection.protocol.HelloMessage;
-import com.kronotop.redis.connection.protocol.PingMessage;
-import com.kronotop.redis.connection.protocol.SelectMessage;
-import com.kronotop.redis.generic.protocol.*;
-import com.kronotop.redis.hash.protocol.*;
-import com.kronotop.redis.protocol.InfoMessage;
+import com.kronotop.redis.handlers.client.protocol.ClientMessage;
+import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
+import com.kronotop.redis.handlers.connection.protocol.AuthMessage;
+import com.kronotop.redis.handlers.connection.protocol.HelloMessage;
+import com.kronotop.redis.handlers.connection.protocol.PingMessage;
+import com.kronotop.redis.handlers.connection.protocol.SelectMessage;
+import com.kronotop.redis.handlers.generic.protocol.*;
+import com.kronotop.redis.handlers.hash.protocol.*;
+import com.kronotop.redis.handlers.protocol.InfoMessage;
+import com.kronotop.redis.handlers.string.protocol.*;
+import com.kronotop.redis.handlers.transactions.protocol.*;
 import com.kronotop.redis.server.protocol.CommandMessage;
 import com.kronotop.redis.server.protocol.FlushAllMessage;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
-import com.kronotop.redis.string.protocol.*;
-import com.kronotop.redis.transactions.protocol.*;
 import com.kronotop.volume.handlers.protocol.SegmentRangeMessage;
 import io.netty.util.AttributeKey;
 
@@ -40,6 +42,7 @@ import io.netty.util.AttributeKey;
  * Each constant represents a specific message type and has an associated AttributeKey.
  */
 public class MessageTypes {
+    // External commands
     public static final AttributeKey<SetMessage> SET = AttributeKey.valueOf(SetMessage.COMMAND);
     public static final AttributeKey<SetNXMessage> SETNX = AttributeKey.valueOf(SetNXMessage.COMMAND);
     public static final AttributeKey<GetMessage> GET = AttributeKey.valueOf(GetMessage.COMMAND);
@@ -65,6 +68,7 @@ public class MessageTypes {
     public static final AttributeKey<ScanMessage> SCAN = AttributeKey.valueOf(ScanMessage.COMMAND);
     public static final AttributeKey<TypeMessage> TYPE = AttributeKey.valueOf(TypeMessage.COMMAND);
     public static final AttributeKey<ClusterMessage> CLUSTER = AttributeKey.valueOf(ClusterMessage.COMMAND);
+    public static final AttributeKey<ClientMessage> CLIENT = AttributeKey.valueOf(ClientMessage.COMMAND);
     public static final AttributeKey<AuthMessage> AUTH = AttributeKey.valueOf(AuthMessage.COMMAND);
     public static final AttributeKey<HelloMessage> HELLO = AttributeKey.valueOf(HelloMessage.COMMAND);
     public static final AttributeKey<PingMessage> PING = AttributeKey.valueOf(PingMessage.COMMAND);
@@ -111,5 +115,5 @@ public class MessageTypes {
 
     // Internal commands
     public static final AttributeKey<SegmentRangeMessage> SEGMENTRANGE = AttributeKey.valueOf(SegmentRangeMessage.COMMAND);
-
+    public static final AttributeKey<KrAdminMessage> KRADMIN = AttributeKey.valueOf(KrAdminMessage.COMMAND);
 }

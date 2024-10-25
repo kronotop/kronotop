@@ -17,10 +17,8 @@
 package com.kronotop;
 
 import com.apple.foundationdb.Database;
-import com.google.common.util.concurrent.Striped;
 import com.kronotop.cluster.Member;
 import com.kronotop.commands.CommandMetadata;
-import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.journal.Journal;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
@@ -30,17 +28,25 @@ import javax.annotation.Nonnull;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.locks.ReadWriteLock;
 
 /**
  * The Context interface represents the context of a Kronotop instance.
  */
 public interface Context {
 
+    /**
+     * Retrieves the command handler registry for the specified server kind.
+     *
+     * @param kind the kind of server for which to retrieve the command handler registry.
+     * @return the command handler registry associated with the specified server kind.
+     */
     CommandHandlerRegistry getHandlers(ServerKind kind);
 
-    Namespace getDefaultNamespace();
-
+    /**
+     * Retrieves the directory path where data is stored.
+     *
+     * @return the directory path as a Path object.
+     */
     Path getDataDir();
 
     /**
@@ -94,15 +100,6 @@ public interface Context {
      * @return the list of Kronotop services
      */
     List<KronotopService> getServices();
-
-    /**
-     * Retrieves a Striped object that provides striped read-write locks.
-     * The returned Striped object can be used to obtain a specific stripe
-     * for locking purposes.
-     *
-     * @return a Striped object that provides striped read-write locks
-     */
-    Striped<ReadWriteLock> getStripedReadWriteLock();
 
     /**
      * Retrieves the Journal object associated with the Context.

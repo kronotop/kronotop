@@ -18,9 +18,9 @@ package com.kronotop.redis.storage;
 
 import com.kronotop.ServiceContext;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.handlers.string.StringValue;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.syncer.jobs.AppendStringJob;
-import com.kronotop.redis.string.StringValue;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

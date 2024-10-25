@@ -17,7 +17,7 @@
 
 package com.kronotop.redis.storage.syncer;
 
-import com.kronotop.redis.hash.HashFieldValue;
+import com.kronotop.redis.handlers.hash.HashFieldValue;
 import com.kronotop.redis.storage.HashFieldPack;
 import org.junit.jupiter.api.Test;
 

@@ -43,19 +43,19 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     private void checkSnapshotStage(Versionstamp[] versionstampedKeys) throws IOException {
-        final Host source;
-        final Versionstamp jobId = ReplicationJob.newJob(database, volume.getConfig().subspace(), context.getMember());
+        final Host primary;
+        final Versionstamp slotId = ReplicationSlot.newSlot(database, volume.getConfig().subspace(), context.getMember());
         try (Transaction tr = database.createTransaction()) {
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            source = volumeMetadata.getOwner();
+            primary = volumeMetadata.getPrimary();
         }
 
-        Host destination = new Host(Role.STANDBY, context.getMember());
+        Host standby = new Host(Role.STANDBY, context.getMember());
         ReplicationConfig config = new ReplicationConfig(
-                source,
-                destination,
+                primary,
+                standby,
                 volume.getConfig().subspace(),
-                jobId,
+                slotId,
                 volume.getConfig().name(),
                 volume.getConfig().segmentSize(),
                 standbyVolumeDataDir.toString(),
@@ -66,7 +66,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
             replication.start();
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
                 try (Transaction tr = database.createTransaction()) {
-                    ReplicationJob job = ReplicationJob.load(tr, config);
+                    ReplicationSlot job = ReplicationSlot.load(tr, config);
                     return job.isSnapshotCompleted();
                 }
             });
@@ -75,8 +75,8 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         }
 
         try (Transaction tr = database.createTransaction()) {
-            ReplicationJob replicationJob = ReplicationJob.load(tr, config);
-            for (Snapshot snapshot : replicationJob.getSnapshots().values()) {
+            ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config);
+            for (Snapshot snapshot : replicationSlot.getSnapshots().values()) {
                 assertEquals(10, snapshot.getTotalEntries());
                 assertEquals(snapshot.getTotalEntries(), snapshot.getProcessedEntries());
                 assertTrue(snapshot.getLastUpdate() > 0);
@@ -101,8 +101,8 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
 
         // Check replication metadata
         try (Transaction tr = database.createTransaction()) {
-            ReplicationJob replicationJob = ReplicationJob.load(tr, config);
-            assertTrue(replicationJob.isSnapshotCompleted());
+            ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config);
+            assertTrue(replicationSlot.isSnapshotCompleted());
         }
     }
 

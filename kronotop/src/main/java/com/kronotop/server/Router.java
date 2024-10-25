@@ -30,6 +30,7 @@ import com.kronotop.server.impl.RespResponse;
 import com.kronotop.server.impl.TransactionResponse;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.watcher.Watcher;
+import com.typesafe.config.Config;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
@@ -50,18 +51,20 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Router class that extends ChannelDuplexHandler for handling commands.
  */
 public class Router extends ChannelDuplexHandler {
-    static final String execCommand = "EXEC";
-    static final String discardCommand = "DISCARD";
-    static final String multiCommand = "MULTI";
-    static final String watchCommand = "WATCH";
-    private static final Logger logger = LoggerFactory.getLogger(Router.class);
+    private static final String EXEC_COMMAND = "EXEC";
+    private static final String DISCARD_COMMAND = "DISCARD";
+    private static final String MULTI_COMMAND = "MULTI";
+    private static final String WATCH_COMMAND = "WATCH";
+    private static final Logger LOGGER = LoggerFactory.getLogger(Router.class);
+
     private final Context context;
     private final ReadWriteLock redisTransactionLock = new ReentrantReadWriteLock(true);
     private final Watcher watcher;
     private final RedisService redisService;
     private final String defaultNamespace;
-    CommandHandlerRegistry commands;
-    Boolean authEnabled = false;
+    private final CommandHandlerRegistry commands;
+    private final boolean logCommandForDebugging;
+    private boolean authEnabled = false;
 
     public Router(Context context, CommandHandlerRegistry commands) {
         this.context = context;
@@ -69,11 +72,14 @@ public class Router extends ChannelDuplexHandler {
         this.watcher = context.getService(Watcher.NAME);
         this.redisService = context.getService(RedisService.NAME);
 
-        if (context.getConfig().hasPath("auth.requirepass") || context.getConfig().hasPath("auth.users")) {
+        Config config = context.getConfig();
+        this.logCommandForDebugging = config.hasPath("log_command_for_debugging") && config.getBoolean("log_command_for_debugging");
+
+        if (config.hasPath("auth.requirepass") || config.hasPath("auth.users")) {
             authEnabled = true;
         }
 
-        defaultNamespace = context.getConfig().getString("default_namespace");
+        defaultNamespace = config.getString("default_namespace");
         if (defaultNamespace.isEmpty() || defaultNamespace.isBlank()) {
             throw new IllegalArgumentException("default namespace is empty or blank");
         }
@@ -105,6 +111,7 @@ public class Router extends ChannelDuplexHandler {
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         ctx.channel().attr(ChannelAttributes.OPEN_NAMESPACES).set(new HashMap<>());
         ctx.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).set(defaultNamespace);
+        ctx.channel().attr(ChannelAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
 
         Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
         autoCommitAttr.set(false);
@@ -133,7 +140,7 @@ public class Router extends ChannelDuplexHandler {
             Attribute<Transaction> transactionAttr = ctx.channel().attr(ChannelAttributes.TRANSACTION);
             Transaction tx = transactionAttr.get();
             tx.close();
-            logger.debug("An incomplete transaction has been closed.");
+            LOGGER.debug("An incomplete transaction has been closed.");
         }
 
         super.channelUnregistered(ctx);
@@ -176,7 +183,7 @@ public class Router extends ChannelDuplexHandler {
                 String param = new String(rawParam);
                 command.append(param).append(" ");
             }
-            logger.debug("Unhandled error while serving command: {}", command, exception);
+            LOGGER.debug("Unhandled error while serving command: {}", command, exception);
             response.writeError(exception.getMessage());
         }
     }
@@ -295,22 +302,37 @@ public class Router extends ChannelDuplexHandler {
         }
     }
 
+    private void logCommandForDebugging(Request request) {
+        List<String> command = new ArrayList<>(List.of(request.getCommand()));
+        for (ByteBuf buf : request.getParams()) {
+            byte[] parameter = new byte[buf.readableBytes()];
+            buf.readBytes(parameter);
+            buf.resetReaderIndex();
+            command.add(new String(parameter));
+        }
+        LOGGER.debug("Received command: {}", String.join(" ", command));
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         Request request = new RespRequest(ctx, msg);
         Response response = new RespResponse(ctx);
 
+        if (logCommandForDebugging) {
+            logCommandForDebugging(request);
+        }
+
         String command = request.getCommand();
         Attribute<Boolean> redisMulti = ctx.channel().attr(ChannelAttributes.REDIS_MULTI);
         if (Boolean.TRUE.equals(redisMulti.get())) {
             switch (command) {
-                case multiCommand:
+                case MULTI_COMMAND:
                     response.writeError("MULTI calls can not be nested");
                     return;
-                case watchCommand:
+                case WATCH_COMMAND:
                     response.writeError("WATCH inside MULTI is not allowed");
                     return;
-                case execCommand:
+                case EXEC_COMMAND:
                     try {
                         executeRedisTransaction(ctx);
                     } finally {
@@ -318,7 +340,7 @@ public class Router extends ChannelDuplexHandler {
                     }
                     return;
                 default:
-                    if (!command.equals(discardCommand)) {
+                    if (!command.equals(DISCARD_COMMAND)) {
                         queueCommandsForRedisTransaction(request, response);
                         return;
                     }

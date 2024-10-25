@@ -23,6 +23,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.BaseClusterTestWithTCPServer;
 import com.kronotop.volume.*;
+import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
@@ -33,6 +34,7 @@ public class BaseNetworkedVolumeTest extends BaseClusterTestWithTCPServer {
     protected Context context;
     protected Database database;
     protected KronotopTestInstance kronotopInstance;
+    protected EmbeddedChannel channel;
     protected Volume volume;
     protected VolumeConfig volumeConfig;
     protected Prefix prefix = new Prefix("test-prefix".getBytes());
@@ -40,7 +42,8 @@ public class BaseNetworkedVolumeTest extends BaseClusterTestWithTCPServer {
     @BeforeEach
     public void setup() {
         super.setup();
-        kronotopInstance = getClusterCoordinator();
+        kronotopInstance = getInstances().getFirst();
+        channel = kronotopInstance.getChannel();
         context = kronotopInstance.getContext();
         database = kronotopInstance.getContext().getFoundationDB();
         VolumeService volumeService = kronotopInstance.getContext().getService(VolumeService.NAME);
@@ -52,8 +55,8 @@ public class BaseNetworkedVolumeTest extends BaseClusterTestWithTCPServer {
             // Set an owner for this new Volume instance
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeMetadata.compute(tr, subspace, (volumeMetadata -> {
-                    Host host = new Host(Role.OWNER, context.getMember());
-                    volumeMetadata.setOwner(host);
+                    Host host = new Host(Role.PRIMARY, context.getMember());
+                    volumeMetadata.setPrimary(host);
                 }));
                 tr.commit().join();
             }

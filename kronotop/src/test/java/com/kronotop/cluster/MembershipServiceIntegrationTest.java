@@ -17,128 +17,59 @@
 package com.kronotop.cluster;
 
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.cluster.coordinator.Route;
-import com.kronotop.cluster.coordinator.RoutingTable;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * The MembershipServiceIntegrationTest class contains integration tests
- * for the MembershipService class.
- *
- * <p>
- * This class tests various methods of the MembershipService class, including
- * the getKnownCoordinator, getMembers, and getRoutingTable methods.
- * It also tests the behavior of the MembershipService class in different
- * scenarios such as a single Kronotop instance and a Kronotop cluster
- * with two instances.
- * </p>
- *
- * <p>
- * The test cases in this class use a BaseClusterTest class as a base class
- * to set up and tear down the Kronotop instances for testing.
- * </p>
- */
 public class MembershipServiceIntegrationTest extends BaseClusterTest {
-
     @Test
-    public void test_singleKronotopInstance_getKnownCoordinator() {
-        // In the beginning, we already have a running Kronotop instance.
-        KronotopTestInstance kronotopTestInstance = kronotopInstances.values().iterator().next();
-
-        // Check the known coordinator
-        MembershipService membershipService = kronotopTestInstance.getContext().getService(MembershipService.NAME);
-        assertEquals(kronotopTestInstance.getContext().getMember(), membershipService.getKnownCoordinator());
+    public void test_isClusterInitialized() {
+        KronotopTestInstance instance = getInstances().getFirst();
+        MembershipService membership = instance.getContext().getService(MembershipService.NAME);
+        await().atMost(5, TimeUnit.SECONDS).until(membership::isClusterInitialized);
     }
 
     @Test
-    public void test_singleKronotopInstance_getMembers() {
-        KronotopTestInstance kronotopTestInstance = kronotopInstances.values().iterator().next();
-        MembershipService membershipService = kronotopTestInstance.getContext().getService(MembershipService.NAME);
-
-        List<String> members = membershipService.getMembers();
-        assertEquals(1, members.size());
-
-        assertEquals(membershipService.getContext().getMember().getId(), members.getFirst());
+    public void test_getLatestHeartbeat() {
+        KronotopTestInstance instance = getInstances().getFirst();
+        MembershipService membership = instance.getContext().getService(MembershipService.NAME);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> membership.getLatestHeartbeat(instance.getContext().getMember()) > 0);
     }
 
     @Test
-    @Disabled("CLUSTERING-REFACTOR")
-    public void test_singleKronotopInstance_getRoutingTable() {
-        KronotopTestInstance kronotopTestInstance = kronotopInstances.values().iterator().next();
-        MembershipService membershipService = kronotopTestInstance.getContext().getService(MembershipService.NAME);
+    public void test_listMembers() {
+        addNewInstance();
 
-        int numberOfShards = membershipService.getContext().getConfig().getInt("redis.shards");
-        for (int shardId = 0; shardId < numberOfShards; shardId++) {
-            Route route = membershipService.getRoutingTable().getRoute(shardId);
-            assertNotNull(route);
-            assertEquals(membershipService.getContext().getMember(), route.getMember());
-        }
-        assertEquals(membershipService.getKnownCoordinator(), membershipService.getRoutingTable().getCoordinator());
-        assertNotEquals(0, membershipService.getRoutingTable().getVersion());
-    }
-
-    @Test
-    public void test_kronotopClusterWithTwoInstances_check_known_coordinators() {
-        KronotopTestInstance instanceOne = kronotopInstances.values().iterator().next();
-        KronotopTestInstance instanceTwo = addNewInstance();
-
-        // Check the known coordinator
-        {
-            MembershipService membershipServiceOne = instanceOne.getContext().getService(MembershipService.NAME);
-            MembershipService membershipServiceTwo = instanceTwo.getContext().getService(MembershipService.NAME);
-            assertEquals(membershipServiceOne.getKnownCoordinator(), membershipServiceTwo.getKnownCoordinator());
-        }
-
-        {
-            MembershipService membershipService = instanceOne.getContext().getService(MembershipService.NAME);
-            assertEquals(instanceOne.getContext().getMember(), membershipService.getKnownCoordinator());
-        }
-    }
-
-    @Test
-    public void test_kronotopClusterWithTwoInstances_getMembers() {
-        KronotopTestInstance instanceOne = kronotopInstances.values().iterator().next();
-        KronotopTestInstance instanceTwo = addNewInstance();
-
-        MembershipService membershipService = instanceOne.getContext().getService(MembershipService.NAME);
-        Set<String> addresses = new HashSet<>();
-        addresses.add(instanceOne.getContext().getMember().getId());
-        addresses.add(instanceTwo.getContext().getMember().getId());
-
-        List<String> members = membershipService.getMembers();
+        KronotopTestInstance instance = getInstances().getFirst();
+        MembershipService membership = instance.getContext().getService(MembershipService.NAME);
+        TreeSet<Member> members = membership.listMembers();
         assertEquals(2, members.size());
-        for (String member : members) {
-            assertTrue(addresses.contains(member));
-        }
     }
 
     @Test
-    @Disabled("CLUSTERING-REFACTOR")
-    public void test_kronotopClusterWithTwoInstances_getRoutingTable() {
-        KronotopTestInstance instanceOne = kronotopInstances.values().iterator().next();
-        KronotopTestInstance instanceTwo = addNewInstance();
+    public void test_member_shutdown_then_check_MemberStatus() {
+        addNewInstance();
 
-        MembershipService membershipService = instanceOne.getContext().getService(MembershipService.NAME);
-        RoutingTable routingTable = membershipService.getRoutingTable();
+        KronotopTestInstance first = getInstances().getFirst();
 
-        assertEquals(membershipService.getKnownCoordinator(), routingTable.getCoordinator());
+        first.shutdownWithoutCleanup();
+        kronotopInstances.remove(first.getMember());
 
-        Set<String> addresses = new HashSet<>();
-        addresses.add(instanceOne.getContext().getMember().getExternalAddress().toString());
-        addresses.add(instanceTwo.getContext().getMember().getExternalAddress().toString());
+        KronotopTestInstance second = getInstances().getFirst();
+        MembershipService membership = second.getContext().getService(MembershipService.NAME);
+        TreeSet<Member> members = membership.listMembers();
+        assertEquals(2, members.size());
 
-        int numberOfShards = membershipService.getContext().getConfig().getInt("redis.shards");
-        for (int shardId = 0; shardId < numberOfShards; shardId++) {
-            Route route = membershipService.getRoutingTable().getRoute(shardId);
-            assertNotNull(route);
-            assertTrue(addresses.contains(route.getMember().getExternalAddress().toString()));
+        MemberStatus status = MemberStatus.UNKNOWN;
+        for (Member member : members) {
+            if (member.equals(first.getMember())) {
+                status = member.getStatus();
+            }
         }
+        assertEquals(MemberStatus.STOPPED, status);
     }
 }

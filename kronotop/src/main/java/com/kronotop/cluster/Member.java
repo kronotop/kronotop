@@ -17,6 +17,7 @@
 package com.kronotop.cluster;
 
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.kronotop.VersionstampUtils;
@@ -28,7 +29,11 @@ import java.nio.charset.StandardCharsets;
 import static com.google.common.hash.Hashing.sipHash24;
 
 public class Member {
+    @JsonIgnore
+    public static final String HEARTBEAT_KEY = "heartbeat";
+
     private String id;
+    private MemberStatus status = MemberStatus.UNKNOWN;
     private Address externalAddress;
     private Address internalAddress;
     private int hashCode;
@@ -71,8 +76,20 @@ public class Member {
         return processId;
     }
 
+    public MemberStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(MemberStatus status) {
+        this.status = status;
+    }
+
     @Override
     public int hashCode() {
+        if (hashCode == 0) {
+            // Hacky?
+            hashCode = sipHash24().hashString(id, StandardCharsets.US_ASCII).asInt();
+        }
         return hashCode;
     }
 
@@ -84,17 +101,18 @@ public class Member {
         if (!(obj instanceof Member member)) {
             return false;
         }
-        return member.getId().equals(id) && member.getProcessId().equals(processId);
+        return member.getId().equals(id);
     }
 
     @Override
     public String toString() {
         return String.format(
-                "Member {id=%s externalAddress=%s internalAddress=%s processId=%s}",
+                "Member {id=%s externalAddress=%s internalAddress=%s processId=%s status=%s}",
                 id,
                 externalAddress,
                 internalAddress,
-                VersionstampUtils.base64Encode(processId)
+                VersionstampUtils.base64Encode(processId),
+                status
         );
     }
 }
