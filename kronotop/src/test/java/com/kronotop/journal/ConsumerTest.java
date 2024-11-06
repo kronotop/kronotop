@@ -41,7 +41,7 @@ public class ConsumerTest extends BaseJournalTest {
 
         Consumer consumer = journal.getConsumer();
         Event consumedEvent = consumer.consumeByVersionstamp(testJournal, versionstampContainer.complete());
-        assertArrayEquals(expectedEvent, consumedEvent.getValue());
+        assertArrayEquals(expectedEvent, consumedEvent.value());
     }
 
     @Test
@@ -80,8 +80,8 @@ public class ConsumerTest extends BaseJournalTest {
         try (Transaction tr = database.createTransaction()) {
             Event firstEvent = consumer.consumeByVersionstamp(tr, testJournal, first);
             assertNotNull(firstEvent);
-            Event nextEvent = consumer.consumeNext(tr, testJournal, firstEvent.getKey());
-            assertArrayEquals(expectedValue.getBytes(), nextEvent.getValue());
+            Event nextEvent = consumer.consumeNext(tr, testJournal, firstEvent.key());
+            assertArrayEquals(expectedValue.getBytes(), nextEvent.value());
         }
     }
 
@@ -101,7 +101,7 @@ public class ConsumerTest extends BaseJournalTest {
         try (Transaction tr = database.createTransaction()) {
             Event consumed = consumer.consumeNext(tr, testJournal, null);
             assertNotNull(consumed);
-            assertArrayEquals(expectedEvent, consumed.getValue());
+            assertArrayEquals(expectedEvent, consumed.value());
         }
     }
 }

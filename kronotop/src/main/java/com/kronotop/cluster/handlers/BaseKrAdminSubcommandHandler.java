@@ -19,13 +19,14 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.JSONUtils;
+import com.kronotop.Context;
+import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
-import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -34,45 +35,162 @@ import io.netty.buffer.ByteBuf;
 import java.util.*;
 
 public class BaseKrAdminSubcommandHandler {
+    protected final Context context;
     protected final MembershipService service;
 
     public BaseKrAdminSubcommandHandler(MembershipService service) {
+        this.context = service.getContext();
         this.service = service;
     }
 
     /**
-     * Opens a shard subspace within the metadata directory subspace for the specified shard ID.
+     * Describes the shard information for a given shard directory subspace within a transaction.
      *
-     * @param tr       The transaction to use for the operation.
-     * @param metadata The DirectorySubspace representing the metadata.
-     * @param shardId  The ID of the shard to open.
-     * @return The DirectorySubspace representing the opened shard subspace.
+     * @param tr            The transaction used to read from the database.
+     * @param shardSubspace The specific directory subspace containing the shard information.
+     * @return A map of RedisMessage key-value pairs representing the shard information,
+     * including primary member ID, standby member IDs, and shard status.
      */
-    protected DirectorySubspace openShardSubspace(Transaction tr, DirectorySubspace metadata, ShardKind shardKind, int shardId) {
-        KronotopDirectoryNode directory;
-        if (shardKind.equals(ShardKind.REDIS)) {
-            directory = KronotopDirectory.
-                    kronotop().
-                    cluster(service.getContext().getClusterName()).
-                    metadata().
-                    shards().
-                    redis().
-                    shard(shardId);
-        } else {
-            throw new KronotopException("Unsupported shard kind: " + shardKind);
+    protected Map<RedisMessage, RedisMessage> describeShard(Transaction tr, DirectorySubspace shardSubspace) {
+        Map<RedisMessage, RedisMessage> shard = new LinkedHashMap<>();
+
+        String primaryRouteMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
+        if (primaryRouteMemberId == null) {
+            primaryRouteMemberId = "";
         }
-        return metadata.open(tr, directory.excludeSubspace(metadata)).join();
+        shard.put(new SimpleStringRedisMessage("primary"), new SimpleStringRedisMessage(primaryRouteMemberId));
+
+        List<RedisMessage> standbyMessages = new ArrayList<>();
+        Set<String> standbys = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
+        if (standbys != null) {
+            for (String standby : standbys) {
+                standbyMessages.add(new SimpleStringRedisMessage(standby));
+            }
+        }
+        shard.put(new SimpleStringRedisMessage("standbys"), new ArrayRedisMessage(standbyMessages));
+
+        ShardStatus status = MembershipUtils.loadShardStatus(tr, shardSubspace);
+        shard.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(status.name()));
+
+        return shard;
     }
 
     /**
-     * Reads the member ID from the provided buffer, validates it, and returns it as a string.
+     * Retrieves the number of shards for a given shard kind.
      *
-     * @param memberIdBuf the buffer containing the raw member ID bytes
-     * @return the validated member ID as a string
-     * @throws KronotopException if the member ID is invalid or cannot be parsed as a UUID
+     * @param kind The type of shard whose number is to be retrieved. Must be of type {@link ShardKind}.
+     * @return The number of shards for the specified shard kind.
+     * @throws IllegalArgumentException if the specified shard kind is not recognized.
+     */
+    protected int getNumberOfShards(ShardKind kind) {
+        if (kind.equals(ShardKind.REDIS)) {
+            return service.getContext().getConfig().getInt("redis.shards");
+        }
+        throw new IllegalArgumentException("Unknown shard kind: " + kind);
+    }
+
+    /**
+     * Reads the shard status from the provided ByteBuf and converts it into a ShardStatus enum value.
+     *
+     * @param shardStatusBuf the ByteBuf containing the raw bytes of the shard status
+     * @return the corresponding ShardStatus enum value
+     * @throws KronotopException if the shard status is invalid
+     */
+    protected ShardStatus readShardStatus(ByteBuf shardStatusBuf) {
+        byte[] rawShardStatus = new byte[shardStatusBuf.readableBytes()];
+        shardStatusBuf.readBytes(rawShardStatus);
+        String stringShardStatus = new String(rawShardStatus);
+
+        try {
+            return ShardStatus.valueOf(stringShardStatus.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new KronotopException("Invalid shard status " + stringShardStatus);
+        }
+    }
+
+    /**
+     * Reads the member status from the provided ByteBuf.
+     *
+     * @param memberStatusBuf the ByteBuf containing the raw bytes of the member status
+     * @return the corresponding MemberStatus enum value
+     * @throws KronotopException if the member status is invalid
+     */
+    protected MemberStatus readMemberStatus(ByteBuf memberStatusBuf) {
+        byte[] rawMemberStatus = new byte[memberStatusBuf.readableBytes()];
+        memberStatusBuf.readBytes(rawMemberStatus);
+        String stringMemberStatus = new String(rawMemberStatus);
+        try {
+            return MemberStatus.valueOf(stringMemberStatus.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new KronotopException("Invalid member status " + stringMemberStatus);
+        }
+    }
+
+    /**
+     * Reads the shard kind from the provided ByteBuf.
+     *
+     * @param shardKindBuf the ByteBuf containing the raw bytes of the shard kind
+     * @return the corresponding ShardKind enum value
+     * @throws KronotopException if the shard kind is invalid
+     */
+    protected ShardKind readShardKind(ByteBuf shardKindBuf) {
+        String rawKind = readAsString(shardKindBuf);
+        try {
+            return ShardKind.valueOf(rawKind.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new KronotopException("invalid shard kind");
+        }
+    }
+
+    /**
+     * Reads the shard ID from the provided ByteBuf and validates it based on the given shard kind.
+     *
+     * @param shardKind  The type of shard whose ID is being read. Must be of type {@link ShardKind}.
+     * @param shardIdBuf The ByteBuf containing the raw bytes of the shard ID.
+     * @return The validated shard ID as an integer.
+     * @throws InvalidShardIdException if the shard ID is not a valid integer or is out of bounds for the specified shard kind.
+     */
+    protected int readShardId(ShardKind shardKind, ByteBuf shardIdBuf) {
+        String rawShardId = readAsString(shardIdBuf);
+        return readShardId(shardKind, rawShardId);
+    }
+
+    /**
+     * Reads and validates the shard ID based on the provided shard kind and raw shard ID string.
+     *
+     * @param shardKind  The type of shard whose ID is being read. Must be of type {@link ShardKind}.
+     * @param rawShardId A string representation of the shard ID.
+     * @return The validated shard ID as an integer.
+     * @throws InvalidShardIdException if the shard ID is not a valid integer or is out of bounds for the specified shard kind.
+     */
+    protected int readShardId(ShardKind shardKind, String rawShardId) {
+        try {
+            int shardId = Integer.parseInt(rawShardId);
+            // Validate
+            if (shardId < 0 || shardId > getNumberOfShards(shardKind) - 1) {
+                throw new InvalidShardIdException();
+            }
+            return shardId;
+        } catch (NumberFormatException e) {
+            throw new InvalidShardIdException();
+        }
+    }
+
+    /**
+     * Reads the member ID from the given ByteBuf. The method attempts to interpret the member ID
+     * either as a prefix or a complete UUID. If the member ID length is 8, it searches for a member
+     * whose ID starts with the given prefix. If the member ID length is not 8, it validates it as a UUID.
+     *
+     * @param memberIdBuf the ByteBuf containing the raw bytes of the member ID
+     * @return the complete member ID as a string
+     * @throws KronotopException if the member ID is invalid, or if no unique member is found with the given prefix
      */
     protected String readMemberId(ByteBuf memberIdBuf) {
         String memberId = readAsString(memberIdBuf);
+        if (memberId.length() == 8) {
+            Member member = findMemberWithPrefix(memberId);
+            return member.getId();
+        }
         try {
             // Validate the member id.
             return UUID.fromString(memberId).toString();
@@ -120,78 +238,38 @@ public class BaseKrAdminSubcommandHandler {
     }
 
     /**
-     * Checks if the cluster has already been initialized.
+     * Checks if the cluster is initialized by reading the cluster metadata from the database.
      *
-     * @param tr       The transaction used to read from the database.
-     * @param subspace The directory subspace containing the initialization state.
-     * @return A boolean indicating whether the cluster is initialized (true) or not (false).
+     * @param tr The transaction used to read from the database.
+     * @return true if the cluster is initialized, false otherwise.
      */
-    protected boolean isClusterInitialized(Transaction tr, DirectorySubspace subspace) {
+    protected boolean isClusterInitialized(Transaction tr) {
+        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
         byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
         return MembershipUtils.isTrue(tr.get(key).join());
     }
 
     /**
-     * Loads the primary member ID for a shard from the specified subspace within a transaction.
+     * Finds a member with the given prefix in their ID.
      *
-     * @param tr       The transaction used to read from the database.
-     * @param subspace The specific directory subspace containing the primary member information.
-     * @return The primary member ID as a string, or null if no primary member information is found.
+     * @param prefix the prefix to search for in member IDs
+     * @return the member whose ID starts with the given prefix
+     * @throws KronotopException if no member or more than one member is found with the given prefix
      */
-    protected String loadShardPrimary(Transaction tr, DirectorySubspace subspace) {
-        byte[] key = subspace.pack(Tuple.from("ROUTE_PRIMARY"));
-        return tr.get(key).thenApply((value) -> {
-            if (value == null) {
-                return null;
+    protected Member findMemberWithPrefix(String prefix) {
+        Set<Member> result = new HashSet<>();
+        TreeSet<Member> members = service.listMembers();
+        for (Member member : members) {
+            if (member.getId().startsWith(prefix)) {
+                result.add(member);
             }
-            return new String(value);
-        }).join();
-    }
-
-    /**
-     * Loads the standby members for a shard from the specified subspace within a transaction.
-     *
-     * @param tr       The transaction used to read from the database.
-     * @param subspace The specific directory subspace containing the standby information.
-     * @return A list of standby member IDs as strings, or null if no standby information is found.
-     */
-    private List<String> loadShardStandbys(Transaction tr, DirectorySubspace subspace) {
-        byte[] key = subspace.pack(Tuple.from("ROUTE_STANDBYS"));
-        return tr.get(key).thenApply((value) -> {
-            if (value == null) {
-                return null;
-            }
-            return Arrays.asList(JSONUtils.readValue(value, String[].class));
-        }).join();
-    }
-
-    /**
-     * Loads the shard routing information from the specified subspace within a transaction.
-     *
-     * @param tr       The transaction used to read from the database.
-     * @param subspace The specific directory subspace containing the route information.
-     * @return A {@link Route} object containing the primary and standby members,
-     * or null if no route information is found.
-     */
-    protected Route loadRoute(Transaction tr, DirectorySubspace subspace) {
-        String primaryMemberId = loadShardPrimary(tr, subspace);
-        if (primaryMemberId == null) {
-            // No route set
-            return null;
         }
-
-        Member primary = service.findMember(primaryMemberId);
-        List<String> standbyIds = loadShardStandbys(tr, subspace);
-        if (standbyIds == null) {
-            return new Route(primary);
+        if (result.isEmpty()) {
+            throw new KronotopException("no member found with prefix: " + prefix);
         }
-
-        List<Member> standbys = new ArrayList<>();
-        for (String standbyId : standbyIds) {
-            Member standby = service.findMember(standbyId);
-            standbys.add(standby);
+        if (result.size() > 1) {
+            throw new KronotopException("more than one member found with prefix: " + prefix);
         }
-
-        return new Route(primary, standbys);
+        return result.iterator().next();
     }
 }

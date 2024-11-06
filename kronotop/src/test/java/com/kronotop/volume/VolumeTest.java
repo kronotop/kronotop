@@ -698,4 +698,37 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             assertEquals(0, index);
         }
     }
+
+    @Test
+    public void test_clearPrefix() throws IOException {
+        ByteBuffer[] entries = getEntries(3);
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            volume.clearPrefix(session);
+            tr.commit().join();
+        }
+
+        Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            for (Versionstamp versionstamp : versionstampedKeys) {
+                assertNull(volume.get(session, versionstamp));
+            }
+        }
+
+        // Prefix cleared
+        try (Transaction tr = database.createTransaction()) {
+            SegmentAnalysis analysis = volume.analyze(tr).getFirst();
+            assertEquals(0, analysis.cardinality());
+            assertEquals(0, analysis.usedBytes());
+            assertTrue(analysis.size() - analysis.freeBytes() > 0);
+        }
+    }
 }

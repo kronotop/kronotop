@@ -35,6 +35,13 @@ import java.util.Map;
 public interface Context {
 
     /**
+     * Retrieves the DirectorySubspaceCache associated with the current context.
+     *
+     * @return the DirectorySubspaceCache instance.
+     */
+    DirectorySubspaceCache getDirectorySubspaceCache();
+
+    /**
      * Retrieves the command handler registry for the specified server kind.
      *
      * @param kind the kind of server for which to retrieve the command handler registry.
@@ -124,14 +131,6 @@ public interface Context {
      * commands.
      */
     Map<String, CommandMetadata> getCommandMetadata();
-
-    /**
-     * Retrieves the KronotopDirectoryLayer object, which provides methods to open or create directory
-     * subspaces within the cluster.
-     *
-     * @return The KronotopDirectoryLayer object.
-     */
-    KronotopDirectoryLayer getDirectoryLayer();
 
     /**
      * Registers a service context in the Kronotop instance.

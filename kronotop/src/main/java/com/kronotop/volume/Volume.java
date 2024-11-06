@@ -43,13 +43,17 @@ import java.util.concurrent.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static com.kronotop.volume.Subspaces.ENTRY_METADATA_SUBSPACE;
-import static com.kronotop.volume.Subspaces.VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE;
+import static com.kronotop.volume.EntryMetadata.*;
+import static com.kronotop.volume.Subspaces.*;
+import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
 
+/**
+ * Volume implements a transactional key/value store based on append-only log files
+ * and stores its metadata in FoundationDB.
+ */
 public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
     private static final byte[] INCREASE_BY_ONE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
-    private static final byte[] DECREASE_BY_ONE_DELTA = new byte[]{-1, -1, -1, -1}; // -1, byte order: little-endian
     private static final int SEGMENT_VACUUM_BATCH_SIZE = 100;
 
     private final Context context;
@@ -72,10 +76,20 @@ public class Volume {
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE));
     }
 
+    /**
+     * Retrieves the subspace associated with this volume.
+     *
+     * @return a VolumeSubspace object that represents the subspace of the volume.
+     */
     protected VolumeSubspace getSubspace() {
         return subspace;
     }
 
+    /**
+     * Retrieves the current configuration of the volume.
+     *
+     * @return a VolumeConfig object containing the configuration settings of the volume.
+     */
     public VolumeConfig getConfig() {
         return config;
     }
@@ -97,8 +111,16 @@ public class Volume {
         return volumeMetadata.getSegments().stream().anyMatch(existingSegmentId -> Objects.equals(existingSegmentId, segmentId));
     }
 
-    // should be protected by segmentsLock
+    /**
+     * Opens a segment based on the given segment ID. This method initializes the segment configuration,
+     * segment log, and segment metadata, and stores them in the segments map.
+     *
+     * @param segmentId the ID of the segment to be opened.
+     * @return the Segment instance that has been created and opened.
+     * @throws IOException if an I/O error occurs while creating or opening the segment.
+     */
     private Segment openSegment(long segmentId) throws IOException {
+        // NOTE: should be protected by segmentsLock
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
         Segment segment = new Segment(segmentConfig);
         SegmentLog segmentLog = new SegmentLog(segment.getName(), config.subspace());
@@ -107,8 +129,16 @@ public class Volume {
         return segment;
     }
 
-    // protected by segmentsLock
+    /**
+     * Retrieves the current highest segment ID and returns the next segment ID by incrementing the highest value by one.
+     * If no segments are available, returns 0.
+     * <p>
+     * This method is protected by the `segmentsLock` to ensure thread safety.
+     *
+     * @return the next segment ID. If no segments are available, returns 0.
+     */
     private long getAndIncreaseSegmentId() {
+        // protected by segmentsLock
         return context.getFoundationDB().run(tr -> {
             List<Long> availableSegments = VolumeMetadata.load(tr, config.subspace()).getSegments();
             if (availableSegments.isEmpty()) {
@@ -118,8 +148,17 @@ public class Volume {
         });
     }
 
-    // createsSegment protected by segmentsLock
+    /**
+     * Creates a new segment in the volume. This method handles the initialization
+     * of segment configuration, segment creation on physical medium, updating
+     * volume metadata in FoundationDB, and making the segment available for the
+     * rest of the volume.
+     *
+     * @return the Segment instance that has been created.
+     * @throws IOException if an I/O error occurs during the creation of the segment.
+     */
     private Segment createSegment() throws IOException {
+        // createsSegment protected by segmentsLock
         long segmentId = getAndIncreaseSegmentId();
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
         Segment segment = new Segment(segmentConfig);
@@ -128,9 +167,7 @@ public class Volume {
 
         // Update the volume metadata on FoundationDB
         context.getFoundationDB().run(tr -> {
-            VolumeMetadata.compute(tr, config.subspace(), (volumeMetadata) -> {
-                volumeMetadata.addSegment(segmentId);
-            });
+            VolumeMetadata.compute(tr, config.subspace(), (volumeMetadata) -> volumeMetadata.addSegment(segmentId));
             return null;
         });
 
@@ -142,6 +179,13 @@ public class Volume {
         return segment;
     }
 
+    /**
+     * Retrieves the latest segment if there is enough free space; otherwise, creates a new segment.
+     *
+     * @param size the size in bytes required in the segment.
+     * @return the Segment instance that has enough free bytes or a newly created Segment.
+     * @throws IOException if an I/O error occurs during the segment retrieval or creation.
+     */
     private Segment getOrCreateLatestSegment(int size) throws IOException {
         segmentsLock.writeLock().lock();
         try {
@@ -160,6 +204,13 @@ public class Volume {
         }
     }
 
+    /**
+     * Retrieves the latest segment if there is enough free space; otherwise, creates a new segment.
+     *
+     * @param size the size in bytes required in the segment.
+     * @return the Segment instance that has enough free bytes or a newly created Segment.
+     * @throws IOException if an I/O error occurs during the segment retrieval or creation.
+     */
     private Segment getLatestSegment(int size) throws IOException {
         segmentsLock.readLock().lock();
         try {
@@ -176,6 +227,16 @@ public class Volume {
         return getOrCreateLatestSegment(size);
     }
 
+    /**
+     * Attempts to append an entry to the latest segment that has enough free space.
+     * If the current latest segment does not have enough free space, it will find
+     * or create a new segment and try again.
+     *
+     * @param prefix the prefix associated with the entry.
+     * @param entry  the byte buffer containing the entry to be appended.
+     * @return an EntryMetadata object containing metadata about the appended entry.
+     * @throws IOException if an I/O error occurs during the segment retrieval or creation.
+     */
     private EntryMetadata tryAppend(Prefix prefix, ByteBuffer entry) throws IOException {
         int size = entry.remaining();
         while (true) {
@@ -191,10 +252,26 @@ public class Volume {
         }
     }
 
+    /**
+     * Appends a segment log entry to the given session.
+     *
+     * @param session       the session object containing the current transaction.
+     * @param kind          the kind of operation being logged.
+     * @param entryMetadata metadata of the entry being appended to the segment.
+     */
     private void appendSegmentLog(Session session, OperationKind kind, EntryMetadata entryMetadata) {
         appendSegmentLog(session.transaction(), kind, session.getAndIncrementUserVersion(), entryMetadata);
     }
 
+    /**
+     * Appends a segment log entry to the specified transaction.
+     *
+     * @param tr            the transaction object to which the log entry is appended.
+     * @param kind          the kind of operation being logged (e.g., APPEND, DELETE, VACUUM).
+     * @param userVersion   the user-defined version associated with the operation.
+     * @param entryMetadata metadata of the entry being appended, which includes segment, position, and length information.
+     * @throws IllegalStateException if the segment specified in the entry metadata cannot be found.
+     */
     private void appendSegmentLog(Transaction tr, OperationKind kind, int userVersion, EntryMetadata entryMetadata) {
         segmentsLock.readLock().lock();
         try {
@@ -209,6 +286,15 @@ public class Volume {
         }
     }
 
+    /**
+     * Writes an array of entry metadata to the current session and updates the transaction with the provided metadata.
+     * Each metadata entry will be encoded and set with a versionstamp key and value.
+     * Furthermore, it updates the segment metadata and triggers streaming subscribers as necessary.
+     *
+     * @param session           The session object containing the current transaction and user version.
+     * @param entryMetadataList An array of entry metadata to be written.
+     * @return A CompletableFuture containing the byte array of the transaction versionstamp.
+     */
     private CompletableFuture<byte[]> writeMetadata(Session session, EntryMetadata[] entryMetadataList) {
         Transaction tr = session.transaction();
         for (EntryMetadata entryMetadata : entryMetadataList) {
@@ -227,8 +313,8 @@ public class Volume {
             );
 
             SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
-            segmentContainer.metadata().addCardinality(tr, INCREASE_BY_ONE_DELTA);
-            segmentContainer.metadata().addUsedBytes(tr, entryMetadata.length());
+            segmentContainer.metadata().increaseCardinalityByOne(session);
+            segmentContainer.metadata().increaseUsedBytes(session, entryMetadata.length());
 
             appendSegmentLog(tr, OperationKind.APPEND, userVersion, entryMetadata);
             triggerStreamingSubscribers(tr);
@@ -236,6 +322,14 @@ public class Volume {
         return tr.getVersionstamp();
     }
 
+    /**
+     * Appends multiple entries to the given prefix and returns their metadata.
+     *
+     * @param prefix  the prefix associated with the entries.
+     * @param entries an array of ByteBuffers containing the entries to be appended.
+     * @return an array of EntryMetadata objects containing metadata about the appended entries.
+     * @throws IOException if an I/O error occurs during the append operation.
+     */
     private EntryMetadata[] appendEntries(Prefix prefix, ByteBuffer[] entries) throws IOException {
         EntryMetadata[] entryMetadataList = new EntryMetadata[entries.length];
         int index = 0;
@@ -247,6 +341,15 @@ public class Volume {
         return entryMetadataList;
     }
 
+    /**
+     * Appends multiple entries to the storage within the context of the given session.
+     *
+     * @param session The session object specifying the transactional context for the append operation.
+     * @param entries An array of ByteBuffers containing the entries to be appended.
+     * @return An AppendResult object containing the result of the append operation,
+     * including metadata about the appended entries and a future for the transaction versionstamp.
+     * @throws IOException If an I/O error occurs during the append operation.
+     */
     public AppendResult append(@Nonnull Session session, @Nonnull ByteBuffer... entries) throws IOException {
         if (entries.length > UserVersion.MAX_VALUE) {
             throw new TooManyEntriesException();
@@ -261,6 +364,15 @@ public class Volume {
         return new AppendResult(future, entryMetadataList, getEntryMetadataCache(session.prefix())::put);
     }
 
+    /**
+     * Retrieves an existing segment by its name or opens a new segment if it does not already exist.
+     * This method ensures thread safety by utilizing read and write locks.
+     *
+     * @param name the name of the segment to retrieve or open.
+     * @return the Segment instance corresponding to the specified name.
+     * @throws IOException              if an I/O error occurs while opening a new segment.
+     * @throws SegmentNotFoundException if the specified segment cannot be found.
+     */
     private Segment getOrOpenSegmentByName(String name) throws IOException, SegmentNotFoundException {
         segmentsLock.readLock().lock();
         try {
@@ -291,6 +403,14 @@ public class Volume {
         }
     }
 
+    /**
+     * Retrieves a cached instance of EntryMetadata for a given Prefix.
+     * If the cache does not already exist for the specified Prefix, it initializes and stores a new cache
+     * with an expiration policy of 30 minutes since the last access.
+     *
+     * @param prefix The prefix for which the entry metadata cache is to be retrieved or initialized.
+     * @return A LoadingCache instance containing Versionstamp to EntryMetadata mappings for the specified prefix.
+     */
     private LoadingCache<Versionstamp, EntryMetadata> getEntryMetadataCache(Prefix prefix) {
         return entryMetadataCache.computeIfAbsent(prefix.asLong(), prefixId -> CacheBuilder.
                 newBuilder().
@@ -299,6 +419,14 @@ public class Volume {
         );
     }
 
+    /**
+     * Loads entry metadata from the cache for a given prefix and versionstamp key.
+     *
+     * @param prefix The prefix associated with the entry metadata.
+     * @param key    The versionstamp key for which the metadata is to be retrieved.
+     * @return The EntryMetadata object if it exists in the cache, otherwise null.
+     * @throws KronotopException If there is an error loading the metadata from FoundationDB.
+     */
     private EntryMetadata loadEntryMetadataFromCache(Prefix prefix, Versionstamp key) {
         try {
             return getEntryMetadataCache(prefix).get(key);
@@ -310,6 +438,15 @@ public class Volume {
         }
     }
 
+    /**
+     * Retrieves a ByteBuffer from a segment based on the provided entry metadata.
+     *
+     * @param prefix        the prefix used for the entry metadata cache
+     * @param key           the versionstamp key to invalidate in cache if segment is not found
+     * @param entryMetadata the metadata containing segment name, position, and length of entry
+     * @return a ByteBuffer containing the data specified by the entry metadata
+     * @throws IOException if an I/O error occurs while accessing the segment
+     */
     protected ByteBuffer getByEntryMetadata(Prefix prefix, Versionstamp key, EntryMetadata entryMetadata) throws IOException {
         Segment segment;
         try {
@@ -325,6 +462,14 @@ public class Volume {
         return segment.get(entryMetadata.position(), entryMetadata.length());
     }
 
+    /**
+     * Retrieves the value associated with the specified key from the given session.
+     *
+     * @param session the session to be used for the operation, must not be null
+     * @param key     the key associated with the value to retrieve, must not be null
+     * @return a ByteBuffer containing the value associated with the specified key, or null if no value is found
+     * @throws IOException if an I/O error occurs during the operation
+     */
     public ByteBuffer get(@Nonnull Session session, @Nonnull Versionstamp key) throws IOException {
         EntryMetadata entryMetadata;
         if (session.transaction() == null) {
@@ -342,6 +487,14 @@ public class Volume {
         return getByEntryMetadata(session.prefix(), key, entryMetadata);
     }
 
+    /**
+     * Retrieves an array of ByteBuffers from the specified segment based on the given segment ranges.
+     *
+     * @param segmentName   the name of the segment from which to retrieve the ByteBuffers
+     * @param segmentRanges an array of SegmentRange objects specifying the positions and lengths of the segments to retrieve
+     * @return an array of ByteBuffers corresponding to the specified segment ranges
+     * @throws IOException if an I/O error occurs while accessing the segment
+     */
     public ByteBuffer[] getSegmentRange(String segmentName, SegmentRange[] segmentRanges) throws IOException {
         Segment segment = getOrOpenSegmentByName(segmentName);
         ByteBuffer[] entries = new ByteBuffer[segmentRanges.length];
@@ -352,6 +505,14 @@ public class Volume {
         return entries;
     }
 
+    /**
+     * Deletes the entries associated with the given keys within the provided session.
+     *
+     * @param session The session within which the delete operation is to be performed. Must not be null.
+     * @param keys    The versionstamps of the entries to be deleted. Must not be null.
+     * @return A DeleteResult containing the results of the deletion operation, including the count of deleted entries
+     * and a callback for invalidating related cache entries.
+     */
     public DeleteResult delete(@Nonnull Session session, @Nonnull Versionstamp... keys) {
         Transaction tr = session.transaction();
 
@@ -371,8 +532,8 @@ public class Volume {
             EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
 
             SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
-            segmentContainer.metadata().addCardinality(tr, DECREASE_BY_ONE_DELTA);
-            segmentContainer.metadata().addUsedBytes(tr, -1 * entryMetadata.length());
+            segmentContainer.metadata().decreaseCardinalityByOne(session);
+            segmentContainer.metadata().increaseUsedBytes(session, -1 * entryMetadata.length());
 
             appendSegmentLog(session, OperationKind.DELETE, entryMetadata);
             triggerStreamingSubscribers(tr);
@@ -383,6 +544,15 @@ public class Volume {
         return result;
     }
 
+    /**
+     * Updates the given key entries in the session.
+     *
+     * @param session The current session running the update transaction.
+     * @param pairs   The key entries to be updated.
+     * @return The result of the update operation containing updated key entries and a cache invalidator.
+     * @throws IOException          If an I/O error occurs during the update.
+     * @throws KeyNotFoundException If a key is not found during the update.
+     */
     public UpdateResult update(@Nonnull Session session, @Nonnull KeyEntry... pairs) throws IOException, KeyNotFoundException {
         ByteBuffer[] entries = new ByteBuffer[pairs.length];
         for (int i = 0; i < pairs.length; i++) {
@@ -396,30 +566,30 @@ public class Volume {
         for (KeyEntry keyEntry : pairs) {
             Versionstamp key = keyEntry.key();
             byte[] packedKey = subspace.packEntryKey(session.prefix(), key);
-            byte[] encodedOldEntryMetadata = tr.get(packedKey).join();
-            if (encodedOldEntryMetadata == null) {
+            byte[] encodedPrevEntryMetadata = tr.get(packedKey).join();
+            if (encodedPrevEntryMetadata == null) {
                 throw new KeyNotFoundException(key);
             }
+
+            EntryMetadata prevEntryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedPrevEntryMetadata));
+            SegmentContainer prevSegmentContainer = segments.get(prevEntryMetadata.segment());
 
             EntryMetadata entryMetadata = entryMetadataList[index];
             SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
 
-            EntryMetadata oldEntryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedOldEntryMetadata));
-            SegmentContainer oldSegmentContainer = segments.get(oldEntryMetadata.segment());
-
-            if (!oldEntryMetadata.segment().equals(entryMetadata.segment())) {
-                oldSegmentContainer.metadata().addCardinality(tr, DECREASE_BY_ONE_DELTA);
-                segmentContainer.metadata().addCardinality(tr, INCREASE_BY_ONE_DELTA);
-                oldSegmentContainer.metadata().addUsedBytes(tr, -1 * oldEntryMetadata.length());
+            if (!prevEntryMetadata.segment().equals(entryMetadata.segment())) {
+                prevSegmentContainer.metadata().decreaseCardinalityByOne(session);
+                segmentContainer.metadata().increaseCardinalityByOne(session);
+                prevSegmentContainer.metadata().increaseUsedBytes(session, -1 * prevEntryMetadata.length());
             } else {
-                segmentContainer.metadata().addUsedBytes(tr, -1 * entryMetadata.length());
+                segmentContainer.metadata().increaseUsedBytes(session, -1 * entryMetadata.length());
             }
-            segmentContainer.metadata().addUsedBytes(tr, entryMetadata.length());
+            segmentContainer.metadata().increaseUsedBytes(session, entryMetadata.length());
 
-            tr.clear(subspace.packEntryMetadataKey(encodedOldEntryMetadata));
+            tr.clear(subspace.packEntryMetadataKey(encodedPrevEntryMetadata));
             tr.set(packedKey, entryMetadata.encode().array());
 
-            appendSegmentLog(session, OperationKind.DELETE, oldEntryMetadata);
+            appendSegmentLog(session, OperationKind.DELETE, prevEntryMetadata);
             appendSegmentLog(session, OperationKind.APPEND, entryMetadata);
             triggerStreamingSubscribers(tr);
 
@@ -428,6 +598,11 @@ public class Volume {
         return new UpdateResult(pairs, getEntryMetadataCache(session.prefix())::invalidate);
     }
 
+    /**
+     * Flushes all segments in the current container.
+     *
+     * @param metaData a boolean flag indicating whether metadata should be flushed as well
+     */
     public void flush(boolean metaData) {
         segmentsLock.readLock().lock();
         try {
@@ -443,6 +618,17 @@ public class Volume {
         }
     }
 
+    /**
+     * Closes the current instance, marking it as closed and ensuring that all segments are properly closed.
+     * This method will lock the segments for reading and attempt to close each segment within the collection.
+     * Any IOException encountered while closing a segment will be logged as an error.
+     * <p>
+     * The method ensures the following steps:
+     * - Marks the instance as closed.
+     * - Acquires a read lock on the segments.
+     * - Iterates through the segments and closes each one.
+     * - Logs any IOExceptions encountered during the close process.
+     */
     public void close() {
         isClosed = true;
         segmentsLock.readLock().lock();
@@ -461,25 +647,74 @@ public class Volume {
         }
     }
 
+    /**
+     * Checks if the resource is closed.
+     *
+     * @return true if the resource is closed, false otherwise.
+     */
     public boolean isClosed() {
         return isClosed;
     }
 
+    /**
+     * Retrieves an iterable range of KeyEntry objects for the specified session.
+     *
+     * @param session the session for which to retrieve the KeyEntry objects
+     * @return an iterable collection of KeyEntry objects within the specified session
+     */
     public Iterable<KeyEntry> getRange(@Nonnull Session session) {
         return new VolumeIterable(this, session, null, null);
     }
 
+    /**
+     * Retrieves a range of KeyEntry objects between the specified begin and end VersionstampedKeySelectors.
+     *
+     * @param session the Session object used for the operation, must not be null
+     * @param begin   the starting VersionstampedKeySelector for the range
+     * @param end     the ending VersionstampedKeySelector for the range
+     * @return an Iterable of KeyEntry objects within the specified range
+     */
     public Iterable<KeyEntry> getRange(@Nonnull Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
         return new VolumeIterable(this, session, begin, end);
     }
 
+    /**
+     * Analyzes the given segment in the context of the provided transaction.
+     *
+     * @param tr               the transaction associated with the segment analysis
+     * @param segmentContainer the container holding the segment to be analyzed
+     * @return a SegmentAnalysis object containing details about the segment
+     */
     private SegmentAnalysis analyzeSegment(Transaction tr, SegmentContainer segmentContainer) {
-        int cardinality = segmentContainer.metadata().getCardinality(tr);
-        long usedBytes = segmentContainer.metadata().getUsedBytes(tr);
+        byte[] begin = config.subspace().pack(Tuple.from(SEGMENT_CARDINALITY_SUBSPACE, segmentContainer.segment().getName()));
+        byte[] end = ByteArrayUtil.strinc(begin);
+
+        int cardinality = 0;
+        long usedBytes = 0;
+
+        for (KeyValue keyValue : tr.getRange(begin, end)) {
+            Tuple tuple = config.subspace().unpack(keyValue.getKey());
+            byte[] prefixBytes = tuple.getBytes(2);
+            Prefix prefix = Prefix.fromBytes(prefixBytes);
+            Session session = new Session(tr, prefix);
+
+            cardinality += segmentContainer.metadata().cardinality(session);
+            usedBytes += segmentContainer.metadata().usedBytes(session);
+        }
+
         Segment segment = segmentContainer.segment();
         return new SegmentAnalysis(segment.getName(), segment.getSize(), usedBytes, segment.getFreeBytes(), cardinality);
     }
 
+    /**
+     * Analyzes the segments associated with the provided transaction.
+     * <p>
+     * This method performs a read-only analysis of the current segments,
+     * creating a shallow copy to avoid holding locks for an extended period.
+     *
+     * @param tr The transaction context used for the analysis.
+     * @return A list of SegmentAnalysis objects containing the analysis results.
+     */
     @SuppressWarnings("unchecked")
     public List<SegmentAnalysis> analyze(Transaction tr) {
         // Create a read-only copy of segments to prevent acquiring segmentsLock for a long time.
@@ -501,12 +736,26 @@ public class Volume {
         return result;
     }
 
+    /**
+     * Analyzes the segments within a transaction context obtained from the FoundationDB database.
+     *
+     * @return a list of SegmentAnalysis objects resulting from the analysis.
+     */
     public List<SegmentAnalysis> analyze() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return analyze(tr);
         }
     }
 
+    /**
+     * This method vacuums a specified segment by reading and updating key-value pairs within a specified range.
+     * It processes the entries in batches to remove stale or outdated entries, and handles retries in case of
+     * failures caused by transaction issues.
+     *
+     * @param name        the name of the segment to be vacuumed.
+     * @param readVersion the read version to be used for the transaction.
+     * @throws IOException if an I/O error occurs.
+     */
     protected void vacuumSegment(String name, long readVersion) throws IOException {
         Segment segment = getOrOpenSegmentByName(name);
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.getName().getBytes()));
@@ -578,5 +827,50 @@ public class Volume {
                 LOGGER.error("Vacuum on Segment: {} has failed", segment.getName(), e);
             }
         }
+    }
+
+    private void clearSegmentsByPrefix(Session session) {
+        segmentsLock.readLock().lock();
+        try {
+            for (Map.Entry<String, SegmentContainer> entry : segments.entrySet()) {
+                String segmentName = entry.getKey();
+
+                int capacity = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE;
+                ByteBuffer buffer = ByteBuffer.
+                        allocate(capacity).
+                        put(segmentName.getBytes()).
+                        put(SUBSPACE_SEPARATOR).
+                        put(session.prefix().asBytes()).flip();
+
+                byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, buffer.array()));
+                byte[] end = ByteArrayUtil.strinc(begin);
+                session.transaction().clear(begin, end);
+
+                SegmentContainer segmentContainer = entry.getValue();
+                segmentContainer.metadata().resetCardinality(session);
+                segmentContainer.metadata().resetUsedBytes(session);
+            }
+        } finally {
+            segmentsLock.readLock().unlock();
+        }
+    }
+
+    private void clearEntrySubspace(Session session) {
+        byte[] begin = config.subspace().pack(Tuple.from(ENTRY_SUBSPACE, session.prefix().asBytes()));
+        byte[] end = ByteArrayUtil.strinc(begin);
+        session.transaction().clear(begin, end);
+    }
+
+    /**
+     * Clears all entries with a specific prefix from the given session's transaction.
+     *
+     * @param session the session containing the transaction and prefix information.
+     */
+    public void clearPrefix(@Nonnull Session session) {
+        Objects.requireNonNull(session.transaction());
+        Objects.requireNonNull(session.prefix());
+
+        clearSegmentsByPrefix(session);
+        clearEntrySubspace(session);
     }
 }

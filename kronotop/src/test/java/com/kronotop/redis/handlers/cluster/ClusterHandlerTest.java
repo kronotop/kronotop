@@ -17,7 +17,7 @@
 package com.kronotop.redis.handlers.cluster;
 
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -57,8 +57,8 @@ class ClusterHandlerTest extends BaseHandlerTest {
     }
 
     private boolean isJoinCompleted(int numMembers) {
-        // TODO: Fix this
-        MembershipService service = kronotopInstance.getContext().getService(MembershipService.NAME);
+        // TODO: CLUSTER-REFACTOR
+        RoutingService service = kronotopInstance.getContext().getService(RoutingService.NAME);
         return service.isClusterInitialized();
     }
 

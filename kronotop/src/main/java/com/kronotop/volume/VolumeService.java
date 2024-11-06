@@ -42,19 +42,9 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     private final HashMap<String, Volume> volumes = new HashMap<>();
 
     public VolumeService(Context context) throws CommandAlreadyRegisteredException {
-        super(context);
+        super(context, NAME);
 
         handlerMethod(ServerKind.INTERNAL, new SegmentRangeHandler(this));
-    }
-
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    @Override
-    public Context getContext() {
-        return context;
     }
 
     @Override

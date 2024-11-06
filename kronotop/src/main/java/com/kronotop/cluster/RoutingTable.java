@@ -16,5 +16,45 @@
 
 package com.kronotop.cluster;
 
+import com.kronotop.cluster.sharding.ShardKind;
+
+import java.util.EnumMap;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * The RoutingTable class is responsible for maintaining routing information
+ * for different kinds of shards in a Kronotop cluster.
+ * <p>
+ * It uses an EnumMap to store routes based on shard kinds and shard IDs.
+ */
 public class RoutingTable {
+    private final EnumMap<ShardKind, ConcurrentHashMap<Integer, Route>> routes = new EnumMap<>(ShardKind.class);
+
+    public RoutingTable() {
+        for (ShardKind shardKind : ShardKind.values()) {
+            routes.put(shardKind, new ConcurrentHashMap<>());
+        }
+    }
+
+    /**
+     * Retrieves the routing information for a specific shard based on its kind and ID.
+     *
+     * @param shardKind the kind of the shard, represented by an instance of ShardKind
+     * @param shardId   the ID of the shard for which to retrieve the route information
+     * @return the Route object containing the primary and standby members, or null if no route information is found
+     */
+    public Route get(ShardKind shardKind, int shardId) {
+        return routes.get(shardKind).get(shardId);
+    }
+
+    /**
+     * Sets the routing information for a specific shard based on its kind and ID.
+     *
+     * @param shardKind the kind of the shard, represented by an instance of ShardKind
+     * @param shardId   the ID of the shard for which to set the route information
+     * @param route     the Route object containing the primary and standby members
+     */
+    void set(ShardKind shardKind, int shardId, Route route) {
+        routes.get(shardKind).put(shardId, route);
+    }
 }

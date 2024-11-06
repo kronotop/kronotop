@@ -22,8 +22,11 @@ import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
 
 public record EntryMetadata(String segment, byte[] prefix, long position, long length) {
     public static int ENTRY_PREFIX_SIZE = 8;
-    public static int ENTRY_METADATA_SIZE = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + 17; // position(8 bytes) + length (8 bytes) + subspace seperator
+    public static int SUBSPACE_SEPARATOR_SIZE = 1;
+    // 16 = position(8 bytes) + length (8 bytes)
+    public static int ENTRY_METADATA_SIZE = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE + 16;
     static byte SUBSPACE_SEPARATOR = 0x0;
+
 
     public static EntryMetadata decode(ByteBuffer buffer) {
         byte[] rawSegment = new byte[SEGMENT_NAME_SIZE];

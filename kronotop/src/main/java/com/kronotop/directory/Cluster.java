@@ -27,4 +27,12 @@ public class Cluster extends KronotopDirectoryNode {
     public Metadata metadata() {
         return new Metadata(layout);
     }
+
+    public Journals journals() {
+        return new Journals(layout);
+    }
+
+    public Namespaces namespaces() {
+        return new Namespaces(layout);
+    }
 }

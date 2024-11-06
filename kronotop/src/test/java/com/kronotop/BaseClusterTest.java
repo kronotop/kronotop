@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster;
+package com.kronotop;
 
-import com.kronotop.BaseTest;
-import com.kronotop.KronotopTestInstance;
+import com.kronotop.cluster.Member;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

@@ -21,8 +21,10 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.FoundationDBService;
+import com.kronotop.journal.CleanupTask;
 import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
 import com.kronotop.redis.RedisContext;
@@ -42,6 +44,8 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /*
 It can scarcely be denied that the supreme goal of all theory is to make the irreducible basic elements as simple and as
@@ -63,6 +67,7 @@ public class KronotopInstance {
     protected Context context;
     protected Member member;
     private volatile KronotopInstanceStatus status = KronotopInstanceStatus.INITIALIZING;
+    private ScheduledFuture<?> journalCleanupTaskFuture;
 
     public KronotopInstance() {
         this(ConfigFactory.load());
@@ -99,6 +104,10 @@ public class KronotopInstance {
      */
     private void registerKronotopServices() {
         // Registration sort is important here.
+
+        MaintenanceService maintenanceService = new MaintenanceService(context);
+        context.registerService(MaintenanceService.NAME, maintenanceService);
+
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
 
@@ -111,10 +120,14 @@ public class KronotopInstance {
         MembershipService membershipService = new MembershipService(context);
         context.registerService(MembershipService.NAME, membershipService);
 
+        RoutingService routingService = new RoutingService(context);
+        context.registerService(RoutingService.NAME, routingService);
+
         RedisService redisService = new RedisService(context);
         context.registerService(RedisService.NAME, redisService);
 
         membershipService.start();
+        routingService.start();
         redisService.start();
     }
 
@@ -207,6 +220,7 @@ public class KronotopInstance {
             initializeMember(memberId);
             initializeContext();
             registerKronotopServices();
+            registerJournalCleanupTask();
             setStatus(KronotopInstanceStatus.RUNNING);
         } catch (Exception e) {
             LOGGER.error("Failed to initialize the instance", e);
@@ -215,6 +229,33 @@ public class KronotopInstance {
         }
 
         LOGGER.info("Ready to accept connections");
+    }
+
+    /**
+     * Registers a scheduled cleanup task for the journal.
+     * <p>
+     * The method retrieves the necessary configuration parameters for the cleanup task
+     * (retention period and time unit) from the provided configuration. It uses these parameters
+     * to create a {@link CleanupTask} and schedules it to run at a fixed rate of once per day using
+     * the {@link MaintenanceService}.
+     * <p>
+     * If an invalid time unit is specified, an {@link IllegalArgumentException} is thrown,
+     * which is caught and re-thrown as a {@link KronotopException} with a descriptive error message.
+     *
+     * @throws KronotopException if the time unit specified in the configuration is invalid
+     */
+    private void registerJournalCleanupTask() {
+        MaintenanceService maintenanceService = context.getService(MaintenanceService.NAME);
+
+        long retentionPeriod = config.getLong("maintenance.journal_cleanup_task.retention_period");
+        String timeunit = config.getString("maintenance.journal_cleanup_task.timeunit");
+
+        try {
+            CleanupTask cleanupTask = new CleanupTask(context.getJournal(), retentionPeriod, MaintenanceService.timeUnitOf(timeunit));
+            journalCleanupTaskFuture = maintenanceService.scheduleAtFixedRate(cleanupTask, 1, 1, TimeUnit.DAYS);
+        } catch (IllegalArgumentException e) {
+            throw new KronotopException("Invalid timeunit: " + timeunit, e);
+        }
     }
 
     /**
@@ -250,6 +291,10 @@ public class KronotopInstance {
                     continue;
                 }
                 LOGGER.debug("{} service has been shutting down", service.getName());
+            }
+
+            if (journalCleanupTaskFuture != null) {
+                journalCleanupTaskFuture.cancel(true);
             }
         } finally {
             setStatus(KronotopInstanceStatus.STOPPED);

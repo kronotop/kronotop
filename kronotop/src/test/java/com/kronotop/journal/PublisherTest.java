@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class PublisherTest extends BaseJournalTest {
 
     @Test
-    public void testPublish() {
+    public void test_Publish() {
         Journal journal = new Journal(config, database);
 
         Publisher publisher = journal.getPublisher();
@@ -41,7 +41,7 @@ public class PublisherTest extends BaseJournalTest {
     }
 
     @Test
-    public void testPublish_single_transaction() {
+    public void test_Publish_single_transaction() {
         Journal journal = new Journal(config, database);
 
         Publisher publisher = journal.getPublisher();

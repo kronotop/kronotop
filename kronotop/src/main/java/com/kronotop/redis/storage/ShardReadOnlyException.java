@@ -20,6 +20,6 @@ import com.kronotop.common.KronotopException;
 
 public class ShardReadOnlyException extends KronotopException {
     public ShardReadOnlyException(int shardId) {
-        super(String.format("ShardId: %d is in read-only state", shardId));
+        super(String.format("shard id: %d is in read-only state", shardId));
     }
 }

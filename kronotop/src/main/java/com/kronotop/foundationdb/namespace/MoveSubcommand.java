@@ -41,8 +41,8 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
         NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
         NamespaceMessage.MoveMessage moveMessage = message.getMoveMessage();
 
-        List<String> oldPath = getBaseSubpath().addAll(moveMessage.getOldPath()).asList();
-        List<String> newPath = getBaseSubpath().addAll(moveMessage.getNewPath()).asList();
+        List<String> oldPath = getNamespaceSubpath(moveMessage.getOldPath());
+        List<String> newPath = getNamespaceSubpath(moveMessage.getNewPath());
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
         try {

@@ -23,7 +23,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.common.KronotopException;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.namespace.NoSuchNamespaceException;
 import com.kronotop.server.ChannelAttributes;
@@ -49,14 +49,6 @@ public class NamespaceUtils {
         namespaces.clear();
     }
 
-    private static List<String> getNamespaceSubpath(String clusterName, String name) {
-        return DirectoryLayout.Builder.
-                clusterName(clusterName).
-                namespaces().
-                addAll(name.split("\\.")).
-                asList();
-    }
-
     /**
      * Opens a namespace within the specified cluster and uses the provided transaction
      * to access the directory subspace associated with the namespace.
@@ -69,7 +61,7 @@ public class NamespaceUtils {
      * @throws KronotopException        if an exception occurs while opening the namespace
      */
     public static Namespace open(String clusterName, @Nonnull String name, Transaction tr) {
-        List<String> subpath = getNamespaceSubpath(clusterName, name);
+        List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(name).toList();
         try {
             DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
             return new Namespace(name, subspace);
@@ -92,7 +84,7 @@ public class NamespaceUtils {
      */
     public static Namespace createOrOpen(Database database, String clusterName, String name) {
         try (Transaction tr = database.createTransaction()) {
-            List<String> subpath = getNamespaceSubpath(clusterName, name);
+            List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(name).toList();
             DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
             tr.commit().join();
             return new Namespace(name, subspace);

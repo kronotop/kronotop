@@ -39,7 +39,7 @@ public class SlotRange {
         return owner;
     }
 
-    public void setOwner(Member owner) {
+    public void setPrimary(Member owner) {
         this.owner = owner;
     }
 

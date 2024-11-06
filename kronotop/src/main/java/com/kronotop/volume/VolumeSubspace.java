@@ -50,11 +50,11 @@ public class VolumeSubspace {
         return subspace.pack(Tuple.from(ENTRY_METADATA_SUBSPACE, data));
     }
 
-    byte[] packSegmentCardinalityKey(String segmentName) {
-        return subspace.pack(Tuple.from(SEGMENT_CARDINALITY_SUBSPACE, segmentName));
+    byte[] packSegmentCardinalityKey(String segment, Prefix prefix) {
+        return subspace.pack(Tuple.from(SEGMENT_CARDINALITY_SUBSPACE, segment, prefix.asBytes()));
     }
 
-    byte[] packSegmentUsedBytesKey(String segmentName) {
-        return subspace.pack(Tuple.from(SEGMENT_USED_BYTES_SUBSPACE, segmentName));
+    byte[] packSegmentUsedBytesKey(String segment, Prefix prefix) {
+        return subspace.pack(Tuple.from(SEGMENT_USED_BYTES_SUBSPACE, segment, prefix.asBytes()));
     }
 }

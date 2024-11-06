@@ -17,7 +17,6 @@
 package com.kronotop;
 
 import com.apple.foundationdb.Database;
-import com.google.common.util.concurrent.Striped;
 import com.kronotop.cluster.Member;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.common.KronotopException;
@@ -30,7 +29,6 @@ import javax.annotation.Nonnull;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReadWriteLock;
 
 /**
  * The ContextImpl class represents the implementation of the Context interface in the Kronotop system.
@@ -39,14 +37,13 @@ public class ContextImpl implements Context {
     private final Config config;
     private final Member member;
     private final Database database;
+    private final DirectorySubspaceCache directorySubspaceCache;
     private final EnumMap<ServerKind, CommandHandlerRegistry> handlers = new EnumMap<>(ServerKind.class);
     private final LinkedHashMap<String, KronotopService> services = new LinkedHashMap<>();
     private final String clusterName;
-    private final Striped<ReadWriteLock> stripedReadWriteLock = Striped.readWriteLock(3);
     private final Journal journal;
     private final ConcurrentHashMap<String, CommandMetadata> commandMetadata = new ConcurrentHashMap<>();
     private final Map<String, CommandMetadata> unmodifiableCommandMetadata = Collections.unmodifiableMap(commandMetadata);
-    private final KronotopDirectoryLayer directoryLayer;
     private final ConcurrentHashMap<String, ServiceContext<?>> contexts = new ConcurrentHashMap<>();
     private final Path dataDir;
 
@@ -61,12 +58,17 @@ public class ContextImpl implements Context {
         this.member = member;
         this.database = database;
         this.journal = new Journal(config, database);
-        this.directoryLayer = new KronotopDirectoryLayer(database, clusterName);
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
+        this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database);
 
         for (ServerKind kind : ServerKind.values()) {
             this.handlers.put(kind, new CommandHandlerRegistry());
         }
+    }
+
+    @Override
+    public DirectorySubspaceCache getDirectorySubspaceCache() {
+        return directorySubspaceCache;
     }
 
     @Override
@@ -128,11 +130,6 @@ public class ContextImpl implements Context {
     @Override
     public Map<String, CommandMetadata> getCommandMetadata() {
         return unmodifiableCommandMetadata;
-    }
-
-    @Override
-    public KronotopDirectoryLayer getDirectoryLayer() {
-        return directoryLayer;
     }
 
     @Override

@@ -34,11 +34,10 @@ import java.util.HashMap;
  * The CommandHandlerService class is a base class that handles the registration of command handlers and the loading
  * of command definitions from JSON files.
  */
-public class CommandHandlerService {
-    protected final Context context;
+public class CommandHandlerService extends BaseKronotopService {
 
-    public CommandHandlerService(Context context) {
-        this.context = context;
+    public CommandHandlerService(Context context, final String name) {
+        super(context, name);
     }
 
     /**

@@ -36,10 +36,6 @@ public class BaseStorageTest extends BaseTest {
     protected EmbeddedChannel channel;
     protected Prefix redisVolumeSyncerPrefix;
 
-    protected Integer getShardId(String key) {
-        int slot = SlotHash.getSlot(key);
-        return redisService.getHashSlots().get(slot);
-    }
 
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {

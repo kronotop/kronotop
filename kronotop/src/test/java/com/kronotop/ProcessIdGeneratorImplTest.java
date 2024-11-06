@@ -20,7 +20,7 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.directory.KronotopDirectory;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +45,7 @@ public class ProcessIdGeneratorImplTest extends BaseTest {
         try (Transaction tr = database.createTransaction()) {
             String clusterName = config.getString("cluster.name");
             DirectoryLayer directoryLayer = DirectoryLayer.getDefault();
-            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).asList();
+            List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).toList();
             directoryLayer.remove(tr, subpath).join();
             tr.commit().join();
         }

@@ -16,28 +16,9 @@
 
 package com.kronotop.cluster;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import com.kronotop.cluster.sharding.ShardStatus;
 
-public class Route {
-    private final Member primary;
-    private final List<Member> standbys = new ArrayList<>();
+import java.util.Set;
 
-    public Route(Member primary) {
-        this.primary = primary;
-    }
-
-    public Route(Member primary, List<Member> standbys) {
-        this(primary);
-        this.standbys.addAll(standbys);
-    }
-
-    public Member getPrimary() {
-        return primary;
-    }
-
-    public List<Member> getStandbys() {
-        return Collections.unmodifiableList(standbys);
-    }
+public record Route(Member primary, Set<Member> standbys, ShardStatus shardStatus) {
 }

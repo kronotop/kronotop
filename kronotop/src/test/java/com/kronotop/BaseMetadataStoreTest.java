@@ -21,7 +21,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.Member;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.volume.VolumeService;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
@@ -38,7 +38,7 @@ public class BaseMetadataStoreTest extends BaseTest {
     protected DirectorySubspace getClusterSubspace(String subspaceName) {
         try (Transaction tr = database.createTransaction()) {
             String clusterName = config.getString("cluster.name");
-            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).add(subspaceName).asList();
+            List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).extend(subspaceName);
             DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
             tr.commit().join();
             return subspace;
@@ -61,7 +61,7 @@ public class BaseMetadataStoreTest extends BaseTest {
         }
         try (Transaction tr = database.createTransaction()) {
             String clusterName = config.getString("cluster.name");
-            List<String> subpath = DirectoryLayout.Builder.clusterName(clusterName).asList();
+            List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).toList();
             DirectoryLayer.getDefault().removeIfExists(tr, subpath).join();
             tr.commit().join();
         }

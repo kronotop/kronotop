@@ -17,12 +17,15 @@
 
 package com.kronotop.redis.storage.impl;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.google.common.util.concurrent.Striped;
 import com.kronotop.Context;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.impl.ShardImpl;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.storage.index.Index;
@@ -48,7 +51,6 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     private final ConcurrentMap<String, RedisValueContainer> storage;
     private final Volume volume;
     private volatile boolean readOnly;
-    private volatile boolean operable;
 
     protected AbstractRedisShard(Context context, Integer id) {
         super(context, id);
@@ -68,21 +70,24 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
         ).toString(); // $data_dir/redis/shards/$shard_number
 
         Config config = context.getConfig().getConfig("redis.volume_syncer");
-        DirectoryLayout layout = DirectoryLayout.Builder.
-                clusterName(context.getClusterName()).
-                internal().
+
+        KronotopDirectoryNode directory = KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                volumes().
                 redis().
-                volume().
-                shardId(Integer.toString(id));
-        DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDirectorySubspace(layout.asList());
-        VolumeConfig volumeConfig = new VolumeConfig(
-                subspace,
-                String.format("redis-shard-%d", id),
-                dataDir,
-                config.getLong("segment_size"),
-                (float) config.getDouble("allowed_garbage_ratio")
-        );
-        try {
+                volume(Integer.toString(id));
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
+            VolumeConfig volumeConfig = new VolumeConfig(
+                    subspace,
+                    String.format("redis-shard-%d", id),
+                    dataDir,
+                    config.getLong("segment_size"),
+                    (float) config.getDouble("allowed_garbage_ratio")
+            );
+            tr.commit().join();
             return volumeService.newVolume(volumeConfig);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -122,16 +127,6 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     @Override
     public VolumeSyncQueue volumeSyncQueue() {
         return volumeSyncQueue;
-    }
-
-    @Override
-    public boolean isOperable() {
-        return operable;
-    }
-
-    @Override
-    public void setOperable(boolean operable) {
-        this.operable = operable;
     }
 
     @Override

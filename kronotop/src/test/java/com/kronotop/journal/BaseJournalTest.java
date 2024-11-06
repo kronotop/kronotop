@@ -21,7 +21,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.BaseTest;
 import com.kronotop.FoundationDBFactory;
 import com.kronotop.MissingConfigException;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.directory.KronotopDirectory;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +48,7 @@ public class BaseJournalTest extends BaseTest {
     public void tearDown() {
         database.run(tr -> {
             DirectoryLayer directoryLayer = DirectoryLayer.getDefault();
-            List<String> subpath = DirectoryLayout.Builder.clusterName(this.clusterName).asList();
+            List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).toList();
             return directoryLayer.removeIfExists(tr, subpath).join();
         });
     }

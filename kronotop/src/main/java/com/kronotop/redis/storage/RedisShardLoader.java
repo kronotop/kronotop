@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.storage;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
@@ -23,12 +24,16 @@ import com.kronotop.redis.handlers.hash.HashValue;
 import com.kronotop.volume.KeyEntry;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.locks.ReadWriteLock;
 
 public final class RedisShardLoader {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedisShardLoader.class);
     private final Context context;
     private final RedisShard shard;
     private final Prefix prefix;

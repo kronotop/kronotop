@@ -41,7 +41,7 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
         NamespaceMessage.RemoveMessage removeMessage = message.getRemoveMessage();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
-        List<String> subpath = getBaseSubpath().addAll(removeMessage.getSubpath()).asList();
+        List<String> subpath = getNamespaceSubpath(removeMessage.getSubpath());
         try {
             directoryLayer.remove(tr, subpath).join();
             tr.commit().join();

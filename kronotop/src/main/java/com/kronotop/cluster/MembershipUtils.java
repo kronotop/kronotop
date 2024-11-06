@@ -17,32 +17,73 @@
 package com.kronotop.cluster;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.Context;
-import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.directory.KronotopDirectoryNode;
+import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.JSONUtils;
+import com.kronotop.cluster.sharding.ShardStatus;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class MembershipUtils {
 
-    public static DirectorySubspace createOrOpenClusterMetadataSubspace(Context context) {
-        // TODO: Cluster metadata subspace is a cacheable item.
-        KronotopDirectoryNode directory = KronotopDirectory.
-                kronotop().
-                cluster(context.getClusterName()).
-                metadata();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = DirectoryLayer.
-                    getDefault().
-                    createOrOpen(tr, directory.toList()).
-                    join();
-            tr.commit().join();
-            return subspace;
+    /**
+     * Loads the shard status from the specified subspace within a transaction.
+     *
+     * @param tr            The transaction used to read from the database.
+     * @param shardSubspace The specific directory subspace containing the shard status.
+     * @return The shard status as a ShardStatus enum value. If the status is not found, returns ShardStatus.INOPERABLE.
+     */
+    public static ShardStatus loadShardStatus(Transaction tr, DirectorySubspace shardSubspace) {
+        byte[] statusKey = shardSubspace.pack(Tuple.from(MembershipConstants.SHARD_STATUS_KEY));
+        byte[] statusValue = tr.get(statusKey).join();
+        if (statusValue == null) {
+            return ShardStatus.INOPERABLE;
         }
+        return ShardStatus.valueOf(new String(statusValue).toUpperCase());
     }
 
+    /**
+     * Loads the primary member ID for a shard from the specified subspace within a transaction.
+     *
+     * @param tr            The transaction used to read from the database.
+     * @param shardSubspace The specific directory subspace containing the primary member information.
+     * @return The primary member ID as a string, or null if no primary member information is found.
+     */
+    public static String loadPrimaryMemberId(Transaction tr, DirectorySubspace shardSubspace) {
+        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
+        return tr.get(key).thenApply((value) -> {
+            if (value == null) {
+                return null;
+            }
+            return new String(value);
+        }).join();
+    }
+
+    /**
+     * Loads the IDs of the standby members from the specified subspace within a transaction.
+     *
+     * @param tr            The transaction used to read from the database.
+     * @param shardSubspace The specific directory subspace containing the standby member information.
+     * @return A set of strings representing the standby member IDs, or an empty set if no standby member information is found.
+     */
+    public static Set<String> loadStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace) {
+        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_STANDBY_MEMBER_KEY));
+        return tr.get(key).thenApply((value) -> {
+            if (value == null) {
+                return new HashSet<String>();
+            }
+            return Set.of(JSONUtils.readValue(value, String[].class));
+        }).join();
+    }
+
+    /**
+     * Checks if the given byte array represents the constant TRUE value defined in MembershipConstants.
+     *
+     * @param data The byte array to be checked.
+     * @return true if the byte array matches MembershipConstants.TRUE; false otherwise.
+     */
     public static boolean isTrue(byte[] data) {
         return Arrays.equals(data, MembershipConstants.TRUE);
     }

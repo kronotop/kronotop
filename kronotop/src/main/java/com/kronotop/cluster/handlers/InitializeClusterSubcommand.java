@@ -20,9 +20,9 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.cluster.MembershipConstants;
 import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
@@ -59,14 +59,14 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
 
     @Override
     public void execute(Request request, Response response) {
-        DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(service.getContext());
+        DirectorySubspace clusterMetadataSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
 
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            if (isClusterInitialized(tr, subspace)) {
+            if (isClusterInitialized(tr)) {
                 throw new KronotopException("cluster has already been initialized");
             }
-            initializeRedisSection(tr, subspace);
-            setClusterInitializedTrue(tr, subspace);
+            initializeRedisSection(tr, clusterMetadataSubspace);
+            setClusterInitializedTrue(tr, clusterMetadataSubspace);
             tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException ex) {

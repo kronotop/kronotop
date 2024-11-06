@@ -29,6 +29,16 @@ public class KronotopDirectoryNode {
         this.layout = layout;
     }
 
+    public List<String> extend(String e) {
+        layout.add(e);
+        return toList();
+    }
+
+    public List<String> extend(List<String> subpath) {
+        layout.addAll(subpath);
+        return toList();
+    }
+
     public List<String> toList() {
         return ImmutableList.copyOf(layout);
     }

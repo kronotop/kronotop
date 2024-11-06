@@ -27,6 +27,7 @@ import com.kronotop.common.KronotopException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -106,7 +107,9 @@ public class Consumer {
             if (value == null) {
                 return null;
             }
-            return new Event(key, value);
+
+            Entry entry = Entry.decode(ByteBuffer.wrap(value));
+            return new Event(key, entry.event());
         } catch (ExecutionException e) {
             // Possible problem in loading JournalMetadata from FoundationDB
             LOGGER.error(e.getCause().getMessage());
@@ -147,7 +150,8 @@ public class Consumer {
                 return null;
             }
             KeyValue next = iterable.next();
-            return new Event(next.getKey(), next.getValue());
+            Entry entry = Entry.decode(ByteBuffer.wrap(next.getValue()));
+            return new Event(next.getKey(), entry.event());
         } catch (ExecutionException e) {
             // Possible problem in loading JournalMetadata from FoundationDB
             LOGGER.error(e.getCause().getMessage());

@@ -29,6 +29,10 @@ public class Metadata extends KronotopDirectoryNode {
         return new Shards(layout);
     }
 
+    public Volumes volumes() {
+        return new Volumes(layout);
+    }
+
     public Members members() {
         return new Members(layout);
     }

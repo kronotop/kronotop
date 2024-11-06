@@ -31,7 +31,7 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
     public static final String NAME = "FoundationDB";
 
     public FoundationDBService(Context context) {
-        super(context);
+        super(context, NAME);
 
         // Register handlers here
         handlerMethod(ServerKind.EXTERNAL, new BeginHandler(this));
@@ -50,19 +50,5 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
         handlerMethod(ServerKind.EXTERNAL, new ZGetKeyHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZMutateHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZGetRangeSizeHandler(this));
-    }
-
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    @Override
-    public Context getContext() {
-        return this.context;
-    }
-
-    @Override
-    public void shutdown() {
     }
 }

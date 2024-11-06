@@ -18,7 +18,7 @@ package com.kronotop.cluster;
 
 import com.kronotop.common.KronotopException;
 
-public class MemberAlreadyRunningException extends KronotopException  {
+public class MemberAlreadyRunningException extends KronotopException {
     public MemberAlreadyRunningException(String message) {
         super(message);
     }

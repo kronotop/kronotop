@@ -19,13 +19,11 @@ package com.kronotop.cluster;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.journal.Event;
-import com.kronotop.journal.JournalName;
 import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,36 +40,25 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MembershipService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Membership";
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipService.class);
+    private static final String CLUSTER_EVENTS_JOURNAL = "cluster-events";
     private final Context context;
     private final MemberRegistry registry;
     private final ScheduledThreadPoolExecutor scheduler;
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final ConcurrentHashMap<Member, DirectorySubspace> subspaces = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Member, MemberView> others = new ConcurrentHashMap<>();
-    private final AtomicReference<RoutingTableLegacy> routingTableLegacy = new AtomicReference<>();
-    private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>();
     private final AtomicReference<byte[]> latestClusterEventKey = new AtomicReference<>();
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
     private volatile boolean isShutdown;
-    private volatile boolean clusterInitialized;
 
     public MembershipService(Context context) {
-        super(context);
+        super(context, NAME);
 
         this.context = context;
         this.registry = new MemberRegistry(context);
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
-
-        // TODO: CLUSTER-REFACTORING
-        RoutingTableLegacy table = new RoutingTableLegacy();
-        int numberOfShards = context.getConfig().getInt("redis.shards");
-        for (int i = 0; i < numberOfShards; i++) {
-            table.setRoute(i, new RouteLegacy(context.getMember()));
-        }
-        routingTableLegacy.set(table);
-        // TODO: CLUSTER-REFACTORING
 
         ThreadFactory factory = Thread.ofVirtual().name("kr.membership").factory();
         this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
@@ -81,7 +68,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
 
     private void configureClusterEventsWatcher() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] key = context.getJournal().getConsumer().getLatestEventKey(tr, JournalName.clusterEvents());
+            byte[] key = context.getJournal().getConsumer().getLatestEventKey(tr, CLUSTER_EVENTS_JOURNAL);
             this.latestClusterEventKey.set(key);
         }
     }
@@ -137,21 +124,12 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         initializeInternalState();
 
         // Publish a MemberJoinEvent
-        context.getJournal().getPublisher().publish(JournalName.clusterEvents(), new MemberJoinEvent(member));
+        context.getJournal().getPublisher().publish(CLUSTER_EVENTS_JOURNAL, new MemberJoinEvent(member));
         configureClusterEventsWatcher();
 
         scheduler.execute(new ClusterEventsJournalWatcher());
         scheduler.execute(new HeartbeatTask());
         scheduler.execute(new FailureDetectionTask());
-
-        clusterInitialized = isClusterInitialized_internal();
-        if (!clusterInitialized) {
-            scheduler.execute(new ClusterInitializationWatcher());
-        }
-    }
-
-    public RoutingTable getRoutingTable() {
-        return routingTable.get();
     }
 
     /**
@@ -223,27 +201,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         }
     }
 
-    /**
-     * Checks if the cluster has been initialized.
-     *
-     * @return true if the cluster is initialized, otherwise false.
-     */
-    public boolean isClusterInitialized() {
-        return clusterInitialized;
-    }
-
     public Map<Member, MemberView> getOthers() {
         return Collections.unmodifiableMap(others);
-    }
-
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    @Override
-    public Context getContext() {
-        return context;
     }
 
     @Override
@@ -269,16 +228,12 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             member.setStatus(status);
             registry.update(tr, member);
-            context.getJournal().getPublisher().publish(tr, JournalName.clusterEvents(), new MemberLeftEvent(member));
+            context.getJournal().getPublisher().publish(tr, CLUSTER_EVENTS_JOURNAL, new MemberLeftEvent(member));
             tr.commit().join();
         } catch (Exception e) {
             // Rollback the internal state
             member.setStatus(initialStatus);
         }
-    }
-
-    public RoutingTableLegacy getRoutingTableLegacy() {
-        return routingTableLegacy.get();
     }
 
     private void processMemberJoinEvent(byte[] data) {
@@ -306,11 +261,11 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     }
 
     private void processClusterEvent(Event event) {
-        BaseBroadcastEvent baseBroadcastEvent = JSONUtils.readValue(event.getValue(), BaseBroadcastEvent.class);
+        BaseBroadcastEvent baseBroadcastEvent = JSONUtils.readValue(event.value(), BaseBroadcastEvent.class);
         LOGGER.debug("Received broadcast event: {}", baseBroadcastEvent.kind());
         switch (baseBroadcastEvent.kind()) {
-            case MEMBER_JOIN -> processMemberJoinEvent(event.getValue());
-            case MEMBER_LEFT -> processMemberLeftEvent(event.getValue());
+            case MEMBER_JOIN -> processMemberJoinEvent(event.value());
+            case MEMBER_LEFT -> processMemberLeftEvent(event.value());
             default -> throw new KronotopException("Unknown broadcast event: " + baseBroadcastEvent.kind());
         }
     }
@@ -320,7 +275,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             while (true) {
                 // Try to consume the latest event.
                 byte[] key = latestClusterEventKey.get();
-                Event event = context.getJournal().getConsumer().consumeNext(tr, JournalName.clusterEvents(), key);
+                Event event = context.getJournal().getConsumer().consumeNext(tr, CLUSTER_EVENTS_JOURNAL, key);
                 if (event == null) return null;
 
                 try {
@@ -329,30 +284,10 @@ public class MembershipService extends CommandHandlerService implements Kronotop
                     LOGGER.error("Failed to process a broadcast event, passing it", e);
                 } finally {
                     // Processed the event successfully. Forward the position.
-                    latestClusterEventKey.set(event.getKey());
+                    latestClusterEventKey.set(event.key());
                 }
             }
         });
-    }
-
-    /**
-     * Checks if the cluster has been initialized by verifying a specific key
-     * in the FoundationDB cluster metadata subspace.
-     *
-     * @return true if the cluster is initialized, otherwise false.
-     */
-    private boolean isClusterInitialized_internal() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
-            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
-            byte[] data = tr.get(key).join();
-            if (data != null) {
-                if (MembershipUtils.isTrue(data)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private class ClusterEventsJournalWatcher implements Runnable {
@@ -363,7 +298,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             }
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.clusterEvents()).getTrigger());
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(CLUSTER_EVENTS_JOURNAL).getTrigger());
                 tr.commit().join();
                 try {
                     // Try to fetch the latest events before start waiting
@@ -371,13 +306,13 @@ public class MembershipService extends CommandHandlerService implements Kronotop
 
                     watcher.join();
                 } catch (CancellationException e) {
-                    LOGGER.info("{} watcher has been cancelled", JournalName.clusterEvents());
+                    LOGGER.debug("{} watcher has been cancelled", CLUSTER_EVENTS_JOURNAL);
                     return;
                 }
                 // A new event is ready to read
                 fetchClusterEvents();
             } catch (Exception e) {
-                LOGGER.error("Error while watching journal: {}", JournalName.clusterEvents(), e);
+                LOGGER.error("Error while watching journal: {}", CLUSTER_EVENTS_JOURNAL, e);
             } finally {
                 if (!isShutdown) {
                     scheduler.execute(this);
@@ -455,43 +390,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             } finally {
                 if (!isShutdown) {
                     scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);
-                }
-            }
-        }
-    }
-
-    private class ClusterInitializationWatcher implements Runnable {
-
-        @Override
-        public void run() {
-            if (isShutdown) {
-                return;
-            }
-
-            DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(context);
-            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
-
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
-                tr.commit().join();
-                try {
-                    clusterInitialized = isClusterInitialized_internal();
-                    if (clusterInitialized) {
-                        keyWatcher.unwatch(key);
-                        return;
-                    }
-                    watcher.join();
-                } catch (CancellationException e) {
-                    LOGGER.info("Cluster initialization watcher has been cancelled");
-                    return;
-                }
-                clusterInitialized = isClusterInitialized_internal();
-            } catch (Exception e) {
-                LOGGER.error("Error while waiting for cluster initialization: {}", JournalName.clusterEvents(), e);
-            } finally {
-                if (!isShutdown && !clusterInitialized) {
-                    // Try again
-                    scheduler.execute(this);
                 }
             }
         }

@@ -23,7 +23,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.directory.KronotopDirectory;
 import com.typesafe.config.Config;
 
 import java.util.List;
@@ -60,7 +60,7 @@ public class ProcessIdGeneratorImpl implements ProcessIdGenerator {
             throw new MissingConfigException("cluster.name is missing in configuration");
         }
 
-        List<String> subpath = DirectoryLayout.Builder.clusterName(config.getString("cluster.name")).asList();
+        List<String> subpath = KronotopDirectory.kronotop().cluster(config.getString("cluster.name")).toList();
         return DirectoryLayer.getDefault().createOrOpen(transaction, subpath).join();
     }
 }

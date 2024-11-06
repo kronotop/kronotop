@@ -46,7 +46,7 @@ class ListSubcommand extends BaseSubcommand implements SubcommandExecutor {
         NamespaceMessage.ListMessage listMessage = message.getListMessage();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
-        List<String> subpath = getBaseSubpath().addAll(listMessage.getSubpath()).asList();
+        List<String> subpath = getNamespaceSubpath(listMessage.getSubpath());
         CompletableFuture<List<String>> future;
         if (subpath.isEmpty()) {
             future = directoryLayer.list(tr);

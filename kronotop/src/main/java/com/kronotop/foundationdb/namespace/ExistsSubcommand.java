@@ -37,7 +37,7 @@ class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
         NamespaceMessage.ExistsMessage existsMessage = message.getExistsMessage();
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
-        List<String> subpath = getBaseSubpath().addAll(existsMessage.getPath()).asList();
+        List<String> subpath = getNamespaceSubpath(existsMessage.getPath());
         Boolean exists = directoryLayer.exists(tr, subpath).join();
         if (exists) {
             response.writeInteger(1);

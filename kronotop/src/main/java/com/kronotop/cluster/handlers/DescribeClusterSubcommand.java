@@ -20,19 +20,16 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.ClusterNotInitializedException;
 import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.cluster.sharding.ShardStatus;
-import com.kronotop.common.KronotopException;
-import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.*;
+import com.kronotop.server.resp3.IntegerRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
@@ -41,32 +38,19 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
         super(service);
     }
 
-    private int getNumberOfShards(ShardKind kind) {
-        if (kind.equals(ShardKind.REDIS)) {
-            return service.getContext().getConfig().getInt("redis.shards");
-        }
-        throw new IllegalArgumentException("Unknown shard kind: " + kind);
-    }
-
     @Override
     public void execute(Request request, Response response) {
-        DirectorySubspace subspace = MembershipUtils.createOrOpenClusterMetadataSubspace(service.getContext());
-
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            if (!isClusterInitialized(tr, subspace)) {
+            if (!isClusterInitialized(tr)) {
                 throw new ClusterNotInitializedException();
             }
             for (ShardKind kind : ShardKind.values()) {
                 Map<RedisMessage, RedisMessage> shardsByKind = new LinkedHashMap<>();
                 int numberOfShards = getNumberOfShards(kind);
                 for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                    DirectorySubspace shardSubspace = openShardSubspace(tr, subspace, kind, shardId);
-                    // TODO: To be filled...
-                    Map<RedisMessage, RedisMessage> shard = new LinkedHashMap<>();
-                    shard.put(new SimpleStringRedisMessage("owner"), new SimpleStringRedisMessage(""));
-                    shard.put(new SimpleStringRedisMessage("standbys"), new ArrayRedisMessage(List.of()));
-                    shard.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(ShardStatus.INOPERABLE.toString()));
+                    DirectorySubspace subspace = context.getDirectorySubspaceCache().get(kind, shardId);
+                    Map<RedisMessage, RedisMessage> shard = describeShard(tr, subspace);
                     shardsByKind.put(new IntegerRedisMessage(shardId), new MapRedisMessage(shard));
                 }
                 result.put(new SimpleStringRedisMessage(kind.toString().toLowerCase()), new MapRedisMessage(shardsByKind));

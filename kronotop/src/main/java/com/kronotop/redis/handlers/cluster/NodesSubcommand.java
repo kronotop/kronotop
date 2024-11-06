@@ -45,7 +45,9 @@ class NodesSubcommand implements SubcommandHandler {
         MembershipService membership = service.getContext().getService(MembershipService.NAME);
         TreeSet<Member> members = membership.listMembers();
 
-        Long configEpoch = membership.getRoutingTableLegacy().getVersion();
+        // TODO: We don't have a version yet.
+        //Long configEpoch = membership.getRoutingTableLegacy().getVersion();
+        Long configEpoch = 0L;
 
         Map<Member, Long> latestHeartbeats = new HashMap<>();
         for (Member member : members) {

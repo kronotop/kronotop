@@ -14,35 +14,25 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster;
+package com.kronotop;
 
-/**
- * The Route class represents a route in a routing table. It is associated with a Member object.
- */
-public class RouteLegacy {
-    private Member member;
+public class BaseKronotopService {
+    protected final String serviceName;
+    protected final Context context;
 
-    RouteLegacy() {
+    public BaseKronotopService(Context context, final String name) {
+        this.context = context;
+        this.serviceName = name;
     }
 
-    public RouteLegacy(Member member) {
-        this.member = member;
+    public String getName() {
+        return serviceName;
     }
 
-    public Member getMember() {
-        return member;
+    public Context getContext() {
+        return context;
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-
-        if (!(obj instanceof RouteLegacy route)) {
-            return false;
-        }
-
-        return route.getMember().equals(getMember());
+    public void shutdown() {
     }
 }

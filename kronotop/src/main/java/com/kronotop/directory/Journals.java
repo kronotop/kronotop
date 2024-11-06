@@ -14,12 +14,24 @@
  * limitations under the License.
  */
 
-package com.kronotop.journal;
+package com.kronotop.directory;
 
-public class JournalName {
-    private static final String CLUSTER_EVENTS_JOURNAL_NAME = "cluster-events";
+import java.util.List;
 
-    public static String clusterEvents() {
-        return CLUSTER_EVENTS_JOURNAL_NAME;
+public class Journals extends KronotopDirectoryNode {
+    public Journals(List<String> layout) {
+        super(layout);
+        layout.add("journals");
+    }
+
+    public Journal journal(String name) {
+        return new Journal(layout, name);
+    }
+
+    public static class Journal extends KronotopDirectoryNode {
+        public Journal(List<String> layout, String name) {
+            super(layout);
+            layout.add(name);
+        }
     }
 }

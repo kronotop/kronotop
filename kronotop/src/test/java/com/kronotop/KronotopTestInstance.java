@@ -17,16 +17,14 @@
 package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
-import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.RouteLegacy;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
-import com.kronotop.common.utils.DirectoryLayout;
+import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.handlers.connection.protocol.PingMessage;
-import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import com.typesafe.config.Config;
@@ -170,9 +168,45 @@ public class KronotopTestInstance extends KronotopInstance {
                 fail(message.content());
             }
 
-            MembershipService service = context.getService(MembershipService.NAME);
-            await().atMost(5000, TimeUnit.MILLISECONDS).until(service::isClusterInitialized);
+            RoutingService routing = context.getService(RoutingService.NAME);
+            await().atMost(5000, TimeUnit.MILLISECONDS).until(routing::isClusterInitialized);
         }
+
+        {
+            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf buf = Unpooled.buffer();
+            cmd.setShardStatus("REDIS", "READWRITE").encode(buf);
+            channel.writeInbound(buf);
+
+            Object raw = channel.readOutbound();
+            if (raw instanceof SimpleStringRedisMessage message) {
+                assertEquals(Response.OK, message.content());
+            } else if (raw instanceof ErrorRedisMessage message) {
+                fail(message.content());
+            }
+        }
+
+        {
+            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf buf = Unpooled.buffer();
+            cmd.setRoute("PRIMARY", "REDIS", context.getMember().getId()).encode(buf);
+            channel.writeInbound(buf);
+
+            Object raw = channel.readOutbound();
+            if (raw instanceof SimpleStringRedisMessage message) {
+                assertEquals(Response.OK, message.content());
+            } else if (raw instanceof ErrorRedisMessage message) {
+                fail(message.content());
+            }
+        }
+
+        // TODO: CLUSTER-REFACTORING
+        // These methods will be removed soon.
+        RoutingService routingService = context.getService(RoutingService.NAME);
+        routingService.loadRoutingTableFromFoundationDB_Eagerly();
+
+        RedisService redisService = context.getService(RedisService.NAME);
+        redisService.loadRedisDataFromVolumes_Eagerly();
     }
 
     /**
@@ -180,7 +214,7 @@ public class KronotopTestInstance extends KronotopInstance {
      */
     private void cleanupTestCluster() {
         context.getFoundationDB().run(tr -> {
-            List<String> subpath = DirectoryLayout.Builder.clusterName(context.getClusterName()).asList();
+            List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).toList();
             return DirectoryLayer.getDefault().removeIfExists(tr, subpath).join();
         });
     }
@@ -197,53 +231,6 @@ public class KronotopTestInstance extends KronotopInstance {
             shutdownWithoutCleanup();
         } finally {
             cleanupTestCluster();
-        }
-    }
-
-    /**
-     * CheckClusterStatus is a private class that implements the Runnable interface.
-     * It is used to check the status of the cluster by iterating through each shard and performing necessary checks.
-     * If the shard is not operable, read-only, or if the shard or route is null, the execution is scheduled to retry after 20 milliseconds.
-     * Once all the shards have been checked and no issues are found, it notifies the clusterOperable object.
-     */
-    private class CheckClusterStatus implements Runnable {
-        private final MembershipService membershipService;
-        private final RedisService redisService;
-
-        public CheckClusterStatus() {
-            this.membershipService = context.getService(MembershipService.NAME);
-            this.redisService = context.getService(RedisService.NAME);
-        }
-
-        @Override
-        public void run() {
-            // TODO: Cant see the exception traceback here. This may lead to critical and subtle issues.
-            int numberOfShards = context.getConfig().getInt("redis.shards");
-            for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                RouteLegacy route = membershipService.getRoutingTableLegacy().getRoute(shardId);
-                if (route == null) {
-                    executor.schedule(this, 20, TimeUnit.MILLISECONDS);
-                    return;
-                }
-                if (!route.getMember().equals(context.getMember())) {
-                    // Belong to another member
-                    continue;
-                }
-
-                RedisShard shard = redisService.getServiceContext().shards().get(shardId);
-                if (shard == null) {
-                    executor.schedule(this, 20, TimeUnit.MILLISECONDS);
-                    return;
-                }
-                if (!shard.isOperable() || shard.isReadOnly()) {
-                    executor.schedule(this, 20, TimeUnit.MILLISECONDS);
-                    return;
-                }
-            }
-            // This instance is now operable.
-            synchronized (clusterOperable) {
-                clusterOperable.notifyAll();
-            }
         }
     }
 }

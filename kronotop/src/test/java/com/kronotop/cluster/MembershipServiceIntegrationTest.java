@@ -16,6 +16,7 @@
 
 package com.kronotop.cluster;
 
+import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopTestInstance;
 import org.junit.jupiter.api.Test;
 
@@ -26,12 +27,6 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class MembershipServiceIntegrationTest extends BaseClusterTest {
-    @Test
-    public void test_isClusterInitialized() {
-        KronotopTestInstance instance = getInstances().getFirst();
-        MembershipService membership = instance.getContext().getService(MembershipService.NAME);
-        await().atMost(5, TimeUnit.SECONDS).until(membership::isClusterInitialized);
-    }
 
     @Test
     public void test_getLatestHeartbeat() {

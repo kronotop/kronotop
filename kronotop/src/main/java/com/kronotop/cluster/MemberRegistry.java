@@ -237,7 +237,8 @@ class MemberRegistry {
      *
      * @param memberId the unique identifier of the member to be retrieved
      * @return the Member object associated with the specified member ID
-     * @throws KronotopException if the member is not registered properly
+     * @throws MemberNotRegisteredException if the member is not registered
+     * @throws CompletionException          if an error occurs during transaction completion
      */
     Member findMember(String memberId) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {

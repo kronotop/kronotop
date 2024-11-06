@@ -27,41 +27,31 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 
-class SetStatusSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
+class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    SetStatusSubcommand(MembershipService service) {
+    SetMemberStatusSubcommand(MembershipService service) {
         super(service);
     }
 
     @Override
     public void execute(Request request, Response response) {
-        SetStatusParameters parameters = new SetStatusParameters(request.getParams());
+        SetMemberStatusParameters parameters = new SetMemberStatusParameters(request.getParams());
         Member member = service.findMember(parameters.memberId);
-        member.setStatus(parameters.status);
+        member.setStatus(parameters.memberStatus);
         service.updateMember(member);
         response.writeOK();
     }
 
-    private class SetStatusParameters {
+    private class SetMemberStatusParameters {
         private final String memberId;
-        private final MemberStatus status;
+        private final MemberStatus memberStatus;
 
-        private SetStatusParameters(ArrayList<ByteBuf> params) {
+        private SetMemberStatusParameters(ArrayList<ByteBuf> params) {
             if (params.size() != 3) {
                 throw new KronotopException("Invalid number of parameters");
             }
             memberId = readMemberId(params.get(1));
-
-            ByteBuf statusBuf = params.get(2);
-            byte[] rawStatus = new byte[statusBuf.readableBytes()];
-            statusBuf.readBytes(rawStatus);
-            String stringStatus = new String(rawStatus);
-
-            try {
-                status = MemberStatus.valueOf(stringStatus.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new KronotopException("Invalid member status " + stringStatus);
-            }
+            memberStatus = readMemberStatus(params.get(2));
         }
     }
 }

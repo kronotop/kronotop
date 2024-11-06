@@ -51,8 +51,8 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
     }
 
-    public Command<K, V, String> setStatus(String memberID, String status) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_STATUS).add(memberID).add(status);
+    public Command<K, V, String> setMemberStatus(String memberID, String status) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_MEMBER_STATUS).add(memberID).add(status);
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
@@ -66,6 +66,39 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, new StringListOutput<>(codec), args);
     }
 
+    public Command<K, V, String> setShardStatus(String shardKind, int sharId, String status) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_SHARD_STATUS).add(shardKind).add(sharId).add(status);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, String> setShardStatus(String shardKind, String status) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_SHARD_STATUS).add(shardKind).add("*").add(status);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Command<K, V, Map<String, Object>> describeShard(String shardKind, int shardId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.DESCRIBE_SHARD).add(shardKind).add(shardId);
+        return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
+    }
+
+    public Command<K, V, String> setRoute(String routeKind, String shardKind, int shardId, String memberId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_ROUTE).
+                add(routeKind).
+                add(shardKind).
+                add(shardId).
+                add(memberId);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, String> setRoute(String routeKind, String shardKind, String memberId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_ROUTE).
+                add(routeKind).
+                add(shardKind).
+                add("*").
+                add(memberId);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
 
     enum CommandType implements ProtocolKeyword {
         KR_ADMIN("KR.ADMIN");
@@ -86,9 +119,12 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         INITIALIZE_CLUSTER("INITIALIZE-CLUSTER"),
         LIST_MEMBERS("LIST-MEMBERS"),
         FIND_MEMBER("FIND-MEMBER"),
-        SET_STATUS("SET-STATUS"),
+        SET_MEMBER_STATUS("SET-MEMBER-STATUS"),
         REMOVE_MEMBER("REMOVE-MEMBER"),
-        LIST_SILENT_MEMBERS("LIST-SILENT-MEMBERS");
+        LIST_SILENT_MEMBERS("LIST-SILENT-MEMBERS"),
+        SET_SHARD_STATUS("SET-SHARD-STATUS"),
+        DESCRIBE_SHARD("DESCRIBE-SHARD"),
+        SET_ROUTE("SET-ROUTE");
 
         public final byte[] bytes;
 

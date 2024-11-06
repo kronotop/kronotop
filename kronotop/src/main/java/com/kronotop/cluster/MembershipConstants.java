@@ -19,5 +19,7 @@ package com.kronotop.cluster;
 public final class MembershipConstants {
     public static final byte[] TRUE = new byte[]{0x01};
     public static final byte CLUSTER_INITIALIZED = 0x02;
-    public static final byte ROUTE_PRIMARY_KEY = 0x03;
+    public static final byte ROUTE_PRIMARY_MEMBER_KEY = 0x03;
+    public static final byte ROUTE_STANDBY_MEMBER_KEY = 0x04;
+    public static final byte SHARD_STATUS_KEY = 0x05;
 }

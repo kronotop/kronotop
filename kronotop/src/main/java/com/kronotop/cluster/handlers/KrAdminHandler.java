@@ -35,11 +35,13 @@ public class KrAdminHandler implements Handler {
         handlers.put(KrAdminSubcommand.LIST_MEMBERS, new ListMembersSubcommand(service));
         handlers.put(KrAdminSubcommand.INITIALIZE_CLUSTER, new InitializeClusterSubcommand(service));
         handlers.put(KrAdminSubcommand.DESCRIBE_CLUSTER, new DescribeClusterSubcommand(service));
-        handlers.put(KrAdminSubcommand.SET_STATUS, new SetStatusSubcommand(service));
+        handlers.put(KrAdminSubcommand.SET_MEMBER_STATUS, new SetMemberStatusSubcommand(service));
         handlers.put(KrAdminSubcommand.FIND_MEMBER, new FindMemberSubcommand(service));
         handlers.put(KrAdminSubcommand.REMOVE_MEMBER, new RemoveMemberSubcommand(service));
         handlers.put(KrAdminSubcommand.LIST_SILENT_MEMBERS, new ListSilentMembers(service));
         handlers.put(KrAdminSubcommand.SET_ROUTE, new SetRouteHandler(service));
+        handlers.put(KrAdminSubcommand.SET_SHARD_STATUS, new SetShardStatusSubcommand(service));
+        handlers.put(KrAdminSubcommand.DESCRIBE_SHARD, new DescribeShardSubcommand(service));
     }
 
     @Override

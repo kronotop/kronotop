@@ -16,18 +16,14 @@
 
 package com.kronotop.redis;
 
-import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.ServiceContext;
-import com.kronotop.cluster.ClusterNotInitializedException;
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.RouteLegacy;
+import com.kronotop.cluster.*;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.handlers.InfoHandler;
@@ -47,6 +43,8 @@ import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.*;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.server.*;
+import com.kronotop.volume.Prefix;
+import com.kronotop.volume.Session;
 import com.kronotop.watcher.Watcher;
 import com.typesafe.config.Config;
 import io.lettuce.core.cluster.SlotHash;
@@ -57,7 +55,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -71,7 +68,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final ServiceContext<RedisShard> serviceContext;
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
-    private final MembershipService membership;
+    private final RoutingService routing;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Thread.ofVirtual().name("kr.redis-service", 0L).factory()
@@ -80,26 +77,13 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final List<VolumeSyncWorker> volumeSyncWorkers = new ArrayList<>();
 
     public RedisService(Context context) throws CommandAlreadyRegisteredException {
-        super(context);
+        super(context, NAME);
+
         this.watcher = context.getService(Watcher.NAME);
         this.numberOfShards = context.getConfig().getInt("redis.shards");
-        this.membership = context.getService(MembershipService.NAME);
+        this.routing = context.getService(RoutingService.NAME);
         this.hashSlots = distributeHashSlots();
         this.serviceContext = context.getServiceContext(NAME);
-
-        // TODO: CLUSTER-REFACTORING
-        for (int i = 0; i < this.numberOfShards; i++) {
-            RedisShard redisShard = new OnHeapRedisShardImpl(context, i);
-            redisShard.setOperable(true);
-            this.serviceContext.shards().put(i, redisShard);
-        }
-
-        // TODO: CLUSTER-REFACTORING
-        for (int i = 0; i < this.numberOfShards; i++) {
-            RedisShard shard = this.serviceContext.shards().get(i);
-            RedisShardLoader redisShardLoader = new RedisShardLoader(context, shard);
-            redisShardLoader.load();
-        }
 
         handlerMethod(ServerKind.EXTERNAL, new PingHandler());
         handlerMethod(ServerKind.EXTERNAL, new AuthHandler(this));
@@ -162,6 +146,15 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         handlerMethod(ServerKind.INTERNAL, new PingHandler());
     }
 
+    /**
+     * Checks if the Redis value in the provided container is of the specified kind. If the container is null,
+     * the method returns without any action. If the container's kind does not match the specified kind,
+     * a WrongTypeException is thrown.
+     *
+     * @param container the RedisValueContainer holding the Redis value whose kind is to be checked
+     * @param kind      the expected RedisValueKind that the value should be
+     * @throws WrongTypeException if the value kind in the container does not match the expected kind
+     */
     public static void checkRedisValueKind(RedisValueContainer container, RedisValueKind kind) {
         if (container == null) {
             return;
@@ -171,15 +164,40 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
     }
 
-    public void start() {
-        Config redisConfig = context.getConfig().getConfig("redis");
-        int numVolumeSyncWorkers = redisConfig.getInt("volume_syncer.workers");
-        int period = redisConfig.getInt("volume_syncer.period");
+    private void initializeVolumeSyncerWorkers() {
+        int numVolumeSyncWorkers = context.getConfig().getInt("redis.volume_syncer.workers");
+        int period = context.getConfig().getInt("redis.volume_syncer.period");
         for (int workerId = 0; workerId < numVolumeSyncWorkers; workerId++) {
             VolumeSyncWorker worker = new VolumeSyncWorker(context, workerId);
             volumeSyncWorkers.add(worker);
             scheduledExecutorService.scheduleAtFixedRate(worker, 0, period, TimeUnit.MILLISECONDS);
         }
+    }
+
+    private void loadRedisDataFromVolumes() {
+        // TODO: CLUSTER-REFACTORING
+        int shards = context.getConfig().getInt("redis.shards");
+        for (int shardId = 0; shardId < shards; shardId++) {
+            Route route = routing.findRoute(ShardKind.REDIS, shardId);
+            if (route == null) {
+                continue;
+            }
+            if (route.primary().equals(context.getMember())) {
+                serviceContext.shards().put(shardId, new OnHeapRedisShardImpl(context, shardId));
+                RedisShard shard = serviceContext.shards().get(shardId);
+                RedisShardLoader loader = new RedisShardLoader(context, shard);
+                loader.load();
+            }
+        }
+    }
+
+    public void loadRedisDataFromVolumes_Eagerly() {
+        loadRedisDataFromVolumes();
+    }
+
+    public void start() {
+        initializeVolumeSyncerWorkers();
+        loadRedisDataFromVolumes();
     }
 
     /**
@@ -220,33 +238,30 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     public RedisShard getShard(Integer shardId) {
         return serviceContext.shards().compute(shardId, (k, shard) -> {
             if (shard != null) {
-                if (!shard.isOperable()) {
-                    throw new KronotopException(String.format("ShardId: %s not operable", shardId));
-                }
                 return shard;
             }
-            RouteLegacy route = membership.getRoutingTableLegacy().getRoute(shardId);
+
+            // Check routing info to return a sensible error message.
+            Route route = routing.findRoute(ShardKind.REDIS, shardId);
             if (route == null) {
-                throw new KronotopException(RESPError.ERR, String.format("ShardId: %d not owned by any member yet", shardId));
+                throw new KronotopException(String.format("shard id: %d not owned by any member yet", shardId));
             }
-            if (!route.getMember().equals(context.getMember())) {
+
+            if (!route.primary().equals(context.getMember())) {
                 // This should not be happened at production but just for safety.
-                throw new KronotopException(String.format("ShardId: %d not belong to this node: %s", shardId, context.getMember()));
+                throw new KronotopException(String.format("shard id: %d not belong to this node: %s", shardId, context.getMember()));
             }
-            throw new KronotopException(String.format("ShardId: %d not usable yet", shardId));
+
+            throw new KronotopException(String.format("shard id: %d not usable yet", shardId));
         });
     }
 
     /**
-     * Clears the logical database by performing the following steps:
-     * 1. Pauses all shard maintenance workers.
-     * 2. Sets all shards in the logical database to be inoperable and read-only.
-     * 3. Clears the data structures for each shard in the logical database by deleting all data in the corresponding directory subspaces.
-     * 4. Clears the in-memory data for each shard in the logical database.
-     * 5. Resumes all shard maintenance workers.
-     * 6. Restores the shard operability and read-write state.
-     *
-     * @throws RuntimeException if there is an error during the process.
+     * Clears all shards, pausing volume synchronization workers and
+     * ensuring shards are set to read-only mode. This method clears
+     * all in-memory data and commits the transaction to the database.
+     * After clearing, it resumes the volume synchronization workers
+     * and restores shard operability.
      */
     public void clearShards() {
         try {
@@ -254,39 +269,30 @@ public class RedisService extends CommandHandlerService implements KronotopServi
 
             // Stop all the operations on the owned shards
             serviceContext.shards().values().forEach(shard -> {
-                shard.setOperable(false);
+                //shard.setOperable(false);
                 shard.setReadOnly(true);
             });
-
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                serviceContext.shards().values().forEach(shard -> {
-                    for (DataStructure dataStructure : DataStructure.values()) {
-                        try {
-                            // TODO: This should be removed!
-                            DirectorySubspace shardSubspace = context.getDirectoryLayer().openDataStructure(shard.id(), dataStructure);
-                            tr.clear(Range.startsWith(shardSubspace.pack()));
-                        } catch (CompletionException e) {
-                            if (e.getCause() instanceof NoSuchDirectoryException) {
-                                return;
-                            }
-                            throw new RuntimeException(e);
-                        }
-                    }
-                });
-                tr.commit().join();
-            }
 
             // Clear all in-memory data
             serviceContext.shards().values().forEach(shard -> {
                 shard.storage().clear();
                 shard.volumeSyncQueue().clear();
             });
+
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                Prefix prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
+                Session session = new Session(tr, prefix);
+                serviceContext.shards().values().forEach(shard -> {
+                    shard.volume().clearPrefix(session);
+                });
+                tr.commit().join();
+            }
         } finally {
             volumeSyncWorkers.forEach(VolumeSyncWorker::resume);
             // Make the shard operable again
             serviceContext.shards().values().forEach(shard -> {
                 shard.setReadOnly(false);
-                shard.setOperable(true);
+                //shard.setOperable(true);
             });
         }
     }
@@ -305,16 +311,6 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             ReferenceCountUtil.release(cmd.getRedisMessage());
         }
         queuedCommands.set(new ArrayList<>());
-    }
-
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    @Override
-    public Context getContext() {
-        return context;
     }
 
     public ServiceContext<RedisShard> getServiceContext() {
@@ -350,17 +346,27 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @throws KronotopException if the slot is not owned by any member yet or not owned by the current member
      */
     private RedisShard findShard_internal(int slot) {
-        int shardId = getHashSlots().get(slot);
-        RouteLegacy route = membership.getRoutingTableLegacy().getRoute(shardId);
-        if (route == null) {
-            throw new KronotopException(RESPError.ERR, String.format("slot %d isn't owned by any member yet", slot));
+        if (!routing.isClusterInitialized()) {
+            throw new ClusterNotInitializedException();
         }
-        if (!route.getMember().equals(getContext().getMember())) {
+
+        int shardId = getHashSlots().get(slot);
+        Route route = routing.findRoute(ShardKind.REDIS, shardId);
+        if (route == null) {
+            throw new KronotopException(String.format("shard id: %d not owned by any member yet", shardId));
+        }
+
+        if (!route.primary().equals(getContext().getMember())) {
             throw new KronotopException(
                     RESPError.MOVED,
-                    String.format("%d %s:%d", slot, route.getMember().getExternalAddress().getHost(), route.getMember().getExternalAddress().getPort())
+                    String.format("%d %s:%d", slot, route.primary().getExternalAddress().getHost(), route.primary().getExternalAddress().getPort())
             );
         }
+
+        if (route.shardStatus().equals(ShardStatus.INOPERABLE)) {
+            throw new KronotopException(String.format("shard id: %d is in %s status", shardId, ShardStatus.INOPERABLE));
+        }
+
         return getShard(shardId);
     }
 
@@ -372,9 +378,6 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @throws KronotopException if the key's slot is not owned by any member yet or not owned by the current member
      */
     public RedisShard findShard(String key) {
-        if (!membership.isClusterInitialized()) {
-            throw new ClusterNotInitializedException();
-        }
         int slot = SlotHash.getSlot(key);
         return findShard_internal(slot);
     }
@@ -412,7 +415,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     }
 
     /**
-     * This method returns a list of SlotRange objects representing the ranges of hash slots in a distributed system.
+     * This method returns a list of SlotRange objects representing the ranges of hash slots.
      *
      * @return a list of SlotRange objects
      */
@@ -427,8 +430,8 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             int shardId = getHashSlots().get(hashSlot);
             if (currentShardId != null && shardId != currentShardId) {
                 currentRange.setEnd(hashSlot - 1);
-                Member owner = membership.getRoutingTableLegacy().getRoute(currentShardId).getMember();
-                currentRange.setOwner(owner);
+                Member primary = routing.findRoute(ShardKind.REDIS, currentShardId).primary();
+                currentRange.setPrimary(primary);
                 currentRange.setShardId(currentShardId);
                 ranges.add(currentRange);
                 currentRange = new SlotRange(hashSlot);
@@ -438,8 +441,8 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
 
         currentRange.setEnd(latestHashSlot);
-        Member owner = membership.getRoutingTableLegacy().getRoute(currentShardId).getMember();
-        currentRange.setOwner(owner);
+        Member primary = routing.findRoute(ShardKind.REDIS, currentShardId).primary();
+        currentRange.setPrimary(primary);
         ranges.add(currentRange);
 
         return ranges;

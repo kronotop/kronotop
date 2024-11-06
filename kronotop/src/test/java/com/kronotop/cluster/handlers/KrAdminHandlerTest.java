@@ -19,6 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.MemberStatus;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
@@ -27,8 +28,6 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
-
-import java.lang.reflect.Array;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -159,10 +158,10 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
     }
 
     @Test
-    public void test_setStatus() {
+    public void test_setMemberStatus() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setStatus(kronotopInstance.getMember().getId(), "STOPPED").encode(buf);
+        cmd.setMemberStatus(kronotopInstance.getMember().getId(), "STOPPED").encode(buf);
 
         channel.writeInbound(buf);
         Object msg = channel.readOutbound();
@@ -172,10 +171,10 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
     }
 
     @Test
-    public void test_setStatus_invalid_status() {
+    public void test_setMemberStatus_invalid_status() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setStatus(kronotopInstance.getMember().getId(), "some-status").encode(buf);
+        cmd.setMemberStatus(kronotopInstance.getMember().getId(), "some-status").encode(buf);
 
         channel.writeInbound(buf);
         Object msg = channel.readOutbound();
@@ -185,10 +184,10 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
     }
 
     @Test
-    public void test_setStatus_member_not_found() {
+    public void test_setMemberStatus_member_not_found() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setStatus("ccd59ec6-41e4-4f31-80ab-941c19238a6a", "RUNNING").encode(buf);
+        cmd.setMemberStatus("ccd59ec6-41e4-4f31-80ab-941c19238a6a", "RUNNING").encode(buf);
 
         channel.writeInbound(buf);
         Object msg = channel.readOutbound();
@@ -204,7 +203,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
         KronotopTestInstance secondInstance = addNewInstance();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.setStatus(secondInstance.getMember().getId(), "STOPPED").encode(buf);
+            cmd.setMemberStatus(secondInstance.getMember().getId(), "STOPPED").encode(buf);
 
             channel.writeInbound(buf);
             channel.readOutbound(); // consume the response
@@ -247,5 +246,87 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR Member in RUNNING status cannot be removed", actualMessage.content());
+    }
+
+    @Test
+    public void test_setShardStatus() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.setShardStatus("redis", 1, "READONLY").encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertEquals(Response.OK, actualMessage.content());
+    }
+
+    @Test
+    public void test_setShardStatus_all_shards() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.setShardStatus("redis", "READONLY").encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertEquals(Response.OK, actualMessage.content());
+    }
+
+    @Test
+    public void test_setShardStatus_when_negative_shardId() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.setShardStatus("redis", -1, "READONLY").encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR invalid shard id", actualMessage.content());
+    }
+
+    @Test
+    public void test_setShardStatus_when_bigger_than_number_of_shards() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.setShardStatus("redis", 1231253, "READONLY").encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR invalid shard id", actualMessage.content());
+    }
+
+    @Test
+    public void test_describeShard() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.describeShard("redis", 1).encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(MapRedisMessage.class, msg);
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        actualMessage.children().forEach((messageKey, messageValue) -> {
+            SimpleStringRedisMessage key = (SimpleStringRedisMessage) messageKey;
+            switch (key.content()) {
+                case "primary" -> {
+                    SimpleStringRedisMessage value = (SimpleStringRedisMessage) messageValue;
+                    assertFalse(value.content().isEmpty());
+                }
+                case "standbys" -> {
+                    ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
+                    assertEquals(0, value.children().size());
+                }
+                case "status" -> {
+                    SimpleStringRedisMessage value = (SimpleStringRedisMessage) messageValue;
+                    assertEquals(ShardStatus.READWRITE.name(), value.content());
+                }
+            }
+        });
     }
 }

@@ -17,36 +17,177 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.MutationType;
-import com.apple.foundationdb.Transaction;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.kronotop.common.KronotopException;
 
+import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
+/**
+ * SegmentMetadata handles the caching and retrieval of segment metadata information
+ * like cardinality and used bytes. It utilizes a LoadingCache to cache Key
+ * objects that represent specific segment metadata.
+ */
 class SegmentMetadata {
-    private final byte[] cardinalityKey;
-    private final byte[] usedBytesKey;
+    private static final byte[] INCREASE_BY_ONE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
+    private static final byte[] DECREASE_BY_ONE_DELTA = new byte[]{-1, -1, -1, -1}; // -1, byte order: little-endian
+
+    private final LoadingCache<Prefix, Key> keys;
 
     SegmentMetadata(VolumeSubspace subspace, String name) {
-        this.cardinalityKey = subspace.packSegmentCardinalityKey(name);
-        this.usedBytesKey = subspace.packSegmentUsedBytesKey(name);
+        this.keys = CacheBuilder.newBuilder()
+                .expireAfterAccess(10, TimeUnit.MINUTES)
+                .build(new KeysLoader(subspace, name));
     }
 
-    void addCardinality(Transaction tr, byte[] delta) {
-        tr.mutate(MutationType.ADD, cardinalityKey, delta);
+    /**
+     * Increases the cardinality value associated with the given session by one.
+     *
+     * @param session The session object containing the current transaction and prefix information.
+     */
+    void increaseCardinalityByOne(Session session) {
+        increaseCardinality(session, INCREASE_BY_ONE_DELTA);
     }
 
-    int getCardinality(Transaction tr) {
-        byte[] data = tr.get(cardinalityKey).join();
-        return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    /**
+     * Decreases the cardinality value associated with the given session by one.
+     *
+     * @param session The session object containing the current transaction and prefix information.
+     */
+    void decreaseCardinalityByOne(Session session) {
+        increaseCardinality(session, DECREASE_BY_ONE_DELTA);
     }
 
-    void addUsedBytes(Transaction tr, long length) {
+    /**
+     * Increases the cardinality value associated with the given session by the specified delta.
+     *
+     * @param session The session object containing the current transaction and prefix information.
+     * @param delta   The byte array representing the value to add to the cardinality.
+     * @throws KronotopException if an execution exception occurs while performing the mutation.
+     */
+    void increaseCardinality(Session session, byte[] delta) {
+        try {
+            Key key = keys.get(session.prefix());
+            session.transaction().mutate(MutationType.ADD, key.cardinality(), delta);
+        } catch (ExecutionException e) {
+            throw new KronotopException(e);
+        }
+    }
+
+    /**
+     * Resets the cardinality value associated with the given session to zero.
+     *
+     * @param session The session object containing the current transaction and prefix information.
+     */
+    void resetCardinality(Session session) {
+        byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(0).array();
+        try {
+            Key key = keys.get(session.prefix());
+            session.transaction().set(key.cardinality(), delta);
+        } catch (ExecutionException e) {
+            throw new KronotopException(e);
+        }
+    }
+
+    /**
+     * Retrieves the cardinality value associated with the given session.
+     *
+     * @param session The session object containing the current transaction and prefix information.
+     * @return The cardinality value associated with the session.
+     * @throws KronotopException if an execution exception occurs while retrieving the cardinality data.
+     */
+    int cardinality(Session session) {
+        try {
+            Key key = keys.get(session.prefix());
+            byte[] data = session.transaction().get(key.cardinality()).join();
+            return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
+        } catch (ExecutionException e) {
+            throw new KronotopException(e);
+        }
+    }
+
+    /**
+     * Increments the number of used bytes associated with the given session by the specified length.
+     *
+     * @param session The session object containing the current transaction and prefix information.
+     * @param length  The amount of bytes to add to the used bytes count.
+     */
+    void increaseUsedBytes(Session session, long length) {
         byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(length).array();
-        tr.mutate(MutationType.ADD, usedBytesKey, delta);
+        try {
+            Key key = keys.get(session.prefix());
+            session.transaction().mutate(MutationType.ADD, key.usedBytes(), delta);
+        } catch (ExecutionException e) {
+            throw new KronotopException(e);
+        }
     }
 
-    long getUsedBytes(Transaction tr) {
-        byte[] data = tr.get(usedBytesKey).join();
-        return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
+    /**
+     * Resets the number of used bytes to zero for the specified session.
+     *
+     * @param session The session object containing the current transaction and prefix information.
+     * @throws KronotopException if an execution exception occurs while resetting the used bytes.
+     */
+    void resetUsedBytes(Session session) {
+        byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(0).array();
+        try {
+            Key key = keys.get(session.prefix());
+            session.transaction().set(key.usedBytes(), delta);
+        } catch (ExecutionException e) {
+            throw new KronotopException(e);
+        }
+    }
+
+    /**
+     * Retrieves the number of used bytes associated with the given session.
+     *
+     * @param session The session object containing the current transaction and prefix information.
+     * @return The number of used bytes associated with the session.
+     * @throws KronotopException if an execution exception occurs while retrieving the used bytes data.
+     */
+    long usedBytes(Session session) {
+        try {
+            Key key = keys.get(session.prefix());
+            byte[] data = session.transaction().get(key.usedBytes()).join();
+            return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
+        } catch (ExecutionException e) {
+            throw new KronotopException(e);
+        }
+    }
+
+    /**
+     * A cache loader that is responsible for loading keys from a given subspace and segment within that subspace.
+     * The keys represent specific metadata such as cardinality and used bytes associated with a given prefix.
+     */
+    private static class KeysLoader extends CacheLoader<Prefix, Key> {
+        private final VolumeSubspace subspace;
+        private final String segmentName;
+
+        private KeysLoader(VolumeSubspace subspace, String segmentName) {
+            this.subspace = subspace;
+            this.segmentName = segmentName;
+        }
+
+        @Override
+        public @Nonnull Key load(@Nonnull Prefix prefix) {
+            byte[] cardinality = subspace.packSegmentCardinalityKey(segmentName, prefix);
+            byte[] usedBytes = subspace.packSegmentUsedBytesKey(segmentName, prefix);
+            return new Key(cardinality, usedBytes);
+        }
+    }
+
+    /**
+     * The Key record is used to store metadata for a specific segment within a subspace.
+     * It encapsulates two byte arrays, one representing the cardinality and the other representing the used bytes.
+     *
+     * @param cardinality Byte array representing the cardinality of the segment.
+     * @param usedBytes   Byte array representing the number of used bytes for the segment.
+     */
+    private record Key(byte[] cardinality, byte[] usedBytes) {
     }
 }

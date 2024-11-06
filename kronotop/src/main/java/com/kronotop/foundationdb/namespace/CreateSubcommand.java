@@ -43,7 +43,7 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
         // Create the namespace by using an isolated, one-off transaction to prevent weird consistency bugs.
         Transaction tr = context.getFoundationDB().createTransaction();
         CompletableFuture<DirectorySubspace> result;
-        List<String> subpath = getBaseSubpath().addAll(message.getCreateMessage().getSubpath()).asList();
+        List<String> subpath = getNamespaceSubpath(message.getCreateMessage().getSubpath());
         if (message.getCreateMessage().hasLayer() && message.getCreateMessage().hasPrefix()) {
             result = directoryLayer.create(
                     tr,

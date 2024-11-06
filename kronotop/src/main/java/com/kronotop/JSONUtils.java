@@ -35,14 +35,6 @@ public class JSONUtils {
         }
     }
 
-    public static <T> T readValue(String content, Class<T> valueType) {
-        try {
-            return objectMapper.readValue(content, valueType);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     public static byte[] writeValueAsBytes(Object value) {
         try {
             return objectMapper.writeValueAsBytes(value);

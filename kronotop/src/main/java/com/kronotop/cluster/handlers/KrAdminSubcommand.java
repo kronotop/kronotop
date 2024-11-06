@@ -20,11 +20,13 @@ public enum KrAdminSubcommand {
     INITIALIZE_CLUSTER("initialize-cluster"),
     DESCRIBE_CLUSTER("describe-cluster"),
     LIST_MEMBERS("list-members"),
-    SET_STATUS("set-status"),
+    SET_MEMBER_STATUS("set-member-status"),
     FIND_MEMBER("find-member"),
     REMOVE_MEMBER("remove-member"),
     LIST_SILENT_MEMBERS("list-silent-members"),
-    SET_ROUTE("set-route");
+    SET_ROUTE("set-route"),
+    SET_SHARD_STATUS("set-shard-status"),
+    DESCRIBE_SHARD("describe-shard");
 
     private final String value;
 

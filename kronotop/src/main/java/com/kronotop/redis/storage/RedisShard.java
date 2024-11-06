@@ -31,6 +31,12 @@ import java.util.concurrent.locks.ReadWriteLock;
  */
 public interface RedisShard extends Shard {
 
+    /**
+     * Provides access to the storage map which is used to hold Redis values.
+     *
+     * @return a ConcurrentMap where keys are strings representing Redis keys and values
+     * are RedisValueContainer objects representing the stored Redis values.
+     */
     ConcurrentMap<String, RedisValueContainer> storage();
 
     /**
@@ -66,22 +72,6 @@ public interface RedisShard extends Shard {
      * @return the VolumeSyncQueue for this shard
      */
     VolumeSyncQueue volumeSyncQueue();
-
-    /**
-     * Checks if the shard is operable.
-     *
-     * @return true if the shard is operable, false otherwise
-     */
-    // TODO: This should be deleted
-    boolean isOperable();
-
-    /**
-     * Sets the operable flag for the shard.
-     *
-     * @param operable true to set the shard as operable, false otherwise
-     */
-    // TODO: This should be deleted
-    void setOperable(boolean operable);
 
     /**
      * Retrieves the Volume associated with the Shard.
