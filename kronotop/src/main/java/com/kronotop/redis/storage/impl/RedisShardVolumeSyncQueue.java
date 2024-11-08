@@ -25,19 +25,11 @@ import com.kronotop.redis.storage.syncer.impl.OnHeapVolumeSyncQueue;
 import com.kronotop.redis.storage.syncer.jobs.VolumeSyncJob;
 
 /**
- * A class that represents an in-memory shard syncer queue.
- * It extends the {@link OnHeapVolumeSyncQueue} class and implements the {@link VolumeSyncQueue} interface.
- * The queue is associated with a specific shard.
- *
+ * A volume synchronization queue specifically tailored to work with Redis shards.
  * <p>
- * Usage example:
- * <pre>{@code
- * Shard shard = new OnHeapShardImpl(0);
- * shard.setReadOnly(true);
- *
- * RedisShardVolumeSyncQueue queue = new RedisShardVolumeSyncQueue(shard);
- * queue.add(new StringKey("foo"));
- * }</pre>
+ * This class inherits from {@link OnHeapVolumeSyncQueue} and implements the {@link VolumeSyncQueue} interface.
+ * It ensures that synchronization jobs are only added to the queue if the shard's status allows it,
+ * i.e., the shard must not be in a read-only or inoperable state.
  */
 public class RedisShardVolumeSyncQueue extends OnHeapVolumeSyncQueue implements VolumeSyncQueue {
     private final RedisShard shard;
