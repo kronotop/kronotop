@@ -168,6 +168,10 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return registry.findMember(memberId);
     }
 
+    public Member findMember(Transaction tr, String memberId) {
+        return registry.findMember(tr, memberId);
+    }
+
     /**
      * Checks whether a member is registered in the system.
      *
@@ -183,25 +187,23 @@ public class MembershipService extends CommandHandlerService implements Kronotop
      *
      * @param member The Member object containing the updated information.
      */
-    public void updateMember(Member member) {
-        registry.update(member);
+    public void updateMember(Transaction tr, Member member) {
+        registry.update(tr, member);
     }
 
     /**
-     * Removes the member identified by the provided memberId from the system.
+     * Removes a member from the registry if their status is not RUNNING.
      *
+     * @param tr the transaction object used for querying and removing the member
      * @param memberId the unique identifier of the member to be removed
-     * @throws KronotopException if the member is in RUNNING status and cannot be removed
+     * @throws KronotopException if the member is in RUNNING status
      */
-    public void removeMember(String memberId) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Member member = registry.findMember(tr, memberId);
-            if (member.getStatus().equals(MemberStatus.RUNNING)) {
-                throw new KronotopException("Member in " + MemberStatus.RUNNING + " status cannot be removed");
-            }
-            registry.remove(tr, memberId);
-            tr.commit().join();
+    public void removeMember(Transaction tr, String memberId) {
+        Member member = registry.findMember(tr, memberId);
+        if (member.getStatus().equals(MemberStatus.RUNNING)) {
+            throw new KronotopException("Member in " + MemberStatus.RUNNING + " status cannot be removed");
         }
+        registry.remove(tr, memberId);
     }
 
     public Map<Member, MemberView> getOthers() {

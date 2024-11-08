@@ -41,7 +41,6 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
         DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(ShardKind.REDIS, shardId);
         byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.SHARD_STATUS_KEY));
         tr.set(key, parameters.shardStatus.name().getBytes());
-        membership.triggerRoutingEventsWatcher(tr);
     }
 
     @Override
@@ -57,6 +56,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
             } else {
                 setShardStatus(tr, parameters, parameters.shardId);
             }
+            membership.triggerRoutingEventsWatcher(tr);
             tr.commit().join();
         }
         response.writeOK();

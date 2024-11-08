@@ -187,7 +187,6 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
         if (!clusterInitialized) {
             return;
         }
-        LOGGER.debug("Loading routing table from FoundationDB");
         RoutingTable table = new RoutingTable();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (ShardKind shardKind : ShardKind.values()) {
@@ -278,7 +277,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                     LOGGER.debug("Routing events watcher has been cancelled");
                     return;
                 }
-                LOGGER.debug("Routing table has been updated");
+                LOGGER.debug("Routing events watcher has been triggered");
                 loadRoutingTableFromFoundationDB();
             } catch (Exception e) {
                 LOGGER.error("Error while waiting for routing events", e);

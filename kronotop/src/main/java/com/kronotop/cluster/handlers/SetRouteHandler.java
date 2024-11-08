@@ -96,6 +96,7 @@ class SetRouteHandler extends BaseKrAdminSubcommandHandler implements Subcommand
             } else {
                 setRouteForShard(tr, parameters, parameters.shardId);
             }
+            membership.triggerRoutingEventsWatcher(tr);
             tr.commit().join();
         }
         response.writeOK();
