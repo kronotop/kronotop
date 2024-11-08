@@ -29,6 +29,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.Prefix;
 import com.typesafe.config.Config;
+import io.lettuce.core.cluster.SlotHash;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -51,6 +52,9 @@ public class BaseStorageTest extends BaseTest {
     protected EmbeddedChannel channel;
     protected Prefix redisVolumeSyncerPrefix;
 
+    protected String makeKey(int number) {
+        return String.format("key-%d", number);
+    }
 
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
