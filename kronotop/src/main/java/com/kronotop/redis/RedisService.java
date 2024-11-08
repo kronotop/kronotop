@@ -21,10 +21,7 @@ import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.ServiceContext;
-import com.kronotop.cluster.ClusterNotInitializedException;
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.Route;
-import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
@@ -71,6 +68,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
     private final RoutingService routing;
+    private final MembershipService membership;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Thread.ofVirtual().name("kr.redis-service", 0L).factory()
@@ -84,6 +82,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         this.watcher = context.getService(Watcher.NAME);
         this.numberOfShards = context.getConfig().getInt("redis.shards");
         this.routing = context.getService(RoutingService.NAME);
+        this.membership = context.getService(MembershipService.NAME);
         this.hashSlots = distributeHashSlots();
         this.serviceContext = context.getServiceContext(NAME);
 
@@ -269,12 +268,14 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         try {
             volumeSyncWorkers.forEach(VolumeSyncWorker::pause);
 
-            // Stop all the operations on the owned shards
-            serviceContext.shards().values().forEach(shard -> {
-                // TODO: CLUSTER-REFACTORING
-                //shard.setOperable(false);
-                //shard.setReadOnly(true);
-            });
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                // Stop all the operations on the owned shards
+                serviceContext.shards().values().forEach(shard -> {
+                    ShardUtils.setShardStatus(context, tr, ShardKind.REDIS, ShardStatus.READONLY, shard.id());
+                });
+                membership.triggerRoutingEventsWatcher(tr);
+                tr.commit().join();
+            }
 
             // Clear all in-memory data
             serviceContext.shards().values().forEach(shard -> {
@@ -285,19 +286,19 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Prefix prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
                 Session session = new Session(tr, prefix);
-                serviceContext.shards().values().forEach(shard -> {
-                    shard.volume().clearPrefix(session);
-                });
+                serviceContext.shards().values().forEach(shard -> shard.volume().clearPrefix(session));
                 tr.commit().join();
             }
         } finally {
             volumeSyncWorkers.forEach(VolumeSyncWorker::resume);
-            // Make the shard operable again
-            serviceContext.shards().values().forEach(shard -> {
-                // TODO: CLUSTER-REFACTORING
-                //shard.setReadOnly(false);
-                //shard.setOperable(true);
-            });
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                // Stop all the operations on the owned shards
+                serviceContext.shards().values().forEach(shard -> {
+                    ShardUtils.setShardStatus(context, tr, ShardKind.REDIS, ShardStatus.READWRITE, shard.id());
+                });
+                membership.triggerRoutingEventsWatcher(tr);
+                tr.commit().join();
+            }
         }
     }
 

@@ -171,7 +171,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     /**
      * Finds and returns the Member object associated with the specified member ID.
      *
-     * @param tr the transaction within which the member lookup is to be performed
+     * @param tr       the transaction within which the member lookup is to be performed
      * @param memberId the unique identifier of the member to be retrieved
      * @return the Member object associated with the specified member ID
      */
@@ -201,7 +201,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     /**
      * Removes a member from the registry if their status is not RUNNING.
      *
-     * @param tr the transaction object used for querying and removing the member
+     * @param tr       the transaction object used for querying and removing the member
      * @param memberId the unique identifier of the member to be removed
      * @throws KronotopException if the member is in RUNNING status
      */
