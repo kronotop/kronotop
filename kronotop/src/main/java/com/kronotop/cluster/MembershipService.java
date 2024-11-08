@@ -168,6 +168,13 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         return registry.findMember(memberId);
     }
 
+    /**
+     * Finds and returns the Member object associated with the specified member ID.
+     *
+     * @param tr the transaction within which the member lookup is to be performed
+     * @param memberId the unique identifier of the member to be retrieved
+     * @return the Member object associated with the specified member ID
+     */
     public Member findMember(Transaction tr, String memberId) {
         return registry.findMember(tr, memberId);
     }
@@ -206,6 +213,11 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         registry.remove(tr, memberId);
     }
 
+    /**
+     * Retrieves a read-only view of the other members in the system and their respective views.
+     *
+     * @return an unmodifiable map where the keys are Member objects and the values are MemberView objects.
+     */
     public Map<Member, MemberView> getOthers() {
         return Collections.unmodifiableMap(others);
     }
