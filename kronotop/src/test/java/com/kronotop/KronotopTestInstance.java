@@ -17,7 +17,11 @@
 package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
@@ -122,12 +126,7 @@ public class KronotopTestInstance extends KronotopInstance {
             context.registerService(server.getName(), server);
             server.start(member.getExternalAddress());
         }
-        // TODO: CLUSTER-REFACTORING
-        //CheckClusterStatus checkClusterStatus = new CheckClusterStatus();
-        //executor.execute(checkClusterStatus);
-        //synchronized (clusterOperable) {
-        //    clusterOperable.wait();
-        //}
+
         channel = newChannel();
         initializeTestCluster();
 
@@ -189,7 +188,7 @@ public class KronotopTestInstance extends KronotopInstance {
         {
             KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
-            cmd.setRoute("PRIMARY", "REDIS", context.getMember().getId()).encode(buf);
+            cmd.setRoute(RouteKind.PRIMARY.name(), ShardKind.REDIS.name(), context.getMember().getId()).encode(buf);
             channel.writeInbound(buf);
 
             Object raw = channel.readOutbound();
@@ -200,13 +199,23 @@ public class KronotopTestInstance extends KronotopInstance {
             }
         }
 
-        // TODO: CLUSTER-REFACTORING
-        // These methods will be removed soon.
-        RoutingService routingService = context.getService(RoutingService.NAME);
-        routingService.loadRoutingTableFromFoundationDB_Eagerly();
+        await().atMost(5, TimeUnit.SECONDS).until(this::areAllRedisShardsWritable);
 
+        // TODO: CLUSTER-REFACTORING
         RedisService redisService = context.getService(RedisService.NAME);
         redisService.loadRedisDataFromVolumes_Eagerly();
+    }
+
+    private boolean areAllRedisShardsWritable() {
+        RoutingService routing = context.getService(RoutingService.NAME);
+        int shards = context.getConfig().getInt("redis.shards");
+        for (int shardId = 0; shardId < shards; shardId++) {
+            Route route = routing.findRoute(ShardKind.REDIS, shardId);
+            if (!route.shardStatus().equals(ShardStatus.READWRITE)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

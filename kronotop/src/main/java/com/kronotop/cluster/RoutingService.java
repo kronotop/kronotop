@@ -201,11 +201,6 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
         routingTable.set(table);
     }
 
-    public void loadRoutingTableFromFoundationDB_Eagerly() {
-        // TODO: CLUSTER-REFACTORING
-        loadRoutingTableFromFoundationDB();
-    }
-
     private class ClusterInitializationWatcher implements Runnable {
 
         @Override
