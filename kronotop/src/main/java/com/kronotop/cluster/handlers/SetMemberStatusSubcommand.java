@@ -36,9 +36,9 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
     @Override
     public void execute(Request request, Response response) {
         SetMemberStatusParameters parameters = new SetMemberStatusParameters(request.getParams());
-        Member member = service.findMember(parameters.memberId);
+        Member member = membership.findMember(parameters.memberId);
         member.setStatus(parameters.memberStatus);
-        service.updateMember(member);
+        membership.updateMember(member);
         response.writeOK();
     }
 

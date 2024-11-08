@@ -33,7 +33,7 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
     @Override
     public void execute(Request request, Response response) {
         RemoveMemberParameters parameters = new RemoveMemberParameters(request.getParams());
-        service.removeMember(parameters.memberId);
+        membership.removeMember(parameters.memberId);
         response.writeOK();
     }
 

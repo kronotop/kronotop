@@ -36,11 +36,11 @@ import java.util.*;
 
 public class BaseKrAdminSubcommandHandler {
     protected final Context context;
-    protected final MembershipService service;
+    protected final MembershipService membership;
 
-    public BaseKrAdminSubcommandHandler(MembershipService service) {
-        this.context = service.getContext();
-        this.service = service;
+    public BaseKrAdminSubcommandHandler(MembershipService membership) {
+        this.context = membership.getContext();
+        this.membership = membership;
     }
 
     /**
@@ -84,7 +84,7 @@ public class BaseKrAdminSubcommandHandler {
      */
     protected int getNumberOfShards(ShardKind kind) {
         if (kind.equals(ShardKind.REDIS)) {
-            return service.getContext().getConfig().getInt("redis.shards");
+            return membership.getContext().getConfig().getInt("redis.shards");
         }
         throw new IllegalArgumentException("Unknown shard kind: " + kind);
     }
@@ -231,7 +231,7 @@ public class BaseKrAdminSubcommandHandler {
         current.put(new SimpleStringRedisMessage("internal_host"), new SimpleStringRedisMessage(member.getInternalAddress().getHost()));
         current.put(new SimpleStringRedisMessage("internal_port"), new IntegerRedisMessage(member.getInternalAddress().getPort()));
 
-        long latestHeartbeat = service.getLatestHeartbeat(member);
+        long latestHeartbeat = membership.getLatestHeartbeat(member);
         current.put(new SimpleStringRedisMessage("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeat));
 
         return current;
@@ -258,7 +258,7 @@ public class BaseKrAdminSubcommandHandler {
      */
     protected Member findMemberWithPrefix(String prefix) {
         Set<Member> result = new HashSet<>();
-        TreeSet<Member> members = service.listMembers();
+        TreeSet<Member> members = membership.listMembers();
         for (Member member : members) {
             if (member.getId().startsWith(prefix)) {
                 result.add(member);

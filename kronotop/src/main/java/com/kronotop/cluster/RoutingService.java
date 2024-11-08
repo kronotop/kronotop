@@ -59,6 +59,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
         } else {
             scheduler.execute(new ClusterInitializationWatcher());
         }
+        scheduler.execute(new RoutingEventsWatcher());
     }
 
     @Override
@@ -183,6 +184,9 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
      * @throws KronotopException if an unknown shard kind is encountered
      */
     private void loadRoutingTableFromFoundationDB() {
+        if (!clusterInitialized) {
+            return;
+        }
         LOGGER.debug("Loading routing table from FoundationDB");
         RoutingTable table = new RoutingTable();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -239,6 +243,49 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                         // Try again
                         scheduler.execute(this);
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * The RoutingEventsWatcher class is responsible for monitoring routing events
+     * and updating the routing table upon changes.
+     * <p>
+     * This class implements the Runnable interface and is intended to be executed
+     * by a scheduler in a loop until the system is shut down. It watches for changes in the
+     * routing table by using the FoundationDB directory subspace and updates the routing table
+     * upon detecting any changes.
+     */
+    private class RoutingEventsWatcher implements Runnable {
+
+        @Override
+        public void run() {
+            if (isShutdown) {
+                return;
+            }
+
+            DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
+            byte[] key = subspace.pack(Tuple.from(MembershipConstants.ROUTING_TABLE_UPDATED));
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
+                tr.commit().join();
+
+                // Wait for routing table changes
+                try {
+                    watcher.join();
+                } catch (CancellationException e) {
+                    LOGGER.debug("Routing events watcher has been cancelled");
+                    return;
+                }
+                LOGGER.debug("Routing table has been updated");
+                loadRoutingTableFromFoundationDB();
+            } catch (Exception e) {
+                LOGGER.error("Error while waiting for routing events", e);
+            } finally {
+                if (!isShutdown) {
+                    // Try again
+                    scheduler.execute(this);
                 }
             }
         }

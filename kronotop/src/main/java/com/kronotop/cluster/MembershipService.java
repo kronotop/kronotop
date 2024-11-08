@@ -16,9 +16,11 @@
 
 package com.kronotop.cluster;
 
+import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.common.KronotopException;
@@ -39,6 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class MembershipService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Membership";
+    private static final byte[] PLUS_ONE = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipService.class);
     private static final String CLUSTER_EVENTS_JOURNAL = "cluster-events";
     private final Context context;
@@ -221,6 +224,17 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             Member member = context.getMember();
             updateMemberStatusAndLeftCluster(member, MemberStatus.STOPPED);
         }
+    }
+
+    /**
+     * Triggers an event to indicate that the routing table has been updated in the cluster metadata.
+     *
+     * @param tr the transaction within which the event mutation will be applied.
+     */
+    public void triggerRoutingEventsWatcher(Transaction tr) {
+        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
+        byte[] key = subspace.pack(Tuple.from(MembershipConstants.ROUTING_TABLE_UPDATED));
+        tr.mutate(MutationType.ADD, key, PLUS_ONE);
     }
 
     private void updateMemberStatusAndLeftCluster(Member member, MemberStatus status) {

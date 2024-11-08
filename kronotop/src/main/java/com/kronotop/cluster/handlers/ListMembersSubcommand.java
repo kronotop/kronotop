@@ -37,7 +37,7 @@ class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements Subc
 
     @Override
     public void execute(Request request, Response response) {
-        TreeSet<Member> sortedMembers = service.listMembers();
+        TreeSet<Member> sortedMembers = membership.listMembers();
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
 
         for (Member member : sortedMembers) {

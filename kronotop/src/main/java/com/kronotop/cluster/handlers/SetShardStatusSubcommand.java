@@ -41,13 +41,14 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
         DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(ShardKind.REDIS, shardId);
         byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.SHARD_STATUS_KEY));
         tr.set(key, parameters.shardStatus.name().getBytes());
+        membership.triggerRoutingEventsWatcher(tr);
     }
 
     @Override
     public void execute(Request request, Response response) {
         SetShardStatusParameters parameters = new SetShardStatusParameters(request.getParams());
 
-        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
             if (parameters.allShards) {
                 int numberOfShards = getNumberOfShards(parameters.shardKind);
                 for (int shardId = 0; shardId < numberOfShards; shardId++) {
