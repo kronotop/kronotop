@@ -40,20 +40,6 @@ public interface RedisShard extends Shard {
     ConcurrentMap<String, RedisValueContainer> storage();
 
     /**
-     * Checks if the shard is read-only.
-     *
-     * @return true if the shard is read-only, false otherwise
-     */
-    boolean isReadOnly();
-
-    /**
-     * Sets the read-only flag for the shard.
-     *
-     * @param readOnly true to set the shard as read-only, false otherwise
-     */
-    void setReadOnly(boolean readOnly);
-
-    /**
      * Returns the index associated with this shard.
      *
      * @return the index associated with this shard

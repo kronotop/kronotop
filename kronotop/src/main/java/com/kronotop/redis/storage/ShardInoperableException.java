@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.sharding;
+package com.kronotop.redis.storage;
 
-public interface Shard {
-    Integer id();
+import com.kronotop.common.KronotopException;
 
-    ShardStatus status();
-
-    ShardKind kind();
+public class ShardInoperableException extends KronotopException {
+    public ShardInoperableException(int shardId) {
+        super(String.format("shard id: %d is in inoperable status", shardId));
+    }
 }

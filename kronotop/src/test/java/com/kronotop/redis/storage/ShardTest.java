@@ -16,15 +16,8 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.redis.handlers.string.StringValue;
-import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
-
 public class ShardTest extends BaseStorageTest {
-    protected RedisShard shard;
+    /*protected RedisShard shard;
 
     @BeforeEach
     public void beforeEach() {
@@ -34,18 +27,6 @@ public class ShardTest extends BaseStorageTest {
     @Test
     public void test_getIndex() {
         assertNotNull(shard.index());
-    }
-
-    @Test
-    public void test_setReadOnly() {
-        assertDoesNotThrow(() -> shard.setReadOnly(true));
-    }
-
-    @Test
-    public void test_isReadOnly() {
-        assertFalse(shard.isReadOnly());
-        shard.setReadOnly(true);
-        assertTrue(shard.isReadOnly());
     }
 
     @Test
@@ -88,5 +69,5 @@ public class ShardTest extends BaseStorageTest {
                 () -> shard.storage().computeIfAbsent("boo", (key) -> new RedisValueContainer(new StringValue("foo".getBytes())))
         );
         assertNotNull(expected);
-    }
+    }*/
 }

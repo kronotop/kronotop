@@ -21,7 +21,10 @@ import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.ServiceContext;
-import com.kronotop.cluster.*;
+import com.kronotop.cluster.ClusterNotInitializedException;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
@@ -46,7 +49,6 @@ import com.kronotop.server.*;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.Session;
 import com.kronotop.watcher.Watcher;
-import com.typesafe.config.Config;
 import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
@@ -269,8 +271,9 @@ public class RedisService extends CommandHandlerService implements KronotopServi
 
             // Stop all the operations on the owned shards
             serviceContext.shards().values().forEach(shard -> {
+                // TODO: CLUSTER-REFACTORING
                 //shard.setOperable(false);
-                shard.setReadOnly(true);
+                //shard.setReadOnly(true);
             });
 
             // Clear all in-memory data
@@ -291,7 +294,8 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             volumeSyncWorkers.forEach(VolumeSyncWorker::resume);
             // Make the shard operable again
             serviceContext.shards().values().forEach(shard -> {
-                shard.setReadOnly(false);
+                // TODO: CLUSTER-REFACTORING
+                //shard.setReadOnly(false);
                 //shard.setOperable(true);
             });
         }

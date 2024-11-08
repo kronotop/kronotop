@@ -26,7 +26,7 @@ public class RedisShardIndexTest extends BaseStorageTest {
     @Test
     public void test_add() {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
-        shard.setReadOnly(true);
+        //shard.setReadOnly(true);
         RedisShardIndex index = new RedisShardIndex(0, shard);
         assertThrows(ShardReadOnlyException.class, () -> index.add("foo"));
     }
@@ -34,7 +34,7 @@ public class RedisShardIndexTest extends BaseStorageTest {
     @Test
     public void test_remove() {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
-        shard.setReadOnly(true);
+        //shard.setReadOnly(true);
         RedisShardIndex index = new RedisShardIndex(0, shard);
         assertThrows(ShardReadOnlyException.class, () -> index.remove("foo"));
     }

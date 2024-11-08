@@ -16,7 +16,6 @@
 
 package com.kronotop.redis.storage;
 
-import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
@@ -29,7 +28,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.locks.ReadWriteLock;
 
 public final class RedisShardLoader {

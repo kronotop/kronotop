@@ -17,32 +17,35 @@
 package com.kronotop.cluster.sharding.impl;
 
 import com.kronotop.Context;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.Shard;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.volume.VolumeService;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 public abstract class ShardImpl implements Shard {
     protected final Context context;
-    protected final VolumeService volumeService;
     protected final int id;
-    protected final AtomicReference<ShardStatus> status = new AtomicReference<>(ShardStatus.INOPERABLE);
+    protected final ShardKind shardKind;
+    protected final VolumeService volumeService;
+    protected final RoutingService routingService;
 
-    public ShardImpl(Context context, int id) {
+    public ShardImpl(Context context, ShardKind shardKind, int id) {
         this.context = context;
-        this.volumeService = context.getService(VolumeService.NAME);
+        this.shardKind = shardKind;
         this.id = id;
+        this.volumeService = context.getService(VolumeService.NAME);
+        this.routingService = context.getService(RoutingService.NAME);
     }
 
     @Override
     public ShardStatus status() {
-        return status.get();
-    }
-
-    @Override
-    public void setStatus(ShardStatus status) {
-        this.status.set(status);
+        Route route = routingService.findRoute(ShardKind.REDIS, id);
+        if (route == null) {
+            return ShardStatus.INOPERABLE;
+        }
+        return route.shardStatus();
     }
 
     @Override

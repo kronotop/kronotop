@@ -22,7 +22,6 @@ import com.kronotop.KronotopTestInstance;
 import com.kronotop.redis.RedisService;
 import com.kronotop.volume.Prefix;
 import com.typesafe.config.Config;
-import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

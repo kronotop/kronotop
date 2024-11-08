@@ -16,7 +16,9 @@
 
 package com.kronotop.redis.storage.impl;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.ShardInoperableException;
 import com.kronotop.redis.storage.ShardReadOnlyException;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.index.impl.IndexImpl;
@@ -29,19 +31,24 @@ public class RedisShardIndex extends IndexImpl implements Index {
         this.shard = shard;
     }
 
-    @Override
-    public void add(String key) {
-        if (shard.isReadOnly()) {
+    private void checkShardStatus() {
+        if (shard.status().equals(ShardStatus.READONLY)) {
             throw new ShardReadOnlyException(shard.id());
         }
+        if (shard.status().equals(ShardStatus.INOPERABLE)) {
+            throw new ShardInoperableException(shard.id());
+        }
+    }
+
+    @Override
+    public void add(String key) {
+        checkShardStatus();
         super.add(key);
     }
 
     @Override
     public void remove(String key) {
-        if (shard.isReadOnly()) {
-            throw new ShardReadOnlyException(shard.id());
-        }
+        checkShardStatus();
         super.remove(key);
     }
 }

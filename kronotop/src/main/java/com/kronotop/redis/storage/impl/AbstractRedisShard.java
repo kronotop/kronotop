@@ -50,10 +50,9 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     private final Striped<ReadWriteLock> striped = Striped.lazyWeakReadWriteLock(271);
     private final ConcurrentMap<String, RedisValueContainer> storage;
     private final Volume volume;
-    private volatile boolean readOnly;
 
     protected AbstractRedisShard(Context context, Integer id) {
-        super(context, id);
+        super(context, ShardKind.REDIS, id);
 
         this.volumeSyncQueue = new RedisShardVolumeSyncQueue(this);
         this.index = new RedisShardIndex(id, this);
@@ -102,16 +101,6 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     @Override
     public ConcurrentMap<String, RedisValueContainer> storage() {
         return storage;
-    }
-
-    @Override
-    public boolean isReadOnly() {
-        return readOnly;
-    }
-
-    @Override
-    public void setReadOnly(boolean readOnly) {
-        this.readOnly = readOnly;
     }
 
     @Override

@@ -16,7 +16,9 @@
 
 package com.kronotop.redis.storage.impl;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.ShardInoperableException;
 import com.kronotop.redis.storage.ShardReadOnlyException;
 import com.kronotop.redis.storage.syncer.VolumeSyncQueue;
 import com.kronotop.redis.storage.syncer.impl.OnHeapVolumeSyncQueue;
@@ -44,11 +46,18 @@ public class RedisShardVolumeSyncQueue extends OnHeapVolumeSyncQueue implements 
         this.shard = shard;
     }
 
-    @Override
-    public void add(VolumeSyncJob job) {
-        if (shard.isReadOnly()) {
+    private void checkShardStatus() {
+        if (shard.status().equals(ShardStatus.READONLY)) {
             throw new ShardReadOnlyException(shard.id());
         }
+        if (shard.status().equals(ShardStatus.INOPERABLE)) {
+            throw new ShardInoperableException(shard.id());
+        }
+    }
+
+    @Override
+    public void add(VolumeSyncJob job) {
+        checkShardStatus();
         super.add(job);
     }
 }
