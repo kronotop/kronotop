@@ -19,6 +19,7 @@ package com.kronotop.foundationdb;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.protocol.SnapshotReadArgs;
 import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -43,7 +44,7 @@ public class SnapshotReadHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
 
             Attribute<Boolean> snapshotReadAttr = channel.attr(ChannelAttributes.SNAPSHOT_READ);
             assertTrue(snapshotReadAttr.get());
@@ -63,7 +64,7 @@ public class SnapshotReadHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
 
             Attribute<Boolean> snapshotReadAttr = channel.attr(ChannelAttributes.SNAPSHOT_READ);
             assertTrue(snapshotReadAttr.get());
@@ -77,7 +78,7 @@ public class SnapshotReadHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
 
             Attribute<Boolean> snapshotReadAttr = channel.attr(ChannelAttributes.SNAPSHOT_READ);
             assertNull(snapshotReadAttr.get());

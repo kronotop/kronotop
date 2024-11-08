@@ -16,6 +16,7 @@
 
 package com.kronotop.foundationdb;
 
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ public class RollbackHandlerTest extends BaseHandlerTest {
 
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-        assertEquals("OK", actualMessage.content());
+        assertEquals(Response.OK, actualMessage.content());
     }
 
     @Test

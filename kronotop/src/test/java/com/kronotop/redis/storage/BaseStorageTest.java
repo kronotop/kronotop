@@ -29,7 +29,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.Prefix;
 import com.typesafe.config.Config;
-import io.lettuce.core.cluster.SlotHash;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

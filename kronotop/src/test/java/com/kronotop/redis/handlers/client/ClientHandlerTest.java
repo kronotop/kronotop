@@ -19,6 +19,7 @@ package com.kronotop.redis.handlers.client;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -40,7 +41,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
         Object msg = channel.readOutbound();
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-        assertEquals("OK", actualMessage.content());
+        assertEquals(Response.OK, actualMessage.content());
 
         String value = (String) channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("lib-name");
         assertEquals("kronotop", value);
@@ -56,7 +57,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
         Object msg = channel.readOutbound();
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-        assertEquals("OK", actualMessage.content());
+        assertEquals(Response.OK, actualMessage.content());
 
         String value = (String) channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("lib-ver");
         assertEquals("1.1.1", value);
@@ -72,7 +73,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
         Object msg = channel.readOutbound();
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-        assertEquals("OK", actualMessage.content());
+        assertEquals(Response.OK, actualMessage.content());
 
         String value = (String) channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("name");
         assertEquals("kronotop", value);

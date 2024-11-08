@@ -18,6 +18,7 @@ package com.kronotop.foundationdb.namespace;
 
 import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
@@ -48,7 +49,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-        assertEquals("OK", actualMessage.content());
+        assertEquals(Response.OK, actualMessage.content());
     }
 
     @Test
@@ -64,7 +65,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -108,7 +109,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -156,7 +157,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -209,7 +210,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -220,7 +221,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -251,7 +252,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
             namespace = namespaceOld;
         }
 
@@ -263,7 +264,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
             namespace = namespaceNew;
         }
 
@@ -293,7 +294,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -306,7 +307,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {

@@ -50,7 +50,7 @@ public class FlushDBHandlerTest extends BaseStorageTest {
                 Object msg = channel.readOutbound();
                 assertInstanceOf(SimpleStringRedisMessage.class, msg);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-                assertEquals("OK", actualMessage.content());
+                assertEquals(Response.OK, actualMessage.content());
             }
         }
 

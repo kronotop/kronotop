@@ -19,6 +19,7 @@ package com.kronotop.redis.handlers.string;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseHandlerTest;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
@@ -67,7 +68,7 @@ public class MSetNXHandlerTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
