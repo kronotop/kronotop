@@ -21,10 +21,6 @@ public class MemberLeftEvent extends MemberEvent implements BroadcastEvent {
     MemberLeftEvent() {
     }
 
-    MemberLeftEvent(String memberId, long createdAt) {
-        super(BroadcastEventKind.MEMBER_LEFT, memberId, createdAt);
-    }
-
     MemberLeftEvent(String memberId) {
         super(BroadcastEventKind.MEMBER_LEFT, memberId);
     }

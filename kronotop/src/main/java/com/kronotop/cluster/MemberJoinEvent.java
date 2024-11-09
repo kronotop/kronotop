@@ -21,10 +21,6 @@ class MemberJoinEvent extends MemberEvent implements BroadcastEvent {
     MemberJoinEvent() {
     }
 
-    MemberJoinEvent(String id, long createdAt) {
-        super(BroadcastEventKind.MEMBER_JOIN, id, createdAt);
-    }
-
     MemberJoinEvent(String id) {
         super(BroadcastEventKind.MEMBER_JOIN, id);
     }
