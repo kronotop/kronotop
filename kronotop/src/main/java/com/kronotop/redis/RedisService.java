@@ -145,6 +145,8 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         // Internals
         handlerMethod(ServerKind.INTERNAL, new ClientHandler(this));
         handlerMethod(ServerKind.INTERNAL, new PingHandler());
+
+        routing.registerHook(RoutingEventKind.LOAD_REDIS_SHARD, new LoadRedisShardHook());
     }
 
     /**
@@ -198,7 +200,6 @@ public class RedisService extends CommandHandlerService implements KronotopServi
 
     public void start() {
         initializeVolumeSyncerWorkers();
-        loadRedisDataFromVolumes();
     }
 
     /**
@@ -451,5 +452,27 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         ranges.add(currentRange);
 
         return ranges;
+    }
+
+    private class LoadRedisShardHook implements RoutingEventHook {
+
+        @Override
+        public void run(int shardId) {
+            final int finalShardId = shardId;
+            Thread.ofVirtual().name("kr.redis.load-redis-shard").start(() -> {
+                LOGGER.trace("Loading Redis Shard: {} from the local disk", finalShardId);
+                Route route = routing.findRoute(ShardKind.REDIS, finalShardId);
+                if (route == null) {
+                    LOGGER.error("Route not found for Redis Shard: {}", finalShardId);
+                    return;
+                }
+                if (route.primary().equals(context.getMember())) {
+                    serviceContext.shards().put(finalShardId, new OnHeapRedisShardImpl(context, finalShardId));
+                    RedisShard shard = serviceContext.shards().get(finalShardId);
+                    RedisShardLoader loader = new RedisShardLoader(context, shard);
+                    loader.load();
+                }
+            });
+        }
     }
 }

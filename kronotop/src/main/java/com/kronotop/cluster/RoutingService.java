@@ -26,7 +26,9 @@ import com.kronotop.common.KronotopException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -40,6 +42,8 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
     private final MembershipService membership;
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>(new RoutingTable());
 
+    private final ConcurrentHashMap<RoutingEventKind, List<RoutingEventHook>> hooksByKind = new ConcurrentHashMap<>();
+
     private volatile boolean clusterInitialized;
     private volatile boolean isShutdown;
 
@@ -50,6 +54,16 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
 
         ThreadFactory factory = Thread.ofVirtual().name("kr.routing").factory();
         this.scheduler = new ScheduledThreadPoolExecutor(1, factory);
+    }
+
+    public void registerHook(RoutingEventKind kind, RoutingEventHook hook) {
+        hooksByKind.compute(kind, (k, value) -> {
+            if (value == null) {
+                value = new ArrayList<>();
+            }
+            value.add(hook);
+            return value;
+        });
     }
 
     public void start() {
@@ -198,7 +212,32 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                 }
             }
         }
-        routingTable.set(table);
+        RoutingTable previous = routingTable.getAndSet(table);
+        changesBetweenRoutingTables(previous);
+    }
+
+    private void changesBetweenRoutingTables(RoutingTable previous) {
+        int shards = context.getConfig().getInt("redis.shards");
+        RoutingTable current = routingTable.get();
+
+        for (int shardId = 0; shardId < shards; shardId++) {
+            Route previousRoute = previous.get(ShardKind.REDIS, shardId);
+            if (previousRoute == null) {
+                // Bootstrapping...
+                Route currentRoute = current.get(ShardKind.REDIS, shardId);
+                if (currentRoute == null) {
+                    // Not assigned yet
+                    continue;
+                }
+                if (currentRoute.primary().equals(context.getMember())) {
+                    // Load the shard from local disk
+                    List<RoutingEventHook> hooks = hooksByKind.get(RoutingEventKind.LOAD_REDIS_SHARD);
+                    for (RoutingEventHook hook : hooks) {
+                        hook.run(shardId);
+                    }
+                }
+            }
+        }
     }
 
     /**
