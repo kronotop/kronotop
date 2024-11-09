@@ -201,6 +201,9 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
         routingTable.set(table);
     }
 
+    /**
+     * A watcher class responsible for monitoring the initialization state of the Kronotop cluster.
+     */
     private class ClusterInitializationWatcher implements Runnable {
 
         @Override
