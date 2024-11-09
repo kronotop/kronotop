@@ -114,14 +114,14 @@ public class KronotopInstance {
         FoundationDBService foundationDBService = new FoundationDBService(context);
         context.registerService(FoundationDBService.NAME, foundationDBService);
 
-        VolumeService volumeService = new VolumeService(context);
-        context.registerService(VolumeService.NAME, volumeService);
-
         MembershipService membershipService = new MembershipService(context);
         context.registerService(MembershipService.NAME, membershipService);
 
         RoutingService routingService = new RoutingService(context);
         context.registerService(RoutingService.NAME, routingService);
+
+        VolumeService volumeService = new VolumeService(context);
+        context.registerService(VolumeService.NAME, volumeService);
 
         RedisService redisService = new RedisService(context);
         context.registerService(RedisService.NAME, redisService);
@@ -283,7 +283,7 @@ public class KronotopInstance {
         }
 
         try {
-            for (KronotopService service : context.getServices()) {
+            for (KronotopService service : context.getServices().reversed()) {
                 try {
                     service.shutdown();
                 } catch (Exception e) {
