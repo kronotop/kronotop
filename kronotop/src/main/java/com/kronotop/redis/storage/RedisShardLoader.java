@@ -98,5 +98,6 @@ public final class RedisShardLoader {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             loadFromVolume(tr);
         }
+        shard.setOperable(true);
     }
 }

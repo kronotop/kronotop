@@ -17,6 +17,7 @@
 
 package com.kronotop.redis.storage.impl;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -37,6 +38,7 @@ import com.typesafe.config.Config;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 
@@ -50,6 +52,7 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     private final Striped<ReadWriteLock> striped = Striped.lazyWeakReadWriteLock(271);
     private final ConcurrentMap<String, RedisValueContainer> storage;
     private final Volume volume;
+    private volatile boolean operable;
 
     protected AbstractRedisShard(Context context, Integer id) {
         super(context, ShardKind.REDIS, id);
@@ -90,6 +93,13 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
             return volumeService.newVolume(volumeConfig);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException ex) {
+                if (ex.getCode() == 1020) {
+                    return initializeRedisShardVolume();
+                }
+            }
+            throw e;
         }
     }
 
@@ -126,5 +136,15 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     @Override
     public void close() {
         volume.close();
+    }
+
+    @Override
+    public void setOperable(boolean operable) {
+        this.operable = operable;
+    }
+
+    @Override
+    public boolean operable() {
+        return operable;
     }
 }

@@ -29,6 +29,7 @@ import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.handlers.connection.protocol.PingMessage;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import com.typesafe.config.Config;
@@ -200,10 +201,7 @@ public class KronotopTestInstance extends KronotopInstance {
         }
 
         await().atMost(5, TimeUnit.SECONDS).until(this::areAllRedisShardsWritable);
-
-        // TODO: CLUSTER-REFACTORING
-        RedisService redisService = context.getService(RedisService.NAME);
-        redisService.loadRedisDataFromVolumes_Eagerly();
+        await().atMost(5, TimeUnit.SECONDS).until(this::areAllOwnedRedisShardsOperable);
     }
 
     private boolean areAllRedisShardsWritable() {
@@ -211,7 +209,34 @@ public class KronotopTestInstance extends KronotopInstance {
         int shards = context.getConfig().getInt("redis.shards");
         for (int shardId = 0; shardId < shards; shardId++) {
             Route route = routing.findRoute(ShardKind.REDIS, shardId);
+            if (route == null) {
+                return false;
+            }
             if (!route.shardStatus().equals(ShardStatus.READWRITE)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean areAllOwnedRedisShardsOperable() {
+        RoutingService routing = context.getService(RoutingService.NAME);
+        RedisService redis = context.getService(RedisService.NAME);
+        int shards = context.getConfig().getInt("redis.shards");
+        for (int shardId = 0; shardId < shards; shardId++) {
+            Route route = routing.findRoute(ShardKind.REDIS, shardId);
+            if (route == null) {
+                return false;
+            }
+            if (!route.primary().equals(context.getMember())) {
+                // Not belong to this member
+                continue;
+            }
+            RedisShard shard = redis.getServiceContext().shards().get(shardId);
+            if (shard == null) {
+                return false;
+            }
+            if (!shard.operable()) {
                 return false;
             }
         }

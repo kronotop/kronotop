@@ -69,11 +69,10 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
     public void start() {
         clusterInitialized = isClusterInitialized_internal();
         if (clusterInitialized) {
-            loadRoutingTableFromFoundationDB();
+            scheduler.execute(new RoutingEventsWatcher());
         } else {
             scheduler.execute(new ClusterInitializationWatcher());
         }
-        scheduler.execute(new RoutingEventsWatcher());
     }
 
     @Override
@@ -274,7 +273,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
             } finally {
                 if (!isShutdown) {
                     if (clusterInitialized) {
-                        loadRoutingTableFromFoundationDB();
+                        scheduler.execute(new RoutingEventsWatcher());
                     } else {
                         // Try again
                         scheduler.execute(this);
@@ -306,6 +305,8 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
                 tr.commit().join();
+
+                loadRoutingTableFromFoundationDB();
 
                 // Wait for routing table changes
                 try {

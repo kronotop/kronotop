@@ -177,27 +177,6 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
     }
 
-    private void loadRedisDataFromVolumes() {
-        // TODO: CLUSTER-REFACTORING
-        int shards = context.getConfig().getInt("redis.shards");
-        for (int shardId = 0; shardId < shards; shardId++) {
-            Route route = routing.findRoute(ShardKind.REDIS, shardId);
-            if (route == null) {
-                continue;
-            }
-            if (route.primary().equals(context.getMember())) {
-                serviceContext.shards().put(shardId, new OnHeapRedisShardImpl(context, shardId));
-                RedisShard shard = serviceContext.shards().get(shardId);
-                RedisShardLoader loader = new RedisShardLoader(context, shard);
-                loader.load();
-            }
-        }
-    }
-
-    public void loadRedisDataFromVolumes_Eagerly() {
-        loadRedisDataFromVolumes();
-    }
-
     public void start() {
         initializeVolumeSyncerWorkers();
     }
