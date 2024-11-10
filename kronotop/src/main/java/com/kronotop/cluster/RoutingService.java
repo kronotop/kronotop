@@ -215,24 +215,55 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
         changesBetweenRoutingTables(previous);
     }
 
+    private void runHooks(RoutingEventKind routingEventKind, ShardKind shardKind, int shardId) {
+        List<RoutingEventHook> hooks = hooksByKind.get(routingEventKind);
+        if (hooks == null) {
+            return;
+        }
+        for (RoutingEventHook hook : hooks) {
+            hook.run(shardKind, shardId);
+        }
+    }
+
     private void changesBetweenRoutingTables(RoutingTable previous) {
         int shards = context.getConfig().getInt("redis.shards");
         RoutingTable current = routingTable.get();
 
         for (int shardId = 0; shardId < shards; shardId++) {
+            Route currentRoute = current.get(ShardKind.REDIS, shardId);
+            if (currentRoute == null) {
+                // Not assigned yet
+                continue;
+            }
+
             Route previousRoute = previous.get(ShardKind.REDIS, shardId);
             if (previousRoute == null) {
                 // Bootstrapping...
-                Route currentRoute = current.get(ShardKind.REDIS, shardId);
-                if (currentRoute == null) {
-                    // Not assigned yet
-                    continue;
-                }
                 if (currentRoute.primary().equals(context.getMember())) {
                     // Load the shard from local disk
-                    List<RoutingEventHook> hooks = hooksByKind.get(RoutingEventKind.LOAD_REDIS_SHARD);
-                    for (RoutingEventHook hook : hooks) {
-                        hook.run(shardId);
+                    runHooks(RoutingEventKind.LOAD_REDIS_SHARD, ShardKind.REDIS, shardId);
+                }
+            }
+
+            if (!currentRoute.standbys().isEmpty()) {
+                if (previousRoute != null) {
+                    for (Member member : currentRoute.standbys()) {
+                        if (!member.equals(context.getMember())) {
+                            // Another member
+                            continue;
+                        }
+                        // New assignment
+                        if (!previousRoute.standbys().contains(context.getMember())) {
+                            runHooks(RoutingEventKind.START_REPLICATION, ShardKind.REDIS, shardId);
+                        }
+                    }
+                } else {
+                    // No previous root exists
+                    for (Member member : currentRoute.standbys()) {
+                        // New assignment
+                        if (member.equals(context.getMember())) {
+                            runHooks(RoutingEventKind.START_REPLICATION, ShardKind.REDIS, shardId);
+                        }
                     }
                 }
             }

@@ -442,8 +442,15 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      */
     private class LoadRedisShardHook implements RoutingEventHook {
 
+        private void createAndLoad(int shardId) {
+            serviceContext.shards().put(shardId, new OnHeapRedisShardImpl(context, shardId));
+            RedisShard shard = serviceContext.shards().get(shardId);
+            RedisShardLoader loader = new RedisShardLoader(context, shard);
+            loader.load();
+        }
+
         @Override
-        public void run(int shardId) {
+        public void run(ShardKind shardKind, int shardId) {
             final int finalShardId = shardId;
             Thread.ofVirtual().name("kr.redis.load-redis-shard").start(() -> {
                 LOGGER.trace("Loading Redis Shard: {} from the local disk", finalShardId);
@@ -453,10 +460,11 @@ public class RedisService extends CommandHandlerService implements KronotopServi
                     return;
                 }
                 if (route.primary().equals(context.getMember())) {
-                    serviceContext.shards().put(finalShardId, new OnHeapRedisShardImpl(context, finalShardId));
-                    RedisShard shard = serviceContext.shards().get(finalShardId);
-                    RedisShardLoader loader = new RedisShardLoader(context, shard);
-                    loader.load();
+                    // Primary owner
+                    createAndLoad(finalShardId);
+                } else if (route.standbys().contains(context.getMember())) {
+                    // Standby owner
+                    createAndLoad(finalShardId);
                 }
             });
         }

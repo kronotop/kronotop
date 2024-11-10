@@ -16,7 +16,9 @@
 
 package com.kronotop.cluster;
 
+import com.kronotop.cluster.sharding.ShardKind;
+
 @FunctionalInterface
 public interface RoutingEventHook {
-    void run(int shardId);
+    void run(ShardKind shardKind, int shardId);
 }

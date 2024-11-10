@@ -18,4 +18,5 @@ package com.kronotop.cluster;
 
 public enum RoutingEventKind {
     LOAD_REDIS_SHARD,
+    START_REPLICATION
 }
