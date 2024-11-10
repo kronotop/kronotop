@@ -433,6 +433,13 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         return ranges;
     }
 
+    /**
+     * The LoadRedisShardHook class implements the RoutingEventHook interface and
+     * provides the logic to load a Redis shard from local disk storage in a virtual thread.
+     * The shard is loaded if the route for the shard exists and the primary member
+     * matches the current context member.
+     * The class helps in loading and initializing the Redis shard data from disk into memory.
+     */
     private class LoadRedisShardHook implements RoutingEventHook {
 
         @Override
