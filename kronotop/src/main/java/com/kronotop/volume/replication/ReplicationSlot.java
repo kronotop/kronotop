@@ -33,6 +33,11 @@ import java.util.function.Consumer;
 
 import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_SLOT_SUBSPACE;
 
+/**
+ * Class representing a replication slot used for database replication.
+ * A replication slot is responsible for tracking the replication state and snapshots
+ * of a standby server.
+ */
 public class ReplicationSlot {
 
     private final TreeMap<Long, Snapshot> snapshots = new TreeMap<>();
@@ -43,6 +48,14 @@ public class ReplicationSlot {
 
     private byte[] latestVersionstampedKey;
 
+    /**
+     * Creates a new replication slot for the given standby member on the specified FDB and subspace.
+     *
+     * @param database The database to create the replication slot on.
+     * @param subspace The subspace within the database where the replication slot will be created.
+     * @param standbyMember The standby member for whom the replication slot is being created.
+     * @return A complete versionstamp representing the replication slot creation.
+     */
     public static Versionstamp newSlot(Database database, DirectorySubspace subspace, Member standbyMember) {
         // A replication slot can only be started on a standby server, the primary owner only responds to SEGMENTRANGE requests
         // It doesn't have any idea about the standby servers and the current replication status.
@@ -78,6 +91,14 @@ public class ReplicationSlot {
         return Versionstamp.complete(trVersion);
     }
 
+    /**
+     * Loads a replication slot from the provided transaction and replication configuration.
+     *
+     * @param tr     The transaction to use for loading the replication slot.
+     * @param config The replication configuration containing necessary details such as subspace, standby member, and slot ID.
+     * @return The loaded ReplicationSlot.
+     * @throws ReplicationNotFoundException if no replication slot is found.
+     */
     public static ReplicationSlot load(Transaction tr, ReplicationConfig config) {
         Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.standby().member().getId(), config.slotId());
         byte[] packedKey = config.subspace().pack(tuple);
@@ -88,6 +109,15 @@ public class ReplicationSlot {
         return JSONUtils.readValue(value, ReplicationSlot.class);
     }
 
+    /**
+     * Computes and updates a replication slot in the given transaction based on the provided replication configuration.
+     *
+     * @param tr                The transaction to use for updating the replication slot.
+     * @param config            The replication configuration containing details such as subspace, standby member, and slot ID.
+     * @param remappingFunction A consumer that processes and potentially modifies the replication slot.
+     * @return The updated ReplicationSlot.
+     * @throws ReplicationNotFoundException if no replication slot is found.
+     */
     public static ReplicationSlot compute(Transaction tr, ReplicationConfig config, Consumer<ReplicationSlot> remappingFunction) {
         Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.standby().member().getId(), config.slotId());
         byte[] packedKey = config.subspace().pack(tuple);
