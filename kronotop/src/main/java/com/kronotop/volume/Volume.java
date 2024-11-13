@@ -24,13 +24,10 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
-import com.kronotop.cluster.RoutingEventKind;
-import com.kronotop.cluster.RoutingService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.volume.replication.SegmentLog;
 import com.kronotop.volume.replication.SegmentLogValue;
 import com.kronotop.volume.replication.SegmentNotFoundException;
-import com.kronotop.volume.replication.StartReplicationHook;
 import com.kronotop.volume.segment.Segment;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import com.kronotop.volume.segment.SegmentAppendResult;
@@ -77,9 +74,6 @@ public class Volume {
         this.subspace = new VolumeSubspace(config.subspace());
         this.entryMetadataCache = new ConcurrentHashMap<>();
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE));
-
-        RoutingService routing = context.getService(RoutingService.NAME);
-        routing.registerHook(RoutingEventKind.START_REPLICATION, new StartReplicationHook(context));
     }
 
     /**

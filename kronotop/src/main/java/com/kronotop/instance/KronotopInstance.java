@@ -29,6 +29,7 @@ import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
 import com.kronotop.redis.RedisContext;
 import com.kronotop.redis.RedisService;
+import com.kronotop.volume.ReplicationService;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.watcher.Watcher;
 import com.typesafe.config.Config;
@@ -123,11 +124,15 @@ public class KronotopInstance {
         VolumeService volumeService = new VolumeService(context);
         context.registerService(VolumeService.NAME, volumeService);
 
+        ReplicationService replicationService = new ReplicationService(context);
+        context.registerService(ReplicationService.NAME, replicationService);
+
         RedisService redisService = new RedisService(context);
         context.registerService(RedisService.NAME, redisService);
 
         membershipService.start();
         routingService.start();
+        replicationService.start();
         redisService.start();
     }
 
