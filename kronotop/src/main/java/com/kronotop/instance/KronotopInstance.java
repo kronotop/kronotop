@@ -29,7 +29,7 @@ import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
 import com.kronotop.redis.RedisContext;
 import com.kronotop.redis.RedisService;
-import com.kronotop.volume.ReplicationService;
+import com.kronotop.volume.replication.ReplicationService;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.watcher.Watcher;
 import com.typesafe.config.Config;

@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume;
+package com.kronotop.volume.replication;
 
 import com.kronotop.BaseKronotopService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.volume.replication.StartReplicationHook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
