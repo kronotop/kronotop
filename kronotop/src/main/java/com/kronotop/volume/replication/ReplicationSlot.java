@@ -97,14 +97,14 @@ public class ReplicationSlot {
      * @param tr     The transaction to use for loading the replication slot.
      * @param config The replication configuration containing necessary details such as subspace, standby member, and slot ID.
      * @return The loaded ReplicationSlot.
-     * @throws ReplicationNotFoundException if no replication slot is found.
+     * @throws ReplicationSlotNotFoundException if no replication slot is found.
      */
     public static ReplicationSlot load(Transaction tr, ReplicationConfig config) {
         Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.standby().member().getId(), config.slotId());
         byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
-            throw new ReplicationNotFoundException();
+            throw new ReplicationSlotNotFoundException();
         }
         return JSONUtils.readValue(value, ReplicationSlot.class);
     }
@@ -116,14 +116,14 @@ public class ReplicationSlot {
      * @param config            The replication configuration containing details such as subspace, standby member, and slot ID.
      * @param remappingFunction A consumer that processes and potentially modifies the replication slot.
      * @return The updated ReplicationSlot.
-     * @throws ReplicationNotFoundException if no replication slot is found.
+     * @throws ReplicationSlotNotFoundException if no replication slot is found.
      */
     public static ReplicationSlot compute(Transaction tr, ReplicationConfig config, Consumer<ReplicationSlot> remappingFunction) {
         Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.standby().member().getId(), config.slotId());
         byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
-            throw new ReplicationNotFoundException();
+            throw new ReplicationSlotNotFoundException();
         }
         ReplicationSlot replicationSlot = JSONUtils.readValue(value, ReplicationSlot.class);
         remappingFunction.accept(replicationSlot);

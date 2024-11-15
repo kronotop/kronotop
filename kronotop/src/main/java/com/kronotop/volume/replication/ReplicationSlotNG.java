@@ -85,24 +85,24 @@ public class ReplicationSlotNG {
 
     public static ReplicationSlotNG load(Transaction tr, DirectorySubspace subspace, String standbyMemberId) {
         Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, standbyMemberId);
-        byte[] packedKey = subspace.pack(tuple);
-        byte[] value = tr.get(packedKey).join();
+        byte[] key = subspace.pack(tuple);
+        byte[] value = tr.get(key).join();
         if (value == null) {
-            throw new ReplicationNotFoundException();
+            throw new ReplicationSlotNotFoundException();
         }
         return JSONUtils.readValue(value, ReplicationSlotNG.class);
     }
 
-    public static ReplicationSlot compute(Transaction tr, DirectorySubspace subspace, String standbyMemberId, Consumer<ReplicationSlot> remappingFunction) {
+    public static ReplicationSlotNG compute(Transaction tr, DirectorySubspace subspace, String standbyMemberId, Consumer<ReplicationSlotNG> remappingFunction) {
         Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, standbyMemberId);
-        byte[] packedKey = subspace.pack(tuple);
-        byte[] value = tr.get(packedKey).join();
+        byte[] key = subspace.pack(tuple);
+        byte[] value = tr.get(key).join();
         if (value == null) {
-            throw new ReplicationNotFoundException();
+            throw new ReplicationSlotNotFoundException();
         }
-        ReplicationSlot replicationSlot = JSONUtils.readValue(value, ReplicationSlot.class);
+        ReplicationSlotNG replicationSlot = JSONUtils.readValue(value, ReplicationSlotNG.class);
         remappingFunction.accept(replicationSlot);
-        tr.set(packedKey, JSONUtils.writeValueAsBytes(replicationSlot));
+        tr.set(key, JSONUtils.writeValueAsBytes(replicationSlot));
         return replicationSlot;
     }
 
