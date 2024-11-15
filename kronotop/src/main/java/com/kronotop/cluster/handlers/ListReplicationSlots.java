@@ -16,15 +16,22 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.JSONUtils;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+
+import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_SLOT_SUBSPACE;
 
 public class ListReplicationSlots extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -43,18 +50,25 @@ public class ListReplicationSlots extends BaseKrAdminSubcommandHandler implement
         // LatestSegmentId
         // LatestVersionstampedKey
 
-        KronotopDirectoryNode directory = KronotopDirectory.
-                kronotop().
-                cluster(context.getClusterName()).
-                metadata().
-                volumes().
-                redis().
-                volume(Integer.toString(1));
+        // List Redis Shard replication slots
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
+            int shards = context.getConfig().getInt("redis.shards");
+            for (int shardId = 0; shardId < shards; shardId++) {
+                KronotopDirectoryNode directory = KronotopDirectory.
+                        kronotop().
+                        cluster(context.getClusterName()).
+                        metadata().
+                        volumes().
+                        redis().
+                        volume(Integer.toString(shardId));
+                DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+                Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE);
+                Range range = Range.startsWith(subspace.pack(tuple));
+                AsyncIterable<KeyValue> iterable = tr.getRange(range);
+                for (KeyValue keyValue : iterable) {
+                }
+            }
         }
-
-        // Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, Versionstamp.incomplete());
-        // ShardKind - ShardId
+        response.writeOK();
     }
 }

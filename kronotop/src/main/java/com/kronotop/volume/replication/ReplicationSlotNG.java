@@ -18,7 +18,6 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.JSONUtils;
 import com.kronotop.volume.VolumeMetadata;
@@ -40,33 +39,38 @@ public class ReplicationSlotNG {
     private long latestSegmentId;
     private byte[] latestVersionstampedKey;
 
-    public static void newSlot(Database database, DirectorySubspace subspace, String standbyMemberId) {
+    private static byte[] slotKey(ReplicationConfigNG config) {
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.shardKind(), config.shardId(), config.memberId());
+        return config.subspace().pack(tuple);
+    }
+
+    public static void newSlot(Database database, ReplicationConfigNG config) {
         // A replication slot can only be started on a standby server, the primary owner only responds to SEGMENTRANGE requests
         // It doesn't have any idea about the standby servers and the current replication status.
         try (Transaction tr = database.createTransaction()) {
             ReplicationSlotNG slot = new ReplicationSlotNG();
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, subspace);
+            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
 
             for (Long segmentId : volumeMetadata.getSegments()) {
                 String segmentName = Segment.generateName(segmentId);
 
                 SegmentLogEntry firstEntry = new SegmentLogIterable(
                         tr,
-                        subspace,
+                        config.subspace(),
                         segmentName,
                         null,
                         null, 1
                 ).iterator().next();
                 SegmentLogEntry lastEntry = new SegmentLogIterable(
                         tr,
-                        subspace,
+                        config.subspace(),
                         segmentName,
                         null,
                         null,
                         1, true
                 ).iterator().next();
 
-                SegmentLog segmentLog = new SegmentLog(segmentName, subspace);
+                SegmentLog segmentLog = new SegmentLog(segmentName, config.subspace());
                 int totalEntries = segmentLog.getCardinality(tr);
                 Snapshot snapshot = new Snapshot(
                         segmentId,
@@ -77,25 +81,22 @@ public class ReplicationSlotNG {
                 slot.getSnapshots().put(segmentId, snapshot);
             }
 
-            Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, standbyMemberId);
-            tr.set(subspace.pack(tuple), JSONUtils.writeValueAsBytes(slot));
+            byte[] value = JSONUtils.writeValueAsBytes(slot);
+            tr.set(slotKey(config), value);
             tr.commit().join();
         }
     }
 
-    public static ReplicationSlotNG load(Transaction tr, DirectorySubspace subspace, String standbyMemberId) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, standbyMemberId);
-        byte[] key = subspace.pack(tuple);
-        byte[] value = tr.get(key).join();
+    public static ReplicationSlotNG load(Transaction tr, ReplicationConfigNG config) {
+        byte[] value = tr.get(slotKey(config)).join();
         if (value == null) {
             throw new ReplicationSlotNotFoundException();
         }
         return JSONUtils.readValue(value, ReplicationSlotNG.class);
     }
 
-    public static ReplicationSlotNG compute(Transaction tr, DirectorySubspace subspace, String standbyMemberId, Consumer<ReplicationSlotNG> remappingFunction) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, standbyMemberId);
-        byte[] key = subspace.pack(tuple);
+    public static ReplicationSlotNG compute(Transaction tr, ReplicationConfigNG config, Consumer<ReplicationSlotNG> remappingFunction) {
+        byte[] key = slotKey(config);
         byte[] value = tr.get(key).join();
         if (value == null) {
             throw new ReplicationSlotNotFoundException();

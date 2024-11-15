@@ -32,7 +32,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
         super(context, NAME);
 
         RoutingService routing = context.getService(RoutingService.NAME);
-        routing.registerHook(RoutingEventKind.START_REPLICATION, new StartReplicationHook(context));
+        routing.registerHook(RoutingEventKind.CREATE_REPLICATION_SLOT, new CreateReplicationSlotHook(context));
     }
 
     public void start() {

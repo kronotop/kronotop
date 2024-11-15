@@ -254,7 +254,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                         }
                         // New assignment
                         if (!previousRoute.standbys().contains(context.getMember())) {
-                            runHooks(RoutingEventKind.START_REPLICATION, ShardKind.REDIS, shardId);
+                            runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, ShardKind.REDIS, shardId);
                         }
                     }
                 } else {
@@ -262,7 +262,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                     for (Member member : currentRoute.standbys()) {
                         // New assignment
                         if (member.equals(context.getMember())) {
-                            runHooks(RoutingEventKind.START_REPLICATION, ShardKind.REDIS, shardId);
+                            runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, ShardKind.REDIS, shardId);
                         }
                     }
                 }

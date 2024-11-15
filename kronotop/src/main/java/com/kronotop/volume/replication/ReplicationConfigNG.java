@@ -14,9 +14,15 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster;
+package com.kronotop.volume.replication;
 
-public enum RoutingEventKind {
-    LOAD_REDIS_SHARD,
-    CREATE_REPLICATION_SLOT
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.cluster.sharding.ShardKind;
+
+public record ReplicationConfigNG(
+        DirectorySubspace subspace,
+        ShardKind shardKind,
+        Integer shardId,
+        String memberId
+) {
 }

@@ -19,13 +19,10 @@ package com.kronotop.volume;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
-import com.kronotop.cluster.RoutingEventKind;
-import com.kronotop.cluster.RoutingService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
 import com.kronotop.volume.handlers.SegmentRangeHandler;
-import com.kronotop.volume.replication.StartReplicationHook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,7 +124,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
      *
      * @param name the name of the volume to be found
      * @return the volume with the specified name
-     * @throws ClosedVolumeException if the volume is closed
+     * @throws ClosedVolumeException  if the volume is closed
      * @throws VolumeNotOpenException if the volume does not exist
      */
     public Volume findVolume(String name) {
@@ -170,7 +167,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
 
     /**
      * Retrieves a list of all managed volumes.
-     *
+     * <p>
      * This method returns an unmodifiable list of the volumes currently managed by the service.
      * The list will reflect any changes made to the volumes at the time of retrieval.
      *
