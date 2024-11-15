@@ -50,6 +50,7 @@ import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.ReferenceCountUtil;
+import org.checkerframework.checker.units.qual.C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,6 +146,9 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         // Internals
         handlerMethod(ServerKind.INTERNAL, new ClientHandler(this));
         handlerMethod(ServerKind.INTERNAL, new PingHandler());
+        handlerMethod(ServerKind.INTERNAL, new ClusterHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new InfoHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new CommandHandler(this));
 
         routing.registerHook(RoutingEventKind.LOAD_REDIS_SHARD, new LoadRedisShardHook());
     }

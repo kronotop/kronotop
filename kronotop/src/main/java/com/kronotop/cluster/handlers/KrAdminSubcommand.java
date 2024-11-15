@@ -26,7 +26,8 @@ public enum KrAdminSubcommand {
     LIST_SILENT_MEMBERS("list-silent-members"),
     SET_ROUTE("set-route"),
     SET_SHARD_STATUS("set-shard-status"),
-    DESCRIBE_SHARD("describe-shard");
+    DESCRIBE_SHARD("describe-shard"),
+    LIST_REPLICATION_SLOTS("list-replication-slots");
 
     private final String value;
 

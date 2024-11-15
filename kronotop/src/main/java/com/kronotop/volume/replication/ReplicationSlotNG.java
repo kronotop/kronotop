@@ -17,18 +17,14 @@
 package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.JSONUtils;
-import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeMetadata;
 import com.kronotop.volume.segment.Segment;
 
 import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_SLOT_SUBSPACE;
@@ -40,23 +36,15 @@ import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_SLOT_SUBSPACE;
  */
 public class ReplicationSlotNG {
     private final TreeMap<Long, Snapshot> snapshots = new TreeMap<>();
-    private final ReplicationConfigNG config;
     private ReplicationStage replicationStage;
     private long latestSegmentId;
     private byte[] latestVersionstampedKey;
 
-    private ReplicationSlotNG(ReplicationConfigNG config) {
-        this.config = config;
-    }
-
-    public static Versionstamp newSlot(Database database, ReplicationConfigNG config) {
+    public static void newSlot(Database database, DirectorySubspace subspace, String standbyMemberId) {
         // A replication slot can only be started on a standby server, the primary owner only responds to SEGMENTRANGE requests
         // It doesn't have any idea about the standby servers and the current replication status.
-        CompletableFuture<byte[]> future;
-        VolumeConfig volumeConfig = config.volumeConfig();
-        DirectorySubspace subspace = config.volumeConfig().subspace();
         try (Transaction tr = database.createTransaction()) {
-            ReplicationSlotNG slot = new ReplicationSlotNG(config);
+            ReplicationSlotNG slot = new ReplicationSlotNG();
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, subspace);
 
             for (Long segmentId : volumeMetadata.getSegments()) {
@@ -86,32 +74,28 @@ public class ReplicationSlotNG {
                         firstEntry.key().getBytes(),
                         lastEntry.key().getBytes()
                 );
-                slot.snapshots().put(segmentId, snapshot);
+                slot.getSnapshots().put(segmentId, snapshot);
             }
 
-            Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.shardKind(), config.shardId(), config.standbyMemberId(), Versionstamp.incomplete());
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), JSONUtils.writeValueAsBytes(slot));
-            future = tr.getVersionstamp();
+            Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, standbyMemberId);
+            tr.set(subspace.pack(tuple), JSONUtils.writeValueAsBytes(slot));
             tr.commit().join();
         }
-
-        byte[] trVersion = future.join();
-        return Versionstamp.complete(trVersion);
     }
 
-    public static ReplicationSlot load(Transaction tr, ReplicationConfigNG config) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.shardKind(), config.shardId(), config.standbyMemberId(), config.slotId());
-        byte[] packedKey = config.volumeConfig().subspace().pack(tuple);
+    public static ReplicationSlotNG load(Transaction tr, DirectorySubspace subspace, String standbyMemberId) {
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, standbyMemberId);
+        byte[] packedKey = subspace.pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
             throw new ReplicationNotFoundException();
         }
-        return JSONUtils.readValue(value, ReplicationSlot.class);
+        return JSONUtils.readValue(value, ReplicationSlotNG.class);
     }
 
-    public static ReplicationSlot compute(Transaction tr, ReplicationConfigNG config, Consumer<ReplicationSlot> remappingFunction) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.shardKind(), config.shardId(), config.standbyMemberId(), config.slotId());
-        byte[] packedKey = config.volumeConfig().subspace().pack(tuple);
+    public static ReplicationSlot compute(Transaction tr, DirectorySubspace subspace, String standbyMemberId, Consumer<ReplicationSlot> remappingFunction) {
+        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, standbyMemberId);
+        byte[] packedKey = subspace.pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
             throw new ReplicationNotFoundException();
@@ -122,7 +106,7 @@ public class ReplicationSlotNG {
         return replicationSlot;
     }
 
-    public ReplicationStage replicationStage() {
+    public ReplicationStage getReplicationStage() {
         return replicationStage;
     }
 
@@ -130,11 +114,11 @@ public class ReplicationSlotNG {
         this.replicationStage = replicationStage;
     }
 
-    public TreeMap<Long, Snapshot> snapshots() {
+    public TreeMap<Long, Snapshot> getSnapshots() {
         return snapshots;
     }
 
-    public byte[] latestVersionstampedKey() {
+    public byte[] getLatestVersionstampedKey() {
         return latestVersionstampedKey;
     }
 
@@ -142,7 +126,7 @@ public class ReplicationSlotNG {
         this.latestVersionstampedKey = latestVersionstampedKey;
     }
 
-    public long latestSegmentId() {
+    public long getLatestSegmentId() {
         return latestSegmentId;
     }
 

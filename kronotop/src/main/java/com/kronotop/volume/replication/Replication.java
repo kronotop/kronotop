@@ -21,7 +21,7 @@ import com.kronotop.Context;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
-import io.lettuce.core.RedisClient;
+import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +41,7 @@ public class Replication {
     private final ReplicationConfig config;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final AtomicReference<StageRunner> activeStageRunner = new AtomicReference<>();
-    private final RedisClient client;
+    private final RedisClusterClient client;
     private volatile boolean started = false;
     private volatile boolean stopped = false;
 
@@ -50,7 +50,7 @@ public class Replication {
         this.config = config;
 
         Member member = config.primary().member();
-        this.client = RedisClient.create(
+        this.client = RedisClusterClient.create(
                 String.format("redis://%s:%d", member.getExternalAddress().getHost(), member.getExternalAddress().getPort())
         );
         this.connection = InternalClient.connect(client, ByteArrayCodec.INSTANCE);
