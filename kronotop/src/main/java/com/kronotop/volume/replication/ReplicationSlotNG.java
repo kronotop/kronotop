@@ -44,40 +44,41 @@ public class ReplicationSlotNG {
         return config.subspace().pack(tuple);
     }
 
+    private static Snapshot newSegmentSnapshot(Transaction tr, ReplicationConfigNG config, long segmentId) {
+        String segmentName = Segment.generateName(segmentId);
+        SegmentLogEntry firstEntry = new SegmentLogIterable(
+                tr,
+                config.subspace(),
+                segmentName,
+                null,
+                null, 1
+        ).iterator().next();
+        SegmentLogEntry lastEntry = new SegmentLogIterable(
+                tr,
+                config.subspace(),
+                segmentName,
+                null,
+                null,
+                1, true
+        ).iterator().next();
+
+        SegmentLog segmentLog = new SegmentLog(segmentName, config.subspace());
+        int totalEntries = segmentLog.getCardinality(tr);
+        return new Snapshot(
+                segmentId,
+                totalEntries,
+                firstEntry.key().getBytes(),
+                lastEntry.key().getBytes()
+        );
+    }
+
     public static void newSlot(Database database, ReplicationConfigNG config) {
-        // A replication slot can only be started on a standby server, the primary owner only responds to SEGMENTRANGE requests
-        // It doesn't have any idea about the standby servers and the current replication status.
+        ReplicationSlotNG slot = new ReplicationSlotNG();
+
         try (Transaction tr = database.createTransaction()) {
-            ReplicationSlotNG slot = new ReplicationSlotNG();
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
-
             for (Long segmentId : volumeMetadata.getSegments()) {
-                String segmentName = Segment.generateName(segmentId);
-
-                SegmentLogEntry firstEntry = new SegmentLogIterable(
-                        tr,
-                        config.subspace(),
-                        segmentName,
-                        null,
-                        null, 1
-                ).iterator().next();
-                SegmentLogEntry lastEntry = new SegmentLogIterable(
-                        tr,
-                        config.subspace(),
-                        segmentName,
-                        null,
-                        null,
-                        1, true
-                ).iterator().next();
-
-                SegmentLog segmentLog = new SegmentLog(segmentName, config.subspace());
-                int totalEntries = segmentLog.getCardinality(tr);
-                Snapshot snapshot = new Snapshot(
-                        segmentId,
-                        totalEntries,
-                        firstEntry.key().getBytes(),
-                        lastEntry.key().getBytes()
-                );
+                Snapshot snapshot = newSegmentSnapshot(tr, config, segmentId);
                 slot.getSnapshots().put(segmentId, snapshot);
             }
 
