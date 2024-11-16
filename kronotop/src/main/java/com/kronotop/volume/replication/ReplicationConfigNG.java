@@ -23,7 +23,6 @@ public record ReplicationConfigNG(
         DirectorySubspace volumeSubspace,
         ShardKind shardKind,
         Integer shardId,
-        String memberId,
         boolean streamingOnly
 ) {
 }

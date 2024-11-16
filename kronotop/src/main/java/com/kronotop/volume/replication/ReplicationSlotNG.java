@@ -39,7 +39,11 @@ public class ReplicationSlotNG {
     private byte[] latestVersionstampedKey;
 
     private static byte[] slotKey(ReplicationConfigNG config) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.shardKind().name(), config.shardId(), config.memberId());
+        Tuple tuple = Tuple.from(
+                SEGMENT_REPLICATION_SLOT_SUBSPACE,
+                config.shardKind().name(),
+                config.shardId()
+        );
         return config.volumeSubspace().pack(tuple);
     }
 

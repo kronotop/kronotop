@@ -22,7 +22,6 @@ import com.kronotop.Context;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeConfigGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +43,6 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
                 volumeSubspace,
                 shardKind,
                 shardId,
-                context.getMember().getId(),
                 false);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationSlotNG.newSlot(tr, replicationConfig);
