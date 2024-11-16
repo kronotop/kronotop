@@ -18,13 +18,17 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.VolumeConfigGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
 
 public class CreateReplicationSlotHook implements RoutingEventHook {
     private static final Logger LOGGER = LoggerFactory.getLogger(CreateReplicationSlotHook.class);
@@ -46,13 +50,15 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
                 false);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationSlotNG.newSlot(tr, replicationConfig);
-            LOGGER.info("Created replication slot for ShardKind: {} ShardId: {}",
-                    shardKind,
-                    shardId
-            );
+
+            CompletableFuture<byte[]> future = tr.getVersionstamp();
             tr.commit().join();
-        } catch (ReplicationSlotExistsException e) {
-            LOGGER.error("Error while creating replication slot", e);
+
+            byte[] trVersion = future.join();
+            Versionstamp slotId = Versionstamp.complete(trVersion);
+            LOGGER.info("Created replication slot with SlotID: {}",
+                    VersionstampUtils.base64Encode(slotId)
+            );
         }
     }
 }

@@ -16,8 +16,10 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.JSONUtils;
 import com.kronotop.volume.VolumeMetadata;
 import com.kronotop.volume.segment.Segment;
@@ -42,7 +44,18 @@ public class ReplicationSlotNG {
         Tuple tuple = Tuple.from(
                 SEGMENT_REPLICATION_SLOT_SUBSPACE,
                 config.shardKind().name(),
-                config.shardId()
+                config.shardId(),
+                Versionstamp.incomplete()
+        );
+        return config.volumeSubspace().packWithVersionstamp(tuple);
+    }
+
+    private static byte[] slotKey(ReplicationConfigNG config, Versionstamp slotId) {
+        Tuple tuple = Tuple.from(
+                SEGMENT_REPLICATION_SLOT_SUBSPACE,
+                config.shardKind().name(),
+                config.shardId(),
+                slotId
         );
         return config.volumeSubspace().pack(tuple);
     }
@@ -85,25 +98,20 @@ public class ReplicationSlotNG {
         }
 
         byte[] key = slotKey(config);
-        tr.get(key).thenAccept((value) -> {
-            if (value == null) {
-                value = JSONUtils.writeValueAsBytes(slot);
-                tr.set(key, value);
-            }
-            throw new ReplicationSlotExistsException("ReplicationSlot already exists");
-        });
+        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(slot));
     }
 
-    public static ReplicationSlotNG load(Transaction tr, ReplicationConfigNG config) {
-        byte[] value = tr.get(slotKey(config)).join();
+    public static ReplicationSlotNG load(Transaction tr, ReplicationConfigNG config, Versionstamp slotId) {
+        byte[] key = slotKey(config, slotId);
+        byte[] value = tr.get(key).join();
         if (value == null) {
             throw new ReplicationSlotNotFoundException();
         }
         return JSONUtils.readValue(value, ReplicationSlotNG.class);
     }
 
-    public static ReplicationSlotNG compute(Transaction tr, ReplicationConfigNG config, Consumer<ReplicationSlotNG> remappingFunction) {
-        byte[] key = slotKey(config);
+    public static ReplicationSlotNG compute(Transaction tr, ReplicationConfigNG config, Versionstamp slotId, Consumer<ReplicationSlotNG> remappingFunction) {
+        byte[] key = slotKey(config, slotId);
         byte[] value = tr.get(key).join();
         if (value == null) {
             throw new ReplicationSlotNotFoundException();
