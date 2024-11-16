@@ -16,7 +16,6 @@
 
 package com.kronotop.volume.replication;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.JSONUtils;
@@ -72,26 +71,23 @@ public class ReplicationSlotNG {
         );
     }
 
-    public static void newSlot(Database database, ReplicationConfigNG config) {
+    public static void newSlot(Transaction tr, ReplicationConfigNG config) {
         ReplicationSlotNG slot = new ReplicationSlotNG();
 
-        try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.volumeConfig().subspace());
-            for (Long segmentId : volumeMetadata.getSegments()) {
-                Snapshot snapshot = newSegmentSnapshot(tr, config, segmentId);
-                slot.getSnapshots().put(segmentId, snapshot);
-            }
-
-            byte[] key = slotKey(config);
-            tr.get(key).thenAccept((value) -> {
-                if (value == null) {
-                    value = JSONUtils.writeValueAsBytes(slot);
-                    tr.set(key, value);
-                }
-                throw new IllegalArgumentException("ReplicationSlot already exists");
-            });
-            tr.commit().join();
+        VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.volumeConfig().subspace());
+        for (Long segmentId : volumeMetadata.getSegments()) {
+            Snapshot snapshot = newSegmentSnapshot(tr, config, segmentId);
+            slot.getSnapshots().put(segmentId, snapshot);
         }
+
+        byte[] key = slotKey(config);
+        tr.get(key).thenAccept((value) -> {
+            if (value == null) {
+                value = JSONUtils.writeValueAsBytes(slot);
+                tr.set(key, value);
+            }
+            throw new IllegalArgumentException("ReplicationSlot already exists");
+        });
     }
 
     public static ReplicationSlotNG load(Transaction tr, ReplicationConfigNG config) {

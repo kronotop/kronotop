@@ -22,12 +22,12 @@ import com.kronotop.Context;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.impl.ShardImpl;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.redis.storage.RedisShardVolumeConfig;
 import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.storage.index.Index;
 import com.kronotop.redis.storage.syncer.VolumeSyncQueue;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.VolumeConfigGenerator;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -53,7 +53,7 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
         this.index = new RedisShardIndex(id, this);
         this.storage = new Storage(this);
 
-        VolumeConfig volumeConfig = RedisShardVolumeConfig.newVolumeConfig(context, id);
+        VolumeConfig volumeConfig = new VolumeConfigGenerator(context, ShardKind.REDIS, id).volumeConfig();
         try {
             this.volume = volumeService.newVolume(volumeConfig);
         } catch (IOException e) {

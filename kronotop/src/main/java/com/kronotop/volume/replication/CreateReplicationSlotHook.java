@@ -17,16 +17,12 @@
 package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.redis.storage.RedisShardVolumeConfig;
 import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.VolumeConfigGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,12 +38,16 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
 
     @Override
     public void run(ShardKind shardKind, int shardId) {
-        VolumeConfig volumeConfig = RedisShardVolumeConfig.newVolumeConfig(context, shardId);
-        ReplicationConfigNG config = new ReplicationConfigNG(volumeConfig, shardKind, shardId, context.getMember().getId());
-        ReplicationSlotNG.newSlot(context.getFoundationDB(), config);
-        LOGGER.info("Created replication slot for ShardKind: {} ShardId: {}",
-                shardKind,
-                shardId
-        );
+        VolumeConfig volumeConfig = new VolumeConfigGenerator(context, shardKind, shardId).volumeConfig();
+        ReplicationConfigNG replicationConfig = new ReplicationConfigNG(volumeConfig, shardKind, shardId, context.getMember().getId());
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            ReplicationSlotNG.newSlot(tr, replicationConfig);
+            LOGGER.info("Created replication slot for ShardKind: {} ShardId: {}",
+                    shardKind,
+                    shardId
+            );
+            tr.commit().join();
+        }
     }
 }
