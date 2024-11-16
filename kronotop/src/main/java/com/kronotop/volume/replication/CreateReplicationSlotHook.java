@@ -16,13 +16,10 @@
 
 package com.kronotop.volume.replication;
 
-import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -30,8 +27,6 @@ import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.CompletionException;
 
 public class CreateReplicationSlotHook implements RoutingEventHook {
     private static final Logger LOGGER = LoggerFactory.getLogger(CreateReplicationSlotHook.class);
