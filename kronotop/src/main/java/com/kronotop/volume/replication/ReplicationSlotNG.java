@@ -82,8 +82,14 @@ public class ReplicationSlotNG {
                 slot.getSnapshots().put(segmentId, snapshot);
             }
 
-            byte[] value = JSONUtils.writeValueAsBytes(slot);
-            tr.set(slotKey(config), value);
+            byte[] key = slotKey(config);
+            tr.get(key).thenAccept((value) -> {
+                if (value == null) {
+                    value = JSONUtils.writeValueAsBytes(slot);
+                    tr.set(key, value);
+                }
+                throw new IllegalArgumentException("ReplicationSlot already exists");
+            });
             tr.commit().join();
         }
     }
