@@ -91,4 +91,13 @@ public class VolumeConfigGenerator {
             throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
         }
     }
+
+    public DirectorySubspace createOrOpenVolumeSubspace () {
+        if (shardKind.equals(ShardKind.REDIS)) {
+            KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
+            return createOrOpenVolumeSubspace(directory);
+        } else {
+            throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
+        }
+    }
 }

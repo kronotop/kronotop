@@ -16,11 +16,11 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.volume.VolumeConfig;
 
 public record ReplicationConfigNG(
-        VolumeConfig volumeConfig,
+        DirectorySubspace volumeSubspace,
         ShardKind shardKind,
         Integer shardId,
         String memberId,

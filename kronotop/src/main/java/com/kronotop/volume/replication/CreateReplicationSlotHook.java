@@ -17,6 +17,7 @@
 package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingService;
@@ -38,9 +39,9 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
 
     @Override
     public void run(ShardKind shardKind, int shardId) {
-        VolumeConfig volumeConfig = new VolumeConfigGenerator(context, shardKind, shardId).volumeConfig();
+        DirectorySubspace volumeSubspace = new VolumeConfigGenerator(context, shardKind, shardId).createOrOpenVolumeSubspace();
         ReplicationConfigNG replicationConfig = new ReplicationConfigNG(
-                volumeConfig,
+                volumeSubspace,
                 shardKind,
                 shardId,
                 context.getMember().getId(),
