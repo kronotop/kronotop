@@ -41,28 +41,28 @@ public class ReplicationSlotNG {
 
     private static byte[] slotKey(ReplicationConfigNG config) {
         Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.shardKind().name(), config.shardId(), config.memberId());
-        return config.subspace().pack(tuple);
+        return config.volumeConfig().subspace().pack(tuple);
     }
 
     private static Snapshot newSegmentSnapshot(Transaction tr, ReplicationConfigNG config, long segmentId) {
         String segmentName = Segment.generateName(segmentId);
         SegmentLogEntry firstEntry = new SegmentLogIterable(
                 tr,
-                config.subspace(),
+                config.volumeConfig().subspace(),
                 segmentName,
                 null,
                 null, 1
         ).iterator().next();
         SegmentLogEntry lastEntry = new SegmentLogIterable(
                 tr,
-                config.subspace(),
+                config.volumeConfig().subspace(),
                 segmentName,
                 null,
                 null,
                 1, true
         ).iterator().next();
 
-        SegmentLog segmentLog = new SegmentLog(segmentName, config.subspace());
+        SegmentLog segmentLog = new SegmentLog(segmentName, config.volumeConfig().subspace());
         int totalEntries = segmentLog.getCardinality(tr);
         return new Snapshot(
                 segmentId,
@@ -76,7 +76,7 @@ public class ReplicationSlotNG {
         ReplicationSlotNG slot = new ReplicationSlotNG();
 
         try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
+            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.volumeConfig().subspace());
             for (Long segmentId : volumeMetadata.getSegments()) {
                 Snapshot snapshot = newSegmentSnapshot(tr, config, segmentId);
                 slot.getSnapshots().put(segmentId, snapshot);

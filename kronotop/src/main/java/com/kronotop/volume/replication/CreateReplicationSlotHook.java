@@ -25,6 +25,8 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.redis.storage.RedisShardVolumeConfig;
+import com.kronotop.volume.VolumeConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,27 +40,10 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
         this.routing = context.getService(RoutingService.NAME);
     }
 
-    private DirectorySubspace openVolumeSubspace(ShardKind shardKind, int shardId) {
-        if (shardKind.equals(ShardKind.REDIS)) {
-            KronotopDirectoryNode directory = KronotopDirectory.
-                    kronotop().
-                    cluster(context.getClusterName()).
-                    metadata().
-                    volumes().
-                    redis().
-                    volume(Integer.toString(shardId));
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                return DirectoryLayer.getDefault().open(tr, directory.toList()).join();
-            }
-        } else {
-            throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
-        }
-    }
-
     @Override
     public void run(ShardKind shardKind, int shardId) {
-        DirectorySubspace subspace = openVolumeSubspace(shardKind, shardId);
-        ReplicationConfigNG config = new ReplicationConfigNG(subspace, shardKind, shardId, context.getMember().getId());
+        VolumeConfig volumeConfig = RedisShardVolumeConfig.newVolumeConfig(context, shardId);
+        ReplicationConfigNG config = new ReplicationConfigNG(volumeConfig, shardKind, shardId, context.getMember().getId());
         ReplicationSlotNG.newSlot(context.getFoundationDB(), config);
         LOGGER.info("Created replication slot for ShardKind: {} ShardId: {}",
                 shardKind,
