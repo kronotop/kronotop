@@ -40,7 +40,7 @@ public class VolumeConfigGenerator {
         this.shardId = shardId;
     }
 
-    private KronotopDirectoryNode getKronotopDirectoryNode() {
+    private KronotopDirectoryNode getRedisShardVolumeDirectory() {
         return KronotopDirectory.
                 kronotop().
                 cluster(context.getClusterName()).
@@ -84,7 +84,7 @@ public class VolumeConfigGenerator {
 
     public VolumeConfig volumeConfig() {
         if (shardKind.equals(ShardKind.REDIS)) {
-            KronotopDirectoryNode directory = getKronotopDirectoryNode();
+            KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
             DirectorySubspace subspace = createOrOpenVolumeSubspace(directory);
             return newRedisShardVolumeConfig(subspace);
         } else {

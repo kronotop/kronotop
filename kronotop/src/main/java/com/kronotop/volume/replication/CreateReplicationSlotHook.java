@@ -39,8 +39,12 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
     @Override
     public void run(ShardKind shardKind, int shardId) {
         VolumeConfig volumeConfig = new VolumeConfigGenerator(context, shardKind, shardId).volumeConfig();
-        ReplicationConfigNG replicationConfig = new ReplicationConfigNG(volumeConfig, shardKind, shardId, context.getMember().getId());
-
+        ReplicationConfigNG replicationConfig = new ReplicationConfigNG(
+                volumeConfig,
+                shardKind,
+                shardId,
+                context.getMember().getId(),
+                false);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationSlotNG.newSlot(tr, replicationConfig);
             LOGGER.info("Created replication slot for ShardKind: {} ShardId: {}",
@@ -48,6 +52,8 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
                     shardId
             );
             tr.commit().join();
+        } catch (ReplicationSlotExistsException e) {
+            LOGGER.error("Error while creating replication slot", e);
         }
     }
 }

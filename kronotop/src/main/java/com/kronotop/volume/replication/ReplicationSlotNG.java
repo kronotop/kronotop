@@ -86,7 +86,7 @@ public class ReplicationSlotNG {
                 value = JSONUtils.writeValueAsBytes(slot);
                 tr.set(key, value);
             }
-            throw new IllegalArgumentException("ReplicationSlot already exists");
+            throw new ReplicationSlotExistsException("ReplicationSlot already exists");
         });
     }
 

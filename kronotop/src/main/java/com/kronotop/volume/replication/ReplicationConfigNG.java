@@ -23,6 +23,7 @@ public record ReplicationConfigNG(
         VolumeConfig volumeConfig,
         ShardKind shardKind,
         Integer shardId,
-        String memberId
+        String memberId,
+        boolean streamingOnly
 ) {
 }
