@@ -52,9 +52,9 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
     ) {
         Tuple tuple = Tuple.from(
                 MEMBER_REPLICATION_SLOT_SUBSPACE,
+                context.getMember().getId(),
                 shardKind.name(),
-                shardId,
-                context.getMember().getId()
+                shardId
         );
         tr.mutate(
                 MutationType.SET_VERSIONSTAMPED_VALUE,
