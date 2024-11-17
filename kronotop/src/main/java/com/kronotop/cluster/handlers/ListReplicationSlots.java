@@ -23,7 +23,6 @@ import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.JSONUtils;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
@@ -31,7 +30,7 @@ import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
-import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_SLOT_SUBSPACE;
+import static com.kronotop.volume.Subspaces.REPLICATION_SLOT_SUBSPACE;
 
 public class ListReplicationSlots extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -62,7 +61,7 @@ public class ListReplicationSlots extends BaseKrAdminSubcommandHandler implement
                         redis().
                         volume(Integer.toString(shardId));
                 DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
-                Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE);
+                Tuple tuple = Tuple.from(REPLICATION_SLOT_SUBSPACE);
                 Range range = Range.startsWith(subspace.pack(tuple));
                 AsyncIterable<KeyValue> iterable = tr.getRange(range);
                 for (KeyValue keyValue : iterable) {

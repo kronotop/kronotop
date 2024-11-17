@@ -27,7 +27,7 @@ import com.kronotop.volume.segment.Segment;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 
-import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_SLOT_SUBSPACE;
+import static com.kronotop.volume.Subspaces.REPLICATION_SLOT_SUBSPACE;
 
 /**
  * Class representing a replication slot used for database replication.
@@ -42,7 +42,7 @@ public class ReplicationSlotNG {
 
     private static byte[] slotKey(ReplicationConfigNG config) {
         Tuple tuple = Tuple.from(
-                SEGMENT_REPLICATION_SLOT_SUBSPACE,
+                REPLICATION_SLOT_SUBSPACE,
                 config.shardKind().name(),
                 config.shardId(),
                 Versionstamp.incomplete()
@@ -52,7 +52,7 @@ public class ReplicationSlotNG {
 
     private static byte[] slotKey(ReplicationConfigNG config, Versionstamp slotId) {
         Tuple tuple = Tuple.from(
-                SEGMENT_REPLICATION_SLOT_SUBSPACE,
+                REPLICATION_SLOT_SUBSPACE,
                 config.shardKind().name(),
                 config.shardId(),
                 slotId

@@ -31,7 +31,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-import static com.kronotop.volume.Subspaces.SEGMENT_REPLICATION_SLOT_SUBSPACE;
+import static com.kronotop.volume.Subspaces.REPLICATION_SLOT_SUBSPACE;
 
 /**
  * Class representing a replication slot used for database replication.
@@ -81,7 +81,7 @@ public class ReplicationSlot {
                 replicationSlot.getSnapshots().put(segmentId, snapshot);
             }
 
-            byte[] key = subspace.packWithVersionstamp(Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, standbyMember.getId(), Versionstamp.incomplete()));
+            byte[] key = subspace.packWithVersionstamp(Tuple.from(REPLICATION_SLOT_SUBSPACE, standbyMember.getId(), Versionstamp.incomplete()));
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(replicationSlot));
             future = tr.getVersionstamp();
             tr.commit().join();
@@ -100,7 +100,7 @@ public class ReplicationSlot {
      * @throws ReplicationSlotNotFoundException if no replication slot is found.
      */
     public static ReplicationSlot load(Transaction tr, ReplicationConfig config) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.standby().member().getId(), config.slotId());
+        Tuple tuple = Tuple.from(REPLICATION_SLOT_SUBSPACE, config.standby().member().getId(), config.slotId());
         byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {
@@ -119,7 +119,7 @@ public class ReplicationSlot {
      * @throws ReplicationSlotNotFoundException if no replication slot is found.
      */
     public static ReplicationSlot compute(Transaction tr, ReplicationConfig config, Consumer<ReplicationSlot> remappingFunction) {
-        Tuple tuple = Tuple.from(SEGMENT_REPLICATION_SLOT_SUBSPACE, config.standby().member().getId(), config.slotId());
+        Tuple tuple = Tuple.from(REPLICATION_SLOT_SUBSPACE, config.standby().member().getId(), config.slotId());
         byte[] packedKey = config.subspace().pack(tuple);
         byte[] value = tr.get(packedKey).join();
         if (value == null) {

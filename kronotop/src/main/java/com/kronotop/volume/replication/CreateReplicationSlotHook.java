@@ -16,8 +16,10 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.VersionstampUtils;
@@ -30,6 +32,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 
+import static com.kronotop.volume.Subspaces.MEMBER_REPLICATION_SLOT_SUBSPACE;
+
 public class CreateReplicationSlotHook implements RoutingEventHook {
     private static final Logger LOGGER = LoggerFactory.getLogger(CreateReplicationSlotHook.class);
     private final Context context;
@@ -40,6 +44,25 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
         this.routing = context.getService(RoutingService.NAME);
     }
 
+    private void registerReplicationSlot(
+            Transaction tr,
+            DirectorySubspace volumeSubspace,
+            ShardKind shardKind,
+            int shardId
+    ) {
+        Tuple tuple = Tuple.from(
+                MEMBER_REPLICATION_SLOT_SUBSPACE,
+                shardKind.name(),
+                shardId,
+                context.getMember().getId()
+        );
+        tr.mutate(
+                MutationType.SET_VERSIONSTAMPED_VALUE,
+                volumeSubspace.pack(tuple),
+                Tuple.from(Versionstamp.incomplete()).packWithVersionstamp()
+        );
+    }
+
     @Override
     public void run(ShardKind shardKind, int shardId) {
         DirectorySubspace volumeSubspace = new VolumeConfigGenerator(context, shardKind, shardId).createOrOpenVolumeSubspace();
@@ -48,16 +71,20 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
                 shardKind,
                 shardId,
                 false);
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationSlotNG.newSlot(tr, replicationConfig);
+            registerReplicationSlot(tr, volumeSubspace, shardKind, shardId);
 
             CompletableFuture<byte[]> future = tr.getVersionstamp();
             tr.commit().join();
 
             byte[] trVersion = future.join();
             Versionstamp slotId = Versionstamp.complete(trVersion);
-            LOGGER.info("Created replication slot with SlotID: {}",
-                    VersionstampUtils.base64Encode(slotId)
+            LOGGER.info("Created replication slot with SlotID: {} for ShardKind: {}, ShardId: {}",
+                    VersionstampUtils.base64Encode(slotId),
+                    shardKind,
+                    shardId
             );
         }
     }
