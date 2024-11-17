@@ -28,7 +28,10 @@ import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
+import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
 import com.kronotop.redis.handlers.connection.protocol.PingMessage;
+import com.kronotop.redis.handlers.protocol.InfoMessage;
+import com.kronotop.redis.server.protocol.CommandMessage;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
@@ -56,9 +59,11 @@ public class KronotopTestInstance extends KronotopInstance {
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
     private final Set<String> duplicatedCommands = new HashSet<>(List.of(
             ClientMessage.COMMAND,
-            PingMessage.COMMAND
+            PingMessage.COMMAND,
+            CommandMessage.COMMAND,
+            ClusterMessage.COMMAND,
+            InfoMessage.COMMAND
     ));
-    private final Object clusterOperable = new Object();
     private final boolean runWithTCPServer;
     private EmbeddedChannel channel;
 
