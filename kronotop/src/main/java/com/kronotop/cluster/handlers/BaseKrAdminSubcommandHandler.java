@@ -19,6 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.VersionstampUtils;
@@ -30,6 +31,7 @@ import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.volume.replication.ReplicationSlotNG;
 import io.netty.buffer.ByteBuf;
 
 import java.util.*;
@@ -271,5 +273,54 @@ public class BaseKrAdminSubcommandHandler {
             throw new KronotopException("more than one member found with prefix: " + prefix);
         }
         return result.iterator().next();
+    }
+
+    /**
+     * Converts a given replication slot into a Map of RedisMessage key-value pairs.
+     *
+     * @param shardKind The type of shard. Must be of type {@link ShardKind}.
+     * @param shardId The ID of the shard.
+     * @param slot The replication slot to be converted into a Map.
+     * @return A Map containing RedisMessage key-value pairs representing the attributes of the replication slot.
+     */
+    protected Map<RedisMessage, RedisMessage> replicationSlotToMap(ShardKind shardKind, int shardId, ReplicationSlotNG slot) {
+        Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
+
+        current.put(
+                new SimpleStringRedisMessage("shard_kind"),
+                new SimpleStringRedisMessage(shardKind.name())
+        );
+
+        current.put(
+                new SimpleStringRedisMessage("shard_id"),
+                new IntegerRedisMessage(shardId)
+        );
+
+        String replicationStage = "";
+        if (slot.getReplicationStage() != null) {
+            replicationStage = slot.getReplicationStage().name();
+        }
+        current.put(
+                new SimpleStringRedisMessage("replication_stage"),
+                new SimpleStringRedisMessage(replicationStage)
+        );
+
+        current.put(
+                new SimpleStringRedisMessage("latest_segment_id"),
+                new IntegerRedisMessage(slot.getLatestSegmentId())
+        );
+
+        String latestVersionstampedKey = "";
+        if (slot.getLatestVersionstampedKey() != null) {
+            latestVersionstampedKey = VersionstampUtils.base64Encode(
+                    Versionstamp.fromBytes(slot.getLatestVersionstampedKey())
+            );
+        }
+        current.put(
+                new SimpleStringRedisMessage("latest_versionstamped_key"),
+                new SimpleStringRedisMessage(latestVersionstampedKey)
+        );
+
+        return current;
     }
 }
