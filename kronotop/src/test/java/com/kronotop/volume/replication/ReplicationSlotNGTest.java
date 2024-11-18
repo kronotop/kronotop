@@ -30,15 +30,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ReplicationSlotNGTest extends BaseVolumeIntegrationTest {
 
-    private ReplicationConfigNG getReplicationConfig() {
+    private ReplicationConfig getReplicationConfig() {
         VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
         DirectorySubspace subspace = generator.createOrOpenVolumeSubspace();
-        return new ReplicationConfigNG(subspace, ShardKind.REDIS, 1, false);
+        return new ReplicationConfig(subspace, ShardKind.REDIS, 1, false);
     }
 
     @Test
     public void test_newSlot() {
-        ReplicationConfigNG config = getReplicationConfig();
+        ReplicationConfig config = getReplicationConfig();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             assertDoesNotThrow(() -> ReplicationSlot.newSlot(tr, config));
             tr.commit().join();
@@ -48,7 +48,7 @@ class ReplicationSlotNGTest extends BaseVolumeIntegrationTest {
     @Test
     public void test_load() {
         Versionstamp slotId;
-        ReplicationConfigNG config = getReplicationConfig();
+        ReplicationConfig config = getReplicationConfig();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             assertDoesNotThrow(() -> ReplicationSlot.newSlot(tr, config));
             CompletableFuture<byte[]> future = tr.getVersionstamp();
@@ -65,7 +65,7 @@ class ReplicationSlotNGTest extends BaseVolumeIntegrationTest {
     @Test
     public void test_compute() {
         Versionstamp slotId;
-        ReplicationConfigNG config = getReplicationConfig();
+        ReplicationConfig config = getReplicationConfig();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             assertDoesNotThrow(() -> ReplicationSlot.newSlot(tr, config));

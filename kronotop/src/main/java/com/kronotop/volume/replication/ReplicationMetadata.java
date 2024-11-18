@@ -32,7 +32,7 @@ public class ReplicationMetadata {
     private static void registerReplicationSlot(
             Context context,
             Transaction tr,
-            ReplicationConfigNG config
+            ReplicationConfig config
     ) {
         Tuple tuple = Tuple.from(
                 MEMBER_REPLICATION_SLOT_SUBSPACE,
@@ -47,7 +47,7 @@ public class ReplicationMetadata {
         );
     }
 
-    public static Versionstamp newReplication(Context context, ReplicationConfigNG config) {
+    public static Versionstamp newReplication(Context context, ReplicationConfig config) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationSlot.newSlot(tr, config);
             registerReplicationSlot(context, tr, config);
@@ -60,7 +60,7 @@ public class ReplicationMetadata {
         }
     }
 
-    public static Versionstamp findSlotId(Context context, ReplicationConfigNG config) {
+    public static Versionstamp findSlotId(Context context, ReplicationConfig config) {
         Tuple tuple = Tuple.from(
                 MEMBER_REPLICATION_SLOT_SUBSPACE,
                 context.getMember().getId(),

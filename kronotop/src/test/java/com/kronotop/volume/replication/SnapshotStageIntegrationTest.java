@@ -44,7 +44,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     private void checkSnapshotStage(Versionstamp[] versionstampedKeys) throws IOException {
-        ReplicationConfigNG config = new ReplicationConfigNG(volumeConfig.subspace(), ShardKind.REDIS, 1, false);
+        ReplicationConfig config = new ReplicationConfig(volumeConfig.subspace(), ShardKind.REDIS, 1, false);
         Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
 
         Replication replication = new Replication(context, config);

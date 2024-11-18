@@ -37,7 +37,7 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
     @Override
     public void run(ShardKind shardKind, int shardId) {
         DirectorySubspace volumeSubspace = new VolumeConfigGenerator(context, shardKind, shardId).createOrOpenVolumeSubspace();
-        ReplicationConfigNG config = new ReplicationConfigNG(
+        ReplicationConfig config = new ReplicationConfig(
                 volumeSubspace,
                 shardKind,
                 shardId,

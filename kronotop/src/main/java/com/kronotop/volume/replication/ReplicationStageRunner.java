@@ -38,7 +38,7 @@ public class ReplicationStageRunner {
     protected static final int MAXIMUM_BATCH_SIZE = 100;
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationStageRunner.class);
     protected final Context context;
-    protected final ReplicationConfigNG config;
+    protected final ReplicationConfig config;
     protected final VolumeConfig volumeConfig;
     protected final StatefulInternalConnection<byte[], byte[]> connection;
     protected final HashMap<Long, Segment> openSegments = new HashMap<>();

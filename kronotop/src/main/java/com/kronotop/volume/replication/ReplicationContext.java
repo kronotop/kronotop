@@ -23,7 +23,7 @@ import com.kronotop.volume.VolumeConfig;
 
 public record ReplicationContext(
         Versionstamp slotId,
-        ReplicationConfigNG config,
+        ReplicationConfig config,
         VolumeConfig volumeConfig,
         StatefulInternalConnection<byte[], byte[]> connection
 ) {

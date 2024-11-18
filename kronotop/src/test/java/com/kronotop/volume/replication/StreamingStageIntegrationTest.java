@@ -48,7 +48,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
     private Path standbyVolumeDataDir;
 
     private Replication newReplication() {
-        ReplicationConfigNG config = new ReplicationConfigNG(volume.getConfig().subspace(), ShardKind.REDIS, 1, true);
+        ReplicationConfig config = new ReplicationConfig(volume.getConfig().subspace(), ShardKind.REDIS, 1, true);
         ReplicationMetadata.newReplication(context, config);
         return new Replication(context, config);
     }

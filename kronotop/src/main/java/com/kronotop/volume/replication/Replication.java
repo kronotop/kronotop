@@ -45,14 +45,14 @@ public class Replication {
     private final Context context;
     private final Versionstamp slotId;
     private final VolumeConfig volumeConfig;
-    private final ReplicationConfigNG config;
+    private final ReplicationConfig config;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final AtomicReference<StageRunner> activeStageRunner = new AtomicReference<>();
     private final RedisClusterClient client;
     private volatile boolean started = false;
     private volatile boolean stopped = false;
 
-    public Replication(Context context, ReplicationConfigNG config) {
+    public Replication(Context context, ReplicationConfig config) {
         this.context = context;
         this.config = config;
 

@@ -17,20 +17,12 @@
 package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.VersionstampUtils;
+import com.kronotop.cluster.sharding.ShardKind;
 
 public record ReplicationConfig(
-        Host primary,
-        Host standby,
-        DirectorySubspace subspace,
-        Versionstamp slotId,
-        String volumeName,
-        Long segmentSize,
-        String dataDir,
-        boolean streamingOnly) {
-
-    public String stringifySlotId() {
-        return VersionstampUtils.base64Encode(slotId);
-    }
+        DirectorySubspace volumeSubspace,
+        ShardKind shardKind,
+        Integer shardId,
+        boolean streamingOnly
+) {
 }

@@ -41,7 +41,7 @@ public class ReplicationSlot {
     private long latestSegmentId;
     private byte[] latestVersionstampedKey;
 
-    private static byte[] slotKey(ReplicationConfigNG config) {
+    private static byte[] slotKey(ReplicationConfig config) {
         Tuple tuple = Tuple.from(
                 REPLICATION_SLOT_SUBSPACE,
                 config.shardKind().name(),
@@ -51,7 +51,7 @@ public class ReplicationSlot {
         return config.volumeSubspace().packWithVersionstamp(tuple);
     }
 
-    private static byte[] slotKey(ReplicationConfigNG config, Versionstamp slotId) {
+    private static byte[] slotKey(ReplicationConfig config, Versionstamp slotId) {
         Tuple tuple = Tuple.from(
                 REPLICATION_SLOT_SUBSPACE,
                 config.shardKind().name(),
@@ -61,7 +61,7 @@ public class ReplicationSlot {
         return config.volumeSubspace().pack(tuple);
     }
 
-    private static Snapshot newSegmentSnapshot(Transaction tr, ReplicationConfigNG config, long segmentId) {
+    private static Snapshot newSegmentSnapshot(Transaction tr, ReplicationConfig config, long segmentId) {
         String segmentName = Segment.generateName(segmentId);
         SegmentLogEntry firstEntry = new SegmentLogIterable(
                 tr,
@@ -89,7 +89,7 @@ public class ReplicationSlot {
         );
     }
 
-    public static void newSlot(Transaction tr, ReplicationConfigNG config) {
+    public static void newSlot(Transaction tr, ReplicationConfig config) {
         ReplicationSlot slot = new ReplicationSlot();
 
         VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.volumeSubspace());
@@ -102,7 +102,7 @@ public class ReplicationSlot {
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(slot));
     }
 
-    public static ReplicationSlot load(Transaction tr, ReplicationConfigNG config, Versionstamp slotId) {
+    public static ReplicationSlot load(Transaction tr, ReplicationConfig config, Versionstamp slotId) {
         byte[] key = slotKey(config, slotId);
         byte[] value = tr.get(key).join();
         if (value == null) {
@@ -111,7 +111,7 @@ public class ReplicationSlot {
         return JSONUtils.readValue(value, ReplicationSlot.class);
     }
 
-    public static ReplicationSlot compute(Transaction tr, ReplicationConfigNG config, Versionstamp slotId, Consumer<ReplicationSlot> remappingFunction) {
+    public static ReplicationSlot compute(Transaction tr, ReplicationConfig config, Versionstamp slotId, Consumer<ReplicationSlot> remappingFunction) {
         byte[] key = slotKey(config, slotId);
         byte[] value = tr.get(key).join();
         if (value == null) {
