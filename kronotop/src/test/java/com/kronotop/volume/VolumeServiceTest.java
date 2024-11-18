@@ -16,7 +16,7 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.cluster.sharding.ShardKind;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,8 +31,8 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
     @BeforeEach
     public void setUp() {
-        DirectorySubspace subspace = getSubspace(database, config);
-        volumeConfig = getVolumeConfig(config, subspace);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
+        volumeConfig = generator.volumeConfig();
         service = context.getService(VolumeService.NAME);
     }
 

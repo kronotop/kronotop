@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.cluster.sharding.ShardKind;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -29,7 +30,8 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
     protected Prefix redisVolumeSyncerPrefix;
 
     void setupVolumeTestEnv() throws IOException {
-        VolumeConfig volumeConfig = getVolumeConfig(config, subspace);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
+        VolumeConfig volumeConfig = generator.volumeConfig();
         service = context.getService(VolumeService.NAME);
         volume = service.newVolume(volumeConfig);
         redisVolumeSyncerPrefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
@@ -37,7 +39,8 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
 
     @BeforeEach
     public void setupIntegrationTest() {
-        subspace = getSubspace(database, config);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
+        subspace = generator.createOrOpenVolumeSubspace();
 
         try {
             setupVolumeTestEnv();

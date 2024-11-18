@@ -44,7 +44,15 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     private void checkSnapshotStage(Versionstamp[] versionstampedKeys) throws IOException {
-        ReplicationConfig config = new ReplicationConfig(volumeConfig.subspace(), ShardKind.REDIS, 1, false);
+        VolumeConfig standbyVolumeConfig = new VolumeConfig(
+                volume.getConfig().subspace(),
+                volume.getConfig().name(),
+                standbyVolumeDataDir.toString(),
+                volume.getConfig().segmentSize(),
+                volume.getConfig().allowedGarbageRatio()
+        );
+
+        ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, false);
         Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
 
         Replication replication = new Replication(context, config);
@@ -69,16 +77,8 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
             }
         }
 
-        VolumeConfig replicaVolumeConfig = new VolumeConfig(
-                volume.getConfig().subspace(),
-                volume.getConfig().name(),
-                volume.getConfig().dataDir(),
-                volume.getConfig().segmentSize(),
-                volume.getConfig().allowedGarbageRatio()
-        );
-
         Session session = new Session(prefix);
-        Volume replicaVolume = new Volume(context, replicaVolumeConfig);
+        Volume replicaVolume = new Volume(context, standbyVolumeConfig);
         for (Versionstamp versionstampedKey : versionstampedKeys) {
             ByteBuffer buf = volume.get(session, versionstampedKey);
             ByteBuffer replicaBuf = replicaVolume.get(session, versionstampedKey);

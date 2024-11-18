@@ -17,11 +17,10 @@
 package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseClusterTestWithTCPServer;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.*;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,8 +47,8 @@ public class BaseNetworkedVolumeTest extends BaseClusterTestWithTCPServer {
         database = kronotopInstance.getContext().getFoundationDB();
         VolumeService volumeService = kronotopInstance.getContext().getService(VolumeService.NAME);
 
-        DirectorySubspace subspace = baseVolumeTestWrapper.getSubspace(database, kronotopInstance.getContext().getConfig());
-        volumeConfig = baseVolumeTestWrapper.getVolumeConfig(kronotopInstance.getContext().getConfig(), subspace);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
+        volumeConfig = generator.volumeConfig();
         try {
             volume = volumeService.newVolume(volumeConfig);
         } catch (IOException e) {

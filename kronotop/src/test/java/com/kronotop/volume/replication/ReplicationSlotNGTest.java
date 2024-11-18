@@ -21,6 +21,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.BaseVolumeIntegrationTest;
+import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeConfigGenerator;
 import org.junit.jupiter.api.Test;
 
@@ -32,8 +33,8 @@ class ReplicationSlotNGTest extends BaseVolumeIntegrationTest {
 
     private ReplicationConfig getReplicationConfig() {
         VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
-        DirectorySubspace subspace = generator.createOrOpenVolumeSubspace();
-        return new ReplicationConfig(subspace, ShardKind.REDIS, 1, false);
+        VolumeConfig volumeConfig = generator.volumeConfig();
+        return new ReplicationConfig(volumeConfig, ShardKind.REDIS, 1, false);
     }
 
     @Test

@@ -43,7 +43,7 @@ public class ReplicationMetadata {
         );
         tr.mutate(
                 MutationType.SET_VERSIONSTAMPED_VALUE,
-                config.volumeSubspace().pack(tuple),
+                config.volumeConfig().subspace().pack(tuple),
                 Tuple.from(Versionstamp.incomplete()).packWithVersionstamp()
         );
     }
@@ -69,7 +69,7 @@ public class ReplicationMetadata {
                 config.shardId()
         );
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] value = tr.get(config.volumeSubspace().pack(tuple)).join();
+            byte[] value = tr.get(config.volumeConfig().subspace().pack(tuple)).join();
             byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
             return Versionstamp.complete(trVersion);
         }

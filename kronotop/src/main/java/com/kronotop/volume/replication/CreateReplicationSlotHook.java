@@ -22,6 +22,7 @@ import com.kronotop.Context;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeConfigGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +37,9 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
 
     @Override
     public void run(ShardKind shardKind, int shardId) {
-        DirectorySubspace volumeSubspace = new VolumeConfigGenerator(context, shardKind, shardId).createOrOpenVolumeSubspace();
+        VolumeConfig volumeConfig = new VolumeConfigGenerator(context, shardKind, shardId).volumeConfig();
         ReplicationConfig config = new ReplicationConfig(
-                volumeSubspace,
+                volumeConfig,
                 shardKind,
                 shardId,
                 false);

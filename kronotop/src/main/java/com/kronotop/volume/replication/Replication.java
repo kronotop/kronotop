@@ -63,9 +63,7 @@ public class Replication {
         }
 
         this.slotId = ReplicationMetadata.findSlotId(context, config);
-
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, config.shardKind(), config.shardId());
-        this.volumeConfig = generator.volumeConfig();
+        this.volumeConfig = config.volumeConfig();
 
         Member member = route.primary();
         this.client = RedisClusterClient.create(

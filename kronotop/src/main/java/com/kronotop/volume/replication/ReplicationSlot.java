@@ -48,7 +48,7 @@ public class ReplicationSlot {
                 config.shardId(),
                 Versionstamp.incomplete()
         );
-        return config.volumeSubspace().packWithVersionstamp(tuple);
+        return config.volumeConfig().subspace().packWithVersionstamp(tuple);
     }
 
     private static byte[] slotKey(ReplicationConfig config, Versionstamp slotId) {
@@ -58,28 +58,28 @@ public class ReplicationSlot {
                 config.shardId(),
                 slotId
         );
-        return config.volumeSubspace().pack(tuple);
+        return config.volumeConfig().subspace().pack(tuple);
     }
 
     private static Snapshot newSegmentSnapshot(Transaction tr, ReplicationConfig config, long segmentId) {
         String segmentName = Segment.generateName(segmentId);
         SegmentLogEntry firstEntry = new SegmentLogIterable(
                 tr,
-                config.volumeSubspace(),
+                config.volumeConfig().subspace(),
                 segmentName,
                 null,
                 null, 1
         ).iterator().next();
         SegmentLogEntry lastEntry = new SegmentLogIterable(
                 tr,
-                config.volumeSubspace(),
+                config.volumeConfig().subspace(),
                 segmentName,
                 null,
                 null,
                 1, true
         ).iterator().next();
 
-        SegmentLog segmentLog = new SegmentLog(segmentName, config.volumeSubspace());
+        SegmentLog segmentLog = new SegmentLog(segmentName, config.volumeConfig().subspace());
         int totalEntries = segmentLog.getCardinality(tr);
         return new Snapshot(
                 segmentId,
@@ -92,7 +92,7 @@ public class ReplicationSlot {
     public static void newSlot(Transaction tr, ReplicationConfig config) {
         ReplicationSlot slot = new ReplicationSlot();
 
-        VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.volumeSubspace());
+        VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.volumeConfig().subspace());
         for (Long segmentId : volumeMetadata.getSegments()) {
             Snapshot snapshot = newSegmentSnapshot(tr, config, segmentId);
             slot.getSnapshots().put(segmentId, snapshot);
