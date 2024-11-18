@@ -16,9 +16,7 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.volume.replication.Host;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -35,15 +33,6 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
         service = context.getService(VolumeService.NAME);
         volume = service.newVolume(volumeConfig);
         redisVolumeSyncerPrefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
-
-        // Set an owner for this new Volume instance
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeMetadata.compute(tr, subspace, (volumeMetadata -> {
-                Host host = new Host(Role.PRIMARY, context.getMember());
-                volumeMetadata.setPrimary(host);
-            }));
-            tr.commit().join();
-        }
     }
 
     @BeforeEach
