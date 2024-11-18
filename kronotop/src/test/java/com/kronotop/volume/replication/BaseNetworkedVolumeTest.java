@@ -26,6 +26,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 public class BaseNetworkedVolumeTest extends BaseClusterTestWithTCPServer {
     protected final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
@@ -52,7 +53,7 @@ public class BaseNetworkedVolumeTest extends BaseClusterTestWithTCPServer {
         try {
             volume = volumeService.newVolume(volumeConfig);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
     }
 
