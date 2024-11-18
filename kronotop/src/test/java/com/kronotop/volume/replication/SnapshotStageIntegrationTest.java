@@ -55,7 +55,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, false);
         Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
 
-        Replication replication = new Replication(context, config);
+        Replication replication = new Replication(context, slotId, config);
         try {
             replication.start();
             await().atMost(5, TimeUnit.SECONDS).until(() -> {

@@ -25,7 +25,6 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.volume.VolumeConfig;
-import com.kronotop.volume.VolumeConfigGenerator;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
@@ -52,18 +51,17 @@ public class Replication {
     private volatile boolean started = false;
     private volatile boolean stopped = false;
 
-    public Replication(Context context, ReplicationConfig config) {
+    public Replication(Context context, Versionstamp slotId, ReplicationConfig config) {
         this.context = context;
         this.config = config;
+        this.slotId = slotId;
+        this.volumeConfig = config.volumeConfig();
 
         RoutingService routing = context.getService(RoutingService.NAME);
         Route route = routing.findRoute(config.shardKind(), config.shardId());
         if (route == null) {
             throw new IllegalArgumentException("Route not found: " + config.shardKind() + " " + config.shardId());
         }
-
-        this.slotId = ReplicationMetadata.findSlotId(context, config);
-        this.volumeConfig = config.volumeConfig();
 
         Member member = route.primary();
         this.client = RedisClusterClient.create(

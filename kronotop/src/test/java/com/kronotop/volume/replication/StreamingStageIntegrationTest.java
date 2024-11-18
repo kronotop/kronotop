@@ -57,8 +57,8 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
         );
 
         ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, true);
-        ReplicationMetadata.newReplication(context, config);
-        return new Replication(context, config);
+        Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
+        return new Replication(context, slotId, config);
     }
 
     private Versionstamp[] appendKeys(int number) throws IOException {
