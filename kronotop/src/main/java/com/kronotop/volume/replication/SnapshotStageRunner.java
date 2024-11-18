@@ -19,7 +19,6 @@ package com.kronotop.volume.replication;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.segment.Segment;
@@ -35,8 +34,8 @@ import java.util.Map;
 public class SnapshotStageRunner extends ReplicationStageRunner implements StageRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotStageRunner.class);
 
-    SnapshotStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
-        super(context, config, connection);
+    SnapshotStageRunner(Context context, ReplicationContext replicationContext) {
+        super(context, replicationContext);
     }
 
     public String name() {
@@ -44,18 +43,18 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
     }
 
     private boolean isSnapshotCompleted(Transaction tr, long segmentId) {
-        ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config);
-        Snapshot snapshot = replicationSlot.getSnapshots().get(segmentId);
+        ReplicationSlotNG slot = ReplicationSlotNG.load(tr, config, slotId);
+        Snapshot snapshot = slot.getSnapshots().get(segmentId);
         return snapshot.getProcessedEntries() == snapshot.getTotalEntries();
     }
 
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId) throws IOException, NotEnoughSpaceException {
-        ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config);
+        ReplicationSlotNG replicationSlot = ReplicationSlotNG.load(tr, config, slotId);
         Snapshot snapshot = replicationSlot.getSnapshots().get(segmentId);
 
         Segment segment = openSegments.get(segmentId);
         if (segment == null) {
-            SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
+            SegmentConfig segmentConfig = new SegmentConfig(segmentId, volumeConfig.dataDir(), volumeConfig.segmentSize());
             segment = new Segment(segmentConfig);
             openSegments.put(segmentId, segment);
         }
@@ -96,7 +95,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                 }
                 IterationResult result = iterateSegmentLogEntries(tr, segmentId);
                 if (result.processedKeys() > 0) {
-                    ReplicationSlot replicationSlot = ReplicationSlot.compute(tr, config, (slot) -> {
+                    ReplicationSlotNG replicationSlot = ReplicationSlotNG.compute(tr, config, slotId, (slot) -> {
                         Snapshot snapshot = slot.getSnapshots().get(segmentId);
                         snapshot.setBegin(result.latestKey().getBytes());
                         snapshot.setProcessedEntries(result.processedKeys() + snapshot.getProcessedEntries());
@@ -115,7 +114,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
             } catch (IOException | NotEnoughSpaceException e) {
                 LOGGER.atError().setMessage("An error has occurred while running {} stage, retrying, slotId = {}").
                         addArgument(name()).
-                        addArgument(config.stringifySlotId()).
+                        addArgument(ReplicationMetadata.stringifySlotId(slotId)).
                         setCause(e).
                         log();
             }
@@ -123,9 +122,9 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
     }
 
     private void snapshotLoop() {
-        ReplicationSlot replicationSlot;
+        ReplicationSlotNG replicationSlot;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            replicationSlot = ReplicationSlot.load(tr, config);
+            replicationSlot = ReplicationSlotNG.load(tr, config, slotId);
         }
 
         if (replicationSlot.getSnapshots().isEmpty()) {
@@ -149,7 +148,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
 
     private void isSnapshotCompleted() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlot replicationSlot = ReplicationSlot.compute(tr, config, (slot) -> {
+            ReplicationSlotNG replicationSlot = ReplicationSlotNG.compute(tr, config, slotId, (slot) -> {
                 boolean completed = true;
                 for (Map.Entry<Long, Snapshot> entry : slot.getSnapshots().entrySet()) {
                     Snapshot snapshot = entry.getValue();
@@ -168,12 +167,12 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                 }
                 LOGGER.atInfo().setMessage("{} stage has completed, slotId = {}").
                         addArgument(name()).
-                        addArgument(config.stringifySlotId()).
+                        addArgument(ReplicationMetadata.stringifySlotId(slotId)).
                         log();
                 LOGGER.atInfo().setMessage("Number of processed keys during {} stage: {}, slotId = {}").
                         addArgument(name()).
                         addArgument(totalProcessedEntries).
-                        addArgument(config.stringifySlotId()).
+                        addArgument(ReplicationMetadata.stringifySlotId(slotId)).
                         log();
             }
         }
@@ -187,7 +186,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
         } catch (Exception e) {
             LOGGER.atError().setMessage("{} stage has failed, slotId = {}").
                     addArgument(name()).
-                    addArgument(config.stringifySlotId()).
+                    addArgument(ReplicationMetadata.stringifySlotId(slotId)).
                     setCause(e).
                     log();
         }

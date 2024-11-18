@@ -25,7 +25,6 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
-import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.VersionstampedKeySelector;
@@ -53,8 +52,8 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final AtomicBoolean isStreaming = new AtomicBoolean();
 
-    public StreamingStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
-        super(context, config, connection);
+    public StreamingStageRunner(Context context, ReplicationContext replicationContext) {
+        super(context, replicationContext);
     }
 
     public String name() {
@@ -74,7 +73,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId, Versionstamp key) throws IOException, NotEnoughSpaceException {
         Segment segment = openSegments.get(segmentId);
         if (segment == null) {
-            SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
+            SegmentConfig segmentConfig = new SegmentConfig(segmentId, volumeConfig.dataDir(), volumeConfig.segmentSize());
             segment = new Segment(segmentConfig);
             openSegments.put(segmentId, segment);
         }
@@ -100,11 +99,11 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
      * @throws IllegalStateException if no new segment exists
      */
     private long findNextSegmentId(Transaction tr, Versionstamp key) {
-        byte[] packedKey = config.subspace().pack(Tuple.from(ENTRY_SUBSPACE, key));
+        byte[] packedKey = volumeConfig.subspace().pack(Tuple.from(ENTRY_SUBSPACE, key));
         KeySelector begin = KeySelector.firstGreaterThan(packedKey);
         begin.add(1);
 
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(config.subspace().pack(Tuple.from(ENTRY_SUBSPACE))));
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(volumeConfig.subspace().pack(Tuple.from(ENTRY_SUBSPACE))));
         AsyncIterable<KeyValue> iterable = tr.getRange(begin, end, 1);
 
         for (KeyValue keyValue : iterable) {
@@ -119,7 +118,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
      */
     private void streamChanges() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlot.compute(tr, config, (slot) -> {
+            ReplicationSlotNG.compute(tr, config, slotId, (slot) -> {
                 Versionstamp key = slot.getLatestVersionstampedKey() != null ? Versionstamp.fromBytes(slot.getLatestVersionstampedKey()) : null;
                 try {
                     IterationResult iterationResult = iterateSegmentLogEntries(tr, slot.getLatestSegmentId(), key);
@@ -132,7 +131,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                     if (key == null) {
                         LOGGER.atDebug()
                                 .setMessage("It's not possible to find a new segmentId because key is null, slotId = {}")
-                                .addArgument(config.stringifySlotId())
+                                .addArgument(ReplicationMetadata.stringifySlotId(slotId))
                                 .log();
                         return;
                     }
@@ -147,7 +146,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                 } catch (NoSegmentExistsException e) {
                     LOGGER.atDebug()
                             .setMessage("No new segment found, slotId = {}")
-                            .addArgument(config.stringifySlotId())
+                            .addArgument(ReplicationMetadata.stringifySlotId(slotId))
                             .log();
                 }
             });
@@ -166,7 +165,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
     private void startStreaming() {
         while (!isStopped()) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, config.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE)));
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, volumeConfig.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE)));
                 tr.commit().join();
 
                 try {
@@ -178,7 +177,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                     LOGGER.atInfo()
                             .setMessage("{} stage has cancelled, slotId = {}")
                             .addArgument(name())
-                            .addArgument(config.stringifySlotId())
+                            .addArgument(ReplicationMetadata.stringifySlotId(slotId))
                             .log();
                     return; // cancelled
                 } finally {
@@ -189,7 +188,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
             } catch (Exception e) {
                 LOGGER.atError()
                         .setMessage("Error while watching changes, slotId = {}")
-                        .addArgument(config.stringifySlotId())
+                        .addArgument(ReplicationMetadata.stringifySlotId(slotId))
                         .log();
                 // Retrying...
             }
@@ -203,7 +202,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
      */
     private void findStartingPoint() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlot.compute(tr, config, (slot) -> {
+            ReplicationSlotNG.compute(tr, config, slotId, (slot) -> {
                 if (slot.getSnapshots().isEmpty()) {
                     return;
                 }
@@ -218,7 +217,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
 
     @Override
     public void stop() {
-        keyWatcher.unwatch(config.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE)));
+        keyWatcher.unwatch(volumeConfig.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE)));
         super.stop();
     }
 
@@ -234,7 +233,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
         } catch (Exception e) {
             LOGGER.atError().setMessage("{} stage has failed, slotId = {}").
                     addArgument(name()).
-                    addArgument(config.stringifySlotId()).
+                    addArgument(ReplicationMetadata.stringifySlotId(slotId)).
                     setCause(e).
                     log();
         }

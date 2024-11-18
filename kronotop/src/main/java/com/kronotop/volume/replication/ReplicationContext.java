@@ -16,19 +16,15 @@
 
 package com.kronotop.volume.replication;
 
-import com.kronotop.cluster.Member;
-import com.kronotop.volume.Role;
 
-public record Host(Role role, Member member) {
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.cluster.client.StatefulInternalConnection;
+import com.kronotop.volume.VolumeConfig;
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (!(obj instanceof Host(Role role1, Member member1))) {
-            return false;
-        }
-        return member1.getId().equals(member.getId()) && role1.equals(role);
-    }
+public record ReplicationContext(
+        Versionstamp slotId,
+        ReplicationConfigNG config,
+        VolumeConfig volumeConfig,
+        StatefulInternalConnection<byte[], byte[]> connection
+) {
 }

@@ -37,6 +37,7 @@ import static com.kronotop.volume.Subspaces.REPLICATION_SLOT_SUBSPACE;
 public class ReplicationSlotNG {
     private final TreeMap<Long, Snapshot> snapshots = new TreeMap<>();
     private ReplicationStage replicationStage;
+    private boolean snapshotCompleted = false;
     private long latestSegmentId;
     private byte[] latestVersionstampedKey;
 
@@ -148,6 +149,14 @@ public class ReplicationSlotNG {
 
     public void setLatestSegmentId(long latestSegmentId) {
         this.latestSegmentId = latestSegmentId;
+    }
+
+    public boolean isSnapshotCompleted() {
+        return snapshotCompleted;
+    }
+
+    public void setSnapshotCompleted(boolean snapshotCompleted) {
+        this.snapshotCompleted = snapshotCompleted;
     }
 }
 

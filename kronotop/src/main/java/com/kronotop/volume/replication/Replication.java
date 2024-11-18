@@ -17,10 +17,15 @@
 package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
+import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.VolumeConfigGenerator;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
@@ -38,18 +43,31 @@ public class Replication {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replication.class);
     protected final StatefulInternalConnection<byte[], byte[]> connection;
     private final Context context;
-    private final ReplicationConfig config;
+    private final Versionstamp slotId;
+    private final VolumeConfig volumeConfig;
+    private final ReplicationConfigNG config;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final AtomicReference<StageRunner> activeStageRunner = new AtomicReference<>();
     private final RedisClusterClient client;
     private volatile boolean started = false;
     private volatile boolean stopped = false;
 
-    public Replication(Context context, ReplicationConfig config) {
+    public Replication(Context context, ReplicationConfigNG config) {
         this.context = context;
         this.config = config;
 
-        Member member = config.primary().member();
+        RoutingService routing = context.getService(RoutingService.NAME);
+        Route route = routing.findRoute(config.shardKind(), config.shardId());
+        if (route == null) {
+            throw new IllegalArgumentException("Route not found: " + config.shardKind() + " " + config.shardId());
+        }
+
+        this.slotId = ReplicationMetadata.findSlotId(context, config);
+
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, config.shardKind(), config.shardId());
+        this.volumeConfig = generator.volumeConfig();
+
+        Member member = route.primary();
         this.client = RedisClusterClient.create(
                 String.format("redis://%s:%d", member.getExternalAddress().getHost(), member.getExternalAddress().getPort())
         );
@@ -64,7 +82,7 @@ public class Replication {
             LOGGER.atInfo().
                     setMessage("{} state is about to be started, slotId = {}").
                     addArgument(stageRunner.name()).
-                    addArgument(config.stringifySlotId()).
+                    addArgument(ReplicationMetadata.stringifySlotId(slotId)).
                     log();
             activeStageRunner.set(stageRunner);
             try {
@@ -82,22 +100,23 @@ public class Replication {
 
         started = true;
 
+        ReplicationContext replicationContext = new ReplicationContext(slotId, config, volumeConfig, connection);
         return executor.submit(() -> {
             List<StageRunner> runners = new ArrayList<>();
 
             if (config.streamingOnly()) {
-                StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, config, connection);
+                StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, replicationContext);
                 runners.add(changeDataCaptureStageRunner);
             } else {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    if (ReplicationSlot.load(tr, config).isSnapshotCompleted()) {
-                        StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, config, connection);
+                    if (ReplicationSlotNG.load(tr, config, slotId).isSnapshotCompleted()) {
+                        StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, replicationContext);
                         runners.add(changeDataCaptureStageRunner);
                     } else {
-                        StageRunner snapshotStageRunner = new SnapshotStageRunner(context, config, connection);
+                        StageRunner snapshotStageRunner = new SnapshotStageRunner(context, replicationContext);
                         runners.add(snapshotStageRunner);
 
-                        StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, config, connection);
+                        StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, replicationContext);
                         runners.add(changeDataCaptureStageRunner);
                     }
                 }
@@ -127,7 +146,7 @@ public class Replication {
             LOGGER.atInfo().
                     setMessage("Stopping {} stage, slotId = {}").
                     addArgument(stageRunner.name()).
-                    addArgument(config.stringifySlotId()).
+                    addArgument(ReplicationMetadata.stringifySlotId(slotId)).
                     log();
             stageRunner.stop();
         }
@@ -136,7 +155,7 @@ public class Replication {
         client.shutdown();
 
         LOGGER.atInfo().setMessage("Replication has stopped, slotId = {}")
-                .addArgument(config.stringifySlotId())
+                .addArgument(ReplicationMetadata.stringifySlotId(slotId))
                 .log();
     }
 }

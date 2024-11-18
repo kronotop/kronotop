@@ -18,6 +18,7 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -47,24 +48,8 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
     private Path standbyVolumeDataDir;
 
     private Replication newReplication() {
-        final Host primary;
-        final Versionstamp slotId = ReplicationSlot.newSlot(database, volume.getConfig().subspace(), context.getMember());
-        try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            primary = volumeMetadata.getPrimary();
-        }
-
-        Host standby = new Host(Role.STANDBY, context.getMember());
-        ReplicationConfig config = new ReplicationConfig(
-                primary,
-                standby,
-                volume.getConfig().subspace(),
-                slotId,
-                volume.getConfig().name(),
-                volume.getConfig().segmentSize(),
-                standbyVolumeDataDir.toString(),
-                true
-        );
+        ReplicationConfigNG config = new ReplicationConfigNG(volume.getConfig().subspace(), ShardKind.REDIS, 1, true);
+        ReplicationMetadata.newReplication(context, config);
         return new Replication(context, config);
     }
 

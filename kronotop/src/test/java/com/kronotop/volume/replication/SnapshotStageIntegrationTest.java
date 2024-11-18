@@ -18,6 +18,7 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -43,31 +44,16 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     private void checkSnapshotStage(Versionstamp[] versionstampedKeys) throws IOException {
-        final Host primary;
-        final Versionstamp slotId = ReplicationSlot.newSlot(database, volume.getConfig().subspace(), context.getMember());
-        try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            primary = volumeMetadata.getPrimary();
-        }
+        ReplicationConfigNG config = new ReplicationConfigNG(volumeConfig.subspace(), ShardKind.REDIS, 1, false);
+        Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
 
-        Host standby = new Host(Role.STANDBY, context.getMember());
-        ReplicationConfig config = new ReplicationConfig(
-                primary,
-                standby,
-                volume.getConfig().subspace(),
-                slotId,
-                volume.getConfig().name(),
-                volume.getConfig().segmentSize(),
-                standbyVolumeDataDir.toString(),
-                false
-        );
         Replication replication = new Replication(context, config);
         try {
             replication.start();
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
                 try (Transaction tr = database.createTransaction()) {
-                    ReplicationSlot job = ReplicationSlot.load(tr, config);
-                    return job.isSnapshotCompleted();
+                    ReplicationSlotNG slot = ReplicationSlotNG.load(tr, config, slotId);
+                    return slot.isSnapshotCompleted();
                 }
             });
         } finally {
@@ -75,8 +61,8 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         }
 
         try (Transaction tr = database.createTransaction()) {
-            ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config);
-            for (Snapshot snapshot : replicationSlot.getSnapshots().values()) {
+            ReplicationSlotNG slot = ReplicationSlotNG.load(tr, config, slotId);
+            for (Snapshot snapshot : slot.getSnapshots().values()) {
                 assertEquals(10, snapshot.getTotalEntries());
                 assertEquals(snapshot.getTotalEntries(), snapshot.getProcessedEntries());
                 assertTrue(snapshot.getLastUpdate() > 0);
@@ -86,7 +72,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         VolumeConfig replicaVolumeConfig = new VolumeConfig(
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
-                config.dataDir(),
+                volume.getConfig().dataDir(),
                 volume.getConfig().segmentSize(),
                 volume.getConfig().allowedGarbageRatio()
         );
@@ -101,8 +87,8 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
 
         // Check replication metadata
         try (Transaction tr = database.createTransaction()) {
-            ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config);
-            assertTrue(replicationSlot.isSnapshotCompleted());
+            ReplicationSlotNG slot = ReplicationSlotNG.load(tr, config, slotId);
+            assertTrue(slot.isSnapshotCompleted());
         }
     }
 

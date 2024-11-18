@@ -23,6 +23,7 @@ import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.VersionstampedKeySelector;
+import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.segment.Segment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,19 +38,23 @@ public class ReplicationStageRunner {
     protected static final int MAXIMUM_BATCH_SIZE = 100;
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationStageRunner.class);
     protected final Context context;
-    protected final ReplicationConfig config;
+    protected final ReplicationConfigNG config;
+    protected final VolumeConfig volumeConfig;
     protected final StatefulInternalConnection<byte[], byte[]> connection;
     protected final HashMap<Long, Segment> openSegments = new HashMap<>();
+    protected Versionstamp slotId;
     private volatile boolean stopped = false;
 
-    public ReplicationStageRunner(Context context, ReplicationConfig config, StatefulInternalConnection<byte[], byte[]> connection) {
+    public ReplicationStageRunner(Context context, ReplicationContext replicationContext) {
         this.context = context;
-        this.config = config;
-        this.connection = connection;
+        this.config = replicationContext.config();
+        this.volumeConfig = replicationContext.volumeConfig();
+        this.connection = replicationContext.connection();
+        this.slotId = replicationContext.slotId();
     }
 
     protected IterationResult iterate(Transaction tr, Segment segment, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) throws NotEnoughSpaceException, IOException {
-        SegmentLogIterable iterable = new SegmentLogIterable(tr, config.subspace(), segment.getName(), begin, end, limit);
+        SegmentLogIterable iterable = new SegmentLogIterable(tr, volumeConfig.subspace(), segment.getName(), begin, end, limit);
         List<SegmentLogEntry> segmentLogEntries = new ArrayList<>();
         for (SegmentLogEntry entry : iterable) {
             segmentLogEntries.add(entry);
@@ -79,7 +84,7 @@ public class ReplicationStageRunner {
             SegmentLogEntry entry = entries.get(i);
             segmentRanges[i] = new SegmentRange(entry.value().position(), entry.value().length());
         }
-        return connection.sync().segmentRange(config.volumeName(), segmentName, segmentRanges);
+        return connection.sync().segmentRange(volumeConfig.name(), segmentName, segmentRanges);
     }
 
     public void stop() {
@@ -95,7 +100,7 @@ public class ReplicationStageRunner {
             } catch (Exception e) {
                 LOGGER.atError().
                         setMessage("Error while closing a segment, slotId = {}").
-                        addArgument(config.stringifySlotId()).
+                        addArgument(ReplicationMetadata.stringifySlotId(slotId)).
                         setCause(e).
                         log();
             }

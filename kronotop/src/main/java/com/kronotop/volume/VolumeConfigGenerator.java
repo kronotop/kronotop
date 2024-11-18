@@ -92,7 +92,7 @@ public class VolumeConfigGenerator {
         }
     }
 
-    public DirectorySubspace createOrOpenVolumeSubspace () {
+    public DirectorySubspace createOrOpenVolumeSubspace() {
         if (shardKind.equals(ShardKind.REDIS)) {
             KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
             return createOrOpenVolumeSubspace(directory);
