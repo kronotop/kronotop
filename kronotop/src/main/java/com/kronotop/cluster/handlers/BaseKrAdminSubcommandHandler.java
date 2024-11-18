@@ -31,7 +31,7 @@ import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.volume.replication.ReplicationSlotNG;
+import com.kronotop.volume.replication.ReplicationSlot;
 import io.netty.buffer.ByteBuf;
 
 import java.util.*;
@@ -283,7 +283,7 @@ public class BaseKrAdminSubcommandHandler {
      * @param slot The replication slot to be converted into a Map.
      * @return A Map containing RedisMessage key-value pairs representing the attributes of the replication slot.
      */
-    protected Map<RedisMessage, RedisMessage> replicationSlotToMap(ShardKind shardKind, int shardId, ReplicationSlotNG slot) {
+    protected Map<RedisMessage, RedisMessage> replicationSlotToMap(ShardKind shardKind, int shardId, ReplicationSlot slot) {
         Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
 
         current.put(

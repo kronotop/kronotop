@@ -34,7 +34,7 @@ import static com.kronotop.volume.Subspaces.REPLICATION_SLOT_SUBSPACE;
  * A replication slot is responsible for tracking the replication state and snapshots
  * of a standby server.
  */
-public class ReplicationSlotNG {
+public class ReplicationSlot {
     private final TreeMap<Long, Snapshot> snapshots = new TreeMap<>();
     private ReplicationStage replicationStage;
     private boolean snapshotCompleted = false;
@@ -90,7 +90,7 @@ public class ReplicationSlotNG {
     }
 
     public static void newSlot(Transaction tr, ReplicationConfigNG config) {
-        ReplicationSlotNG slot = new ReplicationSlotNG();
+        ReplicationSlot slot = new ReplicationSlot();
 
         VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.volumeSubspace());
         for (Long segmentId : volumeMetadata.getSegments()) {
@@ -102,22 +102,22 @@ public class ReplicationSlotNG {
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(slot));
     }
 
-    public static ReplicationSlotNG load(Transaction tr, ReplicationConfigNG config, Versionstamp slotId) {
+    public static ReplicationSlot load(Transaction tr, ReplicationConfigNG config, Versionstamp slotId) {
         byte[] key = slotKey(config, slotId);
         byte[] value = tr.get(key).join();
         if (value == null) {
             throw new ReplicationSlotNotFoundException();
         }
-        return JSONUtils.readValue(value, ReplicationSlotNG.class);
+        return JSONUtils.readValue(value, ReplicationSlot.class);
     }
 
-    public static ReplicationSlotNG compute(Transaction tr, ReplicationConfigNG config, Versionstamp slotId, Consumer<ReplicationSlotNG> remappingFunction) {
+    public static ReplicationSlot compute(Transaction tr, ReplicationConfigNG config, Versionstamp slotId, Consumer<ReplicationSlot> remappingFunction) {
         byte[] key = slotKey(config, slotId);
         byte[] value = tr.get(key).join();
         if (value == null) {
             throw new ReplicationSlotNotFoundException();
         }
-        ReplicationSlotNG replicationSlot = JSONUtils.readValue(value, ReplicationSlotNG.class);
+        ReplicationSlot replicationSlot = JSONUtils.readValue(value, ReplicationSlot.class);
         remappingFunction.accept(replicationSlot);
         tr.set(key, JSONUtils.writeValueAsBytes(replicationSlot));
         return replicationSlot;

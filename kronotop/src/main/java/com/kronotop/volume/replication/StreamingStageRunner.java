@@ -118,7 +118,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
      */
     private void streamChanges() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlotNG.compute(tr, config, slotId, (slot) -> {
+            ReplicationSlot.compute(tr, config, slotId, (slot) -> {
                 Versionstamp key = slot.getLatestVersionstampedKey() != null ? Versionstamp.fromBytes(slot.getLatestVersionstampedKey()) : null;
                 try {
                     IterationResult iterationResult = iterateSegmentLogEntries(tr, slot.getLatestSegmentId(), key);
@@ -202,7 +202,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
      */
     private void findStartingPoint() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlotNG.compute(tr, config, slotId, (slot) -> {
+            ReplicationSlot.compute(tr, config, slotId, (slot) -> {
                 if (slot.getSnapshots().isEmpty()) {
                     return;
                 }

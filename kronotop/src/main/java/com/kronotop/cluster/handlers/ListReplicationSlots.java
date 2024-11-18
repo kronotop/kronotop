@@ -34,7 +34,7 @@ import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.VolumeConfigGenerator;
-import com.kronotop.volume.replication.ReplicationSlotNG;
+import com.kronotop.volume.replication.ReplicationSlot;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -67,7 +67,7 @@ public class ListReplicationSlots extends BaseKrAdminSubcommandHandler implement
             for (KeyValue keyValue : iterable) {
                 Tuple unpackedKey = volumeSubspace.unpack(keyValue.getKey());
                 Versionstamp slotId = (Versionstamp) unpackedKey.get(3);
-                ReplicationSlotNG slot = JSONUtils.readValue(keyValue.getValue(), ReplicationSlotNG.class);
+                ReplicationSlot slot = JSONUtils.readValue(keyValue.getValue(), ReplicationSlot.class);
                 Map<RedisMessage, RedisMessage> current = replicationSlotToMap(shardKind, shardId, slot);
                 result.put(
                         new SimpleStringRedisMessage(VersionstampUtils.base64Encode(slotId)),

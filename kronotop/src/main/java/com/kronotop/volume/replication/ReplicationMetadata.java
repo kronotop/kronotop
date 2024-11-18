@@ -49,7 +49,7 @@ public class ReplicationMetadata {
 
     public static Versionstamp newReplication(Context context, ReplicationConfigNG config) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlotNG.newSlot(tr, config);
+            ReplicationSlot.newSlot(tr, config);
             registerReplicationSlot(context, tr, config);
 
             CompletableFuture<byte[]> future = tr.getVersionstamp();

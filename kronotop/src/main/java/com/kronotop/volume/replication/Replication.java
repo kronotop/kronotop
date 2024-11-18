@@ -109,7 +109,7 @@ public class Replication {
                 runners.add(changeDataCaptureStageRunner);
             } else {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    if (ReplicationSlotNG.load(tr, config, slotId).isSnapshotCompleted()) {
+                    if (ReplicationSlot.load(tr, config, slotId).isSnapshotCompleted()) {
                         StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, replicationContext);
                         runners.add(changeDataCaptureStageRunner);
                     } else {

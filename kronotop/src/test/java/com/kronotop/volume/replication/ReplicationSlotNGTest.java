@@ -40,7 +40,7 @@ class ReplicationSlotNGTest extends BaseVolumeIntegrationTest {
     public void test_newSlot() {
         ReplicationConfigNG config = getReplicationConfig();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            assertDoesNotThrow(() -> ReplicationSlotNG.newSlot(tr, config));
+            assertDoesNotThrow(() -> ReplicationSlot.newSlot(tr, config));
             tr.commit().join();
         }
     }
@@ -50,14 +50,14 @@ class ReplicationSlotNGTest extends BaseVolumeIntegrationTest {
         Versionstamp slotId;
         ReplicationConfigNG config = getReplicationConfig();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            assertDoesNotThrow(() -> ReplicationSlotNG.newSlot(tr, config));
+            assertDoesNotThrow(() -> ReplicationSlot.newSlot(tr, config));
             CompletableFuture<byte[]> future = tr.getVersionstamp();
             tr.commit().join();
             slotId = Versionstamp.complete(future.join());
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlotNG slot = assertDoesNotThrow(() -> ReplicationSlotNG.load(tr, config, slotId));
+            ReplicationSlot slot = assertDoesNotThrow(() -> ReplicationSlot.load(tr, config, slotId));
             assertNotNull(slot);
         }
     }
@@ -68,14 +68,14 @@ class ReplicationSlotNGTest extends BaseVolumeIntegrationTest {
         ReplicationConfigNG config = getReplicationConfig();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            assertDoesNotThrow(() -> ReplicationSlotNG.newSlot(tr, config));
+            assertDoesNotThrow(() -> ReplicationSlot.newSlot(tr, config));
             CompletableFuture<byte[]> future = tr.getVersionstamp();
             tr.commit().join();
             slotId = Versionstamp.complete(future.join());
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlotNG.compute(tr, config, slotId, (slot) -> {
+            ReplicationSlot.compute(tr, config, slotId, (slot) -> {
                 slot.setLatestSegmentId(100);
                 slot.setReplicationStage(ReplicationStage.STREAMING);
             });
@@ -83,7 +83,7 @@ class ReplicationSlotNGTest extends BaseVolumeIntegrationTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlotNG slot = assertDoesNotThrow(() -> ReplicationSlotNG.load(tr, config, slotId));
+            ReplicationSlot slot = assertDoesNotThrow(() -> ReplicationSlot.load(tr, config, slotId));
             assertNotNull(slot);
             assertEquals(ReplicationStage.STREAMING, slot.getReplicationStage());
             assertEquals(100, slot.getLatestSegmentId());
