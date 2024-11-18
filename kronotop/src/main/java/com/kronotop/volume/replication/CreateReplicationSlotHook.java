@@ -16,7 +16,6 @@
 
 package com.kronotop.volume.replication;
 
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.VersionstampUtils;
