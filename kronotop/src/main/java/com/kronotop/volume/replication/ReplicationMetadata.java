@@ -23,6 +23,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.VersionstampUtils;
 
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 import static com.kronotop.volume.Subspaces.MEMBER_REPLICATION_SLOT_SUBSPACE;
@@ -64,12 +65,13 @@ public class ReplicationMetadata {
         Tuple tuple = Tuple.from(
                 MEMBER_REPLICATION_SLOT_SUBSPACE,
                 context.getMember().getId(),
-                config.shardKind(),
+                config.shardKind().name(),
                 config.shardId()
         );
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] versionBytes = tr.get(config.volumeSubspace().pack(tuple)).join();
-            return Versionstamp.fromBytes(versionBytes);
+            byte[] value = tr.get(config.volumeSubspace().pack(tuple)).join();
+            byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
+            return Versionstamp.complete(trVersion);
         }
     }
 
