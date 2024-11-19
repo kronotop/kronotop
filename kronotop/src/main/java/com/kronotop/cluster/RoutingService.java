@@ -69,6 +69,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
     public void start() {
         clusterInitialized = isClusterInitialized_internal();
         if (clusterInitialized) {
+            loadRoutingTableFromFoundationDB(true);
             scheduler.execute(new RoutingEventsWatcher());
         } else {
             scheduler.execute(new ClusterInitializationWatcher());
@@ -196,7 +197,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
      *
      * @throws KronotopException if an unknown shard kind is encountered
      */
-    private void loadRoutingTableFromFoundationDB() {
+    private void loadRoutingTableFromFoundationDB(boolean firstRun) {
         if (!clusterInitialized) {
             return;
         }
@@ -212,7 +213,9 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
             }
         }
         RoutingTable previous = routingTable.getAndSet(table);
-        changesBetweenRoutingTables(previous);
+        if (!firstRun) {
+            changesBetweenRoutingTables(previous);
+        }
     }
 
     private void runHooks(RoutingEventKind routingEventKind, ShardKind shardKind, int shardId) {
@@ -337,7 +340,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                 CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
                 tr.commit().join();
 
-                loadRoutingTableFromFoundationDB();
+                loadRoutingTableFromFoundationDB(false);
 
                 // Wait for routing table changes
                 try {
@@ -347,7 +350,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                     return;
                 }
                 LOGGER.debug("Routing events watcher has been triggered");
-                loadRoutingTableFromFoundationDB();
+                loadRoutingTableFromFoundationDB(false);
             } catch (Exception e) {
                 LOGGER.error("Error while waiting for routing events", e);
             } finally {

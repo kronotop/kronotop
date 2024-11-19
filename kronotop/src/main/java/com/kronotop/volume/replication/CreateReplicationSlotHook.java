@@ -43,6 +43,11 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
                 shardId,
                 false);
 
+        if (ReplicationMetadata.findSlotId(context, config) != null) {
+            // Nothing to do, we already have a replication slot for this config.
+            return;
+        }
+
         Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
         LOGGER.info("Created replication slot with SlotID: {} for ShardKind: {}, ShardId: {}",
                 VersionstampUtils.base64Encode(slotId),

@@ -23,6 +23,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.VersionstampUtils;
 
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 import static com.kronotop.volume.Subspaces.MEMBER_REPLICATION_SLOT_SUBSPACE;
@@ -48,6 +49,10 @@ public class ReplicationMetadata {
     }
 
     public static Versionstamp newReplication(Context context, ReplicationConfig config) {
+        if (ReplicationMetadata.findSlotId(context, config) != null) {
+            throw new IllegalArgumentException("Replication already exists");
+        }
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationSlot.newSlot(tr, config);
             registerReplicationSlot(context, tr, config);
@@ -60,7 +65,7 @@ public class ReplicationMetadata {
         }
     }
 
-    /*public static Versionstamp findSlotId(Context context, ReplicationConfig config) {
+    public static Versionstamp findSlotId(Context context, ReplicationConfig config) {
         Tuple tuple = Tuple.from(
                 MEMBER_REPLICATION_SLOT_SUBSPACE,
                 context.getMember().getId(),
@@ -69,10 +74,14 @@ public class ReplicationMetadata {
         );
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] value = tr.get(config.volumeConfig().subspace().pack(tuple)).join();
+            if (value == null) {
+                return null;
+            }
+
             byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
             return Versionstamp.complete(trVersion);
         }
-    }*/
+    }
 
     public static String stringifySlotId(Versionstamp slotId) {
         return VersionstampUtils.base64Encode(slotId);

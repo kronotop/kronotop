@@ -19,8 +19,10 @@ package com.kronotop.volume.replication;
 import com.kronotop.BaseKronotopService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
+import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.ShardKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,14 +30,35 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
     public static final String NAME = "Replication";
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationService.class);
 
+    private final RoutingService routing;
+
     public ReplicationService(Context context) {
         super(context, NAME);
 
-        RoutingService routing = context.getService(RoutingService.NAME);
-        routing.registerHook(RoutingEventKind.CREATE_REPLICATION_SLOT, new CreateReplicationSlotHook(context));
+        this.routing = context.getService(RoutingService.NAME);
+        this.routing.registerHook(RoutingEventKind.CREATE_REPLICATION_SLOT, new CreateReplicationSlotHook(context));
     }
 
     public void start() {
+        for (ShardKind shardKind : ShardKind.values()) {
+            if (shardKind.equals(ShardKind.REDIS)) {
+                int shards = context.getConfig().getInt("redis.shards");
+                for (int shardId = 0; shardId < shards; shardId++) {
+                    Route route = routing.findRoute(shardKind, shardId);
+                    if (route == null) {
+                        // Not assigned yet
+                        continue;
+                    }
 
+                    if (route.standbys().contains(context.getMember())) {
+                        LOGGER.info("Replication ShardKind: {} ShardId: {}", shardKind, shardId);
+                        //ReplicationConfig replicationConfig = new ReplicationConfig();
+                        //ReplicationMetadata.findSlotId(context, ReplicationConfig)
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException("Unsupported shard kind: " + shardKind);
+            }
+        }
     }
 }
