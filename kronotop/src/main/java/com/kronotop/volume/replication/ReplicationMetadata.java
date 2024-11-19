@@ -28,8 +28,22 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.kronotop.volume.Subspaces.MEMBER_REPLICATION_SLOT_SUBSPACE;
 
+/**
+ * The ReplicationMetadata class provides methods for managing replication slots within
+ * the transactional context of a Kronotop instance.
+ * <p>
+ * This includes creating new replication slots, finding existing slots,
+ * and converting replication metadata to string representations.
+ */
 public class ReplicationMetadata {
 
+    /**
+     * Registers a replication slot in a transactional context with the specified replication configuration.
+     *
+     * @param context the context of the Kronotop instance.
+     * @param tr the transaction in which the replication slot registration occurs.
+     * @param config the replication configuration, including shard kind, shard ID, and volume configuration.
+     */
     private static void registerReplicationSlot(
             Context context,
             Transaction tr,
@@ -48,6 +62,16 @@ public class ReplicationMetadata {
         );
     }
 
+    /**
+     * Creates a new replication slot with the given configuration. If a replication slot
+     * with the same configuration already exists, an {@link IllegalArgumentException}
+     * is thrown.
+     *
+     * @param context the context of the Kronotop instance.
+     * @param config the replication configuration.
+     * @return the versionstamp of the newly created replication slot.
+     * @throws IllegalArgumentException if a replication slot with the same configuration already exists.
+     */
     public static Versionstamp newReplication(Context context, ReplicationConfig config) {
         if (ReplicationMetadata.findSlotId(context, config) != null) {
             throw new IllegalArgumentException("Replication already exists");
@@ -65,6 +89,13 @@ public class ReplicationMetadata {
         }
     }
 
+    /**
+     * Finds the replication slot ID based on the provided context and replication configuration.
+     *
+     * @param context the context of the Kronotop instance.
+     * @param config  the replication configuration. This includes details such as shard kind, shard ID, and volume configuration.
+     * @return the versionstamp of the replication slot if found; otherwise, null.
+     */
     public static Versionstamp findSlotId(Context context, ReplicationConfig config) {
         Tuple tuple = Tuple.from(
                 MEMBER_REPLICATION_SLOT_SUBSPACE,
@@ -83,6 +114,12 @@ public class ReplicationMetadata {
         }
     }
 
+    /**
+     * Converts a Versionstamp object into its Base64 string representation.
+     *
+     * @param slotId the Versionstamp object to encode.
+     * @return the Base64 encoded string representation of the Versionstamp object.
+     */
     public static String stringifySlotId(Versionstamp slotId) {
         return VersionstampUtils.base64Encode(slotId);
     }

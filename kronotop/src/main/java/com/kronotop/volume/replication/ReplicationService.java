@@ -16,6 +16,7 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseKronotopService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
@@ -23,14 +24,22 @@ import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.common.KronotopException;
+import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.VolumeConfigGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ReplicationService extends BaseKronotopService implements KronotopService {
     public static final String NAME = "Replication";
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationService.class);
 
     private final RoutingService routing;
+    private final ConcurrentHashMap<Versionstamp, Replication> replications = new ConcurrentHashMap<>();
 
     public ReplicationService(Context context) {
         super(context, NAME);
@@ -39,26 +48,50 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
         this.routing.registerHook(RoutingEventKind.CREATE_REPLICATION_SLOT, new CreateReplicationSlotHook(context));
     }
 
+    private void startReplicationTasks(ShardKind shardKind, int shards) {
+        for (int shardId = 0; shardId < shards; shardId++) {
+            Route route = routing.findRoute(shardKind, shardId);
+            if (route == null) {
+                // Not assigned yet
+                continue;
+            }
+
+            if (route.standbys().contains(context.getMember())) {
+                VolumeConfigGenerator generator = new VolumeConfigGenerator(context, shardKind, shardId);
+                VolumeConfig volumeConfig = generator.volumeConfig();
+                ReplicationConfig replicationConfig = new ReplicationConfig(volumeConfig, shardKind, shardId, false);
+                Versionstamp slotId = ReplicationMetadata.findSlotId(context, replicationConfig);
+                if (slotId == null) {
+                    LOGGER.warn("Replication slot not found for ShardKind: {} ShardId: {}", shardKind, shardId);
+                    continue;
+                }
+                Replication replication = replications.computeIfAbsent(slotId,
+                        (versionstamp) -> new Replication(context, versionstamp, replicationConfig)
+                );
+                try {
+                    replication.start();
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
+        }
+    }
+
     public void start() {
         for (ShardKind shardKind : ShardKind.values()) {
             if (shardKind.equals(ShardKind.REDIS)) {
                 int shards = context.getConfig().getInt("redis.shards");
-                for (int shardId = 0; shardId < shards; shardId++) {
-                    Route route = routing.findRoute(shardKind, shardId);
-                    if (route == null) {
-                        // Not assigned yet
-                        continue;
-                    }
-
-                    if (route.standbys().contains(context.getMember())) {
-                        LOGGER.info("Replication ShardKind: {} ShardId: {}", shardKind, shardId);
-                        //ReplicationConfig replicationConfig = new ReplicationConfig();
-                        //ReplicationMetadata.findSlotId(context, ReplicationConfig)
-                    }
-                }
+                startReplicationTasks(shardKind, shards);
             } else {
                 throw new IllegalArgumentException("Unsupported shard kind: " + shardKind);
             }
+        }
+    }
+
+    @Override
+    public void shutdown() {
+        for (Replication replication : replications.values()) {
+            replication.stop();
         }
     }
 }
