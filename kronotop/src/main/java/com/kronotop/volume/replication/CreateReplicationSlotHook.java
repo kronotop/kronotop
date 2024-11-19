@@ -41,7 +41,7 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
                 volumeConfig,
                 shardKind,
                 shardId,
-                false);
+                ReplicationStage.SNAPSHOT);
 
         if (ReplicationMetadata.findSlotId(context, config) != null) {
             // Nothing to do, we already have a replication slot for this config.

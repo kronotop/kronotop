@@ -23,6 +23,6 @@ public record ReplicationConfig(
         VolumeConfig volumeConfig,
         ShardKind shardKind,
         Integer shardId,
-        boolean streamingOnly
+        ReplicationStage initialStage
 ) {
 }

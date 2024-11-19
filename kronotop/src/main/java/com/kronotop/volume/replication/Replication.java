@@ -100,7 +100,7 @@ public class Replication {
         return executor.submit(() -> {
             List<StageRunner> runners = new ArrayList<>();
 
-            if (config.streamingOnly()) {
+            if (config.initialStage().equals(ReplicationStage.STREAMING)) {
                 StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, replicationContext);
                 runners.add(changeDataCaptureStageRunner);
             } else {

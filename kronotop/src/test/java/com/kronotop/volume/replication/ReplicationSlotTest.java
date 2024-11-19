@@ -33,7 +33,7 @@ class ReplicationSlotTest extends BaseVolumeIntegrationTest {
     private ReplicationConfig getReplicationConfig() {
         VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
         VolumeConfig volumeConfig = generator.volumeConfig();
-        return new ReplicationConfig(volumeConfig, ShardKind.REDIS, 1, false);
+        return new ReplicationConfig(volumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
     }
 
     @Test

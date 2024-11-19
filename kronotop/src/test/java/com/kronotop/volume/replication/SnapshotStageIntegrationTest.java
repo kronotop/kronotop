@@ -52,7 +52,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
                 volume.getConfig().allowedGarbageRatio()
         );
 
-        ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, false);
+        ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
         Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
 
         Replication replication = new Replication(context, slotId, config);

@@ -59,7 +59,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
                 volume.getConfig().allowedGarbageRatio()
         );
 
-        ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, true);
+        ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
         Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
         return new Replication(context, slotId, config);
     }

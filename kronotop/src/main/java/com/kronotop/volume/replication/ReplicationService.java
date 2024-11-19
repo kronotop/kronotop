@@ -58,7 +58,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
             if (route.standbys().contains(context.getMember())) {
                 VolumeConfigGenerator generator = new VolumeConfigGenerator(context, shardKind, shardId);
                 VolumeConfig volumeConfig = generator.volumeConfig();
-                ReplicationConfig replicationConfig = new ReplicationConfig(volumeConfig, shardKind, shardId, false);
+                ReplicationConfig replicationConfig = new ReplicationConfig(volumeConfig, shardKind, shardId, ReplicationStage.SNAPSHOT);
                 Versionstamp slotId = ReplicationMetadata.findSlotId(context, replicationConfig);
                 if (slotId == null) {
                     LOGGER.warn("Replication slot not found for ShardKind: {} ShardId: {}", shardKind, shardId);
