@@ -127,10 +127,6 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
             replicationSlot = ReplicationSlot.load(tr, config, slotId);
         }
 
-        if (replicationSlot.getSnapshots().isEmpty()) {
-            throw new IllegalStateException("No segment found to take a snapshot");
-        }
-
         for (Map.Entry<Long, Snapshot> entry : replicationSlot.getSnapshots().entrySet()) {
             if (isStopped()) {
                 // Replication has stopped.
