@@ -65,7 +65,7 @@ public class Replication {
 
         Member member = route.primary();
         this.client = RedisClusterClient.create(
-                String.format("redis://%s:%d", member.getExternalAddress().getHost(), member.getExternalAddress().getPort())
+                String.format("redis://%s:%d", member.getInternalAddress().getHost(), member.getInternalAddress().getPort())
         );
         this.connection = InternalClient.connect(client, ByteArrayCodec.INSTANCE);
     }

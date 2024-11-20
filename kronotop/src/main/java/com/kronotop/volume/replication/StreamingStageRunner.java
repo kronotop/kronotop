@@ -185,6 +185,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                 LOGGER.atError()
                         .setMessage("Error while watching changes, slotId = {}")
                         .addArgument(ReplicationMetadata.stringifySlotId(slotId))
+                        .setCause(e)
                         .log();
                 // Retrying...
             }
