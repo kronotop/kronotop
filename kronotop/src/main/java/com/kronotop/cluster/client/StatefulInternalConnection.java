@@ -22,8 +22,6 @@ import com.kronotop.cluster.client.protocol.InternalCommands;
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.cluster.RedisClusterClient;
-import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
 import io.lettuce.core.cluster.api.sync.NodeSelection;
 import io.lettuce.core.cluster.api.sync.NodeSelectionCommands;
@@ -33,28 +31,28 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 
 /**
- * Represents a stateful connection to Kronotop using Redis Cluster Protocol.
+ * StatefulInternalConnection encapsulates a stateful connection to a Redis database with both synchronous and asynchronous command interfaces.
  *
- * @param <K> the type for Redis keys
- * @param <V> the type for Redis values
+ * @param <K> the type of keys maintained by this connection
+ * @param <V> the type of values maintained by this connection
  */
 public class StatefulInternalConnection<K, V> {
-    private final StatefulRedisClusterConnection<K, V> connection;
+    private final StatefulRedisConnection<K, V> connection;
     private final InternalAsyncCommands<K, V> async;
     private final InternalCommands<K, V> sync;
 
-    public StatefulInternalConnection(StatefulRedisClusterConnection<K, V> connection, RedisCodec<K, V> codec) {
+    public StatefulInternalConnection(StatefulRedisConnection<K, V> connection, RedisCodec<K, V> codec) {
         this.connection = connection;
         this.async = new InternalAsyncCommandsImpl<>(connection, codec);
         this.sync = newKronotopCommandsImpl();
     }
 
-    public static StatefulInternalConnection<String, String> connect(RedisClusterClient redisClient) {
+    public static StatefulInternalConnection<String, String> connect(RedisClient redisClient) {
         return InternalClient.connect(redisClient);
     }
 
-    public static <K, V> StatefulInternalConnection<K, V> connect(RedisClusterClient redisClient, RedisCodec<K, V> codec) {
-        StatefulRedisClusterConnection<K, V> connection = redisClient.connect(codec);
+    public static <K, V> StatefulInternalConnection<K, V> connect(RedisClient redisClient, RedisCodec<K, V> codec) {
+        StatefulRedisConnection<K, V> connection = redisClient.connect(codec);
         return new StatefulInternalConnection<>(connection, codec);
     }
 
