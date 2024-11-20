@@ -129,10 +129,6 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                     }
 
                     if (key == null) {
-                        LOGGER.atDebug()
-                                .setMessage("It's not possible to find a new segmentId because key is null, slotId = {}")
-                                .addArgument(ReplicationMetadata.stringifySlotId(slotId))
-                                .log();
                         return;
                     }
 

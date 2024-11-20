@@ -50,7 +50,6 @@ import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.ReferenceCountUtil;
-import org.checkerframework.checker.units.qual.C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -181,7 +180,36 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
     }
 
+    private void createAndLoadRedisShard(int shardId) {
+        serviceContext.shards().put(shardId, new OnHeapRedisShardImpl(context, shardId));
+        RedisShard shard = serviceContext.shards().get(shardId);
+        RedisShardLoader loader = new RedisShardLoader(context, shard);
+        loader.load();
+    }
+
+    /**
+     * Loads the Redis shard from the local disk based on the given shard ID.
+     * It first attempts to find the route for the specified shard and then loads
+     * the shard if the current member is either the primary or one of the standbys.
+     *
+     * @param sharId the ID of the shard to load from disk
+     */
+    private void loadRedisShardFromDisk(int sharId) {
+        Route route = routing.findRoute(ShardKind.REDIS, sharId);
+        if (route == null) {
+            return;
+        }
+        if (route.primary().equals(context.getMember()) || route.standbys().contains(context.getMember())) {
+            LOGGER.trace("Loading Redis Shard: {} from the local disk", sharId);
+            // Primary or standby owner
+            createAndLoadRedisShard(sharId);
+        }
+    }
+
     public void start() {
+        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            loadRedisShardFromDisk(shardId);
+        }
         initializeVolumeSyncerWorkers();
     }
 
@@ -438,38 +466,16 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     }
 
     /**
-     * The LoadRedisShardHook class implements the RoutingEventHook interface and
-     * provides the logic to load a Redis shard from local disk storage in a virtual thread.
-     * The shard is loaded if the route for the shard exists and the primary member
-     * matches the current context member.
-     * The class helps in loading and initializing the Redis shard data from disk into memory.
+     * LoadRedisShardHook is a private class that implements the RoutingEventHook interface.
+     * It is responsible for handling the loading of Redis shards from disk when a routing event occurs.
      */
     private class LoadRedisShardHook implements RoutingEventHook {
-
-        private void createAndLoad(int shardId) {
-            serviceContext.shards().put(shardId, new OnHeapRedisShardImpl(context, shardId));
-            RedisShard shard = serviceContext.shards().get(shardId);
-            RedisShardLoader loader = new RedisShardLoader(context, shard);
-            loader.load();
-        }
 
         @Override
         public void run(ShardKind shardKind, int shardId) {
             final int finalShardId = shardId;
             Thread.ofVirtual().name("kr.redis.load-redis-shard").start(() -> {
-                LOGGER.trace("Loading Redis Shard: {} from the local disk", finalShardId);
-                Route route = routing.findRoute(ShardKind.REDIS, finalShardId);
-                if (route == null) {
-                    LOGGER.error("Route not found for Redis Shard: {}", finalShardId);
-                    return;
-                }
-                if (route.primary().equals(context.getMember())) {
-                    // Primary owner
-                    createAndLoad(finalShardId);
-                } else if (route.standbys().contains(context.getMember())) {
-                    // Standby owner
-                    createAndLoad(finalShardId);
-                }
+                loadRedisShardFromDisk(finalShardId);
             });
         }
     }

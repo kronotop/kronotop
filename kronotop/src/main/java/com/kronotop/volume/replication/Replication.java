@@ -75,11 +75,6 @@ public class Replication {
             if (stopped) {
                 break;
             }
-            LOGGER.atInfo().
-                    setMessage("{} state is about to be started, slotId = {}").
-                    addArgument(stageRunner.name()).
-                    addArgument(ReplicationMetadata.stringifySlotId(slotId)).
-                    log();
             activeStageRunner.set(stageRunner);
             try {
                 stageRunner.run();
@@ -139,18 +134,13 @@ public class Replication {
 
         StageRunner stageRunner = activeStageRunner.get();
         if (stageRunner != null) {
-            LOGGER.atInfo().
-                    setMessage("Stopping {} stage, slotId = {}").
-                    addArgument(stageRunner.name()).
-                    addArgument(ReplicationMetadata.stringifySlotId(slotId)).
-                    log();
             stageRunner.stop();
         }
 
         executor.shutdown();
         client.shutdown();
 
-        LOGGER.atInfo().setMessage("Replication has stopped, slotId = {}")
+        LOGGER.atDebug().setMessage("Replication has stopped, slotId = {}")
                 .addArgument(ReplicationMetadata.stringifySlotId(slotId))
                 .log();
     }

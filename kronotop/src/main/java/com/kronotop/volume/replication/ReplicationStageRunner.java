@@ -72,6 +72,7 @@ public class ReplicationStageRunner {
     protected void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException, NotEnoughSpaceException {
         for (int i = 0; i < dataRange.size(); i++) {
             byte[] data = (byte[]) dataRange.get(i);
+            System.out.println(new String(data));
             SegmentLogEntry entry = entries.get(i);
             segment.insert(ByteBuffer.wrap(data), entry.value().position());
         }
