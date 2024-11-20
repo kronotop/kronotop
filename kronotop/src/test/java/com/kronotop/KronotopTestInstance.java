@@ -29,6 +29,7 @@ import com.kronotop.instance.KronotopInstance;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
+import com.kronotop.redis.handlers.connection.protocol.HelloMessage;
 import com.kronotop.redis.handlers.connection.protocol.PingMessage;
 import com.kronotop.redis.handlers.protocol.InfoMessage;
 import com.kronotop.redis.server.protocol.CommandMessage;
@@ -62,7 +63,8 @@ public class KronotopTestInstance extends KronotopInstance {
             PingMessage.COMMAND,
             CommandMessage.COMMAND,
             ClusterMessage.COMMAND,
-            InfoMessage.COMMAND
+            InfoMessage.COMMAND,
+            HelloMessage.COMMAND
     ));
     private final boolean runWithTCPServer;
     private EmbeddedChannel channel;
