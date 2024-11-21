@@ -32,12 +32,23 @@ import java.time.Instant;
 import static com.kronotop.volume.Subspaces.SEGMENT_LOG_CARDINALITY_SUBSPACE;
 import static com.kronotop.volume.Subspaces.SEGMENT_LOG_SUBSPACE;
 
+/**
+ * The SegmentLog class represents a log specific to a segment, allowing for the
+ * recording of log entries and the tracking of their cardinality within a specified
+ * subspace using FoundationDB transactions.
+ */
 public class SegmentLog {
     private static final byte[] CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private final String segmentName;
     private final DirectorySubspace subspace;
     private final byte[] cardinalityKey;
 
+    /**
+     * Constructs a SegmentLog instance with the given segment name and subspace.
+     *
+     * @param segmentName the name of the segment to be logged
+     * @param subspace    the subspace where this segment log is stored
+     */
     public SegmentLog(String segmentName, DirectorySubspace subspace) {
         this.segmentName = segmentName;
         this.subspace = subspace;
@@ -46,6 +57,13 @@ public class SegmentLog {
         this.cardinalityKey = subspace.pack(key);
     }
 
+    /**
+     * Appends a new log entry to the segment log.
+     *
+     * @param tr          The transaction to use for this operation.
+     * @param userVersion The user version to associate with this log entry.
+     * @param value       The log entry value to be encoded and appended.
+     */
     public void append(Transaction tr, int userVersion, SegmentLogValue value) {
         Tuple preKey = Tuple.from(
                 SEGMENT_LOG_SUBSPACE,
@@ -58,6 +76,12 @@ public class SegmentLog {
         tr.mutate(MutationType.ADD, cardinalityKey, CARDINALITY_INCREASE_DELTA);
     }
 
+    /**
+     * Retrieves the cardinality value associated with the segment log from the provided transaction.
+     *
+     * @param tr The transaction to use for fetching the cardinality value.
+     * @return The cardinality value as an integer.
+     */
     public int getCardinality(Transaction tr) {
         byte[] data = tr.get(cardinalityKey).join();
         return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
