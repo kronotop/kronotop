@@ -86,7 +86,9 @@ public final class RedisShardLoader {
                         processHashFieldPack(entry);
                         break;
                     default:
-                        throw new KronotopException("Invalid data structure magic");
+                        // TODO: CLUSTER-REFACTORING - Re-enable the exception
+                        LOGGER.error("Corrupt entry");
+                        //throw new KronotopException("Invalid data structure magic");
                 }
             } catch (IOException e) {
                 throw new UncheckedIOException(e);

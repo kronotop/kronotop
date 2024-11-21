@@ -166,7 +166,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
 
                 try {
                     // stream segment log entries here
-                    streamChanges();
+                    //streamChanges();
                     isStreaming.set(true);
                     watcher.join();
                 } catch (CancellationException e) {
@@ -225,7 +225,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
         }
 
         try {
-            findStartingPoint();
+            //findStartingPoint();
             startStreaming();
         } catch (Exception e) {
             LOGGER.atError().setMessage("{} stage has failed, slotId = {}").
