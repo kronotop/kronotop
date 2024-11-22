@@ -93,7 +93,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     @Test
-    public void test_snapshot_stage() throws IOException {
+    public void take_snapshot_of_an_existing_volume() throws IOException {
         Versionstamp[] versionstampedKeys;
         AppendResult result;
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
@@ -102,6 +102,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
             result = volume.append(session, entries);
             tr.commit().join();
         }
+
         versionstampedKeys = result.getVersionstampedKeys();
         assertEquals(10, versionstampedKeys.length);
         checkSnapshotStage(versionstampedKeys);

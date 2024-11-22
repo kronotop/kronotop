@@ -45,7 +45,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
     private boolean isSnapshotCompleted(Transaction tr, long segmentId) {
         ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
         Snapshot snapshot = slot.getSnapshots().get(segmentId);
-        return snapshot.getProcessedEntries() == snapshot.getTotalEntries();
+        return Arrays.equals(snapshot.getBegin(), snapshot.getEnd());
     }
 
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId) throws IOException, NotEnoughSpaceException {
@@ -134,8 +134,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
             }
 
             Snapshot snapshot = entry.getValue();
-            if (snapshot.getProcessedEntries() == snapshot.getTotalEntries()) {
-                // Completed
+            if (Arrays.equals(snapshot.getBegin(), snapshot.getEnd())) {
                 continue;
             }
             snapshotLoopOnSegment(entry.getKey());
@@ -148,7 +147,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                 boolean completed = true;
                 for (Map.Entry<Long, Snapshot> entry : slot.getSnapshots().entrySet()) {
                     Snapshot snapshot = entry.getValue();
-                    if (snapshot.getProcessedEntries() != snapshot.getTotalEntries()) {
+                    if (!Arrays.equals(snapshot.getBegin(), snapshot.getEnd())) {
                         completed = false;
                         break;
                     }
