@@ -42,12 +42,30 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
         return "Snapshot";
     }
 
+    /**
+     * Checks if the snapshot for the specified segment has been completed.
+     *
+     * @param tr the transaction context
+     * @param segmentId the identifier of the segment whose snapshot is being checked
+     * @return true if the snapshot is completed, false otherwise
+     */
     private boolean isSnapshotCompleted(Transaction tr, long segmentId) {
         ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
         Snapshot snapshot = slot.getSnapshots().get(segmentId);
         return Arrays.equals(snapshot.getBegin(), snapshot.getEnd());
     }
 
+    /**
+     * Iterates over the log entries of a segment within a transaction context.
+     * It retrieves and processes entries from the specified segment based on the
+     * snapshot information stored in the replication slot.
+     *
+     * @param tr the transaction context in which to perform the iteration.
+     * @param segmentId the identifier of the segment to be iterated.
+     * @return an IterationResult object containing the latest processed key and the number of processed keys.
+     * @throws IOException if an I/O error occurs during iteration.
+     * @throws NotEnoughSpaceException if there is not enough space to process the segment.
+     */
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId) throws IOException, NotEnoughSpaceException {
         ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config, slotId);
         Snapshot snapshot = replicationSlot.getSnapshots().get(segmentId);
@@ -81,8 +99,13 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
         return iterationResult;
     }
 
+    /**
+     * Continuously copies a segment from its original source until the entire segment is replicated or a stop condition is met.
+     *
+     * @param segmentId the identifier of the segment to be copied.
+     */
     private void snapshotLoopOnSegment(long segmentId) {
-        // Take a snapshot
+        // Copy the segment from its original source
         while (true) {
             if (isStopped()) {
                 // Replication has stopped.
@@ -95,6 +118,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                 }
                 IterationResult result = iterateSegmentLogEntries(tr, segmentId);
                 if (result.processedKeys() > 0) {
+                    // Copied some data from the source, update the ReplicationSlot.
                     ReplicationSlot replicationSlot = ReplicationSlot.compute(tr, config, slotId, (slot) -> {
                         Snapshot snapshot = slot.getSnapshots().get(segmentId);
                         snapshot.setBegin(result.latestKey().getBytes());
@@ -106,6 +130,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                     // The end key fetched: [begin, end]
                     Snapshot snapshot = replicationSlot.getSnapshots().get(segmentId);
                     if (Arrays.equals(snapshot.getBegin(), snapshot.getEnd())) {
+                        // Copied everything from the source member.
                         break;
                     }
                     continue;
@@ -121,27 +146,35 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
         }
     }
 
-    private void snapshotLoop() {
-        ReplicationSlot replicationSlot;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            replicationSlot = ReplicationSlot.load(tr, config, slotId);
-        }
-
-        for (Map.Entry<Long, Snapshot> entry : replicationSlot.getSnapshots().entrySet()) {
+    /**
+     * Executes the snapshot stage of the replication process.
+     * This method iterates through each snapshot in the replication slot, checking if replication
+     * has been stopped or if the snapshot segment has already been copied from the source. If a segment
+     * has not been fully copied, it will invoke the method to process the segment.
+     */
+    private void runSnapshotStage() {
+        ReplicationSlot slot = loadReplicationSlot();
+        for (Map.Entry<Long, Snapshot> entry : slot.getSnapshots().entrySet()) {
             if (isStopped()) {
                 // Replication has stopped.
                 break;
             }
-
             Snapshot snapshot = entry.getValue();
             if (Arrays.equals(snapshot.getBegin(), snapshot.getEnd())) {
+                // This segment already copied from the source.
                 continue;
             }
             snapshotLoopOnSegment(entry.getKey());
         }
     }
 
-    private void isSnapshotCompleted() {
+    /**
+     * Checks the replication status by analyzing the snapshots in the replication slot.
+     * It identifies whether all snapshots have completed and marks the slot accordingly.
+     *
+     * @return the replication slot with updated snapshot completion status.
+     */
+    private ReplicationSlot checkReplicationStatus() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationSlot replicationSlot = ReplicationSlot.compute(tr, config, slotId, (slot) -> {
                 boolean completed = true;
@@ -155,9 +188,33 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                 slot.setSnapshotCompleted(completed);
             });
             tr.commit().join();
-            if (replicationSlot.isSnapshotCompleted()) {
+            return replicationSlot;
+        }
+    }
+
+    /**
+     * Executes the snapshot stage and verifies the replication status.
+     * This method is primarily concerned with managing the replication snapshot process. It first runs the snapshot
+     * stage for a replication slot and then checks the replication status. If the snapshot stage has completed, it logs
+     * information about the number of processed entries. If any exception occurs during execution, it will log an error
+     * message along with the exception details.
+     * <p>
+     * The execution flow is as follows:
+     * - Invokes {@link #runSnapshotStage()} to start the snapshot process.
+     * - Calls {@link #checkReplicationStatus()} to verify the status of the replication slot.
+     * - If the snapshot process is complete, calculates the total number of entries processed
+     *   and logs informational messages.
+     * - In case of an exception, logs an error message with the cause.
+     */
+    @Override
+    public void run() {
+        try {
+            runSnapshotStage();
+            ReplicationSlot slot = checkReplicationStatus();
+
+            if (slot.isSnapshotCompleted()) {
                 long totalProcessedEntries = 0;
-                for (Map.Entry<Long, Snapshot> entry : replicationSlot.getSnapshots().entrySet()) {
+                for (Map.Entry<Long, Snapshot> entry : slot.getSnapshots().entrySet()) {
                     totalProcessedEntries += entry.getValue().getProcessedEntries();
                 }
                 LOGGER.atInfo().setMessage("{} stage has completed, slotId = {}").
@@ -170,14 +227,6 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                         addArgument(ReplicationMetadata.stringifySlotId(slotId)).
                         log();
             }
-        }
-    }
-
-    @Override
-    public void run() {
-        try {
-            snapshotLoop();
-            isSnapshotCompleted();
         } catch (Exception e) {
             LOGGER.atError().setMessage("{} stage has failed, slotId = {}").
                     addArgument(name()).

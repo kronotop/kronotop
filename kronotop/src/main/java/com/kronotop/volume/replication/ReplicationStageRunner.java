@@ -53,6 +53,16 @@ public class ReplicationStageRunner {
         this.slotId = replicationContext.slotId();
     }
 
+    protected ReplicationSlot loadReplicationSlot() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return loadReplicationSlot(tr);
+        }
+    }
+
+    protected ReplicationSlot loadReplicationSlot(Transaction tr) {
+        return ReplicationSlot.load(tr, config, slotId);
+    }
+
     protected IterationResult iterate(Transaction tr, Segment segment, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) throws NotEnoughSpaceException, IOException {
         SegmentLogIterable iterable = new SegmentLogIterable(tr, volumeConfig.subspace(), segment.getName(), begin, end, limit);
         List<SegmentLogEntry> segmentLogEntries = new ArrayList<>();
@@ -72,7 +82,6 @@ public class ReplicationStageRunner {
     protected void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException, NotEnoughSpaceException {
         for (int i = 0; i < dataRange.size(); i++) {
             byte[] data = (byte[]) dataRange.get(i);
-            LOGGER.info("Replicated data from the primary owner: {}",new String(data));
             SegmentLogEntry entry = entries.get(i);
             segment.insert(ByteBuffer.wrap(data), entry.value().position());
         }

@@ -43,7 +43,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         return ByteBuffer.wrap(b);
     }
 
-    private void checkSnapshotStage(Versionstamp[] versionstampedKeys) throws IOException {
+    private void runSnapshotStageAndCheckIt(Versionstamp[] versionstampedKeys) throws IOException {
         VolumeConfig standbyVolumeConfig = new VolumeConfig(
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
@@ -89,6 +89,9 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         try (Transaction tr = database.createTransaction()) {
             ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
             assertTrue(slot.isSnapshotCompleted());
+            for (Snapshot snapshot : slot.getSnapshots().values()) {
+                assertArrayEquals(snapshot.getBegin(), snapshot.getEnd());
+            }
         }
     }
 
@@ -105,11 +108,12 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
 
         versionstampedKeys = result.getVersionstampedKeys();
         assertEquals(10, versionstampedKeys.length);
-        checkSnapshotStage(versionstampedKeys);
+
+        runSnapshotStageAndCheckIt(versionstampedKeys);
     }
 
     @Test
-    public void test_snapshot_stage_when_many_segments_exists() throws IOException {
+    public void take_snapshot_of_an_existing_volume_when_many_segments_exists() throws IOException {
         Versionstamp[] versionstampedKeys;
 
         long bufferSize = 100480;
@@ -128,6 +132,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         }
 
         assertEquals(2, volume.analyze().size());
-        checkSnapshotStage(versionstampedKeys);
+
+        runSnapshotStageAndCheckIt(versionstampedKeys);
     }
 }
