@@ -26,6 +26,7 @@ import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.instance.KronotopInstance;
+import com.kronotop.network.Address;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
@@ -111,6 +112,12 @@ public class KronotopTestInstance extends KronotopInstance {
         return channel;
     }
 
+    private void startNioRESPServer(String name, Address address) throws InterruptedException {
+        RESPServer server = new NioRESPServer(context, mergeCommandHandlerRegistries());
+        context.registerService(name, server);
+        server.start(address);
+    }
+
     /**
      * Starts the Kronotop instance for testing.
      *
@@ -130,9 +137,8 @@ public class KronotopTestInstance extends KronotopInstance {
     public void start() throws UnknownHostException, InterruptedException {
         super.start();
         if (runWithTCPServer) {
-            RESPServer server = new NioRESPServer(context, mergeCommandHandlerRegistries());
-            context.registerService(server.getName(), server);
-            server.start(member.getExternalAddress());
+            startNioRESPServer("IntegrationTestInternal-TCPServer", member.getInternalAddress());
+            startNioRESPServer("IntegrationTestExternal-TCPServer", member.getExternalAddress());
         }
 
         channel = newChannel();
