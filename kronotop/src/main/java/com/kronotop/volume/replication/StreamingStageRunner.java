@@ -140,7 +140,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                 } catch (NotEnoughSpaceException e) {
                     throw new RuntimeException(e);
                 } catch (NoSegmentExistsException e) {
-                    LOGGER.atDebug()
+                    LOGGER.atTrace()
                             .setMessage("No new segment found, slotId = {}")
                             .addArgument(ReplicationMetadata.stringifySlotId(slotId))
                             .log();
@@ -166,7 +166,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
 
                 try {
                     // stream segment log entries here
-                    //streamChanges();
+                    streamChanges();
                     isStreaming.set(true);
                     watcher.join();
                 } catch (CancellationException e) {
