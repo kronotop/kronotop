@@ -120,10 +120,14 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                 if (result.processedKeys() > 0) {
                     // Copied some data from the source, update the ReplicationSlot.
                     ReplicationSlot replicationSlot = ReplicationSlot.compute(tr, config, slotId, (slot) -> {
+                        // Update the snapshot metadata
                         Snapshot snapshot = slot.getSnapshots().get(segmentId);
                         snapshot.setBegin(result.latestKey().getBytes());
                         snapshot.setProcessedEntries(result.processedKeys() + snapshot.getProcessedEntries());
                         snapshot.setLastUpdate(Instant.now().toEpochMilli());
+
+                        // Update the slot
+                        slot.setLatestVersionstampedKey(result.latestKey().getBytes());
                     });
                     tr.commit().join();
 

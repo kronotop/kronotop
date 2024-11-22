@@ -36,10 +36,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
-import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.kronotop.volume.Subspaces.ENTRY_SUBSPACE;
 import static com.kronotop.volume.Subspaces.VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE;
@@ -50,7 +48,6 @@ import static com.kronotop.volume.Subspaces.VOLUME_STREAMING_SUBSCRIBERS_TRIGGER
 public class StreamingStageRunner extends ReplicationStageRunner implements StageRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(StreamingStageRunner.class);
     private final KeyWatcher keyWatcher = new KeyWatcher();
-    private final AtomicBoolean isStreaming = new AtomicBoolean();
 
     public StreamingStageRunner(Context context, ReplicationContext replicationContext) {
         super(context, replicationContext);
@@ -150,15 +147,12 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
         }
     }
 
-    protected boolean isStreaming() {
-        return isStreaming.get();
-    }
+    @Override
+    public void run() {
+        if (isStopped()) {
+            return;
+        }
 
-    /**
-     * Watches for changes by continuously iterating over segment log entries and fetching events.
-     * When the stage is stopped, the method terminates.
-     */
-    private void startStreaming() {
         while (!isStopped()) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 CompletableFuture<Void> watcher = keyWatcher.watch(tr, volumeConfig.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE)));
@@ -167,7 +161,6 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                 try {
                     // stream segment log entries here
                     streamChanges();
-                    isStreaming.set(true);
                     watcher.join();
                 } catch (CancellationException e) {
                     LOGGER.atInfo()
@@ -176,8 +169,6 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                             .addArgument(ReplicationMetadata.stringifySlotId(slotId))
                             .log();
                     return; // cancelled
-                } finally {
-                    isStreaming.set(false);
                 }
                 // fetch events here
                 streamChanges();
@@ -192,47 +183,9 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
         }
     }
 
-    /**
-     * Finds the starting point for the replication slot by computing the latest segment ID and the latest versionstamped key.
-     *
-     * @throws RuntimeException if an error occurs during computation or transaction commit.
-     */
-    private void findStartingPoint() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlot.compute(tr, config, slotId, (slot) -> {
-                if (slot.getSnapshots().isEmpty()) {
-                    return;
-                }
-                Map.Entry<Long, Snapshot> entry = slot.getSnapshots().lastEntry();
-                Snapshot snapshot = entry.getValue();
-                slot.setLatestSegmentId(snapshot.getSegmentId());
-                slot.setLatestVersionstampedKey(snapshot.getEnd());
-            });
-            tr.commit().join();
-        }
-    }
-
     @Override
     public void stop() {
         keyWatcher.unwatch(volumeConfig.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE)));
         super.stop();
-    }
-
-    @Override
-    public void run() {
-        if (isStopped()) {
-            return;
-        }
-
-        try {
-            //findStartingPoint();
-            startStreaming();
-        } catch (Exception e) {
-            LOGGER.atError().setMessage("{} stage has failed, slotId = {}").
-                    addArgument(name()).
-                    addArgument(ReplicationMetadata.stringifySlotId(slotId)).
-                    setCause(e).
-                    log();
-        }
     }
 }

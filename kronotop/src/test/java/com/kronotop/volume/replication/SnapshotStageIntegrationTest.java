@@ -92,6 +92,9 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
             for (Snapshot snapshot : slot.getSnapshots().values()) {
                 assertArrayEquals(snapshot.getBegin(), snapshot.getEnd());
             }
+
+            Snapshot snapshot = slot.getSnapshots().lastEntry().getValue();
+            assertArrayEquals(snapshot.getEnd(), slot.getLatestVersionstampedKey());
         }
     }
 
