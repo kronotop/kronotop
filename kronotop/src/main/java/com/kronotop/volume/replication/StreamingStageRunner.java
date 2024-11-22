@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -96,6 +95,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
      * @throws IllegalStateException if no new segment exists
      */
     private long findNextSegmentId(Transaction tr, Versionstamp key) {
+        // TODO: Should not use ENTRY_SUBSPACE
         byte[] packedKey = volumeConfig.subspace().pack(Tuple.from(ENTRY_SUBSPACE, key));
         KeySelector begin = KeySelector.firstGreaterThan(packedKey);
         begin.add(1);
@@ -111,39 +111,46 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
     }
 
     /**
-     * Fetches changes by iterating over segment log entries and finding the next segment ID.
+     * Fetches and processes changes from the segment log.
+     * This method continuously attempts to read from the segment log and update the replication slot
+     * with the latest processed key or segment ID. If no new entries are found in the current segment,
+     * it attempts to find the next segment to continue processing.
+     * <p>
+     * In case there are no more segments to process, the method exits the loop and waits for new changes.
+     *
+     * @throws NotEnoughSpaceException if there is not enough space to process the segment log entries.
+     * @throws IOException             if an I/O error occurs during processing.
      */
-    private void streamChanges() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            ReplicationSlot.compute(tr, config, slotId, (slot) -> {
-                Versionstamp key = slot.getLatestVersionstampedKey() != null ? Versionstamp.fromBytes(slot.getLatestVersionstampedKey()) : null;
-                try {
-                    IterationResult iterationResult = iterateSegmentLogEntries(tr, slot.getLatestSegmentId(), key);
-                    if (iterationResult.processedKeys() != 0) {
-                        // Segment id not changed yet
-                        slot.setLatestVersionstampedKey(iterationResult.latestKey().getBytes());
-                        return;
-                    }
+    private void fetchChangesFromSegmentLog() throws NotEnoughSpaceException, IOException {
+        while (true) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
 
-                    if (key == null) {
-                        return;
+                Versionstamp latestKey = slot.getLatestVersionstampedKey() != null ? Versionstamp.fromBytes(slot.getLatestVersionstampedKey()) : null;
+                IterationResult iterationResult = iterateSegmentLogEntries(tr, slot.getLatestSegmentId(), latestKey);
+                if (iterationResult.processedKeys() != 0) {
+                    // Segment id not changed yet
+                    ReplicationSlot.compute(tr, config, slotId, (replicationSlot) -> {
+                        replicationSlot.setLatestVersionstampedKey(iterationResult.latestKey().getBytes());
+                    });
+                    tr.commit().join();
+                } else {
+                    if (latestKey == null) {
+                        // Nothing to stream from the primary owner, wait for changes.
+                        break;
                     }
-
-                    // Need to find a new segment id
-                    long segmentId = findNextSegmentId(tr, key);
-                    slot.setLatestSegmentId(segmentId);
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                } catch (NotEnoughSpaceException e) {
-                    throw new RuntimeException(e);
-                } catch (NoSegmentExistsException e) {
-                    LOGGER.atTrace()
-                            .setMessage("No new segment found, slotId = {}")
-                            .addArgument(ReplicationMetadata.stringifySlotId(slotId))
-                            .log();
+                    try {
+                        long segmentId = findNextSegmentId(tr, latestKey);
+                        ReplicationSlot.compute(tr, config, slotId, (replicationSlot) -> {
+                            replicationSlot.setLatestSegmentId(segmentId);
+                        });
+                        tr.commit().join();
+                    } catch (NoSegmentExistsException e) {
+                        // Nothing to stream from the primary owner, wait for changes.
+                        break;
+                    }
                 }
-            });
-            tr.commit().join();
+            }
         }
     }
 
@@ -160,7 +167,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
 
                 try {
                     // stream segment log entries here
-                    streamChanges();
+                    fetchChangesFromSegmentLog();
                     watcher.join();
                 } catch (CancellationException e) {
                     LOGGER.atInfo()
@@ -171,7 +178,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
                     return; // cancelled
                 }
                 // fetch events here
-                streamChanges();
+                fetchChangesFromSegmentLog();
             } catch (Exception e) {
                 LOGGER.atError()
                         .setMessage("Error while watching changes, slotId = {}")
