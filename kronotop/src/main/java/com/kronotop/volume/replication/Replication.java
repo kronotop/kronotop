@@ -73,7 +73,7 @@ public class Replication {
         stopped = false;
         started = true;
 
-        client.connect();
+        connect();
 
         ReplicationContext replicationContext = new ReplicationContext(slotId, config, volumeConfig, client);
         return executor.submit(() -> {
@@ -103,6 +103,10 @@ public class Replication {
 
     public StageRunner getActiveStageRunner() {
         return activeStageRunner.get();
+    }
+
+    public void connect() {
+        client.connect();
     }
 
     public synchronized void stop() {

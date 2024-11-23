@@ -270,6 +270,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                     // Primary owner has changed
                     if (previousRoute.standbys().contains(context.getMember())) {
                         // Connect to the new primary owner
+                        runHooks(RoutingEventKind.PRIMARY_OWNER_CHANGED, ShardKind.REDIS, shardId);
                     }
                 }
             }

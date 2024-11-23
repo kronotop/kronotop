@@ -32,8 +32,8 @@ public class ReplicationClient {
     private final Context context;
     private final ReplicationConfig config;
     private final ReentrantLock lock = new ReentrantLock();
-    private final AtomicReference<RedisClient> client = new AtomicReference<>();
     private final AtomicReference<StatefulInternalConnection<byte[], byte[]>> connection = new AtomicReference<>();
+    private RedisClient client = null;
 
     ReplicationClient(Context context, ReplicationConfig config) {
         this.context = context;
@@ -50,7 +50,7 @@ public class ReplicationClient {
      * it shuts it down before setting the new client.
      *
      * @throws IllegalArgumentException if the route for the specified shard kind
-     *         and shard id is not found.
+     *                                  and shard id is not found.
      */
     public void connect() {
         lock.lock();
@@ -63,10 +63,10 @@ public class ReplicationClient {
 
             Member member = route.primary();
             RedisClient redisClient = RedisClient.create(String.format("redis://%s:%d", member.getInternalAddress().getHost(), member.getInternalAddress().getPort()));
-            RedisClient previousRedisClient = client.getAndSet(redisClient);
-            if (previousRedisClient != null) {
-                previousRedisClient.shutdown();
+            if (client != null) {
+                client.shutdown();
             }
+            client = redisClient;
             connection.set(InternalClient.connect(redisClient, ByteArrayCodec.INSTANCE));
         } finally {
             lock.unlock();
@@ -74,12 +74,21 @@ public class ReplicationClient {
     }
 
     /**
-     * Retrieves the current stateful internal connection to the Redis database.
+     * Retrieves the stateful internal connection to Redis.
+     * <p>
+     * This method checks if the connection has already been established. If not, it throws an
+     * IllegalStateException indicating that the Redis connection is not available.
      *
-     * @return the stateful internal connection to the Redis database, represented as StatefulInternalConnection<byte[], byte[]>.
+     * @return an instance of {@link StatefulInternalConnection<byte[], byte[]>} representing the stateful
+     *         connection to the Redis database.
+     * @throws IllegalStateException if the Redis connection has not been established yet.
      */
     public StatefulInternalConnection<byte[], byte[]> connection() {
-        return connection.get();
+        StatefulInternalConnection<byte[], byte[]> conn = connection.get();
+        if (conn == null) {
+            throw new IllegalStateException("Redis connection not established yet");
+        }
+        return conn;
     }
 
     /**
@@ -98,11 +107,10 @@ public class ReplicationClient {
         lock.lock();
         try {
             // The client should be discarded after calling shutdown.
-            // getAndSet returns the previous value.
-            RedisClient redisClient = client.getAndSet(null);
-            if (redisClient != null) {
-                redisClient.shutdown();
+            if (client != null) {
+                client.shutdown();
                 connection.set(null);
+                client = null;
             }
         } finally {
             lock.unlock();
