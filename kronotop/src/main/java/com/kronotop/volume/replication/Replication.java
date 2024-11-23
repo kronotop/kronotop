@@ -19,14 +19,7 @@ package com.kronotop.volume.replication;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.Route;
-import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.client.InternalClient;
-import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.volume.VolumeConfig;
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,14 +33,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class Replication {
     private static final Logger LOGGER = LoggerFactory.getLogger(Replication.class);
-    protected final StatefulInternalConnection<byte[], byte[]> connection;
     private final Context context;
     private final Versionstamp slotId;
     private final VolumeConfig volumeConfig;
     private final ReplicationConfig config;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final AtomicReference<StageRunner> activeStageRunner = new AtomicReference<>();
-    private final RedisClient client;
+    private final ReplicationClient client;
     private volatile boolean started = false;
     private volatile boolean stopped = false;
 
@@ -55,19 +47,8 @@ public class Replication {
         this.context = context;
         this.config = config;
         this.slotId = slotId;
+        this.client = new ReplicationClient(context, config);
         this.volumeConfig = config.volumeConfig();
-
-        RoutingService routing = context.getService(RoutingService.NAME);
-        Route route = routing.findRoute(config.shardKind(), config.shardId());
-        if (route == null) {
-            throw new IllegalArgumentException("Route not found: " + config.shardKind() + " " + config.shardId());
-        }
-
-        Member member = route.primary();
-        this.client = RedisClient.create(
-                String.format("redis://%s:%d", member.getInternalAddress().getHost(), member.getInternalAddress().getPort())
-        );
-        this.connection = InternalClient.connect(client, ByteArrayCodec.INSTANCE);
     }
 
     private void runStages(List<StageRunner> stageRunners) {
@@ -92,7 +73,9 @@ public class Replication {
         stopped = false;
         started = true;
 
-        ReplicationContext replicationContext = new ReplicationContext(slotId, config, volumeConfig, connection);
+        client.connect();
+
+        ReplicationContext replicationContext = new ReplicationContext(slotId, config, volumeConfig, client);
         return executor.submit(() -> {
             List<StageRunner> runners = new ArrayList<>();
 

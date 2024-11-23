@@ -18,13 +18,12 @@ package com.kronotop.volume.replication;
 
 
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.volume.VolumeConfig;
 
 public record ReplicationContext(
         Versionstamp slotId,
         ReplicationConfig config,
         VolumeConfig volumeConfig,
-        StatefulInternalConnection<byte[], byte[]> connection
+        ReplicationClient client
 ) {
 }

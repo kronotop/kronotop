@@ -40,7 +40,7 @@ public class ReplicationStageRunner {
     protected final Context context;
     protected final ReplicationConfig config;
     protected final VolumeConfig volumeConfig;
-    protected final StatefulInternalConnection<byte[], byte[]> connection;
+    protected final ReplicationClient client;
     protected final HashMap<Long, Segment> openSegments = new HashMap<>();
     protected Versionstamp slotId;
     private volatile boolean stopped = false;
@@ -49,7 +49,7 @@ public class ReplicationStageRunner {
         this.context = context;
         this.config = replicationContext.config();
         this.volumeConfig = replicationContext.volumeConfig();
-        this.connection = replicationContext.connection();
+        this.client = replicationContext.client();
         this.slotId = replicationContext.slotId();
     }
 
@@ -94,7 +94,7 @@ public class ReplicationStageRunner {
             SegmentLogEntry entry = entries.get(i);
             segmentRanges[i] = new SegmentRange(entry.value().position(), entry.value().length());
         }
-        return connection.sync().segmentRange(volumeConfig.name(), segmentName, segmentRanges);
+        return client.connection().sync().segmentRange(volumeConfig.name(), segmentName, segmentRanges);
     }
 
     public void stop() {
