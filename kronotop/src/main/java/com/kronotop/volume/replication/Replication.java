@@ -26,7 +26,6 @@ import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.volume.VolumeConfig;
 import io.lettuce.core.RedisClient;
-import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

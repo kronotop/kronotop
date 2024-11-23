@@ -250,11 +250,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
 
             if (!currentRoute.standbys().isEmpty()) {
                 if (previousRoute != null) {
-                    for (Member member : currentRoute.standbys()) {
-                        if (!member.equals(context.getMember())) {
-                            // Another member
-                            continue;
-                        }
+                    if (currentRoute.standbys().contains(context.getMember())) {
                         // New assignment
                         if (!previousRoute.standbys().contains(context.getMember())) {
                             runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, ShardKind.REDIS, shardId);
@@ -262,11 +258,26 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                     }
                 } else {
                     // No previous root exists
-                    for (Member member : currentRoute.standbys()) {
+                    if (currentRoute.standbys().contains(context.getMember())) {
                         // New assignment
-                        if (member.equals(context.getMember())) {
-                            runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, ShardKind.REDIS, shardId);
-                        }
+                        runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, ShardKind.REDIS, shardId);
+                    }
+                }
+            }
+
+            if (previousRoute != null) {
+                if (!previousRoute.primary().equals(currentRoute.primary())) {
+                    // Primary owner has changed
+                    if (previousRoute.standbys().contains(context.getMember())) {
+                        // Connect to the new primary owner
+                    }
+                }
+            }
+
+            if (previousRoute != null) {
+                if (previousRoute.standbys().contains(context.getMember())) {
+                    if (!currentRoute.standbys().contains(context.getMember())) {
+                        // Stop replication
                     }
                 }
             }
