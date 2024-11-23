@@ -198,4 +198,55 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeTest {
             replication.stop();
         }
     }
+
+    @Test
+    public void restart_replication() throws IOException {
+        Versionstamp[] versionstampedKeys = new Versionstamp[0];
+
+        // Insert some keys to the primary volume
+        versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
+
+        // Start a standby
+        Volume standbyVolume = standbyVolume();
+
+        {
+            Replication replication = newReplication(standbyVolume.getConfig());
+            try {
+                replication.start();
+
+                await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
+                {
+                    Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
+                    await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
+                }
+
+                {
+                    versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
+                    Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
+                    await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
+                }
+            } finally {
+                replication.stop();
+            }
+        }
+
+        // Insert some entries to the primary volume and restart the replication.
+        {
+            versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
+            Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
+
+            ReplicationConfig config = new ReplicationConfig(standbyVolume.getConfig(), ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
+            Versionstamp slotId = ReplicationMetadata.findSlotId(context, config);
+            Replication replication = new Replication(context, slotId, config);
+            try {
+                replication.start();
+                {
+                    // Check all keys from the beginning
+                    await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
+                }
+            } finally {
+                replication.stop();
+            }
+        }
+    }
 }

@@ -90,6 +90,7 @@ public class Replication {
             throw new IllegalStateException("Replication is already started");
         }
 
+        stopped = false;
         started = true;
 
         ReplicationContext replicationContext = new ReplicationContext(slotId, config, volumeConfig, connection);
