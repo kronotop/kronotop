@@ -278,6 +278,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                 if (previousRoute.standbys().contains(context.getMember())) {
                     if (!currentRoute.standbys().contains(context.getMember())) {
                         // Stop replication
+                        runHooks(RoutingEventKind.STOP_REPLICATION, ShardKind.REDIS, shardId);
                     }
                 }
             }

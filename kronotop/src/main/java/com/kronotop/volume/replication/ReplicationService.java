@@ -45,6 +45,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
 
         this.routing = context.getService(RoutingService.NAME);
         this.routing.registerHook(RoutingEventKind.CREATE_REPLICATION_SLOT, new CreateReplicationSlotHook(context));
+        this.routing.registerHook(RoutingEventKind.STOP_REPLICATION, new StopReplicationHook(context));
     }
 
     private void startReplicationTasks(ShardKind shardKind, int shards) {
@@ -85,6 +86,14 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
                 throw new IllegalArgumentException("Unsupported shard kind: " + shardKind);
             }
         }
+    }
+
+    protected void stopReplication(Versionstamp slotId) {
+        Replication replication = replications.get(slotId);
+        if (replication != null) {
+            replication.stop();
+        }
+        replications.remove(slotId);
     }
 
     @Override
