@@ -25,15 +25,19 @@ import com.kronotop.cluster.client.StatefulInternalConnection;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.codec.ByteArrayCodec;
 
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * ReplicationClient is responsible for managing the connection to a primary Kronotop instance,
+ * handling the connection lifecycle including establishing and shutting down the connection.
+ * It ensures thread-safety using a read-write lock.
+ */
 public class ReplicationClient {
     private final Context context;
     private final ReplicationConfig config;
-    private final ReentrantLock lock = new ReentrantLock();
-    private final AtomicReference<StatefulInternalConnection<byte[], byte[]>> connection = new AtomicReference<>();
-    private RedisClient client = null;
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    private StatefulInternalConnection<byte[], byte[]> connection;
+    private RedisClient client;
 
     ReplicationClient(Context context, ReplicationConfig config) {
         this.context = context;
@@ -41,19 +45,15 @@ public class ReplicationClient {
     }
 
     /**
-     * Establishes a connection to the primary member of a specified shard.
-     * <p>
-     * This method locks the object to ensure thread safety and retrieves the primary
-     * member information for the shard specified in the configuration.
-     * It then creates a new Redis client using the member's address
-     * and updates the current client reference. If a previous Redis client exists,
-     * it shuts it down before setting the new client.
+     * Establishes a connection to the primary Redis instance based on the provided
+     * shard configuration and routing information. This method is thread-safe,
+     * utilizing a write lock to ensure exclusive access during the connection process.
      *
      * @throws IllegalArgumentException if the route for the specified shard kind
-     *                                  and shard id is not found.
+     *         and shard ID is not found
      */
     public void connect() {
-        lock.lock();
+        lock.writeLock().lock();
         try {
             RoutingService routing = context.getService(RoutingService.NAME);
             Route route = routing.findRoute(config.shardKind(), config.shardId());
@@ -67,53 +67,49 @@ public class ReplicationClient {
                 client.shutdown();
             }
             client = redisClient;
-            connection.set(InternalClient.connect(redisClient, ByteArrayCodec.INSTANCE));
+            connection = InternalClient.connect(redisClient, ByteArrayCodec.INSTANCE);
         } finally {
-            lock.unlock();
+            lock.writeLock().unlock();
         }
     }
 
     /**
-     * Retrieves the stateful internal connection to Redis.
-     * <p>
-     * This method checks if the connection has already been established. If not, it throws an
-     * IllegalStateException indicating that the Redis connection is not available.
+     * Retrieves the current stateful connection to the Redis database.
+     * This method ensures thread safety by acquiring a read lock before accessing the connection.
      *
-     * @return an instance of {@link StatefulInternalConnection<byte[], byte[]>} representing the stateful
-     *         connection to the Redis database.
-     * @throws IllegalStateException if the Redis connection has not been established yet.
+     * @return the current stateful connection to the Redis database
+     * @throws IllegalStateException if the Redis connection is not established yet
      */
     public StatefulInternalConnection<byte[], byte[]> connection() {
-        StatefulInternalConnection<byte[], byte[]> conn = connection.get();
-        if (conn == null) {
-            throw new IllegalStateException("Redis connection not established yet");
+        lock.readLock().lock();
+        try {
+            if (connection == null) {
+                throw new IllegalStateException("Redis connection not established yet");
+            }
+            return connection;
+        } finally {
+            lock.readLock().unlock();
         }
-        return conn;
     }
 
     /**
-     * Shuts down the current Redis client and releases its connection.
-     *
-     * <p>This method ensures thread safety by locking the relevant resources before
-     * discarding the Redis client. If a Redis client is currently active, it will be
-     * shut down and the connection will be cleared. The method guarantees that the
-     * Redis client will not be used after being set to null.
-     *
-     * <p>Note: It is important to call this method to properly release resources
-     * associated with the Redis client to avoid potential memory leaks or resource
-     * exhaustion.
+     * Shuts down the current client and releases any associated resources.
+     * <p>
+     * This method is thread-safe, acquiring a write lock to ensure exclusive access.
+     * Upon invocation, it shuts down the existing client if one is present, and removes
+     * references to the client and its connection.
      */
     public void shutdown() {
-        lock.lock();
+        lock.writeLock().lock();
         try {
             // The client should be discarded after calling shutdown.
             if (client != null) {
                 client.shutdown();
-                connection.set(null);
+                connection = null;
                 client = null;
             }
         } finally {
-            lock.unlock();
+            lock.writeLock().unlock();
         }
     }
 }
