@@ -20,33 +20,23 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.volume.VolumeConfig;
-import com.kronotop.volume.VolumeConfigGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StopReplicationHook implements RoutingEventHook {
+public class StopReplicationHook extends BaseRoutingEventHook implements RoutingEventHook {
     private static final Logger LOGGER = LoggerFactory.getLogger(StopReplicationHook.class);
-    private final Context context;
 
     public StopReplicationHook(Context context) {
-        this.context = context;
+        super(context);
     }
 
     @Override
     public void run(ShardKind shardKind, int shardId) {
-        VolumeConfig volumeConfig = new VolumeConfigGenerator(context, shardKind, shardId).volumeConfig();
-        ReplicationConfig config = new ReplicationConfig(
-                volumeConfig,
-                shardKind,
-                shardId,
-                ReplicationStage.SNAPSHOT);
-        Versionstamp slotId = ReplicationMetadata.findSlotId(context, config);
+        Versionstamp slotId = findSlotId(shardKind, shardId);
         if (slotId == null) {
             LOGGER.warn("No ReplicationSlot found for ShardKind: {} ShardId: {}", shardKind, shardId);
             return;
         }
-        ReplicationService service = context.getService(ReplicationService.NAME);
-        service.stopReplication(slotId);
+        replicationService.stopReplication(slotId);
     }
 }
