@@ -19,7 +19,6 @@ package com.kronotop.volume.replication;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.OperationKind;
@@ -35,6 +34,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+/**
+ * Class responsible for managing and executing replication stages for segments.
+ */
 public class ReplicationStageRunner {
     protected static final int MAXIMUM_BATCH_SIZE = 100;
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationStageRunner.class);
@@ -64,6 +66,18 @@ public class ReplicationStageRunner {
         return ReplicationSlot.load(tr, config, slotId);
     }
 
+    /**
+     * Iterates over log entries for a specified segment, fetching data ranges and inserting them into the segment.
+     *
+     * @param tr The transaction context within which the iteration occurs.
+     * @param segment The target segment for processing log entries and data ranges.
+     * @param begin The starting key selector for the iteration.
+     * @param end The ending key selector for the iteration.
+     * @param limit The maximum number of log entries to process in one iteration.
+     * @return An IterationResult containing the latest processed key and the number of processed keys.
+     * @throws NotEnoughSpaceException If there is insufficient space to process the entries.
+     * @throws IOException If an I/O error occurs during processing.
+     */
     protected IterationResult iterate(Transaction tr, Segment segment, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) throws NotEnoughSpaceException, IOException {
         SegmentLogIterable iterable = new SegmentLogIterable(tr, volumeConfig.subspace(), segment.getName(), begin, end, limit);
         List<SegmentLogEntry> segmentLogEntries = new ArrayList<>();
@@ -80,24 +94,41 @@ public class ReplicationStageRunner {
         return new IterationResult(segmentLogEntries.getLast().key(), segmentLogEntries.size());
     }
 
+    /**
+     * Inserts a range of data into the specified segment based on the given log entries.
+     *
+     * @param segment The segment into which the data will be inserted.
+     * @param entries The list of log entries that describe how the data should be inserted.
+     * @param dataRange The list of data objects to be inserted into the segment.
+     * @throws IOException If an I/O error occurs during the insert operation.
+     * @throws NotEnoughSpaceException If there is not enough space in the segment to insert the data.
+     */
     protected void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException, NotEnoughSpaceException {
         for (int i = 0; i < dataRange.size(); i++) {
             SegmentLogEntry entry = entries.get(i);
-            if (entry.value().kind().equals(OperationKind.DELETE)) {
-                // Do not need to fetch the deleted entry, OperationKind.Delete should be
-                // used for the vacuuming process.
-                continue;
-            }
             byte[] data = (byte[]) dataRange.get(i);
             segment.insert(ByteBuffer.wrap(data), entry.value().position());
         }
         segment.flush(true);
     }
 
+    /**
+     * Fetches the data ranges for a specified segment from the log entries and returns them as a list of objects.
+     * Skips entries marked as DELETE since they are meant for the vacuuming process.
+     *
+     * @param segmentName the name of the segment for which data ranges need to be fetched
+     * @param entries the list of log entries from which data ranges are to be derived
+     * @return a list of objects representing the fetched data ranges for the specified segment
+     */
     protected List<Object> fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
         SegmentRange[] segmentRanges = new SegmentRange[entries.size()];
         for (int i = 0; i < entries.size(); i++) {
             SegmentLogEntry entry = entries.get(i);
+            if (entry.value().kind().equals(OperationKind.DELETE)) {
+                // Do not need to fetch the deleted entry, OperationKind.Delete should be
+                // used for the vacuuming process.
+                continue;
+            }
             segmentRanges[i] = new SegmentRange(entry.value().position(), entry.value().length());
         }
         return client.connection().sync().segmentRange(volumeConfig.name(), segmentName, segmentRanges);
