@@ -23,7 +23,10 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.codec.ByteArrayCodec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -33,6 +36,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * It ensures thread-safety using a read-write lock.
  */
 public class ReplicationClient {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationClient.class);
     private final Context context;
     private final ReplicationConfig config;
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
@@ -68,6 +72,10 @@ public class ReplicationClient {
             }
             client = redisClient;
             connection = InternalClient.connect(redisClient, ByteArrayCodec.INSTANCE);
+        } catch (RedisConnectionException e) {
+            LOGGER.error("Failed to connect", e);
+            // Shutdown the client if it's active, because we don't want to use a wrong client to replicate data.
+            shutdown_internal();
         } finally {
             lock.writeLock().unlock();
         }
@@ -92,6 +100,16 @@ public class ReplicationClient {
         }
     }
 
+    private void shutdown_internal() {
+        if (client == null) {
+            return;
+        }
+        // The client should be discarded after calling shutdown.
+        client.shutdown();
+        connection = null;
+        client = null;
+    }
+
     /**
      * Shuts down the current client and releases any associated resources.
      * <p>
@@ -102,12 +120,7 @@ public class ReplicationClient {
     public void shutdown() {
         lock.writeLock().lock();
         try {
-            // The client should be discarded after calling shutdown.
-            if (client != null) {
-                client.shutdown();
-                connection = null;
-                client = null;
-            }
+            shutdown_internal();
         } finally {
             lock.writeLock().unlock();
         }
