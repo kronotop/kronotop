@@ -22,6 +22,7 @@ import com.kronotop.Context;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.volume.NotEnoughSpaceException;
+import com.kronotop.volume.OperationKind;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.segment.Segment;
@@ -81,8 +82,13 @@ public class ReplicationStageRunner {
 
     protected void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException, NotEnoughSpaceException {
         for (int i = 0; i < dataRange.size(); i++) {
-            byte[] data = (byte[]) dataRange.get(i);
             SegmentLogEntry entry = entries.get(i);
+            if (entry.value().kind().equals(OperationKind.DELETE)) {
+                // Do not need to fetch the deleted entry, OperationKind.Delete should be
+                // used for the vacuuming process.
+                continue;
+            }
+            byte[] data = (byte[]) dataRange.get(i);
             segment.insert(ByteBuffer.wrap(data), entry.value().position());
         }
         segment.flush(true);
