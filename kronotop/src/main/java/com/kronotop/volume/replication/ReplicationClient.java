@@ -28,6 +28,7 @@ import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.ConnectException;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -123,6 +124,20 @@ public class ReplicationClient {
             shutdown_internal();
         } finally {
             lock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Checks whether the connection to the Redis database is alive by sending a ping command.
+     *
+     * @return true if the ping command returns "PONG", false otherwise.
+     */
+    public boolean isAlive() {
+        try {
+            String response = connection().sync().ping();
+            return response.equals("PONG");
+        } catch (IllegalStateException | RedisConnectionException e) {
+            return false;
         }
     }
 }

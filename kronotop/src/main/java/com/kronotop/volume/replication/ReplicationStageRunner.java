@@ -36,8 +36,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * Class responsible for managing and executing replication stages for segments.
@@ -167,6 +165,11 @@ public class ReplicationStageRunner {
                 break;
             }
 
+            // TODO: Find a better solution
+            if (!client.isAlive()) {
+                client.connect();
+            }
+
             try {
                 runnable.run();
                 attempts = 0;
@@ -174,9 +177,9 @@ public class ReplicationStageRunner {
                 // Watcher canceled, break the loop.
                 break;
             } catch (Exception e) {
+                attempts++;
                 String id = ReplicationMetadata.stringifySlotId(slotId);
                 LOGGER.atError().setMessage("Error while running replication, slotId = {}").addArgument(id).setCause(e).log();
-                attempts++;
                 try {
                     Thread.sleep(interval);
                 } catch (InterruptedException ex) {
