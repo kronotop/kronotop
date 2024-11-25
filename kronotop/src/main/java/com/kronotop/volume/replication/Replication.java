@@ -85,14 +85,14 @@ public class Replication {
             } else {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     if (ReplicationSlot.load(tr, config, slotId).isSnapshotCompleted()) {
-                        StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, replicationContext);
-                        runners.add(changeDataCaptureStageRunner);
+                        StageRunner streamingStageRunner = new StreamingStageRunner(context, replicationContext);
+                        runners.add(streamingStageRunner);
                     } else {
                         StageRunner snapshotStageRunner = new SnapshotStageRunner(context, replicationContext);
                         runners.add(snapshotStageRunner);
 
-                        StageRunner changeDataCaptureStageRunner = new StreamingStageRunner(context, replicationContext);
-                        runners.add(changeDataCaptureStageRunner);
+                        StageRunner streamingStageRunner = new StreamingStageRunner(context, replicationContext);
+                        runners.add(streamingStageRunner);
                     }
                 }
             }

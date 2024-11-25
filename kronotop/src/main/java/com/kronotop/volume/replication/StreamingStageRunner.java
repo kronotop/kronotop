@@ -24,7 +24,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.KeyWatcher;
+import com.kronotop.common.KronotopException;
 import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.VersionstampedKeySelector;
@@ -35,18 +35,18 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 import static com.kronotop.volume.Subspaces.ENTRY_SUBSPACE;
-import static com.kronotop.volume.Subspaces.VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE;
+import static com.kronotop.volume.Subspaces.STREAMING_SUBSCRIBERS_SUBSPACE;
 
 /**
  * This class represents a stage runner for watching changes in a database segment log.
  */
 public class StreamingStageRunner extends ReplicationStageRunner implements StageRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(StreamingStageRunner.class);
-    private final KeyWatcher keyWatcher = new KeyWatcher();
 
     public StreamingStageRunner(Context context, ReplicationContext replicationContext) {
         super(context, replicationContext);
@@ -160,39 +160,26 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
             return;
         }
 
-        while (!isStopped()) {
+        runWithMaxAttempt(180, Duration.ofSeconds(5), () -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, volumeConfig.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE)));
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, volumeConfig.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE)));
                 tr.commit().join();
 
-                try {
-                    // stream segment log entries here
-                    fetchChangesFromSegmentLog();
-                    watcher.join();
-                } catch (CancellationException e) {
-                    LOGGER.atInfo()
-                            .setMessage("{} stage has cancelled, slotId = {}")
-                            .addArgument(name())
-                            .addArgument(ReplicationMetadata.stringifySlotId(slotId))
-                            .log();
-                    return; // cancelled
-                }
-                // fetch events here
                 fetchChangesFromSegmentLog();
-            } catch (Exception e) {
-                LOGGER.atError()
-                        .setMessage("Error while watching changes, slotId = {}")
-                        .addArgument(ReplicationMetadata.stringifySlotId(slotId))
-                        .setCause(e)
-                        .log();
-                // Retrying...
+                watcher.join();
+
+                fetchChangesFromSegmentLog();
+            } catch (NotEnoughSpaceException | IOException e) {
+                // will be retried
+                throw new KronotopException(e);
             }
-        }
+        });
     }
+
 
     @Override
     public void stop() {
-        keyWatcher.unwatch(volumeConfig.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE)));
+        keyWatcher.unwatch(volumeConfig.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE)));
         super.stop();
     }
 }

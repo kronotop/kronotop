@@ -19,6 +19,7 @@ package com.kronotop.volume.replication;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.KeyWatcher;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.OperationKind;
@@ -30,9 +31,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.CancellationException;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Class responsible for managing and executing replication stages for segments.
@@ -41,6 +46,7 @@ public class ReplicationStageRunner {
     protected static final int MAXIMUM_BATCH_SIZE = 100;
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationStageRunner.class);
     protected final Context context;
+    protected final KeyWatcher keyWatcher = new KeyWatcher();
     protected final ReplicationConfig config;
     protected final VolumeConfig volumeConfig;
     protected final ReplicationClient client;
@@ -150,6 +156,34 @@ public class ReplicationStageRunner {
                         addArgument(ReplicationMetadata.stringifySlotId(slotId)).
                         setCause(e).
                         log();
+            }
+        }
+    }
+
+    protected void runWithMaxAttempt(int maxAttempts, Duration interval, Runnable runnable) {
+        int attempts = 0;
+        while (!isStopped()) {
+            if (attempts >= maxAttempts) {
+                break;
+            }
+
+            try {
+                runnable.run();
+                attempts = 0;
+            } catch (CancellationException e) {
+                // Watcher canceled, break the loop.
+                break;
+            } catch (Exception e) {
+                String id = ReplicationMetadata.stringifySlotId(slotId);
+                LOGGER.atError().setMessage("Error while running replication, slotId = {}").addArgument(id).setCause(e).log();
+                attempts++;
+                try {
+                    Thread.sleep(interval);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                // Retrying...
             }
         }
     }
