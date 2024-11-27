@@ -165,12 +165,11 @@ public class ReplicationStageRunner {
                 break;
             }
 
-            // TODO: Find a better solution
-            if (!client.isAlive()) {
-                client.connect();
-            }
-
             try {
+                // There is no connection at all. First, try to connect to the primary owner.
+                if (!client.hasConnection()) {
+                    client.tryConnect();
+                }
                 runnable.run();
                 attempts = 0;
             } catch (CancellationException e) {
@@ -187,6 +186,7 @@ public class ReplicationStageRunner {
                     break;
                 }
                 // Retrying...
+                System.out.println("RETRY");
             }
         }
     }

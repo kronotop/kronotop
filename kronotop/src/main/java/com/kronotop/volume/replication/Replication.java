@@ -73,7 +73,13 @@ public class Replication {
         stopped = false;
         started = true;
 
-        connect();
+        try {
+            tryConnect();
+        } catch (Exception e) {
+            // Catch all and log, the underlying client and the stage runner will try to reconnect
+            // if tryConnect fails
+            LOGGER.error("Failed to connect to the primary", e);
+        }
 
         ReplicationContext replicationContext = new ReplicationContext(slotId, config, volumeConfig, client);
         return executor.submit(() -> {
@@ -105,8 +111,8 @@ public class Replication {
         return activeStageRunner.get();
     }
 
-    public void connect() {
-        client.connect();
+    public void tryConnect() {
+        client.tryConnect();
     }
 
     public synchronized void stop() {

@@ -39,6 +39,6 @@ public class PrimaryOwnerChangedHook extends BaseRoutingEventHook implements Rou
         }
         Replication replication = replicationService.getReplication(slotId);
         // connect will find the current primary owner and make a new connection while cleaning up the old one.
-        replication.connect();
+        replication.tryConnect();
     }
 }

@@ -28,7 +28,6 @@ import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.ConnectException;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -50,14 +49,20 @@ public class ReplicationClient {
     }
 
     /**
-     * Establishes a connection to the primary Redis instance based on the provided
-     * shard configuration and routing information. This method is thread-safe,
-     * utilizing a write lock to ensure exclusive access during the connection process.
+     * Attempts to establish a connection to a Redis client based on the routing configuration.
+     * This method is thread-safe, using a write lock to ensure exclusive access during the connection process.
+     * <p>
+     * The method retrieves the routing service and attempts to find the route for the specified shard.
+     * If the route is not found, an exception is thrown. If found, it attempts to create a Redis client and connect to it.
+     * <p>
+     * If an existing client is present, it is shut down before a new connection is established.
+     * In the case of a connection failure, the method logs the error and shuts down the internal client to prevent further operations
+     * with a potentially faulty client.
      *
-     * @throws IllegalArgumentException if the route for the specified shard kind
-     *         and shard ID is not found
+     * @throws IllegalArgumentException if the route for the specified shard is not found
+     * @throws RedisConnectionException if the connection attempts to the Redis client fails
      */
-    public void connect() {
+    public void tryConnect() {
         lock.writeLock().lock();
         try {
             RoutingService routing = context.getService(RoutingService.NAME);
@@ -73,10 +78,11 @@ public class ReplicationClient {
             }
             client = redisClient;
             connection = InternalClient.connect(redisClient, ByteArrayCodec.INSTANCE);
+            LOGGER.debug("Connected to Kronotop server at: {}", member.getInternalAddress());
         } catch (RedisConnectionException e) {
-            LOGGER.error("Failed to connect", e);
             // Shutdown the client if it's active, because we don't want to use a wrong client to replicate data.
             shutdown_internal();
+            throw e;
         } finally {
             lock.writeLock().unlock();
         }
@@ -132,12 +138,28 @@ public class ReplicationClient {
      *
      * @return true if the ping command returns "PONG", false otherwise.
      */
-    public boolean isAlive() {
+    public boolean isConnectionAlive() {
+        // TODO: Remove this
         try {
             String response = connection().sync().ping();
             return response.equals("PONG");
         } catch (IllegalStateException | RedisConnectionException e) {
             return false;
+        }
+    }
+
+    /**
+     * Checks if the current replication client has an established connection.
+     * This method is thread-safe and acquires a read lock to check the connection state.
+     *
+     * @return true if there is an existing connection, false otherwise
+     */
+    public boolean hasConnection() {
+        lock.readLock().lock();
+        try {
+            return connection != null;
+        } finally {
+            lock.readLock().unlock();
         }
     }
 }
