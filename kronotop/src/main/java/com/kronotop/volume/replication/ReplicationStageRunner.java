@@ -182,11 +182,11 @@ public class ReplicationStageRunner {
                 try {
                     Thread.sleep(interval);
                 } catch (InterruptedException ex) {
+                    // TODO: Do we need this call?
                     Thread.currentThread().interrupt();
                     break;
                 }
                 // Retrying...
-                System.out.println("RETRY");
             }
         }
     }

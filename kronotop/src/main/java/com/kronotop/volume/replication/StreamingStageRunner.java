@@ -159,7 +159,8 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
             return;
         }
 
-        runWithMaxAttempt(180, Duration.ofSeconds(5), () -> {
+        // Try to re-connect for half an hour.
+        runWithMaxAttempt(360, Duration.ofSeconds(5), () -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 CompletableFuture<Void> watcher = keyWatcher.watch(tr, volumeConfig.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE)));
                 tr.commit().join();

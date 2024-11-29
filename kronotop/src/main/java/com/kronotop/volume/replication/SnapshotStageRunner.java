@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
@@ -45,7 +46,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
     /**
      * Checks if the snapshot for the specified segment has been completed.
      *
-     * @param tr the transaction context
+     * @param tr        the transaction context
      * @param segmentId the identifier of the segment whose snapshot is being checked
      * @return true if the snapshot is completed, false otherwise
      */
@@ -60,10 +61,10 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
      * It retrieves and processes entries from the specified segment based on the
      * snapshot information stored in the replication slot.
      *
-     * @param tr the transaction context in which to perform the iteration.
+     * @param tr        the transaction context in which to perform the iteration.
      * @param segmentId the identifier of the segment to be iterated.
      * @return an IterationResult object containing the latest processed key and the number of processed keys.
-     * @throws IOException if an I/O error occurs during iteration.
+     * @throws IOException             if an I/O error occurs during iteration.
      * @throws NotEnoughSpaceException if there is not enough space to process the segment.
      */
     private IterationResult iterateSegmentLogEntries(Transaction tr, long segmentId) throws IOException, NotEnoughSpaceException {
@@ -151,12 +152,12 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
     }
 
     /**
-     * Executes the snapshot stage of the replication process.
-     * This method iterates through each snapshot in the replication slot, checking if replication
-     * has been stopped or if the snapshot segment has already been copied from the source. If a segment
-     * has not been fully copied, it will invoke the method to process the segment.
+     * Iterates through the snapshot segments recorded in the replication slot.
+     * For each snapshot segment, it checks if replication has been stopped.
+     * If the segment is fully replicated, it is skipped.
+     * Otherwise, continue processing the segment via the snapshot loop.
      */
-    private void runSnapshotStage() {
+    private void iterateOverSnapshotSegments() {
         ReplicationSlot slot = loadReplicationSlot();
         for (Map.Entry<Long, Snapshot> entry : slot.getSnapshots().entrySet()) {
             if (isStopped()) {
@@ -196,6 +197,25 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
         }
     }
 
+    private void report() {
+        ReplicationSlot slot = checkReplicationStatus();
+        if (slot.isSnapshotCompleted()) {
+            long totalProcessedEntries = 0;
+            for (Map.Entry<Long, Snapshot> entry : slot.getSnapshots().entrySet()) {
+                totalProcessedEntries += entry.getValue().getProcessedEntries();
+            }
+            LOGGER.atInfo().setMessage("{} stage has completed, slotId = {}").
+                    addArgument(name()).
+                    addArgument(ReplicationMetadata.stringifySlotId(slotId)).
+                    log();
+            LOGGER.atInfo().setMessage("Number of processed keys during {} stage: {}, slotId = {}").
+                    addArgument(name()).
+                    addArgument(totalProcessedEntries).
+                    addArgument(ReplicationMetadata.stringifySlotId(slotId)).
+                    log();
+        }
+    }
+
     /**
      * Executes the snapshot stage and verifies the replication status.
      * This method is primarily concerned with managing the replication snapshot process. It first runs the snapshot
@@ -204,39 +224,26 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
      * message along with the exception details.
      * <p>
      * The execution flow is as follows:
-     * - Invokes {@link #runSnapshotStage()} to start the snapshot process.
+     * - Invokes {@link #iterateOverSnapshotSegments()} to start the snapshot process.
      * - Calls {@link #checkReplicationStatus()} to verify the status of the replication slot.
      * - If the snapshot process is complete, calculates the total number of entries processed
-     *   and logs informational messages.
+     * and logs informational messages.
      * - In case of an exception, logs an error message with the cause.
      */
     @Override
     public void run() {
-        try {
-            runSnapshotStage();
-            ReplicationSlot slot = checkReplicationStatus();
-
-            if (slot.isSnapshotCompleted()) {
-                long totalProcessedEntries = 0;
-                for (Map.Entry<Long, Snapshot> entry : slot.getSnapshots().entrySet()) {
-                    totalProcessedEntries += entry.getValue().getProcessedEntries();
-                }
-                LOGGER.atInfo().setMessage("{} stage has completed, slotId = {}").
+        runWithMaxAttempt(360, Duration.ofSeconds(5), () -> {
+            try {
+                iterateOverSnapshotSegments();
+                report();
+            } catch (Exception e) {
+                LOGGER.atError().setMessage("{} stage has failed, slotId = {}").
                         addArgument(name()).
                         addArgument(ReplicationMetadata.stringifySlotId(slotId)).
+                        setCause(e).
                         log();
-                LOGGER.atInfo().setMessage("Number of processed keys during {} stage: {}, slotId = {}").
-                        addArgument(name()).
-                        addArgument(totalProcessedEntries).
-                        addArgument(ReplicationMetadata.stringifySlotId(slotId)).
-                        log();
+                throw e;
             }
-        } catch (Exception e) {
-            LOGGER.atError().setMessage("{} stage has failed, slotId = {}").
-                    addArgument(name()).
-                    addArgument(ReplicationMetadata.stringifySlotId(slotId)).
-                    setCause(e).
-                    log();
-        }
+        });
     }
 }
