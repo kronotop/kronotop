@@ -174,12 +174,15 @@ public class ReplicationStageRunner {
         while (!isStopped()) {
             if (attempts >= maxAttempts) {
                 // Failed, stop the replication
-                context.getFoundationDB().run(tr -> {
+                ReplicationSlot replicationSlot = context.getFoundationDB().run(tr -> {
                     ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
                     slot.setActive(false);
-                    return null;
+                    return slot;
                 });
-                LOGGER.warn("Replication with slot id {} has stopped", ReplicationMetadata.stringifySlotId(slotId));
+                LOGGER.warn("Replication with slot id {} has stopped, current ReplicationStage: {}",
+                        ReplicationMetadata.stringifySlotId(slotId),
+                        replicationSlot.getReplicationStage()
+                );
                 break;
             }
 
