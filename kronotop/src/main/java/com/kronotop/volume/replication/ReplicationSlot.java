@@ -42,6 +42,7 @@ public class ReplicationSlot {
     private long latestSegmentId;
     private byte[] latestVersionstampedKey;
     private ReplicationStage replicationStage;
+    private boolean active;
 
     private static byte[] slotKey(ReplicationConfig config) {
         Tuple tuple = Tuple.from(
@@ -164,6 +165,14 @@ public class ReplicationSlot {
 
     public void completeReplicationStage(ReplicationStage stage) {
         completedStages.add(stage);
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 }
 

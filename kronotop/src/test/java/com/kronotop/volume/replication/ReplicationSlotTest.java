@@ -79,6 +79,7 @@ class ReplicationSlotTest extends BaseVolumeIntegrationTest {
                 slot.setLatestSegmentId(100);
                 slot.setReplicationStage(ReplicationStage.STREAMING);
                 slot.completeReplicationStage(ReplicationStage.SNAPSHOT);
+                slot.setActive(true);
             });
             tr.commit().join();
         }
@@ -90,6 +91,7 @@ class ReplicationSlotTest extends BaseVolumeIntegrationTest {
             assertTrue(slot.isReplicationStageCompleted(ReplicationStage.SNAPSHOT));
             assertEquals(1, slot.getCompletedStages().size());
             assertEquals(100, slot.getLatestSegmentId());
+            assertTrue(slot.isActive());
         }
     }
 }
