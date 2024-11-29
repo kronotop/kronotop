@@ -24,6 +24,8 @@ import com.kronotop.JSONUtils;
 import com.kronotop.volume.VolumeMetadata;
 import com.kronotop.volume.segment.Segment;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 
@@ -36,10 +38,10 @@ import static com.kronotop.volume.Subspaces.REPLICATION_SLOT_SUBSPACE;
  */
 public class ReplicationSlot {
     private final TreeMap<Long, Snapshot> snapshots = new TreeMap<>();
-    private ReplicationStage replicationStage;
-    private boolean snapshotCompleted = false;
+    private final Set<ReplicationStage> completedStages = new HashSet<>();
     private long latestSegmentId;
     private byte[] latestVersionstampedKey;
+    private ReplicationStage replicationStage;
 
     private static byte[] slotKey(ReplicationConfig config) {
         Tuple tuple = Tuple.from(
@@ -131,6 +133,11 @@ public class ReplicationSlot {
         this.replicationStage = replicationStage;
     }
 
+    public Set<ReplicationStage> getCompletedStages() {
+        // Keep this for JSON encode/decode.
+        return completedStages;
+    }
+
     public TreeMap<Long, Snapshot> getSnapshots() {
         return snapshots;
     }
@@ -151,12 +158,12 @@ public class ReplicationSlot {
         this.latestSegmentId = latestSegmentId;
     }
 
-    public boolean isSnapshotCompleted() {
-        return snapshotCompleted;
+    public boolean isReplicationStageCompleted(ReplicationStage stage) {
+        return completedStages.contains(stage);
     }
 
-    public void setSnapshotCompleted(boolean snapshotCompleted) {
-        this.snapshotCompleted = snapshotCompleted;
+    public void completeReplicationStage(ReplicationStage stage) {
+        completedStages.add(stage);
     }
 }
 

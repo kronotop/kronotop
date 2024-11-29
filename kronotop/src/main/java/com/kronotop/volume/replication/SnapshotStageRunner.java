@@ -190,7 +190,9 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                         break;
                     }
                 }
-                slot.setSnapshotCompleted(completed);
+                if (completed) {
+                    slot.completeReplicationStage(ReplicationStage.SNAPSHOT);
+                }
             });
             tr.commit().join();
             return replicationSlot;
@@ -199,7 +201,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
 
     private void report() {
         ReplicationSlot slot = checkReplicationStatus();
-        if (slot.isSnapshotCompleted()) {
+        if (slot.isReplicationStageCompleted(ReplicationStage.SNAPSHOT)) {
             long totalProcessedEntries = 0;
             for (Map.Entry<Long, Snapshot> entry : slot.getSnapshots().entrySet()) {
                 totalProcessedEntries += entry.getValue().getProcessedEntries();

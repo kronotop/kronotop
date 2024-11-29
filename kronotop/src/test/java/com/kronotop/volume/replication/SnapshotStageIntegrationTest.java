@@ -61,7 +61,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
                 try (Transaction tr = database.createTransaction()) {
                     ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
-                    return slot.isSnapshotCompleted();
+                    return slot.isReplicationStageCompleted(ReplicationStage.SNAPSHOT);
                 }
             });
         } finally {
@@ -88,7 +88,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         // Check replication metadata
         try (Transaction tr = database.createTransaction()) {
             ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
-            assertTrue(slot.isSnapshotCompleted());
+            assertTrue(slot.isReplicationStageCompleted(ReplicationStage.SNAPSHOT));
             for (Snapshot snapshot : slot.getSnapshots().values()) {
                 assertArrayEquals(snapshot.getBegin(), snapshot.getEnd());
             }
