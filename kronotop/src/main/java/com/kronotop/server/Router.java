@@ -182,7 +182,7 @@ public class Router extends ChannelDuplexHandler {
                 command.append(param).append(" ");
             }
             LOGGER.debug("Unhandled error while serving command: {}", command, exception);
-            response.writeError(exception.getMessage());
+            response.writeError("Failed to run command, check the server logs");
         }
     }
 

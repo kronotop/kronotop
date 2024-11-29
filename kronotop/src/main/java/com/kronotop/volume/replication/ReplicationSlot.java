@@ -20,6 +20,7 @@ import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.kronotop.JSONUtils;
 import com.kronotop.volume.VolumeMetadata;
 import com.kronotop.volume.segment.Segment;
@@ -36,6 +37,7 @@ import static com.kronotop.volume.Subspaces.REPLICATION_SLOT_SUBSPACE;
  * A replication slot is responsible for tracking the replication state and snapshots
  * of a standby server.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ReplicationSlot {
     private final TreeMap<Long, Snapshot> snapshots = new TreeMap<>();
     private final Set<ReplicationStage> completedStages = new HashSet<>();
