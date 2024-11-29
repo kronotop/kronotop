@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
+import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.OperationKind;
@@ -172,6 +173,13 @@ public class ReplicationStageRunner {
         int attempts = 0;
         while (!isStopped()) {
             if (attempts >= maxAttempts) {
+                // Failed, stop the replication
+                context.getFoundationDB().run(tr -> {
+                    ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
+                    slot.setActive(false);
+                    return null;
+                });
+                LOGGER.warn("Replication with slot id {} has stopped", ReplicationMetadata.stringifySlotId(slotId));
                 break;
             }
 
