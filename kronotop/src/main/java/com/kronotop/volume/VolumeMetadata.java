@@ -19,6 +19,7 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.kronotop.JSONUtils;
 
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class VolumeMetadata {
     @JsonIgnore
     private static final String VOLUME_METADATA_KEY = "volume-metadata";

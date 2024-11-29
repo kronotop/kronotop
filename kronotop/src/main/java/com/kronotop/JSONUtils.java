@@ -18,6 +18,9 @@ package com.kronotop;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kronotop.common.KronotopException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -26,12 +29,14 @@ import java.io.IOException;
  */
 public class JSONUtils {
     public static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final Logger LOGGER = LoggerFactory.getLogger(JSONUtils.class);
 
     public static <T> T readValue(byte[] content, Class<T> valueType) {
         try {
             return objectMapper.readValue(content, valueType);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            LOGGER.error("Failed to deserialize JSON content from given resource into given Java type. ", e);
+            throw new KronotopException("JSON deserialization failed");
         }
     }
 
@@ -39,7 +44,8 @@ public class JSONUtils {
         try {
             return objectMapper.writeValueAsBytes(value);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            LOGGER.error("Failed to serialize Java object to byte array. ", e);
+            throw new KronotopException("JSON serialization failed");
         }
     }
 }

@@ -18,6 +18,7 @@ package com.kronotop.cluster;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.kronotop.VersionstampUtils;
@@ -28,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 
 import static com.google.common.hash.Hashing.sipHash24;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Member {
     @JsonIgnore
     public static final String HEARTBEAT_KEY = "heartbeat";
