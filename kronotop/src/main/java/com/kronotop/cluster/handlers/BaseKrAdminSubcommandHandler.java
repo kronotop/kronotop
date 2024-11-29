@@ -27,11 +27,9 @@ import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.IntegerRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import com.kronotop.volume.replication.ReplicationSlot;
+import com.kronotop.volume.replication.ReplicationStage;
 import io.netty.buffer.ByteBuf;
 
 import java.util.*;
@@ -279,8 +277,8 @@ public class BaseKrAdminSubcommandHandler {
      * Converts a given replication slot into a Map of RedisMessage key-value pairs.
      *
      * @param shardKind The type of shard. Must be of type {@link ShardKind}.
-     * @param shardId The ID of the shard.
-     * @param slot The replication slot to be converted into a Map.
+     * @param shardId   The ID of the shard.
+     * @param slot      The replication slot to be converted into a Map.
      * @return A Map containing RedisMessage key-value pairs representing the attributes of the replication slot.
      */
     protected Map<RedisMessage, RedisMessage> replicationSlotToMap(ShardKind shardKind, int shardId, ReplicationSlot slot) {
@@ -296,6 +294,11 @@ public class BaseKrAdminSubcommandHandler {
                 new IntegerRedisMessage(shardId)
         );
 
+        current.put(
+                new SimpleStringRedisMessage("active"),
+                slot.isActive() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
+        );
+
         String replicationStage = "";
         if (slot.getReplicationStage() != null) {
             replicationStage = slot.getReplicationStage().name();
@@ -304,6 +307,11 @@ public class BaseKrAdminSubcommandHandler {
                 new SimpleStringRedisMessage("replication_stage"),
                 new SimpleStringRedisMessage(replicationStage)
         );
+        List<RedisMessage> completedStages = new ArrayList<>();
+        for (ReplicationStage stage: slot.getCompletedStages()) {
+            completedStages.add(new SimpleStringRedisMessage(stage.name()));
+        }
+        current.put(new SimpleStringRedisMessage("completed_stages"), new ArrayRedisMessage(completedStages));
 
         current.put(
                 new SimpleStringRedisMessage("latest_segment_id"),

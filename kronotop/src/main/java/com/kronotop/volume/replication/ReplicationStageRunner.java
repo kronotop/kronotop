@@ -71,6 +71,15 @@ public class ReplicationStageRunner {
         return ReplicationSlot.load(tr, config, slotId);
     }
 
+    protected void setActive(boolean active) {
+        context.getFoundationDB().run(tr -> {
+            ReplicationSlot.compute(tr, config, slotId, (slot) -> {
+                slot.setActive(active);
+            });
+            return null;
+        });
+    }
+
     /**
      * Iterates over log entries for a specified segment, fetching data ranges and inserting them into the segment.
      *

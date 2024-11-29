@@ -159,6 +159,8 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
             return;
         }
 
+        setActive(true);
+
         // Try to re-connect for half an hour.
         keepRunningWithMaxAttempt(360, Duration.ofSeconds(5), () -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {

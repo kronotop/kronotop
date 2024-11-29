@@ -368,6 +368,14 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
                         IntegerRedisMessage v = (IntegerRedisMessage) value;
                         assertEquals(0, v.value());
                     }
+                    case "active" -> {
+                        BooleanRedisMessage v = (BooleanRedisMessage) value;
+                        assertFalse(v.value());
+                    }
+                    case "completed_stages" -> {
+                        ArrayRedisMessage v = (ArrayRedisMessage) value;
+                        assertTrue(v.children().isEmpty());
+                    }
                 }
             });
         });
