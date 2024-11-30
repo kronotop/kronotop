@@ -19,11 +19,13 @@ package com.kronotop.cluster.handlers;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.MemberStatus;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.replication.BaseNetworkedVolumeTest;
+import com.kronotop.volume.replication.CreateReplicationSlotHook;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -329,4 +331,54 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
             }
         });
     }
+
+    @Test
+    public void test_listReplicationSlots() {
+        CreateReplicationSlotHook hook = new CreateReplicationSlotHook(context);
+        hook.run(ShardKind.REDIS, 1);
+
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.listReplicationSlots().encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(MapRedisMessage.class, msg);
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        actualMessage.children().forEach((slotId, slot) -> {
+            assertFalse(((SimpleStringRedisMessage) slotId).content().isEmpty());
+            MapRedisMessage map = (MapRedisMessage) slot;
+            map.children().forEach((key, value) -> {
+                SimpleStringRedisMessage k = (SimpleStringRedisMessage) key;
+                switch (k.content()) {
+                    case "shard_kind" -> {
+                        SimpleStringRedisMessage v = (SimpleStringRedisMessage) value;
+                        assertEquals(ShardKind.REDIS.name(), v.content());
+                    }
+                    case "shard_id" -> {
+                        IntegerRedisMessage v = (IntegerRedisMessage) value;
+                        assertEquals(1, v.value());
+                    }
+                    case "replication_stage", "latest_versionstamped_key" -> {
+                        SimpleStringRedisMessage v = (SimpleStringRedisMessage) value;
+                        assertEquals("", v.content());
+                    }
+                    case "latest_segment_id" -> {
+                        IntegerRedisMessage v = (IntegerRedisMessage) value;
+                        assertEquals(0, v.value());
+                    }
+                    case "active" -> {
+                        BooleanRedisMessage v = (BooleanRedisMessage) value;
+                        assertFalse(v.value());
+                    }
+                    case "completed_stages" -> {
+                        ArrayRedisMessage v = (ArrayRedisMessage) value;
+                        assertTrue(v.children().isEmpty());
+                    }
+                }
+            });
+        });
+    }
 }
+

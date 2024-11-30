@@ -73,7 +73,7 @@ public class RespResponseTest {
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
         assertInstanceOf(SimpleStringRedisMessage.class, redisMessage);
         SimpleStringRedisMessage simpleStringRedisMessage = (SimpleStringRedisMessage) redisMessage;
-        assertEquals("OK", simpleStringRedisMessage.content());
+        assertEquals(Response.OK, simpleStringRedisMessage.content());
     }
 
     @Disabled("This test is skipped because EmbeddedChannel.flush doesn't work as expected.")

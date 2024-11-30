@@ -31,10 +31,10 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 
 /**
- * Represents a stateful connection to Kronotop using Redis Cluster Protocol.
+ * StatefulInternalConnection encapsulates a stateful connection to a Redis database with both synchronous and asynchronous command interfaces.
  *
- * @param <K> the type for Redis keys
- * @param <V> the type for Redis values
+ * @param <K> the type of keys maintained by this connection
+ * @param <V> the type of values maintained by this connection
  */
 public class StatefulInternalConnection<K, V> {
     private final StatefulRedisConnection<K, V> connection;

@@ -18,6 +18,7 @@ package com.kronotop.redis.handlers.string;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseHandlerTest;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -52,7 +53,7 @@ public class ScanHandlerTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         SortedSet<String> result = new TreeSet<>();

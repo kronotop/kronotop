@@ -19,6 +19,7 @@ package com.kronotop.foundationdb.zmap;
 import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.protocol.ZMutateArgs;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -46,7 +47,7 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -57,7 +58,7 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -85,7 +86,7 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         ByteBuf buf = Unpooled.buffer();

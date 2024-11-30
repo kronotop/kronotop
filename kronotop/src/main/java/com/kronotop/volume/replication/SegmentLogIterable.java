@@ -30,6 +30,7 @@ import com.kronotop.volume.VersionstampedKeySelector;
 
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
@@ -58,26 +59,29 @@ public class SegmentLogIterable implements Iterable<SegmentLogEntry> {
         this.asyncIterable = createAsyncIterable(tr, begin, end, limit, reverse);
     }
 
+    private byte[] packSegmentRoot() {
+        return subspace.pack(Tuple.from(SEGMENT_LOG_SUBSPACE, segmentName));
+    }
+
+    private byte[] packKey(Versionstamp key) {
+        return subspace.pack(Tuple.from(SEGMENT_LOG_SUBSPACE, segmentName, key));
+    }
+
     private AsyncIterable<KeyValue> createAsyncIterable(Transaction tr, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
         KeySelector beginKeySelector;
         if (begin == null) {
-            beginKeySelector = KeySelector.firstGreaterOrEqual(subspace.pack(Tuple.from(SEGMENT_LOG_SUBSPACE, segmentName)));
+            beginKeySelector = KeySelector.firstGreaterOrEqual(packSegmentRoot());
         } else {
             beginKeySelector = new KeySelector(packKey(begin.getKey()), begin.orEqual(), begin.getOffset());
         }
 
         KeySelector endKeySelector;
         if (end == null) {
-            // TODO: This looks wrong to me.
-            endKeySelector = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(beginKeySelector.getKey()));
+            endKeySelector = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(packSegmentRoot()));
         } else {
             endKeySelector = new KeySelector(packKey(end.getKey()), end.orEqual(), end.getOffset());
         }
         return tr.getRange(beginKeySelector, endKeySelector, limit, reverse);
-    }
-
-    private byte[] packKey(Versionstamp key) {
-        return subspace.pack(Tuple.from(SEGMENT_LOG_SUBSPACE, segmentName, key));
     }
 
     @Nonnull
@@ -118,7 +122,12 @@ public class SegmentLogIterable implements Iterable<SegmentLogEntry> {
             KeyValue keyValue = asyncIterator.next();
             Tuple unpacked = subspace.unpack(keyValue.getKey());
             Versionstamp key = (Versionstamp) unpacked.get(2);
-            long timestamp = (long) unpacked.get(3);
+            long timestamp = 0;
+            try {
+                timestamp = (long) unpacked.get(3);
+            } catch (IndexOutOfBoundsException e) {
+                // TODO: CLUSTER-REFACTOR, remove this
+            }
             return new SegmentLogEntry(key, timestamp, SegmentLogValue.decode(ByteBuffer.wrap(keyValue.getValue())));
         }
     }

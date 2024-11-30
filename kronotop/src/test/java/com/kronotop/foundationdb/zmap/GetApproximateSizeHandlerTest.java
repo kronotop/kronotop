@@ -18,6 +18,7 @@ package com.kronotop.foundationdb.zmap;
 
 import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
@@ -42,7 +43,7 @@ public class GetApproximateSizeHandlerTest extends BaseHandlerTest {
 
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         // ZSET
@@ -54,7 +55,7 @@ public class GetApproximateSizeHandlerTest extends BaseHandlerTest {
                 Object response = channel.readOutbound();
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-                assertEquals("OK", actualMessage.content());
+                assertEquals(Response.OK, actualMessage.content());
             }
         }
 

@@ -73,7 +73,7 @@ public class Volume {
         this.config = config;
         this.subspace = new VolumeSubspace(config.subspace());
         this.entryMetadataCache = new ConcurrentHashMap<>();
-        this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(VOLUME_STREAMING_SUBSCRIBERS_TRIGGER_SUBSPACE));
+        this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
     }
 
     /**

@@ -16,27 +16,19 @@
 
 package com.kronotop.cluster;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.time.Instant;
-
+@JsonIgnoreProperties(ignoreUnknown = true)
 class MemberEvent extends BaseBroadcastEvent {
     private String memberId;
-    private long createdAt;
 
     MemberEvent() {
-    }
-
-    public MemberEvent(BroadcastEventKind kind, String memberId, long createdAt) {
-        super(kind);
-        this.memberId = memberId;
-        this.createdAt = createdAt;
     }
 
     public MemberEvent(BroadcastEventKind kind, String memberId) {
         super(kind);
         this.memberId = memberId;
-        this.createdAt = Instant.now().toEpochMilli();
     }
 
     @JsonProperty
@@ -44,18 +36,12 @@ class MemberEvent extends BaseBroadcastEvent {
         return memberId;
     }
 
-    @JsonProperty
-    public long createdAt() {
-        return createdAt;
-    }
-
     @Override
     public String toString() {
         return String.format(
-                "MemberEvent {kind=%s id=%s createdAt=%d}",
+                "MemberEvent {kind=%s id=%s}",
                 kind(),
-                memberId,
-                createdAt
+                memberId
         );
     }
 }

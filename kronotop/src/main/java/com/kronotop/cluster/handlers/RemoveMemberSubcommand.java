@@ -16,6 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
@@ -33,7 +34,10 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
     @Override
     public void execute(Request request, Response response) {
         RemoveMemberParameters parameters = new RemoveMemberParameters(request.getParams());
-        service.removeMember(parameters.memberId);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            membership.removeMember(tr, parameters.memberId);
+            membership.triggerRoutingEventsWatcher(tr);
+        }
         response.writeOK();
     }
 

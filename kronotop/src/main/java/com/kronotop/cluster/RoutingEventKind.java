@@ -14,21 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume.replication;
+package com.kronotop.cluster;
 
-import com.kronotop.cluster.Member;
-import com.kronotop.volume.Role;
-
-public record Host(Role role, Member member) {
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (!(obj instanceof Host other)) {
-            return false;
-        }
-        return other.member.getId().equals(member.getId()) && other.role.equals(role);
-    }
+public enum RoutingEventKind {
+    LOAD_REDIS_SHARD,
+    CREATE_REPLICATION_SLOT,
+    STOP_REPLICATION,
+    PRIMARY_OWNER_CHANGED
 }

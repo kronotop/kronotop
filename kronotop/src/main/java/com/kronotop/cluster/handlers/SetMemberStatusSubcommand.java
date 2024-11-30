@@ -16,6 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.MembershipService;
@@ -36,9 +37,13 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
     @Override
     public void execute(Request request, Response response) {
         SetMemberStatusParameters parameters = new SetMemberStatusParameters(request.getParams());
-        Member member = service.findMember(parameters.memberId);
-        member.setStatus(parameters.memberStatus);
-        service.updateMember(member);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Member member = membership.findMember(tr, parameters.memberId);
+            member.setStatus(parameters.memberStatus);
+            membership.updateMember(tr, member);
+            membership.triggerRoutingEventsWatcher(tr);
+            tr.commit().join();
+        }
         response.writeOK();
     }
 

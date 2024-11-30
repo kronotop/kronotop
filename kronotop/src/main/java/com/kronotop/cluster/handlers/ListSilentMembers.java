@@ -38,7 +38,7 @@ class ListSilentMembers extends BaseKrAdminSubcommandHandler implements Subcomma
     @Override
     public void execute(Request request, Response response) {
         List<RedisMessage> result = new ArrayList<>();
-        Map<Member, MemberView> others = service.getOthers();
+        Map<Member, MemberView> others = membership.getOthers();
         others.forEach((member, memberView) -> {
             if (!memberView.isAlive()) {
                 result.add(new SimpleStringRedisMessage(member.getId()));

@@ -19,8 +19,8 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.kronotop.JSONUtils;
-import com.kronotop.volume.replication.Host;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,12 +28,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class VolumeMetadata {
     @JsonIgnore
     private static final String VOLUME_METADATA_KEY = "volume-metadata";
 
     private final List<Long> segments = new ArrayList<>();
-    private final List<Host> hosts = new ArrayList<>();
 
     public static VolumeMetadata load(Transaction tr, DirectorySubspace subspace) {
         byte[] key = subspace.pack(VOLUME_METADATA_KEY);
@@ -80,78 +80,6 @@ public class VolumeMetadata {
 
     public List<Long> getSegments() {
         return Collections.unmodifiableList(segments);
-    }
-
-    @JsonIgnore
-    public void setStandby(Host host) {
-        if (host.role() == Role.PRIMARY) {
-            throw new IllegalArgumentException("Cannot set an owner host as a standby");
-        }
-        for (Host existing : hosts) {
-            if (existing.equals(host)) {
-                return;
-            }
-        }
-        hosts.add(host);
-    }
-
-    private void unsetHost(Host host) {
-        for (int i = 0; i < hosts.size(); i++) {
-            Host existing = hosts.get(i);
-            if (existing.equals(host)) {
-                hosts.remove(i);
-                return;
-            }
-        }
-        throw new IllegalStateException("Host not found");
-    }
-
-    @JsonIgnore
-    public void unsetStandby(Host host) {
-        if (host.role() == Role.PRIMARY) {
-            throw new IllegalArgumentException("Host is an owner");
-        }
-        unsetHost(host);
-    }
-
-    @JsonIgnore
-    public List<Host> getStandbyHosts() {
-        return hosts.stream().filter(host -> host.role() == Role.STANDBY).toList();
-    }
-
-    @JsonIgnore
-    public Host getPrimary() {
-        for (Host host : hosts) {
-            if (host.role() == Role.PRIMARY) {
-                return host;
-            }
-        }
-        throw new IllegalStateException(String.format("No host found in %s role", Role.PRIMARY));
-    }
-
-    @JsonIgnore
-    public void setPrimary(Host host) {
-        if (host.role() == Role.STANDBY) {
-            throw new IllegalArgumentException("Cannot set a standby host as primary");
-        }
-        for (Host existing : hosts) {
-            if (existing.equals(host)) {
-                return;
-            }
-        }
-        hosts.add(host);
-    }
-
-    @JsonIgnore
-    public void unsetPrimary(Host host) {
-        if (host.role() == Role.STANDBY) {
-            throw new IllegalArgumentException("Host is a standby");
-        }
-        unsetHost(host);
-    }
-
-    public List<Host> getHosts() {
-        return Collections.unmodifiableList(hosts);
     }
 
     public byte[] toByte() {

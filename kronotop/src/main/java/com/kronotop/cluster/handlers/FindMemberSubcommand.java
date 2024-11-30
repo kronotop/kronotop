@@ -35,7 +35,7 @@ class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements Subco
     @Override
     public void execute(Request request, Response response) {
         FindMemberParameters parameters = new FindMemberParameters(request.getParams());
-        Member member = service.findMember(parameters.memberId);
+        Member member = membership.findMember(parameters.memberId);
         response.writeMap(memberToRedisMessage(member));
     }
 

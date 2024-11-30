@@ -17,14 +17,24 @@
 package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.instance.KronotopInstance;
+import com.kronotop.network.Address;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
+import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
+import com.kronotop.redis.handlers.connection.protocol.HelloMessage;
 import com.kronotop.redis.handlers.connection.protocol.PingMessage;
+import com.kronotop.redis.handlers.protocol.InfoMessage;
+import com.kronotop.redis.server.protocol.CommandMessage;
+import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import com.typesafe.config.Config;
@@ -51,9 +61,12 @@ public class KronotopTestInstance extends KronotopInstance {
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
     private final Set<String> duplicatedCommands = new HashSet<>(List.of(
             ClientMessage.COMMAND,
-            PingMessage.COMMAND
+            PingMessage.COMMAND,
+            CommandMessage.COMMAND,
+            ClusterMessage.COMMAND,
+            InfoMessage.COMMAND,
+            HelloMessage.COMMAND
     ));
-    private final Object clusterOperable = new Object();
     private final boolean runWithTCPServer;
     private EmbeddedChannel channel;
 
@@ -99,6 +112,12 @@ public class KronotopTestInstance extends KronotopInstance {
         return channel;
     }
 
+    private void startNioRESPServer(String name, Address address) throws InterruptedException {
+        RESPServer server = new NioRESPServer(context, mergeCommandHandlerRegistries());
+        context.registerService(name, server);
+        server.start(address);
+    }
+
     /**
      * Starts the Kronotop instance for testing.
      *
@@ -118,16 +137,10 @@ public class KronotopTestInstance extends KronotopInstance {
     public void start() throws UnknownHostException, InterruptedException {
         super.start();
         if (runWithTCPServer) {
-            RESPServer server = new NioRESPServer(context, mergeCommandHandlerRegistries());
-            context.registerService(server.getName(), server);
-            server.start(member.getExternalAddress());
+            startNioRESPServer("IntegrationTestInternal-TCPServer", member.getInternalAddress());
+            startNioRESPServer("IntegrationTestExternal-TCPServer", member.getExternalAddress());
         }
-        // TODO: CLUSTER-REFACTORING
-        //CheckClusterStatus checkClusterStatus = new CheckClusterStatus();
-        //executor.execute(checkClusterStatus);
-        //synchronized (clusterOperable) {
-        //    clusterOperable.wait();
-        //}
+
         channel = newChannel();
         initializeTestCluster();
 
@@ -189,7 +202,7 @@ public class KronotopTestInstance extends KronotopInstance {
         {
             KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
-            cmd.setRoute("PRIMARY", "REDIS", context.getMember().getId()).encode(buf);
+            cmd.setRoute(RouteKind.PRIMARY.name(), ShardKind.REDIS.name(), context.getMember().getId()).encode(buf);
             channel.writeInbound(buf);
 
             Object raw = channel.readOutbound();
@@ -200,13 +213,47 @@ public class KronotopTestInstance extends KronotopInstance {
             }
         }
 
-        // TODO: CLUSTER-REFACTORING
-        // These methods will be removed soon.
-        RoutingService routingService = context.getService(RoutingService.NAME);
-        routingService.loadRoutingTableFromFoundationDB_Eagerly();
+        await().atMost(5, TimeUnit.SECONDS).until(this::areAllRedisShardsWritable);
+        await().atMost(5, TimeUnit.SECONDS).until(this::areAllOwnedRedisShardsOperable);
+    }
 
-        RedisService redisService = context.getService(RedisService.NAME);
-        redisService.loadRedisDataFromVolumes_Eagerly();
+    private boolean areAllRedisShardsWritable() {
+        RoutingService routing = context.getService(RoutingService.NAME);
+        int shards = context.getConfig().getInt("redis.shards");
+        for (int shardId = 0; shardId < shards; shardId++) {
+            Route route = routing.findRoute(ShardKind.REDIS, shardId);
+            if (route == null) {
+                return false;
+            }
+            if (!route.shardStatus().equals(ShardStatus.READWRITE)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean areAllOwnedRedisShardsOperable() {
+        RoutingService routing = context.getService(RoutingService.NAME);
+        RedisService redis = context.getService(RedisService.NAME);
+        int shards = context.getConfig().getInt("redis.shards");
+        for (int shardId = 0; shardId < shards; shardId++) {
+            Route route = routing.findRoute(ShardKind.REDIS, shardId);
+            if (route == null) {
+                return false;
+            }
+            if (!route.primary().equals(context.getMember())) {
+                // Not belong to this member
+                continue;
+            }
+            RedisShard shard = redis.getServiceContext().shards().get(shardId);
+            if (shard == null) {
+                return false;
+            }
+            if (!shard.operable()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

@@ -16,12 +16,15 @@
 
 package com.kronotop.cluster;
 
+import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.common.KronotopException;
+import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.journal.Event;
 import com.kronotop.server.ServerKind;
@@ -39,6 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class MembershipService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Membership";
+    private static final byte[] PLUS_ONE = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipService.class);
     private static final String CLUSTER_EVENTS_JOURNAL = "cluster-events";
     private final Context context;
@@ -166,6 +170,17 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     }
 
     /**
+     * Finds and returns the Member object associated with the specified member ID.
+     *
+     * @param tr       the transaction within which the member lookup is to be performed
+     * @param memberId the unique identifier of the member to be retrieved
+     * @return the Member object associated with the specified member ID
+     */
+    public Member findMember(Transaction tr, String memberId) {
+        return registry.findMember(tr, memberId);
+    }
+
+    /**
      * Checks whether a member is registered in the system.
      *
      * @param memberId the unique identifier of the member to be checked
@@ -180,27 +195,30 @@ public class MembershipService extends CommandHandlerService implements Kronotop
      *
      * @param member The Member object containing the updated information.
      */
-    public void updateMember(Member member) {
-        registry.update(member);
+    public void updateMember(Transaction tr, Member member) {
+        registry.update(tr, member);
     }
 
     /**
-     * Removes the member identified by the provided memberId from the system.
+     * Removes a member from the registry if their status is not RUNNING.
      *
+     * @param tr       the transaction object used for querying and removing the member
      * @param memberId the unique identifier of the member to be removed
-     * @throws KronotopException if the member is in RUNNING status and cannot be removed
+     * @throws KronotopException if the member is in RUNNING status
      */
-    public void removeMember(String memberId) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Member member = registry.findMember(tr, memberId);
-            if (member.getStatus().equals(MemberStatus.RUNNING)) {
-                throw new KronotopException("Member in " + MemberStatus.RUNNING + " status cannot be removed");
-            }
-            registry.remove(tr, memberId);
-            tr.commit().join();
+    public void removeMember(Transaction tr, String memberId) {
+        Member member = registry.findMember(tr, memberId);
+        if (member.getStatus().equals(MemberStatus.RUNNING)) {
+            throw new KronotopException("Member in " + MemberStatus.RUNNING + " status cannot be removed");
         }
+        registry.remove(tr, memberId);
     }
 
+    /**
+     * Retrieves a read-only view of the other members in the system and their respective views.
+     *
+     * @return an unmodifiable map where the keys are Member objects and the values are MemberView objects.
+     */
     public Map<Member, MemberView> getOthers() {
         return Collections.unmodifiableMap(others);
     }
@@ -221,6 +239,17 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             Member member = context.getMember();
             updateMemberStatusAndLeftCluster(member, MemberStatus.STOPPED);
         }
+    }
+
+    /**
+     * Triggers an event to indicate that the routing table has been updated in the cluster metadata.
+     *
+     * @param tr the transaction within which the event mutation will be applied.
+     */
+    public void triggerRoutingEventsWatcher(Transaction tr) {
+        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
+        byte[] key = subspace.pack(Tuple.from(MembershipConstants.ROUTING_TABLE_UPDATED));
+        tr.mutate(MutationType.ADD, key, PLUS_ONE);
     }
 
     private void updateMemberStatusAndLeftCluster(Member member, MemberStatus status) {

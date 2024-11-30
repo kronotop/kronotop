@@ -80,12 +80,12 @@ class SetRouteHandler extends BaseKrAdminSubcommandHandler implements Subcommand
     public void execute(Request request, Response response) {
         SetRouteParameters parameters = new SetRouteParameters(request.getParams());
 
-        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
             if (!isClusterInitialized(tr)) {
                 throw new ClusterNotInitializedException();
             }
 
-            if (!service.isMemberRegistered(parameters.memberId)) {
+            if (!membership.isMemberRegistered(parameters.memberId)) {
                 throw new KronotopException("member not found");
             }
             if (parameters.allShards) {
@@ -96,6 +96,7 @@ class SetRouteHandler extends BaseKrAdminSubcommandHandler implements Subcommand
             } else {
                 setRouteForShard(tr, parameters, parameters.shardId);
             }
+            membership.triggerRoutingEventsWatcher(tr);
             tr.commit().join();
         }
         response.writeOK();

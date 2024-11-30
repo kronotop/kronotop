@@ -41,7 +41,7 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
     @Override
     public void execute(Request request, Response response) {
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
             if (!isClusterInitialized(tr)) {
                 throw new ClusterNotInitializedException();
             }

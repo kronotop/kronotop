@@ -23,13 +23,13 @@ import io.lettuce.core.codec.StringCodec;
 
 public class InternalClient {
 
-    public static StatefulInternalConnection<String, String> connect(RedisClient redisClient) {
-        StatefulRedisConnection<String, String> connection = redisClient.connect();
+    public static StatefulInternalConnection<String, String> connect(RedisClient client) {
+        StatefulRedisConnection<String, String> connection = client.connect();
         return new StatefulInternalConnection<>(connection, StringCodec.UTF8);
     }
 
-    public static <K, V> StatefulInternalConnection<K, V> connect(RedisClient redisClient, RedisCodec<K, V> codec) {
-        StatefulRedisConnection<K, V> connection = redisClient.connect(codec);
+    public static <K, V> StatefulInternalConnection<K, V> connect(RedisClient client, RedisCodec<K, V> codec) {
+        StatefulRedisConnection<K, V> connection = client.connect(codec);
         return new StatefulInternalConnection<>(connection, codec);
     }
 }

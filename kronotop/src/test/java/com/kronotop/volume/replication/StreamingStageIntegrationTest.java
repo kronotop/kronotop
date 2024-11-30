@@ -18,7 +18,11 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.volume.*;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.volume.AppendResult;
+import com.kronotop.volume.Session;
+import com.kronotop.volume.Volume;
+import com.kronotop.volume.VolumeConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -47,25 +51,17 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
     private Path standbyVolumeDataDir;
 
     private Replication newReplication() {
-        final Host primary;
-        final Versionstamp slotId = ReplicationSlot.newSlot(database, volume.getConfig().subspace(), context.getMember());
-        try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            primary = volumeMetadata.getPrimary();
-        }
-
-        Host standby = new Host(Role.STANDBY, context.getMember());
-        ReplicationConfig config = new ReplicationConfig(
-                primary,
-                standby,
+        VolumeConfig standbyVolumeConfig = new VolumeConfig(
                 volume.getConfig().subspace(),
-                slotId,
                 volume.getConfig().name(),
-                volume.getConfig().segmentSize(),
                 standbyVolumeDataDir.toString(),
-                true
+                volume.getConfig().segmentSize(),
+                volume.getConfig().allowedGarbageRatio()
         );
-        return new Replication(context, config);
+
+        ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
+        Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
+        return new Replication(context, slotId, config);
     }
 
     private Versionstamp[] appendKeys(int number) throws IOException {
@@ -111,15 +107,13 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     @Test
-    public void test_streaming_stage() throws IOException {
+    public void stream_changes_from_primary_owner() throws IOException {
         Replication replication = newReplication();
         Volume standbyVolume = standbyVolume();
         try {
             replication.start();
 
             await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
-            StreamingStageRunner streamingStageRunner = (StreamingStageRunner) replication.getActiveStageRunner();
-            await().atMost(10, TimeUnit.SECONDS).until(streamingStageRunner::isStreaming);
 
             Versionstamp[] versionstampedKeys = appendKeys(10);
             await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(versionstampedKeys, standbyVolume));
@@ -129,15 +123,13 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     @Test
-    public void test_streaming_stage_concurrently_appending_keys() throws IOException, InterruptedException {
+    public void stream_changes_from_primary_owner_while_concurrently_appending_keys() throws IOException, InterruptedException {
         Replication replication = newReplication();
         Volume standbyVolume = standbyVolume();
         try {
             replication.start();
 
             await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
-            StreamingStageRunner streamingStageRunner = (StreamingStageRunner) replication.getActiveStageRunner();
-            await().atMost(10, TimeUnit.SECONDS).until(streamingStageRunner::isStreaming);
 
             CountDownLatch latch = new CountDownLatch(10);
             List<Versionstamp> versionstampedKeys = new ArrayList<>();

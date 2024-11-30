@@ -35,6 +35,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * VolumeService is a service class that handles the management of volumes within the Kronotop database system.
+ * It extends CommandHandlerService and implements the KronotopService interface, providing methods to create, find,
+ * close, and list volumes. The service ensures thread safety using a ReentrantReadWriteLock.
+ */
 public class VolumeService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Volume";
     private static final Logger LOGGER = LoggerFactory.getLogger(VolumeService.class);
@@ -47,6 +52,11 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         handlerMethod(ServerKind.INTERNAL, new SegmentRangeHandler(this));
     }
 
+    /**
+     * Shuts down the VolumeService, ensuring that all managed volumes are properly closed and cleared.
+     * This method acquires a write lock to ensure thread safety during the shutdown process.
+     * It iterates through all entries in the volumes map, closes each Volume, and then clears the map.
+     */
     @Override
     public void shutdown() {
         lock.writeLock().lock();
@@ -60,6 +70,13 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         }
     }
 
+    /**
+     * Checks the existence of a directory specified by the given path and creates it if it does not exist.
+     * If the path exists but is not a directory, or if an I/O error occurs during creation, an exception is thrown.
+     *
+     * @param dataDir the path of the directory to check and create if necessary
+     * @throws KronotopException if the path exists but is not a directory, or if an I/O error occurs
+     */
     private void checkAndCreateDataDir(String dataDir) {
         try {
             Files.createDirectories(Paths.get(dataDir));
@@ -72,15 +89,26 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         }
     }
 
+    /**
+     * Creates a new volume based on the provided configuration.
+     * If a volume with the same name already exists and is not closed, it returns the existing volume.
+     * Otherwise, it creates a new volume, ensuring the necessary directories are created.
+     *
+     * @param config the configuration for the volume to be created
+     * @return the created volume
+     * @throws IOException if an I/O error occurs during the creation of the directory or volume
+     */
     public Volume newVolume(VolumeConfig config) throws IOException {
         lock.writeLock().lock();
         try {
             if (volumes.containsKey(config.name())) {
                 Volume volume = volumes.get(config.name());
                 if (!volume.isClosed()) {
+                    // Already have the volume
                     return volume;
                 }
             }
+            // Create a new volume.
             checkAndCreateDataDir(config.dataDir());
             // TODO: Create folders for this specific volume in the constructor.
             Volume volume = new Volume(context, config);
@@ -91,6 +119,14 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         }
     }
 
+    /**
+     * Finds and returns a volume by name if it exists and is open.
+     *
+     * @param name the name of the volume to be found
+     * @return the volume with the specified name
+     * @throws ClosedVolumeException  if the volume is closed
+     * @throws VolumeNotOpenException if the volume does not exist
+     */
     public Volume findVolume(String name) {
         lock.readLock().lock();
         try {
@@ -107,6 +143,13 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         }
     }
 
+    /**
+     * Closes the specified volume by name, removing it from the managed volumes.
+     * If the volume does not exist or is already closed, a VolumeNotOpenException is thrown.
+     *
+     * @param name the name of the volume to be closed
+     * @throws VolumeNotOpenException if the volume with the specified name does not exist or is already closed
+     */
     public void closeVolume(String name) {
         lock.writeLock().lock();
         try {
@@ -122,6 +165,14 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         }
     }
 
+    /**
+     * Retrieves a list of all managed volumes.
+     * <p>
+     * This method returns an unmodifiable list of the volumes currently managed by the service.
+     * The list will reflect any changes made to the volumes at the time of retrieval.
+     *
+     * @return a list of all managed volumes
+     */
     public List<Volume> volumes() {
         lock.readLock().lock();
         try {

@@ -30,7 +30,7 @@ public class MemberLeftEventTest {
 
     @Test
     public void test_check_kind() {
-        MemberLeftEvent event = new MemberLeftEvent(UUID.randomUUID().toString(), Instant.now().getEpochSecond());
+        MemberLeftEvent event = new MemberLeftEvent(UUID.randomUUID().toString());
         byte[] data = JSONUtils.writeValueAsBytes(event);
         assertNotNull(data);
 
@@ -40,7 +40,7 @@ public class MemberLeftEventTest {
 
     @Test
     public void test_encode_then_decode() {
-        MemberLeftEvent expected = new MemberLeftEvent(UUID.randomUUID().toString(), Instant.now().getEpochSecond());
+        MemberLeftEvent expected = new MemberLeftEvent(UUID.randomUUID().toString());
         byte[] data = JSONUtils.writeValueAsBytes(expected);
         assertNotNull(data);
 

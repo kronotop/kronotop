@@ -21,10 +21,7 @@ import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.ServiceContext;
-import com.kronotop.cluster.ClusterNotInitializedException;
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.Route;
-import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
@@ -71,6 +68,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
     private final RoutingService routing;
+    private final MembershipService membership;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Thread.ofVirtual().name("kr.redis-service", 0L).factory()
@@ -84,6 +82,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         this.watcher = context.getService(Watcher.NAME);
         this.numberOfShards = context.getConfig().getInt("redis.shards");
         this.routing = context.getService(RoutingService.NAME);
+        this.membership = context.getService(MembershipService.NAME);
         this.hashSlots = distributeHashSlots();
         this.serviceContext = context.getServiceContext(NAME);
 
@@ -144,8 +143,14 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         handlerMethod(ServerKind.EXTERNAL, new ClientHandler(this));
 
         // Internals
+        handlerMethod(ServerKind.INTERNAL, new HelloHandler(this));
         handlerMethod(ServerKind.INTERNAL, new ClientHandler(this));
         handlerMethod(ServerKind.INTERNAL, new PingHandler());
+        handlerMethod(ServerKind.INTERNAL, new ClusterHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new InfoHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new CommandHandler(this));
+
+        routing.registerHook(RoutingEventKind.LOAD_REDIS_SHARD, new LoadRedisShardHook());
     }
 
     /**
@@ -176,30 +181,37 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
     }
 
-    private void loadRedisDataFromVolumes() {
-        // TODO: CLUSTER-REFACTORING
-        int shards = context.getConfig().getInt("redis.shards");
-        for (int shardId = 0; shardId < shards; shardId++) {
-            Route route = routing.findRoute(ShardKind.REDIS, shardId);
-            if (route == null) {
-                continue;
-            }
-            if (route.primary().equals(context.getMember())) {
-                serviceContext.shards().put(shardId, new OnHeapRedisShardImpl(context, shardId));
-                RedisShard shard = serviceContext.shards().get(shardId);
-                RedisShardLoader loader = new RedisShardLoader(context, shard);
-                loader.load();
-            }
+    private void createAndLoadRedisShard(int shardId) {
+        serviceContext.shards().put(shardId, new OnHeapRedisShardImpl(context, shardId));
+        RedisShard shard = serviceContext.shards().get(shardId);
+        RedisShardLoader loader = new RedisShardLoader(context, shard);
+        loader.load();
+    }
+
+    /**
+     * Loads the Redis shard from the local disk based on the given shard ID.
+     * It first attempts to find the route for the specified shard and then loads
+     * the shard if the current member is either the primary or one of the standbys.
+     *
+     * @param sharId the ID of the shard to load from disk
+     */
+    private void loadRedisShardFromDisk(int sharId) {
+        Route route = routing.findRoute(ShardKind.REDIS, sharId);
+        if (route == null) {
+            return;
+        }
+        if (route.primary().equals(context.getMember()) || route.standbys().contains(context.getMember())) {
+            LOGGER.trace("Loading Redis Shard: {} from the local disk", sharId);
+            // Primary or standby owner
+            createAndLoadRedisShard(sharId);
         }
     }
 
-    public void loadRedisDataFromVolumes_Eagerly() {
-        loadRedisDataFromVolumes();
-    }
-
     public void start() {
+        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            loadRedisShardFromDisk(shardId);
+        }
         initializeVolumeSyncerWorkers();
-        loadRedisDataFromVolumes();
     }
 
     /**
@@ -269,12 +281,14 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         try {
             volumeSyncWorkers.forEach(VolumeSyncWorker::pause);
 
-            // Stop all the operations on the owned shards
-            serviceContext.shards().values().forEach(shard -> {
-                // TODO: CLUSTER-REFACTORING
-                //shard.setOperable(false);
-                //shard.setReadOnly(true);
-            });
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                // Stop all the operations on the owned shards
+                serviceContext.shards().values().forEach(shard -> {
+                    ShardUtils.setShardStatus(context, tr, ShardKind.REDIS, ShardStatus.READONLY, shard.id());
+                });
+                membership.triggerRoutingEventsWatcher(tr);
+                tr.commit().join();
+            }
 
             // Clear all in-memory data
             serviceContext.shards().values().forEach(shard -> {
@@ -285,19 +299,19 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Prefix prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
                 Session session = new Session(tr, prefix);
-                serviceContext.shards().values().forEach(shard -> {
-                    shard.volume().clearPrefix(session);
-                });
+                serviceContext.shards().values().forEach(shard -> shard.volume().clearPrefix(session));
                 tr.commit().join();
             }
         } finally {
             volumeSyncWorkers.forEach(VolumeSyncWorker::resume);
-            // Make the shard operable again
-            serviceContext.shards().values().forEach(shard -> {
-                // TODO: CLUSTER-REFACTORING
-                //shard.setReadOnly(false);
-                //shard.setOperable(true);
-            });
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                // Stop all the operations on the owned shards
+                serviceContext.shards().values().forEach(shard -> {
+                    ShardUtils.setShardStatus(context, tr, ShardKind.REDIS, ShardStatus.READWRITE, shard.id());
+                });
+                membership.triggerRoutingEventsWatcher(tr);
+                tr.commit().join();
+            }
         }
     }
 
@@ -450,5 +464,20 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         ranges.add(currentRange);
 
         return ranges;
+    }
+
+    /**
+     * LoadRedisShardHook is a private class that implements the RoutingEventHook interface.
+     * It is responsible for handling the loading of Redis shards from disk when a routing event occurs.
+     */
+    private class LoadRedisShardHook implements RoutingEventHook {
+
+        @Override
+        public void run(ShardKind shardKind, int shardId) {
+            final int finalShardId = shardId;
+            Thread.ofVirtual().name("kr.redis.load-redis-shard").start(() -> {
+                loadRedisShardFromDisk(finalShardId);
+            });
+        }
     }
 }

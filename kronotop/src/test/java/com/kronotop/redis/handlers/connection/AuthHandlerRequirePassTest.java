@@ -18,6 +18,7 @@ package com.kronotop.redis.handlers.connection;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseHandlerTest;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
@@ -51,6 +52,6 @@ public class AuthHandlerRequirePassTest extends BaseHandlerTest {
         Object msg = noauthChannel.readOutbound();
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-        assertEquals("OK", actualMessage.content());
+        assertEquals(Response.OK, actualMessage.content());
     }
 }

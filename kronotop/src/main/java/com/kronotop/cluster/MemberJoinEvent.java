@@ -16,13 +16,12 @@
 
 package com.kronotop.cluster;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 class MemberJoinEvent extends MemberEvent implements BroadcastEvent {
 
     MemberJoinEvent() {
-    }
-
-    MemberJoinEvent(String id, long createdAt) {
-        super(BroadcastEventKind.MEMBER_JOIN, id, createdAt);
     }
 
     MemberJoinEvent(String id) {

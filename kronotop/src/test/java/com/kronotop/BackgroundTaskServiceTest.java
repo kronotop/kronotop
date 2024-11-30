@@ -24,12 +24,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class MaintenanceServiceTest extends BaseClusterTest {
+class BackgroundTaskServiceTest extends BaseClusterTest {
 
     @Test
     public void when_many_tasks_exists() throws InterruptedException {
         KronotopInstance instance = getInstances().getFirst();
-        MaintenanceService service = instance.getContext().getService(MaintenanceService.NAME);
+        BackgroundTaskService service = instance.getContext().getService(BackgroundTaskService.NAME);
 
         int NUMBER_OF_TASKS = 10;
 

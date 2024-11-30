@@ -19,6 +19,7 @@ package com.kronotop.foundationdb.zmap;
 import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.protocol.ZDelRangeArgs;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
@@ -47,7 +48,7 @@ public class ZDelRangeHandlerTest extends BaseHandlerTest {
                 Object response = channel.readOutbound();
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-                assertEquals("OK", actualMessage.content());
+                assertEquals(Response.OK, actualMessage.content());
             }
         }
 
@@ -60,7 +61,7 @@ public class ZDelRangeHandlerTest extends BaseHandlerTest {
             Object response = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         // ZGET - nil
@@ -104,7 +105,7 @@ public class ZDelRangeHandlerTest extends BaseHandlerTest {
                 Object response = channel.readOutbound();
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-                assertEquals("OK", actualMessage.content());
+                assertEquals(Response.OK, actualMessage.content());
             }
         }
 
@@ -117,7 +118,7 @@ public class ZDelRangeHandlerTest extends BaseHandlerTest {
             Object response = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         // ZGET - nil
@@ -161,7 +162,7 @@ public class ZDelRangeHandlerTest extends BaseHandlerTest {
                 Object response = channel.readOutbound();
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-                assertEquals("OK", actualMessage.content());
+                assertEquals(Response.OK, actualMessage.content());
             }
         }
 
@@ -174,7 +175,7 @@ public class ZDelRangeHandlerTest extends BaseHandlerTest {
             Object response = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         // ZGET - nil

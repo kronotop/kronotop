@@ -29,6 +29,7 @@ import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
 import com.kronotop.redis.RedisContext;
 import com.kronotop.redis.RedisService;
+import com.kronotop.volume.replication.ReplicationService;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.watcher.Watcher;
 import com.typesafe.config.Config;
@@ -105,8 +106,8 @@ public class KronotopInstance {
     private void registerKronotopServices() {
         // Registration sort is important here.
 
-        MaintenanceService maintenanceService = new MaintenanceService(context);
-        context.registerService(MaintenanceService.NAME, maintenanceService);
+        BackgroundTaskService maintenanceService = new BackgroundTaskService(context);
+        context.registerService(BackgroundTaskService.NAME, maintenanceService);
 
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
@@ -114,20 +115,24 @@ public class KronotopInstance {
         FoundationDBService foundationDBService = new FoundationDBService(context);
         context.registerService(FoundationDBService.NAME, foundationDBService);
 
-        VolumeService volumeService = new VolumeService(context);
-        context.registerService(VolumeService.NAME, volumeService);
-
         MembershipService membershipService = new MembershipService(context);
         context.registerService(MembershipService.NAME, membershipService);
 
         RoutingService routingService = new RoutingService(context);
         context.registerService(RoutingService.NAME, routingService);
 
+        VolumeService volumeService = new VolumeService(context);
+        context.registerService(VolumeService.NAME, volumeService);
+
+        ReplicationService replicationService = new ReplicationService(context);
+        context.registerService(ReplicationService.NAME, replicationService);
+
         RedisService redisService = new RedisService(context);
         context.registerService(RedisService.NAME, redisService);
 
         membershipService.start();
         routingService.start();
+        replicationService.start();
         redisService.start();
     }
 
@@ -237,7 +242,7 @@ public class KronotopInstance {
      * The method retrieves the necessary configuration parameters for the cleanup task
      * (retention period and time unit) from the provided configuration. It uses these parameters
      * to create a {@link CleanupTask} and schedules it to run at a fixed rate of once per day using
-     * the {@link MaintenanceService}.
+     * the {@link BackgroundTaskService}.
      * <p>
      * If an invalid time unit is specified, an {@link IllegalArgumentException} is thrown,
      * which is caught and re-thrown as a {@link KronotopException} with a descriptive error message.
@@ -245,13 +250,13 @@ public class KronotopInstance {
      * @throws KronotopException if the time unit specified in the configuration is invalid
      */
     private void registerJournalCleanupTask() {
-        MaintenanceService maintenanceService = context.getService(MaintenanceService.NAME);
+        BackgroundTaskService maintenanceService = context.getService(BackgroundTaskService.NAME);
 
-        long retentionPeriod = config.getLong("maintenance.journal_cleanup_task.retention_period");
-        String timeunit = config.getString("maintenance.journal_cleanup_task.timeunit");
+        long retentionPeriod = config.getLong("background_tasks.journal_cleanup_task.retention_period");
+        String timeunit = config.getString("background_tasks.journal_cleanup_task.timeunit");
 
         try {
-            CleanupTask cleanupTask = new CleanupTask(context.getJournal(), retentionPeriod, MaintenanceService.timeUnitOf(timeunit));
+            CleanupTask cleanupTask = new CleanupTask(context.getJournal(), retentionPeriod, BackgroundTaskService.timeUnitOf(timeunit));
             journalCleanupTaskFuture = maintenanceService.scheduleAtFixedRate(cleanupTask, 1, 1, TimeUnit.DAYS);
         } catch (IllegalArgumentException e) {
             throw new KronotopException("Invalid timeunit: " + timeunit, e);
@@ -283,7 +288,7 @@ public class KronotopInstance {
         }
 
         try {
-            for (KronotopService service : context.getServices()) {
+            for (KronotopService service : context.getServices().reversed()) {
                 try {
                     service.shutdown();
                 } catch (Exception e) {

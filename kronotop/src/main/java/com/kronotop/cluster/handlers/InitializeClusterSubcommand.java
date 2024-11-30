@@ -39,11 +39,11 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
     }
 
     private void initializeRedisSection(Transaction tr, DirectorySubspace subspace) {
-        int numberOfRedisShards = service.getContext().getConfig().getInt("redis.shards");
+        int numberOfRedisShards = membership.getContext().getConfig().getInt("redis.shards");
         for (int i = 0; i < numberOfRedisShards; i++) {
             KronotopDirectoryNode directory = KronotopDirectory.
                     kronotop().
-                    cluster(service.getContext().getClusterName()).
+                    cluster(membership.getContext().getClusterName()).
                     metadata().
                     shards().
                     redis().
@@ -61,7 +61,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
     public void execute(Request request, Response response) {
         DirectorySubspace clusterMetadataSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
 
-        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
             if (isClusterInitialized(tr)) {
                 throw new KronotopException("cluster has already been initialized");
             }

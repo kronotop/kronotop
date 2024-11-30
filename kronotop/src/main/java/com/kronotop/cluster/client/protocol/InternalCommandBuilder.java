@@ -18,10 +18,13 @@ package com.kronotop.cluster.client.protocol;
 
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.output.ArrayOutput;
+import io.lettuce.core.output.StatusOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 
 import java.util.List;
+
+import static io.lettuce.core.protocol.CommandType.PING;
 
 public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, V> {
     public InternalCommandBuilder(RedisCodec<K, V> codec) {
@@ -35,5 +38,9 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
             args.add(range.length());
         }
         return createCommand(InternalCommandType.SEGMENTRANGE, new ArrayOutput<>(codec), args);
+    }
+
+    public Command<K, V, String> ping() {
+        return createCommand(PING, new StatusOutput<>(codec));
     }
 }

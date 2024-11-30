@@ -22,15 +22,15 @@ import org.slf4j.LoggerFactory;
 import java.time.Instant;
 import java.util.concurrent.*;
 
-public class MaintenanceService extends BaseKronotopService implements KronotopService {
-    public static final String NAME = "Maintenance";
-    private static final Logger LOGGER = LoggerFactory.getLogger(MaintenanceService.class);
+public class BackgroundTaskService extends BaseKronotopService implements KronotopService {
+    public static final String NAME = "Background Task";
+    private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundTaskService.class);
     private final ScheduledExecutorService scheduler;
 
-    public MaintenanceService(Context context) {
+    public BackgroundTaskService(Context context) {
         super(context, NAME);
 
-        ThreadFactory factory = Thread.ofVirtual().name("kr.maintenance-", 0L).factory();
+        ThreadFactory factory = Thread.ofVirtual().name("kr.background-task-", 0L).factory();
         this.scheduler = new ScheduledThreadPoolExecutor(1, factory);
     }
 
@@ -47,12 +47,12 @@ public class MaintenanceService extends BaseKronotopService implements KronotopS
     }
 
     public void execute(Runnable task) {
-        MaintenanceTaskRunner runnable = new MaintenanceTaskRunner(task);
+        BackgroundTaskRunner runnable = new BackgroundTaskRunner(task);
         scheduler.execute(runnable);
     }
 
     public ScheduledFuture<?> scheduleAtFixedRate(Runnable task, long initialDelay, long delay, TimeUnit unit) {
-        MaintenanceTaskRunner runnable = new MaintenanceTaskRunner(task);
+        BackgroundTaskRunner runnable = new BackgroundTaskRunner(task);
         return scheduler.scheduleAtFixedRate(runnable, initialDelay, delay, unit);
     }
 
@@ -68,13 +68,13 @@ public class MaintenanceService extends BaseKronotopService implements KronotopS
         }
     }
 
-    private record MaintenanceTaskRunner(Runnable task) implements Runnable {
+    private record BackgroundTaskRunner(Runnable task) implements Runnable {
 
         @Override
         public void run() {
             Thread.
                     ofVirtual().
-                    name(String.format("MaintenanceTaskRunner-%d", Instant.now().toEpochMilli())).
+                    name(String.format("BackgroundTaskRunner-%d", Instant.now().toEpochMilli())).
                     start(task);
         }
     }

@@ -17,10 +17,8 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.cluster.MembershipConstants;
 import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.ShardUtils;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -37,25 +35,20 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
         super(service);
     }
 
-    private void setShardStatus(Transaction tr, SetShardStatusParameters parameters, int shardId) {
-        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(ShardKind.REDIS, shardId);
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.SHARD_STATUS_KEY));
-        tr.set(key, parameters.shardStatus.name().getBytes());
-    }
-
     @Override
     public void execute(Request request, Response response) {
         SetShardStatusParameters parameters = new SetShardStatusParameters(request.getParams());
 
-        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
             if (parameters.allShards) {
                 int numberOfShards = getNumberOfShards(parameters.shardKind);
                 for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                    setShardStatus(tr, parameters, shardId);
+                    ShardUtils.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, shardId);
                 }
             } else {
-                setShardStatus(tr, parameters, parameters.shardId);
+                ShardUtils.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, parameters.shardId);
             }
+            membership.triggerRoutingEventsWatcher(tr);
             tr.commit().join();
         }
         response.writeOK();

@@ -26,7 +26,9 @@ import com.kronotop.common.KronotopException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -40,6 +42,8 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
     private final MembershipService membership;
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>(new RoutingTable());
 
+    private final ConcurrentHashMap<RoutingEventKind, List<RoutingEventHook>> hooksByKind = new ConcurrentHashMap<>();
+
     private volatile boolean clusterInitialized;
     private volatile boolean isShutdown;
 
@@ -52,10 +56,21 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
         this.scheduler = new ScheduledThreadPoolExecutor(1, factory);
     }
 
+    public void registerHook(RoutingEventKind kind, RoutingEventHook hook) {
+        hooksByKind.compute(kind, (k, value) -> {
+            if (value == null) {
+                value = new ArrayList<>();
+            }
+            value.add(hook);
+            return value;
+        });
+    }
+
     public void start() {
         clusterInitialized = isClusterInitialized_internal();
         if (clusterInitialized) {
-            loadRoutingTableFromFoundationDB();
+            loadRoutingTableFromFoundationDB(true);
+            scheduler.execute(new RoutingEventsWatcher());
         } else {
             scheduler.execute(new ClusterInitializationWatcher());
         }
@@ -182,8 +197,10 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
      *
      * @throws KronotopException if an unknown shard kind is encountered
      */
-    private void loadRoutingTableFromFoundationDB() {
-        LOGGER.debug("Loading routing table from FoundationDB");
+    private void loadRoutingTableFromFoundationDB(boolean firstRun) {
+        if (!clusterInitialized) {
+            return;
+        }
         RoutingTable table = new RoutingTable();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (ShardKind shardKind : ShardKind.values()) {
@@ -195,14 +212,83 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                 }
             }
         }
-        routingTable.set(table);
+        RoutingTable previous = routingTable.getAndSet(table);
+        if (!firstRun) {
+            changesBetweenRoutingTables(previous);
+        }
     }
 
-    public void loadRoutingTableFromFoundationDB_Eagerly() {
-        // TODO: CLUSTER-REFACTORING
-        loadRoutingTableFromFoundationDB();
+    private void runHooks(RoutingEventKind routingEventKind, ShardKind shardKind, int shardId) {
+        List<RoutingEventHook> hooks = hooksByKind.get(routingEventKind);
+        if (hooks == null) {
+            return;
+        }
+        for (RoutingEventHook hook : hooks) {
+            hook.run(shardKind, shardId);
+        }
     }
 
+    private void changesBetweenRoutingTables(RoutingTable previous) {
+        int shards = context.getConfig().getInt("redis.shards");
+        RoutingTable current = routingTable.get();
+
+        for (int shardId = 0; shardId < shards; shardId++) {
+            Route currentRoute = current.get(ShardKind.REDIS, shardId);
+            if (currentRoute == null) {
+                // Not assigned yet
+                continue;
+            }
+
+            Route previousRoute = previous.get(ShardKind.REDIS, shardId);
+            if (previousRoute == null) {
+                // Bootstrapping...
+                if (currentRoute.primary().equals(context.getMember())) {
+                    // Load the shard from local disk
+                    runHooks(RoutingEventKind.LOAD_REDIS_SHARD, ShardKind.REDIS, shardId);
+                }
+            }
+
+            if (!currentRoute.standbys().isEmpty()) {
+                if (previousRoute != null) {
+                    if (currentRoute.standbys().contains(context.getMember())) {
+                        // New assignment
+                        if (!previousRoute.standbys().contains(context.getMember())) {
+                            runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, ShardKind.REDIS, shardId);
+                        }
+                    }
+                } else {
+                    // No previous root exists
+                    if (currentRoute.standbys().contains(context.getMember())) {
+                        // New assignment
+                        runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, ShardKind.REDIS, shardId);
+                    }
+                }
+            }
+
+            if (previousRoute != null) {
+                if (!previousRoute.primary().equals(currentRoute.primary())) {
+                    // Primary owner has changed
+                    if (previousRoute.standbys().contains(context.getMember())) {
+                        // Connect to the new primary owner
+                        runHooks(RoutingEventKind.PRIMARY_OWNER_CHANGED, ShardKind.REDIS, shardId);
+                    }
+                }
+            }
+
+            if (previousRoute != null) {
+                if (previousRoute.standbys().contains(context.getMember())) {
+                    if (!currentRoute.standbys().contains(context.getMember())) {
+                        // Stop replication
+                        runHooks(RoutingEventKind.STOP_REPLICATION, ShardKind.REDIS, shardId);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * A watcher class responsible for monitoring the initialization state of the Kronotop cluster.
+     */
     private class ClusterInitializationWatcher implements Runnable {
 
         @Override
@@ -234,11 +320,56 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
             } finally {
                 if (!isShutdown) {
                     if (clusterInitialized) {
-                        loadRoutingTableFromFoundationDB();
+                        scheduler.execute(new RoutingEventsWatcher());
                     } else {
                         // Try again
                         scheduler.execute(this);
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * The RoutingEventsWatcher class is responsible for monitoring routing events
+     * and updating the routing table upon changes.
+     * <p>
+     * This class implements the Runnable interface and is intended to be executed
+     * by a scheduler in a loop until the system is shut down. It watches for changes in the
+     * routing table by using the FoundationDB directory subspace and updates the routing table
+     * upon detecting any changes.
+     */
+    private class RoutingEventsWatcher implements Runnable {
+
+        @Override
+        public void run() {
+            if (isShutdown) {
+                return;
+            }
+
+            DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
+            byte[] key = subspace.pack(Tuple.from(MembershipConstants.ROUTING_TABLE_UPDATED));
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
+                tr.commit().join();
+
+                loadRoutingTableFromFoundationDB(false);
+
+                // Wait for routing table changes
+                try {
+                    watcher.join();
+                } catch (CancellationException e) {
+                    LOGGER.debug("Routing events watcher has been cancelled");
+                    return;
+                }
+                LOGGER.debug("Routing events watcher has been triggered");
+                loadRoutingTableFromFoundationDB(false);
+            } catch (Exception e) {
+                LOGGER.error("Error while waiting for routing events", e);
+            } finally {
+                if (!isShutdown) {
+                    // Try again
+                    scheduler.execute(this);
                 }
             }
         }

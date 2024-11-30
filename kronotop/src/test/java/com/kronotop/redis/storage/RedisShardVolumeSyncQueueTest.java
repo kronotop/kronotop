@@ -24,11 +24,11 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class RedisShardVolumeSyncQueueTest extends BaseStorageTest {
+
     @Test
     public void test_add() {
         RedisShard shard = new OnHeapRedisShardImpl(context, 0);
-        //shard.setReadOnly(true);
-
+        makeAllShardsReadOnly();
         RedisShardVolumeSyncQueue queue = new RedisShardVolumeSyncQueue(shard);
         assertThrows(ShardReadOnlyException.class, () -> queue.add(new AppendStringJob("foo")));
     }

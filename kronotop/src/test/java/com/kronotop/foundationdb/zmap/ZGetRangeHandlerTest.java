@@ -19,6 +19,7 @@ package com.kronotop.foundationdb.zmap;
 import com.kronotop.foundationdb.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.protocol.ZGetRangeArgs;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -50,7 +51,7 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
                 Object response = channel.readOutbound();
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-                assertEquals("OK", actualMessage.content());
+                assertEquals(Response.OK, actualMessage.content());
             }
         }
 

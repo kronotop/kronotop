@@ -11,4 +11,5 @@
     </root>
 
     <logger name="io.netty" level="WARN"/>
+    <logger name="io.lettuce" level="WARN"/>
 </configuration>

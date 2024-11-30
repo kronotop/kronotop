@@ -18,6 +18,7 @@ package com.kronotop.redis.storage;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
+import com.kronotop.VersionstampUtils;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.handlers.hash.HashValue;
 import com.kronotop.volume.KeyEntry;
@@ -86,7 +87,10 @@ public final class RedisShardLoader {
                         processHashFieldPack(entry);
                         break;
                     default:
-                        throw new KronotopException("Invalid data structure magic");
+                        LOGGER.error(
+                                "Invalid data structure magic, Versionstamped key = {}",
+                                VersionstampUtils.base64Encode(entry.key())
+                        );
                 }
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -98,5 +102,6 @@ public final class RedisShardLoader {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             loadFromVolume(tr);
         }
+        shard.setOperable(true);
     }
 }

@@ -16,31 +16,13 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Database;
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.google.common.base.Strings;
 import com.kronotop.BaseMetadataStoreTest;
-import com.kronotop.directory.KronotopDirectory;
-import com.typesafe.config.Config;
 
 import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.UUID;
 
 public class BaseVolumeTest extends BaseMetadataStoreTest {
     protected Prefix prefix = new Prefix("test-prefix".getBytes());
-
-    public VolumeConfig getVolumeConfig(Config config, DirectorySubspace subspace) {
-        String dataDir = config.getString("data_dir");
-        return new VolumeConfig(subspace,
-                VolumeConfiguration.name,
-                dataDir,
-                VolumeConfiguration.segmentSize,
-                VolumeConfiguration.allowedGarbageRatio
-        );
-    }
 
     public ByteBuffer[] getEntries(int number) {
         int capacity = 10;
@@ -50,22 +32,5 @@ public class BaseVolumeTest extends BaseMetadataStoreTest {
             entries[i] = ByteBuffer.allocate(capacity).put(data).flip();
         }
         return entries;
-    }
-
-    public DirectorySubspace getSubspace(Database database, Config config) {
-        try (Transaction tr = database.createTransaction()) {
-            String clusterName = config.getString("cluster.name");
-            List<String> subpath = KronotopDirectory.
-                    kronotop().
-                    cluster(clusterName).
-                    metadata().
-                    volumes().
-                    redis().
-                    volume(UUID.randomUUID().toString()).
-                    toList();
-            DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
-            tr.commit().join();
-            return subspace;
-        }
     }
 }

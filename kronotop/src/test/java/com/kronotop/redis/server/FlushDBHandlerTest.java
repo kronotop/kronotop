@@ -16,36 +16,56 @@
 
 package com.kronotop.redis.server;
 
+import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.storage.BaseStorageTest;
+import com.kronotop.redis.storage.RedisShard;
+import com.kronotop.redis.storage.syncer.VolumeSyncer;
+import com.kronotop.server.Response;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import io.lettuce.core.codec.StringCodec;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class FlushDBHandlerTest extends BaseStorageTest {
     @Test
     public void test_FLUSHDB() {
-        // TODO: CLUSTER-REFACTORING
-        /*
-        String key = "mykey";
-
+        // Insert some keys to the database.
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.set(key, "myvalue").encode(buf);
+            for (int number = 0; number < 10; number++) {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.select(number).encode(buf);
+                channel.writeInbound(buf);
+                channel.readOutbound();
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+                buf = Unpooled.buffer();
+                cmd.set(makeKey(number), "myvalue").encode(buf);
+
+                channel.writeInbound(buf);
+                Object msg = channel.readOutbound();
+                assertInstanceOf(SimpleStringRedisMessage.class, msg);
+                SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+                assertEquals(Response.OK, actualMessage.content());
+            }
         }
 
         {
-            // VolumeSync task has been run at the background, but it's an async event.
-            // Let's run the task eagerly. It's safe.
-            RedisShard shard = redisService.getShard(getShardId(key));
-            VolumeSyncer volumeSyncer = new VolumeSyncer(context, shard);
-            volumeSyncer.run();
+            int shards = kronotopInstance.getContext().getConfig().getInt("redis.shards");
+            for (int shardId = 0; shardId < shards; shardId++) {
+                // VolumeSync task has been run at the background, but it's an async event.
+                // Let's run the task eagerly. It's safe.
+                RedisShard shard = redisService.getShard(shardId);
+                VolumeSyncer volumeSyncer = new VolumeSyncer(context, shard);
+                volumeSyncer.run();
+            }
         }
 
+        // Wipe out all the keys
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.flushdb().encode(buf);
@@ -54,30 +74,26 @@ public class FlushDBHandlerTest extends BaseStorageTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
+        // All keys are gone.
         {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.get("mykey").encode(buf);
+            for (int number = 0; number < 10; number++) {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.select(number).encode(buf);
+                channel.writeInbound(buf);
+                channel.readOutbound();
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
-            assertInstanceOf(FullBulkStringRedisMessage.class, msg);
-            FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
-            assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
+                buf = Unpooled.buffer();
+                cmd.get(makeKey(number)).encode(buf);
+
+                channel.writeInbound(buf);
+                Object msg = channel.readOutbound();
+                assertInstanceOf(FullBulkStringRedisMessage.class, msg);
+                FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
+                assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
+            }
         }
-
-        RedisService service = context.getService(RedisService.NAME);
-        RedisShard shard = service.findShard("mykey");
-        {
-            Database database = context.getFoundationDB();
-            database.run(tr -> {
-                DirectorySubspace subspace = context.getDirectoryLayer().createOrOpenDataStructure(shard.id(), DataStructure.STRING);
-                byte[] value = tr.get(subspace.pack("mykey")).join();
-                assertNull(value);
-                return null;
-            });
-        }*/
     }
 }

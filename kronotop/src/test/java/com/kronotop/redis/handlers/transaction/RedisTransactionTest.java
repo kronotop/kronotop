@@ -20,6 +20,7 @@ import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -44,7 +45,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -103,12 +104,12 @@ public class RedisTransactionTest extends BaseHandlerTest {
             RedisMessage firstMessage = actualMessage.children().get(0);
             assertInstanceOf(SimpleStringRedisMessage.class, firstMessage);
             SimpleStringRedisMessage actualFirstMessage = (SimpleStringRedisMessage) firstMessage;
-            assertEquals("OK", actualFirstMessage.content());
+            assertEquals(Response.OK, actualFirstMessage.content());
 
             RedisMessage secondMessage = actualMessage.children().get(1);
             assertInstanceOf(SimpleStringRedisMessage.class, secondMessage);
             SimpleStringRedisMessage actualSecondMessage = (SimpleStringRedisMessage) secondMessage;
-            assertEquals("OK", actualSecondMessage.content());
+            assertEquals(Response.OK, actualSecondMessage.content());
 
 
             RedisMessage thirdMessage = actualMessage.children().get(2);
@@ -134,7 +135,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -156,7 +157,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
 
             List<Request> queuedCommands = channel.attr(ChannelAttributes.QUEUED_COMMANDS).get();
             assertEquals(0, queuedCommands.size());
@@ -188,7 +189,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -244,7 +245,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -255,7 +256,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -292,7 +293,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             RedisMessage firstMessage = actualMessage.children().get(0);
             assertInstanceOf(SimpleStringRedisMessage.class, firstMessage);
             SimpleStringRedisMessage actualFirstMessage = (SimpleStringRedisMessage) firstMessage;
-            assertEquals("OK", actualFirstMessage.content());
+            assertEquals(Response.OK, actualFirstMessage.content());
 
             RedisMessage secondMessage = actualMessage.children().get(1);
             assertInstanceOf(FullBulkStringRedisMessage.class, secondMessage);
@@ -312,7 +313,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -323,7 +324,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -358,7 +359,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = secondChannel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -385,7 +386,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {
@@ -411,7 +412,7 @@ public class RedisTransactionTest extends BaseHandlerTest {
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals("OK", actualMessage.content());
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         {

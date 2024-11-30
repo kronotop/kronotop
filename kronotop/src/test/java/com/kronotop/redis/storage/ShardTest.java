@@ -16,8 +16,16 @@
 
 package com.kronotop.redis.storage;
 
+import com.kronotop.redis.handlers.string.StringValue;
+import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 public class ShardTest extends BaseStorageTest {
-    /*protected RedisShard shard;
+    protected RedisShard shard;
 
     @BeforeEach
     public void beforeEach() {
@@ -32,28 +40,28 @@ public class ShardTest extends BaseStorageTest {
     @Test
     public void test_put() {
         shard.storage().put("foo", new RedisValueContainer(new StringValue("bar".getBytes())));
-        shard.setReadOnly(true);
+        makeAllShardsReadOnly();
         ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.storage().put("boo", new RedisValueContainer(new StringValue("foo".getBytes()))));
         assertNotNull(expected);
     }
 
     @Test
     public void test_remove() {
-        shard.setReadOnly(true);
+        makeAllShardsReadOnly();
         ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.storage().remove("boo"));
         assertNotNull(expected);
     }
 
     @Test
     public void test_remove_with_value() {
-        shard.setReadOnly(true);
+        makeAllShardsReadOnly();
         ShardReadOnlyException expected = assertThrows(ShardReadOnlyException.class, () -> shard.storage().remove("boo", new StringValue("foo".getBytes())));
         assertNotNull(expected);
     }
 
     @Test
     public void test_compute() {
-        shard.setReadOnly(true);
+        makeAllShardsReadOnly();
         ShardReadOnlyException expected = assertThrows(
                 ShardReadOnlyException.class,
                 () -> shard.storage().compute("boo", (key, value) -> value)
@@ -63,11 +71,11 @@ public class ShardTest extends BaseStorageTest {
 
     @Test
     public void test_computeIfAbsent() {
-        shard.setReadOnly(true);
+        makeAllShardsReadOnly();
         ShardReadOnlyException expected = assertThrows(
                 ShardReadOnlyException.class,
                 () -> shard.storage().computeIfAbsent("boo", (key) -> new RedisValueContainer(new StringValue("foo".getBytes())))
         );
         assertNotNull(expected);
-    }*/
+    }
 }

@@ -18,12 +18,10 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.volume.replication.Host;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -573,24 +571,6 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             expected.flip();
             ByteBuffer actual = retrievedEntries[i];
             assertArrayEquals(expected.array(), actual.array());
-        }
-    }
-
-    @Test
-    public void test_VolumeMetadata_compute() throws UnknownHostException {
-        Host host = new Host(Role.STANDBY, createMemberWithEphemeralPort());
-        try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata) -> {
-                volumeMetadata.setStandby(host);
-            });
-            tr.commit().join();
-        }
-
-        try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata) -> {
-                assertEquals(1, volumeMetadata.getStandbyHosts().size());
-                assertEquals(host, volumeMetadata.getStandbyHosts().getFirst());
-            });
         }
     }
 

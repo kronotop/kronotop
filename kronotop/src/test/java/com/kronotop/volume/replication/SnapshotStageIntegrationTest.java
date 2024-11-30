@@ -18,6 +18,7 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -42,32 +43,25 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         return ByteBuffer.wrap(b);
     }
 
-    private void checkSnapshotStage(Versionstamp[] versionstampedKeys) throws IOException {
-        final Host primary;
-        final Versionstamp slotId = ReplicationSlot.newSlot(database, volume.getConfig().subspace(), context.getMember());
-        try (Transaction tr = database.createTransaction()) {
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            primary = volumeMetadata.getPrimary();
-        }
-
-        Host standby = new Host(Role.STANDBY, context.getMember());
-        ReplicationConfig config = new ReplicationConfig(
-                primary,
-                standby,
+    private void runSnapshotStageAndCheckIt(Versionstamp[] versionstampedKeys) throws IOException {
+        VolumeConfig standbyVolumeConfig = new VolumeConfig(
                 volume.getConfig().subspace(),
-                slotId,
                 volume.getConfig().name(),
-                volume.getConfig().segmentSize(),
                 standbyVolumeDataDir.toString(),
-                false
+                volume.getConfig().segmentSize(),
+                volume.getConfig().allowedGarbageRatio()
         );
-        Replication replication = new Replication(context, config);
+
+        ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
+        Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
+
+        Replication replication = new Replication(context, slotId, config);
         try {
             replication.start();
             await().atMost(5, TimeUnit.SECONDS).until(() -> {
                 try (Transaction tr = database.createTransaction()) {
-                    ReplicationSlot job = ReplicationSlot.load(tr, config);
-                    return job.isSnapshotCompleted();
+                    ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
+                    return slot.isReplicationStageCompleted(ReplicationStage.SNAPSHOT);
                 }
             });
         } finally {
@@ -75,24 +69,16 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         }
 
         try (Transaction tr = database.createTransaction()) {
-            ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config);
-            for (Snapshot snapshot : replicationSlot.getSnapshots().values()) {
+            ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
+            for (Snapshot snapshot : slot.getSnapshots().values()) {
                 assertEquals(10, snapshot.getTotalEntries());
                 assertEquals(snapshot.getTotalEntries(), snapshot.getProcessedEntries());
                 assertTrue(snapshot.getLastUpdate() > 0);
             }
         }
 
-        VolumeConfig replicaVolumeConfig = new VolumeConfig(
-                volume.getConfig().subspace(),
-                volume.getConfig().name(),
-                config.dataDir(),
-                volume.getConfig().segmentSize(),
-                volume.getConfig().allowedGarbageRatio()
-        );
-
         Session session = new Session(prefix);
-        Volume replicaVolume = new Volume(context, replicaVolumeConfig);
+        Volume replicaVolume = new Volume(context, standbyVolumeConfig);
         for (Versionstamp versionstampedKey : versionstampedKeys) {
             ByteBuffer buf = volume.get(session, versionstampedKey);
             ByteBuffer replicaBuf = replicaVolume.get(session, versionstampedKey);
@@ -101,13 +87,19 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
 
         // Check replication metadata
         try (Transaction tr = database.createTransaction()) {
-            ReplicationSlot replicationSlot = ReplicationSlot.load(tr, config);
-            assertTrue(replicationSlot.isSnapshotCompleted());
+            ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
+            assertTrue(slot.isReplicationStageCompleted(ReplicationStage.SNAPSHOT));
+            for (Snapshot snapshot : slot.getSnapshots().values()) {
+                assertArrayEquals(snapshot.getBegin(), snapshot.getEnd());
+            }
+
+            Snapshot snapshot = slot.getSnapshots().lastEntry().getValue();
+            assertArrayEquals(snapshot.getEnd(), slot.getLatestVersionstampedKey());
         }
     }
 
     @Test
-    public void test_snapshot_stage() throws IOException {
+    public void take_snapshot_of_an_existing_volume() throws IOException {
         Versionstamp[] versionstampedKeys;
         AppendResult result;
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
@@ -116,13 +108,15 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
             result = volume.append(session, entries);
             tr.commit().join();
         }
+
         versionstampedKeys = result.getVersionstampedKeys();
         assertEquals(10, versionstampedKeys.length);
-        checkSnapshotStage(versionstampedKeys);
+
+        runSnapshotStageAndCheckIt(versionstampedKeys);
     }
 
     @Test
-    public void test_snapshot_stage_when_many_segments_exists() throws IOException {
+    public void take_snapshot_of_an_existing_volume_when_many_segments_exists() throws IOException {
         Versionstamp[] versionstampedKeys;
 
         long bufferSize = 100480;
@@ -141,6 +135,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
         }
 
         assertEquals(2, volume.analyze().size());
-        checkSnapshotStage(versionstampedKeys);
+
+        runSnapshotStageAndCheckIt(versionstampedKeys);
     }
 }

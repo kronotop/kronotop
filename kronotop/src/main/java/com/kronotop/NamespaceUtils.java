@@ -89,11 +89,11 @@ public class NamespaceUtils {
             tr.commit().join();
             return new Namespace(name, subspace);
         } catch (CompletionException e) {
-            if (e.getCause() instanceof FDBException) {
+            if (e.getCause() instanceof FDBException ex) {
                 // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
-                if (((FDBException) e.getCause()).getCode() == 1020) {
+                if (ex.getCode() == 1020) {
                     // retry
-                    createOrOpen(database, clusterName, name);
+                    return createOrOpen(database, clusterName, name);
                 }
             }
             throw new KronotopException(e);
