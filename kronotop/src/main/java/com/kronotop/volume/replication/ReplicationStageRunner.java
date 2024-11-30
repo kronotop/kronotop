@@ -154,6 +154,7 @@ public class ReplicationStageRunner {
         }
 
         stopped = true;
+        setActive(false);
 
         for (Segment segment : openSegments.values()) {
             try {

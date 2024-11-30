@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -47,6 +48,9 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeTest {
 
     @TempDir
     private Path standbyVolumeDataDir;
+
+    private ReplicationConfig config;
+    private Versionstamp slotId;
 
     static <T> T[] concatWithArrayCopy(T[] array1, T[] array2) {
         T[] result = Arrays.copyOf(array1, array1.length + array2.length);
@@ -66,8 +70,8 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeTest {
     }
 
     private Replication newReplication(VolumeConfig standbyVolumeConfig) {
-        ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
-        Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
+        config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
+        slotId = ReplicationMetadata.newReplication(context, config);
         return new Replication(context, slotId, config);
     }
 
@@ -248,5 +252,23 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeTest {
                 replication.stop();
             }
         }
+    }
+
+    private boolean isActive() {
+        try (Transaction tr = database.createTransaction()) {
+            return ReplicationSlot.load(tr, config, slotId).isActive();
+        }
+    }
+
+    @Test
+    public void first_start_replication_then_stop() throws IOException {
+        Volume standbyVolume = standbyVolume();
+        Replication replication = newReplication(standbyVolume.getConfig());
+
+        replication.start();
+        await().atMost(Duration.ofSeconds(5)).until(this::isActive);
+
+        replication.stop();
+        await().atMost(Duration.ofSeconds(5)).until(()->!isActive());
     }
 }

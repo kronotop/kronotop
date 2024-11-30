@@ -19,6 +19,7 @@ package com.kronotop.volume.replication;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.VersionstampUtils;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.segment.Segment;
@@ -219,18 +220,14 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
     }
 
     /**
-     * Executes the snapshot stage and verifies the replication status.
-     * This method is primarily concerned with managing the replication snapshot process. It first runs the snapshot
-     * stage for a replication slot and then checks the replication status. If the snapshot stage has completed, it logs
-     * information about the number of processed entries. If any exception occurs during execution, it will log an error
-     * message along with the exception details.
+     * Executes the snapshot stage of replication.
+     * This method attempts to iterate over snapshot segments and report the progress,
+     * retrying the operation with a defined maximum number of attempts and interval between retries.
      * <p>
-     * The execution flow is as follows:
-     * - Invokes {@link #iterateOverSnapshotSegments()} to start the snapshot process.
-     * - Calls {@link #checkReplicationStatus()} to verify the status of the replication slot.
-     * - If the snapshot process is complete, calculates the total number of entries processed
-     * and logs informational messages.
-     * - In case of an exception, logs an error message with the cause.
+     * It marks the replication process as active and uses the `runWithMaxAttempt` method to handle retries.
+     * During each attempt, it calls `iterateOverSnapshotSegments` to process each segment, and `report`
+     * to log the replication status. If an exception occurs during the attempt, an error is logged,
+     * and the exception is rethrown.
      */
     @Override
     public void run() {
