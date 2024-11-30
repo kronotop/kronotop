@@ -252,8 +252,8 @@ public class KronotopInstance {
     private void registerJournalCleanupTask() {
         BackgroundTaskService maintenanceService = context.getService(BackgroundTaskService.NAME);
 
-        long retentionPeriod = config.getLong("maintenance.journal_cleanup_task.retention_period");
-        String timeunit = config.getString("maintenance.journal_cleanup_task.timeunit");
+        long retentionPeriod = config.getLong("background_tasks.journal_cleanup_task.retention_period");
+        String timeunit = config.getString("background_tasks.journal_cleanup_task.timeunit");
 
         try {
             CleanupTask cleanupTask = new CleanupTask(context.getJournal(), retentionPeriod, BackgroundTaskService.timeUnitOf(timeunit));
