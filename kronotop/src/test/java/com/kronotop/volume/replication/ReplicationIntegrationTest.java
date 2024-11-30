@@ -269,6 +269,6 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeTest {
         await().atMost(Duration.ofSeconds(5)).until(this::isActive);
 
         replication.stop();
-        await().atMost(Duration.ofSeconds(5)).until(()->!isActive());
+        await().atMost(Duration.ofSeconds(5)).until(() -> !isActive());
     }
 }

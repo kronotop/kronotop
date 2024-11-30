@@ -91,7 +91,9 @@ public class ReplicationMetadata {
 
     /**
      * Finds the replication slot ID based on the provided context and replication configuration.
-     *
+     * <p>
+     * You should know that this method tries to find a replication slot registered for the current member.
+     * <p>
      * @param context the context of the Kronotop instance.
      * @param config  the replication configuration. This includes details such as shard kind, shard ID, and volume configuration.
      * @return the versionstamp of the replication slot if found; otherwise, null.
