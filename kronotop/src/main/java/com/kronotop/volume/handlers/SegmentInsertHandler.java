@@ -52,5 +52,6 @@ public class SegmentInsertHandler extends BaseHandler implements Handler {
         } catch (VolumeNotOpenException | ClosedVolumeException e) {
             throw new KronotopException(e.getMessage(), e);
         }
+        response.writeOK();
     }
 }

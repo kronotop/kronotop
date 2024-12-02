@@ -45,8 +45,8 @@ public abstract class AbstractInternalAsyncCommands<K, V> implements InternalAsy
     }
 
     @Override
-    public RedisFuture<String> segmentInsert(String volume, String segment, PackedEntry... entries) {
-        return dispatch(commandBuilder.segmentInsert(volume, segment, entries));
+    public RedisFuture<String> segmentinsert(String volume, String segment, PackedEntry... entries) {
+        return dispatch(commandBuilder.segmentinsert(volume, segment, entries));
     }
 
     private <T> AsyncCommand<K, V, T> dispatch(RedisCommand<K, V, T> cmd) {
