@@ -25,6 +25,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
+import com.kronotop.volume.handlers.PackedEntry;
 import com.kronotop.volume.replication.SegmentLog;
 import com.kronotop.volume.replication.SegmentLogValue;
 import com.kronotop.volume.replication.SegmentNotFoundException;
@@ -32,6 +33,7 @@ import com.kronotop.volume.segment.Segment;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import com.kronotop.volume.segment.SegmentAppendResult;
 import com.kronotop.volume.segment.SegmentConfig;
+import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -366,7 +368,7 @@ public class Volume {
 
     /**
      * Retrieves an existing segment by its name or opens a new segment if it does not already exist.
-     * This method ensures thread safety by utilizing read and write locks.
+     * This method ensures thread safety by using read and write locks.
      *
      * @param name the name of the segment to retrieve or open.
      * @return the Segment instance corresponding to the specified name.
@@ -872,5 +874,28 @@ public class Volume {
 
         clearSegmentsByPrefix(session);
         clearEntrySubspace(session);
+    }
+
+
+    /**
+     * Inserts the given entries into the specified segment.
+     * <p>
+     * Assumed that callers of this method call flush after a successful return.
+     *
+     * @param segmentName the name of the segment into which entries will be inserted
+     * @param entries the entries to be inserted into the segment
+     * @throws IOException if an I/O error occurs while accessing the segment
+     */
+    public void insert(String segmentName, PackedEntry... entries) throws IOException {
+        Segment segment = getOrOpenSegmentByName(segmentName);
+        for (PackedEntry entry : entries) {
+            try {
+                segment.insert(ByteBuffer.wrap(entry.data()), entry.position());
+                // Assumed that callers of this method call flush after a successful return.
+            } catch (NotEnoughSpaceException e) {
+                // This should never happen.
+                throw new KronotopException(e);
+            }
+        }
     }
 }

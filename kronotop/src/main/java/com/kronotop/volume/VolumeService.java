@@ -22,6 +22,7 @@ import com.kronotop.KronotopService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
+import com.kronotop.volume.handlers.SegmentInsertHandler;
 import com.kronotop.volume.handlers.SegmentRangeHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         super(context, NAME);
 
         handlerMethod(ServerKind.INTERNAL, new SegmentRangeHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new SegmentInsertHandler(this));
     }
 
     /**
