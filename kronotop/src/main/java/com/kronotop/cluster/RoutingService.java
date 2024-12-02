@@ -154,7 +154,8 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
                 Member standby = membership.findMember(standbyId);
                 standbys.add(standby);
             }
-            return new Route(primary, standbys, shardStatus);
+            // TODO: CLUSTER-REFACTORING
+            return new Route(primary, standbys, shardStatus, new HashSet<>());
         } catch (MemberNotRegisteredException e) {
             LOGGER.error("Error while loading member", e);
         }
