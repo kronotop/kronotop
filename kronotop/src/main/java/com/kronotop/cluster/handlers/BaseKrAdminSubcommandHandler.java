@@ -69,6 +69,15 @@ public class BaseKrAdminSubcommandHandler {
         }
         shard.put(new SimpleStringRedisMessage("standbys"), new ArrayRedisMessage(standbyMessages));
 
+        List<RedisMessage> syncStandbyMessages = new ArrayList<>();
+        Set<String> syncStandbys = MembershipUtils.loadSyncStandbyMemberIds(tr, shardSubspace);
+        if (standbys != null) {
+            for (String syncStandby : syncStandbys) {
+                syncStandbyMessages.add(new SimpleStringRedisMessage(syncStandby));
+            }
+        }
+        shard.put(new SimpleStringRedisMessage("sync_standbys"), new ArrayRedisMessage(syncStandbyMessages));
+
         ShardStatus status = MembershipUtils.loadShardStatus(tr, shardSubspace);
         shard.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(status.name()));
 

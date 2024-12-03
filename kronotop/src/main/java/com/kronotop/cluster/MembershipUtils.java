@@ -24,6 +24,7 @@ import com.kronotop.cluster.sharding.ShardStatus;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public final class MembershipUtils {
@@ -74,7 +75,8 @@ public final class MembershipUtils {
             if (value == null) {
                 return new HashSet<String>();
             }
-            return Set.of(JSONUtils.readValue(value, String[].class));
+            List<String> items = Arrays.asList(JSONUtils.readValue(value, String[].class));
+            return new HashSet<>(items);
         }).join();
     }
 
@@ -86,5 +88,16 @@ public final class MembershipUtils {
      */
     public static boolean isTrue(byte[] data) {
         return Arrays.equals(data, MembershipConstants.TRUE);
+    }
+
+    public static Set<String> loadSyncStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace) {
+        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_SYNC_STANDBY_MEMBERS));
+        return tr.get(key).thenApply((value) -> {
+            if (value == null) {
+                return new HashSet<String>();
+            }
+            List<String> items = Arrays.asList(JSONUtils.readValue(value, String[].class));
+            return new HashSet<>(items);
+        }).join();
     }
 }

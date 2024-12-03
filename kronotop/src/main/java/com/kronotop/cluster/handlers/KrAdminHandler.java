@@ -43,6 +43,7 @@ public class KrAdminHandler implements Handler {
         handlers.put(KrAdminSubcommand.SET_SHARD_STATUS, new SetShardStatusSubcommand(service));
         handlers.put(KrAdminSubcommand.DESCRIBE_SHARD, new DescribeShardSubcommand(service));
         handlers.put(KrAdminSubcommand.LIST_REPLICATION_SLOTS, new ListReplicationSlots(service));
+        handlers.put(KrAdminSubcommand.SYNC_STANDBY, new SyncStandbySubcommand(service));
     }
 
     @Override
