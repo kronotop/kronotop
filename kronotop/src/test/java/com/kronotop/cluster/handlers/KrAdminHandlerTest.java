@@ -328,6 +328,10 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) messageValue;
                     assertEquals(ShardStatus.READWRITE.name(), value.content());
                 }
+                case "sync_standbys" -> {
+                    ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
+                    assertEquals(0, value.children().size());
+                }
             }
         });
     }
@@ -385,6 +389,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
     public void test_set_syncStandby() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
+        // Start a new instance and set a standby id
         KronotopTestInstance secondInstance = addNewInstance();
         {
             ByteBuf buf = Unpooled.buffer();
@@ -396,13 +401,38 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
             assertEquals(Response.OK, actualMessage.content());
         }
 
-        ByteBuf buf = Unpooled.buffer();
-        cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
-        assertInstanceOf(SimpleStringRedisMessage.class, msg);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-        assertEquals(Response.OK, actualMessage.content());
+        // set a sync standby
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // control it
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.describeShard("redis", 1).encode(buf);
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage actualMessage = (MapRedisMessage) msg;
+            actualMessage.children().forEach((messageKey, messageValue) -> {
+                SimpleStringRedisMessage key = (SimpleStringRedisMessage) messageKey;
+                switch (key.content()) {
+                    case "standbys", "sync_standbys" -> {
+                        ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
+                        assertEquals(1, value.children().size());
+                        RedisMessage first = value.children().getFirst();
+                        SimpleStringRedisMessage memberId = (SimpleStringRedisMessage) first;
+                        assertEquals(secondInstance.getMember().getId(), memberId.content());
+                    }
+                }
+            });
+        }
     }
 }
 
