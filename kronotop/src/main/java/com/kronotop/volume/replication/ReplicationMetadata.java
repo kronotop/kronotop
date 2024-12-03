@@ -16,6 +16,7 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
@@ -25,6 +26,7 @@ import com.kronotop.VersionstampUtils;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static com.kronotop.volume.Subspaces.MEMBER_REPLICATION_SLOT_SUBSPACE;
 
@@ -86,6 +88,14 @@ public class ReplicationMetadata {
 
             byte[] trVersion = future.join();
             return Versionstamp.complete(trVersion);
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException ex) {
+                if (ex.getCode() == 1020) {
+                    // Conflict, retry...
+                    return newReplication(context, config);
+                }
+            }
+            throw e;
         }
     }
 

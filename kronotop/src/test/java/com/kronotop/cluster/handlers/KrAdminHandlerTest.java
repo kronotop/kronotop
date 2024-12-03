@@ -380,5 +380,29 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
             });
         });
     }
+
+    @Test
+    public void test_set_syncStandby() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        KronotopTestInstance secondInstance = addNewInstance();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.setRoute("standby", "redis", 1, secondInstance.getMember().getId()).encode(buf);
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertEquals(Response.OK, actualMessage.content());
+    }
 }
 
