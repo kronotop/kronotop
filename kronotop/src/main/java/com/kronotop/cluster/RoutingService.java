@@ -130,6 +130,15 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
         return false;
     }
 
+    private Set<Member> memberIdsToMembers(Set<String> memberIds) {
+        Set<Member> members = new HashSet<>();
+        for (String memberId : memberIds) {
+            Member member = membership.findMember(memberId);
+            members.add(member);
+        }
+        return members;
+    }
+
     /**
      * Loads the shard routing information from the specified subspace within a transaction.
      *
@@ -148,14 +157,14 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
         try {
             Member primary = membership.findMember(primaryMemberId);
             ShardStatus shardStatus = MembershipUtils.loadShardStatus(tr, shardSubspace);
+
             Set<String> standbyIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
-            Set<Member> standbys = new HashSet<>();
-            for (String standbyId : standbyIds) {
-                Member standby = membership.findMember(standbyId);
-                standbys.add(standby);
-            }
-            // TODO: CLUSTER-REFACTORING
-            return new Route(primary, standbys, shardStatus, new HashSet<>());
+            Set<Member> standbys = memberIdsToMembers(standbyIds);
+
+            Set<String> syncStandbyIds = MembershipUtils.loadSyncStandbyMemberIds(tr, shardSubspace);
+            Set<Member> syncStandbys = memberIdsToMembers(syncStandbyIds);
+
+            return new Route(primary, standbys, shardStatus, syncStandbys);
         } catch (MemberNotRegisteredException e) {
             LOGGER.error("Error while loading member", e);
         }
