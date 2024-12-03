@@ -434,5 +434,93 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
             });
         }
     }
+
+    @Test
+    public void test_unset_syncStandby() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        // Start a new instance and set a standby id
+        KronotopTestInstance secondInstance = addNewInstance();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.setRoute("standby", "redis", 1, secondInstance.getMember().getId()).encode(buf);
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // set a sync standby
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // unset a sync standby
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.syncStandby("unset", "redis", 1, secondInstance.getMember().getId()).encode(buf);
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // control it
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.describeShard("redis", 1).encode(buf);
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage actualMessage = (MapRedisMessage) msg;
+            actualMessage.children().forEach((messageKey, messageValue) -> {
+                SimpleStringRedisMessage key = (SimpleStringRedisMessage) messageKey;
+                if (key.content().equals("sync_standbys")) {
+                    ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
+                    assertEquals(0, value.children().size());
+                }
+            });
+        }
+    }
+
+    @Test
+    public void try_to_set_syncStandby_when_member_not_registered() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.syncStandby("set", "redis", 1, "f75ea92a-7847-453f-b765-a1b173a2afec").encode(buf);
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Member: f75ea92a-7847-453f-b765-a1b173a2afec not registered", actualMessage.content());
+    }
+
+    @Test
+    public void test_unset_syncStandby_member_not_standby() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        // Start a new instance and set a standby id
+        KronotopTestInstance secondInstance = addNewInstance();
+
+        // set a sync standby
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(ErrorRedisMessage.class, msg);
+            ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+            assertEquals("ERR member is not a standby", actualMessage.content());
+        }
+    }
 }
 

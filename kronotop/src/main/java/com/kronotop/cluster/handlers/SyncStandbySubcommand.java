@@ -69,6 +69,10 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
     public void execute(Request request, Response response) {
         // kr.admin sync-standby set/unset <shard-kind> <shard-id> <member-id>
         SyncStandbyParameters parameters = new SyncStandbyParameters(request.getParams());
+
+        // Throws an error if no member found with the given member id
+        membership.findMember(parameters.memberId);
+
         DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, parameters.shardId);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             if (parameters.operationKind.equals(OperationKind.SET)) {
