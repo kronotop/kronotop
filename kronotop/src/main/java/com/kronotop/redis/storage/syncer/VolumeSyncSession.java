@@ -20,6 +20,11 @@ import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.client.InternalClient;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.redis.storage.DataStructurePack;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.volume.AppendResult;
@@ -30,6 +35,7 @@ import com.kronotop.volume.Session;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
+import java.util.Set;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -42,6 +48,7 @@ import java.util.concurrent.CompletionException;
 public class VolumeSyncSession {
     private final Context context;
     private final RedisShard shard;
+    private final RoutingService routing;
     private final LinkedList<ByteBuffer> entries;
     private final LinkedList<Versionstamp> versionstampedKeys;
     private final Prefix prefix;
@@ -51,6 +58,7 @@ public class VolumeSyncSession {
     public VolumeSyncSession(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
+        this.routing = context.getService(RoutingService.NAME);
         this.versionstampedKeys = new LinkedList<>();
         this.entries = new LinkedList<>();
         this.prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
@@ -98,6 +106,12 @@ public class VolumeSyncSession {
             DeleteResult deleteResult = shard.volume().delete(session, versionstampedKeys.toArray(new Versionstamp[versionstampedKeys.size()]));
 
             shard.volume().flush(true);
+
+            Route route = routing.findRoute(ShardKind.REDIS, shard().id());
+            Set<Member> syncStandbys = route.syncStandbys();
+            if (!syncStandbys.isEmpty()) {
+                // TODO: SYNC-REPLICATION
+            }
 
             tr.commit().join();
             deleteResult.complete();
