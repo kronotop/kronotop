@@ -60,6 +60,15 @@ public class SynchronousReplication {
         return result;
     }
 
+    /**
+     * Allocates and organizes packed entries by their corresponding segments from the provided append result.
+     * The method first calculates the number of entries per segment and then initializes an array
+     * of packed entries for each segment.
+     *
+     * @param result the append result containing entry metadata from which the segments are derived
+     * @return a HashMap where each key is a segment name, and the corresponding value is an array
+     *         of packed entries allocated for that segment
+     */
     private HashMap<String, PackedEntry[]> allocateEntriesBySegment(AppendResult result) {
         HashMap<String, Integer> capacityBySegment = new HashMap<>();
         for (EntryMetadata entryMetadata : result.getEntryMetadataList()) {
@@ -82,20 +91,20 @@ public class SynchronousReplication {
         Route route = routing.findRoute(ShardKind.REDIS, shard.id());
         Set<Member> syncStandbys = route.syncStandbys();
         if (syncStandbys.isEmpty()) {
+            // No sync standby found for this route, quit silently.
             return true;
         }
 
         HashMap<String, PackedEntry[]> entriesBySegment = allocateEntriesBySegment(appendResult);
         HashMap<String, AtomicInteger> segmentIndexCounter = getSegmentIndexCounter(entriesBySegment.keySet());
-
         for (int index = 0; index < appendResult.getEntryMetadataList().length; index++) {
             EntryMetadata entryMetadata = appendResult.getEntryMetadataList()[index];
             PackedEntry[] packedEntries = entriesBySegment.get(entryMetadata.segment());
             ByteBuffer buffer = entries.get(index);
             buffer.flip();
 
-            int i = segmentIndexCounter.get(entryMetadata.segment()).getAndIncrement();
-            packedEntries[i] = new PackedEntry(entryMetadata.position(), buffer.array());
+            int segmentIndex = segmentIndexCounter.get(entryMetadata.segment()).getAndIncrement();
+            packedEntries[segmentIndex] = new PackedEntry(entryMetadata.position(), buffer.array());
         }
 
         CountDownLatch latch = new CountDownLatch(syncStandbys.size());
@@ -110,6 +119,21 @@ public class SynchronousReplication {
         }
     }
 
+    /**
+     * SyncReplicationRunnable is responsible for synchronously replicating a set of packed entries
+     * across segments to a specified member.
+     * <p>
+     * The replication process involves:
+     * - Establishing or retrieving an internal connection to the specified member.
+     * - Iterating over the entries organized by segments and inserting them into the member's
+     *   corresponding segment using the internal connection.
+     * - Handling unsuccessful operations by throwing a KronotopException.
+     * - Counting down a provided CountDownLatch upon successful completion to signal other
+     *   waiting threads.
+     * <p>
+     * This class is typically utilized in systems where data synchronization is crucial,
+     * ensuring consistent replication across different nodes or members.
+     */
     class SyncReplicationRunnable implements Runnable {
         private final CountDownLatch latch;
         private final Member member;

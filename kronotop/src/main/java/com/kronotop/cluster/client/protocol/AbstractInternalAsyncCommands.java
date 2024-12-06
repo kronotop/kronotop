@@ -40,7 +40,7 @@ public abstract class AbstractInternalAsyncCommands<K, V> implements InternalAsy
     }
 
     @Override
-    public RedisFuture<List<Object>> segmentRange(String volume, String segment, SegmentRange... ranges) {
+    public RedisFuture<List<Object>> segmentrange(String volume, String segment, SegmentRange... ranges) {
         return dispatch(commandBuilder.segmentrange(volume, segment, ranges));
     }
 

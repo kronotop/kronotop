@@ -122,6 +122,8 @@ public class VolumeSyncSession {
                 if (synchronous) {
                     SynchronousReplication sync = new SynchronousReplication(context, shard, entries, appendResult);
                     if (!sync.run()) {
+                        // Failed to write to sync standbys. Don't commit metadata to FDB. Vacuum will
+                        // clean all the garbage.
                         throw new KronotopException("Synchronous commit failed");
                     }
                 }
