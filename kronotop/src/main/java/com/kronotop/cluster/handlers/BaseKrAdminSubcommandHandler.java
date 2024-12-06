@@ -247,18 +247,6 @@ public class BaseKrAdminSubcommandHandler {
     }
 
     /**
-     * Checks if the cluster is initialized by reading the cluster metadata from the database.
-     *
-     * @param tr The transaction used to read from the database.
-     * @return true if the cluster is initialized, false otherwise.
-     */
-    protected boolean isClusterInitialized(Transaction tr) {
-        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-        byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
-        return MembershipUtils.isTrue(tr.get(key).join());
-    }
-
-    /**
      * Finds a member with the given prefix in their ID.
      *
      * @param prefix the prefix to search for in member IDs

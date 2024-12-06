@@ -19,6 +19,7 @@ package com.kronotop.cluster;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.JSONUtils;
 import com.kronotop.cluster.sharding.ShardStatus;
 
@@ -28,6 +29,18 @@ import java.util.List;
 import java.util.Set;
 
 public final class MembershipUtils {
+
+    /**
+     * Determines if the cluster is initialized by checking a specific key in the database.
+     *
+     * @param tr The transaction used to perform the database operation.
+     * @param clusterMetadataSubspace The directory subspace where cluster metadata is stored.
+     * @return true if the cluster is initialized, false otherwise.
+     */
+    public static boolean isClusterInitialized(Transaction tr, DirectorySubspace clusterMetadataSubspace) {
+        byte[] key = clusterMetadataSubspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+        return MembershipUtils.isTrue(tr.get(key).join());
+    }
 
     /**
      * Loads the shard status from the specified subspace within a transaction.

@@ -81,10 +81,6 @@ class SetRouteHandler extends BaseKrAdminSubcommandHandler implements Subcommand
         SetRouteParameters parameters = new SetRouteParameters(request.getParams());
 
         try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
-            if (!isClusterInitialized(tr)) {
-                throw new ClusterNotInitializedException();
-            }
-
             if (!membership.isMemberRegistered(parameters.memberId)) {
                 throw new KronotopException("member not found");
             }
