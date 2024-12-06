@@ -153,6 +153,7 @@ public class ReplicationStageRunner {
                 continue;
             }
             segmentRanges[index] = new SegmentRange(entry.value().position(), entry.value().length());
+            index++;
         }
         return client.connection().sync().segmentrange(volumeConfig.name(), segmentName, segmentRanges);
     }
