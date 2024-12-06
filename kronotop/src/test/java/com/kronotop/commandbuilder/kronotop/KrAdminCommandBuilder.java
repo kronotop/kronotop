@@ -115,6 +115,15 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
+    public Command<K, V, String> syncStandby(String operationKind, String shardKind, String memberId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SYNC_STANDBY).
+                add(operationKind).
+                add(shardKind).
+                add("*").
+                add(memberId);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         KR_ADMIN("KR.ADMIN");
 

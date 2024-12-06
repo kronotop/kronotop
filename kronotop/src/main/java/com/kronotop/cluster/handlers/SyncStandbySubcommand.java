@@ -65,6 +65,16 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
         tr.set(key, value);
     }
 
+    private void syncStandbyForShard(Transaction tr, SyncStandbyParameters parameters, DirectorySubspace shardSubspace) {
+        if (parameters.operationKind.equals(OperationKind.SET)) {
+            setSyncStandby(tr, parameters, shardSubspace);
+        } else if (parameters.operationKind.equals(OperationKind.UNSET)) {
+            unsetSyncStandby(tr, parameters, shardSubspace);
+        } else {
+            throw new KronotopException("Unknown operation kind: " + parameters.operationKind);
+        }
+    }
+
     @Override
     public void execute(Request request, Response response) {
         // kr.admin sync-standby set/unset <shard-kind> <shard-id> <member-id>
@@ -73,14 +83,16 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
         // Throws an error if no member found with the given member id
         membership.findMember(parameters.memberId);
 
-        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, parameters.shardId);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            if (parameters.operationKind.equals(OperationKind.SET)) {
-                setSyncStandby(tr, parameters, shardSubspace);
-            } else if (parameters.operationKind.equals(OperationKind.UNSET)) {
-                unsetSyncStandby(tr, parameters, shardSubspace);
+            if (parameters.allShards) {
+                int numberOfShards = getNumberOfShards(parameters.shardKind);
+                for (int shardId = 0; shardId < numberOfShards; shardId++) {
+                    DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, shardId);
+                    syncStandbyForShard(tr, parameters, shardSubspace);
+                }
             } else {
-                throw new KronotopException("Unknown operation kind: " + parameters.operationKind);
+                DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, parameters.shardId);
+                syncStandbyForShard(tr, parameters, shardSubspace);
             }
             membership.triggerRoutingEventsWatcher(tr);
             tr.commit().join();
@@ -96,6 +108,7 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
     class SyncStandbyParameters {
         private final OperationKind operationKind;
         private final ShardKind shardKind;
+        private final boolean allShards;
         private final int shardId;
         private final String memberId;
 
@@ -114,7 +127,12 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
             shardKind = readShardKind(params.get(2));
 
             String rawShardId = readAsString(params.get(3));
-            shardId = readShardId(shardKind, rawShardId);
+            allShards = rawShardId.equals("*");
+            if (!allShards) {
+                shardId = readShardId(shardKind, rawShardId);
+            } else {
+                shardId = -1; // dummy assignment due to final declaration
+            }
 
             memberId = readMemberId(params.get(4));
         }
