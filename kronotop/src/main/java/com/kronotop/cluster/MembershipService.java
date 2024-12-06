@@ -274,6 +274,8 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             long heartbeat = Heartbeat.get(tr, subspace);
             subspaces.put(member, subspace);
             others.put(member, new MemberView(heartbeat));
+            triggerRoutingEventsWatcher(tr);
+            tr.commit().join();
         }
 
         // A new cluster member has joined.
@@ -285,6 +287,11 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         Member member = registry.findMember(event.memberId());
         subspaces.remove(member);
         others.remove(member);
+
+        context.getFoundationDB().run(tr -> {
+            triggerRoutingEventsWatcher(tr);
+            return null;
+        });
 
         LOGGER.info("Member left: {}", member.getExternalAddress());
     }
