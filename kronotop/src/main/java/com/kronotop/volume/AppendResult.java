@@ -49,4 +49,8 @@ public class AppendResult {
         }
         return versionstampedKeys;
     }
+
+    public EntryMetadata[] getEntryMetadataList() {
+        return entryMetadataList;
+    }
 }

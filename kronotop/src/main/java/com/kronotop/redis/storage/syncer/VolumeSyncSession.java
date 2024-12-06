@@ -23,20 +23,24 @@ import com.kronotop.Context;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.client.InternalClient;
+import com.kronotop.cluster.client.StatefulInternalConnection;
+import com.kronotop.cluster.client.protocol.PackedEntry;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.common.KronotopException;
 import com.kronotop.redis.storage.DataStructurePack;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.volume.AppendResult;
-import com.kronotop.volume.DeleteResult;
-import com.kronotop.volume.Prefix;
-import com.kronotop.volume.Session;
+import com.kronotop.server.Response;
+import com.kronotop.volume.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The VolumeSyncSession class manages synchronization of volume data by packing
@@ -102,15 +106,25 @@ public class VolumeSyncSession {
 
             Session session = new Session(tr, prefix);
 
-            AppendResult appendResult = shard.volume().append(session, entries.toArray(new ByteBuffer[entries.size()]));
-            DeleteResult deleteResult = shard.volume().delete(session, versionstampedKeys.toArray(new Versionstamp[versionstampedKeys.size()]));
+            AppendResult appendResult = shard.volume().append(
+                    session,
+                    entries.toArray(new ByteBuffer[entries.size()])
+            );
+            DeleteResult deleteResult = shard.volume().delete(
+                    session,
+                    versionstampedKeys.toArray(new Versionstamp[versionstampedKeys.size()])
+            );
 
             shard.volume().flush(true);
 
-            Route route = routing.findRoute(ShardKind.REDIS, shard().id());
-            Set<Member> syncStandbys = route.syncStandbys();
-            if (!syncStandbys.isEmpty()) {
-                // TODO: SYNC-REPLICATION
+            if (appendResult.getEntryMetadataList().length > 0) {
+                boolean synchronous = context.getConfig().getBoolean("redis.volume_syncer.synchronous_commit");
+                if (synchronous) {
+                    SynchronousReplication sync = new SynchronousReplication(context, shard, entries, appendResult);
+                    if (!sync.run()) {
+                        throw new KronotopException("Synchronous commit failed");
+                    }
+                }
             }
 
             tr.commit().join();
