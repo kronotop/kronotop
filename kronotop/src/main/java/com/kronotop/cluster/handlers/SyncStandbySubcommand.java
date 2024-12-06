@@ -94,7 +94,7 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
                 DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, parameters.shardId);
                 syncStandbyForShard(tr, parameters, shardSubspace);
             }
-            membership.triggerRoutingEventsWatcher(tr);
+            membership.triggerClusterTopologyWatcher(tr);
             tr.commit().join();
         }
         response.writeOK();

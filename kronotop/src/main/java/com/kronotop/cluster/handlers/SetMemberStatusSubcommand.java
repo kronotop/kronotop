@@ -41,7 +41,7 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
             Member member = membership.findMember(tr, parameters.memberId);
             member.setStatus(parameters.memberStatus);
             membership.updateMember(tr, member);
-            membership.triggerRoutingEventsWatcher(tr);
+            membership.triggerClusterTopologyWatcher(tr);
             tr.commit().join();
         }
         response.writeOK();

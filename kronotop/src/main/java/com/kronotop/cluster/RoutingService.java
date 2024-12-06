@@ -358,7 +358,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
             }
 
             DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-            byte[] key = subspace.pack(Tuple.from(MembershipConstants.ROUTING_TABLE_UPDATED));
+            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_TOPOLOGY_CHANGED));
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
                 tr.commit().join();

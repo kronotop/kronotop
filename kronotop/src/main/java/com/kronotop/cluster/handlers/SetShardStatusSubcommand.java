@@ -48,7 +48,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
             } else {
                 ShardUtils.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, parameters.shardId);
             }
-            membership.triggerRoutingEventsWatcher(tr);
+            membership.triggerClusterTopologyWatcher(tr);
             tr.commit().join();
         }
         response.writeOK();

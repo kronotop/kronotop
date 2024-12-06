@@ -36,7 +36,7 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
         RemoveMemberParameters parameters = new RemoveMemberParameters(request.getParams());
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             membership.removeMember(tr, parameters.memberId);
-            membership.triggerRoutingEventsWatcher(tr);
+            membership.triggerClusterTopologyWatcher(tr);
         }
         response.writeOK();
     }

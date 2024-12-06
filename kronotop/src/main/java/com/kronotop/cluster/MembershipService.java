@@ -24,7 +24,6 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.common.KronotopException;
-import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.journal.Event;
 import com.kronotop.server.ServerKind;
@@ -242,13 +241,16 @@ public class MembershipService extends CommandHandlerService implements Kronotop
     }
 
     /**
-     * Triggers an event to indicate that the routing table has been updated in the cluster metadata.
+     * Triggers the cluster topology watcher by indicating that the cluster topology has changed.
+     * This is done by performing a mutation operation within the given transaction that modifies
+     * the value associated with the cluster topology change key in the metadata subspace.
      *
-     * @param tr the transaction within which the event mutation will be applied.
+     * @param tr The transaction object used to perform the mutation operation indicating a
+     *           cluster topology change.
      */
-    public void triggerRoutingEventsWatcher(Transaction tr) {
+    public void triggerClusterTopologyWatcher(Transaction tr) {
         DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-        byte[] key = subspace.pack(Tuple.from(MembershipConstants.ROUTING_TABLE_UPDATED));
+        byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_TOPOLOGY_CHANGED));
         tr.mutate(MutationType.ADD, key, PLUS_ONE);
     }
 
@@ -274,7 +276,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             long heartbeat = Heartbeat.get(tr, subspace);
             subspaces.put(member, subspace);
             others.put(member, new MemberView(heartbeat));
-            triggerRoutingEventsWatcher(tr);
+            triggerClusterTopologyWatcher(tr);
             tr.commit().join();
         }
 
@@ -289,7 +291,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
         others.remove(member);
 
         context.getFoundationDB().run(tr -> {
-            triggerRoutingEventsWatcher(tr);
+            triggerClusterTopologyWatcher(tr);
             return null;
         });
 

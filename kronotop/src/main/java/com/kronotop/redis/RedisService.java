@@ -286,7 +286,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
                 serviceContext.shards().values().forEach(shard -> {
                     ShardUtils.setShardStatus(context, tr, ShardKind.REDIS, ShardStatus.READONLY, shard.id());
                 });
-                membership.triggerRoutingEventsWatcher(tr);
+                membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();
             }
 
@@ -309,7 +309,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
                 serviceContext.shards().values().forEach(shard -> {
                     ShardUtils.setShardStatus(context, tr, ShardKind.REDIS, ShardStatus.READWRITE, shard.id());
                 });
-                membership.triggerRoutingEventsWatcher(tr);
+                membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();
             }
         }
