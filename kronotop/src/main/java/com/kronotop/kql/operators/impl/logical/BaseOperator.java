@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql.operators;
+package com.kronotop.kql.operators.impl.logical;
 
-public interface KqlOperator {
+import com.kronotop.kql.operators.KqlLogicalOperator;
+
+import java.util.LinkedList;
+import java.util.List;
+
+public class BaseOperator {
+    public final List<KqlLogicalOperator> list = new LinkedList<>();
 }

@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql.operators;
+package com.kronotop.kql.operators.impl.logical;
 
-public interface KqlOperator {
+import com.kronotop.kql.operators.KqlLogicalOperator;
+
+public class OrOperator extends BaseOperator implements KqlLogicalOperator {
+    public static final String NAME = "$OR";
 }
