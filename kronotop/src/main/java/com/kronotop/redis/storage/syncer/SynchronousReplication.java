@@ -151,7 +151,7 @@ public class SynchronousReplication {
             entriesBySegment.forEach((segment, packedEntries) -> {
                 String status = connection.sync().segmentinsert(shard.volume().getConfig().name(), segment, packedEntries);
                 if (!status.equals(Response.OK)) {
-                    throw new KronotopException("Failed to sync replication to " + member + " : " + status);
+                    throw new KronotopException("Failed to replicate entries synchronously to " + member + " : " + status);
                 }
             });
             latch.countDown();

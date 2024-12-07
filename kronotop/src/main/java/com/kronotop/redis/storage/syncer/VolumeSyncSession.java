@@ -118,13 +118,13 @@ public class VolumeSyncSession {
             shard.volume().flush(true);
 
             if (appendResult.getEntryMetadataList().length > 0) {
-                boolean synchronous = context.getConfig().getBoolean("redis.volume_syncer.synchronous_commit");
+                boolean synchronous = context.getConfig().getBoolean("redis.volume_syncer.synchronous_replication");
                 if (synchronous) {
                     SynchronousReplication sync = new SynchronousReplication(context, shard, entries, appendResult);
                     if (!sync.run()) {
                         // Failed to write to sync standbys. Don't commit metadata to FDB. Vacuum will
                         // clean all the garbage.
-                        throw new KronotopException("Synchronous commit failed");
+                        throw new KronotopException("Synchronous replication failed due to errors");
                     }
                 }
             }
