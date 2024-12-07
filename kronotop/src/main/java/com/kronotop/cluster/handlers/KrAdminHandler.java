@@ -50,7 +50,7 @@ public class KrAdminHandler implements Handler {
         handlers.put(KrAdminSubcommand.FIND_MEMBER, new FindMemberSubcommand(service));
         handlers.put(KrAdminSubcommand.REMOVE_MEMBER, new RemoveMemberSubcommand(service));
         handlers.put(KrAdminSubcommand.LIST_SILENT_MEMBERS, new ListSilentMembers(service));
-        handlers.put(KrAdminSubcommand.SET_ROUTE, new SetRouteHandler(service));
+        handlers.put(KrAdminSubcommand.ROUTE, new RouteHandler(service));
         handlers.put(KrAdminSubcommand.SET_SHARD_STATUS, new SetShardStatusSubcommand(service));
         handlers.put(KrAdminSubcommand.DESCRIBE_SHARD, new DescribeShardSubcommand(service));
         handlers.put(KrAdminSubcommand.LIST_REPLICATION_SLOTS, new ListReplicationSlots(service));
@@ -58,7 +58,7 @@ public class KrAdminHandler implements Handler {
 
         subcommandsRequireInitializedCluster.add(KrAdminSubcommand.DESCRIBE_CLUSTER);
         subcommandsRequireInitializedCluster.add(KrAdminSubcommand.DESCRIBE_SHARD);
-        subcommandsRequireInitializedCluster.add(KrAdminSubcommand.SET_ROUTE);
+        subcommandsRequireInitializedCluster.add(KrAdminSubcommand.ROUTE);
         subcommandsRequireInitializedCluster.add(KrAdminSubcommand.SET_SHARD_STATUS);
         subcommandsRequireInitializedCluster.add(KrAdminSubcommand.LIST_REPLICATION_SLOTS);
         subcommandsRequireInitializedCluster.add(KrAdminSubcommand.SYNC_STANDBY);

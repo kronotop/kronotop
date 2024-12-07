@@ -414,7 +414,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
         KronotopTestInstance secondInstance = addNewInstance();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.setRoute("standby", "redis", 1, secondInstance.getMember().getId()).encode(buf);
+            cmd.route("set", "standby", "redis", 1, secondInstance.getMember().getId()).encode(buf);
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -445,7 +445,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
         KronotopTestInstance secondInstance = addNewInstance();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.setRoute("standby", "redis", 1, secondInstance.getMember().getId()).encode(buf);
+            cmd.route("set", "standby", "redis", 1, secondInstance.getMember().getId()).encode(buf);
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -533,7 +533,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
         KronotopTestInstance secondInstance = addNewInstance();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.setRoute("standby", "redis", secondInstance.getMember().getId()).encode(buf);
+            cmd.route("set", "standby", "redis", secondInstance.getMember().getId()).encode(buf);
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
