@@ -20,5 +20,5 @@ import com.kronotop.cluster.sharding.ShardStatus;
 
 import java.util.Set;
 
-public record Route(Member primary, Set<Member> standbys, ShardStatus shardStatus) {
+public record Route(Member primary, Set<Member> standbys, ShardStatus shardStatus, Set<Member> syncStandbys) {
 }

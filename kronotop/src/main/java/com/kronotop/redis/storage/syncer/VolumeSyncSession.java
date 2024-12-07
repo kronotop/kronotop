@@ -20,6 +20,8 @@ import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.common.KronotopException;
 import com.kronotop.redis.storage.DataStructurePack;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.volume.AppendResult;
@@ -42,6 +44,7 @@ import java.util.concurrent.CompletionException;
 public class VolumeSyncSession {
     private final Context context;
     private final RedisShard shard;
+    private final RoutingService routing;
     private final LinkedList<ByteBuffer> entries;
     private final LinkedList<Versionstamp> versionstampedKeys;
     private final Prefix prefix;
@@ -51,6 +54,7 @@ public class VolumeSyncSession {
     public VolumeSyncSession(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
+        this.routing = context.getService(RoutingService.NAME);
         this.versionstampedKeys = new LinkedList<>();
         this.entries = new LinkedList<>();
         this.prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
@@ -94,10 +98,28 @@ public class VolumeSyncSession {
 
             Session session = new Session(tr, prefix);
 
-            AppendResult appendResult = shard.volume().append(session, entries.toArray(new ByteBuffer[entries.size()]));
-            DeleteResult deleteResult = shard.volume().delete(session, versionstampedKeys.toArray(new Versionstamp[versionstampedKeys.size()]));
+            AppendResult appendResult = shard.volume().append(
+                    session,
+                    entries.toArray(new ByteBuffer[entries.size()])
+            );
+            DeleteResult deleteResult = shard.volume().delete(
+                    session,
+                    versionstampedKeys.toArray(new Versionstamp[versionstampedKeys.size()])
+            );
 
             shard.volume().flush(true);
+
+            if (appendResult.getEntryMetadataList().length > 0) {
+                boolean synchronous = context.getConfig().getBoolean("redis.volume_syncer.synchronous_replication");
+                if (synchronous) {
+                    SynchronousReplication sync = new SynchronousReplication(context, shard, entries, appendResult);
+                    if (!sync.run()) {
+                        // Failed to write to sync standbys. Don't commit metadata to FDB. Vacuum will
+                        // clean all the garbage.
+                        throw new KronotopException("Synchronous replication failed due to errors");
+                    }
+                }
+            }
 
             tr.commit().join();
             deleteResult.complete();

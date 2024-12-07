@@ -40,6 +40,15 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
         return createCommand(InternalCommandType.SEGMENTRANGE, new ArrayOutput<>(codec), args);
     }
 
+    public Command<K, V, String> segmentinsert(String volume, String segment, PackedEntry... entries) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(segment);
+        for (PackedEntry entry : entries) {
+            args.add(entry.position());
+            args.add(entry.data());
+        }
+        return createCommand(InternalCommandType.SEGMENTINSERT, new StatusOutput<>(codec), args);
+    }
+
     public Command<K, V, String> ping() {
         return createCommand(PING, new StatusOutput<>(codec));
     }

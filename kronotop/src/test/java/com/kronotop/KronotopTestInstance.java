@@ -202,7 +202,7 @@ public class KronotopTestInstance extends KronotopInstance {
         {
             KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
-            cmd.setRoute(RouteKind.PRIMARY.name(), ShardKind.REDIS.name(), context.getMember().getId()).encode(buf);
+            cmd.route("SET", RouteKind.PRIMARY.name(), ShardKind.REDIS.name(), context.getMember().getId()).encode(buf);
             channel.writeInbound(buf);
 
             Object raw = channel.readOutbound();

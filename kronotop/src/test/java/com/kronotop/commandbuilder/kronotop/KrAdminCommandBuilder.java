@@ -88,8 +88,9 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
     }
 
-    public Command<K, V, String> setRoute(String routeKind, String shardKind, int shardId, String memberId) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_ROUTE).
+    public Command<K, V, String> route(String operationKind, String routeKind, String shardKind, int shardId, String memberId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.ROUTE).
+                add(operationKind).
                 add(routeKind).
                 add(shardKind).
                 add(shardId).
@@ -97,9 +98,28 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, String> setRoute(String routeKind, String shardKind, String memberId) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_ROUTE).
+    public Command<K, V, String> route(String operationKind, String routeKind, String shardKind, String memberId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.ROUTE).
+                add(operationKind).
                 add(routeKind).
+                add(shardKind).
+                add("*").
+                add(memberId);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, String> syncStandby(String operationKind, String shardKind, int shardId, String memberId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SYNC_STANDBY).
+                add(operationKind).
+                add(shardKind).
+                add(shardId).
+                add(memberId);
+        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, String> syncStandby(String operationKind, String shardKind, String memberId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SYNC_STANDBY).
+                add(operationKind).
                 add(shardKind).
                 add("*").
                 add(memberId);
@@ -130,8 +150,9 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         LIST_SILENT_MEMBERS("LIST-SILENT-MEMBERS"),
         SET_SHARD_STATUS("SET-SHARD-STATUS"),
         DESCRIBE_SHARD("DESCRIBE-SHARD"),
-        SET_ROUTE("SET-ROUTE"),
-        LIST_REPLICATION_SLOTS("LIST-REPLICATION-SLOTS");
+        ROUTE("ROUTE"),
+        LIST_REPLICATION_SLOTS("LIST-REPLICATION-SLOTS"),
+        SYNC_STANDBY("SYNC-STANDBY");
 
         public final byte[] bytes;
 

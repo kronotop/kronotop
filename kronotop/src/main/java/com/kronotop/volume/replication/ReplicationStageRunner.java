@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
-import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.OperationKind;
@@ -35,6 +34,7 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 
@@ -135,17 +135,27 @@ public class ReplicationStageRunner {
      * @return a list of objects representing the fetched data ranges for the specified segment
      */
     protected List<Object> fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
-        SegmentRange[] segmentRanges = new SegmentRange[entries.size()];
-        for (int i = 0; i < entries.size(); i++) {
-            SegmentLogEntry entry = entries.get(i);
+        int size = 0;
+        for (SegmentLogEntry entry : entries) {
+            if (entry.value().kind().equals(OperationKind.APPEND) || entry.value().kind().equals(OperationKind.VACUUM)) {
+                // Do not need to fetch the deleted entry, OperationKind.Delete should be
+                // used for the vacuuming process.
+                size++;
+            }
+        }
+
+        int index = 0;
+        SegmentRange[] segmentRanges = new SegmentRange[size];
+        for (SegmentLogEntry entry : entries) {
             if (entry.value().kind().equals(OperationKind.DELETE)) {
                 // Do not need to fetch the deleted entry, OperationKind.Delete should be
                 // used for the vacuuming process.
                 continue;
             }
-            segmentRanges[i] = new SegmentRange(entry.value().position(), entry.value().length());
+            segmentRanges[index] = new SegmentRange(entry.value().position(), entry.value().length());
+            index++;
         }
-        return client.connection().sync().segmentRange(volumeConfig.name(), segmentName, segmentRanges);
+        return client.connection().sync().segmentrange(volumeConfig.name(), segmentName, segmentRanges);
     }
 
     public void stop() {

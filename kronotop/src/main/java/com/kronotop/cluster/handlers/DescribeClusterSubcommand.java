@@ -18,7 +18,6 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.ClusterNotInitializedException;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -42,9 +41,6 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
     public void execute(Request request, Response response) {
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
         try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
-            if (!isClusterInitialized(tr)) {
-                throw new ClusterNotInitializedException();
-            }
             for (ShardKind kind : ShardKind.values()) {
                 Map<RedisMessage, RedisMessage> shardsByKind = new LinkedHashMap<>();
                 int numberOfShards = getNumberOfShards(kind);

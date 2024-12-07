@@ -18,11 +18,14 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.volume.handlers.PackedEntry;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -709,6 +712,52 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             assertEquals(0, analysis.cardinality());
             assertEquals(0, analysis.usedBytes());
             assertTrue(analysis.size() - analysis.freeBytes() > 0);
+        }
+    }
+
+    @Test
+    public void test_insert(@TempDir Path dataDir) throws IOException {
+        byte[] first = new byte[]{1, 2, 3};
+        byte[] second = new byte[]{4, 5, 6};
+        ByteBuffer[] entries = {
+                ByteBuffer.wrap(first),
+                ByteBuffer.wrap(second),
+        };
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, prefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        VolumeConfig config = new VolumeConfig(
+                volume.getConfig().subspace(),
+                volume.getConfig().name(),
+                dataDir.toString(),
+                volume.getConfig().segmentSize(),
+                volume.getConfig().allowedGarbageRatio()
+        );
+
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        String segmentName = segmentAnalysis.getFirst().name();
+
+        Volume standby = service.newVolume(config);
+        PackedEntry[] packedEntries = new PackedEntry[]{
+                new PackedEntry(0, first),
+                new PackedEntry(3, second)
+        };
+        standby.insert(segmentName, packedEntries);
+        standby.flush(true);
+
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, prefix);
+            Versionstamp[] versionstamps = result.getVersionstampedKeys();
+
+            ByteBuffer firstBuffer = standby.get(session, versionstamps[0]);
+            assertArrayEquals(first, firstBuffer.array());
+
+            ByteBuffer secondBuffer = standby.get(session, versionstamps[1]);
+            assertArrayEquals(second, secondBuffer.array());
         }
     }
 }

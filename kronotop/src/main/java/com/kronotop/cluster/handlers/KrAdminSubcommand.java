@@ -24,10 +24,11 @@ public enum KrAdminSubcommand {
     FIND_MEMBER("find-member"),
     REMOVE_MEMBER("remove-member"),
     LIST_SILENT_MEMBERS("list-silent-members"),
-    SET_ROUTE("set-route"),
+    ROUTE("route"),
     SET_SHARD_STATUS("set-shard-status"),
     DESCRIBE_SHARD("describe-shard"),
-    LIST_REPLICATION_SLOTS("list-replication-slots");
+    LIST_REPLICATION_SLOTS("list-replication-slots"),
+    SYNC_STANDBY("sync-standby");
 
     private final String value;
 

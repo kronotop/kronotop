@@ -14,24 +14,16 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.client.protocol;
+package com.kronotop.redis.storage.syncer;
 
-import io.lettuce.core.protocol.ProtocolKeyword;
+import com.kronotop.redis.storage.BaseStorageTest;
+import org.junit.jupiter.api.Test;
 
-import java.nio.charset.StandardCharsets;
+import static org.junit.jupiter.api.Assertions.*;
 
-public enum InternalCommandType implements ProtocolKeyword {
-    SEGMENTRANGE,
-    SEGMENTINSERT;
+class SynchronousReplicationTest extends BaseStorageTest {
+    @Test
+    public void sync_replication_when_have_one_sync_standby() {
 
-    public final byte[] bytes;
-
-    InternalCommandType() {
-        bytes = name().getBytes(StandardCharsets.US_ASCII);
-    }
-
-    @Override
-    public byte[] getBytes() {
-        return bytes;
     }
 }

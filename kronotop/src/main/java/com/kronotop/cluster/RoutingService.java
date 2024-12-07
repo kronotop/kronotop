@@ -130,6 +130,15 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
         return false;
     }
 
+    private Set<Member> memberIdsToMembers(Set<String> memberIds) {
+        Set<Member> members = new HashSet<>();
+        for (String memberId : memberIds) {
+            Member member = membership.findMember(memberId);
+            members.add(member);
+        }
+        return members;
+    }
+
     /**
      * Loads the shard routing information from the specified subspace within a transaction.
      *
@@ -148,13 +157,14 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
         try {
             Member primary = membership.findMember(primaryMemberId);
             ShardStatus shardStatus = MembershipUtils.loadShardStatus(tr, shardSubspace);
+
             Set<String> standbyIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
-            Set<Member> standbys = new HashSet<>();
-            for (String standbyId : standbyIds) {
-                Member standby = membership.findMember(standbyId);
-                standbys.add(standby);
-            }
-            return new Route(primary, standbys, shardStatus);
+            Set<Member> standbys = memberIdsToMembers(standbyIds);
+
+            Set<String> syncStandbyIds = MembershipUtils.loadSyncStandbyMemberIds(tr, shardSubspace);
+            Set<Member> syncStandbys = memberIdsToMembers(syncStandbyIds);
+
+            return new Route(primary, standbys, shardStatus, syncStandbys);
         } catch (MemberNotRegisteredException e) {
             LOGGER.error("Error while loading member", e);
         }
@@ -348,7 +358,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
             }
 
             DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-            byte[] key = subspace.pack(Tuple.from(MembershipConstants.ROUTING_TABLE_UPDATED));
+            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_TOPOLOGY_CHANGED));
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
                 tr.commit().join();

@@ -19,39 +19,38 @@ package com.kronotop.volume.handlers.protocol;
 import com.kronotop.common.KronotopException;
 import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.Request;
-import com.kronotop.volume.SegmentRange;
+import com.kronotop.volume.handlers.PackedEntry;
 
 import java.util.List;
 
-public class SegmentRangeMessage extends BaseMessage implements KronotopMessage<Void> {
-    public static final String COMMAND = "SEGMENTRANGE";
+public class SegmentInsertMessage extends BaseMessage implements KronotopMessage<Void> {
+    public static final String COMMAND = "SEGMENTINSERT";
     public static final int MINIMUM_PARAMETER_COUNT = 4;
     private String volume;
     private String segment;
-    private SegmentRange[] segmentRanges;
+    private PackedEntry[] packedEntries;
 
-    public SegmentRangeMessage(Request request) {
+    public SegmentInsertMessage(Request request) {
         super(request);
         parse();
     }
-
 
     private void parse() {
         if (request.getParams().size() % 2 > 0) {
             throw new KronotopException("Wrong number of parameters");
         }
 
-        // segmentrange <volume-name> <segment-name> position length position length ...
+        // segmentinsert <volume-name> <segment-name> <position> <bulk-data> <position> <bulk-data>
         volume = readString(0);
         segment = readString(1);
 
         int index = 0;
-        segmentRanges = new SegmentRange[(request.getParams().size() - 2) / 2];
+        packedEntries = new PackedEntry[(request.getParams().size() - 2) / 2];
         for (int i = 2; i < request.getParams().size(); i = i + 2) {
             long position = readLong(i);
-            long length = readLong(i + 1);
-            SegmentRange segmentRange = new SegmentRange(position, length);
-            segmentRanges[index] = segmentRange;
+            byte[] data = readBytes(i + 1);
+            PackedEntry packedEntry = new PackedEntry(position, data);
+            packedEntries[index] = packedEntry;
             index++;
         }
     }
@@ -64,8 +63,8 @@ public class SegmentRangeMessage extends BaseMessage implements KronotopMessage<
         return segment;
     }
 
-    public SegmentRange[] getSegmentRanges() {
-        return segmentRanges;
+    public PackedEntry[] getPackedEntries() {
+        return packedEntries;
     }
 
     @Override
@@ -75,6 +74,6 @@ public class SegmentRangeMessage extends BaseMessage implements KronotopMessage<
 
     @Override
     public List<Void> getKeys() {
-        return null;
+        return List.of();
     }
 }

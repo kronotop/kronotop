@@ -19,14 +19,28 @@ package com.kronotop.cluster;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.JSONUtils;
 import com.kronotop.cluster.sharding.ShardStatus;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public final class MembershipUtils {
+
+    /**
+     * Determines if the cluster is initialized by checking a specific key in the database.
+     *
+     * @param tr The transaction used to perform the database operation.
+     * @param clusterMetadataSubspace The directory subspace where cluster metadata is stored.
+     * @return true if the cluster is initialized, false otherwise.
+     */
+    public static boolean isClusterInitialized(Transaction tr, DirectorySubspace clusterMetadataSubspace) {
+        byte[] key = clusterMetadataSubspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+        return MembershipUtils.isTrue(tr.get(key).join());
+    }
 
     /**
      * Loads the shard status from the specified subspace within a transaction.
@@ -74,7 +88,8 @@ public final class MembershipUtils {
             if (value == null) {
                 return new HashSet<String>();
             }
-            return Set.of(JSONUtils.readValue(value, String[].class));
+            List<String> items = Arrays.asList(JSONUtils.readValue(value, String[].class));
+            return new HashSet<>(items);
         }).join();
     }
 
@@ -86,5 +101,16 @@ public final class MembershipUtils {
      */
     public static boolean isTrue(byte[] data) {
         return Arrays.equals(data, MembershipConstants.TRUE);
+    }
+
+    public static Set<String> loadSyncStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace) {
+        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_SYNC_STANDBY_MEMBERS));
+        return tr.get(key).thenApply((value) -> {
+            if (value == null) {
+                return new HashSet<String>();
+            }
+            List<String> items = Arrays.asList(JSONUtils.readValue(value, String[].class));
+            return new HashSet<>(items);
+        }).join();
     }
 }

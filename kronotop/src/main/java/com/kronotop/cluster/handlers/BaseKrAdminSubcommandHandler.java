@@ -69,6 +69,15 @@ public class BaseKrAdminSubcommandHandler {
         }
         shard.put(new SimpleStringRedisMessage("standbys"), new ArrayRedisMessage(standbyMessages));
 
+        List<RedisMessage> syncStandbyMessages = new ArrayList<>();
+        Set<String> syncStandbys = MembershipUtils.loadSyncStandbyMemberIds(tr, shardSubspace);
+        if (standbys != null) {
+            for (String syncStandby : syncStandbys) {
+                syncStandbyMessages.add(new SimpleStringRedisMessage(syncStandby));
+            }
+        }
+        shard.put(new SimpleStringRedisMessage("sync_standbys"), new ArrayRedisMessage(syncStandbyMessages));
+
         ShardStatus status = MembershipUtils.loadShardStatus(tr, shardSubspace);
         shard.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(status.name()));
 
@@ -235,18 +244,6 @@ public class BaseKrAdminSubcommandHandler {
         current.put(new SimpleStringRedisMessage("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeat));
 
         return current;
-    }
-
-    /**
-     * Checks if the cluster is initialized by reading the cluster metadata from the database.
-     *
-     * @param tr The transaction used to read from the database.
-     * @return true if the cluster is initialized, false otherwise.
-     */
-    protected boolean isClusterInitialized(Transaction tr) {
-        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-        byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
-        return MembershipUtils.isTrue(tr.get(key).join());
     }
 
     /**

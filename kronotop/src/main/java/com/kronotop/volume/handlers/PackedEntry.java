@@ -14,24 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.client.protocol;
+package com.kronotop.volume.handlers;
 
-import io.lettuce.core.protocol.ProtocolKeyword;
-
-import java.nio.charset.StandardCharsets;
-
-public enum InternalCommandType implements ProtocolKeyword {
-    SEGMENTRANGE,
-    SEGMENTINSERT;
-
-    public final byte[] bytes;
-
-    InternalCommandType() {
-        bytes = name().getBytes(StandardCharsets.US_ASCII);
-    }
-
-    @Override
-    public byte[] getBytes() {
-        return bytes;
-    }
+public record PackedEntry(long position, byte[] data) {
 }
