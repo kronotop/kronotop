@@ -16,12 +16,10 @@
 
 package com.kronotop.redis.storage.syncer;
 
-import com.kronotop.redis.storage.BaseStorageTest;
+import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-class SynchronousReplicationTest extends BaseStorageTest {
+class SynchronousReplicationTest extends BaseNetworkedVolumeIntegrationTest {
     @Test
     public void sync_replication_when_have_one_sync_standby() {
 

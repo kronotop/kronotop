@@ -24,7 +24,7 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
-import com.kronotop.volume.replication.BaseNetworkedVolumeTest;
+import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.replication.CreateReplicationSlotHook;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class KrAdminHandlerTest extends BaseNetworkedVolumeTest {
+public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     public void test_initializeCluster_already_initialized() {

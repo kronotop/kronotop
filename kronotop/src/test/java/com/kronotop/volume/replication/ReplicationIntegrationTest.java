@@ -43,7 +43,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class ReplicationIntegrationTest extends BaseNetworkedVolumeTest {
+class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationIntegrationTest.class);
 
     @TempDir

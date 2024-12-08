@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
-class SnapshotStageIntegrationTest extends BaseNetworkedVolumeTest {
+class SnapshotStageIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     Random random = new Random();
     @TempDir
     private Path standbyVolumeDataDir;
