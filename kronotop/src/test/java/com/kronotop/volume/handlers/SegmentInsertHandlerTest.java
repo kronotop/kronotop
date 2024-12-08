@@ -26,7 +26,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.*;
-import com.kronotop.volume.replication.BaseNetworkedVolumeTest;
+import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -40,7 +40,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class SegmentInsertHandlerTest extends BaseNetworkedVolumeTest {
+class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     public void test_SEGMENTINSERT() throws IOException {

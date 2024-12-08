@@ -28,7 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-public class BaseNetworkedVolumeTest extends BaseClusterTestWithTCPServer {
+public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPServer {
     protected final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
 
     protected Context context;

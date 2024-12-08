@@ -44,7 +44,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static org.awaitility.Awaitility.await;
 
-public class StreamingStageIntegrationTest extends BaseNetworkedVolumeTest {
+public class StreamingStageIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(StreamingStageIntegrationTest.class);
 
     @TempDir
