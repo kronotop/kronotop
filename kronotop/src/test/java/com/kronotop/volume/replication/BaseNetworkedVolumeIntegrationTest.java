@@ -27,31 +27,45 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Paths;
+import java.util.UUID;
 
 public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPServer {
     protected final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
 
     protected Context context;
+    private VolumeConfigGenerator volumeConfigGenerator;
     protected Database database;
     protected KronotopTestInstance kronotopInstance;
     protected EmbeddedChannel channel;
     protected Volume volume;
     protected VolumeConfig volumeConfig;
-    protected Prefix prefix = new Prefix("test-prefix".getBytes());
+    protected Prefix prefix = new Prefix("volume-test-prefix".getBytes());
+    protected VolumeService volumeService;
 
     @BeforeEach
     public void setup() {
         super.setup();
         kronotopInstance = getInstances().getFirst();
+        volumeConfigGenerator = new VolumeConfigGenerator(kronotopInstance.getContext(), ShardKind.REDIS, 1);
+        volumeService = kronotopInstance.getContext().getService(VolumeService.NAME);
         channel = kronotopInstance.getChannel();
         context = kronotopInstance.getContext();
         database = kronotopInstance.getContext().getFoundationDB();
-        VolumeService volumeService = kronotopInstance.getContext().getService(VolumeService.NAME);
 
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
-        volumeConfig = generator.volumeConfig();
         try {
+            volumeConfig = volumeConfigGenerator.volumeConfig();
             volume = volumeService.newVolume(volumeConfig);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    protected Volume newStandbyVolume() {
+        String dataDir = Paths.get(volumeConfigGenerator.getDataDir(), UUID.randomUUID().toString()).toString();
+        VolumeConfig standbyVolumeConfig = volumeConfigGenerator.volumeConfig(dataDir);
+        try {
+            return volumeService.newVolume(standbyVolumeConfig);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
