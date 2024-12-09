@@ -363,7 +363,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @return the Shard object associated with the given slot
      * @throws KronotopException if the slot is not owned by any member yet or not owned by the current member
      */
-    private RedisShard findShard_internal(int slot) {
+    private RedisShard findShard_internal(int slot, ShardStatus desiredShardStatus) {
         if (!routing.isClusterInitialized()) {
             throw new ClusterNotInitializedException();
         }
@@ -385,6 +385,10 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             throw new KronotopException(String.format("shard id: %d is in %s status", shardId, ShardStatus.INOPERABLE));
         }
 
+        if (!route.shardStatus().equals(desiredShardStatus)) {
+            throw new KronotopException(String.format("shard id: %d is not in %s status", shardId, desiredShardStatus));
+        }
+
         return getShard(shardId);
     }
 
@@ -397,7 +401,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      */
     public RedisShard findShard(String key) {
         int slot = SlotHash.getSlot(key);
-        return findShard_internal(slot);
+        return findShard_internal(slot, ShardStatus.READWRITE);
     }
 
     /**
@@ -420,7 +424,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         if (latestSlot == null) {
             throw new NullPointerException("slot cannot be calculated for the given set of keys");
         }
-        return findShard_internal(latestSlot);
+        return findShard_internal(latestSlot, ShardStatus.READWRITE);
     }
 
     /**
