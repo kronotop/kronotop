@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.string;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
@@ -62,7 +63,7 @@ public class DecrHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         DecrMessage message = request.attr(MessageTypes.DECR).get();
 
-        RedisShard shard = service.findShard(message.getKey());
+        RedisShard shard = service.findShard(message.getKey(), ShardStatus.READWRITE);
         AtomicReference<Integer> result = new AtomicReference<>();
 
         ReadWriteLock lock = shard.striped().get(message.getKey());

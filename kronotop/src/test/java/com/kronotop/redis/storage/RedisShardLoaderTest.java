@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.storage;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.hash.HashFieldValue;
 import com.kronotop.redis.handlers.hash.HashValue;
@@ -35,7 +36,7 @@ public class RedisShardLoaderTest extends BaseStorageTest {
         final byte[] value = "barfoo".getBytes();
 
         final RedisService service = context.getService(RedisService.NAME);
-        RedisShard shard = service.findShard(key);
+        RedisShard shard = service.findShard(key, ShardStatus.READWRITE);
         shard.storage().put(key, new RedisValueContainer(new StringValue(value)));
         shard.volumeSyncQueue().add(new AppendStringJob(key));
 
@@ -62,7 +63,7 @@ public class RedisShardLoaderTest extends BaseStorageTest {
         final String field = "bar";
 
         final RedisService service = context.getService(RedisService.NAME);
-        RedisShard shard = service.findShard("foobar");
+        RedisShard shard = service.findShard("foobar", ShardStatus.READWRITE);
 
         HashValue hashValue = new HashValue();
         hashValue.put(field, new HashFieldValue(value));

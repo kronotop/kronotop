@@ -17,6 +17,7 @@
 package com.kronotop.redis.handlers.hash;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.BaseVolumeSyncIntegrationTest;
 import com.kronotop.redis.RedisService;
@@ -93,7 +94,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, (keyEntry -> {
             RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
-            RedisShard shard = service.findShard(key);
+            RedisShard shard = service.findShard(key, ShardStatus.READONLY);
             try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
                 Session session = new Session(tr, redisVolumeSyncerPrefix);
                 Iterable<KeyEntry> iterable = shard.volume().getRange(session);

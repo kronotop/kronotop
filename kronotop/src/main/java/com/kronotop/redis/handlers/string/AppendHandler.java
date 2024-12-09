@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.string;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.string.protocol.AppendMessage;
 import com.kronotop.redis.storage.RedisShard;
@@ -83,7 +84,7 @@ public class AppendHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         AppendMessage message = request.attr(MessageTypes.APPEND).get();
 
-        RedisShard shard = service.findShard(message.getKey());
+        RedisShard shard = service.findShard(message.getKey(), ShardStatus.READWRITE);
         AtomicInteger result = new AtomicInteger();
 
         ReadWriteLock lock = shard.striped().get(message.getKey());

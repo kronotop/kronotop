@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.string;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.string.protocol.MGetMessage;
 import com.kronotop.redis.storage.RedisShard;
@@ -51,7 +52,7 @@ public class MGetHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         MGetMessage mgetMessage = request.attr(MessageTypes.MGET).get();
 
-        RedisShard shard = service.findShard(mgetMessage.getKeys());
+        RedisShard shard = service.findShard(mgetMessage.getKeys(), ShardStatus.READONLY);
 
         Iterable<ReadWriteLock> locks = shard.striped().bulkGet(mgetMessage.getKeys());
         List<RedisMessage> result = new ArrayList<>();
