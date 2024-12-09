@@ -18,12 +18,13 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.VersionstampUtils;
-import com.kronotop.cluster.*;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.MemberStatus;
+import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
@@ -305,7 +306,7 @@ public class BaseKrAdminSubcommandHandler {
                 new SimpleStringRedisMessage(replicationStage)
         );
         List<RedisMessage> completedStages = new ArrayList<>();
-        for (ReplicationStage stage: slot.getCompletedStages()) {
+        for (ReplicationStage stage : slot.getCompletedStages()) {
             completedStages.add(new SimpleStringRedisMessage(stage.name()));
         }
         current.put(new SimpleStringRedisMessage("completed_stages"), new ArrayRedisMessage(completedStages));

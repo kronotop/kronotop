@@ -33,7 +33,6 @@ import com.kronotop.volume.segment.Segment;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import com.kronotop.volume.segment.SegmentAppendResult;
 import com.kronotop.volume.segment.SegmentConfig;
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -883,7 +882,7 @@ public class Volume {
      * Assumed that callers of this method call flush after a successful return.
      *
      * @param segmentName the name of the segment into which entries will be inserted
-     * @param entries the entries to be inserted into the segment
+     * @param entries     the entries to be inserted into the segment
      * @throws IOException if an I/O error occurs while accessing the segment
      */
     public void insert(String segmentName, PackedEntry... entries) throws IOException {

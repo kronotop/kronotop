@@ -21,7 +21,6 @@ import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.DirectorySubspaceCache;
-import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipConstants;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.MembershipUtils;

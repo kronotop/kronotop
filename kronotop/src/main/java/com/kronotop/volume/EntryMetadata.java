@@ -50,7 +50,7 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
      * @param buffer the ByteBuffer which contains the encoded entry metadata.
      *               The buffer should be positioned at the start of the entry metadata.
      * @return an instance of EntryMetadata containing the decoded segment name, prefix,
-     *         position, and length extracted from the provided ByteBuffer.
+     * position, and length extracted from the provided ByteBuffer.
      */
     public static EntryMetadata decode(ByteBuffer buffer) {
         byte[] rawSegment = new byte[SEGMENT_NAME_SIZE];
@@ -70,9 +70,9 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
      * that is suitable for storage or transmission.
      *
      * @return a ByteBuffer containing the binary representation of this EntryMetadata instance,
-     *         with the data elements sequentially packed in the specified order.
+     * with the data elements sequentially packed in the specified order.
      * @throws IllegalArgumentException if the length of the prefix does not match the predefined
-     *         ENTRY_PREFIX_SIZE.
+     *                                  ENTRY_PREFIX_SIZE.
      */
     public ByteBuffer encode() {
         if (prefix.length != ENTRY_PREFIX_SIZE) {

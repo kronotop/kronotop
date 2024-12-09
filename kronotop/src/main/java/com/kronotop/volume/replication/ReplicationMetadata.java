@@ -43,8 +43,8 @@ public class ReplicationMetadata {
      * Registers a replication slot in a transactional context with the specified replication configuration.
      *
      * @param context the context of the Kronotop instance.
-     * @param tr the transaction in which the replication slot registration occurs.
-     * @param config the replication configuration, including shard kind, shard ID, and volume configuration.
+     * @param tr      the transaction in which the replication slot registration occurs.
+     * @param config  the replication configuration, including shard kind, shard ID, and volume configuration.
      */
     private static void registerReplicationSlot(
             Context context,
@@ -70,7 +70,7 @@ public class ReplicationMetadata {
      * is thrown.
      *
      * @param context the context of the Kronotop instance.
-     * @param config the replication configuration.
+     * @param config  the replication configuration.
      * @return the versionstamp of the newly created replication slot.
      * @throws IllegalArgumentException if a replication slot with the same configuration already exists.
      */
@@ -104,6 +104,7 @@ public class ReplicationMetadata {
      * <p>
      * You should know that this method tries to find a replication slot registered for the current member.
      * <p>
+     *
      * @param context the context of the Kronotop instance.
      * @param config  the replication configuration. This includes details such as shard kind, shard ID, and volume configuration.
      * @return the versionstamp of the replication slot if found; otherwise, null.

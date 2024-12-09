@@ -22,6 +22,8 @@ import java.util.List;
 
 public interface InternalAsyncCommands<K, V> {
     RedisFuture<List<Object>> segmentrange(String volume, String segment, SegmentRange... ranges);
+
     RedisFuture<String> segmentinsert(String volume, String segment, PackedEntry... entries);
+
     RedisFuture<String> ping();
 }

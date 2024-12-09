@@ -34,7 +34,6 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
     protected final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
 
     protected Context context;
-    private VolumeConfigGenerator volumeConfigGenerator;
     protected Database database;
     protected KronotopTestInstance kronotopInstance;
     protected EmbeddedChannel channel;
@@ -42,6 +41,7 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
     protected VolumeConfig volumeConfig;
     protected Prefix prefix = new Prefix("volume-test-prefix".getBytes());
     protected VolumeService volumeService;
+    private VolumeConfigGenerator volumeConfigGenerator;
 
     @BeforeEach
     public void setup() {
