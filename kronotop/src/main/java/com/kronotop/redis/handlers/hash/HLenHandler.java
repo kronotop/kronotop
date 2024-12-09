@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.hash;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.hash.protocol.HLenMessage;
@@ -51,7 +52,7 @@ public class HLenHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HLenMessage hlenMessage = request.attr(MessageTypes.HLEN).get();
 
-        RedisShard shard = service.findShard(hlenMessage.getKey());
+        RedisShard shard = service.findShard(hlenMessage.getKey(), ShardStatus.READONLY);
         ReadWriteLock lock = shard.striped().get(hlenMessage.getKey());
         lock.readLock().lock();
         try {
