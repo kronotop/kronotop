@@ -86,6 +86,26 @@ public class VolumeSyncSession {
         versionstampedKeys.add(versionstampedKey);
     }
 
+    private void synchronousReplication(AppendResult appendResult) {
+        if (appendResult.getEntryMetadataList().length == 0) {
+            return;
+        }
+        boolean synchronous = context.getConfig().getBoolean("redis.volume_syncer.synchronous_replication");
+        if (!synchronous) {
+            return;
+        }
+        Route route = routing.findRoute(ShardKind.REDIS, shard.id());
+        Set<Member> syncStandbys = route.syncStandbys();
+        if (!syncStandbys.isEmpty()) {
+            SynchronousReplication sync = new SynchronousReplication(context, shard.volume().getConfig(), syncStandbys, entries, appendResult);
+            if (!sync.run()) {
+                // Failed to write to sync standbys. Don't commit metadata to FDB. Vacuum will
+                // clean all the garbage.
+                throw new KronotopException("Synchronous replication failed due to errors");
+            }
+        }
+    }
+
     /**
      * Persists the data stored in the VolumeSyncSession to a storage system.
      * The data is packed into byte buffers and appended to the storage system.
@@ -112,23 +132,7 @@ public class VolumeSyncSession {
             );
 
             shard.volume().flush(true);
-
-            if (appendResult.getEntryMetadataList().length > 0) {
-                boolean synchronous = context.getConfig().getBoolean("redis.volume_syncer.synchronous_replication");
-                if (synchronous) {
-                    Route route = routing.findRoute(ShardKind.REDIS, shard.id());
-                    Set<Member> syncStandbys = route.syncStandbys();
-                    if (!syncStandbys.isEmpty()) {
-                        SynchronousReplication sync = new SynchronousReplication(context, shard.volume().getConfig(), syncStandbys, entries, appendResult);
-                        if (!sync.run()) {
-                            // Failed to write to sync standbys. Don't commit metadata to FDB. Vacuum will
-                            // clean all the garbage.
-                            throw new KronotopException("Synchronous replication failed due to errors");
-                        }
-                    }
-                }
-            }
-
+            synchronousReplication(appendResult);
             tr.commit().join();
             deleteResult.complete();
             versionstamps = appendResult.getVersionstampedKeys();
