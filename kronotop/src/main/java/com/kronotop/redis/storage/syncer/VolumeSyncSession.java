@@ -20,7 +20,10 @@ import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.storage.DataStructurePack;
 import com.kronotop.redis.storage.RedisShard;
@@ -32,6 +35,7 @@ import com.kronotop.volume.Session;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
+import java.util.Set;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -112,11 +116,15 @@ public class VolumeSyncSession {
             if (appendResult.getEntryMetadataList().length > 0) {
                 boolean synchronous = context.getConfig().getBoolean("redis.volume_syncer.synchronous_replication");
                 if (synchronous) {
-                    SynchronousReplication sync = new SynchronousReplication(context, shard, entries, appendResult);
-                    if (!sync.run()) {
-                        // Failed to write to sync standbys. Don't commit metadata to FDB. Vacuum will
-                        // clean all the garbage.
-                        throw new KronotopException("Synchronous replication failed due to errors");
+                    Route route = routing.findRoute(ShardKind.REDIS, shard.id());
+                    Set<Member> syncStandbys = route.syncStandbys();
+                    if (!syncStandbys.isEmpty()) {
+                        SynchronousReplication sync = new SynchronousReplication(context, shard.volume().getConfig(), syncStandbys, entries, appendResult);
+                        if (!sync.run()) {
+                            // Failed to write to sync standbys. Don't commit metadata to FDB. Vacuum will
+                            // clean all the garbage.
+                            throw new KronotopException("Synchronous replication failed due to errors");
+                        }
                     }
                 }
             }
