@@ -18,16 +18,13 @@ package com.kronotop.redis.storage.syncer;
 
 import com.kronotop.Context;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.Route;
-import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.PackedEntry;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.common.KronotopException;
-import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.Response;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.EntryMetadata;
+import com.kronotop.volume.VolumeConfig;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -39,16 +36,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class SynchronousReplication {
     private final Context context;
-    private final RedisShard shard;
-    private final RoutingService routing;
+    private final VolumeConfig volumeConfig;
+    private final Set<Member> members;
     private final AppendResult appendResult;
     private final List<ByteBuffer> entries;
 
-    public SynchronousReplication(Context context, RedisShard shard, List<ByteBuffer> entries, AppendResult appendResult) {
+    public SynchronousReplication(Context context, VolumeConfig volumeConfig, Set<Member> members, List<ByteBuffer> entries, AppendResult appendResult) {
         this.context = context;
-        this.shard = shard;
+        this.volumeConfig = volumeConfig;
+        this.members = members;
         this.entries = entries;
-        this.routing = context.getService(RoutingService.NAME);
         this.appendResult = appendResult;
     }
 
@@ -67,7 +64,7 @@ public class SynchronousReplication {
      *
      * @param result the append result containing entry metadata from which the segments are derived
      * @return a HashMap where each key is a segment name, and the corresponding value is an array
-     *         of packed entries allocated for that segment
+     * of packed entries allocated for that segment
      */
     private HashMap<String, PackedEntry[]> allocateEntriesBySegment(AppendResult result) {
         HashMap<String, Integer> capacityBySegment = new HashMap<>();
@@ -88,13 +85,6 @@ public class SynchronousReplication {
     }
 
     public boolean run() {
-        Route route = routing.findRoute(ShardKind.REDIS, shard.id());
-        Set<Member> syncStandbys = route.syncStandbys();
-        if (syncStandbys.isEmpty()) {
-            // No sync standby found for this route, quit silently.
-            return true;
-        }
-
         HashMap<String, PackedEntry[]> entriesBySegment = allocateEntriesBySegment(appendResult);
         HashMap<String, AtomicInteger> segmentIndexCounter = getSegmentIndexCounter(entriesBySegment.keySet());
         for (int index = 0; index < appendResult.getEntryMetadataList().length; index++) {
@@ -107,8 +97,8 @@ public class SynchronousReplication {
             packedEntries[segmentIndex] = new PackedEntry(entryMetadata.position(), buffer.array());
         }
 
-        CountDownLatch latch = new CountDownLatch(syncStandbys.size());
-        for (Member standby : syncStandbys) {
+        CountDownLatch latch = new CountDownLatch(members.size());
+        for (Member standby : members) {
             SyncReplicationRunnable syncReplication = new SyncReplicationRunnable(latch, standby, entriesBySegment);
             Thread.ofVirtual().name("sync-replication-virtual-thread", 0).start(syncReplication);
         }
@@ -126,10 +116,10 @@ public class SynchronousReplication {
      * The replication process involves:
      * - Establishing or retrieving an internal connection to the specified member.
      * - Iterating over the entries organized by segments and inserting them into the member's
-     *   corresponding segment using the internal connection.
+     * corresponding segment using the internal connection.
      * - Handling unsuccessful operations by throwing a KronotopException.
      * - Counting down a provided CountDownLatch upon successful completion to signal other
-     *   waiting threads.
+     * waiting threads.
      * <p>
      * This class is typically utilized in systems where data synchronization is crucial,
      * ensuring consistent replication across different nodes or members.
@@ -149,7 +139,7 @@ public class SynchronousReplication {
         public void run() {
             StatefulInternalConnection<byte[], byte[]> connection = context.getInternalConnectionPool().get(member);
             entriesBySegment.forEach((segment, packedEntries) -> {
-                String status = connection.sync().segmentinsert(shard.volume().getConfig().name(), segment, packedEntries);
+                String status = connection.sync().segmentinsert(volumeConfig.name(), segment, packedEntries);
                 if (!status.equals(Response.OK)) {
                     throw new KronotopException("Failed to replicate entries synchronously to " + member + " : " + status);
                 }

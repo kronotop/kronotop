@@ -61,11 +61,12 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
         }
     }
 
-    protected Volume newStandbyVolume() {
+    protected Volume newStandbyVolume(Context standbyContext) {
         String dataDir = Paths.get(volumeConfigGenerator.getDataDir(), UUID.randomUUID().toString()).toString();
         VolumeConfig standbyVolumeConfig = volumeConfigGenerator.volumeConfig(dataDir);
         try {
-            return volumeService.newVolume(standbyVolumeConfig);
+            VolumeService standbyVolumeService = standbyContext.getService(VolumeService.NAME);
+            return standbyVolumeService.newVolume(standbyVolumeConfig);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
