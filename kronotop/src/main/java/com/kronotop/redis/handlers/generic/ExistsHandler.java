@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.generic;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.generic.protocol.ExistsMessage;
@@ -45,7 +46,7 @@ public class ExistsHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         ExistsMessage existsMessage = request.attr(MessageTypes.EXISTS).get();
 
-        RedisShard shard = service.findShard(existsMessage.getKeys());
+        RedisShard shard = service.findShard(existsMessage.getKeys(), ShardStatus.READONLY);
 
         Iterable<ReadWriteLock> locks = shard.striped().bulkGet(existsMessage.getKeys());
         for (ReadWriteLock lock : locks) {

@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.hash;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.hash.protocol.FieldValuePair;
 import com.kronotop.redis.handlers.hash.protocol.HSetNXMessage;
@@ -63,7 +64,7 @@ public class HSetNXHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HSetNXMessage message = request.attr(MessageTypes.HSETNX).get();
 
-        RedisShard shard = service.findShard(message.getKey());
+        RedisShard shard = service.findShard(message.getKey(), ShardStatus.READWRITE);
         ReadWriteLock lock = shard.striped().get(message.getKey());
         lock.writeLock().lock();
         int result = 0;

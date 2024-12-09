@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.generic;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.generic.protocol.TypeMessage;
@@ -46,7 +47,7 @@ public class TypeHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         TypeMessage typeMessage = request.attr(MessageTypes.TYPE).get();
 
-        RedisShard shard = service.findShard(typeMessage.getKey());
+        RedisShard shard = service.findShard(typeMessage.getKey(), ShardStatus.READONLY);
 
         RedisValueContainer container;
         ReadWriteLock lock = shard.striped().get(typeMessage.getKey());
