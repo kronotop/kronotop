@@ -19,7 +19,6 @@ package com.kronotop.cluster;
 import com.kronotop.JSONUtils;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;

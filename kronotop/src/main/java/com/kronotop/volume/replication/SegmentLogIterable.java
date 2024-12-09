@@ -30,7 +30,6 @@ import com.kronotop.volume.VersionstampedKeySelector;
 
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 

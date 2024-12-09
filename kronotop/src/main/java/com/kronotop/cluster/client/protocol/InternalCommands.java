@@ -22,6 +22,8 @@ import java.util.List;
 
 public interface InternalCommands<K, V> {
     List<Object> segmentrange(String volume, String segment, SegmentRange... ranges);
+
     String segmentinsert(String volume, String segment, PackedEntry... entries);
+
     String ping();
 }

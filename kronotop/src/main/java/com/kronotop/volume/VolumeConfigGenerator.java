@@ -70,7 +70,7 @@ public class VolumeConfigGenerator {
      * @param directory the KronotopDirectoryNode that represents the directory layout for which the subspace
      *                  is to be created or opened.
      * @return the DirectorySubspace associated with the provided KronotopDirectoryNode, representing the path
-     *         in the FoundationDB directory layer where volume data will be stored.
+     * in the FoundationDB directory layer where volume data will be stored.
      * @throws CompletionException if an unrecoverable error occurs during the transaction execution that is not
      *                             related to retryable error code 1020.
      */
@@ -93,7 +93,7 @@ public class VolumeConfigGenerator {
      * Generates a new VolumeConfig for a Redis shard.
      *
      * @param subspace the DirectorySubspace associated with the volume configuration
-     * @param dataDir the directory path where the volume's data will be stored
+     * @param dataDir  the directory path where the volume's data will be stored
      * @return a VolumeConfig object containing the configuration details for the Redis shard
      */
     private VolumeConfig newRedisShardVolumeConfig(DirectorySubspace subspace, String dataDir) {
@@ -107,7 +107,7 @@ public class VolumeConfigGenerator {
 
     /**
      * Constructs the directory path for storing shard-related data.
-     *
+     * <p>
      * The path is built using the base data directory from the context, the
      * lowercased name of the shard kind, a fixed folder name "shards", and the shard ID.
      *

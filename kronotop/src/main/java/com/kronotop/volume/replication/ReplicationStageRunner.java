@@ -34,7 +34,6 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 
@@ -184,10 +183,10 @@ public class ReplicationStageRunner {
      * attempts. The execution loop will terminate if the task is successfully completed and the breakOnSuccess flag is true,
      * or if the maximum number of attempts is reached.
      *
-     * @param maxAttempts the maximum number of attempts to execute the given runnable before stopping.
-     * @param interval the duration to wait between consecutive attempts expressed as a Duration object.
+     * @param maxAttempts    the maximum number of attempts to execute the given runnable before stopping.
+     * @param interval       the duration to wait between consecutive attempts expressed as a Duration object.
      * @param breakOnSuccess if true, the method stops attempting the task after a successful execution.
-     * @param runnable the Runnable task to be executed.
+     * @param runnable       the Runnable task to be executed.
      */
     private void runWithMaxAttempt_internal(int maxAttempts, Duration interval, boolean breakOnSuccess, Runnable runnable) {
         int attempts = 0;
@@ -240,8 +239,8 @@ public class ReplicationStageRunner {
      * between each attempt.
      *
      * @param maxAttempts the maximum number of attempts to execute the runnable before stopping
-     * @param interval the duration to wait between consecutive attempts
-     * @param runnable the task to be executed
+     * @param interval    the duration to wait between consecutive attempts
+     * @param runnable    the task to be executed
      */
     protected void runWithMaxAttempt(int maxAttempts, Duration interval, Runnable runnable) {
         runWithMaxAttempt_internal(maxAttempts, interval, true, runnable);
@@ -253,8 +252,8 @@ public class ReplicationStageRunner {
      * are reached.
      *
      * @param maxAttempts the maximum number of attempts to execute the runnable before stopping
-     * @param interval the duration to wait between consecutive attempts
-     * @param runnable the task to be executed
+     * @param interval    the duration to wait between consecutive attempts
+     * @param runnable    the task to be executed
      */
     protected void keepRunningWithMaxAttempt(int maxAttempts, Duration interval, Runnable runnable) {
         runWithMaxAttempt_internal(maxAttempts, interval, false, runnable);
