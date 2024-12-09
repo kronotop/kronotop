@@ -32,7 +32,7 @@ import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class VolumeSyncTest extends BaseStorageTest {
+public class VolumeSyncerTest extends BaseStorageTest {
 
     @Test
     public void test_STRING() throws IOException {
