@@ -23,8 +23,12 @@ import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeConfigGenerator;
+import com.kronotop.volume.VolumeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
 
 public class CreateReplicationSlotHook implements RoutingEventHook {
     private static final Logger LOGGER = LoggerFactory.getLogger(CreateReplicationSlotHook.class);
@@ -42,6 +46,15 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
                 shardKind,
                 shardId,
                 ReplicationStage.SNAPSHOT);
+
+        // Create or open the volume, it's required for sync replication.
+        VolumeService volumeService = context.getService(VolumeService.NAME);
+        try {
+            // newVolume opens or creates the volume for replication.
+            volumeService.newVolume(volumeConfig);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
 
         if (ReplicationMetadata.findSlotId(context, config) != null) {
             // Nothing to do, we already have a replication slot for this config.
