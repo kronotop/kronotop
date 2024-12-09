@@ -56,14 +56,14 @@ public class VolumeSyncSession {
     private Versionstamp[] versionstamps;
     private int appendCursor;
 
-    public VolumeSyncSession(Context context, RedisShard shard, boolean syncReplicationEnabled) {
+    public VolumeSyncSession(Context context, RedisShard shard, Prefix prefix, boolean syncReplicationEnabled) {
         this.context = context;
         this.shard = shard;
         this.syncReplicationEnabled = syncReplicationEnabled;
         this.routing = context.getService(RoutingService.NAME);
         this.versionstampedKeys = new LinkedList<>();
         this.entries = new LinkedList<>();
-        this.prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
+        this.prefix = prefix;
     }
 
     /**

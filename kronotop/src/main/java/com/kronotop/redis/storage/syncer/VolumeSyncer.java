@@ -19,6 +19,7 @@ package com.kronotop.redis.storage.syncer;
 import com.kronotop.Context;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.syncer.jobs.VolumeSyncJob;
+import com.kronotop.volume.Prefix;
 
 import java.io.IOException;
 import java.util.List;
@@ -32,6 +33,7 @@ public class VolumeSyncer {
     private final Context context;
     private final RedisShard shard;
     private final boolean syncReplicationEnabled;
+    private final Prefix prefix;
 
     /**
      * Constructs a new VolumeSyncer.
@@ -43,6 +45,7 @@ public class VolumeSyncer {
         this.context = context;
         this.shard = shard;
         this.syncReplicationEnabled = context.getConfig().getBoolean("redis.volume_syncer.synchronous_replication");
+        this.prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
     }
 
     /**
@@ -65,7 +68,7 @@ public class VolumeSyncer {
      * @throws IOException if an I/O error occurs while persisting the data
      */
     private void sync(List<VolumeSyncJob> jobs) throws IOException {
-        VolumeSyncSession session = new VolumeSyncSession(context, shard, syncReplicationEnabled);
+        VolumeSyncSession session = new VolumeSyncSession(context, shard, prefix, syncReplicationEnabled);
 
         for (VolumeSyncJob job : jobs) {
             job.run(session);
