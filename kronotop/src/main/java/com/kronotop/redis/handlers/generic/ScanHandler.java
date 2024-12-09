@@ -16,9 +16,6 @@
 
 package com.kronotop.redis.handlers.generic;
 
-import com.kronotop.cluster.Route;
-import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.NoAvailableShardException;
 import com.kronotop.redis.RedisService;

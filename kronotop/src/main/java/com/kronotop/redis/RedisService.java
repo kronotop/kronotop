@@ -360,8 +360,8 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * Finds a Redis shard by its ID and checks if it matches the desired shard status.
      * If the shard is in an inoperable status or does not have the desired status, an exception is thrown.
      *
-     * @param route the route containing the primary and standby members and their associated shard statuses
-     * @param shardId the ID of the shard to be found
+     * @param route              the route containing the primary and standby members and their associated shard statuses
+     * @param shardId            the ID of the shard to be found
      * @param desiredShardStatus the status that the shard is expected to have
      * @return the RedisShard object if the shard is found and its status matches the desired status
      * @throws KronotopException if the shard is in an inoperable status or does not match the desired status
@@ -394,7 +394,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @param shardId the ID of the shard for which to retrieve the route information
      * @return the Route object containing the primary and standby members associated with the specified shard ID
      * @throws ClusterNotInitializedException if the cluster has not been initialized yet
-     * @throws KronotopException if the shard ID is not owned by any member yet
+     * @throws KronotopException              if the shard ID is not owned by any member yet
      */
     private Route findRoute(int shardId) {
         if (!routing.isClusterInitialized()) {
@@ -465,7 +465,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     /**
      * Finds and retrieves a Redis shard with a given shard ID and verifies its status.
      *
-     * @param shardId the ID of the shard to be located
+     * @param shardId            the ID of the shard to be located
      * @param desiredShardStatus the expected status of the shard; the method will ensure that
      *                           the shard matches this status before returning
      * @return the RedisShard object associated with the specified shard ID and desired status
