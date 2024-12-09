@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.string;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
@@ -63,7 +64,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
     public void execute(Request request, Response response) {
         IncrByFloatMessage message = request.attr(MessageTypes.INCRBYFLOAT).get();
 
-        RedisShard shard = service.findShard(message.getKey());
+        RedisShard shard = service.findShard(message.getKey(), ShardStatus.READWRITE);
         AtomicReference<Double> result = new AtomicReference<>();
 
         NumberManipulationHandler<Double> handler = new NumberManipulationHandler<>(

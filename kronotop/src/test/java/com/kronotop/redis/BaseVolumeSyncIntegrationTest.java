@@ -17,6 +17,7 @@
 package com.kronotop.redis;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.handlers.BaseHandlerTest;
 import com.kronotop.redis.storage.HashFieldPack;
 import com.kronotop.redis.storage.RedisShard;
@@ -35,7 +36,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseHandlerTest {
 
     protected boolean volumeContainsStringKey(String key) {
         RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
-        RedisShard shard = service.findShard(key);
+        RedisShard shard = service.findShard(key, ShardStatus.READONLY);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             Session session = new Session(tr, redisVolumeSyncerPrefix);
             // TODO: This can be done without a loop
@@ -54,7 +55,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseHandlerTest {
 
     protected boolean volumeContainsHashField(String hashKey, String field) {
         RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
-        RedisShard shard = service.findShard(hashKey);
+        RedisShard shard = service.findShard(hashKey, ShardStatus.READONLY);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             Session session = new Session(tr, redisVolumeSyncerPrefix);
             // TODO: This can be done without a loop
@@ -73,7 +74,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseHandlerTest {
 
     protected boolean checkOnVolume(String key, Predicate<KeyEntry> f) {
         RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
-        RedisShard shard = service.findShard(key);
+        RedisShard shard = service.findShard(key, ShardStatus.READONLY);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             Session session = new Session(tr, redisVolumeSyncerPrefix);
             Iterable<KeyEntry> iterable = shard.volume().getRange(session);
