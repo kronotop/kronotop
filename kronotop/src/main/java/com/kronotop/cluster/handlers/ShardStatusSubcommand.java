@@ -29,9 +29,9 @@ import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 
 
-class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
+class ShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    SetShardStatusSubcommand(MembershipService service) {
+    ShardStatusSubcommand(MembershipService service) {
         super(service);
     }
 
