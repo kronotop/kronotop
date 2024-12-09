@@ -31,6 +31,7 @@ import java.util.List;
 public class VolumeSyncer {
     private final Context context;
     private final RedisShard shard;
+    private final boolean syncReplicationEnabled;
 
     /**
      * Constructs a new VolumeSyncer.
@@ -41,6 +42,7 @@ public class VolumeSyncer {
     public VolumeSyncer(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
+        this.syncReplicationEnabled = context.getConfig().getBoolean("redis.volume_syncer.synchronous_replication");
     }
 
     /**
@@ -63,7 +65,7 @@ public class VolumeSyncer {
      * @throws IOException if an I/O error occurs while persisting the data
      */
     private void sync(List<VolumeSyncJob> jobs) throws IOException {
-        VolumeSyncSession session = new VolumeSyncSession(context, shard);
+        VolumeSyncSession session = new VolumeSyncSession(context, shard, syncReplicationEnabled);
 
         for (VolumeSyncJob job : jobs) {
             job.run(session);

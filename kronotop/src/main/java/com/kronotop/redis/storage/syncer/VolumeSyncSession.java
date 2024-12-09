@@ -52,12 +52,14 @@ public class VolumeSyncSession {
     private final LinkedList<ByteBuffer> entries;
     private final LinkedList<Versionstamp> versionstampedKeys;
     private final Prefix prefix;
+    private final boolean syncReplicationEnabled;
     private Versionstamp[] versionstamps;
     private int appendCursor;
 
-    public VolumeSyncSession(Context context, RedisShard shard) {
+    public VolumeSyncSession(Context context, RedisShard shard, boolean syncReplicationEnabled) {
         this.context = context;
         this.shard = shard;
+        this.syncReplicationEnabled = syncReplicationEnabled;
         this.routing = context.getService(RoutingService.NAME);
         this.versionstampedKeys = new LinkedList<>();
         this.entries = new LinkedList<>();
@@ -87,13 +89,14 @@ public class VolumeSyncSession {
     }
 
     private void synchronousReplication(AppendResult appendResult) {
+        if (!syncReplicationEnabled) {
+            return;
+        }
+
         if (appendResult.getEntryMetadataList().length == 0) {
             return;
         }
-        boolean synchronous = context.getConfig().getBoolean("redis.volume_syncer.synchronous_replication");
-        if (!synchronous) {
-            return;
-        }
+
         Route route = routing.findRoute(ShardKind.REDIS, shard.id());
         Set<Member> syncStandbys = route.syncStandbys();
         if (!syncStandbys.isEmpty()) {
