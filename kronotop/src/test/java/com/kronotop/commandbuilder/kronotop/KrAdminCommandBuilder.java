@@ -67,12 +67,12 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
     }
 
     public Command<K, V, String> setShardStatus(String shardKind, int sharId, String status) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SHARD_STATUS).add(shardKind).add(sharId).add(status);
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_SHARD_STATUS).add(shardKind).add(sharId).add(status);
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
     public Command<K, V, String> setShardStatus(String shardKind, String status) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SHARD_STATUS).add(shardKind).add("*").add(status);
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_SHARD_STATUS).add(shardKind).add("*").add(status);
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
@@ -148,7 +148,7 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         SET_MEMBER_STATUS("SET-MEMBER-STATUS"),
         REMOVE_MEMBER("REMOVE-MEMBER"),
         LIST_SILENT_MEMBERS("LIST-SILENT-MEMBERS"),
-        SHARD_STATUS("SHARD-STATUS"),
+        SET_SHARD_STATUS("SET-SHARD-STATUS"),
         DESCRIBE_SHARD("DESCRIBE-SHARD"),
         ROUTE("ROUTE"),
         LIST_REPLICATION_SLOTS("LIST-REPLICATION-SLOTS"),

@@ -25,7 +25,7 @@ public enum KrAdminSubcommand {
     REMOVE_MEMBER("remove-member"),
     LIST_SILENT_MEMBERS("list-silent-members"),
     ROUTE("route"),
-    SHARD_STATUS("shard-status"),
+    SET_SHARD_STATUS("set-shard-status"),
     DESCRIBE_SHARD("describe-shard"),
     LIST_REPLICATION_SLOTS("list-replication-slots"),
     SYNC_STANDBY("sync-standby");
