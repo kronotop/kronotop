@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.hash;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.hash.protocol.HKeysMessage;
@@ -58,7 +59,7 @@ public class HKeysHandler extends BaseHandler implements Handler {
         HKeysMessage hkeysMessage = request.attr(MessageTypes.HKEYS).get();
 
         List<RedisMessage> fields = new ArrayList<>();
-        RedisShard shard = service.findShard(hkeysMessage.getKey());
+        RedisShard shard = service.findShard(hkeysMessage.getKey(), ShardStatus.READONLY);
         ReadWriteLock lock = shard.striped().get(hkeysMessage.getKey());
         lock.readLock().lock();
         try {

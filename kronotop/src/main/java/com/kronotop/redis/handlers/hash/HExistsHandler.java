@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.hash;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.hash.protocol.HExistsMessage;
@@ -51,7 +52,7 @@ public class HExistsHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HExistsMessage hexistsMessage = request.attr(MessageTypes.HEXISTS).get();
 
-        RedisShard shard = service.findShard(hexistsMessage.getKey());
+        RedisShard shard = service.findShard(hexistsMessage.getKey(), ShardStatus.READWRITE);
         ReadWriteLock lock = shard.striped().get(hexistsMessage.getKey());
         lock.readLock().lock();
         try {

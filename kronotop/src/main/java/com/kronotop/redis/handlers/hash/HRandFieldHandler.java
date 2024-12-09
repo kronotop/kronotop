@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.hash;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.hash.protocol.HRandFieldMessage;
@@ -103,7 +104,7 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
         FullBulkStringRedisMessage bulkReply = null;
         List<RedisMessage> arrayReply = null;
 
-        RedisShard shard = service.findShard(hrandfieldMessage.getKey());
+        RedisShard shard = service.findShard(hrandfieldMessage.getKey(), ShardStatus.READONLY);
         ReadWriteLock lock = shard.striped().get(hrandfieldMessage.getKey());
         lock.readLock().lock();
         try {
