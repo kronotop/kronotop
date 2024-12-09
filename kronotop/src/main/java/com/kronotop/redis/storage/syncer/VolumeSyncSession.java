@@ -99,14 +99,18 @@ public class VolumeSyncSession {
 
         Route route = routing.findRoute(ShardKind.REDIS, shard.id());
         Set<Member> syncStandbys = route.syncStandbys();
-        if (!syncStandbys.isEmpty()) {
-            SynchronousReplication sync = new SynchronousReplication(context, shard.volume().getConfig(), syncStandbys, entries, appendResult);
-            if (!sync.run()) {
-                // Failed to write to sync standbys. Don't commit metadata to FDB. Vacuum will
-                // clean all the garbage.
-                throw new KronotopException("Synchronous replication failed due to errors");
-            }
+        if (syncStandbys.isEmpty()) {
+            return;
         }
+
+        SynchronousReplication sync = new SynchronousReplication(context, shard.volume().getConfig(), syncStandbys, entries, appendResult);
+        if (sync.run()) {
+            return;
+        }
+
+        // Failed to write to sync standbys. Don't commit metadata to FDB. Vacuum will
+        // clean all the garbage.
+        throw new KronotopException("Synchronous replication failed due to errors");
     }
 
     /**
