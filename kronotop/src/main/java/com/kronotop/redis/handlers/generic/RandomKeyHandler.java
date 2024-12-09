@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.generic;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.BaseHandler;
 import com.kronotop.redis.handlers.generic.protocol.RandomKeyMessage;
@@ -70,8 +71,7 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
 
         int randomIndex = ThreadLocalRandom.current().nextInt(shardIds.size());
         int shardId = shardIds.get(randomIndex);
-        RedisShard shard = service.getShard(shardId);
-        // TODO:??
+        RedisShard shard = service.findShard(shardId, ShardStatus.READONLY);
         try {
             String randomKey = shard.index().random();
             ByteBuf buf = response.getChannelContext().alloc().buffer();
