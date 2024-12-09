@@ -91,7 +91,7 @@ public class ScanHandler extends BaseHandler implements Handler {
             shardId = Math.toIntExact(parsedCursor[0]);
         }
 
-        RedisShard shard = service.getShard(shardId);
+        RedisShard shard = service.findShard(shardId, ShardStatus.READONLY);
         List<RedisMessage> children = new ArrayList<>();
 
         Projection projection = shard.index().getProjection(scanMessage.getCursor(), scanMessage.getCount());
@@ -121,7 +121,7 @@ public class ScanHandler extends BaseHandler implements Handler {
         if (projection.getCursor() == 0) {
             try {
                 int nextShardId = findHostedShardId(shardId + 1);
-                RedisShard nextShard = service.getShard(nextShardId);
+                RedisShard nextShard = service.findShard(nextShardId, ShardStatus.READONLY);
                 if (nextShard != null) {
                     response.writeArray(prepareResponse(response, nextShard.index().head(), children));
                     return;

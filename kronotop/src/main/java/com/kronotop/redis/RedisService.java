@@ -249,7 +249,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @return the Shard object with the specified shard ID
      * @throws KronotopException if the shard is not operable, not owned by any member yet or not usable yet
      */
-    public RedisShard getShard(Integer shardId) {
+    private RedisShard getShard(Integer shardId) {
         return serviceContext.shards().compute(shardId, (k, shard) -> {
             if (shard != null) {
                 return shard;
@@ -357,30 +357,16 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     }
 
     /**
-     * Find the shard associated with the given slot.
+     * Finds a Redis shard by its ID and checks if it matches the desired shard status.
+     * If the shard is in an inoperable status or does not have the desired status, an exception is thrown.
      *
-     * @param slot the slot to find the shard for
-     * @return the Shard object associated with the given slot
-     * @throws KronotopException if the slot is not owned by any member yet or not owned by the current member
+     * @param route the route containing the primary and standby members and their associated shard statuses
+     * @param shardId the ID of the shard to be found
+     * @param desiredShardStatus the status that the shard is expected to have
+     * @return the RedisShard object if the shard is found and its status matches the desired status
+     * @throws KronotopException if the shard is in an inoperable status or does not match the desired status
      */
-    private RedisShard findShard_internal(int slot, ShardStatus desiredShardStatus) {
-        if (!routing.isClusterInitialized()) {
-            throw new ClusterNotInitializedException();
-        }
-
-        int shardId = getHashSlots().get(slot);
-        Route route = routing.findRoute(ShardKind.REDIS, shardId);
-        if (route == null) {
-            throw new KronotopException(String.format("shard id: %d not owned by any member yet", shardId));
-        }
-
-        if (!route.primary().equals(getContext().getMember())) {
-            throw new KronotopException(
-                    RESPError.MOVED,
-                    String.format("%d %s:%d", slot, route.primary().getExternalAddress().getHost(), route.primary().getExternalAddress().getPort())
-            );
-        }
-
+    private RedisShard findShardAndCheckStatus(Route route, int shardId, ShardStatus desiredShardStatus) {
         if (route.shardStatus().equals(ShardStatus.INOPERABLE)) {
             throw new KronotopException(String.format("shard id: %d is in %s status", shardId, ShardStatus.INOPERABLE));
         }
@@ -400,6 +386,45 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
 
         throw new KronotopException(String.format("shard id: %d is not in %s status", shardId, desiredShardStatus));
+    }
+
+    /**
+     * Finds the route information for a Redis shard with the specified shard ID.
+     *
+     * @param shardId the ID of the shard for which to retrieve the route information
+     * @return the Route object containing the primary and standby members associated with the specified shard ID
+     * @throws ClusterNotInitializedException if the cluster has not been initialized yet
+     * @throws KronotopException if the shard ID is not owned by any member yet
+     */
+    private Route findRoute(int shardId) {
+        if (!routing.isClusterInitialized()) {
+            throw new ClusterNotInitializedException();
+        }
+
+        Route route = routing.findRoute(ShardKind.REDIS, shardId);
+        if (route == null) {
+            throw new KronotopException(String.format("shard id: %d not owned by any member yet", shardId));
+        }
+        return route;
+    }
+
+    /**
+     * Find the shard associated with the given slot.
+     *
+     * @param slot the slot to find the shard for
+     * @return the Shard object associated with the given slot
+     * @throws KronotopException if the slot is not owned by any member yet or not owned by the current member
+     */
+    private RedisShard findShard_internal(int slot, ShardStatus desiredShardStatus) {
+        int shardId = getHashSlots().get(slot);
+        Route route = findRoute(shardId);
+        if (!route.primary().equals(getContext().getMember())) {
+            throw new KronotopException(
+                    RESPError.MOVED,
+                    String.format("%d %s:%d", slot, route.primary().getExternalAddress().getHost(), route.primary().getExternalAddress().getPort())
+            );
+        }
+        return findShardAndCheckStatus(route, shardId, desiredShardStatus);
     }
 
     /**
@@ -435,6 +460,21 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             throw new NullPointerException("slot cannot be calculated for the given set of keys");
         }
         return findShard_internal(latestSlot, desiredShardStatus);
+    }
+
+    /**
+     * Finds and retrieves a Redis shard with a given shard ID and verifies its status.
+     *
+     * @param shardId the ID of the shard to be located
+     * @param desiredShardStatus the expected status of the shard; the method will ensure that
+     *                           the shard matches this status before returning
+     * @return the RedisShard object associated with the specified shard ID and desired status
+     * @throws KronotopException if the shard is inoperable or if its status does not match
+     *                           the desired status
+     */
+    public RedisShard findShard(int shardId, ShardStatus desiredShardStatus) {
+        Route route = findRoute(shardId);
+        return findShardAndCheckStatus(route, shardId, desiredShardStatus);
     }
 
     /**

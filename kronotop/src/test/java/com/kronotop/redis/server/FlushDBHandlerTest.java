@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.server;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.storage.BaseStorageTest;
 import com.kronotop.redis.storage.RedisShard;
@@ -59,7 +60,7 @@ public class FlushDBHandlerTest extends BaseStorageTest {
             for (int shardId = 0; shardId < shards; shardId++) {
                 // VolumeSync task has been run at the background, but it's an async event.
                 // Let's run the task eagerly. It's safe.
-                RedisShard shard = redisService.getShard(shardId);
+                RedisShard shard = redisService.findShard(shardId, ShardStatus.READWRITE);
                 VolumeSyncer volumeSyncer = new VolumeSyncer(context, shard);
                 volumeSyncer.run();
             }
