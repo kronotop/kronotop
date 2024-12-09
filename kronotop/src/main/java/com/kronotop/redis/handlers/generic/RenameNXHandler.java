@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.generic;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.generic.protocol.RenameNXMessage;
@@ -84,7 +85,7 @@ public class RenameNXHandler extends BaseGenericHandler implements Handler {
         keys.add(message.getKey());
         keys.add(message.getNewkey());
 
-        RedisShard shard = service.findShard(keys);
+        RedisShard shard = service.findShard(keys, ShardStatus.READWRITE);
         Iterable<ReadWriteLock> locks = shard.striped().bulkGet(keys);
         for (ReadWriteLock lock : locks) {
             lock.writeLock().lock();

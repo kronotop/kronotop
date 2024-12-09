@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.generic;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.generic.protocol.DelMessage;
 import com.kronotop.redis.storage.RedisShard;
@@ -57,7 +58,7 @@ public class DelHandler extends BaseGenericHandler implements Handler {
     public void execute(Request request, Response response) {
         DelMessage message = request.attr(MessageTypes.DEL).get();
 
-        RedisShard shard = service.findShard(message.getKeys());
+        RedisShard shard = service.findShard(message.getKeys(), ShardStatus.READWRITE);
 
         Iterable<ReadWriteLock> locks = shard.striped().bulkGet(message.getKeys());
         long keysRemoved = 0;

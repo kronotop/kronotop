@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.hash;
 
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.RedisService;
@@ -65,7 +66,7 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         HIncrByMessage message = request.attr(MessageTypes.HINCRBY).get();
 
-        RedisShard shard = service.findShard(message.getKey());
+        RedisShard shard = service.findShard(message.getKey(), ShardStatus.READWRITE);
         ReadWriteLock lock = shard.striped().get(message.getKey());
         lock.writeLock().lock();
         int newValue;

@@ -71,6 +71,7 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
         int randomIndex = ThreadLocalRandom.current().nextInt(shardIds.size());
         int shardId = shardIds.get(randomIndex);
         RedisShard shard = service.getShard(shardId);
+        // TODO:??
         try {
             String randomKey = shard.index().random();
             ByteBuf buf = response.getChannelContext().alloc().buffer();

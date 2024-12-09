@@ -16,6 +16,10 @@
 
 package com.kronotop.redis.handlers.generic;
 
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.NoAvailableShardException;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.BaseHandler;
@@ -58,7 +62,7 @@ public class ScanHandler extends BaseHandler implements Handler {
         request.attr(MessageTypes.SCAN).set(new ScanMessage(request));
     }
 
-    private int findShardId(Response response, int initial) {
+    private int findHostedShardId(int initial) {
         for (int shardId = initial; shardId < service.getNumberOfShards(); shardId++) {
             RedisShard shard = service.getServiceContext().shards().get(shardId);
             if (shard == null || shard.storage().isEmpty()) {
@@ -76,7 +80,7 @@ public class ScanHandler extends BaseHandler implements Handler {
         int shardId;
         if (scanMessage.getCursor() == 0) {
             try {
-                shardId = findShardId(response, 0);
+                shardId = findHostedShardId(0);
             } catch (NoAvailableShardException e) {
                 response.writeArray(prepareResponse(response, 0, new ArrayList<>()));
                 return;
@@ -116,7 +120,7 @@ public class ScanHandler extends BaseHandler implements Handler {
 
         if (projection.getCursor() == 0) {
             try {
-                int nextShardId = findShardId(response, shardId + 1);
+                int nextShardId = findHostedShardId(shardId + 1);
                 RedisShard nextShard = service.getShard(nextShardId);
                 if (nextShard != null) {
                     response.writeArray(prepareResponse(response, nextShard.index().head(), children));

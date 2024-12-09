@@ -385,11 +385,21 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             throw new KronotopException(String.format("shard id: %d is in %s status", shardId, ShardStatus.INOPERABLE));
         }
 
-        if (!route.shardStatus().equals(desiredShardStatus)) {
-            throw new KronotopException(String.format("shard id: %d is not in %s status", shardId, desiredShardStatus));
+        if (ShardStatus.READONLY.equals(desiredShardStatus)) {
+            // ShardStatus can be READWRITE or READONLY
+            if (route.shardStatus().equals(ShardStatus.READWRITE) || route.shardStatus().equals(ShardStatus.READONLY)) {
+                return getShard(shardId);
+            }
         }
 
-        return getShard(shardId);
+        if (ShardStatus.READWRITE.equals(desiredShardStatus)) {
+            // ShardStatus can only be READWRITE
+            if (route.shardStatus().equals(ShardStatus.READWRITE)) {
+                return getShard(shardId);
+            }
+        }
+
+        throw new KronotopException(String.format("shard id: %d is not in %s status", shardId, desiredShardStatus));
     }
 
     /**
@@ -399,9 +409,9 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @return the Shard object associated with the given key
      * @throws KronotopException if the key's slot is not owned by any member yet or not owned by the current member
      */
-    public RedisShard findShard(String key) {
+    public RedisShard findShard(String key, ShardStatus desiredShardStatus) {
         int slot = SlotHash.getSlot(key);
-        return findShard_internal(slot, ShardStatus.READWRITE);
+        return findShard_internal(slot, desiredShardStatus);
     }
 
     /**
@@ -412,7 +422,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @throws KronotopException    if the shard is not operable, not owned by any member yet, or not usable yet
      * @throws NullPointerException if the slot cannot be calculated for the given set of keys
      */
-    public RedisShard findShard(List<String> keys) {
+    public RedisShard findShard(List<String> keys, ShardStatus desiredShardStatus) {
         Integer latestSlot = null;
         for (String key : keys) {
             int currentSlot = SlotHash.getSlot(key);
@@ -424,7 +434,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         if (latestSlot == null) {
             throw new NullPointerException("slot cannot be calculated for the given set of keys");
         }
-        return findShard_internal(latestSlot, ShardStatus.READWRITE);
+        return findShard_internal(latestSlot, desiredShardStatus);
     }
 
     /**
