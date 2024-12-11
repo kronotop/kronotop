@@ -29,18 +29,18 @@ public class SlotRange {
     int shardId;
     int begin;
     int end;
-    Member owner;
+    Member primary;
 
     public SlotRange(int begin) {
         this.begin = begin;
     }
 
-    public Member getOwner() {
-        return owner;
+    public Member getPrimary() {
+        return primary;
     }
 
     public void setPrimary(Member owner) {
-        this.owner = owner;
+        this.primary = owner;
     }
 
     public int getEnd() {
@@ -65,6 +65,6 @@ public class SlotRange {
 
     @Override
     public String toString() {
-        return String.format("SlotRange {begin=%d end=%d shardId=%d owner=%s}", begin, end, shardId, owner);
+        return String.format("SlotRange {begin=%d end=%d shardId=%d owner=%s}", begin, end, shardId, primary);
     }
 }

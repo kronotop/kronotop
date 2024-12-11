@@ -29,6 +29,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 class NodesSubcommand implements SubcommandHandler {
@@ -45,8 +46,7 @@ class NodesSubcommand implements SubcommandHandler {
         MembershipService membership = service.getContext().getService(MembershipService.NAME);
         TreeSet<Member> members = membership.listMembers();
 
-        // TODO: We don't have a version yet.
-        //Long configEpoch = membership.getRoutingTableLegacy().getVersion();
+        // We don't have a version yet.
         Long configEpoch = 0L;
 
         Map<Member, Long> latestHeartbeats = new HashMap<>();
@@ -55,8 +55,11 @@ class NodesSubcommand implements SubcommandHandler {
         }
         List<SlotRange> slotRanges = service.getSlotRanges();
         for (SlotRange slotRange : slotRanges) {
-            long latestHeartbeat = latestHeartbeats.get(slotRange.getOwner());
-            result.add(getLine(slotRange, configEpoch, latestHeartbeat));
+            long latestHeartbeat = latestHeartbeats.get(slotRange.getPrimary());
+            HashCode hashCode = Hashing.sha1().newHasher().
+                    putString(slotRange.getPrimary().getId(), StandardCharsets.UTF_8).
+                    hash();
+            result.add(getLine(hashCode.toString(), slotRange, configEpoch, latestHeartbeat));
         }
 
         ByteBuf buf = response.getChannelContext().alloc().buffer();
@@ -64,23 +67,19 @@ class NodesSubcommand implements SubcommandHandler {
         response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
     }
 
-    private String getLine(SlotRange range, Long configEpoch, Long latestHeartbeat) {
+    private String getLine(String id, SlotRange range, Long configEpoch, Long latestHeartbeat) {
         List<String> items = new ArrayList<>();
 
-        HashCode hashCode = Hashing.sha1().newHasher().
-                putInt(range.getShardId()).
-                hash();
+        items.add(id);
 
-        items.add(hashCode.toString());
-
-        Address address = range.getOwner().getExternalAddress();
+        Address address = range.getPrimary().getExternalAddress();
         items.add(String.format("%s:%d@%d,%s",
                 address.getHost(),
                 address.getPort(),
                 address.getPort(),
                 address.getHost())
         );
-        if (range.getOwner().equals(service.getContext().getMember())) {
+        if (range.getPrimary().equals(service.getContext().getMember())) {
             items.add("myself,master");
         } else {
             items.add("master");

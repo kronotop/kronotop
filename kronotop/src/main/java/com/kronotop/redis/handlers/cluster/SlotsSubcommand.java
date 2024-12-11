@@ -71,7 +71,7 @@ class SlotsSubcommand implements SubcommandHandler {
             List<RedisMessage> children = new ArrayList<>();
             IntegerRedisMessage beginSection = new IntegerRedisMessage(range.getBegin());
             IntegerRedisMessage endSection = new IntegerRedisMessage(range.getEnd());
-            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getChannelContext(), range.getOwner()));
+            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getChannelContext(), range.getPrimary()));
             children.add(beginSection);
             children.add(endSection);
             children.add(ownerSection);
