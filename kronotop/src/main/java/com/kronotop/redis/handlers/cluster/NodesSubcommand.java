@@ -16,7 +16,6 @@
 
 package com.kronotop.redis.handlers.cluster;
 
-import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MembershipService;
@@ -34,32 +33,30 @@ import java.util.*;
 
 class NodesSubcommand implements SubcommandHandler {
     private final RedisService service;
+    private final MembershipService membership;
 
     NodesSubcommand(RedisService service) {
         this.service = service;
+        this.membership = service.getContext().getService(MembershipService.NAME);
+    }
+
+    private String generateNodeId(Member member) {
+        return Hashing.sha1().newHasher().
+                putString(member.getId(), StandardCharsets.UTF_8).
+                hash().toString();
     }
 
     @Override
     public void execute(Request request, Response response) {
         // <id> <ip:port@cport[,hostname]> <flags> <master> <ping-sent> <pong-recv> <config-epoch> <link-state> <slot> <slot> ... <slot>
         List<String> result = new ArrayList<>();
-        MembershipService membership = service.getContext().getService(MembershipService.NAME);
-        TreeSet<Member> members = membership.listMembers();
-
-        // We don't have a version yet.
-        Long configEpoch = 0L;
-
-        Map<Member, Long> latestHeartbeats = new HashMap<>();
-        for (Member member : members) {
-            latestHeartbeats.put(member, membership.getLatestHeartbeat(member));
-        }
         List<SlotRange> slotRanges = service.getSlotRanges();
         for (SlotRange slotRange : slotRanges) {
-            long latestHeartbeat = latestHeartbeats.get(slotRange.getPrimary());
-            HashCode hashCode = Hashing.sha1().newHasher().
-                    putString(slotRange.getPrimary().getId(), StandardCharsets.UTF_8).
-                    hash();
-            result.add(getLine(hashCode.toString(), slotRange, configEpoch, latestHeartbeat));
+            result.add(prepareLineForPrimary(slotRange));
+        }
+
+        for (SlotRange slotRange : slotRanges) {
+            result.addAll(prepareLineForStandby(slotRange));
         }
 
         ByteBuf buf = response.getChannelContext().alloc().buffer();
@@ -67,10 +64,10 @@ class NodesSubcommand implements SubcommandHandler {
         response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
     }
 
-    private String getLine(String id, SlotRange range, Long configEpoch, Long latestHeartbeat) {
+    private String prepareLineForPrimary(SlotRange range) {
         List<String> items = new ArrayList<>();
 
-        items.add(id);
+        items.add(generateNodeId(range.getPrimary()));
 
         Address address = range.getPrimary().getExternalAddress();
         items.add(String.format("%s:%d@%d,%s",
@@ -84,13 +81,48 @@ class NodesSubcommand implements SubcommandHandler {
         } else {
             items.add("master");
         }
+
         items.add("-");
         items.add("0");
-        items.add(latestHeartbeat.toString());
-        items.add(configEpoch.toString());
+        long latestHeartbeat = membership.getLatestHeartbeat(range.getPrimary());
+        items.add(Long.toString(latestHeartbeat));
+        items.add("0"); // config-epoch: we don't have such a thing.
         items.add("connected");
         items.add(String.format("%d-%d", range.getBegin(), range.getEnd()));
 
         return String.join(" ", items);
+    }
+
+    private List<String> prepareLineForStandby(SlotRange range) {
+        List<String> result = new ArrayList<>();
+        range.getStandbys().forEach(standby -> {
+            List<String> items = new ArrayList<>();
+            items.add(generateNodeId(standby));
+
+            Address address = standby.getExternalAddress();
+            items.add(String.format("%s:%d@%d,%s",
+                    address.getHost(),
+                    address.getPort(),
+                    address.getPort(),
+                    address.getHost())
+            );
+
+            if (standby.equals(service.getContext().getMember())) {
+                items.add("myself,slave");
+            } else {
+                items.add("slave");
+            }
+
+            items.add(generateNodeId(range.getPrimary()));
+
+            long latestHeartbeat = membership.getLatestHeartbeat(standby);
+            items.add("0");
+            items.add(Long.toString(latestHeartbeat));
+            items.add("0"); // config-epoch: we don't have such a thing.
+            items.add("connected");
+
+            result.add(String.join(" ", items));
+        });
+        return result;
     }
 }
