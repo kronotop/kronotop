@@ -63,6 +63,7 @@ public class MessageTypes {
     public static final AttributeKey<MSetNXMessage> MSETNX = AttributeKey.valueOf(MSetNXMessage.COMMAND);
     public static final AttributeKey<DelMessage> DEL = AttributeKey.valueOf(DelMessage.COMMAND);
     public static final AttributeKey<ExistsMessage> EXISTS = AttributeKey.valueOf(ExistsMessage.COMMAND);
+    public static final AttributeKey<ReadonlyMessage> READONLY = AttributeKey.valueOf(ReadonlyMessage.COMMAND);
     public static final AttributeKey<RandomKeyMessage> RANDOMKEY = AttributeKey.valueOf(RandomKeyMessage.COMMAND);
     public static final AttributeKey<RenameMessage> RENAME = AttributeKey.valueOf(RenameMessage.COMMAND);
     public static final AttributeKey<RenameNXMessage> RENAMENX = AttributeKey.valueOf(RenameNXMessage.COMMAND);
