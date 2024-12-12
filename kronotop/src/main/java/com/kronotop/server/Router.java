@@ -110,6 +110,7 @@ public class Router extends ChannelDuplexHandler {
         ctx.channel().attr(ChannelAttributes.OPEN_NAMESPACES).set(new HashMap<>());
         ctx.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).set(defaultNamespace);
         ctx.channel().attr(ChannelAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
+        ctx.channel().attr(ChannelAttributes.READONLY).set(false);
 
         Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
         autoCommitAttr.set(false);
@@ -157,8 +158,7 @@ public class Router extends ChannelDuplexHandler {
     }
 
     private void exceptionToRespError(Request request, Response response, Exception exception) {
-        if (exception instanceof KronotopException) {
-            KronotopException exp = (KronotopException) exception;
+        if (exception instanceof KronotopException exp) {
             response.writeError(exp.getPrefix(), exp.getMessage());
         } else if (exception instanceof CompletionException) {
             if (exception.getCause() instanceof FDBException) {

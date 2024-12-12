@@ -62,4 +62,6 @@ public class ChannelAttributes {
     public static final AttributeKey<Long> CLIENT_ID = AttributeKey.valueOf("client_id");
 
     public static final AttributeKey<HashMap<String, Object>> CLIENT_ATTRIBUTES = AttributeKey.valueOf("client_attributes");
+
+    public static final AttributeKey<Boolean> READONLY = AttributeKey.valueOf("readonly");
 }

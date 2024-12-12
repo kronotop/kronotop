@@ -17,25 +17,25 @@
 package com.kronotop.redis.handlers.generic;
 
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.handlers.generic.protocol.ReadonlyMessage;
+import com.kronotop.redis.handlers.generic.protocol.ReadWriteMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 
-@Command(ReadonlyMessage.COMMAND)
-public class ReadonlyHandler extends BaseGenericHandler implements Handler {
+@Command(ReadWriteMessage.COMMAND)
+public class ReadWriteHandler extends BaseGenericHandler implements Handler {
 
-    public ReadonlyHandler(RedisService service) {
+    public ReadWriteHandler(RedisService service) {
         super(service);
     }
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.READONLY).set(new ReadonlyMessage());
+        request.attr(MessageTypes.READWRITE).set(new ReadWriteMessage());
     }
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        request.getChannelContext().channel().attr(ChannelAttributes.READONLY).set(true);
+        request.getChannelContext().channel().attr(ChannelAttributes.READONLY).set(false);
         response.writeOK();
     }
 }
