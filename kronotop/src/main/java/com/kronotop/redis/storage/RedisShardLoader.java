@@ -30,6 +30,11 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.concurrent.locks.ReadWriteLock;
 
+/**
+ * The RedisShardLoader class is responsible for loading and processing data from a RedisShard's
+ * storage volume into its operational state. It interacts with a Context and RedisShard to read,
+ * process, and update data structures stored in the shard.
+ */
 public final class RedisShardLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisShardLoader.class);
     private final Context context;
@@ -42,6 +47,15 @@ public final class RedisShardLoader {
         this.prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
     }
 
+    /**
+     * Processes a StringPack object based on the provided KeyEntry. The method unpacks the given
+     * KeyEntry to retrieve StringPack data, acquires a write lock corresponding to the StringPack key,
+     * and stores the StringPack contents into the shard's storage. The StringPack's versionstamp is
+     * updated to match the KeyEntry's versionstamp.
+     *
+     * @param entry the KeyEntry containing the data to be unpacked and processed
+     * @throws IOException if the KeyEntry cannot be unpacked or contains invalid data
+     */
     private void processStringPack(KeyEntry entry) throws IOException {
         StringPack pack = StringPack.unpack(entry.entry());
         ReadWriteLock lock = shard.striped().get(pack.key());
@@ -55,6 +69,15 @@ public final class RedisShardLoader {
         }
     }
 
+    /**
+     * Processes a HashFieldPack object based on the provided KeyEntry. The method unpacks the given
+     * KeyEntry to retrieve HashFieldPack data, acquires a write lock corresponding to the HashFieldPack
+     * key, and stores the HashFieldPack contents into the shard's storage. The HashFieldPack's versionstamp
+     * is updated to match the KeyEntry's versionstamp.
+     *
+     * @param entry the KeyEntry containing the data to be unpacked and processed
+     * @throws IOException if the KeyEntry cannot be unpacked or contains invalid data
+     */
     private void processHashFieldPack(KeyEntry entry) throws IOException {
         HashFieldPack pack = HashFieldPack.unpack(entry.entry());
         ReadWriteLock lock = shard.striped().get(pack.key());
@@ -72,6 +95,10 @@ public final class RedisShardLoader {
         }
     }
 
+    /**
+     * Loads data from the shard's volume using the provided transaction. Iterates over all KeyEntry
+     * objects retrieved from the shard's volume and processes them based on their data structure type.
+     **/
     private void loadFromVolume(Transaction tr) {
         Session session = new Session(tr, prefix);
         Iterable<KeyEntry> iterable = shard.volume().getRange(session);
@@ -97,6 +124,12 @@ public final class RedisShardLoader {
         });
     }
 
+    /**
+     * Loads data into the shard from its storage volume and sets its operable state to true.
+     * This method uses a FoundationDB transaction to retrieve and process the data stored
+     * in the shard's volume. It delegates the data-loading logic to the loadFromVolume method.
+     * Upon successful completion, the shard is marked as operable.
+     */
     public void load() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             loadFromVolume(tr);
