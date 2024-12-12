@@ -33,8 +33,8 @@ public class TypeMessage implements KronotopMessage<String> {
     }
 
     private void parse() {
-        byte[] tmp = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(tmp);
+        byte[] tmp = new byte[request.getParams().getFirst().readableBytes()];
+        request.getParams().getFirst().readBytes(tmp);
         key = new String(tmp);
     }
 
