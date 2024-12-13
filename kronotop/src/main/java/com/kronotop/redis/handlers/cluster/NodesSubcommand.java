@@ -53,9 +53,6 @@ class NodesSubcommand implements SubcommandHandler {
         List<SlotRange> slotRanges = service.getSlotRanges();
         for (SlotRange slotRange : slotRanges) {
             result.add(prepareLineForPrimary(slotRange));
-        }
-
-        for (SlotRange slotRange : slotRanges) {
             result.addAll(prepareLineForStandby(slotRange));
         }
 
