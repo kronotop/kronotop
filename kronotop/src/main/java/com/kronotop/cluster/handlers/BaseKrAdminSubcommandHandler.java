@@ -185,8 +185,8 @@ public class BaseKrAdminSubcommandHandler {
 
     /**
      * Reads and validates a member ID from the provided ByteBuf.
-     * If the member ID length is 8, it attempts to resolve the full ID by finding a matching member prefix.
-     * If the member ID length is not 8, it validates the ID.
+     * If the member ID length is 4, it attempts to resolve the full ID by finding a matching member prefix.
+     * If the member ID length is not 4, it validates the ID.
      *
      * @param memberIdBuf the ByteBuf containing the raw bytes of the member ID to be read
      * @return the resolved or validated member ID as a string
@@ -194,7 +194,7 @@ public class BaseKrAdminSubcommandHandler {
      */
     protected String readMemberId(ByteBuf memberIdBuf) {
         String memberId = readAsString(memberIdBuf);
-        if (memberId.length() == 8) {
+        if (memberId.length() == 4) {
             Member member = findMemberWithPrefix(memberId);
             return member.getId();
         }
