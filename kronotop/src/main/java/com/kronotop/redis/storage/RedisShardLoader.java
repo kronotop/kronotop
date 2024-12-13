@@ -56,7 +56,7 @@ public final class RedisShardLoader {
      * @param entry the KeyEntry containing the data to be unpacked and processed
      * @throws IOException if the KeyEntry cannot be unpacked or contains invalid data
      */
-    private void processStringPack(KeyEntry entry) throws IOException {
+    public static void processStringPack(RedisShard shard, KeyEntry entry) throws IOException {
         StringPack pack = StringPack.unpack(entry.entry());
         ReadWriteLock lock = shard.striped().get(pack.key());
         lock.writeLock().lock();
@@ -69,6 +69,10 @@ public final class RedisShardLoader {
         }
     }
 
+    private void processStringPack(KeyEntry entry) throws IOException {
+        processStringPack(shard, entry);
+    }
+
     /**
      * Processes a HashFieldPack object based on the provided KeyEntry. The method unpacks the given
      * KeyEntry to retrieve HashFieldPack data, acquires a write lock corresponding to the HashFieldPack
@@ -78,7 +82,7 @@ public final class RedisShardLoader {
      * @param entry the KeyEntry containing the data to be unpacked and processed
      * @throws IOException if the KeyEntry cannot be unpacked or contains invalid data
      */
-    private void processHashFieldPack(KeyEntry entry) throws IOException {
+    public static void processHashFieldPack(RedisShard shard, KeyEntry entry) throws IOException {
         HashFieldPack pack = HashFieldPack.unpack(entry.entry());
         ReadWriteLock lock = shard.striped().get(pack.key());
         lock.writeLock().lock();
@@ -93,6 +97,10 @@ public final class RedisShardLoader {
         } finally {
             lock.writeLock().unlock();
         }
+    }
+
+    private void processHashFieldPack(KeyEntry entry) throws IOException {
+        processHashFieldPack(shard, entry);
     }
 
     /**
