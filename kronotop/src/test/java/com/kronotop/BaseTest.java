@@ -18,6 +18,7 @@ package com.kronotop;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MockProcessIdGeneratorImpl;
 import com.kronotop.network.Address;
 import com.typesafe.config.Config;
@@ -55,7 +56,7 @@ public class BaseTest {
         Address internalAddress = Address.parseString(internalAddressString);
 
         Versionstamp processId = processIdGenerator.getProcessID();
-        return new Member(UUID.randomUUID().toString(), externalAddress, internalAddress, processId);
+        return new Member(MemberIdGenerator.generateId(), externalAddress, internalAddress, processId);
     }
 
     protected Config loadConfig(String resourceName) {

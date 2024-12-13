@@ -29,7 +29,8 @@ import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 class NodesSubcommand implements SubcommandHandler {
     private final RedisService service;

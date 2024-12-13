@@ -20,6 +20,7 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.common.KronotopException;
@@ -44,7 +45,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.UUID;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -183,7 +183,7 @@ public class KronotopInstance {
             }
             Path directory;
             if (files.length == 0) {
-                String id = UUID.randomUUID().toString();
+                String id = MemberIdGenerator.generateId();
                 directory = Files.createDirectories(Path.of(parentDataDir.toString(), id));
             } else {
                 directory = Path.of(parentDataDir.toString(), files[0].toString());

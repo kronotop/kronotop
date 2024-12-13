@@ -69,10 +69,6 @@ public final class RedisShardLoader {
         }
     }
 
-    private void processStringPack(KeyEntry entry) throws IOException {
-        processStringPack(shard, entry);
-    }
-
     /**
      * Processes a HashFieldPack object based on the provided KeyEntry. The method unpacks the given
      * KeyEntry to retrieve HashFieldPack data, acquires a write lock corresponding to the HashFieldPack
@@ -97,6 +93,10 @@ public final class RedisShardLoader {
         } finally {
             lock.writeLock().unlock();
         }
+    }
+
+    private void processStringPack(KeyEntry entry) throws IOException {
+        processStringPack(shard, entry);
     }
 
     private void processHashFieldPack(KeyEntry entry) throws IOException {
