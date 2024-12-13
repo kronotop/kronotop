@@ -19,10 +19,7 @@ package com.kronotop.volume.replication;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.volume.AppendResult;
-import com.kronotop.volume.Session;
-import com.kronotop.volume.Volume;
-import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -138,6 +135,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
                 await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
             }
 
+            // Replication is running at the background.
             {
                 versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
                 Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
@@ -270,5 +268,48 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
 
         replication.stop();
         await().atMost(Duration.ofSeconds(5)).until(() -> !isActive());
+    }
+
+    @Test
+    public void update_entries_while_running_streaming_replication() throws IOException, KeyNotFoundException {
+        Versionstamp[] versionstampedKeys = new Versionstamp[0];
+
+        // Insert some keys to the primary volume
+        versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
+
+        // Start a standby
+        Volume standbyVolume = standbyVolume();
+        Replication replication = newReplication(standbyVolume.getConfig());
+        try {
+            replication.start();
+
+            await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
+            {
+                Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
+                await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
+            }
+
+            // Replication is running at the background.
+            KeyEntry[] entries = new KeyEntry[versionstampedKeys.length];
+            try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr, prefix);
+                for (int i = 0; i < versionstampedKeys.length; i++) {
+                    Versionstamp key = versionstampedKeys[i];
+                    entries[i] = new KeyEntry(key, ByteBuffer.wrap(String.format("new-entry-%d", i).getBytes()));
+                }
+                UpdateResult updateResult = volume.update(session, entries);
+                tr.commit().join();
+                updateResult.complete();
+            }
+
+            // Invalidate the entry metadata cache to prevent reading stale data.
+            standbyVolume.invalidateEntryMetadataCache(prefix);
+            {
+                Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
+                await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
+            }
+        } finally {
+            replication.stop();
+        }
     }
 }

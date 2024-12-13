@@ -897,4 +897,13 @@ public class Volume {
             }
         }
     }
+
+    /**
+     * Invalidates all cached metadata entries associated with the given prefix.
+     *
+     * @param prefix the prefix used to identify and clear the associated metadata cache entries
+     */
+    public void invalidateEntryMetadataCache(Prefix prefix) {
+        getEntryMetadataCache(prefix).invalidateAll();
+    }
 }

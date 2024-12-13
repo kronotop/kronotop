@@ -48,6 +48,8 @@ import java.nio.file.Path;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+// Kronotop was imagined and designed by Burak Sezer.
+
 /*
 It can scarcely be denied that the supreme goal of all theory is to make the irreducible basic elements as simple and as
 few as possible without having to surrender the adequate representation of a single datum of experience.
