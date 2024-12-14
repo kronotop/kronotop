@@ -21,6 +21,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
 import com.kronotop.volume.handlers.PackedEntry;
@@ -884,21 +885,22 @@ public class Volume {
     }
 
     /**
-     * Invalidates all cached metadata entries associated with the given prefix.
+     * Invalidates the entry metadata cache for a specific entry identified by the prefix, segment name, and position.
      *
-     * @param prefix the prefix used to identify and clear the associated metadata cache entries
+     * @param prefix The prefix used for identifying the cache namespace.
+     * @param segmentName The name of the segment associated with the cache entry to be invalidated.
+     * @param position The position value used to compute the cache key for the entry.
      */
-    public void invalidateEntryMetadataCache(Prefix prefix) {
-        entryMetadataCache.load(prefix).invalidateAll();
-    }
-
-    public void invalidateEntryMetadataCache(Prefix prefix, String segmentName, long position, long length) {
-        long cacheKey = sipHash24().newHasher().
-                putBytes(segmentName.getBytes()).
-                putLong(position).
-                putLong(length).
-                hash().asLong();
+    public void invalidateEntryMetadataCache(Prefix prefix, String segmentName, long position) {
+        long cacheKey = EntryMetadata.cacheKey(segmentName, position);
         Versionstamp key = entryMetadataCache.getVersionstampedKey(prefix, cacheKey);
-        entryMetadataCache.load(prefix).invalidate(key);
+        if (key == null) {
+            return;
+        }
+        LoadingCache<Versionstamp, EntryMetadata> loadingCache = entryMetadataCache.load(prefix);
+        if (loadingCache == null) {
+            return;
+        }
+        loadingCache.invalidate(key);
     }
 }

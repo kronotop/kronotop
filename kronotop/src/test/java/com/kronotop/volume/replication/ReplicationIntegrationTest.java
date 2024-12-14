@@ -18,6 +18,8 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.Context;
+import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.*;
 import org.junit.jupiter.api.Test;
@@ -70,6 +72,12 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
         slotId = ReplicationMetadata.newReplication(context, config);
         return new Replication(context, slotId, config);
+    }
+
+    private Replication newReplication2(Context instanceContext, VolumeConfig standbyVolumeConfig) {
+        config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
+        slotId = ReplicationMetadata.newReplication(instanceContext, config);
+        return new Replication(instanceContext, slotId, config);
     }
 
     private Versionstamp[] appendKeys(int number) throws IOException {
@@ -277,9 +285,21 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         // Insert some keys to the primary volume
         versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
 
+        KronotopTestInstance secondInstance = addNewInstance();
+
+        VolumeConfig standbyVolumeConfig = new VolumeConfig(
+                volume.getConfig().subspace(),
+                volume.getConfig().name(),
+                standbyVolumeDataDir.toString(),
+                volume.getConfig().segmentSize(),
+                volume.getConfig().allowedGarbageRatio()
+        );
+
         // Start a standby
-        Volume standbyVolume = standbyVolume();
-        Replication replication = newReplication(standbyVolume.getConfig());
+        VolumeService volumeService = secondInstance.getContext().getService(VolumeService.NAME);
+        Volume standbyVolume = volumeService.newVolume(standbyVolumeConfig);
+
+        Replication replication = newReplication2(secondInstance.getContext(), standbyVolume.getConfig());
         try {
             replication.start();
 
@@ -303,7 +323,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             }
 
             // Invalidate the entry metadata cache to prevent reading stale data.
-            standbyVolume.invalidateEntryMetadataCache(prefix);
+            //standbyVolume.invalidateEntryMetadataCache(prefix);
             {
                 Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
                 await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));

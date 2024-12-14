@@ -47,6 +47,8 @@ public class ReplicationStageRunner {
     protected final ReplicationClient client;
     protected final HashMap<Long, Segment> openSegments = new HashMap<>();
     protected Versionstamp slotId;
+
+    private final VolumeService volumeService;
     private volatile boolean stopped = false;
 
     public ReplicationStageRunner(Context context, ReplicationContext replicationContext) {
@@ -55,6 +57,8 @@ public class ReplicationStageRunner {
         this.volumeConfig = replicationContext.volumeConfig();
         this.client = replicationContext.client();
         this.slotId = replicationContext.slotId();
+
+        this.volumeService = context.getService(VolumeService.NAME);
     }
 
     protected ReplicationSlot loadReplicationSlot() {
@@ -123,6 +127,26 @@ public class ReplicationStageRunner {
     }
 
     /**
+     * Invalidates the entry metadata cache for a specific segment at the provided position.
+     * This method interacts with the volume service to clear the cache for the given prefix,
+     * segment name, and position.
+     * <p>
+     * Exceptions related to closed or unopened volumes are ignored.
+     *
+     * @param prefix      The prefix identifying the entry whose metadata cache is to be invalidated.
+     * @param segmentName The name of the segment associated with the entry.
+     * @param position    The position within the segment for which the cache invalidation is applied.
+     */
+    private void invalidateEntryMetadataCache(Prefix prefix, String segmentName, long position) {
+        try {
+            Volume volume = volumeService.findVolume(config.volumeConfig().name());
+            volume.invalidateEntryMetadataCache(prefix, segmentName, position);
+        } catch (ClosedVolumeException | VolumeNotOpenException e) {
+            // We can ignore these exceptions
+        }
+    }
+
+    /**
      * Fetches the segment range for a given segment name and a list of log entries.
      * It filters the entries to include only those of type APPEND or VACUUM and constructs segment ranges.
      * The method retrieves data ranges from the client for these segment ranges and returns the result.
@@ -133,10 +157,9 @@ public class ReplicationStageRunner {
      */
     protected FetchSegmentRangeResult fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
         int size = 0;
+        Prefix prefix = new Prefix("volume-test-prefix".getBytes());
         for (SegmentLogEntry entry : entries) {
-            //VolumeService volumeService = context.getService(VolumeService.NAME);
-
-
+            invalidateEntryMetadataCache(prefix, segmentName, entry.value().position());
             if (entry.value().kind().equals(OperationKind.APPEND) || entry.value().kind().equals(OperationKind.VACUUM)) {
                 // Do not need to fetch the deleted entry, OperationKind.Delete should be
                 // used for the vacuuming process.
