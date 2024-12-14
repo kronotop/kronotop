@@ -20,9 +20,7 @@ import com.apple.foundationdb.*;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
 import com.kronotop.volume.handlers.PackedEntry;
@@ -40,7 +38,9 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -60,7 +60,7 @@ public class Volume {
     private final Context context;
     private final VolumeConfig config;
     private final VolumeSubspace subspace;
-    private final ConcurrentHashMap<Long, LoadingCache<Versionstamp, EntryMetadata>> entryMetadataCache;
+    private final EntryMetadataCache entryMetadataCache;
     private final byte[] streamingSubscribersTriggerKey;
 
     // segmentsLock protects segments map
@@ -73,7 +73,7 @@ public class Volume {
         this.context = context;
         this.config = config;
         this.subspace = new VolumeSubspace(config.subspace());
-        this.entryMetadataCache = new ConcurrentHashMap<>();
+        this.entryMetadataCache = new EntryMetadataCache(context, subspace);
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
     }
 
@@ -362,7 +362,7 @@ public class Volume {
         flushMutatedSegments(entryMetadataList);
 
         CompletableFuture<byte[]> future = writeMetadata(session, entryMetadataList);
-        return new AppendResult(future, entryMetadataList, getEntryMetadataCache(session.prefix())::put);
+        return new AppendResult(future, entryMetadataList, entryMetadataCache.load(session.prefix())::put);
     }
 
     /**
@@ -405,22 +405,6 @@ public class Volume {
     }
 
     /**
-     * Retrieves a cached instance of EntryMetadata for a given Prefix.
-     * If the cache does not already exist for the specified Prefix, it initializes and stores a new cache
-     * with an expiration policy of 15 minutes since the last access.
-     *
-     * @param prefix The prefix for which the entry metadata cache is to be retrieved or initialized.
-     * @return A LoadingCache instance containing Versionstamp to EntryMetadata mappings for the specified prefix.
-     */
-    private LoadingCache<Versionstamp, EntryMetadata> getEntryMetadataCache(Prefix prefix) {
-        return entryMetadataCache.computeIfAbsent(prefix.asLong(), prefixId -> CacheBuilder.
-                newBuilder().
-                expireAfterAccess(EntryMetadataCacheLoader.EXPIRE_AFTER_ACCESS).
-                build(new EntryMetadataCacheLoader(context, subspace, prefix))
-        );
-    }
-
-    /**
      * Loads entry metadata from the cache for a given prefix and versionstamp key.
      *
      * @param prefix The prefix associated with the entry metadata.
@@ -430,7 +414,7 @@ public class Volume {
      */
     private EntryMetadata loadEntryMetadataFromCache(Prefix prefix, Versionstamp key) {
         try {
-            return getEntryMetadataCache(prefix).get(key);
+            return entryMetadataCache.load(prefix).get(key);
         } catch (CacheLoader.InvalidCacheLoadException e) {
             // The requested key doesn't exist in this Volume.
             return null;
@@ -456,7 +440,7 @@ public class Volume {
             // Invalidate the cache and try again.
             // It will load the EntryMetadata from FoundationDB.
             // Possible cause: cleanup up filled segments.
-            getEntryMetadataCache(prefix).invalidate(key);
+            entryMetadataCache.load(prefix).invalidate(key);
             segment = getOrOpenSegmentByName(entryMetadata.segment());
         }
 
@@ -517,7 +501,7 @@ public class Volume {
     public DeleteResult delete(@Nonnull Session session, @Nonnull Versionstamp... keys) {
         Transaction tr = session.transaction();
 
-        DeleteResult result = new DeleteResult(keys.length, getEntryMetadataCache(session.prefix())::invalidate);
+        DeleteResult result = new DeleteResult(keys.length, entryMetadataCache.load(session.prefix())::invalidate);
 
         int index = 0;
         for (Versionstamp key : keys) {
@@ -596,7 +580,7 @@ public class Volume {
 
             index++;
         }
-        return new UpdateResult(pairs, getEntryMetadataCache(session.prefix())::invalidate);
+        return new UpdateResult(pairs, entryMetadataCache.load(session.prefix())::invalidate);
     }
 
     /**
@@ -904,6 +888,6 @@ public class Volume {
      * @param prefix the prefix used to identify and clear the associated metadata cache entries
      */
     public void invalidateEntryMetadataCache(Prefix prefix) {
-        getEntryMetadataCache(prefix).invalidateAll();
+        entryMetadataCache.load(prefix).invalidateAll();
     }
 }
