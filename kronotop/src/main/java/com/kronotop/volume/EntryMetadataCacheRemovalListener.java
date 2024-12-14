@@ -20,9 +20,20 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 public class EntryMetadataCacheRemovalListener implements RemovalListener<Versionstamp, EntryMetadata> {
+    private final ConcurrentHashMap<Long, Versionstamp> reverse;
+
+    public EntryMetadataCacheRemovalListener(ConcurrentHashMap<Long, Versionstamp> reverse) {
+        this.reverse = reverse;
+    }
+
     @Override
     public void onRemoval(RemovalNotification<Versionstamp, EntryMetadata> notification) {
-        //notification.getValue();
+        if (notification.getValue() == null) {
+            return;
+        }
+        reverse.remove(notification.getValue().cacheKey());
     }
 }

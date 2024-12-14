@@ -44,6 +44,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import static com.google.common.hash.Hashing.sipHash24;
 import static com.kronotop.volume.EntryMetadata.*;
 import static com.kronotop.volume.Subspaces.*;
 import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
@@ -889,5 +890,15 @@ public class Volume {
      */
     public void invalidateEntryMetadataCache(Prefix prefix) {
         entryMetadataCache.load(prefix).invalidateAll();
+    }
+
+    public void invalidateEntryMetadataCache(Prefix prefix, String segmentName, long position, long length) {
+        long cacheKey = sipHash24().newHasher().
+                putBytes(segmentName.getBytes()).
+                putLong(position).
+                putLong(length).
+                hash().asLong();
+        Versionstamp key = entryMetadataCache.getVersionstampedKey(prefix, cacheKey);
+        entryMetadataCache.load(prefix).invalidate(key);
     }
 }

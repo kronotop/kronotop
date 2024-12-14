@@ -23,17 +23,20 @@ import com.kronotop.Context;
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
 
 class EntryMetadataCacheLoader extends CacheLoader<Versionstamp, EntryMetadata> {
     public static Duration EXPIRE_AFTER_ACCESS = Duration.ofMinutes(15);
+    private final ConcurrentHashMap<Long, Versionstamp> reverse;
     private final Context context;
     private final VolumeSubspace subspace;
     private final Prefix prefix;
 
-    EntryMetadataCacheLoader(Context context, VolumeSubspace subspace, Prefix prefix) {
+    EntryMetadataCacheLoader(Context context, VolumeSubspace subspace, Prefix prefix, ConcurrentHashMap<Long, Versionstamp> reverse) {
         this.context = context;
         this.subspace = subspace;
         this.prefix = prefix;
+        this.reverse = reverse;
     }
 
     @Override
@@ -44,7 +47,9 @@ class EntryMetadataCacheLoader extends CacheLoader<Versionstamp, EntryMetadata> 
             if (value == null) {
                 return null;
             }
-            return EntryMetadata.decode(ByteBuffer.wrap(value));
+            EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(value));
+            reverse.putIfAbsent(entryMetadata.cacheKey(), key);
+            return entryMetadata;
         });
     }
 }

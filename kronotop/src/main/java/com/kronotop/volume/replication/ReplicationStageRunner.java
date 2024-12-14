@@ -21,10 +21,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
 import com.kronotop.cluster.client.protocol.SegmentRange;
-import com.kronotop.volume.NotEnoughSpaceException;
-import com.kronotop.volume.OperationKind;
-import com.kronotop.volume.VersionstampedKeySelector;
-import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.*;
 import com.kronotop.volume.segment.Segment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,6 +134,9 @@ public class ReplicationStageRunner {
     protected FetchSegmentRangeResult fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
         int size = 0;
         for (SegmentLogEntry entry : entries) {
+            //VolumeService volumeService = context.getService(VolumeService.NAME);
+
+
             if (entry.value().kind().equals(OperationKind.APPEND) || entry.value().kind().equals(OperationKind.VACUUM)) {
                 // Do not need to fetch the deleted entry, OperationKind.Delete should be
                 // used for the vacuuming process.

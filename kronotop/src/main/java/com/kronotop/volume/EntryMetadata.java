@@ -18,6 +18,7 @@ package com.kronotop.volume;
 
 import java.nio.ByteBuffer;
 
+import static com.google.common.hash.Hashing.sipHash24;
 import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
 
 /**
@@ -85,5 +86,13 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
                 put(prefix).
                 putLong(position).
                 putLong(length).flip();
+    }
+
+    public long cacheKey() {
+        return sipHash24().newHasher().
+                putBytes(segment.getBytes()).
+                putLong(position).
+                putLong(length).
+                hash().asLong();
     }
 }
