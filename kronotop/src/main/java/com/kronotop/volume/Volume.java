@@ -263,7 +263,7 @@ public class Volume {
      * @param entryMetadata metadata of the entry being appended to the segment.
      */
     private void appendSegmentLog(Session session, OperationKind kind, EntryMetadata entryMetadata) {
-        appendSegmentLog(session.transaction(), kind, session.getAndIncrementUserVersion(), entryMetadata);
+        appendSegmentLog(session.transaction(), kind, session.getAndIncrementUserVersion(), session.prefix().asLong(), entryMetadata);
     }
 
     /**
@@ -275,14 +275,14 @@ public class Volume {
      * @param entryMetadata metadata of the entry being appended, which includes segment, position, and length information.
      * @throws IllegalStateException if the segment specified in the entry metadata cannot be found.
      */
-    private void appendSegmentLog(Transaction tr, OperationKind kind, int userVersion, EntryMetadata entryMetadata) {
+    private void appendSegmentLog(Transaction tr, OperationKind kind, int userVersion, long prefix, EntryMetadata entryMetadata) {
         segmentsLock.readLock().lock();
         try {
             SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
             if (segmentContainer == null) {
                 throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
             }
-            SegmentLogValue value = new SegmentLogValue(kind, entryMetadata.position(), entryMetadata.length());
+            SegmentLogValue value = new SegmentLogValue(kind, prefix, entryMetadata.position(), entryMetadata.length());
             segmentContainer.log().append(tr, userVersion, value);
         } finally {
             segmentsLock.readLock().unlock();
@@ -319,7 +319,7 @@ public class Volume {
             segmentContainer.metadata().increaseCardinalityByOne(session);
             segmentContainer.metadata().increaseUsedBytes(session, entryMetadata.length());
 
-            appendSegmentLog(tr, OperationKind.APPEND, userVersion, entryMetadata);
+            appendSegmentLog(tr, OperationKind.APPEND, userVersion, session.prefix().asLong(), entryMetadata);
             triggerStreamingSubscribers(tr);
         }
         return tr.getVersionstamp();

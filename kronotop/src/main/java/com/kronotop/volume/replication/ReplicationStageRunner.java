@@ -157,8 +157,8 @@ public class ReplicationStageRunner {
      */
     protected FetchSegmentRangeResult fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
         int size = 0;
-        Prefix prefix = new Prefix("volume-test-prefix".getBytes());
         for (SegmentLogEntry entry : entries) {
+            Prefix prefix = Prefix.fromLong(entry.value().prefix());
             invalidateEntryMetadataCache(prefix, segmentName, entry.value().position());
             if (entry.value().kind().equals(OperationKind.APPEND) || entry.value().kind().equals(OperationKind.VACUUM)) {
                 // Do not need to fetch the deleted entry, OperationKind.Delete should be

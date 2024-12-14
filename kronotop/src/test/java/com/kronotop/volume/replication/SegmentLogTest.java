@@ -41,7 +41,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
         SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
 
         try (Transaction tr = database.createTransaction()) {
-            SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, 0, 100);
+            SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, prefix.asLong(), 0, 100);
             assertDoesNotThrow(() -> segmentLog.append(tr, 0, entry));
             tr.commit().join();
         }
@@ -59,7 +59,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
             long start = 0;
             long length = 100;
             for (int userVersion = 0; userVersion < 10; userVersion++) {
-                SegmentLogValue value = new SegmentLogValue(OperationKind.APPEND, start, length);
+                SegmentLogValue value = new SegmentLogValue(OperationKind.APPEND, prefix.asLong(), start, length);
                 values.add(value);
 
                 int finalUserVersion = userVersion;
@@ -106,7 +106,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
             long start = 0;
             long length = 100;
             for (int userVersion = 0; userVersion < 10; userVersion++) {
-                SegmentLogValue value = new SegmentLogValue(OperationKind.APPEND, start, length);
+                SegmentLogValue value = new SegmentLogValue(OperationKind.APPEND, prefix.asLong(), start, length);
                 values.add(value);
 
                 segmentLog.append(tr, userVersion, value);
@@ -153,7 +153,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
         int total = 100;
         try (Transaction tr = database.createTransaction()) {
             for (int userVersion = 0; userVersion < total; userVersion++) {
-                SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, 0, 100);
+                SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, prefix.asLong(),0, 100);
                 int finalUserVersion = userVersion;
                 assertDoesNotThrow(() -> segmentLog.append(tr, finalUserVersion, entry));
             }
