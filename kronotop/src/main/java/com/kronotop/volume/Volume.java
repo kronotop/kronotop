@@ -407,7 +407,7 @@ public class Volume {
     /**
      * Retrieves a cached instance of EntryMetadata for a given Prefix.
      * If the cache does not already exist for the specified Prefix, it initializes and stores a new cache
-     * with an expiration policy of 30 minutes since the last access.
+     * with an expiration policy of 15 minutes since the last access.
      *
      * @param prefix The prefix for which the entry metadata cache is to be retrieved or initialized.
      * @return A LoadingCache instance containing Versionstamp to EntryMetadata mappings for the specified prefix.
@@ -415,7 +415,7 @@ public class Volume {
     private LoadingCache<Versionstamp, EntryMetadata> getEntryMetadataCache(Prefix prefix) {
         return entryMetadataCache.computeIfAbsent(prefix.asLong(), prefixId -> CacheBuilder.
                 newBuilder().
-                expireAfterAccess(30, TimeUnit.MINUTES).
+                expireAfterAccess(EntryMetadataCacheLoader.EXPIRE_AFTER_ACCESS).
                 build(new EntryMetadataCacheLoader(context, subspace, prefix))
         );
     }

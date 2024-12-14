@@ -22,8 +22,10 @@ import com.kronotop.Context;
 
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 
 class EntryMetadataCacheLoader extends CacheLoader<Versionstamp, EntryMetadata> {
+    public static Duration EXPIRE_AFTER_ACCESS = Duration.ofMinutes(15);
     private final Context context;
     private final VolumeSubspace subspace;
     private final Prefix prefix;
