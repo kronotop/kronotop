@@ -69,6 +69,14 @@ public class EntryMetadataCache {
         });
     }
 
+    /**
+     * Retrieves the Versionstamp associated with the given cache key for a specific prefix.
+     * This method searches within the reverse mapping to find the corresponding Versionstamp.
+     *
+     * @param prefix the Prefix used to identify the cache entry.
+     * @param cacheKey the key used to locate the Versionstamp within the reverse mapping.
+     * @return the Versionstamp associated with the cacheKey for the given prefix, or null if no match is found.
+     */
     public Versionstamp getVersionstampedKey(Prefix prefix, long cacheKey) {
         ConcurrentHashMap<Long, Versionstamp> r = reverse.get(prefix.asLong());
         if (r == null) {
