@@ -68,28 +68,10 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         return new Volume(context, standbyVolumeConfig);
     }
 
-    private Replication newReplication(VolumeConfig standbyVolumeConfig) {
-        config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
-        slotId = ReplicationMetadata.newReplication(context, config);
-        return new Replication(context, slotId, config);
-    }
-
-    private Replication newReplication2(Context instanceContext, VolumeConfig standbyVolumeConfig) {
+    private Replication newReplication(Context instanceContext, VolumeConfig standbyVolumeConfig) {
         config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
         slotId = ReplicationMetadata.newReplication(instanceContext, config);
         return new Replication(instanceContext, slotId, config);
-    }
-
-    private Versionstamp[] appendKeys(int number) throws IOException {
-        ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(number);
-        try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
-            AppendResult result = volume.append(session, entries);
-            tr.commit().join();
-
-            LOGGER.info("Successfully appended {} keys", number);
-            return result.getVersionstampedKeys();
-        }
     }
 
     private boolean checkAppendedEntries(Versionstamp[] versionstampedKeys, Volume standbyVolume) throws IOException {
@@ -133,7 +115,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Start a standby
         Volume standbyVolume = standbyVolume();
-        Replication replication = newReplication(standbyVolume.getConfig());
+        Replication replication = newReplication(context, standbyVolume.getConfig());
         try {
             replication.start();
 
@@ -163,7 +145,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Start a standby
         Volume standbyVolume = standbyVolume();
-        Replication replication = newReplication(standbyVolume.getConfig());
+        Replication replication = newReplication(context, standbyVolume.getConfig());
 
         try {
             replication.start();
@@ -220,7 +202,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         Volume standbyVolume = standbyVolume();
 
         {
-            Replication replication = newReplication(standbyVolume.getConfig());
+            Replication replication = newReplication(context, standbyVolume.getConfig());
             try {
                 replication.start();
 
@@ -269,7 +251,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     @Test
     public void first_start_replication_then_stop() throws IOException {
         Volume standbyVolume = standbyVolume();
-        Replication replication = newReplication(standbyVolume.getConfig());
+        Replication replication = newReplication(context, standbyVolume.getConfig());
 
         replication.start();
         await().atMost(Duration.ofSeconds(5)).until(this::isActive);
@@ -299,7 +281,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         VolumeService volumeService = secondInstance.getContext().getService(VolumeService.NAME);
         Volume standbyVolume = volumeService.newVolume(standbyVolumeConfig);
 
-        Replication replication = newReplication2(secondInstance.getContext(), standbyVolume.getConfig());
+        Replication replication = newReplication(secondInstance.getContext(), standbyVolume.getConfig());
         try {
             replication.start();
 
