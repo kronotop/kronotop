@@ -262,8 +262,8 @@ public class Volume {
      * @param kind          the kind of operation being logged.
      * @param entryMetadata metadata of the entry being appended to the segment.
      */
-    private void appendSegmentLog(Session session, OperationKind kind, EntryMetadata entryMetadata) {
-        appendSegmentLog(session.transaction(), kind, session.getAndIncrementUserVersion(), session.prefix().asLong(), entryMetadata);
+    private void appendSegmentLog(Session session, OperationKind kind, Versionstamp versionstamp, EntryMetadata entryMetadata) {
+        appendSegmentLog(session.transaction(), kind, versionstamp, session.getAndIncrementUserVersion(), session.prefix().asLong(), entryMetadata);
     }
 
     /**
@@ -275,7 +275,7 @@ public class Volume {
      * @param entryMetadata metadata of the entry being appended, which includes segment, position, and length information.
      * @throws IllegalStateException if the segment specified in the entry metadata cannot be found.
      */
-    private void appendSegmentLog(Transaction tr, OperationKind kind, int userVersion, long prefix, EntryMetadata entryMetadata) {
+    private void appendSegmentLog(Transaction tr, OperationKind kind, Versionstamp versionstamp, int userVersion, long prefix, EntryMetadata entryMetadata) {
         segmentsLock.readLock().lock();
         try {
             SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
@@ -283,7 +283,7 @@ public class Volume {
                 throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
             }
             SegmentLogValue value = new SegmentLogValue(kind, prefix, entryMetadata.position(), entryMetadata.length());
-            segmentContainer.log().append(tr, userVersion, value);
+            segmentContainer.log().append(tr, versionstamp, userVersion, value);
         } finally {
             segmentsLock.readLock().unlock();
         }
@@ -319,7 +319,9 @@ public class Volume {
             segmentContainer.metadata().increaseCardinalityByOne(session);
             segmentContainer.metadata().increaseUsedBytes(session, entryMetadata.length());
 
-            appendSegmentLog(tr, OperationKind.APPEND, userVersion, session.prefix().asLong(), entryMetadata);
+            // Passing versionstamp as null because we don't have any key for this entry for now.
+            // It will be automatically filled by FDB during the commit. It'll be the same versionstamp with entry's key.
+            appendSegmentLog(tr, OperationKind.APPEND, null, userVersion, session.prefix().asLong(), entryMetadata);
             triggerStreamingSubscribers(tr);
         }
         return tr.getVersionstamp();
@@ -522,7 +524,7 @@ public class Volume {
             segmentContainer.metadata().decreaseCardinalityByOne(session);
             segmentContainer.metadata().increaseUsedBytes(session, -1 * entryMetadata.length());
 
-            appendSegmentLog(session, OperationKind.DELETE, entryMetadata);
+            appendSegmentLog(session, OperationKind.DELETE, key, entryMetadata);
             triggerStreamingSubscribers(tr);
 
             result.add(index, key);
@@ -576,8 +578,8 @@ public class Volume {
             tr.clear(subspace.packEntryMetadataKey(encodedPrevEntryMetadata));
             tr.set(packedKey, entryMetadata.encode().array());
 
-            appendSegmentLog(session, OperationKind.DELETE, prevEntryMetadata);
-            appendSegmentLog(session, OperationKind.APPEND, entryMetadata);
+            appendSegmentLog(session, OperationKind.DELETE, key, prevEntryMetadata);
+            appendSegmentLog(session, OperationKind.APPEND, key, entryMetadata);
             triggerStreamingSubscribers(tr);
 
             index++;
