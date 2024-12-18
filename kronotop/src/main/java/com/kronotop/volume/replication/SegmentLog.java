@@ -94,46 +94,27 @@ public class SegmentLog {
      * @param value        The log entry value that will be encoded and appended to the segment log.
      */
     private void append_internal(Transaction tr, Versionstamp versionstamp, int userVersion, SegmentLogValue value) {
-        Tuple preKey = Tuple.from(
-                SEGMENT_LOG_SUBSPACE,
-                segmentName,
-                Versionstamp.incomplete(userVersion),
-                Instant.now().toEpochMilli()
-        );
-        byte[] key = subspace.packWithVersionstamp(preKey);
+        byte[] key;
+        if (versionstamp == null) {
+            Tuple preKey = Tuple.from(
+                    SEGMENT_LOG_SUBSPACE,
+                    segmentName,
+                    Versionstamp.incomplete(userVersion),
+                    Instant.now().toEpochMilli()
+            );
+            key = subspace.packWithVersionstamp(preKey);
+        } else {
+            Tuple preKey = Tuple.from(
+                    SEGMENT_LOG_SUBSPACE,
+                    segmentName,
+                    Versionstamp.incomplete(userVersion),
+                    versionstamp,
+                    Instant.now().toEpochMilli()
+            );
+            key = subspace.packWithVersionstamp(preKey);
+        }
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value.encode().array());
         tr.mutate(MutationType.ADD, cardinalityKey, CARDINALITY_INCREASE_DELTA);
-
-        updateSecondaryIndex(tr, versionstamp, userVersion, value);
-    }
-
-    /**
-     * Updates the secondary index for a segment log entry using the provided transaction,
-     * versionstamp, user version, and log value.
-     *
-     * @param tr           The transaction used for this operation.
-     * @param versionstamp The versionstamp associated with the log entry. If null, an incomplete
-     *                     versionstamp is used and the secondary index key will be set accordingly.
-     * @param userVersion  The user-defined version to associate with the log entry.
-     * @param value        The log entry value containing metadata used to construct the secondary index key.
-     */
-    private void updateSecondaryIndex(Transaction tr, Versionstamp versionstamp, int userVersion, SegmentLogValue value) {
-        List<Object> secondaryIndexKeyItems = new ArrayList<>(Arrays.asList(
-                SEGMENT_LOG_SECONDARY_INDEX_SUBSPACE,
-                segmentName,
-                value.position()
-        ));
-
-        if (versionstamp == null) {
-            secondaryIndexKeyItems.add(Versionstamp.incomplete(userVersion));
-            byte[] secondaryIndexKey = subspace.packWithVersionstamp(Tuple.from(secondaryIndexKeyItems));
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, secondaryIndexKey, NULL_BYTES);
-            return;
-        }
-
-        secondaryIndexKeyItems.add(versionstamp);
-        byte[] secondaryIndexKey = subspace.pack(Tuple.from(secondaryIndexKeyItems));
-        tr.set(secondaryIndexKey, NULL_BYTES);
     }
 
     /**

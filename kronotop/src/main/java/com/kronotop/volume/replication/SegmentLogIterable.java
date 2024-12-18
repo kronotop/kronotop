@@ -121,13 +121,16 @@ public class SegmentLogIterable implements Iterable<SegmentLogEntry> {
             KeyValue keyValue = asyncIterator.next();
             Tuple unpacked = subspace.unpack(keyValue.getKey());
             Versionstamp key = (Versionstamp) unpacked.get(2);
-            long timestamp = 0;
-            try {
+            long timestamp;
+            Versionstamp entryKey;
+            if (unpacked.size() == 5) {
+                entryKey = (Versionstamp) unpacked.get(3);
+                timestamp = (long) unpacked.get(4);
+            } else {
+                entryKey = key;
                 timestamp = (long) unpacked.get(3);
-            } catch (IndexOutOfBoundsException e) {
-                // TODO: CLUSTER-REFACTOR, remove this
             }
-            return new SegmentLogEntry(key, timestamp, SegmentLogValue.decode(ByteBuffer.wrap(keyValue.getValue())));
+            return new SegmentLogEntry(key, entryKey, timestamp, SegmentLogValue.decode(ByteBuffer.wrap(keyValue.getValue())));
         }
     }
 }

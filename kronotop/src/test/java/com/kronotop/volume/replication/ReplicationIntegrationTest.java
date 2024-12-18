@@ -16,7 +16,10 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
@@ -34,6 +37,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -83,6 +87,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
                     return false;
                 }
                 ByteBuffer replicaBuf = standbyVolume.get(session, versionstampedKey);
+                System.out.println(Arrays.toString(replicaBuf.array()));
                 if (!Arrays.equals(buf.array(), replicaBuf.array())) {
                     return false;
                 }

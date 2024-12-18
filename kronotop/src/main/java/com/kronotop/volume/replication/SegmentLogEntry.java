@@ -18,5 +18,5 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 
-public record SegmentLogEntry(Versionstamp key, long timestamp, SegmentLogValue value) {
+public record SegmentLogEntry(Versionstamp key, Versionstamp entryKey, long timestamp, SegmentLogValue value) {
 }

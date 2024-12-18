@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -160,7 +161,6 @@ public class ReplicationStageRunner {
         for (SegmentLogEntry entry : entries) {
             Prefix prefix = Prefix.fromLong(entry.value().prefix());
             invalidateEntryMetadataCache(prefix, segmentName, entry.value().position());
-
             if (entry.value().kind().equals(OperationKind.APPEND) || entry.value().kind().equals(OperationKind.VACUUM)) {
                 // Do not need to fetch the deleted entry, OperationKind.Delete should be
                 // used for the vacuuming process.
