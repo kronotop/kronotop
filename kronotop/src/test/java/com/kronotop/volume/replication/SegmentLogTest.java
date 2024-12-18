@@ -27,9 +27,11 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static com.kronotop.volume.Subspaces.SEGMENT_LOG_SECONDARY_INDEX_SUBSPACE;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SegmentLogTest extends BaseVolumeIntegrationTest {
@@ -44,6 +46,35 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
             SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, prefix.asLong(), 0, 100);
             assertDoesNotThrow(() -> segmentLog.append(tr, 0, entry));
             tr.commit().join();
+        }
+    }
+
+    @Test
+    public void test_secondary_index() throws IOException {
+        SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
+        Segment segment = new Segment(segmentConfig);
+        SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
+
+        Versionstamp versionstamp;
+        try (Transaction tr = database.createTransaction()) {
+            SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, prefix.asLong(), 0, 100);
+            segmentLog.append(tr, 0, entry);
+            CompletableFuture<byte[]> future = tr.getVersionstamp();
+            tr.commit().join();
+            byte[] trVersion = future.join();
+            versionstamp = Versionstamp.complete(trVersion);
+        }
+
+        try (Transaction tr = database.createTransaction()) {
+            List<Object> secondaryIndexKeyItems = new ArrayList<>(Arrays.asList(
+                    SEGMENT_LOG_SECONDARY_INDEX_SUBSPACE,
+                    segment.getName(),
+                    0,
+                    versionstamp
+            ));
+            byte[] value = tr.get(volume.getConfig().subspace().pack(secondaryIndexKeyItems)).join();
+            assertNotNull(value);
+            assertArrayEquals(SegmentLog.NULL_BYTES, value);
         }
     }
 
