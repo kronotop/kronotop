@@ -104,6 +104,12 @@ public class ReplicationStageRunner {
 
         FetchSegmentRangeResult result = fetchSegmentRange(segment.getName(), segmentLogEntries);
         insertSegmentRange(segment, result);
+
+        // Invalidate the cache for fetched entries.
+        for (SegmentLogEntry entry : segmentLogEntries) {
+            invalidateEntryMetadataCacheEntry(entry);
+        }
+
         return new IterationResult(segmentLogEntries.getLast().key(), segmentLogEntries.size());
     }
 
@@ -154,7 +160,6 @@ public class ReplicationStageRunner {
     protected FetchSegmentRangeResult fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
         int size = 0;
         for (SegmentLogEntry entry : entries) {
-            invalidateEntryMetadataCacheEntry(entry);
             if (entry.value().kind().equals(OperationKind.APPEND) || entry.value().kind().equals(OperationKind.VACUUM)) {
                 // Do not need to fetch the deleted entry, OperationKind.Delete should be
                 // used for the vacuuming process.
