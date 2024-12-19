@@ -28,11 +28,9 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
-import static com.kronotop.volume.Subspaces.*;
+import static com.kronotop.volume.Subspaces.SEGMENT_LOG_CARDINALITY_SUBSPACE;
+import static com.kronotop.volume.Subspaces.SEGMENT_LOG_SUBSPACE;
 
 /**
  * The SegmentLog class represents a log specific to a segment, allowing for the

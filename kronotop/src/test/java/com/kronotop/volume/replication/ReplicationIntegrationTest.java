@@ -308,8 +308,6 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
                 updateResult.complete();
             }
 
-            // Invalidate the entry metadata cache to prevent reading stale data.
-            //standbyVolume.invalidateEntryMetadataCache(prefix);
             {
                 Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
                 await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));

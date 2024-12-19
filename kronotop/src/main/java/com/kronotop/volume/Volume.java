@@ -21,7 +21,6 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
 import com.kronotop.volume.handlers.PackedEntry;
@@ -45,7 +44,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static com.google.common.hash.Hashing.sipHash24;
 import static com.kronotop.volume.EntryMetadata.*;
 import static com.kronotop.volume.Subspaces.*;
 import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
@@ -887,22 +885,12 @@ public class Volume {
     }
 
     /**
-     * Invalidates the entry metadata cache for a specific entry identified by the prefix, segment name, and position.
+     * Invalidates the entry metadata cache for a specific key within a given prefix.
      *
-     * @param prefix The prefix used for identifying the cache namespace.
-     * @param segmentName The name of the segment associated with the cache entry to be invalidated.
-     * @param position The position value used to compute the cache key for the entry.
+     * @param prefix The prefix associated with the cache to be invalidated.
+     * @param key The specific key within the given prefix whose metadata cache should be invalidated.
      */
-    public void invalidateEntryMetadataCache(Prefix prefix, String segmentName, long position) {
-        long cacheKey = EntryMetadata.cacheKey(segmentName, position);
-        Versionstamp key = entryMetadataCache.getVersionstampedKey(prefix, cacheKey);
-        if (key == null) {
-            return;
-        }
-        LoadingCache<Versionstamp, EntryMetadata> loadingCache = entryMetadataCache.load(prefix);
-        if (loadingCache == null) {
-            return;
-        }
-        loadingCache.invalidate(key);
+    public void invalidateEntryMetadataCacheEntry(Prefix prefix, Versionstamp key) {
+        entryMetadataCache.load(prefix).invalidate(key);
     }
 }

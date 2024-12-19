@@ -24,7 +24,6 @@ import com.kronotop.Context;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.redis.storage.RedisShard;
 import com.typesafe.config.Config;
 
 import java.nio.file.Path;

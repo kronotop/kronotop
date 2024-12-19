@@ -43,9 +43,8 @@ public class EntryMetadataCache {
     private final Context context;
     private final VolumeSubspace subspace;
     private final ConcurrentHashMap<Long, LoadingCache<Versionstamp, EntryMetadata>> cache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, ConcurrentHashMap<Long, Versionstamp>> reverse = new ConcurrentHashMap<>();
 
-    public EntryMetadataCache(@Nonnull Context context, @Nonnull  VolumeSubspace subspace) {
+    public EntryMetadataCache(@Nonnull Context context, @Nonnull VolumeSubspace subspace) {
         this.context = context;
         this.subspace = subspace;
     }
@@ -59,30 +58,10 @@ public class EntryMetadataCache {
      * @return a {@link LoadingCache} instance mapped to the given {@link Prefix}.
      */
     public LoadingCache<Versionstamp, EntryMetadata> load(Prefix prefix) {
-        return cache.computeIfAbsent(prefix.asLong(), prefixId -> {
-            ConcurrentHashMap<Long, Versionstamp> r = reverse.computeIfAbsent(prefixId, id -> new ConcurrentHashMap<>());
-            return CacheBuilder.
-                    newBuilder().
-                    expireAfterAccess(EntryMetadataCacheLoader.EXPIRE_AFTER_ACCESS).
-                    removalListener(new EntryMetadataCacheRemovalListener(r)).
-                    build(new EntryMetadataCacheLoader(context, subspace, prefix, r));
-        });
-    }
-
-    /**
-     * Retrieves the Versionstamp associated with the given cache key for a specific prefix.
-     * This method searches within the reverse mapping to find the corresponding Versionstamp.
-     *
-     * @param prefix the Prefix used to identify the cache entry.
-     * @param cacheKey the key used to locate the Versionstamp within the reverse mapping.
-     * @return the Versionstamp associated with the cacheKey for the given prefix, or null if no match is found.
-     */
-    public Versionstamp getVersionstampedKey(Prefix prefix, long cacheKey) {
-        ConcurrentHashMap<Long, Versionstamp> r = reverse.get(prefix.asLong());
-        if (r == null) {
-            return null;
-        }
-        return r.get(cacheKey);
+        return cache.computeIfAbsent(prefix.asLong(), prefixId -> CacheBuilder.
+                newBuilder().
+                expireAfterAccess(EntryMetadataCacheLoader.EXPIRE_AFTER_ACCESS).
+                build(new EntryMetadataCacheLoader(context, subspace, prefix)));
     }
 }
 

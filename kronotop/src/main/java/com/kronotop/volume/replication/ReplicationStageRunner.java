@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -47,9 +46,8 @@ public class ReplicationStageRunner {
     protected final VolumeConfig volumeConfig;
     protected final ReplicationClient client;
     protected final HashMap<Long, Segment> openSegments = new HashMap<>();
-    protected Versionstamp slotId;
-
     private final VolumeService volumeService;
+    protected Versionstamp slotId;
     private volatile boolean stopped = false;
 
     public ReplicationStageRunner(Context context, ReplicationContext replicationContext) {
@@ -128,20 +126,17 @@ public class ReplicationStageRunner {
     }
 
     /**
-     * Invalidates the entry metadata cache for a specific segment at the provided position.
-     * This method interacts with the volume service to clear the cache for the given prefix,
-     * segment name, and position.
-     * <p>
-     * Exceptions related to closed or unopened volumes are ignored.
+     * Invalidates the metadata cache for a specific segment log entry. The method resolves
+     * the prefix associated with the entry and retrieves the corresponding volume instance
+     * before invalidating the entry's metadata in the cache.
      *
-     * @param prefix      The prefix identifying the entry whose metadata cache is to be invalidated.
-     * @param segmentName The name of the segment associated with the entry.
-     * @param position    The position within the segment for which the cache invalidation is applied.
+     * @param entry the segment log entry containing the key and prefix information
      */
-    private void invalidateEntryMetadataCache(Prefix prefix, String segmentName, long position) {
+    private void invalidateEntryMetadataCacheEntry(SegmentLogEntry entry) {
         try {
+            Prefix prefix = Prefix.fromLong(entry.value().prefix());
             Volume volume = volumeService.findVolume(config.volumeConfig().name());
-            volume.invalidateEntryMetadataCache(prefix, segmentName, position);
+            volume.invalidateEntryMetadataCacheEntry(prefix, entry.entryKey());
         } catch (ClosedVolumeException | VolumeNotOpenException e) {
             // We can ignore these exceptions
         }
@@ -159,8 +154,7 @@ public class ReplicationStageRunner {
     protected FetchSegmentRangeResult fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
         int size = 0;
         for (SegmentLogEntry entry : entries) {
-            Prefix prefix = Prefix.fromLong(entry.value().prefix());
-            invalidateEntryMetadataCache(prefix, segmentName, entry.value().position());
+            invalidateEntryMetadataCacheEntry(entry);
             if (entry.value().kind().equals(OperationKind.APPEND) || entry.value().kind().equals(OperationKind.VACUUM)) {
                 // Do not need to fetch the deleted entry, OperationKind.Delete should be
                 // used for the vacuuming process.
