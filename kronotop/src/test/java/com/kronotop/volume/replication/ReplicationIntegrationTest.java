@@ -87,7 +87,6 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
                     return false;
                 }
                 ByteBuffer replicaBuf = standbyVolume.get(session, versionstampedKey);
-                System.out.println(Arrays.toString(replicaBuf.array()));
                 if (!Arrays.equals(buf.array(), replicaBuf.array())) {
                     return false;
                 }
