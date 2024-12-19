@@ -38,6 +38,7 @@ import static com.kronotop.volume.Subspaces.SEGMENT_LOG_SUBSPACE;
  * subspace using FoundationDB transactions.
  */
 public class SegmentLog {
+    protected static final byte[] NULL_BYTES = new byte[]{};
     private static final byte[] CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private final String segmentName;
     private final DirectorySubspace subspace;
@@ -65,13 +66,51 @@ public class SegmentLog {
      * @param value       The log entry value to be encoded and appended.
      */
     public void append(Transaction tr, int userVersion, SegmentLogValue value) {
-        Tuple preKey = Tuple.from(
-                SEGMENT_LOG_SUBSPACE,
-                segmentName,
-                Versionstamp.incomplete(userVersion),
-                Instant.now().toEpochMilli()
-        );
-        byte[] key = subspace.packWithVersionstamp(preKey);
+        append_internal(tr, null, userVersion, value);
+    }
+
+    /**
+     * Appends a new log entry to the segment log with the given versionstamp.
+     *
+     * @param tr           The transaction to use for this operation.
+     * @param versionstamp The versionstamp to associate with this log entry.
+     * @param userVersion  The user version to associate with this log entry.
+     * @param value        The log entry value to be encoded and appended.
+     */
+    public void append(Transaction tr, Versionstamp versionstamp, int userVersion, SegmentLogValue value) {
+        append_internal(tr, versionstamp, userVersion, value);
+    }
+
+    /**
+     * Appends a log entry to the segment log with the provided transaction, versionstamp,
+     * user version, and log value. This method internally updates the log entry,
+     * manages the cardinality, and updates the secondary index.
+     *
+     * @param tr           The transaction used for this operation.
+     * @param versionstamp The versionstamp associated with the log entry.
+     * @param userVersion  The user-defined version to associate with the log entry.
+     * @param value        The log entry value that will be encoded and appended to the segment log.
+     */
+    private void append_internal(Transaction tr, Versionstamp versionstamp, int userVersion, SegmentLogValue value) {
+        byte[] key;
+        if (versionstamp == null) {
+            Tuple preKey = Tuple.from(
+                    SEGMENT_LOG_SUBSPACE,
+                    segmentName,
+                    Versionstamp.incomplete(userVersion),
+                    Instant.now().toEpochMilli()
+            );
+            key = subspace.packWithVersionstamp(preKey);
+        } else {
+            Tuple preKey = Tuple.from(
+                    SEGMENT_LOG_SUBSPACE,
+                    segmentName,
+                    Versionstamp.incomplete(userVersion),
+                    versionstamp,
+                    Instant.now().toEpochMilli()
+            );
+            key = subspace.packWithVersionstamp(preKey);
+        }
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value.encode().array());
         tr.mutate(MutationType.ADD, cardinalityKey, CARDINALITY_INCREASE_DELTA);
     }

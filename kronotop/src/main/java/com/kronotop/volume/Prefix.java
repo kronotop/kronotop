@@ -47,6 +47,11 @@ public class Prefix {
         return new Prefix(hashCode);
     }
 
+    public static Prefix fromLong(long hash) {
+        HashCode hashCode = HashCode.fromLong(hash);
+        return new Prefix(hashCode);
+    }
+
     public long asLong() {
         return asLong;
     }

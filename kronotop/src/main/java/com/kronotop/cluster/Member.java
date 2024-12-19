@@ -52,8 +52,8 @@ public class Member {
             @Nonnull Address internalAddress,
             @Nonnull Versionstamp processId
     ) {
-        if (id.isEmpty() || id.isBlank()) {
-            throw new IllegalArgumentException("id cannot be blank or empty");
+        if (id.isBlank()) {
+            throw new IllegalArgumentException("id cannot be blank");
         }
         this.id = id;
         this.externalAddress = externalAddress;

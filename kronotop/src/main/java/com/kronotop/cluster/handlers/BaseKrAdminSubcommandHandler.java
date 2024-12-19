@@ -21,10 +21,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.VersionstampUtils;
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.MemberStatus;
-import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.MembershipUtils;
+import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
@@ -187,24 +184,24 @@ public class BaseKrAdminSubcommandHandler {
     }
 
     /**
-     * Reads the member ID from the given ByteBuf. The method attempts to interpret the member ID
-     * either as a prefix or a complete UUID. If the member ID length is 8, it searches for a member
-     * whose ID starts with the given prefix. If the member ID length is not 8, it validates it as a UUID.
+     * Reads and validates a member ID from the provided ByteBuf.
+     * If the member ID length is 4, it attempts to resolve the full ID by finding a matching member prefix.
+     * If the member ID length is not 4, it validates the ID.
      *
-     * @param memberIdBuf the ByteBuf containing the raw bytes of the member ID
-     * @return the complete member ID as a string
-     * @throws KronotopException if the member ID is invalid, or if no unique member is found with the given prefix
+     * @param memberIdBuf the ByteBuf containing the raw bytes of the member ID to be read
+     * @return the resolved or validated member ID as a string
+     * @throws KronotopException if the member ID is invalid or no member can be resolved with the prefix
      */
     protected String readMemberId(ByteBuf memberIdBuf) {
         String memberId = readAsString(memberIdBuf);
-        if (memberId.length() == 8) {
+        if (memberId.length() == 4) {
             Member member = findMemberWithPrefix(memberId);
             return member.getId();
         }
-        try {
-            // Validate the member id.
-            return UUID.fromString(memberId).toString();
-        } catch (IllegalArgumentException e) {
+        // Validate the member id.
+        if (MemberIdGenerator.validateId(memberId)) {
+            return memberId;
+        } else {
             throw new KronotopException("Invalid memberId: " + memberId);
         }
     }

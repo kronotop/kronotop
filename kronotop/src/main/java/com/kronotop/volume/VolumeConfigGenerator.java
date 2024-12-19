@@ -89,6 +89,10 @@ public class VolumeConfigGenerator {
         }
     }
 
+    private String volumeName(ShardKind shardKind, int shardId) {
+        return String.format("%s-shard-%d", shardKind, shardId);
+    }
+
     /**
      * Generates a new VolumeConfig for a Redis shard.
      *
@@ -97,7 +101,7 @@ public class VolumeConfigGenerator {
      * @return a VolumeConfig object containing the configuration details for the Redis shard
      */
     private VolumeConfig newRedisShardVolumeConfig(DirectorySubspace subspace, String dataDir) {
-        String name = String.format("redis-shard-%d", shardId);
+        String name = volumeName(ShardKind.REDIS, shardId);
         Config config = context.getConfig().getConfig("redis.volume_syncer");
         long segmentSize = config.getLong("segment_size");
         float allowedGarbageRatio = (float) config.getDouble("allowed_garbage_ratio");
