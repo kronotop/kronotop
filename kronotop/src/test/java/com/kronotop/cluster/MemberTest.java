@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import java.net.UnknownHostException;
 import java.util.Comparator;
 import java.util.TreeSet;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -68,6 +67,6 @@ public class MemberTest {
     private Member createMember(String addressString) throws UnknownHostException {
         Versionstamp processId = processIdGenerator.getProcessID();
         Address address = Address.parseString(addressString);
-        return new Member(UUID.randomUUID().toString(), address, address, processId);
+        return new Member(MemberIdGenerator.generateId(), address, address, processId);
     }
 }

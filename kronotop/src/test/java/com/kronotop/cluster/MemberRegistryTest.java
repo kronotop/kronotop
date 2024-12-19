@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
 import java.util.TreeSet;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -62,7 +61,7 @@ public class MemberRegistryTest extends BaseMetadataStoreTest {
     @Test
     public void test_isAdded_false() {
         MemberRegistry members = new MemberRegistry(context);
-        assertFalse(members.isAdded(UUID.randomUUID().toString()));
+        assertFalse(members.isAdded(MemberIdGenerator.generateId()));
     }
 
     @Test
@@ -95,7 +94,7 @@ public class MemberRegistryTest extends BaseMetadataStoreTest {
     @Test
     public void test_findMember_MemberNotRegisteredException() {
         MemberRegistry registry = new MemberRegistry(context);
-        assertThrows(MemberNotRegisteredException.class, () -> registry.findMember(UUID.randomUUID().toString()));
+        assertThrows(MemberNotRegisteredException.class, () -> registry.findMember(MemberIdGenerator.generateId()));
     }
 
     @Test

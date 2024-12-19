@@ -16,15 +16,13 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
 import com.kronotop.cluster.client.protocol.SegmentRange;
-import com.kronotop.volume.NotEnoughSpaceException;
-import com.kronotop.volume.OperationKind;
-import com.kronotop.volume.VersionstampedKeySelector;
-import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.*;
 import com.kronotop.volume.segment.Segment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 
 /**
  * Class responsible for managing and executing replication stages for segments.
@@ -49,6 +48,7 @@ public class ReplicationStageRunner {
     protected final VolumeConfig volumeConfig;
     protected final ReplicationClient client;
     protected final HashMap<Long, Segment> openSegments = new HashMap<>();
+    private final VolumeService volumeService;
     protected Versionstamp slotId;
     private volatile boolean stopped = false;
 
@@ -58,6 +58,8 @@ public class ReplicationStageRunner {
         this.volumeConfig = replicationContext.volumeConfig();
         this.client = replicationContext.client();
         this.slotId = replicationContext.slotId();
+
+        this.volumeService = context.getService(VolumeService.NAME);
     }
 
     protected ReplicationSlot loadReplicationSlot() {
@@ -102,38 +104,62 @@ public class ReplicationStageRunner {
             return new IterationResult(null, 0);
         }
 
-        List<Object> dataRanges = fetchSegmentRange(segment.getName(), segmentLogEntries);
-        insertSegmentRange(segment, segmentLogEntries, dataRanges);
+        FetchSegmentRangeResult result = fetchSegmentRange(segment.getName(), segmentLogEntries);
+        insertSegmentRange(segment, result);
+
+        // Invalidate the cache for fetched entries.
+        for (SegmentLogEntry entry : segmentLogEntries) {
+            invalidateEntryMetadataCacheEntry(entry);
+        }
+
         return new IterationResult(segmentLogEntries.getLast().key(), segmentLogEntries.size());
     }
 
     /**
-     * Inserts a range of data into the specified segment based on the given log entries.
+     * Inserts a range of segments into the specified segment using the data and position
+     * information provided in the FetchSegmentRangeResult object.
      *
-     * @param segment   The segment into which the data will be inserted.
-     * @param entries   The list of log entries that describe how the data should be inserted.
-     * @param dataRange The list of data objects to be inserted into the segment.
-     * @throws IOException             If an I/O error occurs during the insert operation.
-     * @throws NotEnoughSpaceException If there is not enough space in the segment to insert the data.
+     * @param segment The target segment into which the data ranges are to be inserted.
+     * @param result  The result object containing the segment ranges and associated data to insert.
+     * @throws IOException             If an I/O error occurs during the operation.
+     * @throws NotEnoughSpaceException If there is insufficient space to insert the data.
      */
-    protected void insertSegmentRange(Segment segment, List<SegmentLogEntry> entries, List<Object> dataRange) throws IOException, NotEnoughSpaceException {
-        for (int i = 0; i < dataRange.size(); i++) {
-            SegmentLogEntry entry = entries.get(i);
-            byte[] data = (byte[]) dataRange.get(i);
-            segment.insert(ByteBuffer.wrap(data), entry.value().position());
+    protected void insertSegmentRange(Segment segment, FetchSegmentRangeResult result) throws IOException, NotEnoughSpaceException {
+        for (int i = 0; i < result.dataRanges.size(); i++) {
+            SegmentRange entry = result.segmentRanges[i];
+            byte[] data = (byte[]) result.dataRanges.get(i);
+            segment.insert(ByteBuffer.wrap(data), entry.position());
         }
         segment.flush(true);
     }
 
     /**
-     * Fetches the data ranges for a specified segment from the log entries and returns them as a list of objects.
-     * Skips entries marked as DELETE since they are meant for the vacuuming process.
+     * Invalidates the metadata cache for a specific segment log entry. The method resolves
+     * the prefix associated with the entry and retrieves the corresponding volume instance
+     * before invalidating the entry's metadata in the cache.
      *
-     * @param segmentName the name of the segment for which data ranges need to be fetched
-     * @param entries     the list of log entries from which data ranges are to be derived
-     * @return a list of objects representing the fetched data ranges for the specified segment
+     * @param entry the segment log entry containing the key and prefix information
      */
-    protected List<Object> fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
+    private void invalidateEntryMetadataCacheEntry(SegmentLogEntry entry) {
+        try {
+            Prefix prefix = Prefix.fromLong(entry.value().prefix());
+            Volume volume = volumeService.findVolume(config.volumeConfig().name());
+            volume.invalidateEntryMetadataCacheEntry(prefix, entry.entryKey());
+        } catch (ClosedVolumeException | VolumeNotOpenException e) {
+            // We can ignore these exceptions
+        }
+    }
+
+    /**
+     * Fetches the segment range for a given segment name and a list of log entries.
+     * It filters the entries to include only those of type APPEND or VACUUM and constructs segment ranges.
+     * The method retrieves data ranges from the client for these segment ranges and returns the result.
+     *
+     * @param segmentName The name of the segment for which the range is to be fetched.
+     * @param entries     The list of log entries to be processed for determining the segment ranges.
+     * @return A FetchSegmentRangeResult object containing the constructed segment ranges and the associated data ranges.
+     */
+    protected FetchSegmentRangeResult fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
         int size = 0;
         for (SegmentLogEntry entry : entries) {
             if (entry.value().kind().equals(OperationKind.APPEND) || entry.value().kind().equals(OperationKind.VACUUM)) {
@@ -154,7 +180,8 @@ public class ReplicationStageRunner {
             segmentRanges[index] = new SegmentRange(entry.value().position(), entry.value().length());
             index++;
         }
-        return client.connection().sync().segmentrange(volumeConfig.name(), segmentName, segmentRanges);
+        List<Object> dataRanges = client.connection().sync().segmentrange(volumeConfig.name(), segmentName, segmentRanges);
+        return new FetchSegmentRangeResult(segmentRanges, dataRanges);
     }
 
     public void stop() {
@@ -219,6 +246,16 @@ public class ReplicationStageRunner {
                 // Watcher canceled, break the loop.
                 break;
             } catch (Exception e) {
+                if (e instanceof CompletionException completionException) {
+                    if (completionException.getCause() instanceof FDBException fdbException) {
+                        // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                        if (fdbException.getCode() == 1020) {
+                            // retry
+                            continue;
+                        }
+                    }
+                }
+
                 attempts++;
                 String id = ReplicationMetadata.stringifySlotId(slotId);
                 LOGGER.atError().setMessage("Error while running replication, slotId = {}").addArgument(id).setCause(e).log();
@@ -261,6 +298,9 @@ public class ReplicationStageRunner {
 
     protected boolean isStopped() {
         return stopped;
+    }
+
+    protected record FetchSegmentRangeResult(SegmentRange[] segmentRanges, List<Object> dataRanges) {
     }
 
     protected record IterationResult(Versionstamp latestKey, int processedKeys) {

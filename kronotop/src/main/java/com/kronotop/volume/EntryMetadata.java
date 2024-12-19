@@ -18,6 +18,7 @@ package com.kronotop.volume;
 
 import java.nio.ByteBuffer;
 
+import static com.google.common.hash.Hashing.sipHash24;
 import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
 
 /**
@@ -65,6 +66,26 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
     }
 
     /**
+     * Generates a cache key based on the provided segment name and position.
+     * This method uses the SipHash-2-4 algorithm to calculate a hash value
+     * combining the segment name and position, ensuring efficient
+     * and consistent key generation.
+     *
+     * @param segmentName the name of the segment, represented as a string.
+     *                    This is included as part of the key computation.
+     * @param position    the position within the segment, represented as a long.
+     *                    This is also included in the key computation.
+     * @return a long value representing the computed cache key.
+     */
+    @SuppressWarnings("UnstableApiUsage")
+    public static long cacheKey(String segmentName, long position) {
+        return sipHash24().newHasher().
+                putBytes(segmentName.getBytes()).
+                putLong(position).
+                hash().asLong();
+    }
+
+    /**
      * Encodes the current state of the entry metadata into a ByteBuffer. The resulting ByteBuffer
      * contains the segment name, subspace separator, prefix, position, and length in a binary format
      * that is suitable for storage or transmission.
@@ -85,5 +106,9 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
                 put(prefix).
                 putLong(position).
                 putLong(length).flip();
+    }
+
+    public long cacheKey() {
+        return EntryMetadata.cacheKey(segment, position);
     }
 }

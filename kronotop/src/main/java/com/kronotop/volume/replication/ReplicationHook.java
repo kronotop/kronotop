@@ -16,22 +16,7 @@
 
 package com.kronotop.volume.replication;
 
-import com.kronotop.volume.OperationKind;
-import com.kronotop.volume.Prefix;
-import org.junit.jupiter.api.Test;
-
-import java.nio.ByteBuffer;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-class SegmentLogValueTest {
-
-    @Test
-    public void test_SegmentLogValue() {
-        Prefix prefix = new Prefix("some-prefix");
-        SegmentLogValue value = new SegmentLogValue(OperationKind.APPEND, prefix.asLong(), 0, 100);
-        ByteBuffer buffer = value.encode();
-        SegmentLogValue decoded = SegmentLogValue.decode(buffer);
-        assertEquals(value, decoded);
-    }
+@FunctionalInterface
+public interface ReplicationHook {
+    void run();
 }

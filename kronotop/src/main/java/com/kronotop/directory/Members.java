@@ -16,10 +16,10 @@
 
 package com.kronotop.directory;
 
+import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.common.KronotopException;
 
 import java.util.List;
-import java.util.UUID;
 
 public class Members extends KronotopDirectoryNode {
 
@@ -29,10 +29,8 @@ public class Members extends KronotopDirectoryNode {
     }
 
     public Member member(String memberId) {
-        try {
-            UUID.fromString(memberId);
-        } catch (IllegalArgumentException e) {
-            throw new KronotopException("Invalid member ID: " + memberId, e);
+        if (!MemberIdGenerator.validateId(memberId)) {
+            throw new KronotopException("Invalid member ID: " + memberId);
         }
         return new Member(layout, memberId);
     }

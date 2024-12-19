@@ -103,6 +103,8 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         handlerMethod(ServerKind.EXTERNAL, new GetDelHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new AppendHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ExistsHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ReadonlyHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ReadWriteHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new IncrByFloatHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new StrlenHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new SetRangeHandler(this));
@@ -502,8 +504,9 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             int shardId = getHashSlots().get(hashSlot);
             if (currentShardId != null && shardId != currentShardId) {
                 currentRange.setEnd(hashSlot - 1);
-                Member primary = routing.findRoute(ShardKind.REDIS, currentShardId).primary();
-                currentRange.setPrimary(primary);
+                Route route = routing.findRoute(ShardKind.REDIS, currentShardId);
+                currentRange.setPrimary(route.primary());
+                currentRange.setStandbys(route.standbys());
                 currentRange.setShardId(currentShardId);
                 ranges.add(currentRange);
                 currentRange = new SlotRange(hashSlot);
@@ -513,8 +516,9 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
 
         currentRange.setEnd(latestHashSlot);
-        Member primary = routing.findRoute(ShardKind.REDIS, currentShardId).primary();
-        currentRange.setPrimary(primary);
+        Route route = routing.findRoute(ShardKind.REDIS, currentShardId);
+        currentRange.setPrimary(route.primary());
+        currentRange.setStandbys(route.standbys());
         ranges.add(currentRange);
 
         return ranges;

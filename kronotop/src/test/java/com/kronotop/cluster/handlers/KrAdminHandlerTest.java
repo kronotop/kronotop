@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.VersionstampUtils;
+import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
@@ -189,13 +190,15 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     public void test_setMemberStatus_member_not_found() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setMemberStatus("ccd59ec6-41e4-4f31-80ab-941c19238a6a", "RUNNING").encode(buf);
+
+        String memberId = MemberIdGenerator.generateId();
+        cmd.setMemberStatus(memberId, "RUNNING").encode(buf);
 
         channel.writeInbound(buf);
         Object msg = channel.readOutbound();
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Member: ccd59ec6-41e4-4f31-80ab-941c19238a6a not registered", actualMessage.content());
+        assertEquals(String.format("ERR Member: %s not registered", memberId), actualMessage.content());
     }
 
     @Test
@@ -497,13 +500,14 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     public void try_to_set_syncStandby_when_member_not_registered() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
+        String memberId = MemberIdGenerator.generateId();
         ByteBuf buf = Unpooled.buffer();
-        cmd.syncStandby("set", "redis", 1, "f75ea92a-7847-453f-b765-a1b173a2afec").encode(buf);
+        cmd.syncStandby("set", "redis", 1, memberId).encode(buf);
         channel.writeInbound(buf);
         Object msg = channel.readOutbound();
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Member: f75ea92a-7847-453f-b765-a1b173a2afec not registered", actualMessage.content());
+        assertEquals(String.format("ERR Member: %s not registered", memberId), actualMessage.content());
     }
 
     @Test

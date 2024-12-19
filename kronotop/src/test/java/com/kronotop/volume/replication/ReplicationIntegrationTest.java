@@ -18,15 +18,12 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.Context;
+import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.volume.AppendResult;
-import com.kronotop.volume.Session;
-import com.kronotop.volume.Volume;
-import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -44,8 +41,6 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationIntegrationTest.class);
-
     @TempDir
     private Path standbyVolumeDataDir;
 
@@ -69,22 +64,10 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         return new Volume(context, standbyVolumeConfig);
     }
 
-    private Replication newReplication(VolumeConfig standbyVolumeConfig) {
+    private Replication newReplication(Context instanceContext, VolumeConfig standbyVolumeConfig) {
         config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);
-        slotId = ReplicationMetadata.newReplication(context, config);
-        return new Replication(context, slotId, config);
-    }
-
-    private Versionstamp[] appendKeys(int number) throws IOException {
-        ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(number);
-        try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
-            AppendResult result = volume.append(session, entries);
-            tr.commit().join();
-
-            LOGGER.info("Successfully appended {} keys", number);
-            return result.getVersionstampedKeys();
-        }
+        slotId = ReplicationMetadata.newReplication(instanceContext, config);
+        return new Replication(instanceContext, slotId, config);
     }
 
     private boolean checkAppendedEntries(Versionstamp[] versionstampedKeys, Volume standbyVolume) throws IOException {
@@ -128,7 +111,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Start a standby
         Volume standbyVolume = standbyVolume();
-        Replication replication = newReplication(standbyVolume.getConfig());
+        Replication replication = newReplication(context, standbyVolume.getConfig());
         try {
             replication.start();
 
@@ -138,6 +121,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
                 await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
             }
 
+            // Replication is running at the background.
             {
                 versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
                 Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
@@ -157,7 +141,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Start a standby
         Volume standbyVolume = standbyVolume();
-        Replication replication = newReplication(standbyVolume.getConfig());
+        Replication replication = newReplication(context, standbyVolume.getConfig());
 
         try {
             replication.start();
@@ -214,7 +198,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         Volume standbyVolume = standbyVolume();
 
         {
-            Replication replication = newReplication(standbyVolume.getConfig());
+            Replication replication = newReplication(context, standbyVolume.getConfig());
             try {
                 replication.start();
 
@@ -263,12 +247,65 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     @Test
     public void first_start_replication_then_stop() throws IOException {
         Volume standbyVolume = standbyVolume();
-        Replication replication = newReplication(standbyVolume.getConfig());
+        Replication replication = newReplication(context, standbyVolume.getConfig());
 
         replication.start();
         await().atMost(Duration.ofSeconds(5)).until(this::isActive);
 
         replication.stop();
         await().atMost(Duration.ofSeconds(5)).until(() -> !isActive());
+    }
+
+    @Test
+    public void update_entries_while_running_streaming_replication() throws IOException, KeyNotFoundException {
+        Versionstamp[] versionstampedKeys = new Versionstamp[0];
+
+        // Insert some keys to the primary volume
+        versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
+
+        KronotopTestInstance secondInstance = addNewInstance();
+
+        VolumeConfig standbyVolumeConfig = new VolumeConfig(
+                volume.getConfig().subspace(),
+                volume.getConfig().name(),
+                standbyVolumeDataDir.toString(),
+                volume.getConfig().segmentSize(),
+                volume.getConfig().allowedGarbageRatio()
+        );
+
+        // Start a standby
+        VolumeService volumeService = secondInstance.getContext().getService(VolumeService.NAME);
+        Volume standbyVolume = volumeService.newVolume(standbyVolumeConfig);
+
+        Replication replication = newReplication(secondInstance.getContext(), standbyVolume.getConfig());
+        try {
+            replication.start();
+
+            await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
+            {
+                Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
+                await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
+            }
+
+            // Replication is running at the background.
+            KeyEntry[] entries = new KeyEntry[versionstampedKeys.length];
+            try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr, prefix);
+                for (int i = 0; i < versionstampedKeys.length; i++) {
+                    Versionstamp key = versionstampedKeys[i];
+                    entries[i] = new KeyEntry(key, ByteBuffer.wrap(String.format("new-entry-%d", i).getBytes()));
+                }
+                UpdateResult updateResult = volume.update(session, entries);
+                tr.commit().join();
+                updateResult.complete();
+            }
+
+            {
+                Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
+                await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
+            }
+        } finally {
+            replication.stop();
+        }
     }
 }
