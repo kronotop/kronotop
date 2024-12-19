@@ -26,5 +26,4 @@ public class Subspaces {
     public static final byte REPLICATION_SLOT_SUBSPACE = 0x7;
     public static final byte STREAMING_SUBSCRIBERS_SUBSPACE = 0x8;
     public static final byte MEMBER_REPLICATION_SLOT_SUBSPACE = 0x9;
-    public static final byte SEGMENT_LOG_SECONDARY_INDEX_SUBSPACE = 0xA;
 }
