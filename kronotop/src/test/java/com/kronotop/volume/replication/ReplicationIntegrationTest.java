@@ -16,10 +16,7 @@
 
 package com.kronotop.volume.replication;
 
-import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
@@ -27,8 +24,6 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -37,7 +32,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -47,8 +41,6 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationIntegrationTest.class);
-
     @TempDir
     private Path standbyVolumeDataDir;
 

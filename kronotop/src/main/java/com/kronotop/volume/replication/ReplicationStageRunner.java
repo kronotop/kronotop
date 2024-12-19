@@ -16,6 +16,7 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 
 /**
  * Class responsible for managing and executing replication stages for segments.
@@ -244,6 +246,16 @@ public class ReplicationStageRunner {
                 // Watcher canceled, break the loop.
                 break;
             } catch (Exception e) {
+                if (e instanceof CompletionException completionException) {
+                    if (completionException.getCause() instanceof FDBException fdbException) {
+                        // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                        if (fdbException.getCode() == 1020) {
+                            // retry
+                            continue;
+                        }
+                    }
+                }
+
                 attempts++;
                 String id = ReplicationMetadata.stringifySlotId(slotId);
                 LOGGER.atError().setMessage("Error while running replication, slotId = {}").addArgument(id).setCause(e).log();
