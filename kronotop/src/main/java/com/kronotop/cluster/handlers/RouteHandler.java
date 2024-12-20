@@ -19,6 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.JSONUtils;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -27,6 +28,9 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.volume.VolumeConfigGenerator;
+import com.kronotop.volume.replication.ReplicationConfig;
+import com.kronotop.volume.replication.ReplicationMetadata;
 import com.kronotop.volume.replication.ReplicationSlot;
 import io.netty.buffer.ByteBuf;
 
@@ -69,8 +73,13 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
             if (!route.standbys().contains(nextPrimaryOwner)) {
                 throw new IllegalStateException("The next primary owner not an existing standby: " + nextPrimaryOwner.getId());
             }
+
             // Check replication status
-            //ReplicationSlot.load()
+            DirectorySubspace volumeSubspace = new VolumeConfigGenerator(context, parameters.shardKind, parameters.shardId).createOrOpenVolumeSubspace();
+            Versionstamp slotId = ReplicationMetadata.findSlotId(tr, volumeSubspace, parameters.memberId, parameters.shardKind, shardId);
+            if (slotId == null) {
+                throw new IllegalStateException("Replication Slot not found: " + parameters.memberId);
+            }
         }
     }
 
