@@ -533,6 +533,83 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    public void test_getRange_limit() throws IOException {
+        ByteBuffer[] entries = getEntries(10);
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
+        assertEquals(10, versionstampedKeys.length);
+
+        // Retrieves the first 5 keys.
+        int limit = 5;
+        Versionstamp[] retrievedKeys = new Versionstamp[limit];
+        ByteBuffer[] retrievedEntries = new ByteBuffer[limit];
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            int index = 0;
+            Iterable<KeyEntry> iterable = volume.getRange(session, limit);
+            for (KeyEntry keyEntry : iterable) {
+                retrievedKeys[index] = keyEntry.key();
+                retrievedEntries[index] = keyEntry.entry();
+                index++;
+            }
+        }
+
+        assertArrayEquals(Arrays.copyOfRange(versionstampedKeys, 0, limit), retrievedKeys);
+        for (int i = 0; i < limit; i++) {
+            ByteBuffer expected = entries[i];
+            expected.flip();
+            ByteBuffer actual = retrievedEntries[i];
+            assertArrayEquals(expected.array(), actual.array());
+        }
+    }
+
+    @Test
+    public void test_getRange_reverse() throws IOException {
+        ByteBuffer[] entries = getEntries(10);
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
+        assertEquals(10, versionstampedKeys.length);
+
+        // Retrieves the first 5 keys.
+        Versionstamp[] retrievedKeys = new Versionstamp[10];
+        ByteBuffer[] retrievedEntries = new ByteBuffer[10];
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            int index = 0;
+            Iterable<KeyEntry> iterable = volume.getRange(session, true);
+            for (KeyEntry keyEntry : iterable) {
+                retrievedKeys[index] = keyEntry.key();
+                retrievedEntries[index] = keyEntry.entry();
+                index++;
+            }
+        }
+
+        // Reverse keys and entries first.
+        Collections.reverse(Arrays.asList(versionstampedKeys));
+        Collections.reverse(Arrays.asList(entries));
+
+        assertArrayEquals(versionstampedKeys, retrievedKeys);
+        for (int i = 0; i < 10; i++) {
+            ByteBuffer expected = entries[i];
+            expected.flip();
+            ByteBuffer actual = retrievedEntries[i];
+            assertArrayEquals(expected.array(), actual.array());
+        }
+    }
+
+    @Test
     public void test_getRange_random_range() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
