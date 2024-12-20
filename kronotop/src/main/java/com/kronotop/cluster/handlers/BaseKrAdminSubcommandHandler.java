@@ -35,9 +35,11 @@ import java.util.*;
 public class BaseKrAdminSubcommandHandler {
     protected final Context context;
     protected final MembershipService membership;
+    protected final RoutingService routing;
 
     public BaseKrAdminSubcommandHandler(MembershipService membership) {
         this.context = membership.getContext();
+        this.routing = membership.getContext().getService(RoutingService.NAME);
         this.membership = membership;
     }
 

@@ -27,6 +27,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.volume.replication.ReplicationSlot;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -38,12 +39,39 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
     }
 
     private void setPrimaryMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters, int shardId) {
-        //String primaryMemberId = loadPrimaryMemberId(tr, shardSubspace);
-        // Setting the route first time
-        //ShardStatus shardStatus = ShardUtils.getShardStatus(context, tr, parameters.shardKind, shardId);
-        //System.out.println(shardStatus);
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
-        tr.set(key, parameters.memberId.getBytes());
+        String primaryMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
+        if (primaryMemberId == null) {
+            // Setting the route first time
+            byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
+            tr.set(key, parameters.memberId.getBytes());
+            return;
+        }
+
+        // Already have a primary owner. The current status of the primary owner is not the case.
+        Member primaryOwner = membership.findMember(tr, primaryMemberId);
+        if (primaryOwner == null) {
+            throw new IllegalStateException("Primary owner not found: " + primaryMemberId);
+        }
+        if (primaryOwner.getStatus().equals(MemberStatus.RUNNING)) {
+            // Check shard status first
+            ShardStatus shardStatus = ShardUtils.getShardStatus(context, tr, parameters.shardKind, shardId);
+            if (shardStatus.equals(ShardStatus.READWRITE)) {
+                throw new IllegalStateException("Shard status is READWRITE");
+            }
+
+            // ShardStatus: READONLY or INOPERABLE
+            Member nextPrimaryOwner = membership.findMember(tr, parameters.memberId);
+            if (nextPrimaryOwner == null) {
+                throw new IllegalStateException("Next primary owner not found: " + primaryMemberId);
+            }
+            // Load the route
+            Route route = routing.findRoute(parameters.shardKind, shardId);
+            if (!route.standbys().contains(nextPrimaryOwner)) {
+                throw new IllegalStateException("The next primary owner not an existing standby: " + nextPrimaryOwner.getId());
+            }
+            // Check replication status
+            //ReplicationSlot.load()
+        }
     }
 
     private void appendStandbyMemberId(Transaction tr, DirectorySubspace subspace, RouteParameters parameters) {
