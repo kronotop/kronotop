@@ -28,7 +28,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.volume.VolumeConfigGenerator;
+import com.kronotop.volume.*;
 import com.kronotop.volume.replication.ReplicationConfig;
 import com.kronotop.volume.replication.ReplicationMetadata;
 import com.kronotop.volume.replication.ReplicationSlot;
@@ -73,15 +73,6 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
             if (!route.standbys().contains(nextPrimaryOwner)) {
                 throw new IllegalStateException("The next primary owner not an existing standby: " + nextPrimaryOwner.getId());
             }
-
-            // Check replication status
-            DirectorySubspace volumeSubspace = new VolumeConfigGenerator(context, parameters.shardKind, parameters.shardId).createOrOpenVolumeSubspace();
-            Versionstamp slotId = ReplicationMetadata.findSlotId(tr, volumeSubspace, parameters.memberId, parameters.shardKind, shardId);
-            if (slotId == null) {
-                throw new IllegalStateException("Replication Slot not found: " + parameters.memberId);
-            }
-            ReplicationSlot replicationSlot = ReplicationSlot.load(tr, parameters.shardKind, shardId, slotId, volumeSubspace);
-            // TODO: Continue from here
         }
     }
 
