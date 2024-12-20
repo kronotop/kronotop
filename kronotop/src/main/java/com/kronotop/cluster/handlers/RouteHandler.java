@@ -80,6 +80,8 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
             if (slotId == null) {
                 throw new IllegalStateException("Replication Slot not found: " + parameters.memberId);
             }
+            ReplicationSlot replicationSlot = ReplicationSlot.load(tr, parameters.shardKind, shardId, slotId, volumeSubspace);
+            // TODO: Continue from here
         }
     }
 

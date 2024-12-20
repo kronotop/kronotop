@@ -18,10 +18,12 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.kronotop.JSONUtils;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.VolumeMetadata;
 import com.kronotop.volume.segment.Segment;
 
@@ -56,14 +58,18 @@ public class ReplicationSlot {
         return config.volumeConfig().subspace().packWithVersionstamp(tuple);
     }
 
-    private static byte[] slotKey(ReplicationConfig config, Versionstamp slotId) {
+    private static byte[] slotKey(ShardKind shardKind, int shardId, Versionstamp slotId, DirectorySubspace volumeSubspace) {
         Tuple tuple = Tuple.from(
                 REPLICATION_SLOT_SUBSPACE,
-                config.shardKind().name(),
-                config.shardId(),
+                shardKind.name(),
+                shardId,
                 slotId
         );
-        return config.volumeConfig().subspace().pack(tuple);
+        return volumeSubspace.pack(tuple);
+    }
+
+    private static byte[] slotKey(ReplicationConfig config, Versionstamp slotId) {
+        return slotKey(config.shardKind(), config.shardId(), slotId, config.volumeConfig().subspace());
     }
 
     private static Snapshot newSegmentSnapshot(Transaction tr, ReplicationConfig config, long segmentId) {
@@ -108,7 +114,11 @@ public class ReplicationSlot {
     }
 
     public static ReplicationSlot load(Transaction tr, ReplicationConfig config, Versionstamp slotId) {
-        byte[] key = slotKey(config, slotId);
+        return ReplicationSlot.load(tr, config.shardKind(), config.shardId(), slotId, config.volumeConfig().subspace());
+    }
+
+    public static ReplicationSlot load(Transaction tr, ShardKind shardKind, int shardId, Versionstamp slotId, DirectorySubspace volumeSubspace) {
+        byte[] key = slotKey(shardKind, shardId, slotId, volumeSubspace);
         byte[] value = tr.get(key).join();
         if (value == null) {
             throw new ReplicationSlotNotFoundException();
