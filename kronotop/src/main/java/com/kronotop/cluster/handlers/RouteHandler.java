@@ -20,11 +20,9 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.JSONUtils;
-import com.kronotop.cluster.MembershipConstants;
-import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.MembershipUtils;
-import com.kronotop.cluster.RouteKind;
+import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
@@ -39,9 +37,11 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
         super(service);
     }
 
-    private void setPrimaryMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters) {
+    private void setPrimaryMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters, int shardId) {
         //String primaryMemberId = loadPrimaryMemberId(tr, shardSubspace);
         // Setting the route first time
+        //ShardStatus shardStatus = ShardUtils.getShardStatus(context, tr, parameters.shardKind, shardId);
+        //System.out.println(shardStatus);
         byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
         tr.set(key, parameters.memberId.getBytes());
     }
@@ -70,7 +70,7 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
     private void setRouteForShard(Transaction tr, RouteParameters parameters, int shardId) {
         DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, shardId);
         if (parameters.routeKind.equals(RouteKind.PRIMARY)) {
-            setPrimaryMemberId(tr, shardSubspace, parameters);
+            setPrimaryMemberId(tr, shardSubspace, parameters, shardId);
         } else if (parameters.routeKind.equals(RouteKind.STANDBY)) {
             appendStandbyMemberId(tr, shardSubspace, parameters);
         } else {

@@ -562,5 +562,19 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             checkSyncStandbys(cmd, secondInstance.getMember().getId(), shardId);
         }
     }
+
+    @Test
+    public void test_setRoute_PrimaryOwnership() {
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+
+        cmd.route("SET", "PRIMARY", "REDIS", 1, context.getMember().getId()).encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertEquals(Response.OK, actualMessage.content());
+    }
 }
 

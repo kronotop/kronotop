@@ -76,7 +76,7 @@ public class BaseKrAdminSubcommandHandler {
         }
         shard.put(new SimpleStringRedisMessage("sync_standbys"), new ArrayRedisMessage(syncStandbyMessages));
 
-        ShardStatus status = MembershipUtils.loadShardStatus(tr, shardSubspace);
+        ShardStatus status = ShardUtils.getShardStatus(tr, shardSubspace);
         shard.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(status.name()));
 
         return shard;

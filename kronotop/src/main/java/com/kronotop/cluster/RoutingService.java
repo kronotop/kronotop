@@ -156,7 +156,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
 
         try {
             Member primary = membership.findMember(primaryMemberId);
-            ShardStatus shardStatus = MembershipUtils.loadShardStatus(tr, shardSubspace);
+            ShardStatus shardStatus = ShardUtils.getShardStatus(tr, shardSubspace);
 
             Set<String> standbyIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
             Set<Member> standbys = memberIdsToMembers(standbyIds);

@@ -888,7 +888,7 @@ public class Volume {
      * Invalidates the entry metadata cache for a specific key within a given prefix.
      *
      * @param prefix The prefix associated with the cache to be invalidated.
-     * @param key The specific key within the given prefix whose metadata cache should be invalidated.
+     * @param key    The specific key within the given prefix whose metadata cache should be invalidated.
      */
     public void invalidateEntryMetadataCacheEntry(Prefix prefix, Versionstamp key) {
         entryMetadataCache.load(prefix).invalidate(key);

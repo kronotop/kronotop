@@ -42,22 +42,6 @@ public final class MembershipUtils {
     }
 
     /**
-     * Loads the shard status from the specified subspace within a transaction.
-     *
-     * @param tr            The transaction used to read from the database.
-     * @param shardSubspace The specific directory subspace containing the shard status.
-     * @return The shard status as a ShardStatus enum value. If the status is not found, returns ShardStatus.INOPERABLE.
-     */
-    public static ShardStatus loadShardStatus(Transaction tr, DirectorySubspace shardSubspace) {
-        byte[] statusKey = shardSubspace.pack(Tuple.from(MembershipConstants.SHARD_STATUS_KEY));
-        byte[] statusValue = tr.get(statusKey).join();
-        if (statusValue == null) {
-            return ShardStatus.INOPERABLE;
-        }
-        return ShardStatus.valueOf(new String(statusValue).toUpperCase());
-    }
-
-    /**
      * Loads the primary member ID for a shard from the specified subspace within a transaction.
      *
      * @param tr            The transaction used to read from the database.
