@@ -107,11 +107,11 @@ public class ReplicationMetadata {
      * the corresponding value from the given volume subspace in the transaction. If no value is found,
      * the method returns null.
      *
-     * @param tr the transaction in which the lookup is performed.
+     * @param tr             the transaction in which the lookup is performed.
      * @param volumeSubspace the directory subspace representing the volume in which the replication slot exists.
-     * @param memberId the unique identifier for the member for which the replication slot is being searched.
-     * @param shardKind the kind of shard (e.g., REDIS) for which the replication slot is associated.
-     * @param shardId the ID of the shard for which the replication slot is being queried.
+     * @param memberId       the unique identifier for the member for which the replication slot is being searched.
+     * @param shardKind      the kind of shard (e.g., REDIS) for which the replication slot is associated.
+     * @param shardId        the ID of the shard for which the replication slot is being queried.
      * @return the Versionstamp representing the replication slot ID if found, or null if no slot exists.
      */
     public static Versionstamp findSlotId(
