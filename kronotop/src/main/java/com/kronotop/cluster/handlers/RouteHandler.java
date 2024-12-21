@@ -94,7 +94,7 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
         }
 
         // Caught up?
-        if (!Arrays.equals(latestVersionstampedKey.getBytes(), slot.getLatestVersionstampedKey())) {
+        if (!Arrays.equals(latestVersionstampedKey.getBytes(), slot.getReceivedVersionstampedKey())) {
             throw new KronotopException("Primary owner and standby does not match");
         }
 

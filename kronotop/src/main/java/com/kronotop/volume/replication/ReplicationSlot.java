@@ -44,7 +44,7 @@ public class ReplicationSlot {
     private final TreeMap<Long, Snapshot> snapshots = new TreeMap<>();
     private final Set<ReplicationStage> completedStages = new HashSet<>();
     private long latestSegmentId;
-    private byte[] latestVersionstampedKey;
+    private byte[] receivedVersionstampedKey;
     private ReplicationStage replicationStage;
     private boolean active;
 
@@ -234,12 +234,12 @@ public class ReplicationSlot {
         return snapshots;
     }
 
-    public byte[] getLatestVersionstampedKey() {
-        return latestVersionstampedKey;
+    public byte[] getReceivedVersionstampedKey() {
+        return receivedVersionstampedKey;
     }
 
-    public void setLatestVersionstampedKey(byte[] latestVersionstampedKey) {
-        this.latestVersionstampedKey = latestVersionstampedKey;
+    public void setReceivedVersionstampedKey(byte[] receivedVersionstampedKey) {
+        this.receivedVersionstampedKey = receivedVersionstampedKey;
     }
 
     public long getLatestSegmentId() {

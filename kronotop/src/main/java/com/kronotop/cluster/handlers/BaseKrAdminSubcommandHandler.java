@@ -26,6 +26,8 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.server.resp3.*;
+import com.kronotop.volume.VolumeConfigGenerator;
+import com.kronotop.volume.replication.ReplicationMetadata;
 import com.kronotop.volume.replication.ReplicationSlot;
 import com.kronotop.volume.replication.ReplicationStage;
 import io.netty.buffer.ByteBuf;
@@ -315,17 +317,28 @@ public class BaseKrAdminSubcommandHandler {
                 new IntegerRedisMessage(slot.getLatestSegmentId())
         );
 
-        String latestVersionstampedKey = "";
-        if (slot.getLatestVersionstampedKey() != null) {
-            latestVersionstampedKey = VersionstampUtils.base64Encode(
-                    Versionstamp.fromBytes(slot.getLatestVersionstampedKey())
+        String receivedVersionstampedKey = "";
+        if (slot.getReceivedVersionstampedKey() != null) {
+            receivedVersionstampedKey = VersionstampUtils.base64Encode(
+                    Versionstamp.fromBytes(slot.getReceivedVersionstampedKey())
             );
         }
         current.put(
-                new SimpleStringRedisMessage("latest_versionstamped_key"),
-                new SimpleStringRedisMessage(latestVersionstampedKey)
+                new SimpleStringRedisMessage("received_versionstamped_key"),
+                new SimpleStringRedisMessage(receivedVersionstampedKey)
         );
 
+        VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, shardKind, shardId);
+        DirectorySubspace volumeSubspace = volumeConfigGenerator.openVolumeSubspace();
+        Versionstamp latestVersionstampedKey = ReplicationMetadata.findLatestVersionstampedKey(context, volumeSubspace);
+        String latestVersionstampedKeyStr = "";
+        if (latestVersionstampedKey != null) {
+            latestVersionstampedKeyStr = VersionstampUtils.base64Encode(latestVersionstampedKey);
+        }
+        current.put(
+                new SimpleStringRedisMessage("latest_versionstamped_key"),
+                new SimpleStringRedisMessage(latestVersionstampedKeyStr)
+        );
         return current;
     }
 }
