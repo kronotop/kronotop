@@ -54,55 +54,53 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
             return;
         }
 
-        // Already have a primary owner. The current status of the primary owner is not the case.
+        Member nextPrimaryOwner = membership.findMember(tr, parameters.memberId);
+        if (nextPrimaryOwner == null) {
+            throw new IllegalStateException("Member could not be found: " + parameters.memberId);
+        }
+
         Member primaryOwner = membership.findMember(tr, primaryMemberId);
         if (primaryOwner == null) {
-            throw new IllegalStateException("Primary owner not found: " + primaryMemberId);
+            throw new IllegalStateException("Primary shard owner could not be found: " + primaryMemberId);
         }
 
-        if (primaryOwner.getStatus().equals(MemberStatus.RUNNING)) {
-            // Check shard status first
-            ShardStatus shardStatus = ShardUtils.getShardStatus(context, tr, parameters.shardKind, shardId);
-            if (shardStatus.equals(ShardStatus.READWRITE)) {
-                throw new IllegalStateException("Shard status is READWRITE");
-            }
-
-            // ShardStatus: READONLY or INOPERABLE
-            Member nextPrimaryOwner = membership.findMember(tr, parameters.memberId);
-            if (nextPrimaryOwner == null) {
-                throw new IllegalStateException("Next primary owner not found: " + primaryMemberId);
-            }
-
-            // Load the route
-            Route route = routing.findRoute(parameters.shardKind, shardId);
-            if (!route.standbys().contains(nextPrimaryOwner)) {
-                throw new IllegalStateException("The next primary owner not an existing standby: " + nextPrimaryOwner.getId());
-            }
-
-            VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, parameters.shardKind, shardId);
-            DirectorySubspace volumeSubspace = volumeConfigGenerator.openVolumeSubspace();
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volumeSubspace);
-            if (!volumeMetadata.getStatus().equals(VolumeStatus.READONLY)) {
-                throw new IllegalStateException("Volume status is not READONLY");
-            }
-
-            // Find the replication slot
-            Versionstamp slotId = ReplicationMetadata.findSlotId(tr, volumeSubspace, nextPrimaryOwner.getId(), parameters.shardKind, shardId);
-            ReplicationSlot slot = ReplicationSlot.load(tr, parameters.shardKind, shardId, slotId, volumeSubspace);
-
-            // Check the replication status
-            Versionstamp latestVersionstampedKey = ReplicationMetadata.findLatestVersionstampedKey(context, volumeSubspace);
-            if (latestVersionstampedKey == null) {
-                throw new IllegalStateException("Latest versionstamped key not found");
-            }
-            if (!Arrays.equals(latestVersionstampedKey.getBytes(), slot.getLatestVersionstampedKey())) {
-                throw new KronotopException("The latest versionstamped key is not the same as the slot key");
-            }
-
-            // Ready to assign a new primary
-            byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
-            tr.set(key, parameters.memberId.getBytes());
+        // Check shard status first
+        ShardStatus shardStatus = ShardUtils.getShardStatus(context, tr, parameters.shardKind, shardId);
+        if (shardStatus.equals(ShardStatus.READWRITE)) {
+            throw new IllegalStateException("Shard status has be " + ShardStatus.READWRITE);
         }
+
+        // Load the route
+        Route route = routing.findRoute(parameters.shardKind, shardId);
+        if (!route.standbys().contains(nextPrimaryOwner)) {
+            throw new IllegalStateException("Member id: " + nextPrimaryOwner.getId() + " is not a standby");
+        }
+
+        VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, parameters.shardKind, shardId);
+        DirectorySubspace volumeSubspace = volumeConfigGenerator.openVolumeSubspace();
+        VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volumeSubspace);
+        if (!volumeMetadata.getStatus().equals(VolumeStatus.READONLY)) {
+            throw new IllegalStateException("Volume status must be " + VolumeStatus.READONLY);
+        }
+
+        // Find the replication slot
+        Versionstamp slotId = ReplicationMetadata.findSlotId(tr, volumeSubspace, nextPrimaryOwner.getId(), parameters.shardKind, shardId);
+        ReplicationSlot slot = ReplicationSlot.load(tr, parameters.shardKind, shardId, slotId, volumeSubspace);
+
+        // Check the replication status
+        Versionstamp latestVersionstampedKey = ReplicationMetadata.findLatestVersionstampedKey(context, volumeSubspace);
+        if (latestVersionstampedKey == null) {
+            throw new IllegalStateException("Latest versionstamped key not found");
+        }
+
+        // Caught up?
+        if (!Arrays.equals(latestVersionstampedKey.getBytes(), slot.getLatestVersionstampedKey())) {
+            throw new KronotopException("Primary owner and standby does not match");
+        }
+
+        // Ready to assign a new primary
+        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
+        tr.set(key, parameters.memberId.getBytes());
     }
 
     private void appendStandbyMemberId(Transaction tr, DirectorySubspace subspace, RouteParameters parameters) {
