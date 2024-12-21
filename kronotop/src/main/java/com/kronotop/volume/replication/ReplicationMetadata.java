@@ -169,7 +169,7 @@ public class ReplicationMetadata {
     }
 
     /**
-     * Finds the latest versionstamped key within a specified directory subspace in FoundationDB.
+     * Finds the latest versionstamped key within a Volume.
      * It queries the database for the latest key in the given subspace and extracts the versionstamp
      * from the key's tuple structure. If no keys exist in the subspace, the method returns null.
      *
