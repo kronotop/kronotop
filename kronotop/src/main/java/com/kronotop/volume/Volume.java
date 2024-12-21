@@ -67,14 +67,67 @@ public class Volume {
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
     private final TreeMap<String, SegmentContainer> segments = new TreeMap<>();
 
+    private final ReadWriteLock statusLock = new ReentrantReadWriteLock();
+    private VolumeStatus status;
+
     private volatile boolean isClosed;
 
     public Volume(Context context, VolumeConfig config) throws IOException {
         this.context = context;
         this.config = config;
         this.subspace = new VolumeSubspace(config.subspace());
+        this.status = loadStatusFromMetadata();
         this.entryMetadataCache = new EntryMetadataCache(context, subspace);
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
+    }
+
+    /**
+     * Loads the status of the volume from the metadata stored in the Volume's subspace.
+     * The method creates a transaction to read the metadata and retrieves the volume status.
+     *
+     * @return the status of the volume as retrieved from the metadata
+     */
+    public VolumeStatus loadStatusFromMetadata() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return VolumeMetadata.load(tr, config.subspace()).getStatus();
+        }
+    }
+
+    /**
+     * Retrieves the current status of the volume.
+     *
+     * @return the current volume status as a VolumeStatus object
+     */
+    public VolumeStatus getStatus() {
+        statusLock.readLock().lock();
+        try {
+            return status;
+        } finally {
+            statusLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Updates the status of the volume with the specified {@code status}.
+     * This method ensures thread-safety during the update by acquiring a write lock.
+     * The status change is persisted in the database and updated locally
+     * only after a successful transaction commit.
+     *
+     * @param status the new status to set for the volume
+     */
+    public void setStatus(VolumeStatus status) {
+        statusLock.writeLock().lock();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeMetadata.compute(tr, config.subspace(), volumeMetadata -> {
+               volumeMetadata.setStatus(status);
+            });
+            tr.commit().join();
+
+            // Set the status only if the commit was successful.
+            this.status = status;
+        } finally {
+            statusLock.writeLock().unlock();
+        }
     }
 
     /**
@@ -679,7 +732,7 @@ public class Volume {
      * Retrieves a range of KeyEntry objects based on the specified session and limit.
      *
      * @param session the session object used for retrieving the range, must not be null
-     * @param limit the maximum number of entries to retrieve
+     * @param limit   the maximum number of entries to retrieve
      * @param reverse if true, retrieves the entries in reverse order
      * @return an iterable collection of KeyEntry objects matching the specified range and order
      */
@@ -716,9 +769,9 @@ public class Volume {
      * Retrieves a range of KeyEntry objects between the specified begin and end VersionstampedKeySelectors.
      *
      * @param session the current database session, must not be null
-     * @param begin the starting key selector for the range
-     * @param end the ending key selector for the range
-     * @param limit the maximum number of entries to retrieve
+     * @param begin   the starting key selector for the range
+     * @param end     the ending key selector for the range
+     * @param limit   the maximum number of entries to retrieve
      * @param reverse whether to retrieve the range in reverse order
      * @return an Iterable collection of KeyEntry objects within the specified range
      */

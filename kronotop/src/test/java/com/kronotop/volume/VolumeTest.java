@@ -837,4 +837,21 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             assertArrayEquals(second, secondBuffer.array());
         }
     }
+
+    @Test
+    public void test_getStatus_default_status() {
+        assertEquals(VolumeStatus.READWRITE, volume.getStatus());
+    }
+
+    @Test
+    public void test_setStatus_when_getStatus() {
+        volume.setStatus(VolumeStatus.READONLY);
+        assertEquals(VolumeStatus.READONLY, volume.getStatus());
+
+        try (Transaction tr = database.createTransaction()) {
+            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata -> {
+                assertEquals(VolumeStatus.READONLY, volumeMetadata.getStatus());
+            }));
+        }
+    }
 }

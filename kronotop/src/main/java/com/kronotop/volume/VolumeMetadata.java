@@ -34,6 +34,7 @@ public class VolumeMetadata {
     private static final String VOLUME_METADATA_KEY = "volume-metadata";
 
     private final List<Long> segments = new ArrayList<>();
+    private VolumeStatus status = VolumeStatus.READWRITE; // Default status is readwrite
 
     public static VolumeMetadata load(Transaction tr, DirectorySubspace subspace) {
         byte[] key = subspace.pack(VOLUME_METADATA_KEY);
@@ -80,6 +81,14 @@ public class VolumeMetadata {
 
     public List<Long> getSegments() {
         return Collections.unmodifiableList(segments);
+    }
+
+    public VolumeStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(VolumeStatus status) {
+        this.status = status;
     }
 
     public byte[] toByte() {
