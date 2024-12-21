@@ -28,13 +28,15 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.volume.*;
-import com.kronotop.volume.replication.ReplicationConfig;
+import com.kronotop.volume.VolumeConfigGenerator;
+import com.kronotop.volume.VolumeMetadata;
+import com.kronotop.volume.VolumeStatus;
 import com.kronotop.volume.replication.ReplicationMetadata;
 import com.kronotop.volume.replication.ReplicationSlot;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Set;
 
 class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
@@ -44,8 +46,9 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
 
     private void setPrimaryMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters, int shardId) {
         String primaryMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
+
+        // Setting the route first time
         if (primaryMemberId == null) {
-            // Setting the route first time
             byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
             tr.set(key, parameters.memberId.getBytes());
             return;
@@ -56,6 +59,7 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
         if (primaryOwner == null) {
             throw new IllegalStateException("Primary owner not found: " + primaryMemberId);
         }
+
         if (primaryOwner.getStatus().equals(MemberStatus.RUNNING)) {
             // Check shard status first
             ShardStatus shardStatus = ShardUtils.getShardStatus(context, tr, parameters.shardKind, shardId);
@@ -68,11 +72,34 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
             if (nextPrimaryOwner == null) {
                 throw new IllegalStateException("Next primary owner not found: " + primaryMemberId);
             }
+
             // Load the route
             Route route = routing.findRoute(parameters.shardKind, shardId);
             if (!route.standbys().contains(nextPrimaryOwner)) {
                 throw new IllegalStateException("The next primary owner not an existing standby: " + nextPrimaryOwner.getId());
             }
+
+            VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, parameters.shardKind, shardId);
+            DirectorySubspace volumeSubspace = volumeConfigGenerator.openVolumeSubspace();
+            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volumeSubspace);
+            if (!volumeMetadata.getStatus().equals(VolumeStatus.READONLY)) {
+                throw new IllegalStateException("Volume status is not READONLY");
+            }
+
+            // Find the replication slot
+            Versionstamp slotId = ReplicationMetadata.findSlotId(tr, volumeSubspace, nextPrimaryOwner.getId(), parameters.shardKind, shardId);
+            ReplicationSlot slot = ReplicationSlot.load(tr, parameters.shardKind, shardId, slotId, volumeSubspace);
+
+            // Check the replication status
+            Versionstamp latestVersionstampedKey = ReplicationMetadata.findLatestVersionstampedKey(context, volumeSubspace);
+            if (latestVersionstampedKey == null) {
+                throw new IllegalStateException("Latest versionstamped key not found");
+            }
+            if (!Arrays.equals(latestVersionstampedKey.getBytes(), slot.getLatestVersionstampedKey())) {
+                throw new KronotopException("The latest versionstamped key is not the same as the slot key");
+            }
+
+            //
         }
     }
 

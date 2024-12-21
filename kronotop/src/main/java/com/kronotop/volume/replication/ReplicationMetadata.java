@@ -16,9 +16,7 @@
 
 package com.kronotop.volume.replication;
 
-import com.apple.foundationdb.FDBException;
-import com.apple.foundationdb.MutationType;
-import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.*;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
@@ -27,9 +25,11 @@ import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.sharding.ShardKind;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+import static com.kronotop.volume.Subspaces.ENTRY_SUBSPACE;
 import static com.kronotop.volume.Subspaces.MEMBER_REPLICATION_SLOT_SUBSPACE;
 
 /**
@@ -166,5 +166,28 @@ public class ReplicationMetadata {
      */
     public static String stringifySlotId(Versionstamp slotId) {
         return VersionstampUtils.base64Encode(slotId);
+    }
+
+    /**
+     * Finds the latest versionstamped key within a specified directory subspace in FoundationDB.
+     * It queries the database for the latest key in the given subspace and extracts the versionstamp
+     * from the key's tuple structure. If no keys exist in the subspace, the method returns null.
+     *
+     * @param context the context of the Kronotop instance, used to access the FoundationDB instance.
+     * @param volumeSubspace the directory subspace within which to search for the latest versionstamped key.
+     * @return the latest Versionstamp found in the specified subspace, or null if no keys are found.
+     */
+    public static Versionstamp findLatestVersionstampedKey(Context context, DirectorySubspace volumeSubspace) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Tuple tuple = Tuple.from(ENTRY_SUBSPACE);
+            byte[] prefix = volumeSubspace.pack(tuple);
+            List<KeyValue> items = tr.getRange(Range.startsWith(prefix), 1, true).asList().join();
+            if (items.isEmpty()) {
+                return null;
+            }
+            KeyValue keyValue = items.getFirst();
+            Tuple unpackedKey = volumeSubspace.unpack(keyValue.getKey());
+            return (Versionstamp) unpackedKey.get(2);
+        }
     }
 }
