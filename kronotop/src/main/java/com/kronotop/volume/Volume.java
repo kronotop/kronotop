@@ -87,7 +87,7 @@ public class Volume {
      *
      * @return the status of the volume as retrieved from the metadata
      */
-    public VolumeStatus loadStatusFromMetadata() {
+    private VolumeStatus loadStatusFromMetadata() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return VolumeMetadata.load(tr, config.subspace()).getStatus();
         }
@@ -127,6 +127,21 @@ public class Volume {
             this.status = status;
         } finally {
             statusLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Validates whether the volume is in a read-only state and raises an exception if it is.
+     * This method checks the current status of the volume. If the status corresponds to
+     * a read-only state, it throws a {@code VolumeReadOnlyException}.
+     * <p>
+     * Throws:
+     * {@code VolumeReadOnlyException} if the volume is in a read-only state.
+     */
+    private void raiseExceptionIfVolumeReadOnly() {
+        // Raise an exception if the volume is in READONLY status.
+        if (getStatus().equals(VolumeStatus.READONLY)) {
+            throw new VolumeReadOnlyException("Volume: " + config.name() + " is read-only");
         }
     }
 
@@ -417,6 +432,8 @@ public class Volume {
         flushMutatedSegments(entryMetadataList);
 
         CompletableFuture<byte[]> future = writeMetadata(session, entryMetadataList);
+
+        raiseExceptionIfVolumeReadOnly();
         return new AppendResult(future, entryMetadataList, entryMetadataCache.load(session.prefix())::put);
     }
 
@@ -581,6 +598,7 @@ public class Volume {
             result.add(index, key);
             index++;
         }
+        raiseExceptionIfVolumeReadOnly();
         return result;
     }
 
@@ -635,6 +653,8 @@ public class Volume {
 
             index++;
         }
+
+        raiseExceptionIfVolumeReadOnly();
         return new UpdateResult(pairs, entryMetadataCache.load(session.prefix())::invalidate);
     }
 
@@ -971,6 +991,7 @@ public class Volume {
         Objects.requireNonNull(session.transaction());
         Objects.requireNonNull(session.prefix());
 
+        raiseExceptionIfVolumeReadOnly();
         clearSegmentsByPrefix(session);
         clearEntrySubspace(session);
     }
@@ -986,9 +1007,11 @@ public class Volume {
      * @throws IOException if an I/O error occurs while accessing the segment
      */
     public void insert(String segmentName, PackedEntry... entries) throws IOException {
+
         Segment segment = getOrOpenSegmentByName(segmentName);
         for (PackedEntry entry : entries) {
             try {
+                raiseExceptionIfVolumeReadOnly();
                 segment.insert(ByteBuffer.wrap(entry.data()), entry.position());
                 // Assumed that callers of this method call flush after a successful return.
             } catch (NotEnoughSpaceException e) {

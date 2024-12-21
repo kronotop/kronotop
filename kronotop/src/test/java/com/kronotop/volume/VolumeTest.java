@@ -854,4 +854,113 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             }));
         }
     }
+
+    @Test
+    public void test_when_append_raise_VolumeReadOnlyException() throws IOException {
+        volume.setStatus(VolumeStatus.READONLY);
+
+        ByteBuffer[] entries = getEntries(1);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            assertThrows(VolumeReadOnlyException.class, () -> volume.append(session, entries));
+        }
+    }
+
+    @Test
+    public void test_when_delete_raise_VolumeReadOnlyException() throws IOException {
+        ByteBuffer[] entries = getEntries(1);
+        AppendResult appendResult;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+
+        volume.setStatus(VolumeStatus.READONLY);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            assertThrows(VolumeReadOnlyException.class, () -> volume.delete(session, versionstampedKeys));
+        }
+    }
+
+    @Test
+    public void test_when_update_raise_VolumeReadOnlyException() throws IOException, KeyNotFoundException {
+        Versionstamp[] versionstampedKeys;
+
+        {
+            ByteBuffer[] entries = {
+                    ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                    ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
+            };
+            AppendResult result;
+            try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr, redisVolumeSyncerPrefix);
+                result = volume.append(session, entries);
+                tr.commit().join();
+            }
+            versionstampedKeys = result.getVersionstampedKeys();
+        }
+
+
+        volume.setStatus(VolumeStatus.READONLY);
+        KeyEntry[] entries = new KeyEntry[2];
+        entries[0] = new KeyEntry(versionstampedKeys[0], ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
+        entries[1] = new KeyEntry(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            assertThrows(VolumeReadOnlyException.class, () -> volume.update(session, entries));
+        }
+    }
+
+    @Test
+    public void test_when_clearPrefix_raise_VolumeReadOnlyException() throws IOException {
+        ByteBuffer[] entries = getEntries(3);
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        volume.setStatus(VolumeStatus.READONLY);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            assertThrows(VolumeReadOnlyException.class, () -> volume.clearPrefix(session));
+        }
+    }
+
+    @Test
+    public void test_when_insert_raise_VolumeReadOnlyException(@TempDir Path dataDir) throws IOException {
+        byte[] first = new byte[]{1, 2, 3};
+        byte[] second = new byte[]{4, 5, 6};
+        ByteBuffer[] entries = {
+                ByteBuffer.wrap(first),
+                ByteBuffer.wrap(second),
+        };
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, prefix);
+            volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        VolumeConfig config = new VolumeConfig(
+                volume.getConfig().subspace(),
+                volume.getConfig().name(),
+                dataDir.toString(),
+                volume.getConfig().segmentSize(),
+                volume.getConfig().allowedGarbageRatio()
+        );
+
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        String segmentName = segmentAnalysis.getFirst().name();
+
+        Volume standby = service.newVolume(config);
+        standby.setStatus(VolumeStatus.READONLY);
+        PackedEntry[] packedEntries = new PackedEntry[]{
+                new PackedEntry(0, first),
+                new PackedEntry(3, second)
+        };
+        assertThrows(VolumeReadOnlyException.class, () -> standby.insert(segmentName, packedEntries));
+    }
 }
