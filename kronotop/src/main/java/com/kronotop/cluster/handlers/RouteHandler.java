@@ -99,7 +99,9 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
                 throw new KronotopException("The latest versionstamped key is not the same as the slot key");
             }
 
-            //
+            // Ready to assign a new primary
+            byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
+            tr.set(key, parameters.memberId.getBytes());
         }
     }
 
