@@ -173,7 +173,7 @@ public class ReplicationMetadata {
      * It queries the database for the latest key in the given subspace and extracts the versionstamp
      * from the key's tuple structure. If no keys exist in the subspace, the method returns null.
      *
-     * @param context the context of the Kronotop instance, used to access the FoundationDB instance.
+     * @param context        the context of the Kronotop instance, used to access the FoundationDB instance.
      * @param volumeSubspace the directory subspace within which to search for the latest versionstamped key.
      * @return the latest Versionstamp found in the specified subspace, or null if no keys are found.
      */

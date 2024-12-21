@@ -60,8 +60,8 @@ public class ShardUtils {
     /**
      * Retrieves the status of a specific shard from the given DirectorySubspace within a transaction.
      *
-     * @param tr             the transaction within which the shard status is being retrieved.
-     * @param shardSubspace  the DirectorySubspace representing the shard.
+     * @param tr            the transaction within which the shard status is being retrieved.
+     * @param shardSubspace the DirectorySubspace representing the shard.
      * @return the status of the specified shard as a {@link ShardStatus} enum value.
      * @throws IllegalStateException if the shard status has not been set for the given shard.
      */

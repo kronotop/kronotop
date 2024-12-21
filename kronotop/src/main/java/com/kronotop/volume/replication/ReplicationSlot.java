@@ -71,9 +71,9 @@ public class ReplicationSlot {
      * and a volume subspace. The key is composed of a replication slot subspace identifier,
      * the {@code ShardKind}, shard ID, slot versionstamp, and details from the volume subspace.
      *
-     * @param shardKind the kind of shard to which the replication slot belongs
-     * @param shardId the unique identifier for the shard
-     * @param slotId the versionstamp uniquely identifying the replication slot
+     * @param shardKind      the kind of shard to which the replication slot belongs
+     * @param shardId        the unique identifier for the shard
+     * @param slotId         the versionstamp uniquely identifying the replication slot
      * @param volumeSubspace the directory subspace used to structure the replication slot data
      * @return a byte array representing the fully built replication slot key
      */
@@ -105,8 +105,8 @@ public class ReplicationSlot {
      * segment's first and last entries and calculating the total number of entries. The snapshot is then
      * encapsulated as an instance of {@code Snapshot}.
      *
-     * @param tr the transaction context used for accessing the database
-     * @param config the replication configuration containing volume and shard metadata
+     * @param tr        the transaction context used for accessing the database
+     * @param config    the replication configuration containing volume and shard metadata
      * @param segmentId the unique identifier of the segment for which the snapshot is being created
      * @return a {@code Snapshot} object representing the segment's metadata and entry range
      */
@@ -142,7 +142,7 @@ public class ReplicationSlot {
      * Creates a new replication slot and initializes its snapshots based on the volume metadata,
      * then serializes and stores it in the database.
      *
-     * @param tr the transaction context used for accessing the database
+     * @param tr     the transaction context used for accessing the database
      * @param config the replication configuration containing volume and shard details
      */
     public static void newSlot(Transaction tr, ReplicationConfig config) {
@@ -161,7 +161,7 @@ public class ReplicationSlot {
     /**
      * Loads a replication slot based on the specified transaction, replication configuration, and slot ID.
      *
-     * @param tr the transaction used to retrieve the replication slot from the database
+     * @param tr     the transaction used to retrieve the replication slot from the database
      * @param config the replication configuration containing shard kind, shard ID, and volume configuration
      * @param slotId the identifier of the replication slot
      * @return the loaded replication slot as an instance of {@code ReplicationSlot}
@@ -175,10 +175,10 @@ public class ReplicationSlot {
      * slot ID, and volume subspace. The loaded replication slot is deserialized from the
      * database's stored value.
      *
-     * @param tr the transaction used to retrieve the replication slot from the database
-     * @param shardKind the kind of shard for which the replication slot is associated
-     * @param shardId the identifier of the shard
-     * @param slotId the identifier of the replication slot
+     * @param tr             the transaction used to retrieve the replication slot from the database
+     * @param shardKind      the kind of shard for which the replication slot is associated
+     * @param shardId        the identifier of the shard
+     * @param slotId         the identifier of the replication slot
      * @param volumeSubspace the directory subspace used to structure the key in the database
      * @return the loaded replication slot as an instance of {@code ReplicationSlot}
      * @throws ReplicationSlotNotFoundException if no replication slot is found for the given parameters
@@ -198,9 +198,9 @@ public class ReplicationSlot {
      * The function deserializes the replication slot, applies the specified remapping function, and updates the
      * slot in the database.
      *
-     * @param tr the transaction context used to retrieve and update the replication slot in the database
-     * @param config the replication configuration containing shard kind, shard ID, and volume configuration
-     * @param slotId the unique versionstamp identifier of the replication slot
+     * @param tr                the transaction context used to retrieve and update the replication slot in the database
+     * @param config            the replication configuration containing shard kind, shard ID, and volume configuration
+     * @param slotId            the unique versionstamp identifier of the replication slot
      * @param remappingFunction a consumer function that modifies the replication slot
      * @return the updated {@code ReplicationSlot} instance
      * @throws ReplicationSlotNotFoundException if no replication slot is found for the given slot identifier

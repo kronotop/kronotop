@@ -70,7 +70,7 @@ public class VolumeConfigGenerator {
      * If a FoundationDB transaction conflict is detected (error code 1020), the method will retry.
      * Any other exceptions are propagated to the caller.
      *
-     * @param directory the KronotopDirectoryNode representing the directory path for the subspace.
+     * @param directory        the KronotopDirectoryNode representing the directory path for the subspace.
      * @param createIfNotExist a boolean flag indicating whether to create the DirectorySubspace if it doesn't exist.
      *                         If false, the method attempts to open the subspace, failing if it does not exist.
      * @return the created or opened DirectorySubspace associated with the specified Kronotop directory.
@@ -185,7 +185,7 @@ public class VolumeConfigGenerator {
     public DirectorySubspace openVolumeSubspace() {
         if (shardKind.equals(ShardKind.REDIS)) {
             KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
-            return createOrOpenVolumeSubspace(directory ,false);
+            return createOrOpenVolumeSubspace(directory, false);
         } else {
             throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
         }

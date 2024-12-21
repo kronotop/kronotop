@@ -43,7 +43,7 @@ class ReplicationMetadataTest extends BaseVolumeIntegrationTest {
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
         Versionstamp latestVersionstampedKey = ReplicationMetadata.findLatestVersionstampedKey(context, volume.getConfig().subspace());
 
-        assertEquals(versionstampedKeys[versionstampedKeys.length-1], latestVersionstampedKey);
+        assertEquals(versionstampedKeys[versionstampedKeys.length - 1], latestVersionstampedKey);
     }
 
 }

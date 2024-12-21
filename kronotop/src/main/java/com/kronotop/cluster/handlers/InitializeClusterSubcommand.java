@@ -25,8 +25,6 @@ import com.kronotop.cluster.MembershipConstants;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.ShardUtils;
-import com.kronotop.cluster.sharding.Shard;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;

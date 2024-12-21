@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.JSONUtils;
-import com.kronotop.cluster.sharding.ShardStatus;
 
 import java.util.Arrays;
 import java.util.HashSet;

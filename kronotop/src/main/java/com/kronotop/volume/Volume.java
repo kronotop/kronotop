@@ -119,7 +119,7 @@ public class Volume {
         statusLock.writeLock().lock();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeMetadata.compute(tr, config.subspace(), volumeMetadata -> {
-               volumeMetadata.setStatus(status);
+                volumeMetadata.setStatus(status);
             });
             tr.commit().join();
 
