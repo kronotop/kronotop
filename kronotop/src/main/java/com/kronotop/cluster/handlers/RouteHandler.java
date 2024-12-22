@@ -67,7 +67,7 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
         // Check shard status first
         ShardStatus shardStatus = ShardUtils.getShardStatus(context, tr, parameters.shardKind, shardId);
         if (shardStatus.equals(ShardStatus.READWRITE)) {
-            throw new IllegalStateException("Shard status has be " + ShardStatus.READWRITE);
+            throw new IllegalStateException("Shard status must not be " + ShardStatus.READWRITE);
         }
 
         // Load the route

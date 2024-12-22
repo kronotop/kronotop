@@ -21,7 +21,12 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
+import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.volume.*;
+import io.lettuce.core.codec.StringCodec;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -39,6 +44,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     @TempDir
@@ -100,6 +106,41 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         Versionstamp[] keys = result.getVersionstampedKeys();
         assertEquals(number, keys.length);
         return concatWithArrayCopy(versionstampedKeys, keys);
+    }
+
+    private IntegrationTest createIntegrationTest() throws IOException {
+        Versionstamp[] versionstampedKeys = new Versionstamp[0];
+
+        // Insert some keys to the primary volume
+        versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
+
+        // Start a standby
+        KronotopTestInstance standbyInstance = addNewInstance();
+        VolumeConfig standbyVolumeConfig = new VolumeConfig(
+                volume.getConfig().subspace(),
+                volume.getConfig().name(),
+                standbyVolumeDataDir.toString(),
+                volume.getConfig().segmentSize(),
+                volume.getConfig().allowedGarbageRatio()
+        );
+
+        VolumeService volumeService = standbyInstance.getContext().getService(VolumeService.NAME);
+        Volume standbyVolume = volumeService.newVolume(standbyVolumeConfig);
+        Replication replication = newReplication(standbyInstance.getContext(), standbyVolume.getConfig());
+
+        replication.start();
+
+        await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
+        Versionstamp[] keysAfterSnapshot = versionstampedKeys;
+        await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(keysAfterSnapshot, standbyVolume));
+
+
+        // Replication is running at the background.
+        versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
+        Versionstamp[] keysWhileStreaming = versionstampedKeys;
+        await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(keysWhileStreaming, standbyVolume));
+
+        return new IntegrationTest(kronotopInstance, replication, new ArrayList<>(List.of(standbyInstance)));
     }
 
     @Test
@@ -305,6 +346,32 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
                 await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
             }
         } finally {
+            replication.stop();
+        }
+    }
+
+    @Test
+    public void primary_ownership_change_but_shard_status_inappropriate() throws IOException {
+        IntegrationTest test = createIntegrationTest();
+        try {
+            KronotopTestInstance standby = test.standbys.getFirst();
+            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf buf = Unpooled.buffer();
+            cmd.route("SET", "PRIMARY", "REDIS", 1, standby.getMember().getId()).encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(ErrorRedisMessage.class, msg);
+            ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+            assertEquals("ERR Shard status must not be READWRITE", actualMessage.content());
+        } finally {
+            test.stop();
+        }
+    }
+
+    private record IntegrationTest(KronotopTestInstance primary, Replication replication,
+                                   List<KronotopTestInstance> standbys) {
+        public void stop() {
             replication.stop();
         }
     }
