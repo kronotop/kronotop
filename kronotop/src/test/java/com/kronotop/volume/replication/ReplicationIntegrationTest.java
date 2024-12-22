@@ -22,7 +22,9 @@ import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -364,6 +366,39 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("ERR Shard status must not be READWRITE", actualMessage.content());
+        } finally {
+            test.stop();
+        }
+    }
+
+    @Test
+    public void primary_ownership_change_but() throws IOException {
+        IntegrationTest test = createIntegrationTest();
+        try {
+            KronotopTestInstance standby = test.standbys.getFirst();
+            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+            {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.setShardStatus("REDIS", 1, "READONLY").encode(buf);
+
+                channel.writeInbound(buf);
+                Object msg = channel.readOutbound();
+                assertInstanceOf(SimpleStringRedisMessage.class, msg);
+                SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+                assertEquals(Response.OK, actualMessage.content());
+            }
+
+            {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.route("SET", "PRIMARY", "REDIS", 1, standby.getMember().getId()).encode(buf);
+
+                channel.writeInbound(buf);
+                Object msg = channel.readOutbound();
+                assertInstanceOf(ErrorRedisMessage.class, msg);
+                ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+                assertEquals("ERR Shard status must not be READWRITE", actualMessage.content());
+            }
         } finally {
             test.stop();
         }
