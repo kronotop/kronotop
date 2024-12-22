@@ -18,7 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberView;
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -31,7 +31,7 @@ import java.util.Map;
 
 class ListSilentMembers extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    public ListSilentMembers(MembershipService service) {
+    public ListSilentMembers(RoutingService service) {
         super(service);
     }
 

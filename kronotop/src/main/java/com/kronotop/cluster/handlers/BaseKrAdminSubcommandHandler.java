@@ -39,10 +39,11 @@ public class BaseKrAdminSubcommandHandler {
     protected final MembershipService membership;
     protected final RoutingService routing;
 
-    public BaseKrAdminSubcommandHandler(MembershipService membership) {
-        this.context = membership.getContext();
-        this.routing = membership.getContext().getService(RoutingService.NAME);
-        this.membership = membership;
+    public BaseKrAdminSubcommandHandler(RoutingService service) {
+        this.context = service.getContext();
+        this.routing = service;
+        // Membership service has been started before RoutingService.
+        this.membership = service.getContext().getService(MembershipService.NAME);
     }
 
     /**

@@ -17,7 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -31,7 +31,7 @@ import java.util.TreeSet;
 
 class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    ListMembersSubcommand(MembershipService service) {
+    ListMembersSubcommand(RoutingService service) {
         super(service);
     }
 

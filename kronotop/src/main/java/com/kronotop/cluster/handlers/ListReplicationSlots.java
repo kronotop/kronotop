@@ -25,7 +25,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.JSONUtils;
 import com.kronotop.VersionstampUtils;
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
@@ -43,7 +43,7 @@ import static com.kronotop.volume.Subspaces.REPLICATION_SLOT_SUBSPACE;
 
 public class ListReplicationSlots extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    public ListReplicationSlots(MembershipService membership) {
+    public ListReplicationSlots(RoutingService membership) {
         super(membership);
     }
 

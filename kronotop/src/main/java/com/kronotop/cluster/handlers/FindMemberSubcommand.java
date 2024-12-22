@@ -17,7 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
@@ -28,7 +28,7 @@ import java.util.ArrayList;
 
 class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    FindMemberSubcommand(MembershipService service) {
+    FindMemberSubcommand(RoutingService service) {
         super(service);
     }
 

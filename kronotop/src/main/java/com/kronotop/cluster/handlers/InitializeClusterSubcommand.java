@@ -22,8 +22,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.cluster.MembershipConstants;
-import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.MembershipUtils;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtils;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
@@ -37,7 +37,7 @@ import java.util.concurrent.CompletionException;
 
 class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    InitializeClusterSubcommand(MembershipService service) {
+    InitializeClusterSubcommand(RoutingService service) {
         super(service);
     }
 

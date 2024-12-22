@@ -21,8 +21,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.JSONUtils;
 import com.kronotop.cluster.MembershipConstants;
-import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.MembershipUtils;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -35,7 +35,7 @@ import java.util.Set;
 
 public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    public SyncStandbySubcommand(MembershipService membership) {
+    public SyncStandbySubcommand(RoutingService membership) {
         super(membership);
     }
 

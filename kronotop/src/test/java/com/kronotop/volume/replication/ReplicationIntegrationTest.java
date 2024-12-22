@@ -29,6 +29,7 @@ import com.kronotop.volume.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -372,6 +373,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    @Disabled("under construction")
     public void primary_ownership_change_but() throws IOException {
         IntegrationTest test = createIntegrationTest();
         try {

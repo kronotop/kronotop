@@ -21,8 +21,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.cluster.ClusterNotInitializedException;
-import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.MembershipUtils;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
@@ -41,7 +41,7 @@ public class KrAdminHandler implements Handler {
     private final EnumMap<KrAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(KrAdminSubcommand.class);
     private final Set<KrAdminSubcommand> subcommandsRequireInitializedCluster = new HashSet<>();
 
-    public KrAdminHandler(MembershipService service) {
+    public KrAdminHandler(RoutingService service) {
         this.context = service.getContext();
         handlers.put(KrAdminSubcommand.LIST_MEMBERS, new ListMembersSubcommand(service));
         handlers.put(KrAdminSubcommand.INITIALIZE_CLUSTER, new InitializeClusterSubcommand(service));
