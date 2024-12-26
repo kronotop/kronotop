@@ -17,7 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtils;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
@@ -31,7 +31,7 @@ import java.util.ArrayList;
 
 class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    SetShardStatusSubcommand(MembershipService service) {
+    SetShardStatusSubcommand(RoutingService service) {
         super(service);
     }
 

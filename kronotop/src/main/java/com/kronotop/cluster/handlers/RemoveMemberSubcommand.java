@@ -17,7 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -27,7 +27,7 @@ import java.util.ArrayList;
 
 class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    RemoveMemberSubcommand(MembershipService service) {
+    RemoveMemberSubcommand(RoutingService service) {
         super(service);
     }
 

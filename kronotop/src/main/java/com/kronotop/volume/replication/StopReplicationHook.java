@@ -37,6 +37,7 @@ public class StopReplicationHook extends BaseRoutingEventHook implements Routing
             LOGGER.warn("No ReplicationSlot found for ShardKind: {} ShardId: {}", shardKind, shardId);
             return;
         }
+        ReplicationService replicationService = context.getService(ReplicationService.NAME);
         replicationService.stopReplication(slotId);
     }
 }

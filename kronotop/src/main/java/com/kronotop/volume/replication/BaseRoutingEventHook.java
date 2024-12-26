@@ -24,11 +24,9 @@ import com.kronotop.volume.VolumeConfigGenerator;
 
 class BaseRoutingEventHook {
     protected final Context context;
-    protected final ReplicationService replicationService;
 
     BaseRoutingEventHook(Context context) {
         this.context = context;
-        this.replicationService = context.getService(ReplicationService.NAME);
     }
 
     Versionstamp findSlotId(ShardKind shardKind, int shardId) {

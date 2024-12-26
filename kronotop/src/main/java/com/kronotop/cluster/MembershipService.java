@@ -22,11 +22,9 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
-import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.journal.Event;
-import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Membership service implements all business logic around cluster membership and health checks.
  */
-public class MembershipService extends CommandHandlerService implements KronotopService {
+public class MembershipService extends BaseKronotopService implements KronotopService {
     public static final String NAME = "Membership";
     private static final byte[] PLUS_ONE = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipService.class);
@@ -65,8 +63,6 @@ public class MembershipService extends CommandHandlerService implements Kronotop
 
         ThreadFactory factory = Thread.ofVirtual().name("kr.membership").factory();
         this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
-
-        handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));
     }
 
     private void configureClusterEventsWatcher() {
@@ -295,6 +291,7 @@ public class MembershipService extends CommandHandlerService implements Kronotop
             return null;
         });
 
+        context.getInternalConnectionPool().shutdown(member);
         LOGGER.info("Member left: {}", member.getExternalAddress());
     }
 

@@ -16,14 +16,17 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.cluster.MembershipConstants;
-import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.MembershipUtils;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.ShardUtils;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
@@ -35,21 +38,22 @@ import java.util.concurrent.CompletionException;
 
 class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    InitializeClusterSubcommand(MembershipService service) {
+    InitializeClusterSubcommand(RoutingService service) {
         super(service);
     }
 
     private void initializeRedisSection(Transaction tr, DirectorySubspace subspace) {
         int numberOfRedisShards = membership.getContext().getConfig().getInt("redis.shards");
-        for (int i = 0; i < numberOfRedisShards; i++) {
+        for (int shardId = 0; shardId < numberOfRedisShards; shardId++) {
             KronotopDirectoryNode directory = KronotopDirectory.
                     kronotop().
                     cluster(membership.getContext().getClusterName()).
                     metadata().
                     shards().
                     redis().
-                    shard(i);
-            subspace.create(tr, directory.excludeSubspace(subspace)).join();
+                    shard(shardId);
+            DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
+            ShardUtils.setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
         }
     }
 
@@ -58,8 +62,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         tr.set(key, MembershipConstants.TRUE);
     }
 
-    @Override
-    public void execute(Request request, Response response) {
+    private void initializeCluster() {
         DirectorySubspace clusterMetadataSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
 
         try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
@@ -76,6 +79,23 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
                 );
             }
             throw e;
+        }
+    }
+
+    @Override
+    public void execute(Request request, Response response) {
+        try {
+            initializeCluster();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException ex) {
+                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                if (ex.getCode() == 1020) {
+                    // retry
+                    initializeCluster();
+                    return;
+                }
+            }
+            throw new KronotopException(e);
         }
         response.writeOK();
     }

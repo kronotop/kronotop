@@ -72,16 +72,23 @@ public class BaseClusterTest extends BaseTest {
     }
 
     /**
-     * Tears down the Kronotop cluster by shutting down all instances.
+     * Cleans up resources after each test execution in the test class.
      * <p>
-     * This method iterates through all the instances in the {@code kronotopInstances} map and calls
-     * the {@code shutdown()} method on each instance. It is called automatically after each test method
-     * is executed in a JUnit 5 test class annotated with {@code @Test}.
+     * This method ensures that all Kronotop test instances are properly shut down
+     * and their associated clusters are cleaned up to maintain test isolation and avoid resource leakage.
+     * The cleanup process is performed in two steps:
+     * 1. Each Kronotop test instance is shut down without cleaning up its associated state.
+     * 2. Each Kronotop test instance performs cluster cleanup tasks to remove any residual data or configurations.
+     * <p>
+     * This method is annotated with {@code @AfterEach}, indicating it will run after each test.
      */
     @AfterEach
     public void tearDown() {
         for (KronotopTestInstance kronotopInstance : kronotopInstances.values()) {
-            kronotopInstance.shutdown();
+            kronotopInstance.shutdownWithoutCleanup();
+        }
+        for (KronotopTestInstance kronotopInstance : kronotopInstances.values()) {
+            kronotopInstance.cleanupTestCluster();
         }
     }
 }

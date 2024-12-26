@@ -19,7 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
@@ -30,7 +30,7 @@ import java.util.ArrayList;
 
 class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    SetMemberStatusSubcommand(MembershipService service) {
+    SetMemberStatusSubcommand(RoutingService service) {
         super(service);
     }
 

@@ -34,10 +34,14 @@ class VolumeIterable implements Iterable<KeyEntry> {
     private final AsyncIterable<KeyValue> asyncIterable;
     private final Volume volume;
     private final Session session;
+    private final int limit;
+    private final boolean reverse;
 
-    VolumeIterable(Volume volume, Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+    VolumeIterable(Volume volume, Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
         this.volume = volume;
         this.session = session;
+        this.limit = limit;
+        this.reverse = reverse;
         this.asyncIterable = createAsyncIterable(session, begin, end);
     }
 
@@ -56,7 +60,7 @@ class VolumeIterable implements Iterable<KeyEntry> {
         } else {
             endKeySelector = new KeySelector(subspace.packEntryKey(session.prefix(), end.getKey()), end.orEqual(), end.getOffset());
         }
-        return session.transaction().getRange(beginKeySelector, endKeySelector);
+        return session.transaction().getRange(beginKeySelector, endKeySelector, limit, reverse);
     }
 
     @Nonnull

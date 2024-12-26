@@ -19,35 +19,110 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.JSONUtils;
-import com.kronotop.cluster.MembershipConstants;
-import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.MembershipUtils;
-import com.kronotop.cluster.RouteKind;
+import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.volume.VolumeConfigGenerator;
+import com.kronotop.volume.VolumeMetadata;
+import com.kronotop.volume.VolumeStatus;
+import com.kronotop.volume.replication.ReplicationMetadata;
+import com.kronotop.volume.replication.ReplicationSlot;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Set;
 
 class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
-    public RouteHandler(MembershipService service) {
+    public RouteHandler(RoutingService service) {
         super(service);
     }
 
-    private void setPrimaryMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters) {
-        //String primaryMemberId = loadPrimaryMemberId(tr, shardSubspace);
+    private void setPrimaryMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters, int shardId) {
+        String primaryMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
+
         // Setting the route first time
+        if (primaryMemberId == null) {
+            byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
+            tr.set(key, parameters.memberId.getBytes());
+            return;
+        }
+
+        Member nextPrimaryOwner = membership.findMember(tr, parameters.memberId);
+        if (nextPrimaryOwner == null) {
+            throw new IllegalStateException("Member could not be found: " + parameters.memberId);
+        }
+
+        Member primaryOwner = membership.findMember(tr, primaryMemberId);
+        if (primaryOwner == null) {
+            throw new IllegalStateException("Primary shard owner could not be found: " + primaryMemberId);
+        }
+
+        // Check shard status first
+        ShardStatus shardStatus = ShardUtils.getShardStatus(context, tr, parameters.shardKind, shardId);
+        if (shardStatus.equals(ShardStatus.READWRITE)) {
+            throw new IllegalStateException("Shard status must not be " + ShardStatus.READWRITE);
+        }
+
+        // Load the route
+        Route route = routing.findRoute(parameters.shardKind, shardId);
+        if (!route.standbys().contains(nextPrimaryOwner)) {
+            throw new IllegalStateException("Member id: " + nextPrimaryOwner.getId() + " is not a standby");
+        }
+
+        VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, parameters.shardKind, shardId);
+        DirectorySubspace volumeSubspace = volumeConfigGenerator.openVolumeSubspace();
+        VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volumeSubspace);
+        if (!volumeMetadata.getStatus().equals(VolumeStatus.READONLY)) {
+            throw new IllegalStateException("Volume status must be " + VolumeStatus.READONLY);
+        }
+
+        // Find the replication slot
+        Versionstamp slotId = ReplicationMetadata.findSlotId(tr, volumeSubspace, nextPrimaryOwner.getId(), parameters.shardKind, shardId);
+        ReplicationSlot slot = ReplicationSlot.load(tr, parameters.shardKind, shardId, slotId, volumeSubspace);
+
+        // Check the replication status
+        Versionstamp latestVersionstampedKey = ReplicationMetadata.findLatestVersionstampedKey(context, volumeSubspace);
+        if (latestVersionstampedKey == null) {
+            throw new IllegalStateException("Latest versionstamped key not found");
+        }
+
+        // Caught up?
+        if (!Arrays.equals(latestVersionstampedKey.getBytes(), slot.getReceivedVersionstampedKey())) {
+            throw new KronotopException("Primary owner and standby does not match");
+        }
+
+        // Ready to assign a new primary
         byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
         tr.set(key, parameters.memberId.getBytes());
+
+        // Cleanup
+
+        // Standbys
+        Set<String> standbyMemberIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
+        standbyMemberIds.remove(parameters.memberId);
+        MembershipUtils.setStandbyMemberIds(tr, shardSubspace, standbyMemberIds);
+
+        // Sync standbys
+        Set<String> syncStandbyMemberIds = MembershipUtils.loadSyncStandbyMemberIds(tr, shardSubspace);
+        syncStandbyMemberIds.remove(parameters.memberId);
+        MembershipUtils.setSyncStandbyMemberIds(tr, shardSubspace, syncStandbyMemberIds);
+
+        // Mark the replication slot as STALE
+        ReplicationSlot.compute(tr, parameters.shardKind, shardId, slotId, volumeSubspace, (staleSlot) -> {
+            staleSlot.setActive(false);
+            staleSlot.setStale();
+        });
     }
 
-    private void appendStandbyMemberId(Transaction tr, DirectorySubspace subspace, RouteParameters parameters) {
-        String primaryMemberId = MembershipUtils.loadPrimaryMemberId(tr, subspace);
+    private void appendStandbyMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters) {
+        String primaryMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
         if (primaryMemberId == null) {
             throw new KronotopException("no primary member assigned yet");
         }
@@ -56,13 +131,13 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
             throw new KronotopException("primary cannot be assigned as a standby");
         }
 
-        Set<String> standbyMemberIds = MembershipUtils.loadStandbyMemberIds(tr, subspace);
+        Set<String> standbyMemberIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
         if (standbyMemberIds.contains(parameters.memberId)) {
             throw new KronotopException("already assigned as a standby");
         }
 
         standbyMemberIds.add(parameters.memberId);
-        byte[] key = subspace.pack(Tuple.from(MembershipConstants.ROUTE_STANDBY_MEMBER_KEY));
+        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_STANDBY_MEMBER_KEY));
         byte[] value = JSONUtils.writeValueAsBytes(standbyMemberIds);
         tr.set(key, value);
     }
@@ -70,7 +145,7 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
     private void setRouteForShard(Transaction tr, RouteParameters parameters, int shardId) {
         DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, shardId);
         if (parameters.routeKind.equals(RouteKind.PRIMARY)) {
-            setPrimaryMemberId(tr, shardSubspace, parameters);
+            setPrimaryMemberId(tr, shardSubspace, parameters, shardId);
         } else if (parameters.routeKind.equals(RouteKind.STANDBY)) {
             appendStandbyMemberId(tr, shardSubspace, parameters);
         } else {

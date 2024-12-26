@@ -125,12 +125,12 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 ReplicationSlot slot = ReplicationSlot.load(tr, config, slotId);
 
-                Versionstamp latestKey = slot.getLatestVersionstampedKey() != null ? Versionstamp.fromBytes(slot.getLatestVersionstampedKey()) : null;
+                Versionstamp latestKey = slot.getReceivedVersionstampedKey() != null ? Versionstamp.fromBytes(slot.getReceivedVersionstampedKey()) : null;
                 IterationResult iterationResult = iterateSegmentLogEntries(tr, slot.getLatestSegmentId(), latestKey);
                 if (iterationResult.processedKeys() != 0) {
                     // Segment id not changed yet
                     ReplicationSlot.compute(tr, config, slotId, (replicationSlot) -> {
-                        replicationSlot.setLatestVersionstampedKey(iterationResult.latestKey().getBytes());
+                        replicationSlot.setReceivedVersionstampedKey(iterationResult.latestKey().getBytes());
                     });
                     tr.commit().join();
                 } else {

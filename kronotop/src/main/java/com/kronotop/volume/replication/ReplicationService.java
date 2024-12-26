@@ -16,10 +16,12 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseKronotopService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
+import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
@@ -66,9 +68,16 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
                     LOGGER.warn("Replication slot not found for ShardKind: {} ShardId: {}", shardKind, shardId);
                     continue;
                 }
-                Replication replication = replications.computeIfAbsent(slotId,
-                        (versionstamp) -> new Replication(context, versionstamp, replicationConfig)
-                );
+
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    ReplicationSlot slot = ReplicationSlot.load(tr, replicationConfig, slotId);
+                    if (slot.isStale()) {
+                        LOGGER.warn("Replication slot: {} is stale for ShardKind: {} ShardId: {}", VersionstampUtils.base64Encode(slotId), shardKind, shardId);
+                        continue;
+                    }
+                }
+
+                Replication replication = newReplication(slotId, replicationConfig);
                 try {
                     replication.start();
                 } catch (IOException e) {
@@ -76,6 +85,12 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
                 }
             }
         }
+    }
+
+    public Replication newReplication(Versionstamp slotId, ReplicationConfig replicationConfig) {
+        return replications.computeIfAbsent(slotId,
+                (versionstamp) -> new Replication(context, versionstamp, replicationConfig)
+        );
     }
 
     public void start() {
@@ -89,7 +104,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
         }
     }
 
-    protected void stopReplication(Versionstamp slotId) {
+    protected synchronized void stopReplication(Versionstamp slotId) {
         Replication replication = replications.get(slotId);
         if (replication != null) {
             replication.stop();

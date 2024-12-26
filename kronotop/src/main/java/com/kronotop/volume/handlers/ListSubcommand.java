@@ -14,37 +14,30 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.handlers;
+package com.kronotop.volume.handlers;
 
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.RoutingService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.volume.VolumeService;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.TreeSet;
+import java.util.ArrayList;
+import java.util.List;
 
-class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
+class ListSubcommand extends BaseHandler implements SubcommandHandler {
 
-    ListMembersSubcommand(RoutingService service) {
+    public ListSubcommand(VolumeService service) {
         super(service);
     }
 
     @Override
     public void execute(Request request, Response response) {
-        TreeSet<Member> sortedMembers = membership.listMembers();
-        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-
-        for (Member member : sortedMembers) {
-            Map<RedisMessage, RedisMessage> current = memberToRedisMessage(member);
-            result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));
-        }
-
-        response.writeMap(result);
+        List<RedisMessage> volumes = new ArrayList<>();
+        service.volumes().forEach(volume -> {
+            volumes.add(new SimpleStringRedisMessage(volume.getConfig().name()));
+        });
+        response.writeArray(volumes);
     }
 }

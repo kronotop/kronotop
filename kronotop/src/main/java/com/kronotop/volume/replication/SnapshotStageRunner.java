@@ -128,7 +128,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
                         snapshot.setLastUpdate(Instant.now().toEpochMilli());
 
                         // Update the slot
-                        slot.setLatestVersionstampedKey(result.latestKey().getBytes());
+                        slot.setReceivedVersionstampedKey(result.latestKey().getBytes());
                     });
                     tr.commit().join();
 

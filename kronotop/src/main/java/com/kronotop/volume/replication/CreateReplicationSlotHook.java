@@ -67,5 +67,18 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
                 shardKind,
                 shardId
         );
+
+        ReplicationService replicationService = context.getService(ReplicationService.NAME);
+        Replication replication = replicationService.newReplication(slotId, config);
+        try {
+            replication.start();
+            LOGGER.info("Replication started with SlotID: {} for ShardKind: {}, ShardId: {}",
+                    VersionstampUtils.base64Encode(slotId),
+                    shardKind,
+                    shardId
+            );
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

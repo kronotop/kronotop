@@ -36,6 +36,7 @@ import com.kronotop.redis.server.protocol.FlushAllMessage;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
 import com.kronotop.volume.handlers.protocol.SegmentInsertMessage;
 import com.kronotop.volume.handlers.protocol.SegmentRangeMessage;
+import com.kronotop.volume.handlers.protocol.VolumeAdminMessage;
 import io.netty.util.AttributeKey;
 
 /**
@@ -120,4 +121,5 @@ public class MessageTypes {
     public static final AttributeKey<SegmentRangeMessage> SEGMENTRANGE = AttributeKey.valueOf(SegmentRangeMessage.COMMAND);
     public static final AttributeKey<KrAdminMessage> KRADMIN = AttributeKey.valueOf(KrAdminMessage.COMMAND);
     public static final AttributeKey<SegmentInsertMessage> SEGMENTINSERT = AttributeKey.valueOf(SegmentInsertMessage.COMMAND);
+    public static final AttributeKey<VolumeAdminMessage> VOLUMEADMIN = AttributeKey.valueOf(VolumeAdminMessage.COMMAND);
 }

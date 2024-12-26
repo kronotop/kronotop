@@ -67,14 +67,82 @@ public class Volume {
     private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
     private final TreeMap<String, SegmentContainer> segments = new TreeMap<>();
 
+    private final ReadWriteLock statusLock = new ReentrantReadWriteLock();
+    private VolumeStatus status;
+
     private volatile boolean isClosed;
 
     public Volume(Context context, VolumeConfig config) throws IOException {
         this.context = context;
         this.config = config;
         this.subspace = new VolumeSubspace(config.subspace());
+        this.status = loadStatusFromMetadata();
         this.entryMetadataCache = new EntryMetadataCache(context, subspace);
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
+    }
+
+    /**
+     * Loads the status of the volume from the metadata stored in the Volume's subspace.
+     * The method creates a transaction to read the metadata and retrieves the volume status.
+     *
+     * @return the status of the volume as retrieved from the metadata
+     */
+    private VolumeStatus loadStatusFromMetadata() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return VolumeMetadata.load(tr, config.subspace()).getStatus();
+        }
+    }
+
+    /**
+     * Retrieves the current status of the volume.
+     *
+     * @return the current volume status as a VolumeStatus object
+     */
+    public VolumeStatus getStatus() {
+        statusLock.readLock().lock();
+        try {
+            return status;
+        } finally {
+            statusLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Updates the status of the volume with the specified {@code status}.
+     * This method ensures thread-safety during the update by acquiring a write lock.
+     * The status change is persisted in the database and updated locally
+     * only after a successful transaction commit.
+     *
+     * @param status the new status to set for the volume
+     */
+    public void setStatus(VolumeStatus status) {
+        statusLock.writeLock().lock();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeMetadata.compute(tr, config.subspace(), volumeMetadata -> {
+                volumeMetadata.setStatus(status);
+            });
+            tr.commit().join();
+
+            // Set the status only if the commit was successful.
+            this.status = status;
+        } finally {
+            statusLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Validates whether the volume is in a read-only state and raises an exception if it is.
+     * This method checks the current status of the volume. If the status corresponds to
+     * a read-only state, it throws a {@code VolumeReadOnlyException}.
+     * <p>
+     * Throws:
+     * {@code VolumeReadOnlyException} if the volume is in a read-only state.
+     */
+    private void raiseExceptionIfVolumeReadOnly() {
+        // Raise an exception if the volume is in READONLY status.
+        if (getStatus().equals(VolumeStatus.READONLY)) {
+            throw new VolumeReadOnlyException("Volume: " + config.name() + " is read-only");
+        }
     }
 
     /**
@@ -364,6 +432,8 @@ public class Volume {
         flushMutatedSegments(entryMetadataList);
 
         CompletableFuture<byte[]> future = writeMetadata(session, entryMetadataList);
+
+        raiseExceptionIfVolumeReadOnly();
         return new AppendResult(future, entryMetadataList, entryMetadataCache.load(session.prefix())::put);
     }
 
@@ -528,6 +598,7 @@ public class Volume {
             result.add(index, key);
             index++;
         }
+        raiseExceptionIfVolumeReadOnly();
         return result;
     }
 
@@ -582,6 +653,8 @@ public class Volume {
 
             index++;
         }
+
+        raiseExceptionIfVolumeReadOnly();
         return new UpdateResult(pairs, entryMetadataCache.load(session.prefix())::invalidate);
     }
 
@@ -650,7 +723,41 @@ public class Volume {
      * @return an iterable collection of KeyEntry objects within the specified session
      */
     public Iterable<KeyEntry> getRange(@Nonnull Session session) {
-        return new VolumeIterable(this, session, null, null);
+        return getRange(session, ReadTransaction.ROW_LIMIT_UNLIMITED);
+    }
+
+    /**
+     * Retrieves a range of KeyEntry objects based on the provided session and reverse flag.
+     *
+     * @param session the session used to access the data; must not be null
+     * @param reverse a boolean indicating the traversal direction; if true, traverses in reverse order
+     * @return an Iterable of KeyEntry objects representing the resulting range
+     */
+    public Iterable<KeyEntry> getRange(@Nonnull Session session, boolean reverse) {
+        return getRange(session, ReadTransaction.ROW_LIMIT_UNLIMITED, reverse);
+    }
+
+    /**
+     * Retrieves a range of KeyEntry objects based on the specified session and limit.
+     *
+     * @param session the active session used to retrieve the KeyEntry objects, must not be null
+     * @param limit   the maximum number of KeyEntry objects to retrieve
+     * @return an Iterable of KeyEntry objects within the specified range
+     */
+    public Iterable<KeyEntry> getRange(@Nonnull Session session, int limit) {
+        return getRange(session, limit, false);
+    }
+
+    /**
+     * Retrieves a range of KeyEntry objects based on the specified session and limit.
+     *
+     * @param session the session object used for retrieving the range, must not be null
+     * @param limit   the maximum number of entries to retrieve
+     * @param reverse if true, retrieves the entries in reverse order
+     * @return an iterable collection of KeyEntry objects matching the specified range and order
+     */
+    public Iterable<KeyEntry> getRange(@Nonnull Session session, int limit, boolean reverse) {
+        return new VolumeIterable(this, session, null, null, limit, reverse);
     }
 
     /**
@@ -662,7 +769,34 @@ public class Volume {
      * @return an Iterable of KeyEntry objects within the specified range
      */
     public Iterable<KeyEntry> getRange(@Nonnull Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
-        return new VolumeIterable(this, session, begin, end);
+        return getRange(session, begin, end, ReadTransaction.ROW_LIMIT_UNLIMITED);
+    }
+
+    /**
+     * Retrieves a range of KeyEntry objects between the specified begin and end VersionstampedKeySelectors.
+     *
+     * @param session the current session used for executing the operation, must not be null
+     * @param begin   the starting key selector defining the beginning of the range
+     * @param end     the ending key selector defining the end of the range
+     * @param limit   the maximum number of key entries to include in the range
+     * @return an iterable collection of KeyEntry objects that falls within the specified range
+     */
+    public Iterable<KeyEntry> getRange(@Nonnull Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
+        return new VolumeIterable(this, session, begin, end, limit, false);
+    }
+
+    /**
+     * Retrieves a range of KeyEntry objects between the specified begin and end VersionstampedKeySelectors.
+     *
+     * @param session the current database session, must not be null
+     * @param begin   the starting key selector for the range
+     * @param end     the ending key selector for the range
+     * @param limit   the maximum number of entries to retrieve
+     * @param reverse whether to retrieve the range in reverse order
+     * @return an Iterable collection of KeyEntry objects within the specified range
+     */
+    public Iterable<KeyEntry> getRange(@Nonnull Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
+        return new VolumeIterable(this, session, begin, end, limit, reverse);
     }
 
     /**
@@ -857,6 +991,7 @@ public class Volume {
         Objects.requireNonNull(session.transaction());
         Objects.requireNonNull(session.prefix());
 
+        raiseExceptionIfVolumeReadOnly();
         clearSegmentsByPrefix(session);
         clearEntrySubspace(session);
     }
@@ -872,9 +1007,11 @@ public class Volume {
      * @throws IOException if an I/O error occurs while accessing the segment
      */
     public void insert(String segmentName, PackedEntry... entries) throws IOException {
+
         Segment segment = getOrOpenSegmentByName(segmentName);
         for (PackedEntry entry : entries) {
             try {
+                raiseExceptionIfVolumeReadOnly();
                 segment.insert(ByteBuffer.wrap(entry.data()), entry.position());
                 // Assumed that callers of this method call flush after a successful return.
             } catch (NotEnoughSpaceException e) {
@@ -888,7 +1025,7 @@ public class Volume {
      * Invalidates the entry metadata cache for a specific key within a given prefix.
      *
      * @param prefix The prefix associated with the cache to be invalidated.
-     * @param key The specific key within the given prefix whose metadata cache should be invalidated.
+     * @param key    The specific key within the given prefix whose metadata cache should be invalidated.
      */
     public void invalidateEntryMetadataCacheEntry(Prefix prefix, Versionstamp key) {
         entryMetadataCache.load(prefix).invalidate(key);

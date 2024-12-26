@@ -26,6 +26,8 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
 import com.kronotop.server.resp3.*;
+import com.kronotop.volume.VolumeConfigGenerator;
+import com.kronotop.volume.replication.ReplicationMetadata;
 import com.kronotop.volume.replication.ReplicationSlot;
 import com.kronotop.volume.replication.ReplicationStage;
 import io.netty.buffer.ByteBuf;
@@ -35,10 +37,13 @@ import java.util.*;
 public class BaseKrAdminSubcommandHandler {
     protected final Context context;
     protected final MembershipService membership;
+    protected final RoutingService routing;
 
-    public BaseKrAdminSubcommandHandler(MembershipService membership) {
-        this.context = membership.getContext();
-        this.membership = membership;
+    public BaseKrAdminSubcommandHandler(RoutingService service) {
+        this.context = service.getContext();
+        this.routing = service;
+        // Membership service has been started before RoutingService.
+        this.membership = service.getContext().getService(MembershipService.NAME);
     }
 
     /**
@@ -76,7 +81,7 @@ public class BaseKrAdminSubcommandHandler {
         }
         shard.put(new SimpleStringRedisMessage("sync_standbys"), new ArrayRedisMessage(syncStandbyMessages));
 
-        ShardStatus status = MembershipUtils.loadShardStatus(tr, shardSubspace);
+        ShardStatus status = ShardUtils.getShardStatus(tr, shardSubspace);
         shard.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(status.name()));
 
         return shard;
@@ -294,6 +299,11 @@ public class BaseKrAdminSubcommandHandler {
                 slot.isActive() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
         );
 
+        current.put(
+                new SimpleStringRedisMessage("stale"),
+                slot.isStale() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
+        );
+
         String replicationStage = "";
         if (slot.getReplicationStage() != null) {
             replicationStage = slot.getReplicationStage().name();
@@ -313,17 +323,28 @@ public class BaseKrAdminSubcommandHandler {
                 new IntegerRedisMessage(slot.getLatestSegmentId())
         );
 
-        String latestVersionstampedKey = "";
-        if (slot.getLatestVersionstampedKey() != null) {
-            latestVersionstampedKey = VersionstampUtils.base64Encode(
-                    Versionstamp.fromBytes(slot.getLatestVersionstampedKey())
+        String receivedVersionstampedKey = "";
+        if (slot.getReceivedVersionstampedKey() != null) {
+            receivedVersionstampedKey = VersionstampUtils.base64Encode(
+                    Versionstamp.fromBytes(slot.getReceivedVersionstampedKey())
             );
         }
         current.put(
-                new SimpleStringRedisMessage("latest_versionstamped_key"),
-                new SimpleStringRedisMessage(latestVersionstampedKey)
+                new SimpleStringRedisMessage("received_versionstamped_key"),
+                new SimpleStringRedisMessage(receivedVersionstampedKey)
         );
 
+        VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, shardKind, shardId);
+        DirectorySubspace volumeSubspace = volumeConfigGenerator.openVolumeSubspace();
+        Versionstamp latestVersionstampedKey = ReplicationMetadata.findLatestVersionstampedKey(context, volumeSubspace);
+        String latestVersionstampedKeyStr = "";
+        if (latestVersionstampedKey != null) {
+            latestVersionstampedKeyStr = VersionstampUtils.base64Encode(latestVersionstampedKey);
+        }
+        current.put(
+                new SimpleStringRedisMessage("latest_versionstamped_key"),
+                new SimpleStringRedisMessage(latestVersionstampedKeyStr)
+        );
         return current;
     }
 }

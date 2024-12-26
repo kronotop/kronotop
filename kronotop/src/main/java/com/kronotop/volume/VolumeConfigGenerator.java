@@ -63,26 +63,34 @@ public class VolumeConfigGenerator {
     }
 
     /**
-     * Creates or opens a volume subspace within the FoundationDB directory for a given Kronotop directory node.
-     * This method ensures that a directory subspace is available for storing data associated with the specified
-     * directory node. If a transaction error specific to conflict resolution occurs, the method will retry recursively.
+     * Creates or opens a DirectorySubspace for a specified directory within the Kronotop structure.
+     * This method attempts to create or retrieve the subspace for the given directory,
+     * optionally creating it if it does not exist, based on the provided flag.
+     * <p>
+     * If a FoundationDB transaction conflict is detected (error code 1020), the method will retry.
+     * Any other exceptions are propagated to the caller.
      *
-     * @param directory the KronotopDirectoryNode that represents the directory layout for which the subspace
-     *                  is to be created or opened.
-     * @return the DirectorySubspace associated with the provided KronotopDirectoryNode, representing the path
-     * in the FoundationDB directory layer where volume data will be stored.
-     * @throws CompletionException if an unrecoverable error occurs during the transaction execution that is not
-     *                             related to retryable error code 1020.
+     * @param directory        the KronotopDirectoryNode representing the directory path for the subspace.
+     * @param createIfNotExist a boolean flag indicating whether to create the DirectorySubspace if it doesn't exist.
+     *                         If false, the method attempts to open the subspace, failing if it does not exist.
+     * @return the created or opened DirectorySubspace associated with the specified Kronotop directory.
+     * @throws CompletionException if the creation or opening of the subspace fails for any reason other than a
+     *                             transaction conflict (which is retried automatically).
      */
-    private DirectorySubspace createOrOpenVolumeSubspace(KronotopDirectoryNode directory) {
+    private DirectorySubspace createOrOpenVolumeSubspace(KronotopDirectoryNode directory, boolean createIfNotExist) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
+            DirectorySubspace subspace;
+            if (createIfNotExist) {
+                subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
+            } else {
+                subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+            }
             tr.commit().join();
             return subspace;
         } catch (CompletionException e) {
             if (e.getCause() instanceof FDBException ex) {
                 if (ex.getCode() == 1020) {
-                    return createOrOpenVolumeSubspace(directory);
+                    return createOrOpenVolumeSubspace(directory, createIfNotExist);
                 }
             }
             throw e;
@@ -90,7 +98,7 @@ public class VolumeConfigGenerator {
     }
 
     private String volumeName(ShardKind shardKind, int shardId) {
-        return String.format("%s-shard-%d", shardKind, shardId);
+        return String.format("%s-shard-%d", shardKind, shardId).toLowerCase();
     }
 
     /**
@@ -140,7 +148,7 @@ public class VolumeConfigGenerator {
     public VolumeConfig volumeConfig(String dataDir) {
         if (shardKind.equals(ShardKind.REDIS)) {
             KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
-            DirectorySubspace subspace = createOrOpenVolumeSubspace(directory);
+            DirectorySubspace subspace = createOrOpenVolumeSubspace(directory, true);
             return newRedisShardVolumeConfig(subspace, dataDir);
         } else {
             throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
@@ -159,7 +167,25 @@ public class VolumeConfigGenerator {
     public DirectorySubspace createOrOpenVolumeSubspace() {
         if (shardKind.equals(ShardKind.REDIS)) {
             KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
-            return createOrOpenVolumeSubspace(directory);
+            return createOrOpenVolumeSubspace(directory, true);
+        } else {
+            throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
+        }
+    }
+
+    /**
+     * Opens the DirectorySubspace associated with a volume's configuration.
+     * This method evaluates the shardKind field to determine if the shard type is supported.
+     * If the shard type is REDIS, it retrieves the KronotopDirectoryNode representing the shard's directory
+     * and attempts to open the DirectorySubspace associated with it.
+     *
+     * @return the DirectorySubspace corresponding to the volume configuration of the Redis shard
+     * @throws IllegalArgumentException if the shard kind is unrecognized
+     */
+    public DirectorySubspace openVolumeSubspace() {
+        if (shardKind.equals(ShardKind.REDIS)) {
+            KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
+            return createOrOpenVolumeSubspace(directory, false);
         } else {
             throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
         }

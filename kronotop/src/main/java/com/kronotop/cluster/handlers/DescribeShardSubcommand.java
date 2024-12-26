@@ -18,7 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
@@ -31,7 +31,7 @@ import java.util.Map;
 
 class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    public DescribeShardSubcommand(MembershipService service) {
+    public DescribeShardSubcommand(RoutingService service) {
         super(service);
     }
 

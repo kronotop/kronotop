@@ -20,9 +20,11 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
+import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.common.KronotopException;
+import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +35,7 @@ import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class RoutingService extends BaseKronotopService implements KronotopService {
+public class RoutingService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Routing";
     private static final Logger LOGGER = LoggerFactory.getLogger(RoutingService.class);
 
@@ -54,6 +56,8 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
 
         ThreadFactory factory = Thread.ofVirtual().name("kr.routing").factory();
         this.scheduler = new ScheduledThreadPoolExecutor(1, factory);
+
+        handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));
     }
 
     public void registerHook(RoutingEventKind kind, RoutingEventHook hook) {
@@ -156,7 +160,7 @@ public class RoutingService extends BaseKronotopService implements KronotopServi
 
         try {
             Member primary = membership.findMember(primaryMemberId);
-            ShardStatus shardStatus = MembershipUtils.loadShardStatus(tr, shardSubspace);
+            ShardStatus shardStatus = ShardUtils.getShardStatus(tr, shardSubspace);
 
             Set<String> standbyIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
             Set<Member> standbys = memberIdsToMembers(standbyIds);

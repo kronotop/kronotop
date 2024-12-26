@@ -94,4 +94,52 @@ class ReplicationSlotTest extends BaseVolumeIntegrationTest {
             assertTrue(slot.isActive());
         }
     }
+
+    @Test
+    public void test_setStale_while_slot_is_active() {
+        Versionstamp slotId;
+        ReplicationConfig config = getReplicationConfig();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertDoesNotThrow(() -> ReplicationSlot.newSlot(tr, config));
+            CompletableFuture<byte[]> future = tr.getVersionstamp();
+            tr.commit().join();
+            slotId = Versionstamp.complete(future.join());
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertThrows(IllegalStateException.class, () -> ReplicationSlot.compute(tr, config, slotId, (slot) -> {
+                slot.setActive(true);
+                slot.setStale();
+            }));
+        }
+    }
+
+    @Test
+    public void test_setStale_while_slot_is_not_active() {
+        Versionstamp slotId;
+        ReplicationConfig config = getReplicationConfig();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertDoesNotThrow(() -> ReplicationSlot.newSlot(tr, config));
+            CompletableFuture<byte[]> future = tr.getVersionstamp();
+            tr.commit().join();
+            slotId = Versionstamp.complete(future.join());
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertDoesNotThrow(() -> ReplicationSlot.compute(tr, config, slotId, (slot) -> {
+                slot.setActive(false);
+                slot.setStale();
+            }));
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            ReplicationSlot slot = assertDoesNotThrow(() -> ReplicationSlot.load(tr, config, slotId));
+            assertNotNull(slot);
+            assertFalse(slot.isActive());
+            assertTrue(slot.isStale());
+        }
+    }
 }

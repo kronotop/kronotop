@@ -533,6 +533,83 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    public void test_getRange_limit() throws IOException {
+        ByteBuffer[] entries = getEntries(10);
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
+        assertEquals(10, versionstampedKeys.length);
+
+        // Retrieves the first 5 keys.
+        int limit = 5;
+        Versionstamp[] retrievedKeys = new Versionstamp[limit];
+        ByteBuffer[] retrievedEntries = new ByteBuffer[limit];
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            int index = 0;
+            Iterable<KeyEntry> iterable = volume.getRange(session, limit);
+            for (KeyEntry keyEntry : iterable) {
+                retrievedKeys[index] = keyEntry.key();
+                retrievedEntries[index] = keyEntry.entry();
+                index++;
+            }
+        }
+
+        assertArrayEquals(Arrays.copyOfRange(versionstampedKeys, 0, limit), retrievedKeys);
+        for (int i = 0; i < limit; i++) {
+            ByteBuffer expected = entries[i];
+            expected.flip();
+            ByteBuffer actual = retrievedEntries[i];
+            assertArrayEquals(expected.array(), actual.array());
+        }
+    }
+
+    @Test
+    public void test_getRange_reverse() throws IOException {
+        ByteBuffer[] entries = getEntries(10);
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
+        assertEquals(10, versionstampedKeys.length);
+
+        // Retrieves the first 5 keys.
+        Versionstamp[] retrievedKeys = new Versionstamp[10];
+        ByteBuffer[] retrievedEntries = new ByteBuffer[10];
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            int index = 0;
+            Iterable<KeyEntry> iterable = volume.getRange(session, true);
+            for (KeyEntry keyEntry : iterable) {
+                retrievedKeys[index] = keyEntry.key();
+                retrievedEntries[index] = keyEntry.entry();
+                index++;
+            }
+        }
+
+        // Reverse keys and entries first.
+        Collections.reverse(Arrays.asList(versionstampedKeys));
+        Collections.reverse(Arrays.asList(entries));
+
+        assertArrayEquals(versionstampedKeys, retrievedKeys);
+        for (int i = 0; i < 10; i++) {
+            ByteBuffer expected = entries[i];
+            expected.flip();
+            ByteBuffer actual = retrievedEntries[i];
+            assertArrayEquals(expected.array(), actual.array());
+        }
+    }
+
+    @Test
     public void test_getRange_random_range() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
@@ -759,5 +836,131 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             ByteBuffer secondBuffer = standby.get(session, versionstamps[1]);
             assertArrayEquals(second, secondBuffer.array());
         }
+    }
+
+    @Test
+    public void test_getStatus_default_status() {
+        assertEquals(VolumeStatus.READWRITE, volume.getStatus());
+    }
+
+    @Test
+    public void test_setStatus_when_getStatus() {
+        volume.setStatus(VolumeStatus.READONLY);
+        assertEquals(VolumeStatus.READONLY, volume.getStatus());
+
+        try (Transaction tr = database.createTransaction()) {
+            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata -> {
+                assertEquals(VolumeStatus.READONLY, volumeMetadata.getStatus());
+            }));
+        }
+    }
+
+    @Test
+    public void test_when_append_raise_VolumeReadOnlyException() throws IOException {
+        volume.setStatus(VolumeStatus.READONLY);
+
+        ByteBuffer[] entries = getEntries(1);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            assertThrows(VolumeReadOnlyException.class, () -> volume.append(session, entries));
+        }
+    }
+
+    @Test
+    public void test_when_delete_raise_VolumeReadOnlyException() throws IOException {
+        ByteBuffer[] entries = getEntries(1);
+        AppendResult appendResult;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+
+        volume.setStatus(VolumeStatus.READONLY);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            assertThrows(VolumeReadOnlyException.class, () -> volume.delete(session, versionstampedKeys));
+        }
+    }
+
+    @Test
+    public void test_when_update_raise_VolumeReadOnlyException() throws IOException, KeyNotFoundException {
+        Versionstamp[] versionstampedKeys;
+
+        {
+            ByteBuffer[] entries = {
+                    ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                    ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
+            };
+            AppendResult result;
+            try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr, redisVolumeSyncerPrefix);
+                result = volume.append(session, entries);
+                tr.commit().join();
+            }
+            versionstampedKeys = result.getVersionstampedKeys();
+        }
+
+
+        volume.setStatus(VolumeStatus.READONLY);
+        KeyEntry[] entries = new KeyEntry[2];
+        entries[0] = new KeyEntry(versionstampedKeys[0], ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
+        entries[1] = new KeyEntry(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            assertThrows(VolumeReadOnlyException.class, () -> volume.update(session, entries));
+        }
+    }
+
+    @Test
+    public void test_when_clearPrefix_raise_VolumeReadOnlyException() throws IOException {
+        ByteBuffer[] entries = getEntries(3);
+        AppendResult result;
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        volume.setStatus(VolumeStatus.READONLY);
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            assertThrows(VolumeReadOnlyException.class, () -> volume.clearPrefix(session));
+        }
+    }
+
+    @Test
+    public void test_when_insert_raise_VolumeReadOnlyException(@TempDir Path dataDir) throws IOException {
+        byte[] first = new byte[]{1, 2, 3};
+        byte[] second = new byte[]{4, 5, 6};
+        ByteBuffer[] entries = {
+                ByteBuffer.wrap(first),
+                ByteBuffer.wrap(second),
+        };
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, prefix);
+            volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        VolumeConfig config = new VolumeConfig(
+                volume.getConfig().subspace(),
+                volume.getConfig().name(),
+                dataDir.toString(),
+                volume.getConfig().segmentSize(),
+                volume.getConfig().allowedGarbageRatio()
+        );
+
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        String segmentName = segmentAnalysis.getFirst().name();
+
+        Volume standby = service.newVolume(config);
+        standby.setStatus(VolumeStatus.READONLY);
+        PackedEntry[] packedEntries = new PackedEntry[]{
+                new PackedEntry(0, first),
+                new PackedEntry(3, second)
+        };
+        assertThrows(VolumeReadOnlyException.class, () -> standby.insert(segmentName, packedEntries));
     }
 }

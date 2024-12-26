@@ -142,79 +142,92 @@ public class KronotopTestInstance extends KronotopInstance {
         }
 
         channel = newChannel();
-        initializeTestCluster();
+        initialize();
 
         String namespace = config.getString("default_namespace");
         NamespaceUtils.createOrOpen(context.getFoundationDB(), context.getClusterName(), namespace);
     }
 
-    private void initializeTestCluster() {
-        {
-            RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
-            boolean authRequired = config.hasPath("auth.users") || config.hasPath("auth.requirepass");
-            if (authRequired) {
-                ByteBuf buf = Unpooled.buffer();
-                cmd.auth("devuser", "devpass").encode(buf);
-
-                channel.writeInbound(buf);
-                Object msg = channel.readOutbound();
-                assertInstanceOf(SimpleStringRedisMessage.class, msg);
-                SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-                assertEquals(Response.OK, actualMessage.content());
-            }
-        }
-
-        {
-            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+    private void authenticateIfRequired() {
+        // Authenticate the connection - channel
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+        boolean authRequired = config.hasPath("auth.users") || config.hasPath("auth.requirepass");
+        if (authRequired) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.initializeCluster().encode(buf);
+            cmd.auth("devuser", "devpass").encode(buf);
+
             channel.writeInbound(buf);
-
-            Object raw = channel.readOutbound();
-            if (raw instanceof SimpleStringRedisMessage message) {
-                assertEquals(Response.OK, message.content());
-            } else if (raw instanceof ErrorRedisMessage message) {
-                if (message.content().equals("ERR cluster has already been initialized")) {
-                    // It's okay.
-                    return;
-                }
-                fail(message.content());
-            }
-
-            RoutingService routing = context.getService(RoutingService.NAME);
-            await().atMost(5000, TimeUnit.MILLISECONDS).until(routing::isClusterInitialized);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
         }
+    }
 
-        {
-            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
-            ByteBuf buf = Unpooled.buffer();
-            cmd.setShardStatus("REDIS", "READWRITE").encode(buf);
-            channel.writeInbound(buf);
+    private boolean initializeCluster(KrAdminCommandBuilder<String, String> cmd) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.initializeCluster().encode(buf);
+        channel.writeInbound(buf);
 
-            Object raw = channel.readOutbound();
-            if (raw instanceof SimpleStringRedisMessage message) {
-                assertEquals(Response.OK, message.content());
-            } else if (raw instanceof ErrorRedisMessage message) {
+        Object raw = channel.readOutbound();
+        if (raw instanceof SimpleStringRedisMessage message) {
+            assertEquals(Response.OK, message.content());
+        } else if (raw instanceof ErrorRedisMessage message) {
+            if (message.content().equals("ERR cluster has already been initialized")) {
+                // It's okay, already initialized by the first call of addNewInstance method.
+                return true;
+            } else {
                 fail(message.content());
             }
         }
+        return false;
+    }
 
-        {
-            KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
-            ByteBuf buf = Unpooled.buffer();
-            cmd.route("SET", RouteKind.PRIMARY.name(), ShardKind.REDIS.name(), context.getMember().getId()).encode(buf);
-            channel.writeInbound(buf);
+    private void setPrimaryOwnersOfShards(KrAdminCommandBuilder<String, String> cmd) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.route("SET", RouteKind.PRIMARY.name(), ShardKind.REDIS.name(), context.getMember().getId()).encode(buf);
+        channel.writeInbound(buf);
 
-            Object raw = channel.readOutbound();
-            if (raw instanceof SimpleStringRedisMessage message) {
-                assertEquals(Response.OK, message.content());
-            } else if (raw instanceof ErrorRedisMessage message) {
-                fail(message.content());
-            }
+        Object raw = channel.readOutbound();
+        if (raw instanceof SimpleStringRedisMessage message) {
+            assertEquals(Response.OK, message.content());
+        } else if (raw instanceof ErrorRedisMessage message) {
+            fail(message.content());
+        }
+    }
+
+    private void setShardsReadWrite(KrAdminCommandBuilder<String, String> cmd) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.setShardStatus("REDIS", "READWRITE").encode(buf);
+        channel.writeInbound(buf);
+
+        Object raw = channel.readOutbound();
+        if (raw instanceof SimpleStringRedisMessage message) {
+            assertEquals(Response.OK, message.content());
+        } else if (raw instanceof ErrorRedisMessage message) {
+            fail(message.content());
+        }
+    }
+
+    private void initialize() {
+        authenticateIfRequired();
+
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        boolean clusterAlreadyInitialized = initializeCluster(cmd);
+
+        if (clusterAlreadyInitialized) {
+            // The cluster has already been initialized, no need to run the rest of the procedure.
+            return;
         }
 
-        await().atMost(5, TimeUnit.SECONDS).until(this::areAllRedisShardsWritable);
+        RoutingService routing = context.getService(RoutingService.NAME);
+        await().atMost(5000, TimeUnit.MILLISECONDS).until(routing::isClusterInitialized);
+
+        setPrimaryOwnersOfShards(cmd);
         await().atMost(5, TimeUnit.SECONDS).until(this::areAllOwnedRedisShardsOperable);
+
+        setShardsReadWrite(cmd);
+        await().atMost(5, TimeUnit.SECONDS).until(this::areAllRedisShardsWritable);
     }
 
     private boolean areAllRedisShardsWritable() {
@@ -259,7 +272,7 @@ public class KronotopTestInstance extends KronotopInstance {
     /**
      * Cleans up the test cluster by removing the corresponding directory in the FoundationDB database.
      */
-    private void cleanupTestCluster() {
+    public void cleanupTestCluster() {
         context.getFoundationDB().run(tr -> {
             List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).toList();
             return DirectoryLayer.getDefault().removeIfExists(tr, subpath).join();

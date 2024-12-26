@@ -16,12 +16,29 @@
 
 package com.kronotop.volume.handlers;
 
+import com.kronotop.Context;
 import com.kronotop.volume.VolumeService;
+import io.netty.buffer.ByteBuf;
 
 public class BaseHandler {
     protected VolumeService service;
+    protected Context context;
 
     public BaseHandler(VolumeService service) {
         this.service = service;
+        this.context = service.getContext();
     }
+
+    /**
+     * Reads the content of the provided ByteBuf as a string.
+     *
+     * @param buf the ByteBuf containing the raw bytes to be read
+     * @return a string representation of the bytes in the provided ByteBuf
+     */
+    protected String readAsString(ByteBuf buf) {
+        byte[] raw = new byte[buf.readableBytes()];
+        buf.readBytes(raw);
+        return new String(raw);
+    }
+
 }

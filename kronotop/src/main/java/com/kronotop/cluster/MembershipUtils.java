@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.JSONUtils;
-import com.kronotop.cluster.sharding.ShardStatus;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -39,22 +38,6 @@ public final class MembershipUtils {
     public static boolean isClusterInitialized(Transaction tr, DirectorySubspace clusterMetadataSubspace) {
         byte[] key = clusterMetadataSubspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
         return MembershipUtils.isTrue(tr.get(key).join());
-    }
-
-    /**
-     * Loads the shard status from the specified subspace within a transaction.
-     *
-     * @param tr            The transaction used to read from the database.
-     * @param shardSubspace The specific directory subspace containing the shard status.
-     * @return The shard status as a ShardStatus enum value. If the status is not found, returns ShardStatus.INOPERABLE.
-     */
-    public static ShardStatus loadShardStatus(Transaction tr, DirectorySubspace shardSubspace) {
-        byte[] statusKey = shardSubspace.pack(Tuple.from(MembershipConstants.SHARD_STATUS_KEY));
-        byte[] statusValue = tr.get(statusKey).join();
-        if (statusValue == null) {
-            return ShardStatus.INOPERABLE;
-        }
-        return ShardStatus.valueOf(new String(statusValue).toUpperCase());
     }
 
     /**
@@ -90,6 +73,17 @@ public final class MembershipUtils {
             List<String> items = Arrays.asList(JSONUtils.readValue(value, String[].class));
             return new HashSet<>(items);
         }).join();
+    }
+
+    public static void setStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace, Set<String> standbyMemberIds) {
+        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_STANDBY_MEMBER_KEY));
+        tr.set(key, JSONUtils.writeValueAsBytes(standbyMemberIds));
+    }
+
+    public static void setSyncStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace, Set<String> syncStandbyMemberIds) {
+        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_SYNC_STANDBY_MEMBERS));
+        byte[] value = JSONUtils.writeValueAsBytes(syncStandbyMemberIds);
+        tr.set(key, value);
     }
 
     /**

@@ -18,11 +18,8 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.JSONUtils;
-import com.kronotop.cluster.MembershipConstants;
-import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.MembershipUtils;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -35,7 +32,7 @@ import java.util.Set;
 
 public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    public SyncStandbySubcommand(MembershipService membership) {
+    public SyncStandbySubcommand(RoutingService membership) {
         super(membership);
     }
 
@@ -49,9 +46,7 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
             throw new KronotopException("member is already a sync standby");
         }
         syncStandbyMemberIds.add(parameters.memberId);
-        byte[] key = subspace.pack(Tuple.from(MembershipConstants.ROUTE_SYNC_STANDBY_MEMBERS));
-        byte[] value = JSONUtils.writeValueAsBytes(syncStandbyMemberIds);
-        tr.set(key, value);
+        MembershipUtils.setSyncStandbyMemberIds(tr, subspace, syncStandbyMemberIds);
     }
 
     private void unsetSyncStandby(Transaction tr, SyncStandbyParameters parameters, DirectorySubspace subspace) {
@@ -60,9 +55,7 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
             throw new KronotopException("member is not a sync standby");
         }
         syncStandbyMemberIds.remove(parameters.memberId);
-        byte[] key = subspace.pack(Tuple.from(MembershipConstants.ROUTE_SYNC_STANDBY_MEMBERS));
-        byte[] value = JSONUtils.writeValueAsBytes(syncStandbyMemberIds);
-        tr.set(key, value);
+        MembershipUtils.setSyncStandbyMemberIds(tr, subspace, syncStandbyMemberIds);
     }
 
     private void syncStandbyForShard(Transaction tr, SyncStandbyParameters parameters, DirectorySubspace shardSubspace) {

@@ -18,7 +18,9 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,8 +39,16 @@ public class PrimaryOwnerChangedHook extends BaseRoutingEventHook implements Rou
             LOGGER.warn("No ReplicationSlot found for ShardKind: {} ShardId: {}", shardKind, shardId);
             return;
         }
-        Replication replication = replicationService.getReplication(slotId);
-        // connect will find the current primary owner and make a new connection while cleaning up the old one.
-        replication.tryConnect();
+        ReplicationService replicationService = context.getService(ReplicationService.NAME);
+        RoutingService routingService = context.getService(RoutingService.NAME);
+        Route route = routingService.findRoute(shardKind, shardId);
+        if (route.primary().equals(context.getMember())) {
+            // This member is the new primary, stop the replication immediately.
+            replicationService.stopReplication(slotId);
+        } else {
+            // connect will find the current primary owner and make a new connection while cleaning up the old one.
+            Replication replication = replicationService.getReplication(slotId);
+            replication.tryConnect();
+        }
     }
 }

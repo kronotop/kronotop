@@ -323,17 +323,13 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) messageValue;
                     assertFalse(value.content().isEmpty());
                 }
-                case "standbys" -> {
+                case "standbys", "sync_standbys" -> {
                     ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
                     assertEquals(0, value.children().size());
                 }
                 case "status" -> {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) messageValue;
                     assertEquals(ShardStatus.READWRITE.name(), value.content());
-                }
-                case "sync_standbys" -> {
-                    ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
-                    assertEquals(0, value.children().size());
                 }
             }
         });
@@ -367,7 +363,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                         IntegerRedisMessage v = (IntegerRedisMessage) value;
                         assertEquals(1, v.value());
                     }
-                    case "replication_stage", "latest_versionstamped_key" -> {
+                    case "replication_stage", "latest_versionstamped_key", "received_versionstamped_key" -> {
                         SimpleStringRedisMessage v = (SimpleStringRedisMessage) value;
                         assertEquals("", v.content());
                     }
@@ -375,7 +371,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                         IntegerRedisMessage v = (IntegerRedisMessage) value;
                         assertEquals(0, v.value());
                     }
-                    case "active" -> {
+                    case "active", "stale" -> {
                         BooleanRedisMessage v = (BooleanRedisMessage) value;
                         assertFalse(v.value());
                     }
