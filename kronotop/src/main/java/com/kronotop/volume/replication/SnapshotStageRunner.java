@@ -230,7 +230,7 @@ public class SnapshotStageRunner extends ReplicationStageRunner implements Stage
      */
     @Override
     public void run() {
-        setActive(true);
+        initializeStage(ReplicationStage.SNAPSHOT);
 
         // Try to re-connect for half an hour.
         runWithMaxAttempt(360, Duration.ofSeconds(5), () -> {

@@ -56,31 +56,31 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
 
         Member nextPrimaryOwner = membership.findMember(tr, parameters.memberId);
         if (nextPrimaryOwner == null) {
-            throw new IllegalStateException("Member could not be found: " + parameters.memberId);
+            throw new KronotopException("Member could not be found: " + parameters.memberId);
         }
 
         Member primaryOwner = membership.findMember(tr, primaryMemberId);
         if (primaryOwner == null) {
-            throw new IllegalStateException("Primary shard owner could not be found: " + primaryMemberId);
+            throw new KronotopException("Primary shard owner could not be found: " + primaryMemberId);
         }
 
         // Check shard status first
         ShardStatus shardStatus = ShardUtils.getShardStatus(context, tr, parameters.shardKind, shardId);
         if (shardStatus.equals(ShardStatus.READWRITE)) {
-            throw new IllegalStateException("Shard status must not be " + ShardStatus.READWRITE);
+            throw new KronotopException("Shard status must not be " + ShardStatus.READWRITE);
         }
 
         // Load the route
         Route route = routing.findRoute(parameters.shardKind, shardId);
         if (!route.standbys().contains(nextPrimaryOwner)) {
-            throw new IllegalStateException("Member id: " + nextPrimaryOwner.getId() + " is not a standby");
+            throw new KronotopException("Member id: " + nextPrimaryOwner.getId() + " is not a standby");
         }
 
         VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, parameters.shardKind, shardId);
         DirectorySubspace volumeSubspace = volumeConfigGenerator.openVolumeSubspace();
         VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volumeSubspace);
         if (!volumeMetadata.getStatus().equals(VolumeStatus.READONLY)) {
-            throw new IllegalStateException("Volume status must be " + VolumeStatus.READONLY);
+            throw new KronotopException("Volume status must be " + VolumeStatus.READONLY);
         }
 
         // Find the replication slot
@@ -90,7 +90,7 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
         // Check the replication status
         Versionstamp latestVersionstampedKey = ReplicationMetadata.findLatestVersionstampedKey(context, volumeSubspace);
         if (latestVersionstampedKey == null) {
-            throw new IllegalStateException("Latest versionstamped key not found");
+            throw new KronotopException("Latest versionstamped key not found");
         }
 
         // Caught up?

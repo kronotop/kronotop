@@ -159,7 +159,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
             return;
         }
 
-        setActive(true);
+        initializeStage(ReplicationStage.STREAMING);
 
         // Try to re-connect for half an hour.
         keepRunningWithMaxAttempt(360, Duration.ofSeconds(5), () -> {

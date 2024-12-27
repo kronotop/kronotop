@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Replication {
@@ -132,6 +133,13 @@ public class Replication {
         }
 
         executor.shutdown();
+        try {
+            if (!executor.awaitTermination(15, TimeUnit.SECONDS)) {
+                LOGGER.debug("Replication stage executor terminated before termination of the current replication stage");
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         client.shutdown();
 
         LOGGER.atDebug().setMessage("Replication has stopped, slotId = {}")

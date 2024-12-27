@@ -22,7 +22,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
-import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.*;
 import com.kronotop.volume.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -37,14 +37,14 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.*;
 
 class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     @TempDir
@@ -366,6 +366,71 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             assertEquals("ERR Shard status must not be READWRITE", actualMessage.content());
         } finally {
             test.stop();
+        }
+    }
+
+    @Test
+    public void start_replication_then_check_replication_slots() throws IOException {
+        Versionstamp[] versionstampedKeys = new Versionstamp[0];
+
+        // Insert some keys to the primary volume
+        versionstampedKeys = appendEntries(volume, 100, versionstampedKeys);
+
+        // Start a standby
+        Volume standbyVolume = standbyVolume();
+        Replication replication = newReplication(context, standbyVolume.getConfig());
+        try {
+            replication.start();
+            await().atMost(10, TimeUnit.SECONDS).until(() -> replication.getActiveStageRunner() != null);
+            Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
+            await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
+
+            KrAdminCommandBuilder<String, String> krAdmin = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf buf = Unpooled.buffer();
+            krAdmin.listReplicationSlots().encode(buf);
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(MapRedisMessage.class, msg);
+
+            MapRedisMessage actualMessage = (MapRedisMessage) msg;
+            for (RedisMessage value : actualMessage.children().values()) {
+                MapRedisMessage mapRedisMessage = (MapRedisMessage) value;
+                for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
+                    SimpleStringRedisMessage key = (SimpleStringRedisMessage) entry.getKey();
+                    if (key.content().equals("active")) {
+                        assertTrue(((BooleanRedisMessage) entry.getValue()).value());
+                    }
+                    if (key.content().equals("stale")) {
+                        assertFalse(((BooleanRedisMessage) entry.getValue()).value());
+                    }
+                    if (key.content().equals("shard_kind")) {
+                        assertEquals(ShardKind.REDIS.name(), ((SimpleStringRedisMessage) entry.getValue()).content());
+                    }
+                    if (key.content().equals("replication_stage")) {
+                        assertEquals(ReplicationStage.STREAMING.name(), ((SimpleStringRedisMessage) entry.getValue()).content());
+                    }
+                    if (key.content().equals("completed_stages")) {
+                        List<RedisMessage> rawCompletedStages = ((ArrayRedisMessage) entry.getValue()).children();
+                        List<String> completedStages = new ArrayList<>();
+                        for (RedisMessage rawCompletedStage : rawCompletedStages) {
+                            String completedStage = ((SimpleStringRedisMessage) rawCompletedStage).content();
+                            completedStages.add(completedStage);
+                        }
+                        assertTrue(completedStages.contains(ReplicationStage.SNAPSHOT.name()));
+                    }
+                    if (key.content().equals("latest_segment_id")) {
+                        assertEquals(0, ((IntegerRedisMessage) entry.getValue()).value());
+                    }
+                    if (key.content().equals("received_versionstamped_key")) {
+                        assertNotNull(((SimpleStringRedisMessage) entry.getValue()).content());
+                    }
+                    if (key.content().equals("latest_versionstamped_key")) {
+                        assertNotNull(((SimpleStringRedisMessage) entry.getValue()).content());
+                    }
+                }
+            }
+        } finally {
+            replication.stop();
         }
     }
 

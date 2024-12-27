@@ -67,16 +67,22 @@ public class KronotopTestInstance extends KronotopInstance {
             InfoMessage.COMMAND,
             HelloMessage.COMMAND
     ));
-    private final boolean runWithTCPServer;
+    private final boolean initialize; // The default is true. It's useful for integration tests that test some failure conditions.
+    private final boolean runWithTCPServer; // the default is false
     private EmbeddedChannel channel;
 
     public KronotopTestInstance(Config config) {
-        this(config, false);
+        this(config, false, true);
     }
 
     public KronotopTestInstance(Config config, boolean runWithTCPServer) {
+        this(config, runWithTCPServer, true);
+    }
+
+    public KronotopTestInstance(Config config, boolean runWithTCPServer, boolean initialize) {
         super(config);
         this.runWithTCPServer = runWithTCPServer;
+        this.initialize = initialize;
     }
 
     private CommandHandlerRegistry mergeCommandHandlerRegistries() {
@@ -142,7 +148,10 @@ public class KronotopTestInstance extends KronotopInstance {
         }
 
         channel = newChannel();
-        initialize();
+
+        if (initialize) {
+            initialize();
+        }
 
         String namespace = config.getString("default_namespace");
         NamespaceUtils.createOrOpen(context.getFoundationDB(), context.getClusterName(), namespace);
@@ -281,7 +290,12 @@ public class KronotopTestInstance extends KronotopInstance {
 
     public void shutdownWithoutCleanup() {
         super.shutdown();
-        executor.shutdownNow();
+        executor.shutdown();
+        try {
+            executor.awaitTermination(15, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         channel.finishAndReleaseAll();
     }
 

@@ -21,6 +21,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KeyWatcher;
+import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.volume.*;
 import com.kronotop.volume.segment.Segment;
@@ -72,11 +73,25 @@ public class ReplicationStageRunner {
         return ReplicationSlot.load(tr, config, slotId);
     }
 
-    protected void setActive(boolean active) {
+    protected void initializeStage(ReplicationStage stage) {
         context.getFoundationDB().run(tr -> {
             ReplicationSlot.compute(tr, config, slotId, (slot) -> {
-                slot.setActive(active);
+                slot.setActive(true);
+                slot.setReplicationStage(stage);
             });
+            return null;
+        });
+    }
+
+    protected void setActive(Transaction tr, boolean active) {
+        ReplicationSlot.compute(tr, config, slotId, (slot) -> {
+            slot.setActive(active);
+        });
+    }
+
+    protected void setActive(boolean active) {
+        context.getFoundationDB().run(tr -> {
+            setActive(tr, active);
             return null;
         });
     }
@@ -297,6 +312,15 @@ public class ReplicationStageRunner {
     }
 
     protected boolean isStopped() {
+        // stopped is a volatile boolean, no need for synchronization.
+        if (!stopped) {
+            // Check the member's status here, many components run async in a Kronotop member.
+            // It's hard to sync event orderly.
+            // This is why this extra check is required here.
+            if (!context.getMember().getStatus().equals(MemberStatus.RUNNING)) {
+                stopped = true;
+            }
+        }
         return stopped;
     }
 
