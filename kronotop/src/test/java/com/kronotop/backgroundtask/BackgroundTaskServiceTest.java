@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.backgroundtask;
 
+import com.kronotop.BaseClusterTest;
 import com.kronotop.instance.KronotopInstance;
 import org.junit.jupiter.api.Test;
 

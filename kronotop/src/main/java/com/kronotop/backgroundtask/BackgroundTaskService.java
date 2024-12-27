@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.backgroundtask;
 
+import com.kronotop.BaseKronotopService;
+import com.kronotop.Context;
+import com.kronotop.KronotopService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

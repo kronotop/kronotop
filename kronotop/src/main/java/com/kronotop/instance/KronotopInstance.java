@@ -19,6 +19,7 @@ package com.kronotop.instance;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
+import com.kronotop.backgroundtask.BackgroundTaskService;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipService;
