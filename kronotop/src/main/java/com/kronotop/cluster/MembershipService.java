@@ -272,8 +272,6 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             long heartbeat = Heartbeat.get(tr, subspace);
             subspaces.put(member, subspace);
             others.put(member, new MemberView(heartbeat));
-            triggerClusterTopologyWatcher(tr);
-            tr.commit().join();
         }
 
         // A new cluster member has joined.
@@ -285,11 +283,6 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         Member member = registry.findMember(event.memberId());
         subspaces.remove(member);
         others.remove(member);
-
-        context.getFoundationDB().run(tr -> {
-            triggerClusterTopologyWatcher(tr);
-            return null;
-        });
 
         context.getInternalConnectionPool().shutdown(member);
         LOGGER.info("Member left: {}", member.getExternalAddress());
