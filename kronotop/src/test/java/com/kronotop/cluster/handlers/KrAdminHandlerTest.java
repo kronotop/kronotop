@@ -28,7 +28,10 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeConfigGenerator;
-import com.kronotop.volume.replication.*;
+import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.replication.ReplicationConfig;
+import com.kronotop.volume.replication.ReplicationMetadata;
+import com.kronotop.volume.replication.ReplicationStage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -312,7 +315,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.describeShard("redis", 1).encode(buf);
+        cmd.describeShard("REDIS", 1).encode(buf);
 
         channel.writeInbound(buf);
         Object msg = channel.readOutbound();
@@ -332,6 +335,12 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 case "status" -> {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) messageValue;
                     assertEquals(ShardStatus.READWRITE.name(), value.content());
+                }
+                case "linked_volumes" -> {
+                    ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
+                    assertEquals(1, value.children().size());
+                    SimpleStringRedisMessage item = (SimpleStringRedisMessage) value.children().getFirst();
+                    assertEquals(volume.getConfig().name(), item.content());
                 }
             }
         });

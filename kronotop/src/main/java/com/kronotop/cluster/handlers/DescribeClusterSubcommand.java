@@ -45,8 +45,7 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
                 Map<RedisMessage, RedisMessage> shardsByKind = new LinkedHashMap<>();
                 int numberOfShards = getNumberOfShards(kind);
                 for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                    DirectorySubspace subspace = context.getDirectorySubspaceCache().get(kind, shardId);
-                    Map<RedisMessage, RedisMessage> shard = describeShard(tr, subspace);
+                    Map<RedisMessage, RedisMessage> shard = describeShard(tr, kind, shardId);
                     shardsByKind.put(new IntegerRedisMessage(shardId), new MapRedisMessage(shard));
                 }
                 result.put(new SimpleStringRedisMessage(kind.toString().toLowerCase()), new MapRedisMessage(shardsByKind));

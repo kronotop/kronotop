@@ -47,14 +47,19 @@ public class BaseKrAdminSubcommandHandler {
     }
 
     /**
-     * Describes the shard information for a given shard directory subspace within a transaction.
+     * Describes the metadata and status of a specific shard.
+     * Retrieves information about the primary member, standby members,
+     * synchronized standby members, and the status of the shard based on its type and ID.
      *
-     * @param tr            The transaction used to read from the database.
-     * @param shardSubspace The specific directory subspace containing the shard information.
-     * @return A map of RedisMessage key-value pairs representing the shard information,
-     * including primary member ID, standby member IDs, and shard status.
+     * @param tr      The transaction object used for accessing the database.
+     * @param shardKind    The kind of shard, represented as a {@link ShardKind}.
+     * @param shardId The ID of the shard to describe.
+     * @return A map where the keys are {@link RedisMessage} instances representing metadata
+     *         descriptors (e.g., "primary", "standbys", "sync_standbys", "status") and the
+     *         values are {@link RedisMessage} instances containing the respective information.
      */
-    protected Map<RedisMessage, RedisMessage> describeShard(Transaction tr, DirectorySubspace shardSubspace) {
+    protected Map<RedisMessage, RedisMessage> describeShard(Transaction tr, ShardKind shardKind, int shardId) {
+        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardKind, shardId);
         Map<RedisMessage, RedisMessage> shard = new LinkedHashMap<>();
 
         String primaryRouteMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
@@ -83,6 +88,12 @@ public class BaseKrAdminSubcommandHandler {
 
         ShardStatus status = ShardUtils.getShardStatus(tr, shardSubspace);
         shard.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(status.name()));
+
+        // TODO: This is not sufficient but it works for now.
+        // Ideally, we should get this info from FDB, re-generating the volume name is not good.
+        List<RedisMessage> linkedVolumes = new ArrayList<>();
+        linkedVolumes.add(new SimpleStringRedisMessage(VolumeConfigGenerator.volumeName(shardKind, shardId)));
+        shard.put(new SimpleStringRedisMessage("linked_volumes"), new ArrayRedisMessage(linkedVolumes));
 
         return shard;
     }

@@ -38,10 +38,8 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
     @Override
     public void execute(Request request, Response response) {
         DescribeShardParameters parameters = new DescribeShardParameters(request.getParams());
-
-        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(parameters.kind, parameters.shardId);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<RedisMessage, RedisMessage> shard = describeShard(tr, subspace);
+            Map<RedisMessage, RedisMessage> shard = describeShard(tr, parameters.kind, parameters.shardId);
             response.writeMap(shard);
         }
     }

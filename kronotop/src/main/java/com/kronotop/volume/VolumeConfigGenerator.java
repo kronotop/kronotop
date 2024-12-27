@@ -97,7 +97,7 @@ public class VolumeConfigGenerator {
         }
     }
 
-    private String volumeName(ShardKind shardKind, int shardId) {
+    public static String volumeName(ShardKind shardKind, int shardId) {
         return String.format("%s-shard-%d", shardKind, shardId).toLowerCase();
     }
 
