@@ -72,9 +72,10 @@ class E2ETestUtils {
 
     static boolean checkReplicationSlots(KronotopTestInstance instance) {
         EmbeddedChannel channel = instance.getChannel();
-        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+
         ByteBuf buf = Unpooled.buffer();
-        cmd.listReplicationSlots().encode(buf);
+        cmd.replications().encode(buf);
         channel.writeInbound(buf);
 
         Object msg = channel.readOutbound();
@@ -143,9 +144,9 @@ class E2ETestUtils {
     }
 
     static boolean areReplicationSlotsUpToDate(KronotopTestInstance instance) {
-        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.listReplicationSlots().encode(buf);
+        cmd.replications().encode(buf);
 
         EmbeddedChannel channel = instance.getChannel();
         channel.writeInbound(buf);

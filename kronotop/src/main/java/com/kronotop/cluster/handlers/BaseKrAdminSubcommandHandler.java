@@ -51,12 +51,12 @@ public class BaseKrAdminSubcommandHandler {
      * Retrieves information about the primary member, standby members,
      * synchronized standby members, and the status of the shard based on its type and ID.
      *
-     * @param tr      The transaction object used for accessing the database.
-     * @param shardKind    The kind of shard, represented as a {@link ShardKind}.
-     * @param shardId The ID of the shard to describe.
+     * @param tr        The transaction object used for accessing the database.
+     * @param shardKind The kind of shard, represented as a {@link ShardKind}.
+     * @param shardId   The ID of the shard to describe.
      * @return A map where the keys are {@link RedisMessage} instances representing metadata
-     *         descriptors (e.g., "primary", "standbys", "sync_standbys", "status") and the
-     *         values are {@link RedisMessage} instances containing the respective information.
+     * descriptors (e.g., "primary", "standbys", "sync_standbys", "status") and the
+     * values are {@link RedisMessage} instances containing the respective information.
      */
     protected Map<RedisMessage, RedisMessage> describeShard(Transaction tr, ShardKind shardKind, int shardId) {
         DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardKind, shardId);

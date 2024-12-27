@@ -82,12 +82,6 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public Command<K, V, Map<String, Object>> listReplicationSlots() {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.LIST_REPLICATION_SLOTS);
-        return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
-    }
-
     public Command<K, V, String> route(String operationKind, String routeKind, String shardKind, int shardId, String memberId) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.ROUTE).
                 add(operationKind).
@@ -151,7 +145,6 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         SET_SHARD_STATUS("SET-SHARD-STATUS"),
         DESCRIBE_SHARD("DESCRIBE-SHARD"),
         ROUTE("ROUTE"),
-        LIST_REPLICATION_SLOTS("LIST-REPLICATION-SLOTS"),
         SYNC_STANDBY("SYNC-STANDBY");
 
         public final byte[] bytes;

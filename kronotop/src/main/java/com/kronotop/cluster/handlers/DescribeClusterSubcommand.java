@@ -17,7 +17,6 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.redis.server.SubcommandHandler;

@@ -23,6 +23,7 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
+import com.kronotop.commandbuilder.kronotop.VolumeAdminCommandBuilder;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.VolumeStatus;
 import io.lettuce.core.codec.StringCodec;
@@ -153,8 +154,9 @@ class ReplicationTest extends BaseE2ETest {
         // Check replication slots
         // All replication slots must be inactive and stale
         {
+            VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
-            krAdmin.listReplicationSlots().encode(buf);
+            volumeAdmin.replications().encode(buf);
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
             assertInstanceOf(MapRedisMessage.class, msg);

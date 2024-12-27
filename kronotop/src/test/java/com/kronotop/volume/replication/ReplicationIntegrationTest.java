@@ -22,6 +22,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
+import com.kronotop.commandbuilder.kronotop.VolumeAdminCommandBuilder;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.*;
 import io.lettuce.core.codec.StringCodec;
@@ -385,9 +386,9 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             Versionstamp[] finalVersionstampedKeys = versionstampedKeys;
             await().atMost(10, TimeUnit.SECONDS).until(() -> checkAppendedEntries(finalVersionstampedKeys, standbyVolume));
 
-            KrAdminCommandBuilder<String, String> krAdmin = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+            VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
-            krAdmin.listReplicationSlots().encode(buf);
+            volumeAdmin.replications().encode(buf);
             channel.writeInbound(buf);
             Object msg = channel.readOutbound();
             assertInstanceOf(MapRedisMessage.class, msg);

@@ -45,6 +45,10 @@ public class VolumeConfigGenerator {
         this.shardId = shardId;
     }
 
+    public static String volumeName(ShardKind shardKind, int shardId) {
+        return String.format("%s-shard-%d", shardKind, shardId).toLowerCase();
+    }
+
     /**
      * Retrieves the directory node corresponding to a Redis shard volume within the Kronotop directory structure.
      * <p>
@@ -95,10 +99,6 @@ public class VolumeConfigGenerator {
             }
             throw e;
         }
-    }
-
-    public static String volumeName(ShardKind shardKind, int shardId) {
-        return String.format("%s-shard-%d", shardKind, shardId).toLowerCase();
     }
 
     /**

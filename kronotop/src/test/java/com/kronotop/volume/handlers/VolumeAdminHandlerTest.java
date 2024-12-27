@@ -17,15 +17,19 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commandbuilder.kronotop.VolumeAdminCommandBuilder;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.IntegerRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import com.kronotop.volume.Session;
+import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.VolumeConfigGenerator;
 import com.kronotop.volume.VolumeStatus;
 import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.replication.ReplicationConfig;
+import com.kronotop.volume.replication.ReplicationMetadata;
+import com.kronotop.volume.replication.ReplicationStage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -152,4 +156,60 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         }
     }
 
+    @Test
+    public void test_volume_replications() {
+        // TODO: We expose too much details to test this command.
+        VolumeConfig volumeConfig = new VolumeConfigGenerator(context, ShardKind.REDIS, 1).volumeConfig();
+        ReplicationConfig config = new ReplicationConfig(
+                volumeConfig,
+                ShardKind.REDIS,
+                1,
+                ReplicationStage.SNAPSHOT);
+        Versionstamp replicationSlotId = ReplicationMetadata.newReplication(context, config);
+        assertNotNull(replicationSlotId);
+
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.replications().encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(MapRedisMessage.class, msg);
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        actualMessage.children().forEach((rawSlotId, slot) -> {
+            String slotId = ((SimpleStringRedisMessage) rawSlotId).content();
+            assertEquals(ReplicationMetadata.stringifySlotId(replicationSlotId), slotId);
+            MapRedisMessage map = (MapRedisMessage) slot;
+            map.children().forEach((key, value) -> {
+                SimpleStringRedisMessage k = (SimpleStringRedisMessage) key;
+                switch (k.content()) {
+                    case "shard_kind" -> {
+                        SimpleStringRedisMessage v = (SimpleStringRedisMessage) value;
+                        assertEquals(ShardKind.REDIS.name(), v.content());
+                    }
+                    case "shard_id" -> {
+                        IntegerRedisMessage v = (IntegerRedisMessage) value;
+                        assertEquals(1, v.value());
+                    }
+                    case "replication_stage", "latest_versionstamped_key", "received_versionstamped_key" -> {
+                        SimpleStringRedisMessage v = (SimpleStringRedisMessage) value;
+                        assertEquals("", v.content());
+                    }
+                    case "latest_segment_id" -> {
+                        IntegerRedisMessage v = (IntegerRedisMessage) value;
+                        assertEquals(0, v.value());
+                    }
+                    case "active", "stale" -> {
+                        BooleanRedisMessage v = (BooleanRedisMessage) value;
+                        assertFalse(v.value());
+                    }
+                    case "completed_stages" -> {
+                        ArrayRedisMessage v = (ArrayRedisMessage) value;
+                        assertTrue(v.children().isEmpty());
+                    }
+                }
+            });
+        });
+    }
 }

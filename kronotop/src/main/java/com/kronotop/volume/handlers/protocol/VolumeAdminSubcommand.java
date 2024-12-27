@@ -19,7 +19,9 @@ package com.kronotop.volume.handlers.protocol;
 public enum VolumeAdminSubcommand {
     LIST("list"),
     DESCRIBE("describe"),
-    SET_STATUS("set-status");
+    SET_STATUS("set-status"),
+    REPLICATIONS("replications"),
+    ;
 
     private final String value;
 

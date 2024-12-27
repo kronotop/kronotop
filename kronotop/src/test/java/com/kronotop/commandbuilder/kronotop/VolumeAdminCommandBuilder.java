@@ -50,6 +50,12 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Command<K, V, Map<String, Object>> replications() {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.REPLICATIONS);
+        return createCommand(CommandType.VOLUME_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         VOLUME_ADMIN("VOLUME.ADMIN");
 
@@ -68,7 +74,8 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
     enum CommandKeyword implements ProtocolKeyword {
         LIST("LIST"),
         DESCRIBE("DESCRIBE"),
-        SET_STATUS("SET-STATUS");
+        SET_STATUS("SET-STATUS"),
+        REPLICATIONS("REPLICATIONS");
 
         public final byte[] bytes;
 
