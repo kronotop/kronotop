@@ -16,6 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.MemberIdGenerator;
@@ -25,8 +26,9 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
-import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
-import com.kronotop.volume.replication.CreateReplicationSlotHook;
+import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.VolumeConfigGenerator;
+import com.kronotop.volume.replication.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -337,8 +339,15 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     public void test_listReplicationSlots() {
-        CreateReplicationSlotHook hook = new CreateReplicationSlotHook(context);
-        hook.run(ShardKind.REDIS, 1);
+        // TODO: We expose too much details to test this command.
+        VolumeConfig volumeConfig = new VolumeConfigGenerator(context, ShardKind.REDIS, 1).volumeConfig();
+        ReplicationConfig config = new ReplicationConfig(
+                volumeConfig,
+                ShardKind.REDIS,
+                1,
+                ReplicationStage.SNAPSHOT);
+        Versionstamp replicationSlotId = ReplicationMetadata.newReplication(context, config);
+        assertNotNull(replicationSlotId);
 
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
@@ -349,8 +358,9 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = channel.readOutbound();
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
-        actualMessage.children().forEach((slotId, slot) -> {
-            assertFalse(((SimpleStringRedisMessage) slotId).content().isEmpty());
+        actualMessage.children().forEach((rawSlotId, slot) -> {
+            String slotId = ((SimpleStringRedisMessage) rawSlotId).content();
+            assertEquals(ReplicationMetadata.stringifySlotId(replicationSlotId), slotId);
             MapRedisMessage map = (MapRedisMessage) slot;
             map.children().forEach((key, value) -> {
                 SimpleStringRedisMessage k = (SimpleStringRedisMessage) key;
