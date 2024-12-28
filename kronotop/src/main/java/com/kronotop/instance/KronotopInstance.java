@@ -19,7 +19,7 @@ package com.kronotop.instance;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
-import com.kronotop.backgroundtask.BackgroundTaskService;
+import com.kronotop.task.TaskService;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipService;
@@ -109,8 +109,8 @@ public class KronotopInstance {
     private void registerKronotopServices() {
         // Registration sort is important here.
 
-        BackgroundTaskService maintenanceService = new BackgroundTaskService(context);
-        context.registerService(BackgroundTaskService.NAME, maintenanceService);
+        TaskService maintenanceService = new TaskService(context);
+        context.registerService(TaskService.NAME, maintenanceService);
 
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
@@ -245,7 +245,7 @@ public class KronotopInstance {
      * The method retrieves the necessary configuration parameters for the cleanup task
      * (retention period and time unit) from the provided configuration. It uses these parameters
      * to create a {@link CleanupTask} and schedules it to run at a fixed rate of once per day using
-     * the {@link BackgroundTaskService}.
+     * the {@link TaskService}.
      * <p>
      * If an invalid time unit is specified, an {@link IllegalArgumentException} is thrown,
      * which is caught and re-thrown as a {@link KronotopException} with a descriptive error message.
@@ -253,13 +253,13 @@ public class KronotopInstance {
      * @throws KronotopException if the time unit specified in the configuration is invalid
      */
     private void registerJournalCleanupTask() {
-        BackgroundTaskService maintenanceService = context.getService(BackgroundTaskService.NAME);
+        TaskService maintenanceService = context.getService(TaskService.NAME);
 
         long retentionPeriod = config.getLong("background_tasks.journal_cleanup_task.retention_period");
         String timeunit = config.getString("background_tasks.journal_cleanup_task.timeunit");
 
         try {
-            CleanupTask cleanupTask = new CleanupTask(context.getJournal(), retentionPeriod, BackgroundTaskService.timeUnitOf(timeunit));
+            CleanupTask cleanupTask = new CleanupTask(context.getJournal(), retentionPeriod, TaskService.timeUnitOf(timeunit));
             journalCleanupTaskFuture = maintenanceService.scheduleAtFixedRate(cleanupTask, 1, 1, TimeUnit.DAYS);
         } catch (IllegalArgumentException e) {
             throw new KronotopException("Invalid timeunit: " + timeunit, e);

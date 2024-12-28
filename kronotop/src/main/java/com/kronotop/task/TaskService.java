@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.backgroundtask;
+package com.kronotop.task;
 
 import com.kronotop.BaseKronotopService;
 import com.kronotop.Context;
@@ -25,15 +25,15 @@ import org.slf4j.LoggerFactory;
 import java.time.Instant;
 import java.util.concurrent.*;
 
-public class BackgroundTaskService extends BaseKronotopService implements KronotopService {
-    public static final String NAME = "Background Task";
-    private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundTaskService.class);
+public class TaskService extends BaseKronotopService implements KronotopService {
+    public static final String NAME = "Task";
+    private static final Logger LOGGER = LoggerFactory.getLogger(TaskService.class);
     private final ScheduledExecutorService scheduler;
 
-    public BackgroundTaskService(Context context) {
+    public TaskService(Context context) {
         super(context, NAME);
 
-        ThreadFactory factory = Thread.ofVirtual().name("kr.background-task-", 0L).factory();
+        ThreadFactory factory = Thread.ofVirtual().name("kr.task-", 0L).factory();
         this.scheduler = new ScheduledThreadPoolExecutor(1, factory);
     }
 

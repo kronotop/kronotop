@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.backgroundtask;
+package com.kronotop.task;
 
 import com.kronotop.BaseClusterTest;
 import com.kronotop.instance.KronotopInstance;
@@ -30,7 +30,7 @@ class BackgroundTaskServiceTest extends BaseClusterTest {
     @Test
     public void when_many_tasks_exists() throws InterruptedException {
         KronotopInstance instance = getInstances().getFirst();
-        BackgroundTaskService service = instance.getContext().getService(BackgroundTaskService.NAME);
+        TaskService service = instance.getContext().getService(TaskService.NAME);
 
         int NUMBER_OF_TASKS = 10;
 
