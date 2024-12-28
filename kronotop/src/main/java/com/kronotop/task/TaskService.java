@@ -16,9 +16,11 @@
 
 package com.kronotop.task;
 
-import com.kronotop.BaseKronotopService;
+import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
+import com.kronotop.server.ServerKind;
+import com.kronotop.task.handlers.TaskAdminHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
-public class TaskService extends BaseKronotopService implements KronotopService {
+public class TaskService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Task";
     private static final Logger LOGGER = LoggerFactory.getLogger(TaskService.class);
     private final ScheduledExecutorService scheduler;
@@ -39,6 +41,8 @@ public class TaskService extends BaseKronotopService implements KronotopService 
 
         ThreadFactory factory = Thread.ofVirtual().name("kr.task-", 0L).factory();
         this.scheduler = new ScheduledThreadPoolExecutor(1, factory);
+
+        handlerMethod(ServerKind.INTERNAL, new TaskAdminHandler(this));
     }
 
     public static TimeUnit timeUnitOf(String unit) {
@@ -86,14 +90,14 @@ public class TaskService extends BaseKronotopService implements KronotopService 
         return future;
     }
 
-    public List<ObservableTask> tasks() {
-        List<ObservableTask> result = new ArrayList<>();
+    public List<ObservedTask> tasks() {
+        List<ObservedTask> result = new ArrayList<>();
         tasks.forEach((name, runner) -> {
             TaskStats stats = runner.stats;
-            ObservableTask observableTask = new ObservableTask(
+            ObservedTask observableTask = new ObservedTask(
                     name,
                     stats.isRunning(),
-                    stats.getStartTime(),
+                    stats.getStartedAt(),
                     stats.getLastRun()
             );
             result.add(observableTask);

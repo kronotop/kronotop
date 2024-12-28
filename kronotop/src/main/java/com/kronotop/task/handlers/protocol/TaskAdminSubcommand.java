@@ -14,36 +14,32 @@
  * limitations under the License.
  */
 
-package com.kronotop.task;
+package com.kronotop.task.  handlers.protocol;
 
-import java.time.Instant;
+public enum TaskAdminSubcommand {
+    LIST("list");
 
-public class TaskStats {
-    private volatile long lastRun;
-    private volatile boolean running;
-    private final long startedAt;
+    private final String value;
 
-    public TaskStats() {
-        this.startedAt = Instant.now().toEpochMilli();
+    TaskAdminSubcommand(String value) {
+        this.value = value;
     }
 
-    public Long getStartedAt() {
-        return startedAt;
+    public static TaskAdminSubcommand valueOfSubcommand(String command) {
+        for (TaskAdminSubcommand value : values()) {
+            if (value.value.equalsIgnoreCase(command)) {
+                return value;
+            }
+        }
+        throw new IllegalArgumentException();
     }
 
-    public void setLastRun(Long lastRun) {
-        this.lastRun = lastRun;
+    public String getValue() {
+        return value;
     }
 
-    public Long getLastRun() {
-        return lastRun;
-    }
-
-    public void setRunning(boolean running) {
-        this.running = running;
-    }
-
-    public boolean isRunning() {
-        return running;
+    @Override
+    public String toString() {
+        return String.valueOf(value);
     }
 }

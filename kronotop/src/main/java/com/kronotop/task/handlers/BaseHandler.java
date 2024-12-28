@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume.handlers;
+package com.kronotop.task.handlers;
 
 import com.kronotop.Context;
-import com.kronotop.volume.VolumeService;
+import com.kronotop.task.TaskService;
 import io.netty.buffer.ByteBuf;
 
 public class BaseHandler {
-    protected VolumeService service;
+    protected TaskService service;
     protected Context context;
 
-    public BaseHandler(VolumeService service) {
+    public BaseHandler(TaskService service) {
         this.service = service;
         this.context = service.getContext();
     }

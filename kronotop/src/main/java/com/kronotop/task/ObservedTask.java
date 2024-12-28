@@ -16,4 +16,4 @@
 
 package com.kronotop.task;
 
-public record ObservableTask(String name, boolean running, long startTime, long lastRun) { }
+public record ObservedTask(String name, boolean running, long startedAt, long lastRun) { }

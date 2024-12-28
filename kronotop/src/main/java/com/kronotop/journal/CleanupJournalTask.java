@@ -55,7 +55,7 @@ public class CleanupJournalTask implements Task {
 
     @Override
     public String name() {
-        return "CleanupJournalTask";
+        return "journal-cleanup-task";
     }
 
     @Override

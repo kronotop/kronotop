@@ -24,7 +24,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -94,8 +93,8 @@ class TaskServiceTest extends BaseClusterTest {
 
         service.scheduleAtFixedRate(new TestTask(), 0, 1, TimeUnit.MILLISECONDS);
         await().atMost(Duration.ofSeconds(5)).until(() -> {
-           List<ObservableTask> tasks = service.tasks();
-           for (ObservableTask task : tasks) {
+           List<ObservedTask> tasks = service.tasks();
+           for (ObservedTask task : tasks) {
                if (task.name().equals(name)) {
                    if (!task.running()) {
                        return false;
