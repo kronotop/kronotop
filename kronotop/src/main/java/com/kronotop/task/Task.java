@@ -16,6 +16,11 @@
 
 package com.kronotop.task;
 
+/**
+ * Represents a unit of work that can be executed, shut down, and queried for its name.
+ * This interface extends {@link Runnable}, allowing instances to be executed by threads
+ * or task schedulers.
+ */
 public interface Task extends Runnable {
     String name();
     void shutdown();
