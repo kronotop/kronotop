@@ -24,7 +24,7 @@ public class TaskStats {
     private final long startedAt;
 
     public TaskStats() {
-        this.startedAt = Instant.now().toEpochMilli();
+        this.startedAt = System.currentTimeMillis() / 1000L;
     }
 
     public Long getStartedAt() {

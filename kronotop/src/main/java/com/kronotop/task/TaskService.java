@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -138,10 +137,10 @@ public class TaskService extends CommandHandlerService implements KronotopServic
             try {
                 Thread.
                         ofVirtual().
-                        name(String.format("TaskRunner-%d", Instant.now().toEpochMilli())).
+                        name(String.format("TaskRunner-%d", System.currentTimeMillis() / 1000L)).
                         start(task);
             } finally {
-                stats.setLastRun(Instant.now().toEpochMilli());
+                stats.setLastRun(System.currentTimeMillis() / 1000L);
             }
         }
     }
