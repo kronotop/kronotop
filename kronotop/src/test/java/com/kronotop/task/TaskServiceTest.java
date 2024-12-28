@@ -20,9 +20,15 @@ import com.kronotop.BaseClusterTest;
 import com.kronotop.instance.KronotopInstance;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class TaskServiceTest extends BaseClusterTest {
@@ -61,5 +67,43 @@ class TaskServiceTest extends BaseClusterTest {
 
         latch.await();
         assertEquals(NUMBER_OF_TASKS, counter.get());
+    }
+
+    @Test
+    public void check_TaskStats() throws InterruptedException, ExecutionException {
+        KronotopInstance instance = getInstances().getFirst();
+        TaskService service = instance.getContext().getService(TaskService.NAME);
+
+        String name = "TestTask";
+        class TestTask implements Task {
+            @Override
+            public void run() {
+                // nothing to do
+            }
+
+            @Override
+            public String name() {
+                return name;
+            }
+
+            @Override
+            public void shutdown() {
+                // nothing to do
+            }
+        }
+
+        service.scheduleAtFixedRate(new TestTask(), 0, 1, TimeUnit.MILLISECONDS);
+        await().atMost(Duration.ofSeconds(5)).until(() -> {
+           List<ObservableTask> tasks = service.tasks();
+           for (ObservableTask task : tasks) {
+               if (task.name().equals(name)) {
+                   if (!task.running()) {
+                       return false;
+                   }
+                   return task.lastRun() != 0;
+               }
+           }
+           return false;
+        });
     }
 }

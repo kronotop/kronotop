@@ -22,13 +22,17 @@ import com.kronotop.KronotopService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
 
 public class TaskService extends BaseKronotopService implements KronotopService {
     public static final String NAME = "Task";
     private static final Logger LOGGER = LoggerFactory.getLogger(TaskService.class);
     private final ScheduledExecutorService scheduler;
+    private final ConcurrentHashMap<String, TaskRunner> tasks = new ConcurrentHashMap<>();
 
     public TaskService(Context context) {
         super(context, NAME);
@@ -49,18 +53,62 @@ public class TaskService extends BaseKronotopService implements KronotopService 
         };
     }
 
-    public void execute(Task task) {
+    /**
+     * Executes the given task by wrapping it in a TaskRunner and submitting it to the scheduler.
+     * <p>
+     * Intended for one-off task.
+     *
+     * @param task the task to be executed; must not be null
+     */
+    public void execute(@Nonnull Task task) {
         TaskRunner runner = new TaskRunner(task);
+        // One-off task, no need to register it.
         scheduler.execute(runner);
     }
 
-    public ScheduledFuture<?> scheduleAtFixedRate(Task task, long initialDelay, long delay, TimeUnit unit) {
+    /**
+     * Schedules a given {@link Task} to run at a fixed rate with a specified initial delay and interval.
+     * The task is executed periodically using the provided time unit.
+     *
+     * @param task         the task to be executed; must not be null
+     * @param initialDelay the delay before the task is first executed, in the given time unit
+     * @param period       the interval between successive executions of the task, in the given time unit
+     * @param unit         the time unit for the initial delay and period; must not be null
+     * @return a {@link ScheduledFuture} representing the scheduled task
+     */
+    public ScheduledFuture<?> scheduleAtFixedRate(@Nonnull Task task, long initialDelay, long period, TimeUnit unit) {
+        if (tasks.get(task.name()) != null) {
+            throw new IllegalArgumentException("Task with name " + task.name() + " already exists");
+        }
         TaskRunner runner = new TaskRunner(task);
-        return scheduler.scheduleAtFixedRate(runner, initialDelay, delay, unit);
+        ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(runner, initialDelay, period, unit);
+        tasks.put(task.name(), runner);
+        return future;
+    }
+
+    public List<ObservableTask> tasks() {
+        List<ObservableTask> result = new ArrayList<>();
+        tasks.forEach((name, runner) -> {
+            TaskStats stats = runner.stats;
+            ObservableTask observableTask = new ObservableTask(
+                    name,
+                    stats.isRunning(),
+                    stats.getStartTime(),
+                    stats.getLastRun()
+            );
+            result.add(observableTask);
+        });
+        return result;
     }
 
     @Override
     public void shutdown() {
+        tasks.forEach((name, runner) -> {
+            LOGGER.debug("Shutting down task {}", name);
+            runner.stats.setRunning(false);
+            runner.task.shutdown();
+        });
+
         scheduler.shutdownNow();
         try {
             if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
@@ -71,14 +119,26 @@ public class TaskService extends BaseKronotopService implements KronotopService 
         }
     }
 
-    private record TaskRunner(Task task) implements Runnable {
+    static class TaskRunner implements Runnable {
+        private final Task task;
+        private final TaskStats stats;
+
+        TaskRunner(Task task) {
+            this.task = task;
+            this.stats = new TaskStats();
+        }
 
         @Override
         public void run() {
-            Thread.
-                    ofVirtual().
-                    name(String.format("TaskRunner-%d", Instant.now().toEpochMilli())).
-                    start(task);
+            stats.setRunning(true);
+            try {
+                Thread.
+                        ofVirtual().
+                        name(String.format("TaskRunner-%d", Instant.now().toEpochMilli())).
+                        start(task);
+            } finally {
+                stats.setLastRun(Instant.now().toEpochMilli());
+            }
         }
     }
 }
