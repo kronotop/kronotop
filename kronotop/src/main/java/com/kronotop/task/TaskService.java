@@ -49,14 +49,14 @@ public class TaskService extends BaseKronotopService implements KronotopService 
         };
     }
 
-    public void execute(Runnable task) {
-        BackgroundTaskRunner runnable = new BackgroundTaskRunner(task);
-        scheduler.execute(runnable);
+    public void execute(Task task) {
+        TaskRunner runner = new TaskRunner(task);
+        scheduler.execute(runner);
     }
 
-    public ScheduledFuture<?> scheduleAtFixedRate(Runnable task, long initialDelay, long delay, TimeUnit unit) {
-        BackgroundTaskRunner runnable = new BackgroundTaskRunner(task);
-        return scheduler.scheduleAtFixedRate(runnable, initialDelay, delay, unit);
+    public ScheduledFuture<?> scheduleAtFixedRate(Task task, long initialDelay, long delay, TimeUnit unit) {
+        TaskRunner runner = new TaskRunner(task);
+        return scheduler.scheduleAtFixedRate(runner, initialDelay, delay, unit);
     }
 
     @Override
@@ -71,13 +71,13 @@ public class TaskService extends BaseKronotopService implements KronotopService 
         }
     }
 
-    private record BackgroundTaskRunner(Runnable task) implements Runnable {
+    private record TaskRunner(Task task) implements Runnable {
 
         @Override
         public void run() {
             Thread.
                     ofVirtual().
-                    name(String.format("BackgroundTaskRunner-%d", Instant.now().toEpochMilli())).
+                    name(String.format("TaskRunner-%d", Instant.now().toEpochMilli())).
                     start(task);
         }
     }

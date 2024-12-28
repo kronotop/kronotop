@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class BackgroundTaskServiceTest extends BaseClusterTest {
+class TaskServiceTest extends BaseClusterTest {
 
     @Test
     public void when_many_tasks_exists() throws InterruptedException {
@@ -37,11 +37,21 @@ class BackgroundTaskServiceTest extends BaseClusterTest {
         CountDownLatch latch = new CountDownLatch(NUMBER_OF_TASKS);
         AtomicInteger counter = new AtomicInteger();
 
-        class TestTask implements Runnable {
+        class TestTask implements Task {
             @Override
             public void run() {
                 counter.incrementAndGet();
                 latch.countDown();
+            }
+
+            @Override
+            public String name() {
+                return "TestTask";
+            }
+
+            @Override
+            public void shutdown() {
+
             }
         }
 
