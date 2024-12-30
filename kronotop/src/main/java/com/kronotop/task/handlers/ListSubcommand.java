@@ -40,6 +40,10 @@ public class ListSubcommand extends BaseHandler implements SubcommandHandler {
                     new SimpleStringRedisMessage("running"),
                     task.running() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
             );
+            item.put(
+                    new SimpleStringRedisMessage("completed"),
+                    task.completed() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
+            );
             item.put(new SimpleStringRedisMessage("started_at"), new IntegerRedisMessage(task.startedAt()));
             item.put(new SimpleStringRedisMessage("last_run"), new IntegerRedisMessage(task.lastRun()));
             result.put(new SimpleStringRedisMessage(task.name()), new MapRedisMessage(item));

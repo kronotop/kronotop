@@ -55,6 +55,11 @@ class TaskServiceTest extends BaseClusterTest {
             }
 
             @Override
+            public boolean isCompleted() {
+                return false;
+            }
+
+            @Override
             public void shutdown() {
 
             }
@@ -86,6 +91,11 @@ class TaskServiceTest extends BaseClusterTest {
             }
 
             @Override
+            public boolean isCompleted() {
+                return false;
+            }
+
+            @Override
             public void shutdown() {
                 // nothing to do
             }
@@ -96,9 +106,6 @@ class TaskServiceTest extends BaseClusterTest {
            List<ObservedTask> tasks = service.tasks();
            for (ObservedTask task : tasks) {
                if (task.name().equals(name)) {
-                   if (!task.running()) {
-                       return false;
-                   }
                    return task.lastRun() != 0;
                }
            }

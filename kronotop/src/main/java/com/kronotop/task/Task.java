@@ -23,5 +23,6 @@ package com.kronotop.task;
  */
 public interface Task extends Runnable {
     String name();
+    boolean isCompleted();
     void shutdown();
 }

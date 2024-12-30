@@ -59,6 +59,12 @@ public class CleanupJournalTask implements Task {
     }
 
     @Override
+    public boolean isCompleted() {
+        // Never ending task
+        return false;
+    }
+
+    @Override
     public void shutdown() {
         // No state to clean
     }

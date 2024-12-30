@@ -40,6 +40,7 @@ public class TaskService extends CommandHandlerService implements KronotopServic
 
         ThreadFactory factory = Thread.ofVirtual().name("kr.task-", 0L).factory();
         this.scheduler = new ScheduledThreadPoolExecutor(1, factory);
+        this.scheduler.scheduleAtFixedRate(new Cleanup(), 60, 60, TimeUnit.SECONDS);
 
         handlerMethod(ServerKind.INTERNAL, new TaskAdminHandler(this));
     }
@@ -92,13 +93,14 @@ public class TaskService extends CommandHandlerService implements KronotopServic
         List<ObservedTask> result = new ArrayList<>();
         tasks.forEach((name, runner) -> {
             TaskStats stats = runner.stats;
-            ObservedTask observableTask = new ObservedTask(
+            ObservedTask observedTask = new ObservedTask(
                     name,
                     stats.isRunning(),
+                    runner.task.isCompleted(),
                     stats.getStartedAt(),
                     stats.getLastRun()
             );
-            result.add(observableTask);
+            result.add(observedTask);
         });
         return result;
     }
@@ -140,7 +142,23 @@ public class TaskService extends CommandHandlerService implements KronotopServic
                         start(task);
             } finally {
                 stats.setLastRun(System.currentTimeMillis() / 1000L);
+                stats.setRunning(false);
             }
+        }
+    }
+
+    class Cleanup implements Runnable {
+
+        @Override
+        public void run() {
+            tasks.entrySet().iterator().forEachRemaining(entry -> {
+                if (entry.getValue().task.isCompleted()) {
+                    LOGGER.debug("Cleaning up completed task {}", entry.getKey());
+                    entry.getValue().task.shutdown();
+                    tasks.remove(entry.getKey());
+                }
+            });
+
         }
     }
 }

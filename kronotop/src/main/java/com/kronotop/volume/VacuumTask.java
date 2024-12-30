@@ -27,6 +27,7 @@ public class VacuumTask implements Task {
     private final String name;
     private final double allowedGarbageRatio;
     private Vacuum vacuum;
+    private volatile boolean completed;
     private volatile boolean shutdown;
 
     public VacuumTask(Context context, String name, double allowedGarbageRatio) {
@@ -41,6 +42,11 @@ public class VacuumTask implements Task {
     }
 
     @Override
+    public boolean isCompleted() {
+        return completed;
+    }
+
+    @Override
     public void run() {
         VolumeService service = context.getService(VolumeService.NAME);
         try {
@@ -51,6 +57,7 @@ public class VacuumTask implements Task {
         } catch (ClosedVolumeException | VolumeNotOpenException | IOException e) {
             throw new KronotopException(e);
         }
+        completed = true;
     }
 
     @Override
