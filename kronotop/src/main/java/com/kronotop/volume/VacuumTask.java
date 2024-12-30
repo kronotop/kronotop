@@ -25,12 +25,14 @@ import java.io.IOException;
 public class VacuumTask implements Task {
     private final Context context;
     private final String name;
+    private final double allowedGarbageRatio;
     private Vacuum vacuum;
     private volatile boolean shutdown;
 
-    public VacuumTask(Context context, String name) {
+    public VacuumTask(Context context, String name, double allowedGarbageRatio) {
         this.context = context;
         this.name = name;
+        this.allowedGarbageRatio = allowedGarbageRatio;
     }
 
     @Override
@@ -43,7 +45,7 @@ public class VacuumTask implements Task {
         VolumeService service = context.getService(VolumeService.NAME);
         try {
             Volume volume = service.findVolume(name);
-            vacuum = new Vacuum(context, volume);
+            vacuum = new Vacuum(context, volume, allowedGarbageRatio);
             // Blocking call
             vacuum.start();
         } catch (ClosedVolumeException | VolumeNotOpenException | IOException e) {

@@ -36,14 +36,14 @@ class VacuumSubcommand extends BaseHandler implements SubcommandHandler {
     public void execute(Request request, Response response) {
         VacuumParameters parameters = new VacuumParameters(request.getParams());
         TaskService taskService = context.getService(TaskService.NAME);
-        VacuumTask task = new VacuumTask(service.getContext(), parameters.volumeName);
+        VacuumTask task = new VacuumTask(service.getContext(), parameters.volumeName, parameters.allowedGarbageRatio);
         taskService.execute(task);
         response.writeOK();
     }
 
     private class VacuumParameters {
         private final String volumeName;
-        private final double maximumGarbageRatio;
+        private final double allowedGarbageRatio;
 
         private VacuumParameters(ArrayList<ByteBuf> params) {
             if (params.size() != 3) {
@@ -51,7 +51,7 @@ class VacuumSubcommand extends BaseHandler implements SubcommandHandler {
             }
 
             volumeName = readAsString(params.get(1));
-            maximumGarbageRatio = readAsDouble(params.get(2));
+            allowedGarbageRatio = readAsDouble(params.get(2));
         }
     }
 }

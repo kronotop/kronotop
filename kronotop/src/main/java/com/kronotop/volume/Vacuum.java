@@ -33,13 +33,15 @@ class Vacuum {
     private static final Logger LOGGER = LoggerFactory.getLogger(Vacuum.class);
     private final Context context;
     private final Volume volume;
+    private final double allowedGarbageRatio;
     private final byte[] readVersionKey;
     private final AtomicBoolean stop = new AtomicBoolean();
     private volatile VacuumContext vacuumContext;
 
-    protected Vacuum(Context context, Volume volume) {
+    protected Vacuum(Context context, Volume volume, double allowedGarbageRatio) {
         this.context = context;
         this.volume = volume;
+        this.allowedGarbageRatio = allowedGarbageRatio;
         DirectorySubspace volumeSubspace = volume.getConfig().subspace();
         this.readVersionKey = volumeSubspace.pack(
                 Tuple.from(
@@ -80,7 +82,7 @@ class Vacuum {
                 LOGGER.info("Stopping Vacuum on volume {}", volume.getConfig().name());
                 break;
             }
-            if (segmentAnalysis.garbageRatio() < volume.getConfig().allowedGarbageRatio()) {
+            if (segmentAnalysis.garbageRatio() < allowedGarbageRatio) {
                 LOGGER.debug("Garbage ratio doesn't exceed the allowed garbage ratio, skipping Vacuum on segment: {} on volume {}",
                         segmentAnalysis.name(),
                         volume.getConfig().name()
