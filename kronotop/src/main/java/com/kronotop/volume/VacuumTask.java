@@ -23,6 +23,7 @@ import com.kronotop.task.Task;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Represents a task for performing a vacuuming operation on a specified volume.
@@ -33,8 +34,8 @@ public class VacuumTask implements Task {
     private final Context context;
     private final Volume volume;
     private final VacuumMetadata vacuumMetadata;
+    private final AtomicBoolean completed = new AtomicBoolean();
     private Vacuum vacuum;
-    private volatile boolean completed;
     private volatile boolean shutdown;
 
     public VacuumTask(Context context, Volume volume, VacuumMetadata vacuumMetadata) {
@@ -45,12 +46,12 @@ public class VacuumTask implements Task {
 
     @Override
     public String name() {
-        return "vacuum:" + volume.getConfig().name();
+        return vacuumMetadata.getTaskName();
     }
 
     @Override
     public boolean isCompleted() {
-        return completed;
+        return completed.get();
     }
 
     private void complete() {
@@ -59,7 +60,10 @@ public class VacuumTask implements Task {
             tr.commit().join();
         }
         // removed from FDB, mark it as completed.
-        completed = true;
+        completed.set(true);
+        synchronized (completed) {
+            completed.notifyAll();
+        }
     }
 
     /**
@@ -93,5 +97,12 @@ public class VacuumTask implements Task {
         }
         shutdown = true;
         vacuum.stop();
+    }
+
+    @Override
+    public void awaitTermination() throws InterruptedException {
+        synchronized (completed) {
+            completed.wait();
+        }
     }
 }

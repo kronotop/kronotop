@@ -22,57 +22,47 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.task.Task;
 import com.kronotop.task.TaskService;
 import com.kronotop.volume.*;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 
-class VacuumSubcommand extends BaseHandler implements SubcommandHandler {
-    VacuumSubcommand(VolumeService service) {
-        super(service);
-    }
+public class StopVacuumSubcommand extends BaseHandler implements SubcommandHandler {
 
-    private VacuumMetadata newVacuumMetadata(Volume volume, VacuumParameters parameters) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
-            if (vacuumMetadata != null) {
-                throw new KronotopException("Vacuum task on volume " + volume.getConfig().name() + " already exists");
-            }
-            long readVersion = tr.getReadVersion().join();
-            vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), readVersion, parameters.allowedGarbageRatio);
-            vacuumMetadata.save(tr, volume.getConfig().subspace());
-            tr.commit().join();
-            return vacuumMetadata;
-        }
+    public StopVacuumSubcommand(VolumeService service) {
+        super(service);
     }
 
     @Override
     public void execute(Request request, Response response) {
-        VacuumParameters parameters = new VacuumParameters(request.getParams());
-        try {
+        StopVacuumParameters parameters = new StopVacuumParameters(request.getParams());
+        try (Transaction tr = context.getFoundationDB().createTransaction()){
             Volume volume = service.findVolume(parameters.volumeName);
-            VacuumMetadata vacuumMetadata = newVacuumMetadata(volume, parameters);
+            VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
+            if (vacuumMetadata == null) {
+                throw new KronotopException("Vacuum task not found on " + volume.getConfig().name());
+            }
             TaskService taskService = context.getService(TaskService.NAME);
-            VacuumTask task = new VacuumTask(service.getContext(), volume, vacuumMetadata);
-            taskService.execute(task);
-        } catch (ClosedVolumeException | VolumeNotOpenException e) {
+            Task task = taskService.getTask(vacuumMetadata.getTaskName());
+            task.shutdown();
+            task.awaitTermination();
+        } catch (ClosedVolumeException | VolumeNotOpenException | InterruptedException e) {
             throw new KronotopException(e);
         }
         response.writeOK();
     }
 
-    private class VacuumParameters {
+    private class StopVacuumParameters {
         private final String volumeName;
-        private final double allowedGarbageRatio;
 
-        private VacuumParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
+        private StopVacuumParameters(ArrayList<ByteBuf> params) {
+            if (params.size() != 2) {
                 throw new InvalidNumberOfParametersException();
             }
 
             volumeName = readAsString(params.get(1));
-            allowedGarbageRatio = readAsDouble(params.get(2));
         }
     }
 }

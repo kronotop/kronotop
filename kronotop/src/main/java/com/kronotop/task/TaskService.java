@@ -104,6 +104,14 @@ public class TaskService extends CommandHandlerService implements KronotopServic
         return result;
     }
 
+    public Task getTask(@Nonnull String name) {
+        TaskRunner runner = tasks.get(name);
+        if (runner == null) {
+            throw new IllegalArgumentException("Task with name " + name + " does not exist");
+        }
+        return runner.task;
+    }
+
     @Override
     public void shutdown() {
         tasks.forEach((name, runner) -> {

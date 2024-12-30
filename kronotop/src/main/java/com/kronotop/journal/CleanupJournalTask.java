@@ -69,6 +69,11 @@ public class CleanupJournalTask implements Task {
         // No state to clean
     }
 
+    @Override
+    public void awaitTermination() throws InterruptedException {
+        // Not required for this task
+    }
+
     /**
      * Checks if a given journal entry is expired based on the specified retention period.
      *

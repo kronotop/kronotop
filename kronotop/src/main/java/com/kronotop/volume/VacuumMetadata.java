@@ -22,13 +22,15 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.JSONUtils;
 
 public class VacuumMetadata {
+    private String taskName;
     private long readVersion;
     private double allowedGarbageRatio;
 
     VacuumMetadata() {
     }
 
-    public VacuumMetadata(long readVersion, double allowedGarbageRatio) {
+    public VacuumMetadata(String volumeName, long readVersion, double allowedGarbageRatio) {
+        this.taskName = "vacuum:" + volumeName;
         this.readVersion = readVersion;
         this.allowedGarbageRatio = allowedGarbageRatio;
     }
@@ -52,6 +54,10 @@ public class VacuumMetadata {
         byte[] value = tr.get(metadataKey).join();
         if (value == null) return null;
         return JSONUtils.readValue(value, VacuumMetadata.class);
+    }
+
+    public String getTaskName() {
+        return taskName;
     }
 
     public double getAllowedGarbageRatio() {
