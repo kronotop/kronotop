@@ -65,7 +65,6 @@ public class TaskService extends CommandHandlerService implements KronotopServic
     public void execute(@Nonnull Task task) {
         TaskRunner runner = new TaskRunner(task);
         scheduler.execute(runner);
-        // TODO: This should be cleaned up after execution.
         tasks.put(task.name(), runner);
     }
 
@@ -148,7 +147,6 @@ public class TaskService extends CommandHandlerService implements KronotopServic
     }
 
     class Cleanup implements Runnable {
-
         @Override
         public void run() {
             tasks.entrySet().iterator().forEachRemaining(entry -> {
@@ -158,7 +156,6 @@ public class TaskService extends CommandHandlerService implements KronotopServic
                     tasks.remove(entry.getKey());
                 }
             });
-
         }
     }
 }
