@@ -48,8 +48,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
                 standbyVolumeDataDir.toString(),
-                volume.getConfig().segmentSize(),
-                volume.getConfig().allowedGarbageRatio()
+                volume.getConfig().segmentSize()
         );
 
         ReplicationConfig config = new ReplicationConfig(standbyVolumeConfig, ShardKind.REDIS, 1, ReplicationStage.SNAPSHOT);

@@ -813,8 +813,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
                 dataDir.toString(),
-                volume.getConfig().segmentSize(),
-                volume.getConfig().allowedGarbageRatio()
+                volume.getConfig().segmentSize()
         );
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
@@ -950,8 +949,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
                 dataDir.toString(),
-                volume.getConfig().segmentSize(),
-                volume.getConfig().allowedGarbageRatio()
+                volume.getConfig().segmentSize()
         );
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();

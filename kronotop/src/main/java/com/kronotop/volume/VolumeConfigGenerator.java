@@ -112,9 +112,7 @@ public class VolumeConfigGenerator {
         String name = volumeName(ShardKind.REDIS, shardId);
         Config config = context.getConfig().getConfig("redis.volume_syncer");
         long segmentSize = config.getLong("segment_size");
-        float allowedGarbageRatio = (float) config.getDouble("allowed_garbage_ratio");
-
-        return new VolumeConfig(subspace, name, dataDir, segmentSize, allowedGarbageRatio);
+        return new VolumeConfig(subspace, name, dataDir, segmentSize);
     }
 
     /**
