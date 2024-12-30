@@ -17,15 +17,13 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -33,41 +31,14 @@ class Vacuum {
     private static final Logger LOGGER = LoggerFactory.getLogger(Vacuum.class);
     private final Context context;
     private final Volume volume;
-    private final double allowedGarbageRatio;
-    private final byte[] readVersionKey;
+    private final VacuumMetadata vacuumMetadata;
     private final AtomicBoolean stop = new AtomicBoolean();
     private volatile VacuumContext vacuumContext;
 
-    protected Vacuum(Context context, Volume volume, double allowedGarbageRatio) {
+    protected Vacuum(@Nonnull Context context, @Nonnull Volume volume, @Nonnull VacuumMetadata vacuumMetadata) {
         this.context = context;
         this.volume = volume;
-        this.allowedGarbageRatio = allowedGarbageRatio;
-        DirectorySubspace volumeSubspace = volume.getConfig().subspace();
-        this.readVersionKey = volumeSubspace.pack(
-                Tuple.from(
-                        VolumeSubspaceConstants.VACUUM_SUBSPACE,
-                        VolumeSubspaceConstants.VACUUM_READ_VERSION_KEY
-                )
-        );
-    }
-
-    /**
-     * Retrieves the cached read version from the database or generates and stores a new read version if not present.
-     * This method ensures that a consistent read version is available for further operations.
-     *
-     * @return the read version, either retrieved from the database or freshly loaded and stored.
-     */
-    private long getOrLoadReadVersion() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] rawReadVersion = tr.get(readVersionKey).join();
-            if (rawReadVersion == null) {
-                long readVersion = tr.getReadVersion().join();
-                tr.set(readVersionKey, ByteBuffer.allocate(8).putLong(readVersion).array());
-                tr.commit().join();
-                return readVersion;
-            }
-            return ByteBuffer.wrap(rawReadVersion).getLong();
-        }
+        this.vacuumMetadata = vacuumMetadata;
     }
 
     private List<SegmentAnalysis> analyze() {
@@ -93,19 +64,23 @@ class Vacuum {
      * @throws IOException if an I/O error occurs during the vacuum process.
      */
     void start() throws IOException {
-        long readVersion = getOrLoadReadVersion();
         List<SegmentAnalysis> segmentAnalysisList = analyze();
         if (segmentAnalysisList.isEmpty()) {
-            LOGGER.info("No segments found for read version {} on volume {}", readVersion, volume.getConfig().name());
+            LOGGER.info(
+                    "No segments found for read version {} on volume {}",
+                    vacuumMetadata.getReadVersion(),
+                    volume.getConfig().name()
+            );
             return;
         }
+
         LOGGER.info("Starting Vacuum on volume {}", volume.getConfig().name());
         for (SegmentAnalysis segmentAnalysis : segmentAnalysisList) {
             if (stop.get()) {
                 LOGGER.info("Stopping Vacuum on volume {}", volume.getConfig().name());
                 break;
             }
-            if (segmentAnalysis.garbageRatio() < allowedGarbageRatio) {
+            if (segmentAnalysis.garbageRatio() < vacuumMetadata.getAllowedGarbageRatio()) {
                 LOGGER.debug("Garbage ratio doesn't exceed the allowed garbage ratio, skipping Vacuum on segment: {} on volume {}",
                         segmentAnalysis.name(),
                         volume.getConfig().name()
@@ -113,7 +88,7 @@ class Vacuum {
                 continue;
             }
             LOGGER.debug("Vacuuming segment: {} on volume {}", segmentAnalysis.name(), volume.getConfig().name());
-            vacuumContext = new VacuumContext(segmentAnalysis.name(), readVersion, stop);
+            vacuumContext = new VacuumContext(segmentAnalysis.name(), vacuumMetadata.getReadVersion(), stop);
             volume.vacuumSegment(vacuumContext);
         }
     }

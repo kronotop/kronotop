@@ -18,5 +18,5 @@ package com.kronotop.volume;
 
 public class VolumeSubspaceConstants {
     public static final byte VACUUM_SUBSPACE = 0x01;
-    public static final String VACUUM_READ_VERSION_KEY = "read_version";
+    public static final String VACUUM_METADATA_KEY = "vacuum_metadata";
 }

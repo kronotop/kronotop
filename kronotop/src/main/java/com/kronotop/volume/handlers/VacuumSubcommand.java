@@ -16,13 +16,14 @@
 
 package com.kronotop.volume.handlers;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.task.TaskService;
-import com.kronotop.volume.VacuumTask;
-import com.kronotop.volume.VolumeService;
+import com.kronotop.volume.*;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -32,12 +33,32 @@ class VacuumSubcommand extends BaseHandler implements SubcommandHandler {
         super(service);
     }
 
+    private VacuumMetadata newVacuumMetadata(Volume volume, VacuumParameters parameters) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
+            if (vacuumMetadata != null) {
+                throw new KronotopException("Vacuum task on volume " + volume.getConfig().name() + " already exists");
+            }
+            long readVersion = tr.getReadVersion().join();
+            vacuumMetadata = new VacuumMetadata(readVersion, parameters.allowedGarbageRatio);
+            vacuumMetadata.save(tr, volume.getConfig().subspace());
+            tr.commit().join();
+            return vacuumMetadata;
+        }
+    }
+
     @Override
     public void execute(Request request, Response response) {
         VacuumParameters parameters = new VacuumParameters(request.getParams());
-        TaskService taskService = context.getService(TaskService.NAME);
-        VacuumTask task = new VacuumTask(service.getContext(), parameters.volumeName, parameters.allowedGarbageRatio);
-        taskService.execute(task);
+        try {
+            Volume volume = service.findVolume(parameters.volumeName);
+            VacuumMetadata vacuumMetadata = newVacuumMetadata(volume, parameters);
+            TaskService taskService = context.getService(TaskService.NAME);
+            VacuumTask task = new VacuumTask(service.getContext(), volume, vacuumMetadata);
+            taskService.execute(task);
+        } catch (ClosedVolumeException | VolumeNotOpenException e) {
+            throw new KronotopException(e);
+        }
         response.writeOK();
     }
 

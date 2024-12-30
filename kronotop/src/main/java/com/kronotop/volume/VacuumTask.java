@@ -21,6 +21,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.task.Task;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 /**
  * Represents a task for performing a vacuuming operation on a specified volume.
@@ -29,21 +30,21 @@ import java.io.IOException;
  */
 public class VacuumTask implements Task {
     private final Context context;
-    private final String name;
-    private final double allowedGarbageRatio;
+    private final Volume volume;
+    private final VacuumMetadata vacuumMetadata;
     private Vacuum vacuum;
     private volatile boolean completed;
     private volatile boolean shutdown;
 
-    public VacuumTask(Context context, String name, double allowedGarbageRatio) {
+    public VacuumTask(Context context, Volume volume, VacuumMetadata vacuumMetadata) {
         this.context = context;
-        this.name = name;
-        this.allowedGarbageRatio = allowedGarbageRatio;
+        this.volume = volume;
+        this.vacuumMetadata = vacuumMetadata;
     }
 
     @Override
     public String name() {
-        return "vacuum:" + name;
+        return "vacuum:" + volume.getConfig().name();
     }
 
     @Override
@@ -65,14 +66,12 @@ public class VacuumTask implements Task {
      */
     @Override
     public void run() {
-        VolumeService service = context.getService(VolumeService.NAME);
         try {
-            Volume volume = service.findVolume(name);
-            vacuum = new Vacuum(context, volume, allowedGarbageRatio);
+            vacuum = new Vacuum(context, volume, vacuumMetadata);
             // Blocking call
             vacuum.start();
-        } catch (ClosedVolumeException | VolumeNotOpenException | IOException e) {
-            throw new KronotopException(e);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
         completed = true;
     }
