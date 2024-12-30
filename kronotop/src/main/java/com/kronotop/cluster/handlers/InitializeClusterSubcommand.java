@@ -22,7 +22,7 @@ import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.DirectorySubspaceCache;
-import com.kronotop.cluster.MembershipConstants;
+import com.kronotop.cluster.ClusterConstants;
 import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtils;
@@ -58,8 +58,8 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
     }
 
     private void setClusterInitializedTrue(Transaction tr, DirectorySubspace subspace) {
-        byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
-        tr.set(key, MembershipConstants.TRUE);
+        byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
+        tr.set(key, MembershipUtils.TRUE);
     }
 
     private void initializeCluster() {

@@ -246,7 +246,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      */
     public void triggerClusterTopologyWatcher(Transaction tr) {
         DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-        byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_TOPOLOGY_CHANGED));
+        byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_TOPOLOGY_CHANGED));
         tr.mutate(MutationType.ADD, key, PLUS_ONE);
     }
 

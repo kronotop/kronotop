@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Set;
 
 public final class MembershipUtils {
+    public static final byte[] TRUE = new byte[]{0x01};
 
     /**
      * Determines if the cluster is initialized by checking a specific key in the database.
@@ -36,7 +37,7 @@ public final class MembershipUtils {
      * @return true if the cluster is initialized, false otherwise.
      */
     public static boolean isClusterInitialized(Transaction tr, DirectorySubspace clusterMetadataSubspace) {
-        byte[] key = clusterMetadataSubspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+        byte[] key = clusterMetadataSubspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
         return MembershipUtils.isTrue(tr.get(key).join());
     }
 
@@ -48,7 +49,7 @@ public final class MembershipUtils {
      * @return The primary member ID as a string, or null if no primary member information is found.
      */
     public static String loadPrimaryMemberId(Transaction tr, DirectorySubspace shardSubspace) {
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
+        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_PRIMARY_MEMBER_KEY));
         return tr.get(key).thenApply((value) -> {
             if (value == null) {
                 return null;
@@ -65,7 +66,7 @@ public final class MembershipUtils {
      * @return A set of strings representing the standby member IDs, or an empty set if no standby member information is found.
      */
     public static Set<String> loadStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace) {
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_STANDBY_MEMBER_KEY));
+        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_STANDBY_MEMBER_KEY));
         return tr.get(key).thenApply((value) -> {
             if (value == null) {
                 return new HashSet<String>();
@@ -76,12 +77,12 @@ public final class MembershipUtils {
     }
 
     public static void setStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace, Set<String> standbyMemberIds) {
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_STANDBY_MEMBER_KEY));
+        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_STANDBY_MEMBER_KEY));
         tr.set(key, JSONUtils.writeValueAsBytes(standbyMemberIds));
     }
 
     public static void setSyncStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace, Set<String> syncStandbyMemberIds) {
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_SYNC_STANDBY_MEMBERS));
+        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_SYNC_STANDBY_MEMBERS));
         byte[] value = JSONUtils.writeValueAsBytes(syncStandbyMemberIds);
         tr.set(key, value);
     }
@@ -93,11 +94,11 @@ public final class MembershipUtils {
      * @return true if the byte array matches MembershipConstants.TRUE; false otherwise.
      */
     public static boolean isTrue(byte[] data) {
-        return Arrays.equals(data, MembershipConstants.TRUE);
+        return Arrays.equals(data, TRUE);
     }
 
     public static Set<String> loadSyncStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace) {
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_SYNC_STANDBY_MEMBERS));
+        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_SYNC_STANDBY_MEMBERS));
         return tr.get(key).thenApply((value) -> {
             if (value == null) {
                 return new HashSet<String>();
