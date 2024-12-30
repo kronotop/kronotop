@@ -24,7 +24,7 @@ import com.kronotop.JSONUtils;
 public class VacuumMetadata {
     private long readVersion;
     private double allowedGarbageRatio;
-    private boolean completed;
+    private boolean completed; // TODO: Delete this
 
     VacuumMetadata() {}
 
@@ -40,6 +40,11 @@ public class VacuumMetadata {
                         VolumeSubspaceConstants.VACUUM_METADATA_KEY
                 )
         );
+    }
+
+    public static void remove(Transaction tr, DirectorySubspace volumeSubspace) {
+        byte[] metadataKey = getMetadataKey(volumeSubspace);
+        tr.clear(metadataKey);
     }
 
     public static VacuumMetadata load(Transaction tr, DirectorySubspace volumeSubspace) {

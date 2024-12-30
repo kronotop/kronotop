@@ -16,6 +16,7 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
 import com.kronotop.task.Task;
@@ -72,6 +73,9 @@ public class VacuumTask implements Task {
             vacuum.start();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VacuumMetadata.remove(tr, volume.getConfig().subspace());
         }
         completed = true;
     }
