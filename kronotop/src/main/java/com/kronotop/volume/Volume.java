@@ -869,27 +869,38 @@ public class Volume {
     }
 
     /**
-     * This method vacuums a specified segment by reading and updating key-value pairs within a specified range.
-     * It processes the entries in batches to remove stale or outdated entries, and handles retries in case of
-     * failures caused by transaction issues.
+     * Performs a vacuuming procedure on a specific segment. The vacuuming process
+     * involves clearing out obsolete or no longer needed entries within the segment
+     * to reclaim storage and improve performance.
+     * <p>
+     * This process iteratively processes entries in the segment, grouping them
+     * by their prefix, and applies updates in batches until the segment is
+     * fully processed. It also retries the operation in the case of transient
+     * exceptions, such as transaction read conflicts or outdated read versions.
      *
-     * @param name        the name of the segment to be vacuumed.
-     * @param readVersion the read version to be used for the transaction.
-     * @throws IOException if an I/O error occurs.
+     * @param vacuumContext Provides the contextual information needed for the vacuuming
+     *                      process, including the target segment identifier, read version,
+     *                      and configuration settings.
+     * @throws IOException If a critical I/O error occurs during the execution of the vacuuming
+     *                     process.
      */
-    protected void vacuumSegment(String name, long readVersion) throws IOException {
-        Segment segment = getOrOpenSegmentByName(name);
+    protected void vacuumSegment(VacuumContext vacuumContext) throws IOException {
+        Segment segment = getOrOpenSegmentByName(vacuumContext.segment());
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.getName().getBytes()));
         byte[] end = ByteArrayUtil.strinc(begin);
 
-        while (true) {
+        while (!vacuumContext.isStopped()) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                tr.setReadVersion(readVersion);
+                tr.setReadVersion(vacuumContext.readVersion());
 
                 int batchSize = 0;
                 Range range = new Range(begin, end);
                 HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
                 for (KeyValue keyValue : tr.getRange(range)) {
+                    if (vacuumContext.isStopped()) {
+                        break;
+                    }
+
                     byte[] key = keyValue.getKey();
                     if (Arrays.equals(key, begin)) {
                         // begin is inclusive.

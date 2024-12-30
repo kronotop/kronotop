@@ -21,17 +21,21 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.volume.segment.SegmentAnalysis;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
 class Vacuum {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Vacuum.class);
     private final Context context;
     private final Volume volume;
     private final long readVersion;
     private final byte[] readVersionKey;
     private volatile boolean stop;
+    private volatile VacuumContext vacuumContext;
 
     protected Vacuum(Context context, Volume volume) {
         this.context = context;
@@ -66,19 +70,24 @@ class Vacuum {
     }
 
     void start() throws IOException {
+        LOGGER.info("Starting Vacuum on volume {}", volume.getConfig().name());
         List<SegmentAnalysis> segmentAnalysisList = analyze();
         for (SegmentAnalysis segmentAnalysis : segmentAnalysisList) {
             if (stop) {
+                LOGGER.info("Stopping Vacuum on volume {}", volume.getConfig().name());
                 break;
             }
             if (segmentAnalysis.garbageRatio() < volume.getConfig().allowedGarbageRatio()) {
                 continue;
             }
-            volume.vacuumSegment(segmentAnalysis.name(), readVersion);
+            LOGGER.debug("Vacuuming segment: {} on volume {}", segmentAnalysis.name(), volume.getConfig().name());
+            vacuumContext = new VacuumContext(segmentAnalysis.name(), readVersion);
+            volume.vacuumSegment(vacuumContext);
         }
     }
 
     void stop() {
         stop = true;
+        vacuumContext.stop();
     }
 }

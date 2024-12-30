@@ -479,7 +479,8 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         {
             List<SegmentAnalysis> segmentAnalysis = volume.analyze();
             String firstSegment = segmentAnalysis.getFirst().name();
-            volume.vacuumSegment(firstSegment, readVersion);
+            VacuumContext vacuumContext = new VacuumContext(firstSegment, readVersion);
+            volume.vacuumSegment(vacuumContext);
         }
 
         {
