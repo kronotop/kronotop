@@ -24,9 +24,9 @@ import com.kronotop.JSONUtils;
 public class VacuumMetadata {
     private long readVersion;
     private double allowedGarbageRatio;
-    private boolean completed; // TODO: Delete this
 
-    VacuumMetadata() {}
+    VacuumMetadata() {
+    }
 
     public VacuumMetadata(long readVersion, double allowedGarbageRatio) {
         this.readVersion = readVersion;
@@ -60,14 +60,6 @@ public class VacuumMetadata {
 
     public long getReadVersion() {
         return readVersion;
-    }
-
-    public boolean isCompleted() {
-        return completed;
-    }
-
-    public void setCompleted(boolean completed) {
-        this.completed = completed;
     }
 
     public void save(Transaction tr, DirectorySubspace volumeSubspace) {

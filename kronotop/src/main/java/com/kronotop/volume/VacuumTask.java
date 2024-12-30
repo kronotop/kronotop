@@ -53,6 +53,15 @@ public class VacuumTask implements Task {
         return completed;
     }
 
+    private void complete() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VacuumMetadata.remove(tr, volume.getConfig().subspace());
+            tr.commit().join();
+        }
+        // removed from FDB, mark it as completed.
+        completed = true;
+    }
+
     /**
      * Executes the vacuuming task for a specific volume. This method retrieves a
      * VolumeService from the context and uses it to find and initialize the target volume.
@@ -74,10 +83,7 @@ public class VacuumTask implements Task {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VacuumMetadata.remove(tr, volume.getConfig().subspace());
-        }
-        completed = true;
+        complete();
     }
 
     @Override

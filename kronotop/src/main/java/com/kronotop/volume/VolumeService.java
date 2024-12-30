@@ -108,9 +108,6 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
             if (vacuumMetadata == null) {
                 return;
             }
-            if (vacuumMetadata.isCompleted()) {
-                return;
-            }
             TaskService taskService = context.getService(TaskService.NAME);
             VacuumTask task = new VacuumTask(context, volume, vacuumMetadata);
             LOGGER.debug("Submitting vacuum task {} for volume {}", task, volume.getConfig().name());

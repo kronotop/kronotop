@@ -27,6 +27,14 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Represents a vacuum process for cleaning and optimizing a specified volume.
+ * The Vacuum class supports analyzing and processing segments within a volume
+ * to reclaim resources by identifying and addressing garbage data.
+ * <p>
+ * The Vacuum is initialized with a given context, volume, and metadata,
+ * and can be started or stopped as required.
+ */
 class Vacuum {
     private static final Logger LOGGER = LoggerFactory.getLogger(Vacuum.class);
     private final Context context;
