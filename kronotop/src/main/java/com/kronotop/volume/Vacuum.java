@@ -31,6 +31,7 @@ class Vacuum {
     private final Volume volume;
     private final long readVersion;
     private final byte[] readVersionKey;
+    private volatile boolean stop;
 
     protected Vacuum(Context context, Volume volume) {
         this.context = context;
@@ -58,15 +59,18 @@ class Vacuum {
         }
     }
 
-    public List<SegmentAnalysis> analyze() {
+    private List<SegmentAnalysis> analyze() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return volume.analyze(tr);
         }
     }
 
-    public void vacuum() throws IOException {
+    void start() throws IOException {
         List<SegmentAnalysis> segmentAnalysisList = analyze();
         for (SegmentAnalysis segmentAnalysis : segmentAnalysisList) {
+            if (stop) {
+                break;
+            }
             if (segmentAnalysis.garbageRatio() < volume.getConfig().allowedGarbageRatio()) {
                 continue;
             }
@@ -74,10 +78,7 @@ class Vacuum {
         }
     }
 
-    public void reset() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            tr.clear(readVersionKey);
-            tr.commit().join();
-        }
+    void stop() {
+        stop = true;
     }
 }

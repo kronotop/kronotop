@@ -16,53 +16,47 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
+import com.kronotop.common.KronotopException;
 import com.kronotop.task.Task;
-import com.kronotop.volume.segment.SegmentAnalysis;
 
-import java.util.List;
+import java.io.IOException;
 
 public class VacuumTask implements Task {
     private final Context context;
-    private final String volumeName;
+    private final String name;
+    private Vacuum vacuum;
+    private volatile boolean shutdown;
 
-    public VacuumTask(Context context, String volumeName) {
+    public VacuumTask(Context context, String name) {
         this.context = context;
-        this.volumeName = volumeName;
+        this.name = name;
     }
-
 
     @Override
     public String name() {
-        return "vacuum:" + volumeName;
-    }
-
-    private List<SegmentAnalysis> analyze(Volume volume) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return volume.analyze(tr);
-        }
+        return "vacuum:" + name;
     }
 
     @Override
     public void run() {
         VolumeService service = context.getService(VolumeService.NAME);
-        Volume volume = service.findVolume(volumeName);
-
-        List<SegmentAnalysis> analysis;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            analysis = volume.analyze(tr);
-        }
-        for (SegmentAnalysis segmentAnalysis : analysis) {
-            if (segmentAnalysis.garbageRatio() < volume.getConfig().allowedGarbageRatio()) {
-                continue;
-            }
-            volume.vacuumSegment(segmentAnalysis.name(), readVersion);
+        try {
+            Volume volume = service.findVolume(name);
+            vacuum = new Vacuum(context, volume);
+            // Blocking call
+            vacuum.start();
+        } catch (ClosedVolumeException | VolumeNotOpenException | IOException e) {
+            throw new KronotopException(e);
         }
     }
 
     @Override
     public void shutdown() {
-
+        if (shutdown) {
+            return;
+        }
+        shutdown = true;
+        vacuum.stop();
     }
 }
