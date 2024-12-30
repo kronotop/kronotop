@@ -40,6 +40,7 @@ public class VolumeAdminHandler extends BaseHandler implements Handler {
         handlers.put(VolumeAdminSubcommand.DESCRIBE, new DescribeSubcommand(service));
         handlers.put(VolumeAdminSubcommand.SET_STATUS, new SetStatusSubcommand(service));
         handlers.put(VolumeAdminSubcommand.REPLICATIONS, new ReplicationsSubcommand(service));
+        handlers.put(VolumeAdminSubcommand.VACUUM, new VacuumSubcommand(service));
     }
 
     @Override

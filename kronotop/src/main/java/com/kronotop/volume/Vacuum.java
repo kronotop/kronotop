@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.volume.segment.SegmentAnalysis;
@@ -35,7 +36,13 @@ class Vacuum {
         this.context = context;
         this.volume = volume;
         this.readVersion = getOrLoadReadVersion();
-        this.readVersionKey = volume.getConfig().subspace().pack(Tuple.from("vacuum", "readVersion"));
+        DirectorySubspace volumeSubspace = volume.getConfig().subspace();
+        this.readVersionKey = volumeSubspace.pack(
+                Tuple.from(
+                        VolumeSubspaceConstants.VACUUM_SUBSPACE,
+                        VolumeSubspaceConstants.VACUUM_READ_VERSION_KEY
+                )
+        );
     }
 
     private long getOrLoadReadVersion() {
