@@ -17,20 +17,17 @@
 package com.kronotop.volume.handlers;
 
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
-import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.volume.ClosedVolumeException;
-import com.kronotop.volume.Volume;
-import com.kronotop.volume.VolumeNotOpenException;
+import com.kronotop.task.TaskService;
+import com.kronotop.volume.VacuumTask;
 import com.kronotop.volume.VolumeService;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 
 class VacuumSubcommand extends BaseHandler implements SubcommandHandler {
-
     VacuumSubcommand(VolumeService service) {
         super(service);
     }
@@ -38,11 +35,10 @@ class VacuumSubcommand extends BaseHandler implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         VacuumParameters parameters = new VacuumParameters(request.getParams());
-        try {
-            Volume volume = service.findVolume(parameters.volumeName);
-        } catch (ClosedVolumeException | VolumeNotOpenException e) {
-            throw new KronotopException(e);
-        }
+        TaskService taskService = context.getService(TaskService.NAME);
+        VacuumTask task = new VacuumTask(service.getContext(), parameters.volumeName);
+        taskService.execute(task);
+        response.writeOK();
     }
 
     private class VacuumParameters {
@@ -55,8 +51,7 @@ class VacuumSubcommand extends BaseHandler implements SubcommandHandler {
             }
 
             volumeName = readAsString(params.get(1));
-            String rawMaximumGarbageRatio = readAsString(params.get(2));
-            maximumGarbageRatio = Double.parseDouble(rawMaximumGarbageRatio);
+            maximumGarbageRatio = readAsDouble(params.get(2));
         }
     }
 }

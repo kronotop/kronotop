@@ -16,15 +16,17 @@
 
 package com.kronotop.volume;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class VacuumContext {
     private final String segment;
     private final long readVersion;
-    private volatile boolean stop;
+    private final AtomicBoolean stop;
 
-
-    VacuumContext(String segment, long readVersion) {
+    VacuumContext(String segment, long readVersion, AtomicBoolean stop) {
         this.segment = segment;
         this.readVersion = readVersion;
+        this.stop = stop;
     }
 
     String segment() {
@@ -35,11 +37,7 @@ public class VacuumContext {
         return readVersion;
     }
 
-    boolean isStopped() {
-        return stop;
-    }
-
-    void stop() {
-        stop = true;
+    boolean stop() {
+        return stop.get();
     }
 }

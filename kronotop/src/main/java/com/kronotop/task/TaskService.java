@@ -58,15 +58,14 @@ public class TaskService extends CommandHandlerService implements KronotopServic
 
     /**
      * Executes the given task by wrapping it in a TaskRunner and submitting it to the scheduler.
-     * <p>
-     * Intended for one-off task.
      *
      * @param task the task to be executed; must not be null
      */
     public void execute(@Nonnull Task task) {
         TaskRunner runner = new TaskRunner(task);
-        // One-off task, no need to register it.
         scheduler.execute(runner);
+        // TODO: This should be cleaned up after execution.
+        tasks.put(task.name(), runner);
     }
 
     /**

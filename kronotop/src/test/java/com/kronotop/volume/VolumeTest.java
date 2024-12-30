@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -479,7 +480,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         {
             List<SegmentAnalysis> segmentAnalysis = volume.analyze();
             String firstSegment = segmentAnalysis.getFirst().name();
-            VacuumContext vacuumContext = new VacuumContext(firstSegment, readVersion);
+            VacuumContext vacuumContext = new VacuumContext(firstSegment, readVersion, new AtomicBoolean());
             volume.vacuumSegment(vacuumContext);
         }
 

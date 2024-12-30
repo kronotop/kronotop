@@ -889,7 +889,7 @@ public class Volume {
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.getName().getBytes()));
         byte[] end = ByteArrayUtil.strinc(begin);
 
-        while (!vacuumContext.isStopped()) {
+        while (!vacuumContext.stop()) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 tr.setReadVersion(vacuumContext.readVersion());
 
@@ -897,7 +897,7 @@ public class Volume {
                 Range range = new Range(begin, end);
                 HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
                 for (KeyValue keyValue : tr.getRange(range)) {
-                    if (vacuumContext.isStopped()) {
+                    if (vacuumContext.stop()) {
                         break;
                     }
 

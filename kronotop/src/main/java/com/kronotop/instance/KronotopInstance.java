@@ -109,8 +109,8 @@ public class KronotopInstance {
     private void registerKronotopServices() {
         // Registration sort is important here.
 
-        TaskService maintenanceService = new TaskService(context);
-        context.registerService(TaskService.NAME, maintenanceService);
+        TaskService taskService = new TaskService(context);
+        context.registerService(TaskService.NAME, taskService);
 
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
@@ -253,14 +253,14 @@ public class KronotopInstance {
      * @throws KronotopException if the time unit specified in the configuration is invalid
      */
     private void registerCleanupJournalTask() {
-        TaskService maintenanceService = context.getService(TaskService.NAME);
+        TaskService taskService = context.getService(TaskService.NAME);
 
         long retentionPeriod = config.getLong("background_tasks.journal_cleanup_task.retention_period");
         String timeunit = config.getString("background_tasks.journal_cleanup_task.timeunit");
 
         try {
             CleanupJournalTask cleanupTask = new CleanupJournalTask(context.getJournal(), retentionPeriod, TaskService.timeUnitOf(timeunit));
-            journalCleanupTaskFuture = maintenanceService.scheduleAtFixedRate(cleanupTask, 1, 1, TimeUnit.DAYS);
+            journalCleanupTaskFuture = taskService.scheduleAtFixedRate(cleanupTask, 1, 1, TimeUnit.DAYS);
         } catch (IllegalArgumentException e) {
             throw new KronotopException("Invalid timeunit: " + timeunit, e);
         }

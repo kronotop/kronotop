@@ -27,20 +27,19 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class Vacuum {
     private static final Logger LOGGER = LoggerFactory.getLogger(Vacuum.class);
     private final Context context;
     private final Volume volume;
-    private final long readVersion;
     private final byte[] readVersionKey;
-    private volatile boolean stop;
+    private final AtomicBoolean stop = new AtomicBoolean();
     private volatile VacuumContext vacuumContext;
 
     protected Vacuum(Context context, Volume volume) {
         this.context = context;
         this.volume = volume;
-        this.readVersion = getOrLoadReadVersion();
         DirectorySubspace volumeSubspace = volume.getConfig().subspace();
         this.readVersionKey = volumeSubspace.pack(
                 Tuple.from(
@@ -53,7 +52,7 @@ class Vacuum {
     private long getOrLoadReadVersion() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] rawReadVersion = tr.get(readVersionKey).join();
-            if (rawReadVersion == null || readVersion <= 0) {
+            if (rawReadVersion == null) {
                 long readVersion = tr.getReadVersion().join();
                 tr.set(readVersionKey, ByteBuffer.allocate(8).putLong(readVersion).array());
                 tr.commit().join();
@@ -70,24 +69,31 @@ class Vacuum {
     }
 
     void start() throws IOException {
-        LOGGER.info("Starting Vacuum on volume {}", volume.getConfig().name());
+        long readVersion = getOrLoadReadVersion();
         List<SegmentAnalysis> segmentAnalysisList = analyze();
+        if (segmentAnalysisList.isEmpty()) {
+            LOGGER.info("No segments found for read version {} on volume {}", readVersion, volume.getConfig().name());
+        }
+        LOGGER.info("Starting Vacuum on volume {}", volume.getConfig().name());
         for (SegmentAnalysis segmentAnalysis : segmentAnalysisList) {
-            if (stop) {
+            if (stop.get()) {
                 LOGGER.info("Stopping Vacuum on volume {}", volume.getConfig().name());
                 break;
             }
             if (segmentAnalysis.garbageRatio() < volume.getConfig().allowedGarbageRatio()) {
+                LOGGER.debug("Garbage ratio doesn't exceed the allowed garbage ratio, skipping Vacuum on segment: {} on volume {}",
+                        segmentAnalysis.name(),
+                        volume.getConfig().name()
+                );
                 continue;
             }
             LOGGER.debug("Vacuuming segment: {} on volume {}", segmentAnalysis.name(), volume.getConfig().name());
-            vacuumContext = new VacuumContext(segmentAnalysis.name(), readVersion);
+            vacuumContext = new VacuumContext(segmentAnalysis.name(), readVersion, stop);
             volume.vacuumSegment(vacuumContext);
         }
     }
 
     void stop() {
-        stop = true;
-        vacuumContext.stop();
+        stop.set(true);
     }
 }
