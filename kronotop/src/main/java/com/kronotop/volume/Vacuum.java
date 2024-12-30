@@ -51,6 +51,12 @@ class Vacuum {
         );
     }
 
+    /**
+     * Retrieves the cached read version from the database or generates and stores a new read version if not present.
+     * This method ensures that a consistent read version is available for further operations.
+     *
+     * @return the read version, either retrieved from the database or freshly loaded and stored.
+     */
     private long getOrLoadReadVersion() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] rawReadVersion = tr.get(readVersionKey).join();
@@ -70,11 +76,28 @@ class Vacuum {
         }
     }
 
+    /**
+     * Initiates the vacuum process on a specified volume. The vacuum process
+     * identifies and processes segments with a garbage ratio exceeding the
+     * allowed threshold, reclaiming resources and improving efficiency.
+     * <p>
+     * The method retrieves or generates the current read version, analyzes the
+     * volume's segments, and iterates through each analyzed segment to evaluate
+     * its garbage ratio. Segments that surpass the allowed garbage ratio are
+     * vacuumed, while those that do not are skipped. It logs relevant information
+     * for each step, such as the read version, volume, and vacuum progress.
+     * <p>
+     * If the stop signal is triggered during the vacuum process, the method
+     * gracefully terminates, ensuring that no further segments are processed.
+     *
+     * @throws IOException if an I/O error occurs during the vacuum process.
+     */
     void start() throws IOException {
         long readVersion = getOrLoadReadVersion();
         List<SegmentAnalysis> segmentAnalysisList = analyze();
         if (segmentAnalysisList.isEmpty()) {
             LOGGER.info("No segments found for read version {} on volume {}", readVersion, volume.getConfig().name());
+            return;
         }
         LOGGER.info("Starting Vacuum on volume {}", volume.getConfig().name());
         for (SegmentAnalysis segmentAnalysis : segmentAnalysisList) {
@@ -95,6 +118,12 @@ class Vacuum {
         }
     }
 
+    /**
+     * Stops the vacuum process gracefully by setting the stop signal.
+     * This method triggers a flag indicating that the vacuum process should terminate.
+     * Once invoked, the stop signal allows ongoing operations to detect the shutdown request
+     * and halt further processing accordingly.
+     */
     void stop() {
         stop.set(true);
     }

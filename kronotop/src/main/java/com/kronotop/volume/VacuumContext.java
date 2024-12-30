@@ -18,6 +18,11 @@ package com.kronotop.volume;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Represents the context information used during the vacuum process for a specific segment.
+ * This class encapsulates details such as the segment name, the read version of the data,
+ * and a flag for the termination signal.
+ */
 public class VacuumContext {
     private final String segment;
     private final long readVersion;

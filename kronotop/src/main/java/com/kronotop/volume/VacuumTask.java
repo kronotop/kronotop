@@ -22,6 +22,11 @@ import com.kronotop.task.Task;
 
 import java.io.IOException;
 
+/**
+ * Represents a task for performing a vacuuming operation on a specified volume.
+ * The task ensures that the garbage ratio within the volume does not exceed
+ * the allowed threshold.
+ */
 public class VacuumTask implements Task {
     private final Context context;
     private final String name;
@@ -46,6 +51,18 @@ public class VacuumTask implements Task {
         return completed;
     }
 
+    /**
+     * Executes the vacuuming task for a specific volume. This method retrieves a
+     * VolumeService from the context and uses it to find and initialize the target volume.
+     * It then creates and starts a Vacuum instance to perform the vacuuming operation as
+     * a blocking call. Upon successful execution, it updates the task status to completed.
+     * <p>
+     * If an exception occurs during the process (e.g., ClosedVolumeException,
+     * VolumeNotOpenException, or IOException), it wraps and rethrows the exception as
+     * a KronotopException.
+     *
+     * @throws KronotopException if an error occurs during the vacuuming operation
+     */
     @Override
     public void run() {
         VolumeService service = context.getService(VolumeService.NAME);
