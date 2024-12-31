@@ -30,9 +30,13 @@ public class VacuumMetadata {
     }
 
     public VacuumMetadata(String volumeName, long readVersion, double allowedGarbageRatio) {
-        this.taskName = "vacuum:" + volumeName;
+        this.taskName = VacuumTaskName(volumeName);
         this.readVersion = readVersion;
         this.allowedGarbageRatio = allowedGarbageRatio;
+    }
+
+    public static String VacuumTaskName(String volumeName) {
+        return "vacuum:" + volumeName;
     }
 
     static byte[] getMetadataKey(DirectorySubspace volumeSubspace) {

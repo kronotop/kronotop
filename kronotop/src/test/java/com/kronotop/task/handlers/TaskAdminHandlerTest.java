@@ -47,7 +47,7 @@ public class TaskAdminHandlerTest extends BaseClusterTest {
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
         actualMessage.children().forEach((name, properties) -> {
             MapRedisMessage task = (MapRedisMessage) properties;
-            assertEquals(3, task.children().size());
+            assertEquals(4, task.children().size());
             Set<String> keys = new HashSet<>();
             task.children().forEach((key, value) -> {
                 keys.add(((SimpleStringRedisMessage) key).content());

@@ -18,14 +18,13 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.commandbuilder.kronotop.TaskAdminCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.VolumeAdminCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
-import com.kronotop.volume.Session;
-import com.kronotop.volume.VolumeConfig;
-import com.kronotop.volume.VolumeConfigGenerator;
-import com.kronotop.volume.VolumeStatus;
+import com.kronotop.volume.*;
 import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.replication.ReplicationConfig;
 import com.kronotop.volume.replication.ReplicationMetadata;
@@ -154,6 +153,106 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 }
             });
         }
+    }
+
+    @Test
+    public void test_volume_admin_vacuum() {
+        String volumeName = "redis-shard-1";
+
+        VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            volumeAdmin.vacuum(volumeName, 10.0).encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+        {
+            TaskAdminCommandBuilder<String, String> taskAdmin = new TaskAdminCommandBuilder<>(StringCodec.ASCII);
+
+            ByteBuf buf = Unpooled.buffer();
+            taskAdmin.list().encode(buf);
+
+            KronotopTestInstance instance = getInstances().getFirst();
+            instance.getChannel().writeInbound(buf);
+            Object msg = instance.getChannel().readOutbound();
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage actualMessage = (MapRedisMessage) msg;
+            boolean found = false;
+            for (RedisMessage message : actualMessage.children().keySet()) {
+                SimpleStringRedisMessage taskName = (SimpleStringRedisMessage) message;
+                if (VacuumMetadata.VacuumTaskName(volumeName).equals(taskName.content())) {
+                    found = true;
+                    break;
+                }
+            }
+            assertTrue(found);
+        }
+    }
+
+    @Test
+    public void test_volume_admin_stop_vacuum() {
+        String volumeName = "redis-shard-1";
+
+        VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            volumeAdmin.vacuum(volumeName, 10.0).encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            volumeAdmin.stopVacuum(volumeName).encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertNull(VacuumMetadata.load(tr, volumeConfig.subspace()));
+        }
+    }
+
+    @Test
+    public void test_volume_admin_stop_when_vacuum_task_not_found() {
+        String volumeName = "redis-shard-1";
+
+        VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        volumeAdmin.stopVacuum(volumeName).encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Vacuum task not found on redis-shard-1", actualMessage.content());
+    }
+
+    @Test
+    public void test_volume_admin_vacuum_when_volume_not_open() {
+        VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        volumeAdmin.vacuum("volume-name", 10.0).encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Volume: 'volume-name' is not open", actualMessage.content());
     }
 
     @Test
