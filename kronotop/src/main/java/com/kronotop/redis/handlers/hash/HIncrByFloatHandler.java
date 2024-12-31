@@ -94,7 +94,7 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
                 try {
                     newValue = Double.parseDouble(new String(previousHashField.value())) + message.getIncrement();
                 } catch (NumberFormatException e) {
-                    throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
+                    throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT);
                 }
                 deleteByVersionstamp(shard, previousHashField);
             }

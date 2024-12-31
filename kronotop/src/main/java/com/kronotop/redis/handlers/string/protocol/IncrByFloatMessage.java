@@ -46,7 +46,7 @@ public class IncrByFloatMessage implements KronotopMessage<String> {
         try {
             increment = Double.parseDouble(new String(tmp));
         } catch (NumberFormatException e) {
-            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
+            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT);
         }
     }
 

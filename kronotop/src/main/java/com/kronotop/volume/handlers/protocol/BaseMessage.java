@@ -44,7 +44,7 @@ class BaseMessage {
         try {
             return Long.parseLong(data);
         } catch (NumberFormatException e) {
-            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_LONG, e);
+            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_LONG);
         }
     }
 }

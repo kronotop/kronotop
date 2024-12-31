@@ -56,7 +56,7 @@ public class ScanMessage implements KronotopMessage<Void> {
                     try {
                         count = Integer.parseInt(value);
                     } catch (NumberFormatException e) {
-                        throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
+                        throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER);
                     }
                 } else if (parameter.equalsIgnoreCase("MATCH")) {
                     match = value;

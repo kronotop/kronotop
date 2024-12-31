@@ -93,7 +93,7 @@ public class HIncrByHandler extends BaseHashHandler implements Handler {
                 try {
                     newValue = Integer.parseInt(new String(previousHashField.value())) + message.getIncrement();
                 } catch (NumberFormatException e) {
-                    throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
+                    throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER);
                 }
                 deleteByVersionstamp(shard, previousHashField);
             }

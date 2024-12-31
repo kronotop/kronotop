@@ -55,11 +55,11 @@ public class HelloMessage implements KronotopMessage<Void> {
             return;
         }
 
-        String rawProtover = request.getParams().get(0).toString(StandardCharsets.US_ASCII);
+        String rawProtover = request.getParams().getFirst().toString(StandardCharsets.US_ASCII);
         try {
             protover = Integer.parseInt(rawProtover);
         } catch (NumberFormatException e) {
-            throw new KronotopException(RESPError.PROTOCOL_VERSION_FORMAT_ERROR, e);
+            throw new KronotopException(RESPError.PROTOCOL_VERSION_FORMAT_ERROR);
         }
 
         if (protover != RESP_VERSION_TWO && protover != RESP_VERSION_THREE) {

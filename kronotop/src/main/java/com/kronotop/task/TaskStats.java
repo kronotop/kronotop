@@ -16,8 +16,6 @@
 
 package com.kronotop.task;
 
-import java.time.Instant;
-
 public class TaskStats {
     private volatile long lastRun;
     private volatile boolean running;
