@@ -10,13 +10,15 @@
     </parent>
     <name>Kronotop Client</name>
     <description>Kronotop Client based on Lettuce</description>
+
     <dependencies>
         <dependency>
             <groupId>io.lettuce</groupId>
             <artifactId>lettuce-core</artifactId>
-            <version>6.4.0.RELEASE</version>
+            <version>6.5.2.RELEASE</version>
         </dependency>
     </dependencies>
+
     <artifactId>kronotop-client</artifactId>
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
