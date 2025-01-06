@@ -65,8 +65,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
                 standbyVolumeDataDir.toString(),
-                volume.getConfig().segmentSize(),
-                volume.getConfig().allowedGarbageRatio()
+                volume.getConfig().segmentSize()
         );
         return new Volume(context, standbyVolumeConfig);
     }
@@ -121,8 +120,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
                 standbyVolumeDataDir.toString(),
-                volume.getConfig().segmentSize(),
-                volume.getConfig().allowedGarbageRatio()
+                volume.getConfig().segmentSize()
         );
 
         VolumeService volumeService = standbyInstance.getContext().getService(VolumeService.NAME);
@@ -311,8 +309,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
                 standbyVolumeDataDir.toString(),
-                volume.getConfig().segmentSize(),
-                volume.getConfig().allowedGarbageRatio()
+                volume.getConfig().segmentSize()
         );
 
         // Start a standby

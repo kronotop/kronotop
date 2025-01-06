@@ -22,7 +22,6 @@ public record VolumeConfig(
         DirectorySubspace subspace,
         String name,
         String dataDir,
-        Long segmentSize,
-        Float allowedGarbageRatio
+        Long segmentSize
 ) {
 }

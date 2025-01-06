@@ -56,6 +56,16 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         return createCommand(CommandType.VOLUME_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
     }
 
+    public Command<K, V, String> vacuum(String volumeName, double allowedGarbageRatio) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.VACUUM).add(volumeName).add(allowedGarbageRatio);
+        return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, String> stopVacuum(String volumeName) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.STOP_VACUUM).add(volumeName);
+        return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         VOLUME_ADMIN("VOLUME.ADMIN");
 
@@ -75,7 +85,9 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         LIST("LIST"),
         DESCRIBE("DESCRIBE"),
         SET_STATUS("SET-STATUS"),
-        REPLICATIONS("REPLICATIONS");
+        REPLICATIONS("REPLICATIONS"),
+        VACUUM("VACUUM"),
+        STOP_VACUUM("STOP-VACUUM");
 
         public final byte[] bytes;
 

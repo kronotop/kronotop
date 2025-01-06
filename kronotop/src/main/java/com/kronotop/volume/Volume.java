@@ -869,27 +869,38 @@ public class Volume {
     }
 
     /**
-     * This method vacuums a specified segment by reading and updating key-value pairs within a specified range.
-     * It processes the entries in batches to remove stale or outdated entries, and handles retries in case of
-     * failures caused by transaction issues.
+     * Performs a vacuuming procedure on a specific segment. The vacuuming process
+     * involves clearing out obsolete or no longer needed entries within the segment
+     * to reclaim storage and improve performance.
+     * <p>
+     * This process iteratively processes entries in the segment, grouping them
+     * by their prefix, and applies updates in batches until the segment is
+     * fully processed. It also retries the operation in the case of transient
+     * exceptions, such as transaction read conflicts or outdated read versions.
      *
-     * @param name        the name of the segment to be vacuumed.
-     * @param readVersion the read version to be used for the transaction.
-     * @throws IOException if an I/O error occurs.
+     * @param vacuumContext Provides the contextual information needed for the vacuuming
+     *                      process, including the target segment identifier, read version,
+     *                      and configuration settings.
+     * @throws IOException If a critical I/O error occurs during the execution of the vacuuming
+     *                     process.
      */
-    protected void vacuumSegment(String name, long readVersion) throws IOException {
-        Segment segment = getOrOpenSegmentByName(name);
+    protected void vacuumSegment(VacuumContext vacuumContext) throws IOException {
+        Segment segment = getOrOpenSegmentByName(vacuumContext.segment());
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.getName().getBytes()));
         byte[] end = ByteArrayUtil.strinc(begin);
 
-        while (true) {
+        while (!vacuumContext.stop()) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                tr.setReadVersion(readVersion);
+                tr.setReadVersion(vacuumContext.readVersion());
 
                 int batchSize = 0;
                 Range range = new Range(begin, end);
                 HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
                 for (KeyValue keyValue : tr.getRange(range)) {
+                    if (vacuumContext.stop()) {
+                        break;
+                    }
+
                     byte[] key = keyValue.getKey();
                     if (Arrays.equals(key, begin)) {
                         // begin is inclusive.
@@ -950,6 +961,56 @@ public class Volume {
         }
     }
 
+    /**
+     * Cleans up a stale segment by removing its associated metadata, files, and references.
+     * <p>
+     * This method first retrieves or opens the segment by its name. It destroys the segment, removes
+     * its metadata in the FoundationDB database, and deletes its files from disk. The method ensures
+     * thread-safety by utilizing a write lock during the cleanup process. If an error occurs during the
+     * cleanup, it will log the error.
+     *
+     * @param name The name of the segment to be cleaned up.
+     * @throws IOException If an I/O error occurs during the cleanup process.
+     */
+    private List<String> cleanupStaleSegment(String name) throws IOException {
+        Segment segment = getOrOpenSegmentByName(name);
+        // This will retry.
+        context.getFoundationDB().run(tr -> {
+            VolumeMetadata.compute(tr, config.subspace(), (volumeMetadata) -> {
+                volumeMetadata.removeSegment(segment.getConfig().id());
+            });
+            return null;
+        });
+        segmentsLock.writeLock().lock();
+        segments.remove(name);
+        segmentsLock.writeLock().unlock();
+        return segment.delete();
+    }
+
+    /**
+     * Cleans up stale segments based on the specified allowed garbage ratio.
+     * This method analyzes segments and identifies those with zero cardinality
+     * and a garbage ratio exceeding the specified threshold for cleanup.
+     *
+     * @param allowedGarbageRatio the threshold ratio of garbage to trigger cleanup
+     * @return a list of file names that were successfully cleaned up
+     */
+    protected List<String> cleanupStaleSegments(double allowedGarbageRatio) {
+        // This method should be used carefully.
+        List<String> result = new ArrayList<>();
+        for (SegmentAnalysis analysis : analyze()) {
+            if (analysis.cardinality() == 0 && analysis.garbageRatio() > allowedGarbageRatio) {
+                try {
+                    List<String> deletedFiles = cleanupStaleSegment(analysis.name());
+                    result.addAll(deletedFiles);
+                } catch (Exception e) {
+                    LOGGER.error("Volume '{}' may has orphan segments", config.name(), e);
+                }
+            }
+        }
+        return result;
+    }
+
     private void clearSegmentsByPrefix(Session session) {
         segmentsLock.readLock().lock();
         try {
@@ -1007,7 +1068,6 @@ public class Volume {
      * @throws IOException if an I/O error occurs while accessing the segment
      */
     public void insert(String segmentName, PackedEntry... entries) throws IOException {
-
         Segment segment = getOrOpenSegmentByName(segmentName);
         for (PackedEntry entry : entries) {
             try {

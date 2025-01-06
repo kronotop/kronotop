@@ -48,7 +48,7 @@ public class HRandFieldMessage implements KronotopMessage<String> {
             try {
                 count = Integer.parseInt(new String(rawCount));
             } catch (NumberFormatException e) {
-                throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
+                throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER);
             }
 
             if (request.getParams().size() == 3) {

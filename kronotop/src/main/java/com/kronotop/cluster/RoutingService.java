@@ -123,7 +123,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     private boolean isClusterInitialized_internal() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+            byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
             byte[] data = tr.get(key).join();
             if (data != null) {
                 if (MembershipUtils.isTrue(data)) {
@@ -312,7 +312,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
             }
 
             DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_INITIALIZED));
+            byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
@@ -362,7 +362,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
             }
 
             DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-            byte[] key = subspace.pack(Tuple.from(MembershipConstants.CLUSTER_TOPOLOGY_CHANGED));
+            byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_TOPOLOGY_CHANGED));
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
                 tr.commit().join();

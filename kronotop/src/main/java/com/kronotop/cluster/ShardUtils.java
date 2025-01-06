@@ -33,7 +33,7 @@ public class ShardUtils {
             ShardStatus shardStatus,
             DirectorySubspace shardSubspace
     ) {
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.SHARD_STATUS_KEY));
+        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.SHARD_STATUS_KEY));
         tr.set(key, shardStatus.name().getBytes());
     }
 
@@ -66,7 +66,7 @@ public class ShardUtils {
      * @throws IllegalStateException if the shard status has not been set for the given shard.
      */
     public static ShardStatus getShardStatus(Transaction tr, DirectorySubspace shardSubspace) {
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.SHARD_STATUS_KEY));
+        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.SHARD_STATUS_KEY));
         byte[] value = tr.get(key).join();
         if (value == null) {
             throw new IllegalStateException("ShardStatus has not been set for the given shard");

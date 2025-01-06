@@ -34,6 +34,7 @@ import com.kronotop.redis.handlers.transactions.protocol.*;
 import com.kronotop.redis.server.protocol.CommandMessage;
 import com.kronotop.redis.server.protocol.FlushAllMessage;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
+import com.kronotop.task.handlers.protocol.TaskAdminMessage;
 import com.kronotop.volume.handlers.protocol.SegmentInsertMessage;
 import com.kronotop.volume.handlers.protocol.SegmentRangeMessage;
 import com.kronotop.volume.handlers.protocol.VolumeAdminMessage;
@@ -122,4 +123,5 @@ public class MessageTypes {
     public static final AttributeKey<KrAdminMessage> KRADMIN = AttributeKey.valueOf(KrAdminMessage.COMMAND);
     public static final AttributeKey<SegmentInsertMessage> SEGMENTINSERT = AttributeKey.valueOf(SegmentInsertMessage.COMMAND);
     public static final AttributeKey<VolumeAdminMessage> VOLUMEADMIN = AttributeKey.valueOf(VolumeAdminMessage.COMMAND);
+    public static final AttributeKey<TaskAdminMessage> TASKADMIN = AttributeKey.valueOf(TaskAdminMessage.COMMAND);
 }

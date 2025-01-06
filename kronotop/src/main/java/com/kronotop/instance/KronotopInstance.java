@@ -25,11 +25,12 @@ import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.FoundationDBService;
-import com.kronotop.journal.CleanupTask;
+import com.kronotop.journal.CleanupJournalTask;
 import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
 import com.kronotop.redis.RedisContext;
 import com.kronotop.redis.RedisService;
+import com.kronotop.task.TaskService;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.replication.ReplicationService;
 import com.kronotop.watcher.Watcher;
@@ -108,8 +109,8 @@ public class KronotopInstance {
     private void registerKronotopServices() {
         // Registration sort is important here.
 
-        BackgroundTaskService maintenanceService = new BackgroundTaskService(context);
-        context.registerService(BackgroundTaskService.NAME, maintenanceService);
+        TaskService taskService = new TaskService(context);
+        context.registerService(TaskService.NAME, taskService);
 
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
@@ -227,7 +228,7 @@ public class KronotopInstance {
             initializeMember(memberId);
             initializeContext();
             registerKronotopServices();
-            registerJournalCleanupTask();
+            registerCleanupJournalTask();
             setStatus(KronotopInstanceStatus.RUNNING);
         } catch (Exception e) {
             LOGGER.error("Failed to initialize the instance", e);
@@ -243,23 +244,23 @@ public class KronotopInstance {
      * <p>
      * The method retrieves the necessary configuration parameters for the cleanup task
      * (retention period and time unit) from the provided configuration. It uses these parameters
-     * to create a {@link CleanupTask} and schedules it to run at a fixed rate of once per day using
-     * the {@link BackgroundTaskService}.
+     * to create a {@link CleanupJournalTask} and schedules it to run at a fixed rate of once per day using
+     * the {@link TaskService}.
      * <p>
      * If an invalid time unit is specified, an {@link IllegalArgumentException} is thrown,
      * which is caught and re-thrown as a {@link KronotopException} with a descriptive error message.
      *
      * @throws KronotopException if the time unit specified in the configuration is invalid
      */
-    private void registerJournalCleanupTask() {
-        BackgroundTaskService maintenanceService = context.getService(BackgroundTaskService.NAME);
+    private void registerCleanupJournalTask() {
+        TaskService taskService = context.getService(TaskService.NAME);
 
         long retentionPeriod = config.getLong("background_tasks.journal_cleanup_task.retention_period");
         String timeunit = config.getString("background_tasks.journal_cleanup_task.timeunit");
 
         try {
-            CleanupTask cleanupTask = new CleanupTask(context.getJournal(), retentionPeriod, BackgroundTaskService.timeUnitOf(timeunit));
-            journalCleanupTaskFuture = maintenanceService.scheduleAtFixedRate(cleanupTask, 1, 1, TimeUnit.DAYS);
+            CleanupJournalTask cleanupTask = new CleanupJournalTask(context.getJournal(), retentionPeriod, TaskService.timeUnitOf(timeunit));
+            journalCleanupTaskFuture = taskService.scheduleAtFixedRate(cleanupTask, 1, 1, TimeUnit.DAYS);
         } catch (IllegalArgumentException e) {
             throw new KronotopException("Invalid timeunit: " + timeunit, e);
         }

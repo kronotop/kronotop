@@ -21,7 +21,8 @@ public enum VolumeAdminSubcommand {
     DESCRIBE("describe"),
     SET_STATUS("set-status"),
     REPLICATIONS("replications"),
-    ;
+    VACUUM("vacuum"),
+    STOP_VACUUM("stop-vacuum");
 
     private final String value;
 

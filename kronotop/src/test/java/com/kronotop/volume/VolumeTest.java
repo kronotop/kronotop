@@ -31,17 +31,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class VolumeTest extends BaseVolumeIntegrationTest {
     Random random = new Random();
-
-    private ByteBuffer randomBytes(int size) {
-        byte[] b = new byte[size];
-        random.nextBytes(b);
-        return ByteBuffer.wrap(b);
-    }
 
     @Test
     public void test_append() throws IOException {
@@ -471,21 +466,18 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        long readVersion;
-        try (Transaction tr = database.createTransaction()) {
-            readVersion = tr.getReadVersion().join();
-        }
-
+        long readVersion = getReadVersion();
+        
         {
             List<SegmentAnalysis> segmentAnalysis = volume.analyze();
             String firstSegment = segmentAnalysis.getFirst().name();
-            volume.vacuumSegment(firstSegment, readVersion);
+            VacuumContext vacuumContext = new VacuumContext(firstSegment, readVersion, new AtomicBoolean());
+            volume.vacuumSegment(vacuumContext);
         }
 
         {
             List<SegmentAnalysis> segmentAnalysis = volume.analyze();
             assertEquals(3, segmentAnalysis.size());
-
 
             // Cardinality should be zero for the first segment.
             assertEquals(0, segmentAnalysis.getFirst().cardinality());
@@ -811,8 +803,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
                 dataDir.toString(),
-                volume.getConfig().segmentSize(),
-                volume.getConfig().allowedGarbageRatio()
+                volume.getConfig().segmentSize()
         );
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
@@ -948,8 +939,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
                 volume.getConfig().subspace(),
                 volume.getConfig().name(),
                 dataDir.toString(),
-                volume.getConfig().segmentSize(),
-                volume.getConfig().allowedGarbageRatio()
+                volume.getConfig().segmentSize()
         );
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();

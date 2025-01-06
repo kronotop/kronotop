@@ -49,7 +49,7 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
 
         // Setting the route first time
         if (primaryMemberId == null) {
-            byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
+            byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_PRIMARY_MEMBER_KEY));
             tr.set(key, parameters.memberId.getBytes());
             return;
         }
@@ -99,7 +99,7 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
         }
 
         // Ready to assign a new primary
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_PRIMARY_MEMBER_KEY));
+        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_PRIMARY_MEMBER_KEY));
         tr.set(key, parameters.memberId.getBytes());
 
         // Cleanup
@@ -137,7 +137,7 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
         }
 
         standbyMemberIds.add(parameters.memberId);
-        byte[] key = shardSubspace.pack(Tuple.from(MembershipConstants.ROUTE_STANDBY_MEMBER_KEY));
+        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_STANDBY_MEMBER_KEY));
         byte[] value = JSONUtils.writeValueAsBytes(standbyMemberIds);
         tr.set(key, value);
     }

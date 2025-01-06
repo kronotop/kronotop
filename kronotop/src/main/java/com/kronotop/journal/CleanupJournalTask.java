@@ -25,6 +25,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.task.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,11 +36,11 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * CleanupTask is a background task that periodically checks and removes expired entries
+ * CleanupJournalsTask is a background task that periodically checks and removes expired entries
  * from a journal based on a configured time-to-live (TTL) value.
  */
-public class CleanupTask implements Runnable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CleanupTask.class);
+public class CleanupJournalTask implements Task {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CleanupJournalTask.class);
 
     private final Duration retentionPeriod;
     private final Journal journal;
@@ -47,9 +48,30 @@ public class CleanupTask implements Runnable {
     private int counter = 0;
     private long now;
 
-    public CleanupTask(Journal journal, long retentionPeriod, TimeUnit unit) {
+    public CleanupJournalTask(Journal journal, long retentionPeriod, TimeUnit unit) {
         this.journal = journal;
         this.retentionPeriod = Duration.of(retentionPeriod, unit.toChronoUnit());
+    }
+
+    @Override
+    public String name() {
+        return "journal:cleanup-task";
+    }
+
+    @Override
+    public boolean isCompleted() {
+        // Never ending task
+        return false;
+    }
+
+    @Override
+    public void shutdown() {
+        // No state to clean
+    }
+
+    @Override
+    public void awaitTermination() throws InterruptedException {
+        // Not required for this task
     }
 
     /**

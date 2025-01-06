@@ -16,12 +16,14 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.common.KronotopException;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
+import com.kronotop.task.TaskService;
 import com.kronotop.volume.handlers.SegmentInsertHandler;
 import com.kronotop.volume.handlers.SegmentRangeHandler;
 import com.kronotop.volume.handlers.VolumeAdminHandler;
@@ -94,6 +96,26 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
+     * Submits a vacuum task for the specified volume if any pending vacuum task exists.
+     * The method checks the metadata to determine if a vacuum operation is needed.
+     * If the vacuum task is already completed, no further action is taken.
+     *
+     * @param volume the volume for which the vacuum task should be checked and submitted
+     */
+    private void submitVacuumTaskIfAny(Volume volume) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
+            if (vacuumMetadata == null) {
+                return;
+            }
+            TaskService taskService = context.getService(TaskService.NAME);
+            VacuumTask task = new VacuumTask(context, volume, vacuumMetadata);
+            LOGGER.debug("Submitting vacuum task {} for volume {}", task, volume.getConfig().name());
+            taskService.execute(task);
+        }
+    }
+
+    /**
      * Creates a new volume based on the provided configuration.
      * If a volume with the same name already exists and is not closed, it returns the existing volume.
      * Otherwise, it creates a new volume, ensuring the necessary directories are created.
@@ -116,6 +138,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
             checkAndCreateDataDir(config.dataDir());
             // TODO: Create folders for this specific volume in the constructor.
             Volume volume = new Volume(context, config);
+            submitVacuumTaskIfAny(volume);
             volumes.put(config.name(), volume);
             return volume;
         } finally {

@@ -84,7 +84,7 @@ public class IncrByHandler extends BaseStringHandler implements Handler {
             });
             syncStringOnVolume(shard, message.getKey(), previous);
         } catch (NumberFormatException e) {
-            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
+            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER);
         } finally {
             lock.writeLock().unlock();
         }

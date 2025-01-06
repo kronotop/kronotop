@@ -31,11 +31,20 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * Represents a file segment used to store and manage data in a structured manner.
+ * The segment manages its metadata and file operations, including appending, inserting,
+ * retrieving, and managing data consistency with locking mechanisms.
+ */
 public class Segment {
     public static final int SEGMENT_NAME_SIZE = 19;
+    public static final String SEGMENTS_DIRECTORY = "segments";
+    private static final String SEGMENT_METADATA_FILE_EXTENSION = "metadata";
     private static final Logger LOGGER = LoggerFactory.getLogger(Segment.class);
     private final SegmentConfig config;
     private final String name;
@@ -75,6 +84,10 @@ public class Segment {
         return Strings.padStart(Long.toString(id), 19, '0');
     }
 
+    public SegmentConfig getConfig() {
+        return config;
+    }
+
     public String getName() {
         return name;
     }
@@ -108,8 +121,16 @@ public class Segment {
         }
     }
 
+    private Path getSegmentMetadataFilePath() {
+        return Path.of(config.dataDir(), SEGMENTS_DIRECTORY, getName() + "." + SEGMENT_METADATA_FILE_EXTENSION);
+    }
+
+    private Path getSegmentFilePath() {
+        return Path.of(config.dataDir(), SEGMENTS_DIRECTORY, getName());
+    }
+
     private RandomAccessFile createOrOpenSegmentMetadataFile() throws IOException {
-        Path path = Path.of(config.dataDir(), "segments", name + ".metadata");
+        Path path = getSegmentMetadataFilePath();
         Files.createDirectories(path.getParent());
         try {
             return new RandomAccessFile(path.toFile(), "rw");
@@ -120,7 +141,7 @@ public class Segment {
     }
 
     private RandomAccessFile createOrOpenSegmentFile() throws IOException {
-        Path path = Path.of(config.dataDir(), "segments", getName());
+        Path path = getSegmentFilePath();
         Files.createDirectories(path.getParent());
         try {
             RandomAccessFile file = new RandomAccessFile(path.toFile(), "rw");
@@ -152,6 +173,20 @@ public class Segment {
         }
     }
 
+    /**
+     * Appends the given entry to the segment file.
+     * <p>
+     * This method writes the provided {@code ByteBuffer} entry to the next available position
+     * in the segment file and updates the segment metadata accordingly. If the operation is
+     * successful, the segment's flushed state is set to {@code false}, indicating that
+     * the segment requires a flush for data persistence.
+     *
+     * @param entry the data to append, represented as a {@code ByteBuffer}
+     * @return a {@code SegmentAppendResult} containing the position where the entry was written
+     *         and the length of the appended data
+     * @throws NotEnoughSpaceException if there is insufficient space in the segment to append the data
+     * @throws IOException if an I/O error occurs during the append operation
+     */
     public SegmentAppendResult append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
         try {
             long position = forwardMetadataPosition(entry.remaining());
@@ -181,6 +216,19 @@ public class Segment {
         }
     }
 
+    /**
+     * Inserts a given entry at a specified position within the segment.
+     * <p>
+     * This method writes the provided {@code ByteBuffer} entry to the segment file at the given position.
+     * It also updates the metadata position to reflect the insertion.
+     * If the operation is successful, the segment's flushed state is set to {@code false}, indicating
+     * that the segment requires a flush to ensure data persistence.
+     *
+     * @param entry the data to insert, represented as a {@code ByteBuffer}
+     * @param position the position within the segment where the data will be inserted
+     * @throws IOException if an I/O error occurs during the insertion process
+     * @throws NotEnoughSpaceException if there is insufficient space in the segment to accommodate the data
+     */
     public void insert(ByteBuffer entry, long position) throws IOException, NotEnoughSpaceException {
         try {
             int length = segmentFile.getChannel().write(entry, position);
@@ -194,6 +242,15 @@ public class Segment {
         }
     }
 
+    /**
+     * Reads a portion of the segment's data from the specified position with the given length.
+     *
+     * @param position the starting position in the segment from where the data should be read
+     * @param length the number of bytes to read from the segment
+     * @return a {@code ByteBuffer} containing the data read from the segment
+     * @throws IOException if an I/O error occurs during reading
+     * @throws EntryOutOfBoundException if the specified range (position + length) exceeds the size of the segment
+     */
     public ByteBuffer get(long position, long length) throws IOException {
         if (position + length > metadata.getSize()) {
             String message = String.format("position: %d, length: %d but size: %d", position, length, metadata.getSize());
@@ -207,6 +264,14 @@ public class Segment {
         return buffer.flip();
     }
 
+    /**
+     * Flushes the segment and metadata files to ensure all buffered changes are written to disk.
+     * If the files are already flushed, the method performs no action.
+     * Any {@link ClosedChannelException} encountered during the process is ignored.
+     *
+     * @param metaData if true, the metadata changes are also forced to be written to the file system
+     * @throws IOException if an I/O error occurs while forcing the data or metadata to be written
+     */
     public synchronized void flush(boolean metaData) throws IOException {
         if (flushed) {
             // Already flushed
@@ -225,9 +290,43 @@ public class Segment {
         setFlushed(true);
     }
 
+    /**
+     * Closes the segment by performing the necessary cleanup and resource management.
+     * <p>
+     * This method ensures that any remaining data is flushed to disk by invoking the
+     * {@code flush} method with a true parameter. After flushing, it closes the
+     * underlying segment and metadata files to release system resources.
+     *
+     * @throws IOException if an I/O error occurs during the flush operation or when closing the files.
+     */
     public void close() throws IOException {
         flush(true);
         segmentFile.close();
         metadataFile.close();
+    }
+
+    /**
+     * Deletes the segment and its associated metadata files from the storage.
+     *
+     * This method attempts to delete the segment file and the segment metadata file
+     * associated with the current segment. If any of the files cannot be deleted,
+     * a {@code KronotopException} is thrown. The method returns a list of file paths
+     * that were successfully deleted.
+     *
+     * @return a list of strings representing the paths of the deleted files
+     * @throws IOException if an I/O error occurs during the closing of the segment
+     * @throws KronotopException if a file cannot be deleted
+     */
+    public List<String> delete() throws IOException {
+        close();
+
+        List<String> result = new ArrayList<>();
+        for (Path path : List.of(getSegmentFilePath(), getSegmentMetadataFilePath())) {
+            if (!path.toFile().delete()) {
+                throw new KronotopException("File could not be deleted: " + path);
+            }
+            result.add(path.toString());
+        }
+        return result;
     }
 }

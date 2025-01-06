@@ -51,7 +51,7 @@ public class HIncrByMessage extends SyncableHashMessage implements KronotopMessa
         try {
             increment = Integer.parseInt(new String(rawIncrement));
         } catch (NumberFormatException e) {
-            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
+            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER);
         }
     }
 

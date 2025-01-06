@@ -50,7 +50,6 @@ class DescribeSubcommand extends BaseHandler implements SubcommandHandler {
         result.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(volume.getStatus().name()));
         result.put(new SimpleStringRedisMessage("data_dir"), new SimpleStringRedisMessage(config.dataDir()));
         result.put(new SimpleStringRedisMessage("segment_size"), new IntegerRedisMessage(config.segmentSize()));
-        result.put(new SimpleStringRedisMessage("allowed_garbage_ratio"), new DoubleRedisMessage(config.allowedGarbageRatio()));
 
         List<SegmentAnalysis> segments = volume.analyze();
         Map<RedisMessage, RedisMessage> segmentAnalysis = new LinkedHashMap<>();

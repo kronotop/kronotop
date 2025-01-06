@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-class CleanupTaskTest extends BaseJournalTest {
+class CleanupJournalTaskTest extends BaseJournalTest {
 
     @Test
     public void should_all_entries_be_evicted() {
@@ -40,7 +40,7 @@ class CleanupTaskTest extends BaseJournalTest {
             throw new RuntimeException(e);
         }
 
-        CleanupTask task = new CleanupTask(journal, 5, TimeUnit.MILLISECONDS);
+        CleanupJournalTask task = new CleanupJournalTask(journal, 5, TimeUnit.MILLISECONDS);
         task.run();
 
         try (Transaction tr = database.createTransaction()) {
@@ -58,7 +58,7 @@ class CleanupTaskTest extends BaseJournalTest {
         }
 
         // TTL = 1 second
-        CleanupTask task = new CleanupTask(journal, 1000, TimeUnit.MILLISECONDS);
+        CleanupJournalTask task = new CleanupJournalTask(journal, 1000, TimeUnit.MILLISECONDS);
         task.run();
 
         try (Transaction tr = database.createTransaction()) {

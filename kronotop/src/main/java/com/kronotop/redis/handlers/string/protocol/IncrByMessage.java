@@ -46,7 +46,7 @@ public class IncrByMessage implements KronotopMessage<String> {
         try {
             increment = Integer.parseInt(new String(tmp));
         } catch (NumberFormatException e) {
-            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
+            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER);
         }
     }
 

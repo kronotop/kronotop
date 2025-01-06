@@ -14,14 +14,6 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster;
+package com.kronotop.task;
 
-public final class MembershipConstants {
-    public static final byte[] TRUE = new byte[]{0x01};
-    public static final byte CLUSTER_INITIALIZED = 0x02;
-    public static final byte ROUTE_PRIMARY_MEMBER_KEY = 0x03;
-    public static final byte ROUTE_STANDBY_MEMBER_KEY = 0x04;
-    public static final byte SHARD_STATUS_KEY = 0x05;
-    public static final byte CLUSTER_TOPOLOGY_CHANGED = 0x06;
-    public static final byte ROUTE_SYNC_STANDBY_MEMBERS = 0x07;
-}
+public record ObservedTask(String name, boolean running, boolean completed, long startedAt, long lastRun) { }

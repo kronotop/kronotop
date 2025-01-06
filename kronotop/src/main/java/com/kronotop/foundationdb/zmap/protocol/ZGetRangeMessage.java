@@ -73,7 +73,7 @@ public class ZGetRangeMessage implements KronotopMessage<Void> {
                     try {
                         limit = Integer.parseInt(limitStr);
                     } catch (NumberFormatException e) {
-                        throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER, e);
+                        throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER);
                     }
                     i++;
                 } else if (keyword.equalsIgnoreCase(REVERSE_KEYWORD)) {

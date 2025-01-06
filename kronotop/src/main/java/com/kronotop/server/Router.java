@@ -159,7 +159,11 @@ public class Router extends ChannelDuplexHandler {
 
     private void exceptionToRespError(Request request, Response response, Exception exception) {
         if (exception instanceof KronotopException exp) {
-            response.writeError(exp.getPrefix(), exp.getMessage());
+            if (exp.getCause() != null) {
+                response.writeError(exp.getPrefix(), exp.getCause().getMessage());
+            } else {
+                response.writeError(exp.getPrefix(), exp.getMessage());
+            }
         } else if (exception instanceof CompletionException) {
             if (exception.getCause() instanceof FDBException) {
                 String message = RESPError.decapitalize(exception.getCause().getMessage());

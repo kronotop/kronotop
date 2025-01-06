@@ -16,20 +16,41 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
 import com.google.common.base.Strings;
 import com.kronotop.BaseMetadataStoreTest;
 
 import java.nio.ByteBuffer;
+import java.util.Random;
 
 public class BaseVolumeTest extends BaseMetadataStoreTest {
+    private final int entryLength = 10;
     protected Prefix prefix = new Prefix("test-prefix".getBytes());
+    Random random = new Random();
+
+    long getReadVersion() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return tr.getReadVersion().join();
+        }
+    }
+
+    protected ByteBuffer randomBytes(int size) {
+        byte[] b = new byte[size];
+        random.nextBytes(b);
+        return ByteBuffer.wrap(b);
+    }
+
+    public ByteBuffer getEntry() {
+        byte[] data = new byte[10];
+        new Random().nextBytes(data);
+        return ByteBuffer.allocate(entryLength).put(data).flip();
+    }
 
     public ByteBuffer[] getEntries(int number) {
-        int capacity = 10;
         ByteBuffer[] entries = new ByteBuffer[number];
         for (int i = 0; i < number; i++) {
-            byte[] data = Strings.padStart(Integer.toString(i), capacity, '0').getBytes();
-            entries[i] = ByteBuffer.allocate(capacity).put(data).flip();
+            byte[] data = Strings.padStart(Integer.toString(i), entryLength, '0').getBytes();
+            entries[i] = ByteBuffer.allocate(entryLength).put(data).flip();
         }
         return entries;
     }

@@ -51,7 +51,7 @@ public class HIncrByFloatMessage extends SyncableHashMessage implements Kronotop
         try {
             increment = Double.parseDouble(new String(rawIncrement));
         } catch (NumberFormatException e) {
-            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT, e);
+            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_FLOAT);
         }
     }
 
