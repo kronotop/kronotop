@@ -44,7 +44,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class Segment {
     public static final int SEGMENT_NAME_SIZE = 19;
     public static final String SEGMENTS_DIRECTORY = "segments";
-    private static final String SEGMENT_METADATA_FILE_EXTENSION = "metadata";
+    public static final String SEGMENT_METADATA_FILE_EXTENSION = "metadata";
     private static final Logger LOGGER = LoggerFactory.getLogger(Segment.class);
     private final SegmentConfig config;
     private final String name;

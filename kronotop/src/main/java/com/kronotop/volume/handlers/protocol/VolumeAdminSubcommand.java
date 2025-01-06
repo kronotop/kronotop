@@ -22,7 +22,8 @@ public enum VolumeAdminSubcommand {
     SET_STATUS("set-status"),
     REPLICATIONS("replications"),
     VACUUM("vacuum"),
-    STOP_VACUUM("stop-vacuum");
+    STOP_VACUUM("stop-vacuum"),
+    CLEANUP_ORPHAN_FILES("cleanup-orphan-files");
 
     private final String value;
 

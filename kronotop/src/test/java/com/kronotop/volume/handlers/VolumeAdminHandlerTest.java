@@ -29,14 +29,18 @@ import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.replication.ReplicationConfig;
 import com.kronotop.volume.replication.ReplicationMetadata;
 import com.kronotop.volume.replication.ReplicationStage;
+import com.kronotop.volume.segment.Segment;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Paths;
 
+import static com.kronotop.volume.VolumeTestUtils.getEntries;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
@@ -310,5 +314,35 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 }
             });
         });
+    }
+
+    @Test
+    public void test_volume_cleanup_orphan_files() throws IOException {
+        ByteBuffer[] entries = getEntries(3);
+
+        VolumeService service = context.getService(VolumeService.NAME);
+        Volume shard = service.findVolume("redis-shard-1");
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, prefix);
+            shard.append(session, entries);
+            tr.commit().join();
+        }
+        File orphanFile = new File(String.valueOf(Paths.get(shard.getConfig().dataDir(), Segment.SEGMENTS_DIRECTORY, "orphan-file")));
+        assertTrue(orphanFile.createNewFile());
+
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.cleanupOrphanFiles("redis-shard-1").encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+
+        RedisMessage message = actualMessage.children().getFirst();
+        SimpleStringRedisMessage path = (SimpleStringRedisMessage) message;
+        assertEquals(orphanFile.getAbsolutePath(), path.content());
+        // Deleted
+        assertFalse(orphanFile.exists());
     }
 }

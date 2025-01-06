@@ -66,6 +66,11 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
     }
 
+    public Command<K, V, String> cleanupOrphanFiles(String volumeName) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.CLEANUP_ORPHAN_FILES).add(volumeName);
+        return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         VOLUME_ADMIN("VOLUME.ADMIN");
 
@@ -87,7 +92,8 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         SET_STATUS("SET-STATUS"),
         REPLICATIONS("REPLICATIONS"),
         VACUUM("VACUUM"),
-        STOP_VACUUM("STOP-VACUUM");
+        STOP_VACUUM("STOP-VACUUM"),
+        CLEANUP_ORPHAN_FILES("CLEANUP-ORPHAN-FILES");
 
         public final byte[] bytes;
 

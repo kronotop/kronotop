@@ -42,6 +42,7 @@ public class VolumeAdminHandler extends BaseHandler implements Handler {
         handlers.put(VolumeAdminSubcommand.REPLICATIONS, new ReplicationsSubcommand(service));
         handlers.put(VolumeAdminSubcommand.VACUUM, new VacuumSubcommand(service));
         handlers.put(VolumeAdminSubcommand.STOP_VACUUM, new StopVacuumSubcommand(service));
+        handlers.put(VolumeAdminSubcommand.CLEANUP_ORPHAN_FILES, new CleanupOrphanFilesSubcommand(service));
     }
 
     @Override
