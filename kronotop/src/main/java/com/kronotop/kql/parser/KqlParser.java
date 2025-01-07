@@ -17,16 +17,31 @@
 package com.kronotop.kql.parser;
 
 import com.kronotop.kql.KqlNode;
-import com.kronotop.kql.operators.impl.logical.OrOperator;
+import com.kronotop.kql.operators.KqlOperator;
+import com.kronotop.kql.operators.impl.logical.KqlEqOperator;
+import com.kronotop.kql.operators.impl.logical.KqlGtOperator;
+import com.kronotop.kql.operators.impl.logical.KqlLtOperator;
+import com.kronotop.kql.operators.impl.logical.KqlOrOperator;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.Document;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+
 public class KqlParser {
     private final String query;
+    private final List<KqlOperator> operators = new LinkedList<>();
+    private int level = 0;
 
     KqlParser(String query) {
         this.query = query;
+    }
+
+    public static List<KqlOperator> parse(String query) {
+        return new KqlParser(query).parse();
     }
 
     private void traverse(BsonReader reader) {
@@ -49,35 +64,55 @@ public class KqlParser {
     private void readStartArray(BsonReader reader) {
         System.out.println("Reading array");
         reader.readStartArray();
+        level++;
         while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
             traverse(reader);
         }
+        level--;
         reader.readEndArray();
     }
 
     private void readStartDocument(BsonReader reader) {
         System.out.println("Reading document");
         reader.readStartDocument();
+        level++;
         while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-            String operator = reader.readName().toUpperCase();
-            switch (operator) {
-                case OrOperator.NAME:
-                    System.out.println("OR OPERATOR");
-            }
+            String name = reader.readName();
+            String operator = name.toUpperCase();
+            KqlOperator kqlOperator = switch (operator) {
+                case KqlEqOperator.NAME -> {
+                    System.out.println("EQ Operator, level: " + level);
+                    yield new KqlEqOperator(level);
+                }
+                case KqlOrOperator.NAME -> {
+                    System.out.println("OR OPERATOR, level: " + level);
+                    yield new KqlOrOperator(level);
+                }
+                case KqlLtOperator.NAME -> {
+                    System.out.println("LT OPERATOR, level: " + level);
+                    yield new KqlLtOperator(level);
+                }
+                case KqlGtOperator.NAME -> {
+                    System.out.println("GT OPERATOR, level: " + level);
+                    yield new KqlGtOperator(level);
+                }
+                default -> {
+                    System.out.println("EQ OPERATOR, level: " + level);
+                    yield new KqlEqOperator(level);
+                }
+            };
+            operators.add(kqlOperator);
             traverse(reader);
         }
+        level--;
         reader.readEndDocument();
     }
 
-    private KqlNode parse() {
+    private List<KqlOperator> parse() {
         Document document = Document.parse(query);
         try (BsonReader reader = document.toBsonDocument().asBsonReader()) {
             readStartDocument(reader);
         }
-        return new KqlNode();
-    }
-
-    public static KqlNode parse(String query) {
-        return new KqlParser(query).parse();
+        return Collections.unmodifiableList(operators);
     }
 }

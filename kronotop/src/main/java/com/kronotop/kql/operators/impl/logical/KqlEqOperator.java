@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024 Kronotop
+ * Copyright (c) 2023-2025 Kronotop
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,23 @@
 
 package com.kronotop.kql.operators.impl.logical;
 
-import com.kronotop.kql.operators.KqlLogicalOperator;
+import com.kronotop.kql.operators.KqlOperator;
 
-public class AndOperator implements KqlLogicalOperator {
-    public AndOperator() {}
+public class KqlEqOperator extends KqlBaseOperator implements KqlOperator {
+    public static final String NAME = "$EQ";
+    public static final int IDENTIFIER = 4;
+
+    public KqlEqOperator(int level) {
+        super(level);
+    }
+
+    @Override
+    public int getIdentifier() {
+        return IDENTIFIER;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("KqlOperator{name=%s, identifier=%d, level=%d}", NAME, IDENTIFIER, getLevel());
+    }
 }

@@ -18,6 +18,21 @@ package com.kronotop.kql.operators.impl.logical;
 
 import com.kronotop.kql.operators.KqlLogicalOperator;
 
-public class OrOperator extends BaseOperator implements KqlLogicalOperator {
-    public static final String NAME = "$OR";
+public class KqlAndOperator extends KqlBaseOperator implements KqlLogicalOperator {
+    public static final String NAME = "$AND";
+    public static final int IDENTIFIER = 1;
+
+    public KqlAndOperator(int level) {
+        super(level);
+    }
+
+    @Override
+    public int getIdentifier() {
+        return IDENTIFIER;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("KqlOperator{name=%s, identifier=%d, level=%d}", NAME, IDENTIFIER, getLevel());
+    }
 }

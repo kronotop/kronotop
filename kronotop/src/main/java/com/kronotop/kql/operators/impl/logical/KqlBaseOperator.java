@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql.operators;
+package com.kronotop.kql.operators.impl.logical;
 
-public interface KqlOperator {
-    int getLevel();
-    int getIdentifier();
+public class KqlBaseOperator {
+    private final int level;
+
+    public KqlBaseOperator(int level) {
+        this.level = level;
+    }
+
+    public int getLevel() {
+        return level;
+    }
 }

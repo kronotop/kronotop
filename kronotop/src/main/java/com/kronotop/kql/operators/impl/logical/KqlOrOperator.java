@@ -18,9 +18,21 @@ package com.kronotop.kql.operators.impl.logical;
 
 import com.kronotop.kql.operators.KqlLogicalOperator;
 
-import java.util.LinkedList;
-import java.util.List;
+public class KqlOrOperator extends KqlBaseOperator implements KqlLogicalOperator {
+    public static final String NAME = "$OR";
+    public static final int IDENTIFIER = 0;
 
-public class BaseOperator {
-    public final List<KqlLogicalOperator> list = new LinkedList<>();
+    public KqlOrOperator(int level) {
+        super(level);
+    }
+
+    @Override
+    public int getIdentifier() {
+        return IDENTIFIER;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("KqlOperator{name=%s, identifier=%d, level=%d}", NAME, IDENTIFIER, getLevel());
+    }
 }

@@ -17,12 +17,52 @@
 package com.kronotop.kql.parser;
 
 import com.kronotop.kql.KqlNode;
+import com.kronotop.kql.operators.KqlOperator;
 import org.junit.jupiter.api.Test;
 
-public class KqlParserTest {
+import java.util.List;
+
+/*
+{
+    "$or": [
+        {
+            "status": {
+                "$eq": "A"
+            }
+        },
+        {
+            "qty": {
+                "$lt": 30
+            }
+        }
+    ]
+}
+ */
+
+/*
+{
+    "status": "A",
+    "username:": "buraksezer"
+}
+
+         KqlNode
+        /       \
+       /         \
+      /           \
+   KqlNode       KqlNode
+(KqlEqOperator)  (KqlEqOperator)
+ */
+
+class KqlParserTest {
     @Test
-    public void test_parser() {
-        KqlNode parsed = KqlParser.parse("{ $or: [ { status: 'A' }, { qty: { $lt: 30 } } ] }");
+    void test_parser() {
+        // {}
+        //KqlNode parsed = KqlParser.parse("{ }");
+        // { status: 'A' }
+        // { status: 'B', username: 'buraksezer' }
+        //KqlNode parsed = KqlParser.parse("{ status: 'B', username: 'buraksezer' }");
+        List<KqlOperator> parsed = KqlParser.parse("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' } }");
+        //KqlNode parsed = KqlParser.parse("{ status: 'A' }");
         System.out.println(parsed);
     }
 }
