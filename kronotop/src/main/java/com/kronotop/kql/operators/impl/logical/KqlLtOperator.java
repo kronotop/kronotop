@@ -16,11 +16,13 @@
 
 package com.kronotop.kql.operators.impl.logical;
 
+import com.kronotop.kql.KqlValue;
 import com.kronotop.kql.operators.KqlOperator;
 
 public class KqlLtOperator extends KqlBaseOperator implements KqlOperator {
     public static final String NAME = "$LT";
     public static final int IDENTIFIER = 2;
+    private KqlValue value;
 
     public KqlLtOperator(int level) {
        super(level);
@@ -32,7 +34,17 @@ public class KqlLtOperator extends KqlBaseOperator implements KqlOperator {
     }
 
     @Override
+    public void setValue(KqlValue value) {
+        this.value = value;
+    }
+
+    @Override
+    public KqlValue getValue() {
+        return value;
+    }
+
+    @Override
     public String toString() {
-        return String.format("KqlOperator{name=%s, identifier=%d, level=%d}", NAME, IDENTIFIER, getLevel());
+        return String.format("KqlOperator{name=%s, identifier=%d, level=%d, field=%s, value=%s}", NAME, IDENTIFIER, getLevel(), getField(), value);
     }
 }

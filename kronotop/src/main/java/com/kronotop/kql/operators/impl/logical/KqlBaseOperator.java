@@ -18,6 +18,7 @@ package com.kronotop.kql.operators.impl.logical;
 
 public class KqlBaseOperator {
     private final int level;
+    private String field;
 
     public KqlBaseOperator(int level) {
         this.level = level;
@@ -25,5 +26,13 @@ public class KqlBaseOperator {
 
     public int getLevel() {
         return level;
+    }
+
+    public void setField(String field) {
+        this.field = field;
+    }
+
+    public String getField() {
+        return this.field;
     }
 }

@@ -16,17 +16,13 @@
 
 package com.kronotop.kql.parser;
 
-import com.kronotop.kql.KqlNode;
+import com.kronotop.kql.KqlValue;
 import com.kronotop.kql.operators.KqlOperator;
-import com.kronotop.kql.operators.impl.logical.KqlEqOperator;
-import com.kronotop.kql.operators.impl.logical.KqlGtOperator;
-import com.kronotop.kql.operators.impl.logical.KqlLtOperator;
-import com.kronotop.kql.operators.impl.logical.KqlOrOperator;
+import com.kronotop.kql.operators.impl.logical.*;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.Document;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -44,13 +40,17 @@ public class KqlParser {
         return new KqlParser(query).parse();
     }
 
-    private void traverse(BsonReader reader) {
+    private void traverse(BsonReader reader, KqlOperator operator) {
         switch (reader.getCurrentBsonType()) {
             case STRING:
-                System.out.println("$$ STRING " + reader.readString());
+                KqlValue value = new KqlValue(BsonType.STRING);
+                value.setStringValue(reader.readString());
+                operator.setValue(value);
                 break;
             case INT32:
-                System.out.println("$$ INT32 " + reader.readInt32());
+                KqlValue valueint32 = new KqlValue(BsonType.INT32);
+                valueint32.setInt32Value(reader.readInt32());
+                operator.setValue(valueint32);
                 break;
             case ARRAY:
                 readStartArray(reader);
@@ -66,7 +66,7 @@ public class KqlParser {
         reader.readStartArray();
         level++;
         while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-            traverse(reader);
+            traverse(reader, null);
         }
         level--;
         reader.readEndArray();
@@ -96,13 +96,19 @@ public class KqlParser {
                     System.out.println("GT OPERATOR, level: " + level);
                     yield new KqlGtOperator(level);
                 }
+                case KqlAndOperator.NAME -> {
+                    System.out.println("AND OPERATOR, level: " + level);
+                    yield new KqlAndOperator(level);
+                }
                 default -> {
                     System.out.println("EQ OPERATOR, level: " + level);
-                    yield new KqlEqOperator(level);
+                    KqlEqOperator op = new KqlEqOperator(level);
+                    op.setField(name);
+                    yield op;
                 }
             };
             operators.add(kqlOperator);
-            traverse(reader);
+            traverse(reader, kqlOperator);
         }
         level--;
         reader.readEndDocument();

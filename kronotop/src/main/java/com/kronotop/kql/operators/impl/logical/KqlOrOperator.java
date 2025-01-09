@@ -16,11 +16,13 @@
 
 package com.kronotop.kql.operators.impl.logical;
 
+import com.kronotop.kql.KqlValue;
 import com.kronotop.kql.operators.KqlLogicalOperator;
 
 public class KqlOrOperator extends KqlBaseOperator implements KqlLogicalOperator {
     public static final String NAME = "$OR";
     public static final int IDENTIFIER = 0;
+    private KqlValue value;
 
     public KqlOrOperator(int level) {
         super(level);
@@ -32,7 +34,17 @@ public class KqlOrOperator extends KqlBaseOperator implements KqlLogicalOperator
     }
 
     @Override
+    public void setValue(KqlValue value) {
+        this.value = value;
+    }
+
+    @Override
+    public KqlValue getValue() {
+        return value;
+    }
+
+    @Override
     public String toString() {
-        return String.format("KqlOperator{name=%s, identifier=%d, level=%d}", NAME, IDENTIFIER, getLevel());
+        return String.format("KqlOperator{name=%s, identifier=%d, level=%d, field=%s, value=%s}", NAME, IDENTIFIER, getLevel(), getField(), value);
     }
 }

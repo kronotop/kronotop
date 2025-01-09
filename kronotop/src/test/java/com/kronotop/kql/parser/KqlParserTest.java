@@ -18,6 +18,7 @@ package com.kronotop.kql.parser;
 
 import com.kronotop.kql.KqlNode;
 import com.kronotop.kql.operators.KqlOperator;
+import org.checkerframework.checker.units.qual.K;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -60,9 +61,11 @@ class KqlParserTest {
         //KqlNode parsed = KqlParser.parse("{ }");
         // { status: 'A' }
         // { status: 'B', username: 'buraksezer' }
-        //KqlNode parsed = KqlParser.parse("{ status: 'B', username: 'buraksezer' }");
+        //List<KqlOperator> parsed = KqlParser.parse("{ status: 'B', username: 'buraksezer' }");
         List<KqlOperator> parsed = KqlParser.parse("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' } }");
         //KqlNode parsed = KqlParser.parse("{ status: 'A' }");
+        //List<KqlOperator> parsed = KqlParser.parse("{ $and: [ { scores: 75, name: 'Greg Powell' } ] }");
+        //List<KqlOperator> parsed = KqlParser.parse("{ height: { $gt: 8500 } }");
         System.out.println(parsed);
     }
 }
