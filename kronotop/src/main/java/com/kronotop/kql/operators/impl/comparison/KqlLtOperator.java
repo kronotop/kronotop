@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql.operators.impl.logical;
+package com.kronotop.kql.operators.impl.comparison;
 
 import com.kronotop.kql.KqlValue;
 import com.kronotop.kql.operators.KqlOperator;
+import com.kronotop.kql.operators.impl.KqlBaseOperator;
 
-public class KqlGtOperator extends KqlBaseOperator implements KqlOperator {
-    public static final String NAME = "$GT";
-    public static final int IDENTIFIER = 3;
+public class KqlLtOperator extends KqlBaseOperator implements KqlOperator {
+    public static final String NAME = "$LT";
+    public static final int IDENTIFIER = 2;
     private KqlValue value;
 
-    public KqlGtOperator(int level) {
-        super(level);
+    public KqlLtOperator(int level) {
+       super(level);
     }
 
     @Override

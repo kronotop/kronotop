@@ -14,7 +14,25 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql.operators;
+package com.kronotop.kql.operators.impl;
 
-public interface KqlComparisonOperator extends KqlOperator {
+public class KqlBaseOperator {
+    private final int level;
+    private String field;
+
+    public KqlBaseOperator(int level) {
+        this.level = level;
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public void setField(String field) {
+        this.field = field;
+    }
+
+    public String getField() {
+        return this.field;
+    }
 }

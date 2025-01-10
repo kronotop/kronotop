@@ -17,9 +17,10 @@
 package com.kronotop.kql.operators.impl.logical;
 
 import com.kronotop.kql.KqlValue;
-import com.kronotop.kql.operators.KqlLogicalOperator;
+import com.kronotop.kql.operators.KqlOperator;
+import com.kronotop.kql.operators.impl.KqlBaseOperator;
 
-public class KqlOrOperator extends KqlBaseOperator implements KqlLogicalOperator {
+public class KqlOrOperator extends KqlBaseOperator implements KqlOperator {
     public static final String NAME = "$OR";
     public static final int IDENTIFIER = 0;
     private KqlValue value;
