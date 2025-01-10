@@ -11,6 +11,6 @@ public class BqlLtOperator extends BqlOperator {
 
     @Override
     public String toString() {
-        return "BqlLtOperator { level=" + level + ", values=" + getValues() + "}";
+        return "BqlLtOperator { level=" + level + ", values=" + getValues() + " }";
     }
 }
