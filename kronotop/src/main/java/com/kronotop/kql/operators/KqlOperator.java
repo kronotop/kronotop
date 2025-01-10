@@ -21,8 +21,6 @@ import com.kronotop.kql.KqlValue;
 public interface KqlOperator {
     int getLevel();
 
-    int getIdentifier();
-
     KqlValue<?> getValue();
 
     void setValue(KqlValue<?> value);

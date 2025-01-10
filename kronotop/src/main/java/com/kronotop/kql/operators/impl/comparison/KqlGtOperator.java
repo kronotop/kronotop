@@ -22,16 +22,10 @@ import com.kronotop.kql.operators.impl.KqlBaseOperator;
 
 public class KqlGtOperator extends KqlBaseOperator implements KqlOperator {
     public static final String NAME = "$GT";
-    public static final int IDENTIFIER = 3;
     private KqlValue<?> value;
 
     public KqlGtOperator(int level) {
         super(level);
-    }
-
-    @Override
-    public int getIdentifier() {
-        return IDENTIFIER;
     }
 
     @Override
@@ -46,6 +40,6 @@ public class KqlGtOperator extends KqlBaseOperator implements KqlOperator {
 
     @Override
     public String toString() {
-        return String.format("KqlOperator{name=%s, identifier=%d, level=%d, field=%s, value=%s}", NAME, IDENTIFIER, getLevel(), getField(), value);
+        return String.format("KqlOperator{name=%s, level=%d, field=%s, value=%s}", NAME, getLevel(), getField(), value);
     }
 }

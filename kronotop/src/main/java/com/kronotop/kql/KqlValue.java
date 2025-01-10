@@ -24,6 +24,6 @@ public class KqlValue<T> {
 
     @Override
     public String toString() {
-        return "KqlValue [type=" + type + ", value=" + value + "]";
+        return "KqlValue {type=" + type + ", value=" + value + "}";
     }
 }
