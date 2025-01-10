@@ -16,7 +16,7 @@ import java.util.List;
 public class BqlParser {
     private final String query;
     private int level = 0;
-    private List<BqlOperator> operators = new LinkedList<>();
+    private final List<BqlOperator> operators = new LinkedList<>();
 
     BqlParser(String query) {
         this.query = query;
