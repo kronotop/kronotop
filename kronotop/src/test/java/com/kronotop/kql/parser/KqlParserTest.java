@@ -64,7 +64,9 @@ class KqlParserTest {
         //KqlNode parsed = KqlParser.parse("{ status: 'A' }");
         //List<KqlOperator> parsed = KqlParser.parse("{ $and: [ { scores: 75, name: 'Greg Powell' } ] }");
         //List<KqlOperator> parsed = KqlParser.parse("{ height: { $gt: 8500 } }");
-        List<KqlOperator> parsed = KqlParser.parse("{ tags: { $all: [ 'ssl' , 'security' ] } }");
+        //List<KqlOperator> parsed = KqlParser.parse("{ tags: { $all: [ 'ssl' , 'security' ] } }");
+        //List<KqlOperator> parsed = KqlParser.parse("{ height: { $gt: 8500 } }");
+        List<KqlOperator> parsed = KqlParser.parse("{ quantity: { $nin: [ 5, 15 ] } }");
         for (KqlOperator kqlOperator : parsed) {
             System.out.println(kqlOperator);
         }
