@@ -46,13 +46,13 @@ public class KqlParser {
     private void traverse(BsonReader reader, KqlOperator operator) {
         switch (reader.getCurrentBsonType()) {
             case STRING:
-                KqlValue stringValue = new KqlValue(BsonType.STRING);
-                stringValue.setStringValue(reader.readString());
+                KqlValue<String> stringValue = new KqlValue<>(BsonType.STRING);
+                stringValue.setValue(reader.readString());
                 operator.setValue(stringValue);
                 break;
             case INT32:
-                KqlValue int32Value = new KqlValue(BsonType.INT32);
-                int32Value.setInt32Value(reader.readInt32());
+                KqlValue<Integer> int32Value = new KqlValue<>(BsonType.INT32);
+                int32Value.setValue(reader.readInt32());
                 operator.setValue(int32Value);
                 break;
             case ARRAY:

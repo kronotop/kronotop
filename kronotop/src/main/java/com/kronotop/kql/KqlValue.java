@@ -2,10 +2,9 @@ package com.kronotop.kql;
 
 import org.bson.BsonType;
 
-public class KqlValue {
+public class KqlValue<T> {
     private final BsonType type;
-    private String stringValue;
-    private int int32Value;
+    private T value;
 
     public KqlValue(BsonType type) {
         this.type = type;
@@ -15,29 +14,16 @@ public class KqlValue {
         return type;
     }
 
-    public String getStringValue() {
-        return stringValue;
+    public T getValue() {
+        return value;
     }
 
-    public void setStringValue(String stringValue) {
-        this.stringValue = stringValue;
-    }
-
-    public int getInt32Value() {
-        return int32Value;
-    }
-
-    public void setInt32Value(int int32Value) {
-        this.int32Value = int32Value;
+    public void setValue(T value) {
+        this.value = value;
     }
 
     @Override
     public String toString() {
-        if (type.equals(BsonType.STRING)) {
-            return "KqlValue [type=" + type + ", stringValue=" + stringValue + "]";
-        } else if (type.equals(BsonType.INT32)) {
-            return "KqlValue [type=" + type + ", int32=" + int32Value + "]";
-        }
-        return "KqlValue [type=" + type + "]";
+        return "KqlValue [type=" + type + ", value=" + value + "]";
     }
 }
