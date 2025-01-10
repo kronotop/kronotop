@@ -14,7 +14,29 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql;
+package com.kronotop.kql.operators;
 
-public class KqlNode {
+public class KqlBaseOperator {
+    private final int level;
+    private String field;
+
+    public KqlBaseOperator(int level) {
+        this.level = level;
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public String getField() {
+        return this.field;
+    }
+
+    public void setField(String field) {
+        this.field = field;
+    }
+
+    protected String stringify(String name, Object value) {
+        return String.format("KqlOperator { name=%s, level=%d, field=%s, value=%s }", name, getLevel(), getField(), value);
+    }
 }

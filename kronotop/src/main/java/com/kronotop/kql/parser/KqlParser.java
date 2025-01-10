@@ -16,13 +16,13 @@
 
 package com.kronotop.kql.parser;
 
+import com.kronotop.kql.KqlOperator;
 import com.kronotop.kql.KqlValue;
-import com.kronotop.kql.operators.KqlOperator;
-import com.kronotop.kql.operators.impl.comparison.KqlEqOperator;
-import com.kronotop.kql.operators.impl.comparison.KqlGtOperator;
-import com.kronotop.kql.operators.impl.comparison.KqlLtOperator;
-import com.kronotop.kql.operators.impl.logical.KqlAndOperator;
-import com.kronotop.kql.operators.impl.logical.KqlOrOperator;
+import com.kronotop.kql.operators.comparison.KqlEqOperator;
+import com.kronotop.kql.operators.comparison.KqlGtOperator;
+import com.kronotop.kql.operators.comparison.KqlLtOperator;
+import com.kronotop.kql.operators.logical.KqlAndOperator;
+import com.kronotop.kql.operators.logical.KqlOrOperator;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.Document;

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql.operators.impl.comparison;
+package com.kronotop.kql.operators.comparison;
 
+import com.kronotop.kql.KqlOperator;
 import com.kronotop.kql.KqlValue;
-import com.kronotop.kql.operators.KqlOperator;
-import com.kronotop.kql.operators.impl.KqlBaseOperator;
+import com.kronotop.kql.operators.KqlBaseOperator;
 
 public class KqlGtOperator extends KqlBaseOperator implements KqlOperator {
     public static final String NAME = "$GT";
@@ -29,13 +29,13 @@ public class KqlGtOperator extends KqlBaseOperator implements KqlOperator {
     }
 
     @Override
-    public void setValue(KqlValue<?> value) {
-        this.value = value;
+    public KqlValue<?> getValue() {
+        return value;
     }
 
     @Override
-    public KqlValue<?> getValue() {
-        return value;
+    public void setValue(KqlValue<?> value) {
+        this.value = value;
     }
 
     @Override

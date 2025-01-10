@@ -14,14 +14,32 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql.operators;
+package com.kronotop.kql.operators.logical;
 
+import com.kronotop.kql.KqlOperator;
 import com.kronotop.kql.KqlValue;
+import com.kronotop.kql.operators.KqlBaseOperator;
 
-public interface KqlOperator {
-    int getLevel();
+public class KqlOrOperator extends KqlBaseOperator implements KqlOperator {
+    public static final String NAME = "$OR";
+    private KqlValue<?> value;
 
-    KqlValue<?> getValue();
+    public KqlOrOperator(int level) {
+        super(level);
+    }
 
-    void setValue(KqlValue<?> value);
+    @Override
+    public KqlValue<?> getValue() {
+        return value;
+    }
+
+    @Override
+    public void setValue(KqlValue<?> value) {
+        this.value = value;
+    }
+
+    @Override
+    public String toString() {
+        return stringify(NAME, value);
+    }
 }

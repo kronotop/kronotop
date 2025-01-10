@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql.operators.impl.comparison;
+package com.kronotop.kql.operators.comparison;
 
+import com.kronotop.kql.KqlOperator;
 import com.kronotop.kql.KqlValue;
-import com.kronotop.kql.operators.KqlOperator;
-import com.kronotop.kql.operators.impl.KqlBaseOperator;
+import com.kronotop.kql.operators.KqlBaseOperator;
 
 public class KqlLtOperator extends KqlBaseOperator implements KqlOperator {
     public static final String NAME = "$LT";

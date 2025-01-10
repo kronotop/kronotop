@@ -16,9 +16,7 @@
 
 package com.kronotop.kql.parser;
 
-import com.kronotop.kql.KqlNode;
-import com.kronotop.kql.operators.KqlOperator;
-import org.checkerframework.checker.units.qual.K;
+import com.kronotop.kql.KqlOperator;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

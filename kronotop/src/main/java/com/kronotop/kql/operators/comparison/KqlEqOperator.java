@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024 Kronotop
+ * Copyright (c) 2023-2025 Kronotop
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql.operators.impl.logical;
+package com.kronotop.kql.operators.comparison;
 
+import com.kronotop.kql.KqlOperator;
 import com.kronotop.kql.KqlValue;
-import com.kronotop.kql.operators.KqlOperator;
-import com.kronotop.kql.operators.impl.KqlBaseOperator;
+import com.kronotop.kql.operators.KqlBaseOperator;
 
-public class KqlAndOperator extends KqlBaseOperator implements KqlOperator {
-    public static final String NAME = "$AND";
+public class KqlEqOperator extends KqlBaseOperator implements KqlOperator {
+    public static final String NAME = "$EQ";
     private KqlValue<?> value;
 
-    public KqlAndOperator(int level) {
+    public KqlEqOperator(int level) {
         super(level);
     }
 
