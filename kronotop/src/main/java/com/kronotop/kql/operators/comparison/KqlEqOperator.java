@@ -22,6 +22,7 @@ import com.kronotop.kql.operators.KqlBaseOperator;
 
 public class KqlEqOperator extends KqlBaseOperator implements KqlOperator {
     public static final String NAME = "$EQ";
+    private String field;
     private KqlValue<?> value;
 
     public KqlEqOperator(int level) {
