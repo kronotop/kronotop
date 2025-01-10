@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package com.kronotop.kql;
+package com.kronotop.kql.operators;
+
+import com.kronotop.kql.KqlValue;
 
 public interface KqlOperator {
     int getLevel();

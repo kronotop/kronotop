@@ -1,6 +1,6 @@
 package com.kronotop.bucket.planner.logical;
 
-import com.kronotop.kql.KqlOperator;
+import com.kronotop.kql.operators.KqlOperator;
 import com.kronotop.kql.parser.KqlParser;
 import org.junit.jupiter.api.Test;
 

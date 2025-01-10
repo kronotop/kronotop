@@ -16,7 +16,7 @@
 
 package com.kronotop.kql.operators.logical;
 
-import com.kronotop.kql.KqlOperator;
+import com.kronotop.kql.operators.KqlOperator;
 import com.kronotop.kql.KqlValue;
 import com.kronotop.kql.operators.KqlBaseOperator;
 

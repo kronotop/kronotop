@@ -16,8 +16,8 @@
 
 package com.kronotop.kql.parser;
 
-import com.kronotop.kql.KqlOperator;
 import com.kronotop.kql.KqlValue;
+import com.kronotop.kql.operators.KqlOperator;
 import com.kronotop.kql.operators.comparison.KqlEqOperator;
 import com.kronotop.kql.operators.comparison.KqlGtOperator;
 import com.kronotop.kql.operators.comparison.KqlLtOperator;
