@@ -9,7 +9,7 @@ import java.util.List;
 class LogicalPlannerTest {
     @Test
     void test() {
-        List<KqlOperator> operators = KqlParser.parse("{ $and: [ { scores: 75, name: 'Burak Sezer' } ] }");
+        List<KqlOperator> operators = KqlParser.parse("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' } }");
         LogicalPlanner planner = new LogicalPlanner(operators);
         planner.plan();
     }

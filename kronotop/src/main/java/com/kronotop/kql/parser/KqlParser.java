@@ -18,6 +18,7 @@ package com.kronotop.kql.parser;
 
 import com.kronotop.kql.KqlValue;
 import com.kronotop.kql.operators.KqlOperator;
+import com.kronotop.kql.operators.array.KqlAllOperator;
 import com.kronotop.kql.operators.comparison.KqlEqOperator;
 import com.kronotop.kql.operators.comparison.KqlGtOperator;
 import com.kronotop.kql.operators.comparison.KqlLtOperator;
@@ -88,6 +89,7 @@ public class KqlParser {
                 case KqlLtOperator.NAME -> new KqlLtOperator(level);
                 case KqlGtOperator.NAME -> new KqlGtOperator(level);
                 case KqlAndOperator.NAME -> new KqlAndOperator(level);
+                case KqlAllOperator.NAME -> new KqlAllOperator(level);
                 default -> {
                     KqlEqOperator eqOperator = new KqlEqOperator(level);
                     eqOperator.setField(field);
