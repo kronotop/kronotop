@@ -35,4 +35,8 @@ public class KqlBaseOperator {
     public String getField() {
         return this.field;
     }
+
+    protected String stringify(String name, Object value) {
+        return String.format("KqlOperator { name=%s, level=%d, field=%s, value=%s }", name, getLevel(), getField(), value);
+    }
 }

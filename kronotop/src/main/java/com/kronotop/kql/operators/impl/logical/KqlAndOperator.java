@@ -40,6 +40,6 @@ public class KqlAndOperator extends KqlBaseOperator implements KqlOperator {
 
     @Override
     public String toString() {
-        return String.format("KqlOperator{name=%s, level=%d, value=%s}", NAME, getLevel(), value);
+        return stringify(NAME, value);
     }
 }
