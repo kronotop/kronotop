@@ -23,7 +23,7 @@ import com.kronotop.kql.operators.impl.KqlBaseOperator;
 public class KqlAndOperator extends KqlBaseOperator implements KqlOperator {
     public static final String NAME = "$AND";
     public static final int IDENTIFIER = 1;
-    private KqlValue value;
+    private KqlValue<?> value;
 
     public KqlAndOperator(int level) {
         super(level);
@@ -35,13 +35,13 @@ public class KqlAndOperator extends KqlBaseOperator implements KqlOperator {
     }
 
     @Override
-    public void setValue(KqlValue value) {
-        this.value = value;
+    public KqlValue<?> getValue() {
+        return value;
     }
 
     @Override
-    public KqlValue getValue() {
-        return value;
+    public void setValue(KqlValue<?> value) {
+        this.value = value;
     }
 
     @Override

@@ -23,10 +23,10 @@ import com.kronotop.kql.operators.impl.KqlBaseOperator;
 public class KqlLtOperator extends KqlBaseOperator implements KqlOperator {
     public static final String NAME = "$LT";
     public static final int IDENTIFIER = 2;
-    private KqlValue value;
+    private KqlValue<?> value;
 
     public KqlLtOperator(int level) {
-       super(level);
+        super(level);
     }
 
     @Override
@@ -35,13 +35,13 @@ public class KqlLtOperator extends KqlBaseOperator implements KqlOperator {
     }
 
     @Override
-    public void setValue(KqlValue value) {
-        this.value = value;
+    public KqlValue<?> getValue() {
+        return value;
     }
 
     @Override
-    public KqlValue getValue() {
-        return value;
+    public void setValue(KqlValue<?> value) {
+        this.value = value;
     }
 
     @Override

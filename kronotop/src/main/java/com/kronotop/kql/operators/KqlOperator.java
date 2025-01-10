@@ -20,7 +20,10 @@ import com.kronotop.kql.KqlValue;
 
 public interface KqlOperator {
     int getLevel();
+
     int getIdentifier();
-    void setValue(KqlValue value);
-    KqlValue getValue();
+
+    KqlValue<?> getValue();
+
+    void setValue(KqlValue<?> value);
 }

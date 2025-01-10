@@ -23,7 +23,7 @@ import com.kronotop.kql.operators.impl.KqlBaseOperator;
 public class KqlEqOperator extends KqlBaseOperator implements KqlOperator {
     public static final String NAME = "$EQ";
     public static final int IDENTIFIER = 4;
-    private KqlValue value;
+    private KqlValue<?> value;
 
     public KqlEqOperator(int level) {
         super(level);
@@ -35,12 +35,12 @@ public class KqlEqOperator extends KqlBaseOperator implements KqlOperator {
     }
 
     @Override
-    public void setValue(KqlValue value) {
+    public void setValue(KqlValue<?> value) {
         this.value = value;
     }
 
     @Override
-    public KqlValue getValue() {
+    public KqlValue<?> getValue() {
         return value;
     }
 
