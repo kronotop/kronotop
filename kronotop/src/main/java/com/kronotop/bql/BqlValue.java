@@ -10,7 +10,7 @@ public class BqlValue<T> {
         this.type = type;
     }
 
-    public BsonType bsonType() {
+    public BsonType getBsonType() {
         return type;
     }
 
