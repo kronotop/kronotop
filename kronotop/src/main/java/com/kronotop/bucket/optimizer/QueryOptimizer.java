@@ -14,9 +14,12 @@ public class QueryOptimizer {
 
     public void optimize() {
         List<BqlOperator> operators = BqlParser.parse(query);
-        int lowestLevel = 0;
+        int rootLevel = 0;
         for (BqlOperator operator : operators) {
-
+            if (rootLevel == 0) {
+                rootLevel = operator.getLevel();
+            }
+            System.out.println(operator);
         }
     }
 }

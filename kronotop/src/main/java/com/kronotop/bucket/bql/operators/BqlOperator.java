@@ -6,11 +6,17 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class BqlOperator {
-    protected int level;
+    private final int level;
+    private final OperatorType operatorType;
     private List<BqlValue<?>> values;
 
-    public BqlOperator(int level) {
+    public BqlOperator(int level, OperatorType operatorType) {
         this.level = level;
+        this.operatorType = operatorType;
+    }
+
+    public OperatorType getOperatorType() {
+        return operatorType;
     }
 
     public int getLevel() {
