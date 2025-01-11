@@ -1,7 +1,7 @@
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bql.operators.BqlOperator;
-import com.kronotop.bql.parser.BqlParser;
+import com.kronotop.bucket.bql.operators.BqlOperator;
+import com.kronotop.bucket.bql.parser.BqlParser;
 
 import java.util.List;
 
@@ -14,8 +14,9 @@ public class QueryOptimizer {
 
     public void optimize() {
         List<BqlOperator> operators = BqlParser.parse(query);
+        int lowestLevel = 0;
         for (BqlOperator operator : operators) {
-            System.out.println(operator);
+
         }
     }
 }

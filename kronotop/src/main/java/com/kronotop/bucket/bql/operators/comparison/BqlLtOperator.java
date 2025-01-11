@@ -1,6 +1,6 @@
-package com.kronotop.bql.operators.comparison;
+package com.kronotop.bucket.bql.operators.comparison;
 
-import com.kronotop.bql.operators.BqlOperator;
+import com.kronotop.bucket.bql.operators.BqlOperator;
 
 public class BqlLtOperator extends BqlOperator {
     public static final String NAME = "$LT";

@@ -1,6 +1,6 @@
-package com.kronotop.bql.operators.logical;
+package com.kronotop.bucket.bql.operators.logical;
 
-import com.kronotop.bql.operators.BqlOperator;
+import com.kronotop.bucket.bql.operators.BqlOperator;
 
 public class BqlOrOperator extends BqlOperator {
     public static final String NAME = "$OR";

@@ -1,4 +1,4 @@
-package com.kronotop.bql;
+package com.kronotop.bucket.bql;
 
 import org.bson.BsonType;
 

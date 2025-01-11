@@ -1,16 +1,17 @@
-package com.kronotop.bql.parser;
+package com.kronotop.bucket.bql.parser;
 
-import com.kronotop.bql.BqlValue;
-import com.kronotop.bql.operators.BqlOperator;
-import com.kronotop.bql.operators.array.BqlAllOperator;
-import com.kronotop.bql.operators.comparison.BqlEqOperator;
-import com.kronotop.bql.operators.comparison.BqlLtOperator;
-import com.kronotop.bql.operators.comparison.BqlNinOperator;
-import com.kronotop.bql.operators.logical.BqlOrOperator;
+import com.kronotop.bucket.bql.BqlValue;
+import com.kronotop.bucket.bql.operators.BqlOperator;
+import com.kronotop.bucket.bql.operators.array.BqlAllOperator;
+import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
+import com.kronotop.bucket.bql.operators.comparison.BqlLtOperator;
+import com.kronotop.bucket.bql.operators.comparison.BqlNinOperator;
+import com.kronotop.bucket.bql.operators.logical.BqlOrOperator;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.Document;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -84,6 +85,6 @@ public class BqlParser {
         try (BsonReader reader = document.toBsonDocument().asBsonReader()) {
             readStartDocument(reader);
         }
-        return operators;
+        return Collections.unmodifiableList(operators);
     }
 }

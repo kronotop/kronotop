@@ -1,6 +1,6 @@
-package com.kronotop.bql.operators;
+package com.kronotop.bucket.bql.operators;
 
-import com.kronotop.bql.BqlValue;
+import com.kronotop.bucket.bql.BqlValue;
 
 import java.util.LinkedList;
 import java.util.List;

@@ -1,6 +1,6 @@
-package com.kronotop.bql.operators.array;
+package com.kronotop.bucket.bql.operators.array;
 
-import com.kronotop.bql.operators.BqlOperator;
+import com.kronotop.bucket.bql.operators.BqlOperator;
 
 public class BqlAllOperator extends BqlOperator {
     public static final String NAME = "$ALL";
