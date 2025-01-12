@@ -80,6 +80,7 @@ public class BqlParser {
                 case BqlGteOperator.NAME -> new BqlGteOperator(level);
                 case BqlLteOperator.NAME -> new BqlLteOperator(level);
                 case BqlNeOperator.NAME -> new BqlNeOperator(level);
+                case BqlInOperator.NAME -> new BqlInOperator(level);
                 default -> new BqlEqOperator(level, field);
             };
             operators.add(bqlOperator);
