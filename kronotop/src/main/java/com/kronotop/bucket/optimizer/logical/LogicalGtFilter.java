@@ -1,10 +1,11 @@
 package com.kronotop.bucket.optimizer.logical;
 
-import com.kronotop.bucket.optimizer.Condition;
+import com.kronotop.bucket.optimizer.OperationType;
 
 public class LogicalGtFilter extends LogicalComparisonFilter {
+
     public LogicalGtFilter() {
-        super(Condition.GT);
+        super(OperationType.GT);
     }
 
     @Override

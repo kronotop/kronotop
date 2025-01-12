@@ -1,15 +1,15 @@
 package com.kronotop.bucket.optimizer.logical;
 
-import com.kronotop.bucket.optimizer.Condition;
+import com.kronotop.bucket.optimizer.OperationType;
 
 public class LogicalFilter extends LogicalNode {
-    private final Condition condition;
+    private final OperationType operationType;
 
-    public LogicalFilter(Condition condition) {
-        this.condition = condition;
+    public LogicalFilter(OperationType operationType) {
+        this.operationType = operationType;
     }
 
-    public Condition getCondition() {
-        return condition;
+    public OperationType getOperationType() {
+        return operationType;
     }
 }

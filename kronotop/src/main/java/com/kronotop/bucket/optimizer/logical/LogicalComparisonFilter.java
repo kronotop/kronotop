@@ -1,14 +1,14 @@
 package com.kronotop.bucket.optimizer.logical;
 
 import com.kronotop.bucket.bql.BqlValue;
-import com.kronotop.bucket.optimizer.Condition;
+import com.kronotop.bucket.optimizer.OperationType;
 
 public class LogicalComparisonFilter extends LogicalFilter {
     private BqlValue<?> value;
     private String field;
 
-    public LogicalComparisonFilter(Condition condition) {
-        super(Condition.EQ);
+    public LogicalComparisonFilter(OperationType operationType) {
+        super(operationType);
     }
 
     public void setField(String field) {

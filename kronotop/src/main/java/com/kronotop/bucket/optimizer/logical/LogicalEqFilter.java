@@ -1,11 +1,11 @@
 package com.kronotop.bucket.optimizer.logical;
 
-import com.kronotop.bucket.optimizer.Condition;
+import com.kronotop.bucket.optimizer.OperationType;
 
 public class LogicalEqFilter extends LogicalComparisonFilter {
 
     public LogicalEqFilter() {
-        super(Condition.EQ);
+        super(OperationType.EQ);
     }
 
     @Override
