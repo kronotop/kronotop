@@ -1,11 +1,23 @@
 package com.kronotop.bql.parser;
 
+import com.kronotop.JSONUtils;
+import com.kronotop.bucket.bql.BqlValue;
+import com.kronotop.bucket.bql.operators.BqlOperator;
+import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
+import com.kronotop.bucket.bql.operators.comparison.BqlGtOperator;
+import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
 import com.kronotop.bucket.bql.parser.BqlParser;
+import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Random;
 
-class BqlParserTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class
+BqlParserTest {
     @Test
     void test_parse() {
         //List<BqlOperator> result = BqlParser.parse("{ status: 'ALIVE', username: 'buraksezer', email: 'buraksezer@gmail.com', age: 36 }");
@@ -15,16 +27,32 @@ class BqlParserTest {
 
         Random rand = new Random();
         long total = 0;
-        for (int i = 0; i< 100000; i++) {
+        for (int i = 0; i < 100000; i++) {
             String query = String.format("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: %d } } ], username: { $eq: 'buraksezer' }, tags: { $all: ['foo', 32]} }", rand.nextInt());
             long start = System.nanoTime();
             BqlParser.parse(query);
             long end = System.nanoTime();
             total += (end - start);
         }
-        System.out.println(total/100000);
+        System.out.println(total / 100000);
         //for (BqlOperator operator : result) {
         //    System.out.println(operator);
         //};
+    }
+
+    @Test
+    public void test_NOT_operator() {
+        BqlGtOperator gtOperator = new BqlGtOperator(3);
+        BqlValue<Double> bqlValue = new BqlValue<>(BsonType.DOUBLE);
+        bqlValue.setValue(1.99);
+        gtOperator.addValue(bqlValue);
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlEqOperator(1, "price"),
+                new BqlNotOperator(2),
+                gtOperator
+        );
+
+        List<BqlOperator> operators = BqlParser.parse("{ price: { $not: { $gt: 1.99 } } }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
     }
 }

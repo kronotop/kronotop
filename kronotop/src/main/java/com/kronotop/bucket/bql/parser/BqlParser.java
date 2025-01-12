@@ -7,6 +7,7 @@ import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
 import com.kronotop.bucket.bql.operators.comparison.BqlGtOperator;
 import com.kronotop.bucket.bql.operators.comparison.BqlLtOperator;
 import com.kronotop.bucket.bql.operators.comparison.BqlNinOperator;
+import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlOrOperator;
 import org.bson.BsonReader;
 import org.bson.BsonType;
@@ -41,6 +42,11 @@ public class BqlParser {
                 int32Value.setValue(reader.readInt32());
                 operator.addValue(int32Value);
                 break;
+            case DOUBLE:
+                BqlValue<Double> doubleValue = new BqlValue<>(BsonType.DOUBLE);
+                doubleValue.setValue(reader.readDouble());
+                operator.addValue(doubleValue);
+                break;
             case ARRAY:
                 readStartArray(reader, operator);
                 break;
@@ -73,6 +79,7 @@ public class BqlParser {
                 case BqlLtOperator.NAME -> new BqlLtOperator(level);
                 case BqlGtOperator.NAME -> new BqlGtOperator(level);
                 case BqlNinOperator.NAME -> new BqlNinOperator(level);
+                case BqlNotOperator.NAME -> new BqlNotOperator(level);
                 default -> new BqlEqOperator(level, field);
             };
             operators.add(bqlOperator);

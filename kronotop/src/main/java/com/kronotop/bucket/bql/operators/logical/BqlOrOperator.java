@@ -10,10 +10,6 @@ public class BqlOrOperator extends BqlOperator {
         super(level, OperatorType.OR);
     }
 
-    public OperatorType getOperatorType() {
-        return OperatorType.OR;
-    }
-
     @Override
     public String toString() {
         return "BqlOrOperator { level=" + getLevel() + ", values=" + getValues() + " }";
