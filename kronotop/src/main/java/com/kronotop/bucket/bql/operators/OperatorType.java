@@ -8,7 +8,8 @@ public enum OperatorType {
     ALL(4),
     NIN(5),
     AND(6),
-    NOT(7);
+    NOT(7),
+    GTE(8);
 
     private final int value;
 

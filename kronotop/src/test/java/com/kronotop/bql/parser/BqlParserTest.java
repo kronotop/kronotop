@@ -2,10 +2,7 @@ package com.kronotop.bql.parser;
 
 import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.BqlOperator;
-import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
-import com.kronotop.bucket.bql.operators.comparison.BqlGtOperator;
-import com.kronotop.bucket.bql.operators.comparison.BqlLtOperator;
-import com.kronotop.bucket.bql.operators.comparison.BqlNinOperator;
+import com.kronotop.bucket.bql.operators.comparison.*;
 import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
 import com.kronotop.bucket.bql.parser.BqlParser;
 import org.bson.BsonType;
@@ -123,6 +120,20 @@ BqlParserTest {
                 ninOperator
         );
         List<BqlOperator> operators = BqlParser.parse("{ quantity: { $nin: [ 5, 15 ] } }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_GTE() {
+        BqlGteOperator gteOperator = new BqlGteOperator(2);
+        BqlValue<Integer> bqlValue = new BqlValue<>(BsonType.INT32);
+        bqlValue.setValue(20);
+        gteOperator.addValue(bqlValue);
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlEqOperator(1, "quantity"),
+                gteOperator
+        );
+        List<BqlOperator> operators = BqlParser.parse("{ quantity: { $gte: 20 } }");
         assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
     }
 }
