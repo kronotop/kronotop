@@ -1,6 +1,5 @@
 package com.kronotop.bql.parser;
 
-import com.kronotop.JSONUtils;
 import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
@@ -14,7 +13,6 @@ import java.util.List;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class
 BqlParserTest {
@@ -41,7 +39,33 @@ BqlParserTest {
     }
 
     @Test
-    public void test_NOT_operator() {
+    public void test_implicit_EQ() {
+        BqlEqOperator eqOperator = new BqlEqOperator(1, "status");
+        BqlValue<String> bqlValue = new BqlValue<>(BsonType.STRING);
+        bqlValue.setValue("ALIVE");
+        eqOperator.addValue(bqlValue);
+        List<BqlOperator> expectedOperators = List.of(eqOperator);
+
+        List<BqlOperator> operators = BqlParser.parse("{ status: 'ALIVE' }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_explicit_EQ() {
+        BqlEqOperator eqOperator = new BqlEqOperator(2);
+        BqlValue<Integer> bqlValue = new BqlValue<>(BsonType.INT32);
+        bqlValue.setValue(20);
+        eqOperator.addValue(bqlValue);
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlEqOperator(1, "qty"),
+                eqOperator
+        );
+        List<BqlOperator> operators = BqlParser.parse("{ qty: { $eq: 20 } }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_NOT() {
         BqlGtOperator gtOperator = new BqlGtOperator(3);
         BqlValue<Double> bqlValue = new BqlValue<>(BsonType.DOUBLE);
         bqlValue.setValue(1.99);
