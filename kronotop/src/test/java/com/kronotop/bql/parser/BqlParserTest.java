@@ -3,6 +3,7 @@ package com.kronotop.bql.parser;
 import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.comparison.*;
+import com.kronotop.bucket.bql.operators.logical.BqlAndOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
 import com.kronotop.bucket.bql.parser.BqlParser;
 import org.bson.BsonType;
@@ -178,6 +179,29 @@ BqlParserTest {
                 inOperator
         );
         List<BqlOperator> operators = BqlParser.parse("{ quantity: { $in: [ 5, 15 ] } }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_AND() {
+        BqlEqOperator eqOperator_status = new BqlEqOperator(4);
+        BqlValue<String> bqlValue_status = new BqlValue<>(BsonType.STRING);
+        bqlValue_status.setValue("ALIVE");
+        eqOperator_status.addValue(bqlValue_status);
+
+        BqlEqOperator eqOperator_kronotop = new BqlEqOperator(4);
+        BqlValue<String> bqlValue_kronotop = new BqlValue<>(BsonType.STRING);
+        bqlValue_kronotop.setValue("kronotop");
+        eqOperator_kronotop.addValue(bqlValue_kronotop);
+
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlAndOperator(1),
+                new BqlEqOperator(3, "status"),
+                eqOperator_status,
+                new BqlEqOperator(3, "username"),
+                eqOperator_kronotop
+        );
+        List<BqlOperator> operators = BqlParser.parse("{ $and: [ { status: {$eq: 'ALIVE'}, username: {$eq: 'kronotop'} } ] }");
         assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
     }
 }
