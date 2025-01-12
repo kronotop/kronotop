@@ -16,8 +16,8 @@ import java.util.List;
 
 public class BqlParser {
     private final String query;
-    private int level = 0;
     private final List<BqlOperator> operators = new LinkedList<>();
+    private int level = 0;
 
     BqlParser(String query) {
         this.query = query;
@@ -79,6 +79,7 @@ public class BqlParser {
                 case BqlNotOperator.NAME -> new BqlNotOperator(level);
                 case BqlGteOperator.NAME -> new BqlGteOperator(level);
                 case BqlLteOperator.NAME -> new BqlLteOperator(level);
+                case BqlNeOperator.NAME -> new BqlNeOperator(level);
                 default -> new BqlEqOperator(level, field);
             };
             operators.add(bqlOperator);

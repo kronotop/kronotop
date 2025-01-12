@@ -150,4 +150,18 @@ BqlParserTest {
         List<BqlOperator> operators = BqlParser.parse("{ quantity: { $lte: 20 } }");
         assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
     }
+
+    @Test
+    public void test_NE() {
+        BqlNeOperator neOperator = new BqlNeOperator(2);
+        BqlValue<Integer> bqlValue = new BqlValue<>(BsonType.INT32);
+        bqlValue.setValue(20);
+        neOperator.addValue(bqlValue);
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlEqOperator(1, "quantity"),
+                neOperator
+        );
+        List<BqlOperator> operators = BqlParser.parse("{ quantity: { $ne: 20 } }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
 }
