@@ -5,6 +5,7 @@ import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.array.BqlAllOperator;
 import com.kronotop.bucket.bql.operators.comparison.*;
 import com.kronotop.bucket.bql.operators.logical.BqlAndOperator;
+import com.kronotop.bucket.bql.operators.logical.BqlNorOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlOrOperator;
 import org.bson.BsonReader;
@@ -45,6 +46,11 @@ public class BqlParser {
                 doubleValue.setValue(reader.readDouble());
                 operator.addValue(doubleValue);
                 break;
+            case BOOLEAN:
+                BqlValue<Boolean> booleanValue = new BqlValue<>(BsonType.BOOLEAN);
+                booleanValue.setValue(reader.readBoolean());
+                operator.addValue(booleanValue);
+                break;
             case ARRAY:
                 readStartArray(reader, operator);
                 break;
@@ -83,6 +89,7 @@ public class BqlParser {
                 case BqlNeOperator.NAME -> new BqlNeOperator(level);
                 case BqlInOperator.NAME -> new BqlInOperator(level);
                 case BqlAndOperator.NAME -> new BqlAndOperator(level);
+                case BqlNorOperator.NAME -> new BqlNorOperator(level);
                 default -> new BqlEqOperator(level, field);
             };
             operators.add(bqlOperator);

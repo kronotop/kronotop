@@ -12,7 +12,8 @@ public enum OperatorType {
     GTE(8),
     LTE(9),
     NE(10),
-    IN(11);
+    IN(11),
+    NOR(12);
 
     private final int value;
 

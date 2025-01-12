@@ -4,6 +4,7 @@ import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.comparison.*;
 import com.kronotop.bucket.bql.operators.logical.BqlAndOperator;
+import com.kronotop.bucket.bql.operators.logical.BqlNorOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlOrOperator;
 import com.kronotop.bucket.bql.parser.BqlParser;
@@ -225,6 +226,34 @@ BqlParserTest {
                 eqOperator_price
         );
         List<BqlOperator> operators = BqlParser.parse("{ $or: [ { quantity: { $lt: 20 } }, { price: 10 } ] }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_NOR() {
+        BqlLtOperator eqOperator_quantity = new BqlLtOperator(4);
+        BqlValue<Integer> bqlValue_quantity = new BqlValue<>(BsonType.INT32);
+        bqlValue_quantity.setValue(20);
+        eqOperator_quantity.addValue(bqlValue_quantity);
+
+        BqlEqOperator eqOperator_price = new BqlEqOperator(3, "price");
+        BqlValue<Double> bqlValue_price = new BqlValue<>(BsonType.DOUBLE);
+        bqlValue_price.setValue(1.99);
+        eqOperator_price.addValue(bqlValue_price);
+
+        BqlEqOperator eqOperator_sale = new BqlEqOperator(3, "sale");
+        BqlValue<Boolean> bqlValue_sale = new BqlValue<>(BsonType.BOOLEAN);
+        bqlValue_sale.setValue(true);
+        eqOperator_sale.addValue(bqlValue_sale);
+
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlNorOperator(1),
+                eqOperator_price,
+                new BqlEqOperator(3, "qty"),
+                eqOperator_quantity,
+                eqOperator_sale
+        );
+        List<BqlOperator> operators = BqlParser.parse("{ $nor: [ { price: 1.99 }, { qty: { $lt: 20 } }, { sale: true } ] }");
         assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
     }
 }
