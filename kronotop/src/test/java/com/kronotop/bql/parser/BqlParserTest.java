@@ -4,6 +4,8 @@ import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
 import com.kronotop.bucket.bql.operators.comparison.BqlGtOperator;
+import com.kronotop.bucket.bql.operators.comparison.BqlLtOperator;
+import com.kronotop.bucket.bql.operators.comparison.BqlNinOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
 import com.kronotop.bucket.bql.parser.BqlParser;
 import org.bson.BsonType;
@@ -77,6 +79,50 @@ BqlParserTest {
         );
 
         List<BqlOperator> operators = BqlParser.parse("{ price: { $not: { $gt: 1.99 } } }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_GT() {
+        BqlGtOperator gtOperator = new BqlGtOperator(2);
+        BqlValue<Integer> bqlValue = new BqlValue<>(BsonType.INT32);
+        bqlValue.setValue(20);
+        gtOperator.addValue(bqlValue);
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlEqOperator(1, "quantity"),
+                gtOperator
+        );
+        List<BqlOperator> operators = BqlParser.parse("{ quantity: { $gt: 20 } }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_LT() {
+        BqlLtOperator ltOperator = new BqlLtOperator(2);
+        BqlValue<Integer> bqlValue = new BqlValue<>(BsonType.INT32);
+        bqlValue.setValue(20);
+        ltOperator.addValue(bqlValue);
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlEqOperator(1, "quantity"),
+                ltOperator
+        );
+        List<BqlOperator> operators = BqlParser.parse("{ quantity: { $lt: 20 } }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_NIN() {
+        BqlNinOperator ninOperator = new BqlNinOperator(2);
+        for (int item : new int[]{5, 15}) {
+            BqlValue<Integer> bqlValue = new BqlValue<>(BsonType.INT32);
+            bqlValue.setValue(item);
+            ninOperator.addValue(bqlValue);
+        }
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlEqOperator(1, "quantity"),
+                ninOperator
+        );
+        List<BqlOperator> operators = BqlParser.parse("{ quantity: { $nin: [ 5, 15 ] } }");
         assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
     }
 }
