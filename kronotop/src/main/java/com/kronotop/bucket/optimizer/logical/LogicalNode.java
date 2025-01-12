@@ -13,4 +13,9 @@ public class LogicalNode {
     public List<LogicalFilter> getFilters() {
         return filters;
     }
+
+    @Override
+    public String toString() {
+        return "LogicalNode [filters=" + filters + "]";
+    }
 }

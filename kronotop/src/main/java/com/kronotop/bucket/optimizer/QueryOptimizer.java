@@ -52,10 +52,7 @@ public class QueryOptimizer {
                 return i - 1;
             }
             if (child.getOperatorType().equals(OperatorType.EQ)) {
-                LogicalEqFilter c = new LogicalEqFilter();
-                int result = traverse(c, (BqlEqOperator) child, i + 1);
-                root.addFilter(c);
-                return result;
+                i =  traverse(root, (BqlEqOperator) child, i + 1);
             }
         }
         return 0;
@@ -63,10 +60,6 @@ public class QueryOptimizer {
 
     public LogicalNode optimize() {
         operators = BqlParser.parse(query);
-        for (BqlOperator operator : operators) {
-            System.out.println(operator);
-        }
-
         LogicalFullScan logicalScan = new LogicalFullScan();
         for (int i = 0; i < operators.size(); i++) {
             BqlOperator operator = operators.get(i);
