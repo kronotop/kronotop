@@ -5,6 +5,7 @@ import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.comparison.*;
 import com.kronotop.bucket.bql.operators.logical.BqlAndOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
+import com.kronotop.bucket.bql.operators.logical.BqlOrOperator;
 import com.kronotop.bucket.bql.parser.BqlParser;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -202,6 +203,28 @@ BqlParserTest {
                 eqOperator_kronotop
         );
         List<BqlOperator> operators = BqlParser.parse("{ $and: [ { status: {$eq: 'ALIVE'}, username: {$eq: 'kronotop'} } ] }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_OR() {
+        BqlLtOperator eqOperator_quantity = new BqlLtOperator(4);
+        BqlValue<Integer> bqlValue_quantity = new BqlValue<>(BsonType.INT32);
+        bqlValue_quantity.setValue(20);
+        eqOperator_quantity.addValue(bqlValue_quantity);
+
+        BqlEqOperator eqOperator_price = new BqlEqOperator(3, "price");
+        BqlValue<Integer> bqlValue_price = new BqlValue<>(BsonType.INT32);
+        bqlValue_price.setValue(10);
+        eqOperator_price.addValue(bqlValue_price);
+
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlOrOperator(1),
+                new BqlEqOperator(3, "quantity"),
+                eqOperator_quantity,
+                eqOperator_price
+        );
+        List<BqlOperator> operators = BqlParser.parse("{ $or: [ { quantity: { $lt: 20 } }, { price: 10 } ] }");
         assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
     }
 }
