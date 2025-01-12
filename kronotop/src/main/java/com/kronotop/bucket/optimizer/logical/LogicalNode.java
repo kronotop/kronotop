@@ -10,11 +10,6 @@ public class LogicalNode {
         filters.add(filter);
     }
 
-    public void setFilters(List<LogicalFilter> filters) {
-        this.filters.clear();
-        this.filters.addAll(filters);
-    }
-
     public List<LogicalFilter> getFilters() {
         return filters;
     }

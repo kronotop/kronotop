@@ -7,7 +7,6 @@ import com.kronotop.bucket.bql.operators.logical.BqlOrOperator;
 import com.kronotop.bucket.bql.parser.BqlParser;
 import com.kronotop.bucket.optimizer.logical.*;
 
-import java.util.LinkedList;
 import java.util.List;
 
 public class QueryOptimizer {
@@ -39,6 +38,15 @@ public class QueryOptimizer {
                 gtFilter.setField(operator.getField());
                 child.getValues().forEach(gtFilter::addValue);
                 root.addFilter(gtFilter);
+            } else if (child.getOperatorType().equals(OperatorType.ALL)) {
+                LogicalAndFilter andFilter = new LogicalAndFilter();
+                child.getValues().forEach(bqlValue -> {
+                    LogicalEqFilter eqFilter = new LogicalEqFilter();
+                    eqFilter.setField(operator.getField());
+                    eqFilter.addValue(bqlValue);
+                    andFilter.addFilter(eqFilter);
+                });
+                root.addFilter(andFilter);
             }
         }
         return 0;
@@ -51,7 +59,7 @@ public class QueryOptimizer {
                 return i - 1;
             }
             if (child.getOperatorType().equals(OperatorType.EQ)) {
-                i =  traverse(root, (BqlEqOperator) child, i + 1);
+                i = traverse(root, (BqlEqOperator) child, i + 1);
             }
         }
         return 0;
@@ -59,13 +67,16 @@ public class QueryOptimizer {
 
     public LogicalNode optimize() {
         operators = BqlParser.parse(query);
+        for (BqlOperator operator : operators) {
+            System.out.println(operator);
+        }
+
         LogicalFullScan logicalScan = new LogicalFullScan();
         for (int i = 0; i < operators.size(); i++) {
             BqlOperator operator = operators.get(i);
             if (operator.getOperatorType().equals(OperatorType.EQ)) {
                 BqlEqOperator eq = (BqlEqOperator) operator;
                 if (eq.getValues() == null) {
-                    // Try to find sub operators
                     i = traverse(logicalScan, eq, i + 1);
                     if (i == 0) {
                         break;
@@ -86,19 +97,7 @@ public class QueryOptimizer {
                 }
             }
         }
-        if (!logicalScan.getFilters().isEmpty()) {
-            LogicalAndFilter andFilter = new LogicalAndFilter(logicalScan.getFilters());
-            logicalScan.setFilters(List.of(andFilter));
-        }
+
         return logicalScan;
     }
 }
-
-// LogicalAndFilter
-//    {
-//       filters=[
-//           LogicalEqFilter {field=status, value=BqlValue { type=STRING, value=ALIVE } },
-//           LogicalEqFilter {field=username, value=BqlValue { type=STRING, value=kronotop-admin } },
-//           LogicalLtFilter {field=age, value=BqlValue { type=INT32, value=35 } }
-//       ]
-//    }
