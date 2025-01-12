@@ -1,15 +1,15 @@
 package com.kronotop.bucket.optimizer.logical;
 
-import com.kronotop.bucket.optimizer.OperationType;
+import com.kronotop.bucket.bql.operators.OperatorType;
 
 public class LogicalFilter extends LogicalNode {
-    private final OperationType operationType;
+    private final OperatorType operatorType;
 
-    public LogicalFilter(OperationType operationType) {
-        this.operationType = operationType;
+    public LogicalFilter(OperatorType operatorType) {
+        this.operatorType = operatorType;
     }
 
-    public OperationType getOperationType() {
-        return operationType;
+    public OperatorType getOperatorType() {
+        return operatorType;
     }
 }

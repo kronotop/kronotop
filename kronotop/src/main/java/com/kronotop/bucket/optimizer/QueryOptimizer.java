@@ -23,30 +23,22 @@ public class QueryOptimizer {
             if (child.getLevel() <= operator.getLevel()) {
                 return i - 1;
             }
-            if (child.getOperatorType().equals(OperatorType.EQ)) {
-                LogicalEqFilter eqFilter = new LogicalEqFilter();
-                eqFilter.setField(operator.getField());
-                child.getValues().forEach(eqFilter::addValue);
-                root.addFilter(eqFilter);
-            } else if (child.getOperatorType().equals(OperatorType.LT)) {
-                LogicalLtFilter ltFilter = new LogicalLtFilter();
-                ltFilter.setField(operator.getField());
-                child.getValues().forEach(ltFilter::addValue);
-                root.addFilter(ltFilter);
-            } else if (child.getOperatorType().equals(OperatorType.GT)) {
-                LogicalGtFilter gtFilter = new LogicalGtFilter();
-                gtFilter.setField(operator.getField());
-                child.getValues().forEach(gtFilter::addValue);
-                root.addFilter(gtFilter);
-            } else if (child.getOperatorType().equals(OperatorType.ALL)) {
-                LogicalAndFilter andFilter = new LogicalAndFilter();
-                child.getValues().forEach(bqlValue -> {
-                    LogicalEqFilter eqFilter = new LogicalEqFilter();
-                    eqFilter.setField(operator.getField());
-                    eqFilter.addValue(bqlValue);
-                    andFilter.addFilter(eqFilter);
-                });
-                root.addFilter(andFilter);
+            switch (child.getOperatorType()) {
+                case EQ, LT, GT:
+                    LogicalComparisonFilter filter = new LogicalComparisonFilter(child.getOperatorType());
+                    filter.setField(operator.getField());
+                    child.getValues().forEach(filter::addValue);
+                    root.addFilter(filter);
+                    break;
+                case ALL:
+                    LogicalAndFilter andFilter = new LogicalAndFilter();
+                    child.getValues().forEach(bqlValue -> {
+                        LogicalComparisonFilter eqFilter = new LogicalComparisonFilter(OperatorType.EQ);
+                        eqFilter.setField(operator.getField());
+                        eqFilter.addValue(bqlValue);
+                        andFilter.addFilter(eqFilter);
+                    });
+                    root.addFilter(andFilter);
             }
         }
         return 0;
@@ -67,9 +59,6 @@ public class QueryOptimizer {
 
     public LogicalNode optimize() {
         operators = BqlParser.parse(query);
-        for (BqlOperator operator : operators) {
-            System.out.println(operator);
-        }
 
         LogicalFullScan logicalScan = new LogicalFullScan();
         for (int i = 0; i < operators.size(); i++) {
@@ -82,7 +71,7 @@ public class QueryOptimizer {
                         break;
                     }
                 } else {
-                    LogicalEqFilter root = new LogicalEqFilter();
+                    LogicalComparisonFilter root = new LogicalComparisonFilter(OperatorType.EQ);
                     root.setField(eq.getField());
                     eq.getValues().forEach(root::addValue);
                     logicalScan.addFilter(root);

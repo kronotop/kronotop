@@ -1,11 +1,11 @@
 package com.kronotop.bucket.optimizer.logical;
 
-import com.kronotop.bucket.optimizer.OperationType;
+import com.kronotop.bucket.bql.operators.OperatorType;
 
 public class LogicalAndFilter extends LogicalFilter {
 
     public LogicalAndFilter() {
-        super(OperationType.AND);
+        super(OperatorType.AND);
     }
 
     @Override
