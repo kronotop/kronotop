@@ -11,6 +11,6 @@ class QueryOptimizerTest {
         //QueryOptimizer optimizer = new QueryOptimizer("{ status: 'ALIVE', username: 'kronotop-admin' }");
         //QueryOptimizer optimizer = new QueryOptimizer("{}");
         LogicalNode node = optimizer.optimize();
-        System.out.println(node.getFilters());
+        System.out.println(node);
     }
 }

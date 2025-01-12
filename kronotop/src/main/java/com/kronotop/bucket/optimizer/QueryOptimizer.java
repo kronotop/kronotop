@@ -13,7 +13,6 @@ import java.util.List;
 public class QueryOptimizer {
     private final String query;
     private List<BqlOperator> operators;
-    private List<LogicalFilter> filters = new LinkedList<>();
 
     public QueryOptimizer(String query) {
         this.query = query;
@@ -86,6 +85,10 @@ public class QueryOptimizer {
                     break;
                 }
             }
+        }
+        if (!logicalScan.getFilters().isEmpty()) {
+            LogicalAndFilter andFilter = new LogicalAndFilter(logicalScan.getFilters());
+            logicalScan.setFilters(List.of(andFilter));
         }
         return logicalScan;
     }
