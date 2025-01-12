@@ -9,7 +9,8 @@ public enum OperatorType {
     NIN(5),
     AND(6),
     NOT(7),
-    GTE(8);
+    GTE(8),
+    LTE(9);
 
     private final int value;
 

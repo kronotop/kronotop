@@ -136,4 +136,18 @@ BqlParserTest {
         List<BqlOperator> operators = BqlParser.parse("{ quantity: { $gte: 20 } }");
         assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
     }
+
+    @Test
+    public void test_LTE() {
+        BqlLteOperator lteOperator = new BqlLteOperator(2);
+        BqlValue<Integer> bqlValue = new BqlValue<>(BsonType.INT32);
+        bqlValue.setValue(20);
+        lteOperator.addValue(bqlValue);
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlEqOperator(1, "quantity"),
+                lteOperator
+        );
+        List<BqlOperator> operators = BqlParser.parse("{ quantity: { $lte: 20 } }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
 }
