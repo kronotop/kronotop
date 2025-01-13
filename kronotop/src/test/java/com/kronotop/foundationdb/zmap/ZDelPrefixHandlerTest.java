@@ -1,7 +1,7 @@
 package com.kronotop.foundationdb.zmap;
 
 /*
- * Copyright (c) 2023-2025 Kronotop
+ * Copyright (c) 2023-2025 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
