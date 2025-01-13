@@ -19,6 +19,7 @@ package com.kronotop.instance;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipService;
@@ -133,10 +134,14 @@ public class KronotopInstance {
         RedisService redisService = new RedisService(context);
         context.registerService(RedisService.NAME, redisService);
 
+        BucketService bucketService = new BucketService(context);
+        context.registerService(BucketService.NAME, bucketService);
+
         membershipService.start();
         routingService.start();
         replicationService.start();
         redisService.start();
+        bucketService.start();
     }
 
     private Address getAddress(String kind) throws UnknownHostException {
