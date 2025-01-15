@@ -36,7 +36,7 @@ public class KronotopInstanceStarter {
 
     private static void greeting(Member member) {
         LOGGER.info("pid: {} has been started", ProcessHandle.current().pid());
-        LOGGER.info("Kronotop 1.0.0 on {}/{} Java {}",
+        LOGGER.info("Kronotop on {}/{} Java {}",
                 System.getProperty("os.name"),
                 System.getProperty("os.arch"),
                 System.getProperty("java.version"));

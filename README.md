@@ -20,7 +20,7 @@ See [Getting started](#getting-started) section.
 
 Kronotop is still in its early stages, but we have the following features with a strong foundation.
 
-* ZMap, Redis protocol proxy for FoundationDB API.
+* ZMap, Redis protocol proxy for FoundationDB API,
 * Namespaces for isolating ZMaps and Buckets, basically it's a thin layer around FoundationDB's directory layer,
 * Volume, storage engine implementation with a primary-standby replication model,
 * Clustering with single or multi-master deployment scenarios,
@@ -143,6 +143,8 @@ Then, you can query the `users` bucket with a query language that similar to [Mo
 Kronotop also provides a new data structure called ZMap. ZMap is simply a RESP proxy for FoundationDB API.
 
 ### Namespaces
+
+Namespaces 
 
 ### Storage Engine
 

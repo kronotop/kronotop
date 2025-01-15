@@ -25,9 +25,8 @@ import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import io.netty.buffer.ByteBuf;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,12 +57,16 @@ class ListSubcommand extends BaseSubcommand implements SubcommandExecutor {
             List<String> result = future.join();
             List<RedisMessage> children = new ArrayList<>();
             for (String namespace : result) {
-                ByteBuf buf = response.getChannelContext().alloc().buffer();
-                children.add(new FullBulkStringRedisMessage(buf.writeBytes(namespace.getBytes())));
+                children.add(new SimpleStringRedisMessage(namespace));
             }
             response.writeArray(children);
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
+                if (listMessage.getSubpath().isEmpty()) {
+                    // No namespaces directory, the cluster has not been initialized yet
+                    response.writeArray(List.of());
+                    return;
+                }
                 throw new NoSuchNamespaceException(String.join(".", listMessage.getSubpath()));
             }
             throw new KronotopException(e.getCause());
