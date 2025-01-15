@@ -7,6 +7,9 @@ ARG FOUNDATIONDB_CLIENTS_DEB="foundationdb-clients_7.3.26-1_amd64.deb"
 
 WORKDIR $KR_HOME
 
+ENV KR_HOME=$KR_HOME \
+    PATH=${KR_HOME}/bin:$PATH
+
 # Install
 RUN apt-get update && apt-get -y install openjdk-${JDK_VERSION}-jre-headless
 
@@ -18,7 +21,12 @@ RUN dpkg -i $KR_HOME/$FOUNDATIONDB_CLIENTS_DEB
 RUN rm $KR_HOME/foundationdb-clients_7.3.26-1_amd64.deb
 RUN apt-get clean
 
-COPY kronotop/target/kronotop-1.0-SNAPSHOT.jar $KR_HOME/kronotop-latest.jar
+COPY *.jar $KR_HOME/
+COPY start.sh $KR_HOME/bin/
+
+RUN echo "docker:docker@foundationdb:4500" > $KR_HOME/fdb.cluster
 
 EXPOSE 5484
-ENTRYPOINT ["java", "-jar", "kronotop-latest.jar"]
+EXPOSE 3320
+
+CMD ["start.sh"]

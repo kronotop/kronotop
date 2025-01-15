@@ -25,6 +25,7 @@ replay_pid*
 
 .idea/
 target/
+kronotop-data
 
 dependency-reduced-pom.xml
 *.iml
