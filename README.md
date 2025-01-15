@@ -10,7 +10,7 @@ See [Getting started](#getting-started) section.
 ## At a glance
 
 * Horizontally scalable and sharded by default,
-* Supports single or multi-master cluster topologies for different deployment strategies,
+* Supports single or multi master cluster topologies for different deployment strategies,
 * Supports [Redis Serialization Protocol](https://redis.io/docs/latest/develop/reference/protocol-spec/), you can use any Redis client to connect the cluster.
 * Partly supports [Redis cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/),
 * Uses FoundationDB as the metadata store for cluster management and data structures,
@@ -21,7 +21,7 @@ See [Getting started](#getting-started) section.
 Kronotop is still in its early stages, but we have the following features with a strong foundation.
 
 * ZMap, Redis protocol proxy for FoundationDB API.
-* Namespaces for isolation, basically it's a thin layer around FoundationDB's directory layer,
+* Namespaces for isolating ZMaps and Buckets, basically it's a thin layer around FoundationDB's directory layer,
 * Volume, storage engine implementation with a primary-standby replication model,
 * Clustering with single or multi-master deployment scenarios,
 * Partial support for some Redis data structures: String and Hash.
@@ -37,7 +37,7 @@ Kronotop is still in its early stages, but we have the following features with a
 Kronotop uses RESP3 as the client protocol. The reasoning behind this is simple: there are many high-quality Redis client implementations
 in all languages, and almost everyone has some experience with Redis.
 
-Despite the main focus is building a transactional document database by using FoundationDB as a metadata store, but implementing the
+Despite the main focus is building a transactional document database by using FoundationDB as a metadata store, implementing the
 most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String* and *Hash* data structures.
 
 ## Getting started
