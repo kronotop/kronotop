@@ -285,7 +285,7 @@ public class KronotopCommandBuilderTest {
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
                 append("*2").
-                append("$13").
+                append("$12").
                 append("SNAPSHOTREAD").
                 append("$2").
                 append("ON");
@@ -302,7 +302,7 @@ public class KronotopCommandBuilderTest {
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
                 append("*2").
-                append("$13").
+                append("$12").
                 append("SNAPSHOTREAD").
                 append("$3").
                 append("OFF");
