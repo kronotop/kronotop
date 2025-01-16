@@ -151,7 +151,7 @@ If there is another transaction in progress in the current session, it returns a
 
 #### COMMIT
 
-`COMMIT` commits 
+`COMMIT` commits changes to the database.
 
 **Example:**
 
