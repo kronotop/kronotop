@@ -22,9 +22,12 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -36,7 +39,9 @@ class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements Subco
     public void execute(Request request, Response response) {
         FindMemberParameters parameters = new FindMemberParameters(request.getParams());
         Member member = membership.findMember(parameters.memberId);
-        response.writeMap(memberToRedisMessage(member));
+        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
+        memberToRedisMessage(member, result);
+        response.writeMap(result);
     }
 
     private class FindMemberParameters {

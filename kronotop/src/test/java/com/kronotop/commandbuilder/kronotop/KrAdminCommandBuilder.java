@@ -51,6 +51,12 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Command<K, V, Map<String, Object>> describeMember() {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.DESCRIBE_MEMBER);
+        return createCommand(CommandType.KR_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
+    }
+
     public Command<K, V, String> setMemberStatus(String memberID, String status) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SET_MEMBER_STATUS).add(memberID).add(status);
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
@@ -139,6 +145,7 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         INITIALIZE_CLUSTER("INITIALIZE-CLUSTER"),
         LIST_MEMBERS("LIST-MEMBERS"),
         FIND_MEMBER("FIND-MEMBER"),
+        DESCRIBE_MEMBER("DESCRIBE-MEMBER"),
         SET_MEMBER_STATUS("SET-MEMBER-STATUS"),
         REMOVE_MEMBER("REMOVE-MEMBER"),
         LIST_SILENT_MEMBERS("LIST-SILENT-MEMBERS"),

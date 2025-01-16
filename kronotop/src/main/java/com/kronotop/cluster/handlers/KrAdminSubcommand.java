@@ -27,7 +27,8 @@ public enum KrAdminSubcommand {
     ROUTE("route"),
     SET_SHARD_STATUS("set-shard-status"),
     DESCRIBE_SHARD("describe-shard"),
-    SYNC_STANDBY("sync-standby");
+    SYNC_STANDBY("sync-standby"),
+    DESCRIBE_MEMBER("describe-member");
 
     private final String value;
 

@@ -21,31 +21,24 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.TreeSet;
 
-class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
+class DescribeMemberSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    ListMembersSubcommand(RoutingService service) {
+    public DescribeMemberSubcommand(RoutingService service) {
         super(service);
     }
 
     @Override
     public void execute(Request request, Response response) {
-        TreeSet<Member> sortedMembers = membership.listMembers();
+        Member member = context.getMember();
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-
-        for (Member member : sortedMembers) {
-            Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
-            memberToRedisMessage(member, current);
-            result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));
-        }
-
+        result.put(new SimpleStringRedisMessage("member_id"), new SimpleStringRedisMessage(member.getId()));
+        memberToRedisMessage(member, result);
         response.writeMap(result);
     }
 }

@@ -234,14 +234,13 @@ public class BaseKrAdminSubcommandHandler {
     }
 
     /**
-     * Converts a given Member object into a Map of RedisMessage key-value pairs.
+     * Converts a {@link Member} object into a series of key-value pairs represented as {@link RedisMessage}
+     * instances, and populates the provided map with these pairs.
      *
-     * @param member the Member object to be converted
-     * @return a Map containing RedisMessage key-value pairs representing the attributes of the Member object
+     * @param member The {@link Member} object whose details are to be converted into Redis message key-value pairs.
+     * @param current The map to store the converted key-value pairs, where both keys and values are of type {@link RedisMessage}.
      */
-    protected Map<RedisMessage, RedisMessage> memberToRedisMessage(Member member) {
-        Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
-
+    protected void memberToRedisMessage(Member member, Map<RedisMessage, RedisMessage> current) {
         current.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(member.getStatus().toString()));
 
         String processId = VersionstampUtils.base64Encode(member.getProcessId());
@@ -255,8 +254,6 @@ public class BaseKrAdminSubcommandHandler {
 
         long latestHeartbeat = membership.getLatestHeartbeat(member);
         current.put(new SimpleStringRedisMessage("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeat));
-
-        return current;
     }
 
     /**
