@@ -2,7 +2,7 @@
 
 Kronotop is a Redis-compatible, distributed and transactional document database backed by [FoundationDB](https://www.foundationdb.org/).
 
-The main focus of Kronotop is building a document database that supports [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/), ACID transactions
+Kronotop's main focus is building a document database that supports [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/), ACID transactions
 and on-disk storage engine with a primary-standby replication model.
 
 Kronotop is still in its early stages of development. The API is unstable and might be changed in the future releases.
@@ -39,8 +39,9 @@ Kronotop is still in its early stages, but we have the following features with a
 Kronotop uses RESP3 as the client protocol. The reasoning behind this is simple: there are many high-quality Redis client implementations
 in all languages, and almost everyone has some experience with Redis.
 
-Despite the main focus is building a transactional document database by using FoundationDB as a metadata store, implementing the
-most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String* and *Hash* data structures.
+Despite the main focus on building a transactional document database using FoundationDB as a metadata store, implementing 
+the most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String* and *Hash*
+data structures.
 
 ## Getting started
 
