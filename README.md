@@ -2,7 +2,7 @@
 
 Kronotop is a Redis-compatible, distributed and transactional document database backed by [FoundationDB](https://www.foundationdb.org/).
 
-Kronotop's main focus is building a document database that supports [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/), ACID transactions
+Kronotop's main focus is building a document database that supports [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/), [ACID transactions](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics)
 and on-disk storage engine with a primary-standby replication model.
 
 Kronotop is still in its early stages of development. The API is unstable and might be changed in the future releases.
