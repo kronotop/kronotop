@@ -45,30 +45,4 @@ public class ZSetHandlerTest extends BaseHandlerTest {
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
         assertEquals(Response.OK, actualMessage.content());
     }
-
-    @Test
-    public void test_ZSET_NOSUCHNAMESPACE() {
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-        EmbeddedChannel channel = getChannel();
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceUse("foobar").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        ByteBuf buf = Unpooled.buffer();
-        cmd.zset("my-key", "my-value").encode(buf);
-        channel.writeInbound(buf);
-        Object response = channel.readOutbound();
-
-        assertInstanceOf(ErrorRedisMessage.class, response);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals("NOSUCHNAMESPACE No such namespace: foobar", actualMessage.content());
-    }
 }

@@ -16,14 +16,10 @@
 
 package com.kronotop.foundationdb;
 
-import com.apple.foundationdb.Database;
-
 public class BaseHandler {
     protected FoundationDBService service;
-    protected Database database;
 
     public BaseHandler(FoundationDBService service) {
         this.service = service;
-        this.database = service.getContext().getFoundationDB();
     }
 }

@@ -52,9 +52,9 @@ public class GetReadVersionHandlerTest extends BaseHandlerTest {
             channel.writeInbound(buf);
             Object response = channel.readOutbound();
 
-            assertInstanceOf(DoubleRedisMessage.class, response);
-            DoubleRedisMessage actualMessage = (DoubleRedisMessage) response;
-            assertTrue(actualMessage.value() > 0);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertTrue(Long.parseLong(actualMessage.content()) > 0);
         }
     }
 

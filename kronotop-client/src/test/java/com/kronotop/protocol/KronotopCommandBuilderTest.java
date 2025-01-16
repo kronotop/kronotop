@@ -286,7 +286,7 @@ public class KronotopCommandBuilderTest {
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
                 append("*2").
                 append("$13").
-                append("SNAPSHOT_READ").
+                append("SNAPSHOTREAD").
                 append("$2").
                 append("ON");
         assertEquals(expectedCommand.toString(), new String(command));
@@ -303,7 +303,7 @@ public class KronotopCommandBuilderTest {
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
                 append("*2").
                 append("$13").
-                append("SNAPSHOT_READ").
+                append("SNAPSHOTREAD").
                 append("$3").
                 append("OFF");
         assertEquals(expectedCommand.toString(), new String(command));

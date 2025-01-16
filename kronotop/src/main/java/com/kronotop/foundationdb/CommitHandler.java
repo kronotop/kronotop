@@ -36,11 +36,10 @@ import java.util.concurrent.CompletableFuture;
 
 @Command(CommitMessage.COMMAND)
 @MaximumParameterCount(CommitMessage.MAXIMUM_PARAMETER_COUNT)
-class CommitHandler implements Handler {
-    private final FoundationDBService service;
+class CommitHandler extends BaseHandler implements Handler {
 
     CommitHandler(FoundationDBService service) {
-        this.service = service;
+        super(service);
     }
 
     @Override

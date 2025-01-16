@@ -30,6 +30,7 @@ import com.kronotop.server.ChannelAttributes;
 import io.netty.channel.ChannelHandlerContext;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
@@ -49,6 +50,10 @@ public class NamespaceUtils {
         namespaces.clear();
     }
 
+    private static List<String> splitNamespaceHierarchy(String name) {
+        return new ArrayList<>(List.of(name.split("\\.")));
+    }
+
     /**
      * Opens a namespace within the specified cluster and uses the provided transaction
      * to access the directory subspace associated with the namespace.
@@ -61,7 +66,7 @@ public class NamespaceUtils {
      * @throws KronotopException        if an exception occurs while opening the namespace
      */
     public static Namespace open(String clusterName, @Nonnull String name, Transaction tr) {
-        List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(name).toList();
+        List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(splitNamespaceHierarchy(name)).toList();
         try {
             DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
             return new Namespace(name, subspace);
@@ -84,7 +89,7 @@ public class NamespaceUtils {
      */
     public static Namespace createOrOpen(Database database, String clusterName, String name) {
         try (Transaction tr = database.createTransaction()) {
-            List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(name).toList();
+            List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(splitNamespaceHierarchy(name)).toList();
             DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
             tr.commit().join();
             return new Namespace(name, subspace);
@@ -127,5 +132,19 @@ public class NamespaceUtils {
         namespaces.put(name, namespace);
         namespace.getZMap().pack();
         return namespace;
+    }
+
+    /**
+     * Checks if a specified namespace exists in the Kronotop directory within the given context.
+     *
+     * @param context the Context object representing the context of a Kronotop instance
+     * @param names the list of names representing the hierarchical namespace path
+     * @return true if the namespace exists, false otherwise
+     */
+    public static boolean exists(Context context, List<String> names) {
+        List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(names).toList();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return DirectoryLayer.getDefault().exists(tr, subpath).join();
+        }
     }
 }

@@ -174,6 +174,7 @@ public class Router extends ChannelDuplexHandler {
                 } else {
                     response.writeError(message);
                 }
+                return;
             }
             throw new KronotopException(exception);
         } else {

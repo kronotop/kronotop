@@ -30,11 +30,10 @@ import java.util.LinkedList;
 
 @Command(BeginMessage.COMMAND)
 @MaximumParameterCount(BeginMessage.MAXIMUM_PARAMETER_COUNT)
-class BeginHandler implements Handler {
-    private final FoundationDBService service;
+class BeginHandler extends BaseHandler implements Handler {
 
     BeginHandler(FoundationDBService service) {
-        this.service = service;
+        super(service);
     }
 
     @Override

@@ -93,7 +93,7 @@ public class MessageTypes {
     public static final AttributeKey<GetReadVersionMessage> GETREADVERSION = AttributeKey.valueOf(GetReadVersionMessage.COMMAND);
     public static final AttributeKey<NamespaceMessage> NAMESPACE = AttributeKey.valueOf(NamespaceMessage.COMMAND);
     public static final AttributeKey<RollbackMessage> ROLLBACK = AttributeKey.valueOf(RollbackMessage.COMMAND);
-    public static final AttributeKey<SnapshotReadMessage> SNAPSHOT_READ = AttributeKey.valueOf(SnapshotReadMessage.COMMAND);
+    public static final AttributeKey<SnapshotReadMessage> SNAPSHOTREAD = AttributeKey.valueOf(SnapshotReadMessage.COMMAND);
     public static final AttributeKey<ZDelMessage> ZDEL = AttributeKey.valueOf(ZDelMessage.COMMAND);
     public static final AttributeKey<ZDelPrefixMessage> ZDELPREFIX = AttributeKey.valueOf(ZDelPrefixMessage.COMMAND);
     public static final AttributeKey<ZDelRangeMessage> ZDELRANGE = AttributeKey.valueOf(ZDelRangeMessage.COMMAND);

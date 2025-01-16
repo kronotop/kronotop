@@ -30,11 +30,10 @@ import java.util.LinkedList;
 
 @Command(RollbackMessage.COMMAND)
 @MaximumParameterCount(RollbackMessage.MAXIMUM_PARAMETER_COUNT)
-class RollbackHandler implements Handler {
-    private final FoundationDBService service;
+class RollbackHandler extends BaseHandler implements Handler {
 
     RollbackHandler(FoundationDBService service) {
-        this.service = service;
+        super(service);
     }
 
     @Override

@@ -29,11 +29,10 @@ import java.util.concurrent.CompletableFuture;
 
 @Command(GetApproximateSizeMessage.COMMAND)
 @MaximumParameterCount(GetApproximateSizeMessage.MAXIMUM_PARAMETER_COUNT)
-class GetApproximateSizeHandler implements Handler {
-    private final FoundationDBService service;
+class GetApproximateSizeHandler extends BaseHandler implements Handler {
 
     GetApproximateSizeHandler(FoundationDBService service) {
-        this.service = service;
+        super(service);
     }
 
     @Override

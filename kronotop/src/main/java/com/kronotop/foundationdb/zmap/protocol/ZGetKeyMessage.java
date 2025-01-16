@@ -46,8 +46,8 @@ public class ZGetKeyMessage implements KronotopMessage<byte[]> {
     }
 
     private void parse() {
-        key = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(key);
+        key = new byte[request.getParams().getFirst().readableBytes()];
+        request.getParams().getFirst().readBytes(key);
 
         if (request.getParams().size() > 1) {
             for (int i = 1; i < request.getParams().size(); i++) {

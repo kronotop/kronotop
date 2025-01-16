@@ -71,32 +71,4 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
         }
     }
-
-    @Test
-    public void test_ZMUTATE_NOSUCHNAMESPACE() {
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-        EmbeddedChannel channel = getChannel();
-
-        {
-            // Use it
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceUse("foobar").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
-
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        ByteBuf buf = Unpooled.buffer();
-        ZMutateArgs zMutateArgs = ZMutateArgs.Builder.max();
-        cmd.zmutate("my-key", "my-value", zMutateArgs).encode(buf);
-        channel.writeInbound(buf);
-        Object response = channel.readOutbound();
-
-        assertInstanceOf(ErrorRedisMessage.class, response);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals("NOSUCHNAMESPACE No such namespace: foobar", actualMessage.content());
-    }
 }

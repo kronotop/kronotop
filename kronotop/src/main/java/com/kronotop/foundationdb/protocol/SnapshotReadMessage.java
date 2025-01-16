@@ -23,7 +23,7 @@ import io.netty.buffer.ByteBuf;
 import java.util.List;
 
 public class SnapshotReadMessage implements KronotopMessage<Void> {
-    public static final String COMMAND = "SNAPSHOT_READ";
+    public static final String COMMAND = "SNAPSHOTREAD";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     public static final int MAXIMUM_PARAMETER_COUNT = 1;
     public static final String ON_KEYWORD = "ON";
@@ -37,14 +37,14 @@ public class SnapshotReadMessage implements KronotopMessage<Void> {
     }
 
     private void parse() {
-        ByteBuf buf = request.getParams().get(0);
+        ByteBuf buf = request.getParams().getFirst();
         byte[] rawOpt = new byte[buf.readableBytes()];
         buf.readBytes(rawOpt);
         String opt = new String(rawOpt);
         if (opt.equalsIgnoreCase(ON_KEYWORD) || opt.equalsIgnoreCase(OFF_KEYWORD)) {
             option = opt;
         } else {
-            throw new IllegalArgumentException(String.format("illegal argument for SNAPSHOT_READ: '%s'", opt));
+            throw new IllegalArgumentException(String.format("illegal argument for SNAPSHOTREAD: '%s'", opt));
         }
     }
 

@@ -162,7 +162,7 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         if (snapshotReadArgs != null) {
             snapshotReadArgs.build(args);
         }
-        return createCommand(CommandType.SNAPSHOT_READ, new StatusOutput<>(codec), args);
+        return createCommand(CommandType.SNAPSHOTREAD, new StatusOutput<>(codec), args);
     }
 
     public Command<K, V, String> zmutate(K key, V param, ZMutateArgs zMutateArgs) {

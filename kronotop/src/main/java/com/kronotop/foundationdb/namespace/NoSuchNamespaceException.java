@@ -21,6 +21,6 @@ import com.kronotop.common.resp.RESPError;
 
 public class NoSuchNamespaceException extends KronotopException {
     public NoSuchNamespaceException(String namespace) {
-        super(RESPError.NOSUCHNAMESPACE, String.format("No such namespace: %s", namespace));
+        super(RESPError.NOSUCHNAMESPACE, String.format("No such namespace: '%s'", namespace));
     }
 }

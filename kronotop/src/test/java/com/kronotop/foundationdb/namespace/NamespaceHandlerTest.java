@@ -193,7 +193,22 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: %s", namespace), actualMessage.content());
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace), actualMessage.content());
+    }
+
+    @Test
+    public void test_REMOVE_cannot_remove_default_namespace() {
+        String defaultNamespace = kronotopInstance.getContext().getConfig().getString("default_namespace");
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.namespaceRemove(defaultNamespace).encode(buf);
+        EmbeddedChannel channel = getChannel();
+        channel.writeInbound(buf);
+        Object response = channel.readOutbound();
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+        assertEquals(String.format("ERR Cannot remove the default namespace: '%s'", defaultNamespace), actualMessage.content());
     }
 
     @Test
@@ -321,6 +336,50 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(namespace, actualMessage.content());
+        }
+    }
+
+    @Test
+    public void test_USE() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        {
+            // Create it
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespace, null).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceUse(namespace).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+    }
+
+    @Test
+    public void test_USE_when_NOSUCHNAMESPACE() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceUse("non.existing.namespace").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(ErrorRedisMessage.class, response);
+            ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+            assertEquals("NOSUCHNAMESPACE No such namespace: 'non.existing.namespace'", actualMessage.content());
         }
     }
 }

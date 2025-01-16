@@ -1,0 +1,29 @@
+services:
+  foundationdb:
+    image: foundationdb/foundationdb:7.3.26
+    volumes:
+      - foundationdb-data-volume:/var/fdb
+    restart: on-failure
+    environment:
+      FDB_NETWORKING_MODE: container
+      FDB_COORDINATOR_PORT: 4500
+      FDB_PORT: 4500
+
+  kronotop:
+    image: ghcr.io/kronotop/kronotop:latest
+    volumes:
+      - kronotop-data-volume:/var/kronotop
+    restart: on-failure
+    depends_on:
+      - foundationdb
+    ports:
+      - "5484:5484/tcp"
+      - "3320:3320/tcp"
+    environment:
+      FDB_COORDINATOR: foundationdb
+      FDB_API_VERSION: 510
+    platform: "linux/amd64"
+
+volumes:
+  kronotop-data-volume:
+  foundationdb-data-volume:

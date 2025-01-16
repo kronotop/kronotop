@@ -40,6 +40,11 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
         NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
         NamespaceMessage.RemoveMessage removeMessage = message.getRemoveMessage();
 
+        String namespace = String.join(".", removeMessage.getSubpath());
+        if (context.getConfig().getString("default_namespace").equals(namespace)) {
+            throw new KronotopException("Cannot remove the default namespace: '" + namespace + "'");
+        }
+
         Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
         List<String> subpath = getNamespaceSubpath(removeMessage.getSubpath());
         try {

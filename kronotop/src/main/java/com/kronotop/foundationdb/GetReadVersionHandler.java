@@ -22,16 +22,18 @@ import com.kronotop.foundationdb.protocol.GetReadVersionMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
+import java.math.BigInteger;
+
 @Command(GetReadVersionMessage.COMMAND)
 @MaximumParameterCount(GetReadVersionMessage.MAXIMUM_PARAMETER_COUNT)
-class GetReadVersionHandler implements Handler {
-    private final FoundationDBService service;
+class GetReadVersionHandler extends BaseHandler implements Handler {
 
     GetReadVersionHandler(FoundationDBService service) {
-        this.service = service;
+        super(service);
     }
 
     @Override
@@ -51,6 +53,6 @@ class GetReadVersionHandler implements Handler {
         Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
         Transaction tr = transactionAttr.get();
         Long readVersion = tr.getReadVersion().join();
-        response.writeDouble(readVersion);
+        response.writeRedisMessage(new SimpleStringRedisMessage(readVersion.toString()));
     }
 }

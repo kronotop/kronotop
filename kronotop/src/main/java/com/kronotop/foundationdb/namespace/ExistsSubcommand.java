@@ -16,15 +16,12 @@
 
 package com.kronotop.foundationdb.namespace;
 
-import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
-import com.kronotop.TransactionUtils;
+import com.kronotop.NamespaceUtils;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-
-import java.util.List;
 
 class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
     ExistsSubcommand(Context context) {
@@ -36,13 +33,12 @@ class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
         NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
         NamespaceMessage.ExistsMessage existsMessage = message.getExistsMessage();
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
-        List<String> subpath = getNamespaceSubpath(existsMessage.getPath());
-        Boolean exists = directoryLayer.exists(tr, subpath).join();
+        boolean exists = NamespaceUtils.exists(context, existsMessage.getPath());
         if (exists) {
             response.writeInteger(1);
             return;
         }
+
         response.writeInteger(0);
     }
 }

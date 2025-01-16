@@ -27,21 +27,20 @@ import io.netty.util.Attribute;
 @Command(SnapshotReadMessage.COMMAND)
 @MaximumParameterCount(SnapshotReadMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(SnapshotReadMessage.MINIMUM_PARAMETER_COUNT)
-class SnapshotReadHandler implements Handler {
-    private final FoundationDBService service;
+class SnapshotReadHandler extends BaseHandler implements Handler {
 
     SnapshotReadHandler(FoundationDBService service) {
-        this.service = service;
+        super(service);
     }
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.SNAPSHOT_READ).set(new SnapshotReadMessage(request));
+        request.attr(MessageTypes.SNAPSHOTREAD).set(new SnapshotReadMessage(request));
     }
 
     @Override
     public void execute(Request request, Response response) {
-        SnapshotReadMessage message = request.attr(MessageTypes.SNAPSHOT_READ).get();
+        SnapshotReadMessage message = request.attr(MessageTypes.SNAPSHOTREAD).get();
         Channel channel = response.getChannelContext().channel();
         Attribute<Boolean> snapshotReadAttr = channel.attr(ChannelAttributes.SNAPSHOT_READ);
         if (message.getOption().equals(SnapshotReadMessage.ON_KEYWORD)) {
