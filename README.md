@@ -80,28 +80,27 @@ the cluster's layout on the FoundationDB and initializes the cluster:
 OK
 ```
 
-Then, we need to set the shard primary and standby ownership. To do that, you should start with listing the cluster members with
-`KR.ADMIN LIST-MEMBERS` command:
+Then, we must set the shard's primary ownership and make the shards operable. Currently, we only have a running Kronotop 
+instance in the cluster. It's good enough for demonstration purposes. We can assign all shards to this member.
+
+First, we should run `KR.ADMIN DESCRIBE-MEMBER` command to learn id of the current member:
 
 ```
-127.0.0.1:3320> KR.ADMIN LIST-MEMBERS
-1# a2760dae3b348b2fc05469aa730361be23c7af05 =>
-   1# status => RUNNING
-   2# process_id => AAAAAAAgvM8AAAAA
-   3# external_host => 172.21.0.3
-   4# external_port => (integer) 5484
-   5# internal_host => 172.21.0.3
-   6# internal_port => (integer) 3320
-   7# latest_heartbeat => (integer) 133
+127.0.0.1:3320> KR.ADMIN DESCRIBE-MEMBER
+1# member_id => a0dc14d811a285834c187ddc20549de7c1c1a381
+2# status => RUNNING
+3# process_id => AAAOz0CfYCoAAAAA
+4# external_host => 127.0.0.1
+5# external_port => (integer) 5484
+6# internal_host => 127.0.0.1
+7# internal_port => (integer) 3320
+8# latest_heartbeat => (integer) 8227
 ```
 
-As you can see, we have a running member. The key of this Redis map is the member ID.
-We will use it to set the primary owner of all Redis shards.
-
-The following command sets the primary owner of all Redis shards;
+We need `member_id` from this response. The following command sets the primary owner of all Redis shards;
 
 ```
-127.0.0.1:3320> KR.ADMIN ROUTE SET PRIMARY REDIS * a2760dae3b348b2fc05469aa730361be23c7af05
+127.0.0.1:3320> KR.ADMIN ROUTE SET PRIMARY REDIS * a0dc14d811a285834c187ddc20549de7c1c1a381
 OK
 ```
 
