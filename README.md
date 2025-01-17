@@ -665,9 +665,3 @@ Let's check the result:
 127.0.0.1:5484> NAMESPACE LIST staging
 1) users
 ```
-
-### Storage Engine
-
-#### Replication
-
-## Architecture
