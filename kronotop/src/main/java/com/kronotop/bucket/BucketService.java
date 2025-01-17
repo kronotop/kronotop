@@ -13,6 +13,8 @@ package com.kronotop.bucket;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
+import com.kronotop.bucket.handlers.BucketInsertHandler;
+import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +24,8 @@ public class BucketService extends CommandHandlerService implements KronotopServ
 
     public BucketService(Context context) {
         super(context, NAME);
+
+        handlerMethod(ServerKind.EXTERNAL, new BucketInsertHandler(this));
     }
 
     public void start() {

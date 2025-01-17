@@ -16,6 +16,7 @@
 
 package com.kronotop.server;
 
+import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.foundationdb.protocol.*;
@@ -124,4 +125,7 @@ public class MessageTypes {
     public static final AttributeKey<SegmentInsertMessage> SEGMENTINSERT = AttributeKey.valueOf(SegmentInsertMessage.COMMAND);
     public static final AttributeKey<VolumeAdminMessage> VOLUMEADMIN = AttributeKey.valueOf(VolumeAdminMessage.COMMAND);
     public static final AttributeKey<TaskAdminMessage> TASKADMIN = AttributeKey.valueOf(TaskAdminMessage.COMMAND);
+
+    // Buckets
+    public static final AttributeKey<BucketInsertMessage> BUCKETINSERT = AttributeKey.valueOf(BucketInsertMessage.COMMAND);
 }
