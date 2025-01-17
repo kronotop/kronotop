@@ -23,11 +23,16 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -69,6 +74,49 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
             assertInstanceOf(FullBulkStringRedisMessage.class, response);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
+        }
+    }
+
+    @Test
+    public void test_ZMUTATE_ADD_INTEGER() {
+        KronotopCommandBuilder<byte[], byte[]> cmd = new KronotopCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        EmbeddedChannel channel = getChannel();
+
+        byte[] delta = new byte[]{1, 0, 0, 0, 0, 0, 0, 0};
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("my-key".getBytes(), delta).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zmutate("my-key".getBytes(), delta, ZMutateArgs.Builder.add()).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zget("my-key".getBytes()).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+            assertInstanceOf(FullBulkStringRedisMessage.class, response);
+            FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
+            byte[] rawItem = new byte[actualMessage.content().readableBytes()];
+            actualMessage.content().readBytes(rawItem);
+
+            long result = ByteBuffer.wrap(rawItem).order(ByteOrder.LITTLE_ENDIAN).getLong();
+            assertEquals(2, result);
         }
     }
 }

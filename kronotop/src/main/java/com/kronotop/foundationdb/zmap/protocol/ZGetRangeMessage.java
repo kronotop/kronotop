@@ -36,7 +36,7 @@ public class ZGetRangeMessage implements KronotopMessage<Void> {
     public static final String BEGIN_KEY_SELECTOR_KEYWORD = "BEGIN_KEY_SELECTOR";
     public static final String END_KEY_SELECTOR_KEYWORD = "END_KEY_SELECTOR";
     public static final RangeKeySelector DEFAULT_BEGIN_KEY_SELECTOR = RangeKeySelector.FIRST_GREATER_OR_EQUAL;
-    public static final RangeKeySelector DEFAULT_END_KEY_SELECTOR = RangeKeySelector.FIRST_GREATER_OR_EQUAL;
+    public static final RangeKeySelector DEFAULT_END_KEY_SELECTOR = RangeKeySelector.FIRST_GREATER_THAN;
 
     public static final byte[] ASTERISK = new byte[]{0x2A};
     private final Request request;

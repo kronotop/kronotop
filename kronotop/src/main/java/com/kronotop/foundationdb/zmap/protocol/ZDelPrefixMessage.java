@@ -34,8 +34,8 @@ public class ZDelPrefixMessage implements KronotopMessage<Void> {
     }
 
     private void parse() {
-        prefix = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(prefix);
+        prefix = new byte[request.getParams().getFirst().readableBytes()];
+        request.getParams().getFirst().readBytes(prefix);
     }
 
     public byte[] getPrefix() {

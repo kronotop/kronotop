@@ -54,7 +54,7 @@ public class ZGetKeyMessage implements KronotopMessage<byte[]> {
                 String keyword = readStringFromByteBuf(request.getParams().get(i));
                 if (keyword.equalsIgnoreCase(KEY_SELECTOR_KEYWORD)) {
                     String enumVal = readStringFromByteBuf(request.getParams().get(i + 1));
-                    keySelector = RangeKeySelector.valueOf(enumVal.toUpperCase(Locale.ROOT));
+                    keySelector = RangeKeySelector.valueOf(enumVal.toUpperCase());
                     i++;
                 }
             }

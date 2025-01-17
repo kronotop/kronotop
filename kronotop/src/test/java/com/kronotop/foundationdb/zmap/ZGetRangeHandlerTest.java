@@ -131,7 +131,7 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
             assertInstanceOf(ArrayRedisMessage.class, response);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
 
-            int i = 4;
+            int i = 5;
             for (RedisMessage redisMessage : actualMessage.children()) {
                 ArrayRedisMessage item = (ArrayRedisMessage) redisMessage;
 
