@@ -10,11 +10,15 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.kronotop.bucket.BSONUtils;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import org.bson.Document;
+
+import java.util.Arrays;
 
 @Command(BucketInsertMessage.COMMAND)
 @MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)
@@ -38,6 +42,9 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         System.out.println(service.getBucketSubspace(namespace, message.getBucket()));
         for (byte[] data : message.getDocuments()) {
             System.out.println(new String(data));
+            Document document = Document.parse(new String(data));
+            byte[] bsonDoc = BSONUtils.toBytes(document);
+            System.out.println(Arrays.toString(bsonDoc));
         }
         response.writeOK();
     }
