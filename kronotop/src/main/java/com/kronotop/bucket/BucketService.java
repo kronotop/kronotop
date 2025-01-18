@@ -10,8 +10,10 @@
 
 package com.kronotop.bucket;
 
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
+import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.KronotopService;
 import com.kronotop.bucket.handlers.BucketInsertHandler;
 import com.kronotop.server.ServerKind;
@@ -20,12 +22,19 @@ import org.slf4j.LoggerFactory;
 
 public class BucketService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Bucket";
-    private static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
+    protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
+    private final BucketSubspaceCache bucketSubspaceCache;
 
     public BucketService(Context context) {
         super(context, NAME);
 
+        bucketSubspaceCache = new BucketSubspaceCache(context);
+
         handlerMethod(ServerKind.EXTERNAL, new BucketInsertHandler(this));
+    }
+
+    public DirectorySubspace getBucketSubspace(String namespace, String bucket) {
+        return bucketSubspaceCache.get(namespace, bucket);
     }
 
     public void start() {

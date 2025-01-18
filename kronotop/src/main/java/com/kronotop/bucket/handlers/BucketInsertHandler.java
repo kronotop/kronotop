@@ -12,10 +12,7 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
@@ -35,7 +32,10 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
     @Override
     public void execute(Request request, Response response) throws Exception {
         BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
+        String namespace = request.getChannelContext().channel().attr(ChannelAttributes.CURRENT_NAMESPACE).get();
+        System.out.println(namespace);
         System.out.println(message.getBucket());
+        System.out.println(service.getBucketSubspace(namespace, message.getBucket()));
         for (byte[] data : message.getDocuments()) {
             System.out.println(new String(data));
         }

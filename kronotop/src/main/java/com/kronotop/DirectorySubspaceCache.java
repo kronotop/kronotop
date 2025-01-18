@@ -31,7 +31,9 @@ import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.directory.Shards;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +50,7 @@ public final class DirectorySubspaceCache {
 
     private final EnumMap<Key, List<String>> subpaths = new EnumMap<>(Key.class);
     private final EnumMap<ShardKind, ConcurrentHashMap<Integer, List<String>>> shards = new EnumMap<>(ShardKind.class);
+    private final ConcurrentHashMap<String, ConcurrentHashMap<String, List<String>>> buckets = new ConcurrentHashMap<>();
 
     private final LoadingCache<List<String>, DirectorySubspace> cache = CacheBuilder.newBuilder()
             .expireAfterAccess(10, TimeUnit.MINUTES)
@@ -127,6 +130,12 @@ public final class DirectorySubspaceCache {
             throw new RuntimeException("Unknown shard kind: " + kind);
         });
 
+        return get(subpath);
+    }
+
+    public DirectorySubspace get(String namespace, String bucket) {
+        List<String> subpath = buckets.computeIfAbsent(namespace, k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(bucket, k -> new LinkedList<>());
         return get(subpath);
     }
 

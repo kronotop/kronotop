@@ -14,7 +14,7 @@ package com.kronotop.bucket.handlers;
 import com.kronotop.bucket.BucketService;
 
 public class BaseBucketHandler {
-    private final BucketService service;
+    protected final BucketService service;
 
     public BaseBucketHandler(BucketService service) {
         this.service = service;

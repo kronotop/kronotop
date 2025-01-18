@@ -42,5 +42,9 @@ public class Namespaces extends KronotopDirectoryNode {
             super(layout);
             layout.addAll(subpath);
         }
+
+        public Buckets buckets() {
+            return new Buckets(layout);
+        }
     }
 }
