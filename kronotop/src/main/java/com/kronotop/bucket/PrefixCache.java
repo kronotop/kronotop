@@ -20,6 +20,7 @@ import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.volume.Prefix;
 
 import javax.annotation.Nonnull;
 import java.util.List;
@@ -27,19 +28,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-public final class BucketSubspaceCache {
+public final class PrefixCache {
     private final Context context;
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, List<String>>> buckets = new ConcurrentHashMap<>();
 
-    private final LoadingCache<List<String>, DirectorySubspace> cache = CacheBuilder.newBuilder()
+    private final LoadingCache<List<String>, Prefix> cache = CacheBuilder.newBuilder()
             .expireAfterAccess(10, TimeUnit.MINUTES)
             .build(new BucketSubspaceLoader());
 
-    public BucketSubspaceCache(Context context) {
+    public PrefixCache(Context context) {
         this.context = context;
     }
 
-    public DirectorySubspace get(String namespace, String bucket) {
+    public Prefix get(String namespace, String bucket) {
         List<String> subpath = buckets.computeIfAbsent(namespace, k -> new ConcurrentHashMap<>())
                 .computeIfAbsent(bucket, k -> {
                     KronotopDirectoryNode node = KronotopDirectory.
@@ -58,13 +59,14 @@ public final class BucketSubspaceCache {
         }
     }
 
-    private class BucketSubspaceLoader extends CacheLoader<List<String>, DirectorySubspace> {
+    private class BucketSubspaceLoader extends CacheLoader<List<String>, Prefix> {
         @Override
-        public @Nonnull DirectorySubspace load(@Nonnull List<String> path) {
-            return context.getFoundationDB().run(tr -> DirectoryLayer.
+        public @Nonnull Prefix load(@Nonnull List<String> path) {
+            DirectorySubspace subspace = context.getFoundationDB().run(tr -> DirectoryLayer.
                     getDefault().
                     createOrOpen(tr, path).
                     join());
+            return new Prefix(subspace.pack());
         }
     }
 }

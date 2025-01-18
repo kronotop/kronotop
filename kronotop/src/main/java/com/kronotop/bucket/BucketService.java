@@ -10,31 +10,43 @@
 
 package com.kronotop.bucket;
 
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
-import com.kronotop.DirectorySubspaceCache;
 import com.kronotop.KronotopService;
 import com.kronotop.bucket.handlers.BucketInsertHandler;
 import com.kronotop.server.ServerKind;
+import com.kronotop.volume.Prefix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BucketService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Bucket";
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
-    private final BucketSubspaceCache bucketSubspaceCache;
+    private final PrefixCache prefixCache;
+    private final ConcurrentHashMap<Integer, BucketShard> shards = new ConcurrentHashMap<>();
 
     public BucketService(Context context) {
         super(context, NAME);
 
-        bucketSubspaceCache = new BucketSubspaceCache(context);
+        int numberOfShards = context.getConfig().getInt("bucket.shards");
+        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            BucketShard shard = new AbstractBucketShard(context, shardId);
+            shards.put(shardId, shard);
+        }
+
+        prefixCache = new PrefixCache(context);
 
         handlerMethod(ServerKind.EXTERNAL, new BucketInsertHandler(this));
     }
 
-    public DirectorySubspace getBucketSubspace(String namespace, String bucket) {
-        return bucketSubspaceCache.get(namespace, bucket);
+    public BucketShard getShard(int shardId) {
+        return shards.get(shardId);
+    }
+
+    public Prefix getPrefix(String namespace, String bucket) {
+        return prefixCache.get(namespace, bucket);
     }
 
     public void start() {
