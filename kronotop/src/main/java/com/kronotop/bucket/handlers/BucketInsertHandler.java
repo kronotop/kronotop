@@ -29,6 +29,7 @@ import com.kronotop.volume.Session;
 import org.bson.Document;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 @Command(BucketInsertMessage.COMMAND)
 @MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)
@@ -74,7 +75,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
         @Override
         public void run() {
-            appendResult.updateEntryMetadataCache();
+            System.out.println(Arrays.toString(appendResult.getVersionstampedKeys()));
         }
     }
 }

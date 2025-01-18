@@ -98,6 +98,8 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
             if (shardKind.equals(ShardKind.REDIS)) {
                 int shards = context.getConfig().getInt("redis.shards");
                 startReplicationTasks(shardKind, shards);
+            } else if (shardKind.equals(ShardKind.BUCKET)) {
+                // TODO: BUCKET-IMPLEMENTATION
             } else {
                 throw new IllegalArgumentException("Unsupported shard kind: " + shardKind);
             }
