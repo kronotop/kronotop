@@ -11,12 +11,20 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.Request;
 
 public class BaseBucketHandler {
     protected final BucketService service;
 
     public BaseBucketHandler(BucketService service) {
         this.service = service;
+    }
+
+    protected DirectorySubspace getBucketSubspace(Request request, String bucket) {
+        String namespace = request.getChannelContext().channel().attr(ChannelAttributes.CURRENT_NAMESPACE).get();
+        return service.getBucketSubspace(namespace, bucket);
     }
 }
