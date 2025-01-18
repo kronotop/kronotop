@@ -17,5 +17,6 @@
 package com.kronotop.cluster.sharding;
 
 public enum ShardKind {
-    REDIS
+    REDIS,
+    BUCKET
 }
