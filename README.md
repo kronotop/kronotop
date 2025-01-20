@@ -69,13 +69,13 @@ Kronotop is still in its early stages, but we have the following features with a
 
 It's easy to try Kronotop with Docker Compose:
 
-```
+```bash
 curl -o kronotop-demo.yaml https://raw.githubusercontent.com/kronotop/kronotop/refs/heads/main/docker/kronotop-demo.yaml
 ```
 
 Then, you can run the following command to create a single-member Kronotop cluster for demonstration purposes:
 
-```
+```bash
 docker compose -f kronotop-demo.yaml up 
 ```
 
@@ -153,12 +153,6 @@ in all languages, and almost everyone has some experience with Redis.
 Despite the main focus on building a transactional document database using FoundationDB as a metadata store, implementing
 the most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String* and *Hash*
 data structures.
-
-## Clustering
-
-## Clustering
-
-### Replication
 
 ## Features
 
