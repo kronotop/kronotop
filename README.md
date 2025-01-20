@@ -22,7 +22,7 @@ See [Getting started](#getting-started) section.
 
 Kronotop is still in its early stages, but we have the following features with a strong foundation.
 
-* ZMap, Redis protocol proxy for FoundationDB API,
+* ZMap, an ordered key-value store. Simply, Redis protocol proxy for FoundationDB API,
 * Namespaces for isolating ZMaps and Buckets, basically it's a thin layer around FoundationDB's directory layer,
 * Volume, storage engine implementation with a primary-standby replication model,
 * Clustering with single or multi-master deployment scenarios,
@@ -262,6 +262,12 @@ OK
 ### ZMap
 
 Kronotop also provides a new data structure called ZMap. ZMap is simply a RESP proxy for FoundationDB API.
+
+FoundationDB’s core data model is an ordered key-value store. Also known as an ordered associative array, map, or dictionary, 
+this is a common data structure composed of a collection of key-value pairs in which all keys are unique. Starting with this simple model, 
+an application can create higher-level data models by mapping their elements to individual keys and values.
+
+See the [Data Modeling](https://apple.github.io/foundationdb/data-modeling.html) section on FoundationDB documents.
 
 **One-Off Transactions**
 
