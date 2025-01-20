@@ -34,15 +34,37 @@ Kronotop is still in its early stages, but we have the following features with a
 * **Bucket** data structure will support an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and transactions backed by FoundationDB,
 * Provide the most common Redis data structures such as String, Hash, Sorted Sets, etc.
 
-## Redis compatibility
+## Table of Contents
 
-Kronotop uses RESP3 as the client protocol. The reasoning behind this is simple: there are many high-quality Redis client implementations
-in all languages, and almost everyone has some experience with Redis.
-
-Despite the main focus on building a transactional document database using FoundationDB as a metadata store, implementing 
-the most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String* and *Hash*
-data structures.
-
+* [Getting started](#getting-started)
+  * [Initializing a Kronotop cluster](#initializing-a-kronotop-cluster)
+* [Redis compatibility](#redis-compatibility)
+* [Features](#features)
+  * [Transaction management](#transaction-management)
+    * [BEGIN](#begin)
+    * [COMMIT](#commit)
+    * [ROLLBACK](#rollback)
+    * [GETAPPROXIMATESIZE](#getapproximatesize)
+    * [GETREADVERSION](#getreadversion)
+    * [SNAPSHOTREAD](#snapshotread)
+  * [ZMap](#zmap)
+    * [ZSET](#zset)
+    * [ZGET](#zget)
+    * [ZGETKEY](#zgetkey)
+    * [ZGETRANGE](#zgetrange)
+    * [ZGETRANGESIZE](#zgetrangesize)
+    * [ZMUTATE](#zmutate)
+    * [ZDEL](#zdel)
+    * [ZDELRANGE](#zdelrange)
+  * [Namespaces](#namespaces)
+    * [NAMESPACE CREATE](#namespace-create)
+    * [NAMESPACE REMOVE](#namespace-remove)
+    * [NAMESPACE CURRENT](#namespace-current)
+    * [NAMESPACE USE](#namespace-use)
+    * [NAMESPACE EXISTS](#namespace-exists)
+    * [NAMESPACE LIST](#namespace-list)
+    * [NAMESPACE MOVE](#namespace-move)
+    
 ## Getting started
 
 It's easy to try Kronotop with Docker Compose:
@@ -122,6 +144,21 @@ OK
 ```
 
 All in-memory data will be persisted and replicated by the storage engine. See [Storage Engine](#storage-engine) section for the details.
+
+## Redis compatibility
+
+Kronotop uses RESP3 as the client protocol. The reasoning behind this is simple: there are many high-quality Redis client implementations
+in all languages, and almost everyone has some experience with Redis.
+
+Despite the main focus on building a transactional document database using FoundationDB as a metadata store, implementing
+the most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String* and *Hash*
+data structures.
+
+## Clustering
+
+## Clustering
+
+### Replication
 
 ## Features
 
@@ -307,10 +344,10 @@ The default key selector is `FIRST_GREATER_OR_EQUAL`, `KEY_SELECTOR` portion of 
 
 Available key selectors:
 
-* FIRST_GREATER_OR_EQUAL,
-* FIRST_GREATER_THAN,
-* LAST_LESS_THAN,
-* LAST_LESS_OR_EQUAL
+* `FIRST_GREATER_OR_EQUAL`,
+* `FIRST_GREATER_THAN`,
+* `LAST_LESS_THAN`,
+* `LAST_LESS_OR_EQUAL`
 
 **Example:**
 
