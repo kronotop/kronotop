@@ -64,6 +64,10 @@ Kronotop is still in its early stages, but we have the following features with a
     * [NAMESPACE EXISTS](#namespace-exists)
     * [NAMESPACE LIST](#namespace-list)
     * [NAMESPACE MOVE](#namespace-move)
+* [Storage Engine](#storage-engine)
+  * [Design](#design) 
+  * [Replication](#replication)  
+  * [Vacuuming](#vacuuming)
     
 ## Getting started
 
@@ -702,3 +706,48 @@ Let's check the result:
 127.0.0.1:5484> NAMESPACE LIST staging
 1) users
 ```
+
+## Storage Engine
+
+### Design
+
+Kronotop has a storage engine implementation named **Volume**. It's responsible for storing all data on the disks and 
+replicate it from the primary members to the standbys.
+
+Volume has a simple yet elegant design philosophy. It stores all metadata information on the FoundationDB cluster. The data itself has 
+stored on the disk and organized as **segments**.
+
+A segment is just a pre-allocated file on the disk and is seen as a huge byte array. When you want to append some entries to the volume,
+all data has been appended to the latest segment and then flushed. If the flush call succeeds, the metadata has been committed to the
+FoundationDB cluster in a single transaction. This process could be depicted as the following for easy digestion:
+
+- An outer layer of Kronotop tries to append some data to the volume,
+- Volume receives the request and finds the latest segment to append the data,
+- If there is no open segment, a new segment will be created,
+- If the latest segment doesn't have enough free space, a new segment will be created and the previous segment marked as readonly,
+- Segment implementation will find a location for the given amount of data and append it to the underling pre-allocated file,
+- The modified segment will be flushed to ensure all buffered changes are written to disk.
+- Volume implementation will commit metadata changes in a single transaction and will return IDs in FoundationDBs version stamp format.
+
+### Replication
+
+The **asynchronous** replication process is also handled by the volume itself. When a new entry has been added to the volume, an entry will be added to the
+data structure named *SegmentLog* and standbys will be triggered to fetch the changes from the primary. Volume uses the [watch mechanism](https://apple.github.io/foundationdb/developer-guide.html#watches) 
+to implement this feature. 
+
+The standby member copies all data from the primary, this happens in two stages:
+
+* Snapshot
+* Streaming
+
+In *snapshot* stage, the standby volume reads the `SegmentLog` data structure and copies all data chunk by chunk. 
+When the snapshot stage has completed, the *streaming* stage has started and a `watch` monitors a key constantly to fetch the
+latest changes from the primary. 
+
+Volume also supports synchronous replication, but it's a part of Redis Volume Syncer mechanism. 
+
+### Vacuuming
+
+Volume supports manual vacuuming. A system administrator can start a vacuum process, and it has been processed in the background.
+Vacuum process scans the Volume metadata and evicts the entries from a segment if the garbage ratio of the segment exceeds a certain number.
+
