@@ -19,7 +19,7 @@ package com.kronotop.cluster;
 import com.kronotop.common.KronotopException;
 
 public class MemberAlreadyRunningException extends KronotopException {
-    public MemberAlreadyRunningException(String message) {
-        super(message);
+    public MemberAlreadyRunningException(String memberId) {
+        super("A member is already running with this id: " + memberId);
     }
 }
