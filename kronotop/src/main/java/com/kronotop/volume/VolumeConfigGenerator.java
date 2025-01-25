@@ -66,6 +66,16 @@ public class VolumeConfigGenerator {
                 volume(Integer.toString(shardId));
     }
 
+    private KronotopDirectoryNode getBucketShardVolumeDirectory() {
+        return KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                volumes().
+                bucket().
+                volume(Integer.toString(shardId));
+    }
+
     /**
      * Creates or opens a DirectorySubspace for a specified directory within the Kronotop structure.
      * This method attempts to create or retrieve the subspace for the given directory,
@@ -115,6 +125,13 @@ public class VolumeConfigGenerator {
         return new VolumeConfig(subspace, name, dataDir, segmentSize);
     }
 
+    private VolumeConfig newBucketShardVolumeConfig(DirectorySubspace subspace, String dataDir) {
+        String name = volumeName(ShardKind.BUCKET, shardId);
+        Config config = context.getConfig().getConfig("bucket");
+        long segmentSize = config.getLong("volume.segment_size");
+        return new VolumeConfig(subspace, name, dataDir, segmentSize);
+    }
+
     /**
      * Constructs the directory path for storing shard-related data.
      * <p>
@@ -148,6 +165,10 @@ public class VolumeConfigGenerator {
             KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
             DirectorySubspace subspace = createOrOpenVolumeSubspace(directory, true);
             return newRedisShardVolumeConfig(subspace, dataDir);
+        } else if (shardKind.equals(ShardKind.BUCKET)) {
+            KronotopDirectoryNode directory = getBucketShardVolumeDirectory();
+            DirectorySubspace subspace = createOrOpenVolumeSubspace(directory, true);
+            return newBucketShardVolumeConfig(subspace, dataDir);
         } else {
             throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
         }
@@ -166,6 +187,9 @@ public class VolumeConfigGenerator {
         if (shardKind.equals(ShardKind.REDIS)) {
             KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
             return createOrOpenVolumeSubspace(directory, true);
+        } else if (shardKind.equals(ShardKind.BUCKET)) {
+            KronotopDirectoryNode directory = getBucketShardVolumeDirectory();
+            return createOrOpenVolumeSubspace(directory, true);
         } else {
             throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
         }
@@ -183,6 +207,9 @@ public class VolumeConfigGenerator {
     public DirectorySubspace openVolumeSubspace() {
         if (shardKind.equals(ShardKind.REDIS)) {
             KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
+            return createOrOpenVolumeSubspace(directory, false);
+        } else if (shardKind.equals(ShardKind.BUCKET)) {
+            KronotopDirectoryNode directory = getBucketShardVolumeDirectory();
             return createOrOpenVolumeSubspace(directory, false);
         } else {
             throw new IllegalArgumentException("Unknown shard kind: " + shardKind);

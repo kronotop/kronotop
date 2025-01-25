@@ -50,6 +50,25 @@ public class AppendResult {
         return versionstampedKeys;
     }
 
+    /**
+     * Updates the entry metadata cache by invoking the {@code getVersionstampedKeys} method.
+     * <p>
+     * This method ensures that the metadata cache is refreshed by processing all {@code EntryMetadata}
+     * objects with their corresponding version-stamped keys. The version-stamped keys are generated
+     * and linked with the provided callback by leveraging the implementation of {@code getVersionstampedKeys}.
+     * <p>
+     * Note:
+     * - The {@code getVersionstampedKeys} method is synchronized and can only be called once. Calling it more than once
+     * will result in an {@code IllegalStateException}.
+     * - The internal processing relies on the completion of the associated {@code future}.
+     * <p>
+     * This method is typically used to synchronize the latest version-stamped keys with the provided cache
+     * update mechanism.
+     */
+    public void updateEntryMetadataCache() {
+        getVersionstampedKeys();
+    }
+
     public EntryMetadata[] getEntryMetadataList() {
         return entryMetadataList;
     }

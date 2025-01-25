@@ -24,6 +24,10 @@ public class Namespaces extends KronotopDirectoryNode {
         layout.add("namespaces");
     }
 
+    public DataStructures datastructures() {
+        return new DataStructures(layout);
+    }
+
     public Namespace namespace(String namespace) {
         return new Namespace(layout, namespace);
     }
@@ -41,6 +45,21 @@ public class Namespaces extends KronotopDirectoryNode {
         public Namespace(List<String> layout, List<String> subpath) {
             super(layout);
             layout.addAll(subpath);
+        }
+
+        public Buckets buckets() {
+            return new Buckets(layout);
+        }
+    }
+
+    public static class DataStructures extends KronotopDirectoryNode {
+        public DataStructures(List<String> layout) {
+            super(layout);
+            layout.add("datastructures");
+        }
+
+        public Buckets buckets() {
+            return new Buckets(layout);
         }
     }
 }

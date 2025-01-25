@@ -221,6 +221,8 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 if (shardKind.equals(ShardKind.REDIS)) {
                     int numberOfShards = context.getConfig().getInt("redis.shards");
                     loadRoute(tr, table, shardKind, numberOfShards);
+                } else if (shardKind.equals(ShardKind.BUCKET)) {
+                    // TODO: BUCKET-IMPLEMENTATION
                 } else {
                     throw new KronotopException("Unknown shard kind: " + shardKind);
                 }

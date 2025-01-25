@@ -107,7 +107,7 @@ class SegmentTest extends BaseMetadataStoreTest {
         try {
             ByteBuffer buffer = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
             assertDoesNotThrow(() -> segment.append(buffer));
-            assertDoesNotThrow(() -> segment.flush(true));
+            assertDoesNotThrow(segment::flush);
         } finally {
             segment.close();
         }

@@ -171,7 +171,7 @@ public class Volume {
         // Forces any updates to this channel's file to be written to the storage device that contains it.
         for (EntryMetadata entryMetadata : entryMetadataList) {
             Segment segment = getOrOpenSegmentByName(entryMetadata.segment());
-            segment.flush(false);
+            segment.flush();
         }
     }
 
@@ -659,16 +659,25 @@ public class Volume {
     }
 
     /**
-     * Flushes all segments in the current container.
-     *
-     * @param metaData a boolean flag indicating whether metadata should be flushed as well
+     * Flushes all segments within the segment container. This method iterates
+     * through each entry in the segments map, and attempts to invoke the
+     * flush operation on the segment associated with each container entry.
+     * <p>
+     * If a segment fails to flush, an error is logged, but the method
+     * continues to process the remaining segments.
+     * <p>
+     * The operation is performed inside a read lock to ensure thread-safe
+     * access to the segments map.
+     * <p>
+     * Exceptions thrown during the flush operation are caught and logged,
+     * preventing them from propagating further.
      */
-    public void flush(boolean metaData) {
+    public void flush() {
         segmentsLock.readLock().lock();
         try {
             for (Map.Entry<String, SegmentContainer> entry : segments.entrySet()) {
                 try {
-                    entry.getValue().segment().flush(metaData);
+                    entry.getValue().segment().flush();
                 } catch (IOException e) {
                     LOGGER.error("Failed to flush Segment: {}", entry.getKey(), e);
                 }

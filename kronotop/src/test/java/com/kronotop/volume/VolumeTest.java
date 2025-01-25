@@ -160,7 +160,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             assertDoesNotThrow(() -> volume.append(session, entries));
             tr.commit().join();
         }
-        assertDoesNotThrow(() -> volume.flush(true));
+        assertDoesNotThrow(() -> volume.flush());
     }
 
     @Test
@@ -467,7 +467,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         }
 
         long readVersion = getReadVersion();
-        
+
         {
             List<SegmentAnalysis> segmentAnalysis = volume.analyze();
             String firstSegment = segmentAnalysis.getFirst().name();
@@ -815,7 +815,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
                 new PackedEntry(3, second)
         };
         standby.insert(segmentName, packedEntries);
-        standby.flush(true);
+        standby.flush();
 
         try (Transaction tr = database.createTransaction()) {
             Session session = new Session(tr, prefix);

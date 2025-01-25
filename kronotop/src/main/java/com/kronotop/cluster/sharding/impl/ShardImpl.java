@@ -41,7 +41,7 @@ public abstract class ShardImpl implements Shard {
 
     @Override
     public ShardStatus status() {
-        Route route = routingService.findRoute(ShardKind.REDIS, id);
+        Route route = routingService.findRoute(shardKind, id);
         if (route == null) {
             return ShardStatus.INOPERABLE;
         }
@@ -51,5 +51,10 @@ public abstract class ShardImpl implements Shard {
     @Override
     public Integer id() {
         return id;
+    }
+
+    @Override
+    public ShardKind kind() {
+        return shardKind;
     }
 }

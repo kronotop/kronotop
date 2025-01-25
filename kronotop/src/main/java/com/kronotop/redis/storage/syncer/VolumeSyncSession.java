@@ -138,7 +138,7 @@ public class VolumeSyncSession {
                     versionstampedKeys.toArray(new Versionstamp[versionstampedKeys.size()])
             );
 
-            shard.volume().flush(true);
+            shard.volume().flush();
             synchronousReplication(appendResult);
             tr.commit().join();
             deleteResult.complete();

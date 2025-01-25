@@ -16,6 +16,8 @@
 
 package com.kronotop.directory;
 
+import com.kronotop.cluster.sharding.ShardKind;
+
 import java.util.List;
 
 public class Volumes extends KronotopDirectoryNode {
@@ -29,10 +31,26 @@ public class Volumes extends KronotopDirectoryNode {
         return new Redis(layout);
     }
 
-    public static class Redis extends KronotopDirectoryNode {
+    public Bucket bucket() {
+        return new Bucket(layout);
+    }
+
+    public static class Redis extends ShardKindCommon {
         public Redis(List<String> layout) {
+            super(layout, ShardKind.REDIS);
+        }
+    }
+
+    public static class Bucket extends ShardKindCommon {
+        public Bucket(List<String> layout) {
+            super(layout, ShardKind.BUCKET);
+        }
+    }
+
+    private static class ShardKindCommon extends KronotopDirectoryNode {
+        public ShardKindCommon(List<String> layout, ShardKind shardKind) {
             super(layout);
-            layout.add("redis");
+            layout.add(shardKind.name());
         }
 
         public Volume volume(String name) {

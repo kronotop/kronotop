@@ -38,7 +38,7 @@ public class StopVacuumSubcommand extends BaseHandler implements SubcommandHandl
     @Override
     public void execute(Request request, Response response) {
         StopVacuumParameters parameters = new StopVacuumParameters(request.getParams());
-        try (Transaction tr = context.getFoundationDB().createTransaction()){
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Volume volume = service.findVolume(parameters.volumeName);
             VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
             if (vacuumMetadata == null) {

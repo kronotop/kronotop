@@ -145,7 +145,7 @@ public class ReplicationStageRunner {
             byte[] data = (byte[]) result.dataRanges.get(i);
             segment.insert(ByteBuffer.wrap(data), entry.position());
         }
-        segment.flush(true);
+        segment.flush();
     }
 
     /**
