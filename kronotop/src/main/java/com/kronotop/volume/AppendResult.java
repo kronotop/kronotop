@@ -59,7 +59,7 @@ public class AppendResult {
      * <p>
      * Note:
      * - The {@code getVersionstampedKeys} method is synchronized and can only be called once. Calling it more than once
-     *   will result in an {@code IllegalStateException}.
+     * will result in an {@code IllegalStateException}.
      * - The internal processing relies on the completion of the associated {@code future}.
      * <p>
      * This method is typically used to synchronize the latest version-stamped keys with the provided cache
