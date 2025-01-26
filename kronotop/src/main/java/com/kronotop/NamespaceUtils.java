@@ -130,7 +130,6 @@ public class NamespaceUtils {
 
         namespace = open(context.getClusterName(), name, tr);
         namespaces.put(name, namespace);
-        namespace.getZMap().pack();
         return namespace;
     }
 
@@ -138,7 +137,7 @@ public class NamespaceUtils {
      * Checks if a specified namespace exists in the Kronotop directory within the given context.
      *
      * @param context the Context object representing the context of a Kronotop instance
-     * @param names the list of names representing the hierarchical namespace path
+     * @param names   the list of names representing the hierarchical namespace path
      * @return true if the namespace exists, false otherwise
      */
     public static boolean exists(Context context, List<String> names) {
