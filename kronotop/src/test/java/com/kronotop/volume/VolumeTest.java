@@ -785,7 +785,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    public void test_clearPrefix_when_different_prefixes_exist() throws IOException {
+    public void test_clearPrefix_when_different_prefixes_exist() {
         Prefix prefixOne = new Prefix("prefixOne");
         Prefix prefixTwo = new Prefix("prefixTwo");
 

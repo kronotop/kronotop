@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -1020,7 +1021,27 @@ public class Volume {
         return result;
     }
 
+    /**
+     * Populates a map of segments by loading metadata and processing segment identifiers.
+     *
+     * @param tr The transaction used to load volume metadata and perform operations.
+     */
+    private void fillSegmentsMap(Transaction tr) {
+        try {
+            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
+            for (long id : volumeMetadata.getSegments()) {
+                String name = Segment.generateName(id);
+                getOrOpenSegmentByName(name);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     private void clearSegmentsByPrefix(Session session) {
+        assert session.transaction() != null;
+        // We need to open all segments before running the "clear prefix" logic.
+        fillSegmentsMap(session.transaction());
         segmentsLock.readLock().lock();
         try {
             for (Map.Entry<String, SegmentContainer> entry : segments.entrySet()) {
