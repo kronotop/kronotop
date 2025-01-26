@@ -785,6 +785,41 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    public void test_clearPrefix_when_different_prefixes_exist() throws IOException {
+        Prefix prefixOne = new Prefix("prefixOne");
+        Prefix prefixTwo = new Prefix("prefixTwo");
+
+        List.of(prefixOne, prefixTwo).forEach((item) -> {
+            ByteBuffer[] entries = getEntries(3);
+            try (Transaction tr = database.createTransaction()) {
+                Session session = new Session(tr, item);
+                AppendResult result;
+                try {
+                    result = volume.append(session, entries);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                tr.commit().join();
+                result.updateEntryMetadataCache();
+            }
+        });
+
+        try (Transaction tr = database.createTransaction()) {
+            Session session = new Session(tr, prefixOne);
+            volume.clearPrefix(session);
+            tr.commit().join();
+        }
+
+        // prefixOne has cleared
+        try (Transaction tr = database.createTransaction()) {
+            SegmentAnalysis analysis = volume.analyze(tr).getFirst();
+            assertEquals(3, analysis.cardinality());
+            assertTrue(analysis.usedBytes() > 0);
+            assertTrue(analysis.size() - analysis.freeBytes() > 0);
+        }
+    }
+
+    @Test
     public void test_insert(@TempDir Path dataDir) throws IOException {
         byte[] first = new byte[]{1, 2, 3};
         byte[] second = new byte[]{4, 5, 6};
