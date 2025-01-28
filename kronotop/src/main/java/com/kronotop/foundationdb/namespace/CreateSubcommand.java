@@ -19,14 +19,20 @@ package com.kronotop.foundationdb.namespace;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.subspace.Subspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.directory.Volumes;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -42,30 +48,30 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
         // Create the namespace by using an isolated, one-off transaction to prevent weird consistency bugs.
         Transaction tr = context.getFoundationDB().createTransaction();
-        CompletableFuture<DirectorySubspace> result;
+        CompletableFuture<DirectorySubspace> createFuture;
         List<String> subpath = getNamespaceSubpath(message.getCreateMessage().getSubpath());
         if (message.getCreateMessage().hasLayer() && message.getCreateMessage().hasPrefix()) {
-            result = directoryLayer.create(
+            createFuture = directoryLayer.create(
                     tr,
                     subpath,
                     message.getCreateMessage().getLayer().getBytes(),
                     message.getCreateMessage().getPrefix().getBytes()
             );
         } else if (message.getCreateMessage().hasLayer()) {
-            result = directoryLayer.create(
+            createFuture = directoryLayer.create(
                     tr,
                     subpath,
                     message.getCreateMessage().getLayer().getBytes()
             );
         } else {
-            result = directoryLayer.create(
+            createFuture = directoryLayer.create(
                     tr,
                     subpath
             );
         }
 
         try {
-            result.join();
+            createFuture.join();
             tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {
