@@ -47,9 +47,7 @@ public final class PrefixCache {
                             kronotop().
                             cluster(context.getClusterName()).
                             namespaces().
-                            namespace(namespace).
-                            buckets().
-                            bucket(bucket);
+                            namespace(namespace);
                     return node.toList();
                 });
         try {
