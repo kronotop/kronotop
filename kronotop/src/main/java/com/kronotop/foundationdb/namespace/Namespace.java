@@ -28,17 +28,17 @@ import javax.annotation.Nonnull;
  */
 public class Namespace {
     private static final byte ZMapSubspaceMagic = 0x01;
-    private static final byte RedisSubspaceMagic = 0x02;
+    private static final byte BucketSubspaceMagic = 0x02;
     private final String name;
     private final DirectorySubspace directorySubspace;
     private final Subspace zmapSubspace;
-    private final Subspace redisSubspace;
+    private final Subspace bucketSubspace;
 
     public Namespace(@Nonnull String name, @Nonnull DirectorySubspace root) {
         this.name = name;
         this.directorySubspace = root;
         this.zmapSubspace = root.subspace(Tuple.from(ZMapSubspaceMagic));
-        this.redisSubspace = root.subspace(Tuple.from(RedisSubspaceMagic));
+        this.bucketSubspace = root.subspace(Tuple.from(BucketSubspaceMagic));
     }
 
     /**
@@ -68,7 +68,12 @@ public class Namespace {
         return zmapSubspace;
     }
 
-    public Subspace getRedis() {
-        return redisSubspace;
+    /**
+     * Returns the Bucket subspace associated with the namespace.
+     *
+     * @return The bucket subspace.
+     */
+    public Subspace getBucket() {
+        return bucketSubspace;
     }
 }
