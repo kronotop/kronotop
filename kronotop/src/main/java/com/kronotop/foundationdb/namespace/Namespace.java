@@ -19,6 +19,7 @@ package com.kronotop.foundationdb.namespace;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.volume.Prefix;
 
 import javax.annotation.Nonnull;
 
@@ -33,12 +34,15 @@ public class Namespace {
     private final DirectorySubspace directorySubspace;
     private final Subspace zmapSubspace;
     private final Subspace bucketSubspace;
+    private final byte[] bucketPrefixKey;
+    private volatile Prefix bucketPrefix;
 
     public Namespace(@Nonnull String name, @Nonnull DirectorySubspace root) {
         this.name = name;
         this.directorySubspace = root;
         this.zmapSubspace = root.subspace(Tuple.from(ZMapSubspaceMagic));
         this.bucketSubspace = root.subspace(Tuple.from(BucketSubspaceMagic));
+        this.bucketPrefixKey = bucketSubspace.pack(Tuple.from(0x03));
     }
 
     /**
@@ -75,5 +79,19 @@ public class Namespace {
      */
     public Subspace getBucket() {
         return bucketSubspace;
+    }
+
+    public byte[] getBucketPrefixKey() {
+        return bucketPrefixKey;
+    }
+
+    public Prefix getBucketPrefix() {
+        return bucketPrefix;
+    }
+
+    public synchronized void setBucketPrefix(Prefix bucketPrefix) {
+        if (this.bucketPrefix != null) {
+            this.bucketPrefix = bucketPrefix;
+        }
     }
 }

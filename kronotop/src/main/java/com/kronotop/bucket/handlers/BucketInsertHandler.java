@@ -11,16 +11,22 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
+import com.google.common.hash.HashCode;
 import com.kronotop.CommitHook;
+import com.kronotop.NamespaceUtils;
 import com.kronotop.TransactionUtils;
 import com.kronotop.bucket.BSONUtils;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.directory.Kronotop;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.volume.AppendResult;
@@ -30,6 +36,9 @@ import org.bson.Document;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.UUID;
+
+import static com.google.common.hash.Hashing.sipHash24;
 
 @Command(BucketInsertMessage.COMMAND)
 @MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)
@@ -47,7 +56,6 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
     @Override
     public void execute(Request request, Response response) throws Exception {
         BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
-        Prefix prefix = getBucketSubspace(request, message.getBucket());
 
         ByteBuffer[] entries = new ByteBuffer[message.getDocuments().size()];
         for (int i = 0; i < message.getDocuments().size(); i++) {
@@ -56,9 +64,14 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             entries[i] = ByteBuffer.wrap(BSONUtils.toBytes(document));
         }
 
-        BucketShard shard = service.getShard(1);
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
+
+        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+        Prefix prefix = service.getOrSetBucketPrefix(tr, namespace);
         Session session = new Session(tr, prefix);
+
+        // TODO: Distribute the requests among shards in a round robin fashion.
+        BucketShard shard = service.getShard(1);
         AppendResult appendResult = shard.volume().append(session, entries);
         PostCommitHook postCommitHook = new PostCommitHook(appendResult);
         TransactionUtils.addPostCommitHook(postCommitHook, request.getChannelContext());

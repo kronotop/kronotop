@@ -11,12 +11,8 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.server.ChannelAttributes;
-import com.kronotop.server.Request;
-import com.kronotop.volume.Prefix;
 
 public class BaseBucketHandler {
     protected final BucketService service;
@@ -25,10 +21,5 @@ public class BaseBucketHandler {
     public BaseBucketHandler(BucketService service) {
         this.service = service;
         this.context = service.getContext();
-    }
-
-    protected Prefix getBucketSubspace(Request request, String bucket) {
-        String namespace = request.getChannelContext().channel().attr(ChannelAttributes.CURRENT_NAMESPACE).get();
-        return service.getPrefix(namespace, bucket);
     }
 }
