@@ -18,26 +18,10 @@ package com.kronotop.directory;
 
 import java.util.List;
 
-public class Metadata extends KronotopDirectoryNode {
+public class Prefixes extends KronotopDirectoryNode {
 
-    Metadata(List<String> layout) {
+    public Prefixes(List<String> layout) {
         super(layout);
-        layout.add("metadata");
-    }
-
-    public Shards shards() {
-        return new Shards(layout);
-    }
-
-    public Volumes volumes() {
-        return new Volumes(layout);
-    }
-
-    public Members members() {
-        return new Members(layout);
-    }
-
-    public Prefixes prefixes() {
-        return new Prefixes(layout);
+        layout.add("prefixes");
     }
 }

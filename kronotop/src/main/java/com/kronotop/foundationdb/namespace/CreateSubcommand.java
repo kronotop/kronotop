@@ -40,32 +40,32 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
     public void execute(Request request, Response response) {
         NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
 
-        // Create the namespace by using an isolated, one-off transaction to prevent weird consistency bugs.
+        // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
         Transaction tr = context.getFoundationDB().createTransaction();
-        CompletableFuture<DirectorySubspace> result;
+        CompletableFuture<DirectorySubspace> createFuture;
         List<String> subpath = getNamespaceSubpath(message.getCreateMessage().getSubpath());
         if (message.getCreateMessage().hasLayer() && message.getCreateMessage().hasPrefix()) {
-            result = directoryLayer.create(
+            createFuture = directoryLayer.create(
                     tr,
                     subpath,
                     message.getCreateMessage().getLayer().getBytes(),
                     message.getCreateMessage().getPrefix().getBytes()
             );
         } else if (message.getCreateMessage().hasLayer()) {
-            result = directoryLayer.create(
+            createFuture = directoryLayer.create(
                     tr,
                     subpath,
                     message.getCreateMessage().getLayer().getBytes()
             );
         } else {
-            result = directoryLayer.create(
+            createFuture = directoryLayer.create(
                     tr,
                     subpath
             );
         }
 
         try {
-            result.join();
+            createFuture.join();
             tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof DirectoryAlreadyExistsException) {

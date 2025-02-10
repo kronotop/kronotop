@@ -16,17 +16,15 @@
 
 package com.kronotop.foundationdb.namespace;
 
-import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.Context;
-import com.kronotop.TransactionUtils;
+import com.kronotop.NamespaceUtils;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
-import java.util.List;
 import java.util.concurrent.CompletionException;
 
 class RemoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
@@ -45,11 +43,9 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
             throw new KronotopException("Cannot remove the default namespace: '" + namespace + "'");
         }
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
-        List<String> subpath = getNamespaceSubpath(removeMessage.getSubpath());
+        // Remove namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
         try {
-            directoryLayer.remove(tr, subpath).join();
-            tr.commit().join();
+            NamespaceUtils.remove(context, removeMessage.getSubpath());
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
                 throw new NoSuchNamespaceException(String.join(".", removeMessage.getSubpath()));

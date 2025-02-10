@@ -25,7 +25,7 @@ public class Prefix {
     private final long asLong;
     private final int hashCode;
 
-    Prefix(HashCode hashCode) {
+    public Prefix(HashCode hashCode) {
         this.asBytes = hashCode.asBytes();
         this.asLong = hashCode.asLong();
         this.hashCode = hashCode.asInt();

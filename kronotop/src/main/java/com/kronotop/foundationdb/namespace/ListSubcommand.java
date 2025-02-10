@@ -19,7 +19,6 @@ package com.kronotop.foundationdb.namespace;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.Context;
-import com.kronotop.TransactionUtils;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
@@ -44,7 +43,7 @@ class ListSubcommand extends BaseSubcommand implements SubcommandExecutor {
         NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
         NamespaceMessage.ListMessage listMessage = message.getListMessage();
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
+        Transaction tr = context.getFoundationDB().createTransaction();
         List<String> subpath = getNamespaceSubpath(listMessage.getSubpath());
         CompletableFuture<List<String>> future;
         if (subpath.isEmpty()) {

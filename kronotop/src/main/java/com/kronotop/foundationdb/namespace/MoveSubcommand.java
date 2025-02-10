@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.Context;
-import com.kronotop.TransactionUtils;
 import com.kronotop.common.KronotopException;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
@@ -44,7 +43,8 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
         List<String> oldPath = getNamespaceSubpath(moveMessage.getOldPath());
         List<String> newPath = getNamespaceSubpath(moveMessage.getNewPath());
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(context, request.getChannelContext());
+        // Move namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
+        Transaction tr = context.getFoundationDB().createTransaction();
         try {
             directoryLayer.move(tr, oldPath, newPath).join();
             tr.commit().join();

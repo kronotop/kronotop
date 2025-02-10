@@ -79,17 +79,18 @@ public class NamespaceUtils {
     }
 
     /**
-     * Creates or opens a namespace in the database within the specified cluster.
+     * Creates or opens a namespace in the given context. If the namespace already exists, it is opened;
+     * otherwise, it is created and then opened. The operation is performed using FoundationDB transactions
+     * with a retry mechanism in case of transactional conflicts.
      *
-     * @param database    The Database instance to be used.
-     * @param clusterName The name of the cluster where the namespace resides.
-     * @param name        The name of the namespace to be created or opened.
-     * @return The Namespace object representing the created or opened namespace.
-     * @throws KronotopException If an error occurs during creation or opening.
+     * @param context the Context object representing the Kronotop instance's operational context
+     * @param name    the name of the namespace to create or open
+     * @return the Namespace object that represents the created or opened namespace
+     * @throws KronotopException if an exception occurs during the operation
      */
-    public static Namespace createOrOpen(Database database, String clusterName, String name) {
-        try (Transaction tr = database.createTransaction()) {
-            List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(splitNamespaceHierarchy(name)).toList();
+    public static Namespace createOrOpen(Context context, String name) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(splitNamespaceHierarchy(name)).toList();
             DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
             tr.commit().join();
             return new Namespace(name, subspace);
@@ -98,7 +99,7 @@ public class NamespaceUtils {
                 // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
                 if (ex.getCode() == 1020) {
                     // retry
-                    return createOrOpen(database, clusterName, name);
+                    return createOrOpen(context, name);
                 }
             }
             throw new KronotopException(e);
@@ -145,5 +146,35 @@ public class NamespaceUtils {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return DirectoryLayer.getDefault().exists(tr, subpath).join();
         }
+    }
+
+    /**
+     * Removes a namespace specified by a list of names within the provided context.
+     * This method performs the removal using a transaction and retries in case of
+     * transactional conflicts.
+     *
+     * @param context the Context object representing the context of a Kronotop instance
+     * @param names   the list of strings representing the hierarchical namespace path to be removed
+     */
+    public static void remove(Context context, List<String> names) {
+        List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(names).toList();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectoryLayer.getDefault().remove(tr, subpath).join();
+            tr.commit().join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException ex) {
+                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                if (ex.getCode() == 1020) {
+                    // retry
+                    remove(context, names);
+                    return;
+                }
+            }
+            throw e;
+        }
+    }
+
+    public static void remove(Context context, String name) {
+        remove(context, splitNamespaceHierarchy(name));
     }
 }

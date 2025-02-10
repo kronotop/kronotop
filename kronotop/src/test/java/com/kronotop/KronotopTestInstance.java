@@ -154,7 +154,7 @@ public class KronotopTestInstance extends KronotopInstance {
         }
 
         String namespace = config.getString("default_namespace");
-        NamespaceUtils.createOrOpen(context.getFoundationDB(), context.getClusterName(), namespace);
+        NamespaceUtils.createOrOpen(context, namespace);
     }
 
     private void authenticateIfRequired() {
