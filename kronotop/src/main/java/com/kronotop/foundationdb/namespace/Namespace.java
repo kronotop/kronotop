@@ -45,7 +45,7 @@ public class Namespace {
     private final Subspace bucketPrefixesSubspace;
     private final Subspace bucketIndexSubspace;
     private final Map<String, Prefix> prefixes = new HashMap<>();
-    private final Map<Prefix, Subspace> indexes = new HashMap<>();
+    private final Map<Integer, Map<Prefix, Subspace>> indexes = new HashMap<>();
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -125,24 +125,50 @@ public class Namespace {
         try {
             Prefix prefix = prefixes.remove(bucket);
             if (prefix != null) {
-                indexes.remove(prefix);
+                indexes.values().forEach((index) -> {
+                    index.remove(prefix);
+                });
             }
         } finally {
             lock.writeLock().unlock();
         }
     }
 
+    private Subspace getBucketIndexSubspaceIfExists(int shardId, Prefix prefix) {
+        Map<Prefix, Subspace> index = indexes.get(shardId);
+        if (index == null) {
+            return null;
+        }
+        return index.get(prefix);
+    }
+
+    private Subspace createBucketIndexSubspace(int shardId, Prefix prefix) {
+        Subspace subspace = bucketIndexSubspace.subspace(Tuple.from(shardId, prefix.asLong()));
+        indexes.compute(shardId, (id, index) -> {
+            if (index == null) {
+                index = new HashMap<>();
+            }
+            index.put(prefix, subspace);
+            return index;
+        });
+        return subspace;
+    }
+
     /**
-     * Retrieves the subspace associated with the given prefix from the bucket index subspace.
-     * If the subspace for the specified prefix does not already exist, it is created and added to the cache.
+     * Retrieves the bucket index subspace for the specified shard and prefix.
+     * If the subspace does not exist, it creates and initializes a new one.
+     * <p>
+     * This method employs a read-write locking mechanism to ensure thread-safe access and
+     * modification of the subspace map.
      *
-     * @param prefix the {@code Prefix} object for which the bucket index subspace is to be retrieved
-     * @return the {@code Subspace} associated with the given prefix
+     * @param shardId the identifier of the shard for which the bucket index subspace is being retrieved
+     * @param prefix the Prefix object representing the key space subset in the shard
+     * @return the Subspace object corresponding to the bucket index for the given shard and prefix
      */
-    public Subspace getBucketIndexSubspace(Prefix prefix) {
+    public Subspace getBucketIndexSubspace(int shardId, Prefix prefix) {
         lock.readLock().lock();
         try {
-            Subspace subspace = indexes.get(prefix);
+            Subspace subspace = getBucketIndexSubspaceIfExists(shardId, prefix);
             if (subspace != null) {
                 return subspace;
             }
@@ -152,13 +178,12 @@ public class Namespace {
 
         lock.writeLock().lock();
         try {
-            Subspace subspace = indexes.get(prefix);
+            // Check to read it from cache last time under the write lock.
+            Subspace subspace = getBucketIndexSubspaceIfExists(shardId, prefix);
             if (subspace != null) {
                 return subspace;
             }
-            subspace = bucketIndexSubspace.subspace(Tuple.from(prefix.asLong()));
-            indexes.put(prefix, subspace);
-            return subspace;
+            return createBucketIndexSubspace(shardId, prefix);
         } finally {
             lock.writeLock().unlock();
         }

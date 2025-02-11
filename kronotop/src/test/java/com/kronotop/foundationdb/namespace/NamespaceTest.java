@@ -40,7 +40,7 @@ class NamespaceTest extends BaseClusterTest {
 
         assertDoesNotThrow(() -> namespace.setBucketPrefix(bucket, prefix));
         assertEquals(prefix, namespace.getBucketPrefix(bucket));
-        assertNotNull(namespace.getBucketIndexSubspace(prefix));
+        assertNotNull(namespace.getBucketIndexSubspace(1, prefix));
         assertNotNull(namespace.getBucketPrefixesSubspace());
     }
 
