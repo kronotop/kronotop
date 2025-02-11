@@ -159,13 +159,13 @@ public class ReplicationMetadata {
     }
 
     /**
-     * Converts a Versionstamp object into its Base64 string representation.
+     * Converts a Versionstamp object to its Base32Hex encoded string representation.
      *
      * @param slotId the Versionstamp object to encode.
-     * @return the Base64 encoded string representation of the Versionstamp object.
+     * @return the Base32Hex encoded string representation of the Versionstamp.
      */
     public static String stringifySlotId(Versionstamp slotId) {
-        return VersionstampUtils.base64Encode(slotId);
+        return VersionstampUtils.base32HexEncode(slotId);
     }
 
     /**

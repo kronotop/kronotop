@@ -20,8 +20,13 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.io.BaseEncoding;
 
 /**
- * The VersionstampUtils class provides utility methods for encoding and decoding FoundationDB
- * Versionstamp objects using Base64 and Base32Hex encoding formats.
+ * The VersionstampUtils class provides utility methods for encoding and decoding
+ * Versionstamp objects to and from a Base32Hex encoded format. This class utilizes
+ * a custom padding character for Base32Hex encoding.
+ * <p>
+ * The "base32hex" encoding specified by <a
+ * href="http://tools.ietf.org/html/rfc4648#section-7">RFC 4648 section 7</a>, Base 32 Encoding
+ * with Extended Hex Alphabet. There is no corresponding encoding in RFC 3548.
  */
 public class VersionstampUtils {
     /**
@@ -29,26 +34,6 @@ public class VersionstampUtils {
      * Used for encoding and decoding Versionstamp objects in a Base32Hex format.
      */
     private static final BaseEncoding BASE32_HEX = BaseEncoding.base32Hex().withPadChar('x');
-
-    /**
-     * Encodes a Versionstamp object using Base64 encoding.
-     *
-     * @param versionstamp The Versionstamp object to encode.
-     * @return The Base64 encoded string representation of the Versionstamp object.
-     */
-    public static String base64Encode(Versionstamp versionstamp) {
-        return BaseEncoding.base64().encode(versionstamp.getBytes());
-    }
-
-    /**
-     * Decodes a Base64 encoded Versionstamp string and returns the corresponding Versionstamp object.
-     *
-     * @param versionstamp The Base64 encoded Versionstamp string to decode.
-     * @return The decoded Versionstamp object.
-     */
-    public static Versionstamp base64Decode(String versionstamp) {
-        return Versionstamp.fromBytes(BaseEncoding.base64().decode(versionstamp));
-    }
 
     /**
      * Encodes a Versionstamp object into a Base32Hex encoded string.

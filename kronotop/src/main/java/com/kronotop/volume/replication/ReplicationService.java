@@ -72,7 +72,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     ReplicationSlot slot = ReplicationSlot.load(tr, replicationConfig, slotId);
                     if (slot.isStale()) {
-                        LOGGER.warn("Replication slot: {} is stale for ShardKind: {} ShardId: {}", VersionstampUtils.base64Encode(slotId), shardKind, shardId);
+                        LOGGER.warn("Replication slot: {} is stale for ShardKind: {} ShardId: {}", VersionstampUtils.base32HexEncode(slotId), shardKind, shardId);
                         continue;
                     }
                 }

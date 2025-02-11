@@ -243,7 +243,7 @@ public class BaseKrAdminSubcommandHandler {
     protected void memberToRedisMessage(Member member, Map<RedisMessage, RedisMessage> current) {
         current.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(member.getStatus().toString()));
 
-        String processId = VersionstampUtils.base64Encode(member.getProcessId());
+        String processId = VersionstampUtils.base32HexEncode(member.getProcessId());
         current.put(new SimpleStringRedisMessage("process_id"), new SimpleStringRedisMessage(processId));
 
         current.put(new SimpleStringRedisMessage("external_host"), new SimpleStringRedisMessage(member.getExternalAddress().getHost()));

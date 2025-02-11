@@ -63,7 +63,7 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
 
         Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
         LOGGER.info("Created replication slot with SlotID: {} for ShardKind: {}, ShardId: {}",
-                VersionstampUtils.base64Encode(slotId),
+                VersionstampUtils.base32HexEncode(slotId),
                 shardKind,
                 shardId
         );
@@ -73,7 +73,7 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
         try {
             replication.start();
             LOGGER.info("Replication started with SlotID: {} for ShardKind: {}, ShardId: {}",
-                    VersionstampUtils.base64Encode(slotId),
+                    VersionstampUtils.base32HexEncode(slotId),
                     shardKind,
                     shardId
             );

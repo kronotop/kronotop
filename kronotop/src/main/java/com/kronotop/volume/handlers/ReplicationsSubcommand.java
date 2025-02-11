@@ -101,7 +101,7 @@ public class ReplicationsSubcommand extends BaseHandler implements SubcommandHan
 
         String receivedVersionstampedKey = "";
         if (slot.getReceivedVersionstampedKey() != null) {
-            receivedVersionstampedKey = VersionstampUtils.base64Encode(
+            receivedVersionstampedKey = VersionstampUtils.base32HexEncode(
                     Versionstamp.fromBytes(slot.getReceivedVersionstampedKey())
             );
         }
@@ -115,7 +115,7 @@ public class ReplicationsSubcommand extends BaseHandler implements SubcommandHan
         Versionstamp latestVersionstampedKey = ReplicationMetadata.findLatestVersionstampedKey(context, volumeSubspace);
         String latestVersionstampedKeyStr = "";
         if (latestVersionstampedKey != null) {
-            latestVersionstampedKeyStr = VersionstampUtils.base64Encode(latestVersionstampedKey);
+            latestVersionstampedKeyStr = VersionstampUtils.base32HexEncode(latestVersionstampedKey);
         }
         current.put(
                 new SimpleStringRedisMessage("latest_versionstamped_key"),
@@ -147,7 +147,7 @@ public class ReplicationsSubcommand extends BaseHandler implements SubcommandHan
                 ReplicationSlot slot = JSONUtils.readValue(keyValue.getValue(), ReplicationSlot.class);
                 Map<RedisMessage, RedisMessage> current = replicationSlotToMap(shardKind, shardId, slot);
                 result.put(
-                        new SimpleStringRedisMessage(VersionstampUtils.base64Encode(slotId)),
+                        new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(slotId)),
                         new MapRedisMessage(current)
                 );
             }

@@ -90,7 +90,7 @@ class CommitHandler extends BaseHandler implements Handler {
                     case VERSIONSTAMP -> {
                         assert versionstamp != null;
                         byte[] versionBytes = versionstamp.join();
-                        String encoded = VersionstampUtils.base64Encode(Versionstamp.complete(versionBytes));
+                        String encoded = VersionstampUtils.base32HexEncode(Versionstamp.complete(versionBytes));
                         ByteBuf buf = response.getChannelContext().alloc().buffer();
                         buf.writeBytes(encoded.getBytes());
                         children.add(new FullBulkStringRedisMessage(buf));
@@ -104,7 +104,7 @@ class CommitHandler extends BaseHandler implements Handler {
                             for (Integer userVersion : asyncReturning) {
                                 Versionstamp completed = Versionstamp.complete(versionBytes, userVersion);
                                 ByteBuf buf = request.getChannelContext().alloc().buffer();
-                                buf.writeBytes(VersionstampUtils.base64Encode(completed).getBytes());
+                                buf.writeBytes(VersionstampUtils.base32HexEncode(completed).getBytes());
                                 futures.put(new SimpleStringRedisMessage(String.format("$%d", userVersion)), new FullBulkStringRedisMessage(buf));
                             }
                         }

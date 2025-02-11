@@ -113,7 +113,7 @@ public class Member {
                 id,
                 externalAddress,
                 internalAddress,
-                VersionstampUtils.base64Encode(processId),
+                VersionstampUtils.base32HexEncode(processId),
                 status
         );
     }

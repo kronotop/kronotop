@@ -123,7 +123,7 @@ public final class RedisShardLoader {
                     default:
                         LOGGER.error(
                                 "Invalid data structure magic, Versionstamped key = {}",
-                                VersionstampUtils.base64Encode(entry.key())
+                                VersionstampUtils.base32HexEncode(entry.key())
                         );
                 }
             } catch (IOException e) {

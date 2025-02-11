@@ -75,7 +75,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
                 if (key.content().equals("process_id")) {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) valueMessage;
-                    assertEquals(VersionstampUtils.base64Decode(value.content()), context.getMember().getProcessId());
+                    assertEquals(VersionstampUtils.base32HexDecode(value.content()), context.getMember().getProcessId());
                 }
 
                 if (key.content().equals("external_host")) {
@@ -132,7 +132,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
             if (key.content().equals("process_id")) {
                 SimpleStringRedisMessage value = (SimpleStringRedisMessage) valueMessage;
-                assertEquals(VersionstampUtils.base64Decode(value.content()), context.getMember().getProcessId());
+                assertEquals(VersionstampUtils.base32HexDecode(value.content()), context.getMember().getProcessId());
             }
 
             if (key.content().equals("external_host")) {
@@ -183,7 +183,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
             if (key.content().equals("process_id")) {
                 SimpleStringRedisMessage value = (SimpleStringRedisMessage) valueMessage;
-                assertEquals(VersionstampUtils.base64Decode(value.content()), context.getMember().getProcessId());
+                assertEquals(VersionstampUtils.base32HexDecode(value.content()), context.getMember().getProcessId());
             }
 
             if (key.content().equals("external_host")) {
