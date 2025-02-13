@@ -23,6 +23,7 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.session.SessionAttributes;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import io.netty.util.Attribute;
@@ -49,7 +50,7 @@ public class AuthHandler implements Handler {
         Attribute<Boolean> authAttr = response.
                 getChannelContext().
                 channel().
-                attr(ChannelAttributes.AUTH);
+                attr(SessionAttributes.AUTH);
         authAttr.set(true);
     }
 

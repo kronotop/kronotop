@@ -17,7 +17,7 @@
 package com.kronotop;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.server.ChannelAttributes;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
@@ -40,15 +40,15 @@ public class TransactionUtils {
      */
     public static Transaction getOrCreateTransaction(Context context, ChannelHandlerContext channelContext) {
         Channel channel = channelContext.channel();
-        Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
+        Attribute<Transaction> transactionAttr = channel.attr(SessionAttributes.TRANSACTION);
+        Attribute<Boolean> beginAttr = channel.attr(SessionAttributes.BEGIN);
 
         if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
             Transaction tr = context.getFoundationDB().createTransaction();
             transactionAttr.set(tr);
-            channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
-            channel.attr(ChannelAttributes.AUTO_COMMIT).set(true);
-            channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
+            channel.attr(SessionAttributes.TRANSACTION_USER_VERSION).set(0);
+            channel.attr(SessionAttributes.AUTO_COMMIT).set(true);
+            channel.attr(SessionAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
             NamespaceUtils.clearOpenNamespaces(channelContext);
             return tr;
         }
@@ -63,7 +63,7 @@ public class TransactionUtils {
      * @param channelContext the channel context to which the hook will be added
      */
     public static void addPostCommitHook(CommitHook hook, ChannelHandlerContext channelContext) {
-        channelContext.channel().attr(ChannelAttributes.POST_COMMIT_HOOKS).get().add(hook);
+        channelContext.channel().attr(SessionAttributes.POST_COMMIT_HOOKS).get().add(hook);
     }
 
     /**
@@ -87,7 +87,7 @@ public class TransactionUtils {
      * @return the value of the "auto_commit" attribute, or false if it is null
      */
     public static Boolean getAutoCommit(ChannelHandlerContext channelContext) {
-        Attribute<Boolean> autoCommitAttr = channelContext.channel().attr(ChannelAttributes.AUTO_COMMIT);
+        Attribute<Boolean> autoCommitAttr = channelContext.channel().attr(SessionAttributes.AUTO_COMMIT);
         if (autoCommitAttr.get() == null) {
             return false;
         }
@@ -101,7 +101,7 @@ public class TransactionUtils {
      * @return true if the channel context represents a snapshot read, false otherwise
      */
     public static Boolean isSnapshotRead(ChannelHandlerContext channelContext) {
-        Attribute<Boolean> snapshotReadAttr = channelContext.channel().attr(ChannelAttributes.SNAPSHOT_READ);
+        Attribute<Boolean> snapshotReadAttr = channelContext.channel().attr(SessionAttributes.SNAPSHOT_READ);
         return snapshotReadAttr.get() != null && !Boolean.FALSE.equals(snapshotReadAttr.get());
     }
 
@@ -111,7 +111,7 @@ public class TransactionUtils {
      * @param channelContext the channel context representing the transaction
      */
     public static void runPostCommitHooks(ChannelHandlerContext channelContext) {
-        List<CommitHook> commitHooks = channelContext.channel().attr(ChannelAttributes.POST_COMMIT_HOOKS).get();
+        List<CommitHook> commitHooks = channelContext.channel().attr(SessionAttributes.POST_COMMIT_HOOKS).get();
         for (CommitHook commitHook : commitHooks) {
             try {
                 commitHook.run();
@@ -128,7 +128,7 @@ public class TransactionUtils {
      * @return the current value of the user version counter before it is incremented.
      */
     public static int getUserVersion(ChannelHandlerContext channelContext) {
-        AtomicInteger counter = channelContext.channel().attr(ChannelAttributes.USER_VERSION_COUNTER).get();
+        AtomicInteger counter = channelContext.channel().attr(SessionAttributes.USER_VERSION_COUNTER).get();
         return counter.getAndIncrement();
     }
 
@@ -144,21 +144,21 @@ public class TransactionUtils {
 
         // Close the Transaction object and release any associated resources.
         // This must be called at least once after the Transaction object is no longer in use.
-        Transaction tr = channel.attr(ChannelAttributes.TRANSACTION).get();
+        Transaction tr = channel.attr(SessionAttributes.TRANSACTION).get();
         if (tr != null) {
             try {
                 tr.close();
             } catch (Exception e) {
                 LOGGER.error("Error while closing transaction", e);
             } finally {
-                channel.attr(ChannelAttributes.TRANSACTION).set(null);
+                channel.attr(SessionAttributes.TRANSACTION).set(null);
             }
         }
 
-        channel.attr(ChannelAttributes.BEGIN).set(false);
-        channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
-        channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
-        channel.attr(ChannelAttributes.ASYNC_RETURNING).set(new LinkedList<>());
-        channel.attr(ChannelAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
+        channel.attr(SessionAttributes.BEGIN).set(false);
+        channel.attr(SessionAttributes.TRANSACTION_USER_VERSION).set(0);
+        channel.attr(SessionAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
+        channel.attr(SessionAttributes.ASYNC_RETURNING).set(new LinkedList<>());
+        channel.attr(SessionAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
     }
 }

@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.server;
+package com.kronotop.session;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.CommitHook;
 import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.server.Request;
 import io.netty.util.AttributeKey;
 
 import java.util.HashMap;
@@ -31,7 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * The ChannelAttributes class defines static final AttributeKey objects to be used as attribute keys in the ChannelHandlerContext.
  * These attributes represent different properties or values associated with a channel.
  */
-public class ChannelAttributes {
+public class SessionAttributes {
     public static final AttributeKey<Boolean> AUTH = AttributeKey.valueOf("auth");
 
     public static final AttributeKey<Boolean> BEGIN = AttributeKey.valueOf("begin");

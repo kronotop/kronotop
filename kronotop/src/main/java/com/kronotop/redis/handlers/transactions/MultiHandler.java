@@ -22,6 +22,7 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
@@ -43,7 +44,7 @@ public class MultiHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> redisTransaction = channel.attr(ChannelAttributes.REDIS_MULTI);
+        Attribute<Boolean> redisTransaction = channel.attr(SessionAttributes.REDIS_MULTI);
         redisTransaction.set(true);
         response.writeOK();
     }

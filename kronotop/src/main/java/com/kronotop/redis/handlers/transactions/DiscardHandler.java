@@ -22,6 +22,7 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 
@@ -43,7 +44,7 @@ public class DiscardHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         ChannelHandlerContext ctx = response.getChannelContext();
-        Attribute<Boolean> redisMulti = ctx.channel().attr(ChannelAttributes.REDIS_MULTI);
+        Attribute<Boolean> redisMulti = ctx.channel().attr(SessionAttributes.REDIS_MULTI);
         if (!Boolean.TRUE.equals(redisMulti.get())) {
             response.writeError("DISCARD without MULTI");
             return;

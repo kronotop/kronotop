@@ -29,6 +29,7 @@ import com.kronotop.server.impl.RespRequest;
 import com.kronotop.server.impl.RespResponse;
 import com.kronotop.server.impl.TransactionResponse;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.session.SessionAttributes;
 import com.kronotop.watcher.Watcher;
 import com.typesafe.config.Config;
 import io.netty.buffer.ByteBuf;
@@ -109,27 +110,27 @@ public class Router extends ChannelDuplexHandler {
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        ctx.channel().attr(ChannelAttributes.OPEN_NAMESPACES).set(new HashMap<>());
-        ctx.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).set(defaultNamespace);
-        ctx.channel().attr(ChannelAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
-        ctx.channel().attr(ChannelAttributes.READONLY).set(false);
-        ctx.channel().attr(ChannelAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
-        ctx.channel().attr(ChannelAttributes.ASYNC_RETURNING).set(new LinkedList<>());
-        ctx.channel().attr(ChannelAttributes.FUTURES).set(true); // TODO: Read it from config
+        ctx.channel().attr(SessionAttributes.OPEN_NAMESPACES).set(new HashMap<>());
+        ctx.channel().attr(SessionAttributes.CURRENT_NAMESPACE).set(defaultNamespace);
+        ctx.channel().attr(SessionAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
+        ctx.channel().attr(SessionAttributes.READONLY).set(false);
+        ctx.channel().attr(SessionAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
+        ctx.channel().attr(SessionAttributes.ASYNC_RETURNING).set(new LinkedList<>());
+        ctx.channel().attr(SessionAttributes.FUTURES).set(true); // TODO: Read it from config
 
-        Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
+        Attribute<Boolean> autoCommitAttr = ctx.channel().attr(SessionAttributes.AUTO_COMMIT);
         autoCommitAttr.set(false);
 
-        Attribute<List<Request>> queuedCommands = ctx.channel().attr(ChannelAttributes.QUEUED_COMMANDS);
+        Attribute<List<Request>> queuedCommands = ctx.channel().attr(SessionAttributes.QUEUED_COMMANDS);
         queuedCommands.set(new ArrayList<>());
 
-        Attribute<Boolean> redisMulti = ctx.channel().attr(ChannelAttributes.REDIS_MULTI);
+        Attribute<Boolean> redisMulti = ctx.channel().attr(SessionAttributes.REDIS_MULTI);
         redisMulti.set(false);
 
-        Attribute<Boolean> redisMultiDiscarded = ctx.channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED);
+        Attribute<Boolean> redisMultiDiscarded = ctx.channel().attr(SessionAttributes.REDIS_MULTI_DISCARDED);
         redisMultiDiscarded.set(false);
 
-        Attribute<Long> clientID = ctx.channel().attr(ChannelAttributes.CLIENT_ID);
+        Attribute<Long> clientID = ctx.channel().attr(SessionAttributes.CLIENT_ID);
         clientID.set(ClientIDGenerator.getAndIncrement());
 
         super.channelRegistered(ctx);
@@ -139,9 +140,9 @@ public class Router extends ChannelDuplexHandler {
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
         watcher.cleanupChannelHandlerContext(ctx);
 
-        Attribute<Boolean> beginAttr = ctx.channel().attr(ChannelAttributes.BEGIN);
+        Attribute<Boolean> beginAttr = ctx.channel().attr(SessionAttributes.BEGIN);
         if (Boolean.TRUE.equals(beginAttr.get())) {
-            Attribute<Transaction> transactionAttr = ctx.channel().attr(ChannelAttributes.TRANSACTION);
+            Attribute<Transaction> transactionAttr = ctx.channel().attr(SessionAttributes.TRANSACTION);
             Transaction tx = transactionAttr.get();
             tx.close();
             LOGGER.debug("An incomplete transaction has been closed.");
@@ -153,10 +154,10 @@ public class Router extends ChannelDuplexHandler {
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
         Channel channel = ctx.channel();
-        Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
+        Attribute<Boolean> autoCommitAttr = ctx.channel().attr(SessionAttributes.AUTO_COMMIT);
         if (autoCommitAttr.get() != null && !Boolean.FALSE.equals(autoCommitAttr.get())) {
             // TODO: SESSION-REFACTOR, these things should be managed by the session implementation
-            Attribute<Transaction> tr = channel.attr(ChannelAttributes.TRANSACTION);
+            Attribute<Transaction> tr = channel.attr(SessionAttributes.TRANSACTION);
             if (tr.get() != null) {
                 tr.get().close();
             }
@@ -228,7 +229,7 @@ public class Router extends ChannelDuplexHandler {
     private void executeCommand(Handler handler, Request request, Response response) {
         try {
             if (authEnabled) {
-                Attribute<Boolean> authAttr = response.getChannelContext().channel().attr(ChannelAttributes.AUTH);
+                Attribute<Boolean> authAttr = response.getChannelContext().channel().attr(SessionAttributes.AUTH);
                 if (Boolean.TRUE.equals(authAttr.get())) {
                     // Already authenticated
                     execute(handler, request, response);
@@ -255,12 +256,12 @@ public class Router extends ChannelDuplexHandler {
         TransactionResponse transactionResponse = new TransactionResponse(ctx);
         redisTransactionLock.writeLock().lock();
         try {
-            Attribute<Boolean> redisMultiDiscarded = ctx.channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED);
+            Attribute<Boolean> redisMultiDiscarded = ctx.channel().attr(SessionAttributes.REDIS_MULTI_DISCARDED);
             if (redisMultiDiscarded.get()) {
                 throw new ExecAbortException();
             }
 
-            HashMap<String, Long> watchedKeys = ctx.channel().attr(ChannelAttributes.WATCHED_KEYS).get();
+            HashMap<String, Long> watchedKeys = ctx.channel().attr(SessionAttributes.WATCHED_KEYS).get();
             if (watchedKeys != null) {
                 for (String key : watchedKeys.keySet()) {
                     Long version = watchedKeys.get(key);
@@ -274,7 +275,7 @@ public class Router extends ChannelDuplexHandler {
                 }
             }
 
-            Attribute<List<Request>> queuedCommands = ctx.channel().attr(ChannelAttributes.QUEUED_COMMANDS);
+            Attribute<List<Request>> queuedCommands = ctx.channel().attr(SessionAttributes.QUEUED_COMMANDS);
             for (Request request : queuedCommands.get()) {
                 Handler handler = commands.get(request.getCommand());
                 executeCommand(handler, request, transactionResponse);
@@ -298,13 +299,13 @@ public class Router extends ChannelDuplexHandler {
                 Handler handler = commands.get(request.getCommand());
                 beforeExecute(handler, request);
             } catch (Exception e) {
-                Attribute<Boolean> redisMultiDiscarded = response.getChannelContext().channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED);
+                Attribute<Boolean> redisMultiDiscarded = response.getChannelContext().channel().attr(SessionAttributes.REDIS_MULTI_DISCARDED);
                 redisMultiDiscarded.set(true);
                 exceptionToRespError(request, response, e);
                 return;
             }
 
-            Attribute<List<Request>> queuedCommands = response.getChannelContext().channel().attr(ChannelAttributes.QUEUED_COMMANDS);
+            Attribute<List<Request>> queuedCommands = response.getChannelContext().channel().attr(SessionAttributes.QUEUED_COMMANDS);
             queuedCommands.get().add(request);
             response.writeQUEUED();
             response.flush();
@@ -334,7 +335,7 @@ public class Router extends ChannelDuplexHandler {
         }
 
         String command = request.getCommand();
-        Attribute<Boolean> redisMulti = ctx.channel().attr(ChannelAttributes.REDIS_MULTI);
+        Attribute<Boolean> redisMulti = ctx.channel().attr(SessionAttributes.REDIS_MULTI);
         if (Boolean.TRUE.equals(redisMulti.get())) {
             switch (command) {
                 case MULTI_COMMAND:

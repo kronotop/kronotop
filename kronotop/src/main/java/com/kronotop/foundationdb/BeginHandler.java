@@ -23,6 +23,7 @@ import com.kronotop.foundationdb.protocol.BeginMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
@@ -44,16 +45,16 @@ class BeginHandler extends BaseHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         Channel channel = request.getChannelContext().channel();
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
+        Attribute<Boolean> beginAttr = channel.attr(SessionAttributes.BEGIN);
         if (Boolean.TRUE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is already a transaction in progress.");
             return;
         }
 
         Transaction tr = service.getContext().getFoundationDB().createTransaction();
-        channel.attr(ChannelAttributes.TRANSACTION).set(tr);
-        channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
-        channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
+        channel.attr(SessionAttributes.TRANSACTION).set(tr);
+        channel.attr(SessionAttributes.TRANSACTION_USER_VERSION).set(0);
+        channel.attr(SessionAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
         beginAttr.set(true);
         NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
 

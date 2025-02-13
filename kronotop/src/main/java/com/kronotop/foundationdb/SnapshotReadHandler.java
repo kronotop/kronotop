@@ -21,6 +21,7 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
@@ -42,7 +43,7 @@ class SnapshotReadHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         SnapshotReadMessage message = request.attr(MessageTypes.SNAPSHOTREAD).get();
         Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> snapshotReadAttr = channel.attr(ChannelAttributes.SNAPSHOT_READ);
+        Attribute<Boolean> snapshotReadAttr = channel.attr(SessionAttributes.SNAPSHOT_READ);
         if (message.getOption().equals(SnapshotReadMessage.ON_KEYWORD)) {
             snapshotReadAttr.set(true);
         } else {

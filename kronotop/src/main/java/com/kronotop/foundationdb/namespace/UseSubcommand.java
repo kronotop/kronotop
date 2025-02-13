@@ -19,7 +19,7 @@ package com.kronotop.foundationdb.namespace;
 import com.kronotop.Context;
 import com.kronotop.NamespaceUtils;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
-import com.kronotop.server.ChannelAttributes;
+import com.kronotop.session.SessionAttributes;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -40,7 +40,7 @@ class UseSubcommand extends BaseSubcommand implements SubcommandExecutor {
             throw new NoSuchNamespaceException(namespace);
         }
 
-        response.getChannelContext().channel().attr(ChannelAttributes.CURRENT_NAMESPACE).set(namespace);
+        response.getChannelContext().channel().attr(SessionAttributes.CURRENT_NAMESPACE).set(namespace);
         response.writeOK();
     }
 }

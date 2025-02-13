@@ -18,7 +18,6 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.TransactionUtils;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.common.resp.RESPError;
@@ -27,13 +26,13 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.resp3.*;
+import com.kronotop.session.SessionAttributes;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Command(CommitMessage.COMMAND)
 @MaximumParameterCount(CommitMessage.MAXIMUM_PARAMETER_COUNT)
@@ -54,13 +53,13 @@ class CommitHandler extends BaseHandler implements Handler {
         CommitMessage message = request.attr(MessageTypes.COMMIT).get();
 
         Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
+        Attribute<Boolean> beginAttr = channel.attr(SessionAttributes.BEGIN);
         if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
             return;
         }
 
-        Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
+        Attribute<Transaction> transactionAttr = channel.attr(SessionAttributes.TRANSACTION);
         try (Transaction tr = transactionAttr.get()) {
             CompletableFuture<byte[]> versionstamp;
             if (message.getReturning().contains(CommitMessage.Parameter.VERSIONSTAMP)) {
@@ -101,7 +100,7 @@ class CommitHandler extends BaseHandler implements Handler {
                         assert versionstamp != null;
                         byte[] versionBytes = versionstamp.join();
                         Map<RedisMessage, RedisMessage> futures = new HashMap<>();
-                        List<Integer> asyncReturning = request.getChannelContext().channel().attr(ChannelAttributes.ASYNC_RETURNING).get();
+                        List<Integer> asyncReturning = request.getChannelContext().channel().attr(SessionAttributes.ASYNC_RETURNING).get();
                         if (asyncReturning != null) {
                             for (Integer userVersion : asyncReturning) {
                                 Versionstamp completed = Versionstamp.complete(versionBytes, userVersion);

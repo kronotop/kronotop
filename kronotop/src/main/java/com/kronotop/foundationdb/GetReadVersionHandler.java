@@ -23,10 +23,9 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
-
-import java.math.BigInteger;
 
 @Command(GetReadVersionMessage.COMMAND)
 @MaximumParameterCount(GetReadVersionMessage.MAXIMUM_PARAMETER_COUNT)
@@ -44,13 +43,13 @@ class GetReadVersionHandler extends BaseHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
+        Attribute<Boolean> beginAttr = channel.attr(SessionAttributes.BEGIN);
         if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
             return;
         }
 
-        Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
+        Attribute<Transaction> transactionAttr = channel.attr(SessionAttributes.TRANSACTION);
         Transaction tr = transactionAttr.get();
         Long readVersion = tr.getReadVersion().join();
         response.writeRedisMessage(new SimpleStringRedisMessage(readVersion.toString()));

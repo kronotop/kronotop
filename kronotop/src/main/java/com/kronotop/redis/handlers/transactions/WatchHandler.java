@@ -21,6 +21,7 @@ import com.kronotop.redis.handlers.transactions.protocol.WatchMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
@@ -49,7 +50,7 @@ public class WatchHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         Channel channel = response.getChannelContext().channel();
-        Attribute<HashMap<String, Long>> watchedKeysAttr = channel.attr(ChannelAttributes.WATCHED_KEYS);
+        Attribute<HashMap<String, Long>> watchedKeysAttr = channel.attr(SessionAttributes.WATCHED_KEYS);
         HashMap<String, Long> watchedKeys = watchedKeysAttr.get();
         if (watchedKeys == null) {
             watchedKeys = new HashMap<>();

@@ -43,6 +43,7 @@ import com.kronotop.redis.server.FlushDBHandler;
 import com.kronotop.redis.storage.*;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.server.*;
+import com.kronotop.session.SessionAttributes;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.VolumeSession;
 import com.kronotop.watcher.Watcher;
@@ -324,9 +325,9 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      */
     public void cleanupRedisTransaction(ChannelHandlerContext ctx) {
         watcher.cleanupChannelHandlerContext(ctx);
-        ctx.channel().attr(ChannelAttributes.REDIS_MULTI).set(false);
-        ctx.channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED).set(false);
-        Attribute<List<Request>> queuedCommands = ctx.channel().attr(ChannelAttributes.QUEUED_COMMANDS);
+        ctx.channel().attr(SessionAttributes.REDIS_MULTI).set(false);
+        ctx.channel().attr(SessionAttributes.REDIS_MULTI_DISCARDED).set(false);
+        Attribute<List<Request>> queuedCommands = ctx.channel().attr(SessionAttributes.QUEUED_COMMANDS);
         for (Request cmd : queuedCommands.get()) {
             ReferenceCountUtil.release(cmd.getRedisMessage());
         }

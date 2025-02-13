@@ -22,6 +22,7 @@ import com.kronotop.foundationdb.protocol.GetApproximateSizeMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
@@ -43,13 +44,13 @@ class GetApproximateSizeHandler extends BaseHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
+        Attribute<Boolean> beginAttr = channel.attr(SessionAttributes.BEGIN);
         if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
             return;
         }
 
-        Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
+        Attribute<Transaction> transactionAttr = channel.attr(SessionAttributes.TRANSACTION);
         Transaction tr = transactionAttr.get();
         CompletableFuture<Long> future = tr.getApproximateSize();
         Long size = future.join();

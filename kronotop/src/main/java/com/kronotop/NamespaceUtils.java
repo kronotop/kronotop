@@ -16,7 +16,6 @@
 
 package com.kronotop;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
@@ -26,7 +25,7 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.namespace.NoSuchNamespaceException;
-import com.kronotop.server.ChannelAttributes;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.ChannelHandlerContext;
 
 import javax.annotation.Nonnull;
@@ -46,7 +45,7 @@ public class NamespaceUtils {
      * @param channelContext the ChannelHandlerContext object representing the channel context
      */
     public static void clearOpenNamespaces(ChannelHandlerContext channelContext) {
-        Map<String, Namespace> namespaces = channelContext.channel().attr(ChannelAttributes.OPEN_NAMESPACES).get();
+        Map<String, Namespace> namespaces = channelContext.channel().attr(SessionAttributes.OPEN_NAMESPACES).get();
         namespaces.clear();
     }
 
@@ -118,12 +117,12 @@ public class NamespaceUtils {
      * @throws KronotopException        if an exception occurs while opening the namespace
      */
     public static Namespace open(Context context, ChannelHandlerContext channelContext, Transaction tr) {
-        String name = channelContext.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).get();
+        String name = channelContext.channel().attr(SessionAttributes.CURRENT_NAMESPACE).get();
         if (name == null) {
             throw new IllegalArgumentException("namespace not specified");
         }
 
-        Map<String, Namespace> namespaces = channelContext.channel().attr(ChannelAttributes.OPEN_NAMESPACES).get();
+        Map<String, Namespace> namespaces = channelContext.channel().attr(SessionAttributes.OPEN_NAMESPACES).get();
         Namespace namespace = namespaces.get(name);
         if (namespace != null) {
             return namespace;

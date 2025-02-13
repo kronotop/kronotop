@@ -23,6 +23,7 @@ import com.kronotop.foundationdb.protocol.RollbackMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
@@ -45,21 +46,21 @@ class RollbackHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         Channel channel = response.getChannelContext().channel();
 
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
+        Attribute<Boolean> beginAttr = channel.attr(SessionAttributes.BEGIN);
         if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
             return;
         }
 
-        Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
+        Attribute<Transaction> transactionAttr = channel.attr(SessionAttributes.TRANSACTION);
         Transaction tr = transactionAttr.get();
         try {
             tr.cancel();
         } finally {
             beginAttr.set(false);
             transactionAttr.set(null);
-            channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
-            channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
+            channel.attr(SessionAttributes.TRANSACTION_USER_VERSION).set(0);
+            channel.attr(SessionAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
             NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
         }
 

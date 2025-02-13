@@ -29,6 +29,7 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.session.SessionAttributes;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.VolumeSession;
@@ -76,7 +77,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             IndexBuilder.setIdIndex(tr, namespace, shardId, prefix, userVersion);
             if (!autoCommitEnabled) {
                 userVersions.add(new IntegerRedisMessage(userVersion));
-                request.getChannelContext().channel().attr(ChannelAttributes.ASYNC_RETURNING).get().add(userVersion);
+                request.getChannelContext().channel().attr(SessionAttributes.ASYNC_RETURNING).get().add(userVersion);
             }
         }
 

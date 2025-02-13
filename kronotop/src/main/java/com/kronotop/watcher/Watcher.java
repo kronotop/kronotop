@@ -19,7 +19,7 @@ package com.kronotop.watcher;
 import com.google.common.util.concurrent.Striped;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
-import com.kronotop.server.ChannelAttributes;
+import com.kronotop.session.SessionAttributes;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.util.Attribute;
@@ -139,7 +139,7 @@ public class Watcher implements KronotopService {
         Lock lock = striped.get(ctx.channel().id());
         lock.lock();
         try {
-            Attribute<HashMap<String, Long>> watchedKeysAttr = ctx.channel().attr(ChannelAttributes.WATCHED_KEYS);
+            Attribute<HashMap<String, Long>> watchedKeysAttr = ctx.channel().attr(SessionAttributes.WATCHED_KEYS);
             HashMap<String, Long> watchedKeys = watchedKeysAttr.get();
             if (watchedKeys == null) {
                 return;

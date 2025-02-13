@@ -20,6 +20,7 @@ import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.generic.protocol.ReadonlyMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
+import com.kronotop.session.SessionAttributes;
 
 @Command(ReadonlyMessage.COMMAND)
 public class ReadonlyHandler extends BaseGenericHandler implements Handler {
@@ -35,7 +36,7 @@ public class ReadonlyHandler extends BaseGenericHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        request.getChannelContext().channel().attr(ChannelAttributes.READONLY).set(true);
+        request.getChannelContext().channel().attr(SessionAttributes.READONLY).set(true);
         response.writeOK();
     }
 }

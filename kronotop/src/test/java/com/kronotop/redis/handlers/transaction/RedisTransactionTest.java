@@ -18,7 +18,7 @@ package com.kronotop.redis.handlers.transaction;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseHandlerTest;
-import com.kronotop.server.ChannelAttributes;
+import com.kronotop.session.SessionAttributes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
@@ -159,11 +159,11 @@ public class RedisTransactionTest extends BaseHandlerTest {
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
 
-            List<Request> queuedCommands = channel.attr(ChannelAttributes.QUEUED_COMMANDS).get();
+            List<Request> queuedCommands = channel.attr(SessionAttributes.QUEUED_COMMANDS).get();
             assertEquals(0, queuedCommands.size());
-            assertFalse(channel.attr(ChannelAttributes.REDIS_MULTI).get());
-            assertFalse(channel.attr(ChannelAttributes.REDIS_MULTI_DISCARDED).get());
-            assertNull(channel.attr(ChannelAttributes.WATCHED_KEYS).get());
+            assertFalse(channel.attr(SessionAttributes.REDIS_MULTI).get());
+            assertFalse(channel.attr(SessionAttributes.REDIS_MULTI_DISCARDED).get());
+            assertNull(channel.attr(SessionAttributes.WATCHED_KEYS).get());
         }
 
         {

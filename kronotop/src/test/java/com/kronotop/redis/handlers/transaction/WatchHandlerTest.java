@@ -18,7 +18,7 @@ package com.kronotop.redis.handlers.transaction;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseHandlerTest;
-import com.kronotop.server.ChannelAttributes;
+import com.kronotop.session.SessionAttributes;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
@@ -44,7 +44,7 @@ public class WatchHandlerTest extends BaseHandlerTest {
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
 
-            HashMap<String, Long> watchedKeys = channel.attr(ChannelAttributes.WATCHED_KEYS).get();
+            HashMap<String, Long> watchedKeys = channel.attr(SessionAttributes.WATCHED_KEYS).get();
             assertTrue(watchedKeys.containsKey("key-1"));
             assertTrue(watchedKeys.containsKey("key-2"));
             assertTrue(watchedKeys.containsKey("key-3"));

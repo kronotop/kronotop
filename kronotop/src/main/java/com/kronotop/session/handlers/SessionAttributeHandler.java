@@ -23,6 +23,7 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.BooleanRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.session.SessionAttributes;
 import com.kronotop.session.handlers.protocol.SessionAttributeMessage;
 import com.kronotop.session.handlers.protocol.SessionAttributeParameters;
 import io.netty.util.Attribute;
@@ -43,7 +44,7 @@ public class SessionAttributeHandler implements Handler {
         Map<RedisMessage, RedisMessage> children = new HashMap<>();
 
         // FUTURES
-        Attribute<Boolean> futuresAttr = request.getChannelContext().channel().attr(ChannelAttributes.FUTURES);
+        Attribute<Boolean> futuresAttr = request.getChannelContext().channel().attr(SessionAttributes.FUTURES);
         children.put(
                 new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.FUTURES.name().toLowerCase()),
                 futuresAttr.get() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
@@ -55,7 +56,7 @@ public class SessionAttributeHandler implements Handler {
     private void setSubcommand(Request request, Response response, SessionAttributeParameters parameters) {
         switch (parameters.getAttribute()) {
             case FUTURES -> {
-                request.getChannelContext().channel().attr(ChannelAttributes.FUTURES).set(parameters.getFutures());
+                request.getChannelContext().channel().attr(SessionAttributes.FUTURES).set(parameters.getFutures());
             }
         }
         response.writeOK();
