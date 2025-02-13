@@ -22,7 +22,7 @@ import com.kronotop.VersionstampUtils;
 import com.kronotop.redis.handlers.hash.HashValue;
 import com.kronotop.volume.KeyEntry;
 import com.kronotop.volume.Prefix;
-import com.kronotop.volume.Session;
+import com.kronotop.volume.VolumeSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,7 +108,7 @@ public final class RedisShardLoader {
      * objects retrieved from the shard's volume and processes them based on their data structure type.
      **/
     private void loadFromVolume(Transaction tr) {
-        Session session = new Session(tr, prefix);
+        VolumeSession session = new VolumeSession(tr, prefix);
         Iterable<KeyEntry> iterable = shard.volume().getRange(session);
         iterable.forEach(entry -> {
             try {

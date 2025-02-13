@@ -23,7 +23,7 @@ import com.kronotop.redis.storage.HashFieldPack;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.StringPack;
 import com.kronotop.volume.KeyEntry;
-import com.kronotop.volume.Session;
+import com.kronotop.volume.VolumeSession;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -38,7 +38,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseHandlerTest {
         RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
         RedisShard shard = service.findShard(key, ShardStatus.READONLY);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             // TODO: This can be done without a loop
             Iterable<KeyEntry> iterable = shard.volume().getRange(session);
             for (KeyEntry entry : iterable) {
@@ -57,7 +57,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseHandlerTest {
         RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
         RedisShard shard = service.findShard(hashKey, ShardStatus.READONLY);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             // TODO: This can be done without a loop
             Iterable<KeyEntry> iterable = shard.volume().getRange(session);
             for (KeyEntry entry : iterable) {
@@ -76,7 +76,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseHandlerTest {
         RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
         RedisShard shard = service.findShard(key, ShardStatus.READONLY);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             Iterable<KeyEntry> iterable = shard.volume().getRange(session);
             for (KeyEntry entry : iterable) {
                 if (f.test(entry)) {

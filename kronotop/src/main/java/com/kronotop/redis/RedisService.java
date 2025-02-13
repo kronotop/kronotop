@@ -44,7 +44,7 @@ import com.kronotop.redis.storage.*;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.server.*;
 import com.kronotop.volume.Prefix;
-import com.kronotop.volume.Session;
+import com.kronotop.volume.VolumeSession;
 import com.kronotop.watcher.Watcher;
 import io.lettuce.core.cluster.SlotHash;
 import io.netty.channel.ChannelHandlerContext;
@@ -300,7 +300,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Prefix prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
-                Session session = new Session(tr, prefix);
+                VolumeSession session = new VolumeSession(tr, prefix);
                 serviceContext.shards().values().forEach(shard -> shard.volume().clearPrefix(session));
                 tr.commit().join();
             }

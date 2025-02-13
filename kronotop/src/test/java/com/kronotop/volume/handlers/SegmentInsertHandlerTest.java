@@ -52,7 +52,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         };
         AppendResult result;
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -81,7 +81,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(Response.OK, message.content());
 
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             Versionstamp[] versionstamps = result.getVersionstampedKeys();
 
             ByteBuffer firstBuffer = secondVolume.get(session, versionstamps[0]);

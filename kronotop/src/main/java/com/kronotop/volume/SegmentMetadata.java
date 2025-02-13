@@ -50,7 +50,7 @@ class SegmentMetadata {
      *
      * @param session The session object containing the current transaction and prefix information.
      */
-    void increaseCardinalityByOne(Session session) {
+    void increaseCardinalityByOne(VolumeSession session) {
         increaseCardinality(session, INCREASE_BY_ONE_DELTA);
     }
 
@@ -59,7 +59,7 @@ class SegmentMetadata {
      *
      * @param session The session object containing the current transaction and prefix information.
      */
-    void decreaseCardinalityByOne(Session session) {
+    void decreaseCardinalityByOne(VolumeSession session) {
         increaseCardinality(session, DECREASE_BY_ONE_DELTA);
     }
 
@@ -70,7 +70,7 @@ class SegmentMetadata {
      * @param delta   The byte array representing the value to add to the cardinality.
      * @throws KronotopException if an execution exception occurs while performing the mutation.
      */
-    void increaseCardinality(Session session, byte[] delta) {
+    void increaseCardinality(VolumeSession session, byte[] delta) {
         try {
             Key key = keys.get(session.prefix());
             session.transaction().mutate(MutationType.ADD, key.cardinality(), delta);
@@ -84,7 +84,7 @@ class SegmentMetadata {
      *
      * @param session The session object containing the current transaction and prefix information.
      */
-    void resetCardinality(Session session) {
+    void resetCardinality(VolumeSession session) {
         byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(0).array();
         try {
             Key key = keys.get(session.prefix());
@@ -101,7 +101,7 @@ class SegmentMetadata {
      * @return The cardinality value associated with the session.
      * @throws KronotopException if an execution exception occurs while retrieving the cardinality data.
      */
-    int cardinality(Session session) {
+    int cardinality(VolumeSession session) {
         try {
             Key key = keys.get(session.prefix());
             byte[] data = session.transaction().get(key.cardinality()).join();
@@ -117,7 +117,7 @@ class SegmentMetadata {
      * @param session The session object containing the current transaction and prefix information.
      * @param length  The amount of bytes to add to the used bytes count.
      */
-    void increaseUsedBytes(Session session, long length) {
+    void increaseUsedBytes(VolumeSession session, long length) {
         byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(length).array();
         try {
             Key key = keys.get(session.prefix());
@@ -133,7 +133,7 @@ class SegmentMetadata {
      * @param session The session object containing the current transaction and prefix information.
      * @throws KronotopException if an execution exception occurs while resetting the used bytes.
      */
-    void resetUsedBytes(Session session) {
+    void resetUsedBytes(VolumeSession session) {
         byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(0).array();
         try {
             Key key = keys.get(session.prefix());
@@ -150,7 +150,7 @@ class SegmentMetadata {
      * @return The number of used bytes associated with the session.
      * @throws KronotopException if an execution exception occurs while retrieving the used bytes data.
      */
-    long usedBytes(Session session) {
+    long usedBytes(VolumeSession session) {
         try {
             Key key = keys.get(session.prefix());
             byte[] data = session.transaction().get(key.usedBytes()).join();

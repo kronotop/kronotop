@@ -30,7 +30,7 @@ import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.DeleteResult;
 import com.kronotop.volume.Prefix;
-import com.kronotop.volume.Session;
+import com.kronotop.volume.VolumeSession;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -127,7 +127,7 @@ public class VolumeSyncSession {
             // See https://forums.foundationdb.org/t/why-is-read-or-wrote-unreadable-key-necessary/3753
             tr.options().setBypassUnreadable();
 
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
 
             AppendResult appendResult = shard.volume().append(
                     session,

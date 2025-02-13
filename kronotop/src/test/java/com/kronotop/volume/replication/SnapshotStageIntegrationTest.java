@@ -76,7 +76,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             }
         }
 
-        Session session = new Session(prefix);
+        VolumeSession session = new VolumeSession(prefix);
         Volume replicaVolume = new Volume(context, standbyVolumeConfig);
         for (Versionstamp versionstampedKey : versionstampedKeys) {
             ByteBuffer buf = volume.get(session, versionstampedKey);
@@ -103,7 +103,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         AppendResult result;
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -127,7 +127,7 @@ class SnapshotStageIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             for (int i = 1; i <= numIterations; i++) {
                 entries[i - 1] = randomBytes((int) bufferSize);
             }
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();

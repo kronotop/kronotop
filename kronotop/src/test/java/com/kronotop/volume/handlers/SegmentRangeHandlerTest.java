@@ -22,7 +22,7 @@ import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.volume.Session;
+import com.kronotop.volume.VolumeSession;
 import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import io.lettuce.core.codec.StringCodec;
@@ -46,7 +46,7 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 ByteBuffer.wrap(new byte[]{4, 5, 6}),
         };
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             volume.append(session, entries);
             tr.commit().join();
         }

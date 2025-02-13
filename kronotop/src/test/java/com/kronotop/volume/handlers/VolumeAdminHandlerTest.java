@@ -48,7 +48,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     private void injectTestData() throws IOException {
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             volume.append(session, entries);
             tr.commit().join();
         }
@@ -323,7 +323,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         VolumeService service = context.getService(VolumeService.NAME);
         Volume shard = service.findVolume("redis-shard-1");
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             shard.append(session, entries);
             tr.commit().join();
         }

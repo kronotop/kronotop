@@ -31,7 +31,7 @@ import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.Prefix;
-import com.kronotop.volume.Session;
+import com.kronotop.volume.VolumeSession;
 import org.bson.Document;
 
 import java.nio.ByteBuffer;
@@ -80,9 +80,9 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             }
         }
 
-        Session session = new Session(tr, prefix);
+        VolumeSession volumeSession = new VolumeSession(tr, prefix);
         BucketShard shard = service.getShard(shardId);
-        AppendResult appendResult = shard.volume().append(session, entries);
+        AppendResult appendResult = shard.volume().append(volumeSession, entries);
 
         PostCommitHook postCommitHook = new PostCommitHook(appendResult);
         TransactionUtils.addPostCommitHook(postCommitHook, request.getChannelContext());
