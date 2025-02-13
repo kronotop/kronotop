@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.ByteBufUtils;
 import com.kronotop.Context;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.*;
@@ -156,7 +157,7 @@ public class BaseKrAdminSubcommandHandler {
      * @throws KronotopException if the shard kind is invalid
      */
     protected ShardKind readShardKind(ByteBuf shardKindBuf) {
-        String rawKind = readAsString(shardKindBuf);
+        String rawKind = ByteBufUtils.readAsString(shardKindBuf);
         try {
             return ShardKind.valueOf(rawKind.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -173,7 +174,7 @@ public class BaseKrAdminSubcommandHandler {
      * @throws InvalidShardIdException if the shard ID is not a valid integer or is out of bounds for the specified shard kind.
      */
     protected int readShardId(ShardKind shardKind, ByteBuf shardIdBuf) {
-        String rawShardId = readAsString(shardIdBuf);
+        String rawShardId = ByteBufUtils.readAsString(shardIdBuf);
         return readShardId(shardKind, rawShardId);
     }
 
@@ -208,7 +209,7 @@ public class BaseKrAdminSubcommandHandler {
      * @throws KronotopException if the member ID is invalid or no member can be resolved with the prefix
      */
     protected String readMemberId(ByteBuf memberIdBuf) {
-        String memberId = readAsString(memberIdBuf);
+        String memberId = ByteBufUtils.readAsString(memberIdBuf);
         if (memberId.length() == 4) {
             Member member = findMemberWithPrefix(memberId);
             return member.getId();
@@ -219,18 +220,6 @@ public class BaseKrAdminSubcommandHandler {
         } else {
             throw new KronotopException("Invalid memberId: " + memberId);
         }
-    }
-
-    /**
-     * Reads the content of the provided ByteBuf as a string.
-     *
-     * @param buf the ByteBuf containing the raw bytes to be read
-     * @return a string representation of the bytes in the provided ByteBuf
-     */
-    protected String readAsString(ByteBuf buf) {
-        byte[] raw = new byte[buf.readableBytes()];
-        buf.readBytes(raw);
-        return new String(raw);
     }
 
     /**

@@ -31,6 +31,7 @@ import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
 import com.kronotop.redis.RedisContext;
 import com.kronotop.redis.RedisService;
+import com.kronotop.session.SessionService;
 import com.kronotop.task.TaskService;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.replication.ReplicationService;
@@ -109,6 +110,9 @@ public class KronotopInstance {
      */
     private void registerKronotopServices() {
         // Registration sort is important here.
+
+        SessionService sessionService = new SessionService(context);
+        context.registerService(SessionService.NAME, sessionService);
 
         TaskService taskService = new TaskService(context);
         context.registerService(TaskService.NAME, taskService);

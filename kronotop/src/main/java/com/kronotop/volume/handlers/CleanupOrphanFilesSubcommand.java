@@ -17,6 +17,7 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -93,7 +94,7 @@ public class CleanupOrphanFilesSubcommand extends BaseHandler implements Subcomm
         response.writeArray(deletedFiles);
     }
 
-    private class CleanupOrphanFilesParameters {
+    private static class CleanupOrphanFilesParameters {
         private final String volumeName;
 
         private CleanupOrphanFilesParameters(ArrayList<ByteBuf> params) {
@@ -101,7 +102,7 @@ public class CleanupOrphanFilesSubcommand extends BaseHandler implements Subcomm
                 throw new InvalidNumberOfParametersException();
             }
 
-            volumeName = readAsString(params.get(1));
+            volumeName = ByteBufUtils.readAsString(params.get(1));
         }
     }
 }

@@ -35,6 +35,7 @@ import com.kronotop.redis.handlers.transactions.protocol.*;
 import com.kronotop.redis.server.protocol.CommandMessage;
 import com.kronotop.redis.server.protocol.FlushAllMessage;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
+import com.kronotop.session.handlers.protocol.SessionAttributeMessage;
 import com.kronotop.task.handlers.protocol.TaskAdminMessage;
 import com.kronotop.volume.handlers.protocol.SegmentInsertMessage;
 import com.kronotop.volume.handlers.protocol.SegmentRangeMessage;
@@ -128,4 +129,7 @@ public class MessageTypes {
 
     // Buckets
     public static final AttributeKey<BucketInsertMessage> BUCKETINSERT = AttributeKey.valueOf(BucketInsertMessage.COMMAND);
+
+    // Session management
+    public static final AttributeKey<SessionAttributeMessage> SESSIONATTRIBUTE = AttributeKey.valueOf(SessionAttributeMessage.COMMAND);
 }

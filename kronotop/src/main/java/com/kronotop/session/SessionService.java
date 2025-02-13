@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume.handlers;
+package com.kronotop.session;
 
+import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
-import com.kronotop.volume.VolumeService;
+import com.kronotop.KronotopService;
+import com.kronotop.server.ServerKind;
+import com.kronotop.session.handlers.SessionAttributeHandler;
 
-public class BaseHandler {
-    protected VolumeService service;
-    protected Context context;
+public class SessionService extends CommandHandlerService implements KronotopService {
+    public static String NAME = "Session";
 
-    public BaseHandler(VolumeService service) {
-        this.service = service;
-        this.context = service.getContext();
+    public SessionService(Context context) {
+        super(context, NAME);
+
+        handlerMethod(ServerKind.EXTERNAL, new SessionAttributeHandler());
     }
 }

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The ChannelAttributes class defines static final AttributeKey objects to be used as attribute keys in the ChannelHandlerContext.
@@ -64,4 +65,8 @@ public class ChannelAttributes {
     public static final AttributeKey<HashMap<String, Object>> CLIENT_ATTRIBUTES = AttributeKey.valueOf("client_attributes");
 
     public static final AttributeKey<Boolean> READONLY = AttributeKey.valueOf("readonly");
+
+    public static final AttributeKey<AtomicInteger> USER_VERSION_COUNTER = AttributeKey.valueOf("user_version_counter");
+
+    public static final AttributeKey<Boolean> FUTURES = AttributeKey.valueOf("futures");
 }

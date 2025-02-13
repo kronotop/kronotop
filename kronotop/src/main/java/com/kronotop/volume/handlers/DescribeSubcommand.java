@@ -16,6 +16,7 @@
 
 package com.kronotop.volume.handlers;
 
+import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
@@ -67,7 +68,7 @@ class DescribeSubcommand extends BaseHandler implements SubcommandHandler {
         response.writeMap(result);
     }
 
-    private class DescribeParameters {
+    private static class DescribeParameters {
         private final String name;
 
         private DescribeParameters(ArrayList<ByteBuf> params) {
@@ -75,7 +76,7 @@ class DescribeSubcommand extends BaseHandler implements SubcommandHandler {
                 throw new InvalidNumberOfParametersException();
             }
 
-            name = readAsString(params.get(1));
+            name = ByteBufUtils.readAsString(params.get(1));
         }
     }
 }

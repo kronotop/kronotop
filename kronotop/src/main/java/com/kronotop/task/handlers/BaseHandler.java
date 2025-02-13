@@ -18,7 +18,6 @@ package com.kronotop.task.handlers;
 
 import com.kronotop.Context;
 import com.kronotop.task.TaskService;
-import io.netty.buffer.ByteBuf;
 
 public class BaseHandler {
     protected TaskService service;
@@ -27,17 +26,5 @@ public class BaseHandler {
     public BaseHandler(TaskService service) {
         this.service = service;
         this.context = service.getContext();
-    }
-
-    /**
-     * Reads the content of the provided ByteBuf as a string.
-     *
-     * @param buf the ByteBuf containing the raw bytes to be read
-     * @return a string representation of the bytes in the provided ByteBuf
-     */
-    protected String readAsString(ByteBuf buf) {
-        byte[] raw = new byte[buf.readableBytes()];
-        buf.readBytes(raw);
-        return new String(raw);
     }
 }

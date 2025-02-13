@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.ByteBufUtils;
 import com.kronotop.JSONUtils;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -199,14 +200,14 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
                 throw new InvalidNumberOfParametersException();
             }
 
-            String rawOperationKind = readAsString(params.get(1));
+            String rawOperationKind = ByteBufUtils.readAsString(params.get(1));
             try {
                 operationKind = OperationKind.valueOf(rawOperationKind.toUpperCase());
             } catch (IllegalArgumentException e) {
                 throw new KronotopException("Invalid operation kind: " + rawOperationKind);
             }
 
-            String rawRouteKind = readAsString(params.get(2));
+            String rawRouteKind = ByteBufUtils.readAsString(params.get(2));
             try {
                 routeKind = RouteKind.valueOf(rawRouteKind.toUpperCase());
             } catch (IllegalArgumentException e) {
@@ -215,7 +216,7 @@ class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHan
 
             shardKind = readShardKind(params.get(3));
 
-            String rawShardId = readAsString(params.get(4));
+            String rawShardId = ByteBufUtils.readAsString(params.get(4));
             allShards = rawShardId.equals("*");
             if (!allShards) {
                 shardId = readShardId(shardKind, rawShardId);

@@ -38,8 +38,8 @@ public class CommitMessage implements KronotopMessage<Void> {
 
     private void parse() {
         if (!request.getParams().isEmpty()) {
-            byte[] rawReturning = new byte[request.getParams().get(0).readableBytes()];
-            request.getParams().get(0).readBytes(rawReturning);
+            byte[] rawReturning = new byte[request.getParams().getFirst().readableBytes()];
+            request.getParams().getFirst().readBytes(rawReturning);
 
             String returning = new String(rawReturning);
             if (!returning.equalsIgnoreCase(RETURNING_ARGUMENT)) {

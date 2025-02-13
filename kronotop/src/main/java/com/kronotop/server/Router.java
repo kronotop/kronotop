@@ -42,8 +42,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -111,6 +113,9 @@ public class Router extends ChannelDuplexHandler {
         ctx.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).set(defaultNamespace);
         ctx.channel().attr(ChannelAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
         ctx.channel().attr(ChannelAttributes.READONLY).set(false);
+        ctx.channel().attr(ChannelAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
+        ctx.channel().attr(ChannelAttributes.ASYNC_RETURNING).set(new LinkedList<>());
+        ctx.channel().attr(ChannelAttributes.FUTURES).set(true); // TODO: Read it from config
 
         Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
         autoCommitAttr.set(false);
@@ -150,8 +155,11 @@ public class Router extends ChannelDuplexHandler {
         Channel channel = ctx.channel();
         Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
         if (autoCommitAttr.get() != null && !Boolean.FALSE.equals(autoCommitAttr.get())) {
-            Attribute<Transaction> transaction = channel.attr(ChannelAttributes.TRANSACTION);
-            transaction.get().close();
+            // TODO: SESSION-REFACTOR, these things should be managed by the session implementation
+            Attribute<Transaction> tr = channel.attr(ChannelAttributes.TRANSACTION);
+            if (tr.get() != null) {
+                tr.get().close();
+            }
         }
         autoCommitAttr.set(false);
         super.channelReadComplete(ctx);

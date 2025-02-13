@@ -17,6 +17,7 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -54,7 +55,7 @@ public class StopVacuumSubcommand extends BaseHandler implements SubcommandHandl
         response.writeOK();
     }
 
-    private class StopVacuumParameters {
+    private static class StopVacuumParameters {
         private final String volumeName;
 
         private StopVacuumParameters(ArrayList<ByteBuf> params) {
@@ -62,7 +63,7 @@ public class StopVacuumSubcommand extends BaseHandler implements SubcommandHandl
                 throw new InvalidNumberOfParametersException();
             }
 
-            volumeName = readAsString(params.get(1));
+            volumeName = ByteBufUtils.readAsString(params.get(1));
         }
     }
 }

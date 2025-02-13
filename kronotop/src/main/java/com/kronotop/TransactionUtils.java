@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class TransactionUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionUtils.class);
@@ -75,6 +76,7 @@ public class TransactionUtils {
         if (getAutoCommit(channelContext)) {
             tr.commit().join();
             runPostCommitHooks(channelContext);
+            postCommitCleanup(channelContext);
         }
     }
 
@@ -117,5 +119,46 @@ public class TransactionUtils {
                 LOGGER.error("Error while running a commit hook", e);
             }
         }
+    }
+
+    /**
+     * Retrieves and increments the user version counter associated with a channel.
+     *
+     * @param channelContext the {@code ChannelHandlerContext} containing the channel and relevant attributes.
+     * @return the current value of the user version counter before it is incremented.
+     */
+    public static int getUserVersion(ChannelHandlerContext channelContext) {
+        AtomicInteger counter = channelContext.channel().attr(ChannelAttributes.USER_VERSION_COUNTER).get();
+        return counter.getAndIncrement();
+    }
+
+    /**
+     * Cleans up various transaction-related attributes within a given channel context after a transaction is committed.
+     * This method resets attributes to their default state, ensuring the channel is ready for subsequent operations.
+     *
+     * @param channelContext the {@code ChannelHandlerContext} representing the channel context whose attributes need to be reset
+     */
+    public static void postCommitCleanup(ChannelHandlerContext channelContext) {
+        // TODO: SESSION-REFACTOR, this method should be moved to the session implementation
+        Channel channel = channelContext.channel();
+
+        // Close the Transaction object and release any associated resources.
+        // This must be called at least once after the Transaction object is no longer in use.
+        Transaction tr = channel.attr(ChannelAttributes.TRANSACTION).get();
+        if (tr != null) {
+            try {
+                tr.close();
+            } catch (Exception e) {
+                LOGGER.error("Error while closing transaction", e);
+            } finally {
+                channel.attr(ChannelAttributes.TRANSACTION).set(null);
+            }
+        }
+
+        channel.attr(ChannelAttributes.BEGIN).set(false);
+        channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
+        channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
+        channel.attr(ChannelAttributes.ASYNC_RETURNING).set(new LinkedList<>());
+        channel.attr(ChannelAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
     }
 }

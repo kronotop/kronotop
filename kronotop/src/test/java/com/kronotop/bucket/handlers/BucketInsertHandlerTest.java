@@ -13,6 +13,8 @@ package com.kronotop.bucket.handlers;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.IntegerRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -76,7 +78,12 @@ class BucketInsertHandlerTest extends BaseHandlerTest {
             assertInstanceOf(ArrayRedisMessage.class, msg);
 
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
-            assertEquals(0, actualMessage.children().size());
+            assertEquals(2, actualMessage.children().size());
+
+            // User versions have returned
+            for (RedisMessage redisMessage : actualMessage.children()) {
+                assertInstanceOf(IntegerRedisMessage.class, redisMessage);
+            }
         }
 
         {

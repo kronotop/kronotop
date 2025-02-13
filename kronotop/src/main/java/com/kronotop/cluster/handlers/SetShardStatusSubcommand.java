@@ -17,6 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtils;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -67,7 +68,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
 
             shardKind = readShardKind(params.get(1));
 
-            String rawShardId = readAsString(params.get(2));
+            String rawShardId = ByteBufUtils.readAsString(params.get(2));
             allShards = rawShardId.equals("*");
             if (!allShards) {
                 shardId = readShardId(shardKind, rawShardId);

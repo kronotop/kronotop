@@ -17,6 +17,7 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -62,7 +63,7 @@ class VacuumSubcommand extends BaseHandler implements SubcommandHandler {
         response.writeOK();
     }
 
-    private class VacuumParameters {
+    private static class VacuumParameters {
         private final String volumeName;
         private final double allowedGarbageRatio;
 
@@ -71,8 +72,8 @@ class VacuumSubcommand extends BaseHandler implements SubcommandHandler {
                 throw new InvalidNumberOfParametersException();
             }
 
-            volumeName = readAsString(params.get(1));
-            allowedGarbageRatio = readAsDouble(params.get(2));
+            volumeName = ByteBufUtils.readAsString(params.get(1));
+            allowedGarbageRatio = ByteBufUtils.readAsDouble(params.get(2));
         }
     }
 }

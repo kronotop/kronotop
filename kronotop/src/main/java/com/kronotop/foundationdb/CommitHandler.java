@@ -33,6 +33,7 @@ import io.netty.util.Attribute;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Command(CommitMessage.COMMAND)
 @MaximumParameterCount(CommitMessage.MAXIMUM_PARAMETER_COUNT)
@@ -76,6 +77,7 @@ class CommitHandler extends BaseHandler implements Handler {
             TransactionUtils.runPostCommitHooks(request.getChannelContext());
 
             if (message.getReturning().isEmpty()) {
+                TransactionUtils.postCommitCleanup(request.getChannelContext());
                 response.writeOK();
                 return;
             }
@@ -103,9 +105,8 @@ class CommitHandler extends BaseHandler implements Handler {
                         if (asyncReturning != null) {
                             for (Integer userVersion : asyncReturning) {
                                 Versionstamp completed = Versionstamp.complete(versionBytes, userVersion);
-                                ByteBuf buf = request.getChannelContext().alloc().buffer();
-                                buf.writeBytes(VersionstampUtils.base32HexEncode(completed).getBytes());
-                                futures.put(new SimpleStringRedisMessage(String.format("$%d", userVersion)), new FullBulkStringRedisMessage(buf));
+                                String id = VersionstampUtils.base32HexEncode(completed);
+                                futures.put(new IntegerRedisMessage(userVersion), new SimpleStringRedisMessage(id));
                             }
                         }
                         children.add(new MapRedisMessage(futures));
@@ -114,12 +115,7 @@ class CommitHandler extends BaseHandler implements Handler {
                 }
                 response.writeArray(children);
             });
-        } finally {
-            beginAttr.set(false);
-            transactionAttr.set(null);
-            channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
-            channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
-            NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
+            TransactionUtils.postCommitCleanup(request.getChannelContext());
         }
     }
 }

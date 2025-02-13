@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -110,7 +111,7 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
                 throw new InvalidNumberOfParametersException();
             }
 
-            String rawOperationKind = readAsString(params.get(1));
+            String rawOperationKind = ByteBufUtils.readAsString(params.get(1));
             try {
                 operationKind = OperationKind.valueOf(rawOperationKind.toUpperCase());
             } catch (IllegalArgumentException e) {
@@ -119,7 +120,7 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
 
             shardKind = readShardKind(params.get(2));
 
-            String rawShardId = readAsString(params.get(3));
+            String rawShardId = ByteBufUtils.readAsString(params.get(3));
             allShards = rawShardId.equals("*");
             if (!allShards) {
                 shardId = readShardId(shardKind, rawShardId);

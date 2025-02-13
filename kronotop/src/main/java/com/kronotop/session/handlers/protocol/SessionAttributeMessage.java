@@ -14,17 +14,24 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume.handlers;
+package com.kronotop.session.handlers.protocol;
 
-import com.kronotop.Context;
-import com.kronotop.volume.VolumeService;
+import com.kronotop.server.KronotopMessage;
 
-public class BaseHandler {
-    protected VolumeService service;
-    protected Context context;
+import java.util.List;
 
-    public BaseHandler(VolumeService service) {
-        this.service = service;
-        this.context = service.getContext();
+public class SessionAttributeMessage implements KronotopMessage<Void> {
+    public static final String COMMAND = "SESSION.ATTRIBUTE";
+    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+
+    @Override
+    public Void getKey() {
+        return null;
+    }
+
+    @Override
+    public List<Void> getKeys() {
+        return List.of();
     }
 }

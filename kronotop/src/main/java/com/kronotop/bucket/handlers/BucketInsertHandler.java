@@ -23,12 +23,10 @@ import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.foundationdb.namespace.Namespace;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.AppendResult;
@@ -38,6 +36,7 @@ import org.bson.Document;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 @Command(BucketInsertMessage.COMMAND)
@@ -64,12 +63,21 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
         Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, namespace, message.getBucket());
 
+        List<RedisMessage> userVersions = new LinkedList<>();
+        boolean autoCommitEnabled = TransactionUtils.getAutoCommit(request.getChannelContext());
+
         ByteBuffer[] entries = new ByteBuffer[message.getDocuments().size()];
         for (int index = 0; index < message.getDocuments().size(); index++) {
             byte[] data = message.getDocuments().get(index);
             Document document = Document.parse(new String(data));
             entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
-            IndexBuilder.setIdIndex(tr, namespace, shardId, prefix, index);
+
+            int userVersion = TransactionUtils.getUserVersion(request.getChannelContext());
+            IndexBuilder.setIdIndex(tr, namespace, shardId, prefix, userVersion);
+            if (!autoCommitEnabled) {
+                userVersions.add(new IntegerRedisMessage(userVersion));
+                request.getChannelContext().channel().attr(ChannelAttributes.ASYNC_RETURNING).get().add(userVersion);
+            }
         }
 
         Session session = new Session(tr, prefix);
@@ -80,7 +88,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         TransactionUtils.addPostCommitHook(postCommitHook, request.getChannelContext());
         TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
 
-        if (postCommitHook.isCommitted()) {
+        if (autoCommitEnabled) {
             Versionstamp[] versionstamps = postCommitHook.getVersionstamps();
             List<RedisMessage> children = new ArrayList<>();
             for (Versionstamp versionstamp : versionstamps) {
@@ -88,15 +96,14 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             }
             response.writeArray(children);
         } else {
-            // Empty response
-            response.writeArray(List.of());
+            // Return userVersions to track the versionstamps in the COMMIT response
+            response.writeArray(userVersions);
         }
     }
 
     private static class PostCommitHook implements CommitHook {
         private final AppendResult appendResult;
         private Versionstamp[] versionstamps;
-        private volatile boolean committed;
 
         PostCommitHook(AppendResult appendResult) {
             this.appendResult = appendResult;
@@ -105,15 +112,10 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         @Override
         public void run() {
             versionstamps = appendResult.getVersionstampedKeys();
-            committed = true;
         }
 
         public Versionstamp[] getVersionstamps() {
             return versionstamps;
-        }
-
-        public boolean isCommitted() {
-            return committed;
         }
     }
 }

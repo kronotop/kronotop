@@ -16,6 +16,7 @@
 
 package com.kronotop.volume.handlers;
 
+import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.common.KronotopException;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -53,8 +54,8 @@ public class SetStatusSubcommand extends BaseHandler implements SubcommandHandle
                 throw new InvalidNumberOfParametersException();
             }
 
-            name = readAsString(params.get(1));
-            String rawStatus = readAsString(params.get(2));
+            name = ByteBufUtils.readAsString(params.get(1));
+            String rawStatus = ByteBufUtils.readAsString(params.get(2));
             try {
                 status = VolumeStatus.valueOf(rawStatus.toUpperCase());
             } catch (IllegalArgumentException e) {
