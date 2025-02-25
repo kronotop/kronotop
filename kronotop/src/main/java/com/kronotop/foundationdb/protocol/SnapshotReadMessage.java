@@ -16,13 +16,13 @@
 
 package com.kronotop.foundationdb.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
 import java.util.List;
 
-public class SnapshotReadMessage implements KronotopMessage<Void> {
+public class SnapshotReadMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SNAPSHOTREAD";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     public static final int MAXIMUM_PARAMETER_COUNT = 1;

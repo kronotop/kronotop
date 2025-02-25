@@ -17,57 +17,85 @@
 package com.kronotop.server;
 
 import com.apple.foundationdb.FDBException;
-import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.network.ClientIDGenerator;
 import com.kronotop.redis.RedisService;
+import com.kronotop.redis.handlers.transactions.protocol.DiscardMessage;
+import com.kronotop.redis.handlers.transactions.protocol.ExecMessage;
+import com.kronotop.redis.handlers.transactions.protocol.MultiMessage;
+import com.kronotop.redis.handlers.transactions.protocol.WatchMessage;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.impl.RespRequest;
-import com.kronotop.server.impl.RespResponse;
+import com.kronotop.server.impl.RESP3Request;
+import com.kronotop.server.impl.RESP3Response;
 import com.kronotop.server.impl.TransactionResponse;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.watcher.Watcher;
 import com.typesafe.config.Config;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
-import io.netty.util.ReferenceCountUtil;
+import io.netty.util.ReferenceCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * Router class that extends ChannelDuplexHandler for handling commands.
+ * KronotopChannelDuplexHandler is a specialized implementation of {@link ChannelDuplexHandler}
+ * designed to handle duplex communication within the Kronotop Redis-like framework. This
+ * handler manages incoming and outgoing requests at the channel level, and extends
+ * functionality to support authentication, command execution, and transaction handling.
+ * <p>
+ * This class interacts with Redis-like command handling and transaction flows, while
+ * providing additional utilities for command validation and watcher mechanisms to monitor
+ * key events.
+ * <p>
+ * The class integrates with the Kronotop's context to access configuration,
+ * service dependencies, and custom registry of command handlers.
+ * <p>
+ * Key Features:
+ * - Handles the life-cycle of network channels, such as registration and unregistration.
+ * - Supports authentication if properly enabled in the configuration.
+ * - Processes and executes Redis-like commands with parameter validation.
+ * - Provides utility methods to assist in transaction handling with redis-like `MULTI`, `EXEC`,
+ * and `DISCARD` commands.
+ * - Monitors and handles watched keys during transactions.
+ * - Logs commands for debugging purposes if configured.
+ * <p>
+ * Preconditions:
+ * - Requires `Context` and `CommandHandlerRegistry` objects during instantiation.
+ * - Dependent on configuration-based settings for authentication and command logging.
+ * <p>
+ * Thread-Safety:
+ * - A `ReadWriteLock` is used to synchronize command execution and transaction queuing.
+ * - Locking ensures consistency during reading and modification of shared resources.
+ * <p>
+ * Error Handling:
+ * - Handles incorrect number of arguments for commands through validations.
+ * - Custom exceptions are converted to RESP-formatted errors for proper client response.
+ * - System exceptions and unforeseen errors during transaction execution are gracefully addressed.
  */
-public class Router extends ChannelDuplexHandler {
-    private static final String EXEC_COMMAND = "EXEC";
-    private static final String DISCARD_COMMAND = "DISCARD";
-    private static final String MULTI_COMMAND = "MULTI";
-    private static final String WATCH_COMMAND = "WATCH";
-    private static final Logger LOGGER = LoggerFactory.getLogger(Router.class);
+public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KronotopChannelDuplexHandler.class);
 
-    private final ReadWriteLock redisTransactionLock = new ReentrantReadWriteLock(true);
+    private final Context context;
+    private final ReadWriteLock transactionLock = new ReentrantReadWriteLock(true);
     private final Watcher watcher;
     private final RedisService redisService;
-    private final String defaultNamespace;
     private final CommandHandlerRegistry commands;
     private final boolean logCommandForDebugging;
     private boolean authEnabled = false;
 
-    public Router(Context context, CommandHandlerRegistry commands) {
+    public KronotopChannelDuplexHandler(Context context, CommandHandlerRegistry commands) {
+        this.context = context;
         this.commands = commands;
         this.watcher = context.getService(Watcher.NAME);
         this.redisService = context.getService(RedisService.NAME);
@@ -77,11 +105,6 @@ public class Router extends ChannelDuplexHandler {
 
         if (config.hasPath("auth.requirepass") || config.hasPath("auth.users")) {
             authEnabled = true;
-        }
-
-        defaultNamespace = config.getString("default_namespace");
-        if (defaultNamespace.isEmpty() || defaultNamespace.isBlank()) {
-            throw new IllegalArgumentException("default namespace is empty or blank");
         }
     }
 
@@ -109,59 +132,23 @@ public class Router extends ChannelDuplexHandler {
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        ctx.channel().attr(ChannelAttributes.OPEN_NAMESPACES).set(new HashMap<>());
-        ctx.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).set(defaultNamespace);
-        ctx.channel().attr(ChannelAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
-        ctx.channel().attr(ChannelAttributes.READONLY).set(false);
-        ctx.channel().attr(ChannelAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
-        ctx.channel().attr(ChannelAttributes.ASYNC_RETURNING).set(new LinkedList<>());
-        ctx.channel().attr(ChannelAttributes.FUTURES).set(true); // TODO: Read it from config
-
-        Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
-        autoCommitAttr.set(false);
-
-        Attribute<List<Request>> queuedCommands = ctx.channel().attr(ChannelAttributes.QUEUED_COMMANDS);
-        queuedCommands.set(new ArrayList<>());
-
-        Attribute<Boolean> redisMulti = ctx.channel().attr(ChannelAttributes.REDIS_MULTI);
-        redisMulti.set(false);
-
-        Attribute<Boolean> redisMultiDiscarded = ctx.channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED);
-        redisMultiDiscarded.set(false);
-
-        Attribute<Long> clientID = ctx.channel().attr(ChannelAttributes.CLIENT_ID);
-        clientID.set(ClientIDGenerator.getAndIncrement());
-
+        // Session life-cycle starts here
+        Session.registerSession(context, ctx);
         super.channelRegistered(ctx);
     }
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        watcher.cleanupChannelHandlerContext(ctx);
-
-        Attribute<Boolean> beginAttr = ctx.channel().attr(ChannelAttributes.BEGIN);
-        if (Boolean.TRUE.equals(beginAttr.get())) {
-            Attribute<Transaction> transactionAttr = ctx.channel().attr(ChannelAttributes.TRANSACTION);
-            Transaction tx = transactionAttr.get();
-            tx.close();
-            LOGGER.debug("An incomplete transaction has been closed.");
-        }
-
+        Session session = Session.extractSessionFromChannel(ctx.channel());
+        watcher.unwatchWatchedKeys(session);
+        session.channelUnregistered();
         super.channelUnregistered(ctx);
     }
 
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        Channel channel = ctx.channel();
-        Attribute<Boolean> autoCommitAttr = ctx.channel().attr(ChannelAttributes.AUTO_COMMIT);
-        if (autoCommitAttr.get() != null && !Boolean.FALSE.equals(autoCommitAttr.get())) {
-            // TODO: SESSION-REFACTOR, these things should be managed by the session implementation
-            Attribute<Transaction> tr = channel.attr(ChannelAttributes.TRANSACTION);
-            if (tr.get() != null) {
-                tr.get().close();
-            }
-        }
-        autoCommitAttr.set(false);
+        Session session = Session.extractSessionFromChannel(ctx.channel());
+        session.channelReadComplete();
         super.channelReadComplete(ctx);
     }
 
@@ -228,7 +215,7 @@ public class Router extends ChannelDuplexHandler {
     private void executeCommand(Handler handler, Request request, Response response) {
         try {
             if (authEnabled) {
-                Attribute<Boolean> authAttr = response.getChannelContext().channel().attr(ChannelAttributes.AUTH);
+                Attribute<Boolean> authAttr = request.getSession().attr(SessionAttributes.AUTH);
                 if (Boolean.TRUE.equals(authAttr.get())) {
                     // Already authenticated
                     execute(handler, request, response);
@@ -250,17 +237,17 @@ public class Router extends ChannelDuplexHandler {
         }
     }
 
-    private void executeRedisTransaction(ChannelHandlerContext ctx) {
-        Response response = new RespResponse(ctx);
-        TransactionResponse transactionResponse = new TransactionResponse(ctx);
-        redisTransactionLock.writeLock().lock();
+    private void executeRedisTransaction(Session session) {
+        Response response = new RESP3Response(session.getCtx());
+        TransactionResponse transactionResponse = new TransactionResponse(session.getCtx());
+        transactionLock.writeLock().lock();
         try {
-            Attribute<Boolean> redisMultiDiscarded = ctx.channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED);
+            Attribute<Boolean> redisMultiDiscarded = session.attr(SessionAttributes.MULTI_DISCARDED);
             if (redisMultiDiscarded.get()) {
                 throw new ExecAbortException();
             }
 
-            HashMap<String, Long> watchedKeys = ctx.channel().attr(ChannelAttributes.WATCHED_KEYS).get();
+            HashMap<String, Long> watchedKeys = session.attr(SessionAttributes.WATCHED_KEYS).get();
             if (watchedKeys != null) {
                 for (String key : watchedKeys.keySet()) {
                     Long version = watchedKeys.get(key);
@@ -274,9 +261,12 @@ public class Router extends ChannelDuplexHandler {
                 }
             }
 
-            Attribute<List<Request>> queuedCommands = ctx.channel().attr(ChannelAttributes.QUEUED_COMMANDS);
+            Attribute<List<Request>> queuedCommands = session.attr(SessionAttributes.QUEUED_COMMANDS);
             for (Request request : queuedCommands.get()) {
                 Handler handler = commands.get(request.getCommand());
+                if (!handler.isRedisCompatible()) {
+                    throw new KronotopException("Redis compatibility required");
+                }
                 executeCommand(handler, request, transactionResponse);
             }
             transactionResponse.flush();
@@ -287,29 +277,29 @@ public class Router extends ChannelDuplexHandler {
                     String.format("Unhandled exception during transaction handling: %s", e.getMessage())
             );
         } finally {
-            redisTransactionLock.writeLock().unlock();
+            transactionLock.writeLock().unlock();
         }
     }
 
     private void queueCommandsForRedisTransaction(Request request, Response response) {
-        redisTransactionLock.readLock().lock();
+        transactionLock.readLock().lock();
         try {
             try {
                 Handler handler = commands.get(request.getCommand());
                 beforeExecute(handler, request);
             } catch (Exception e) {
-                Attribute<Boolean> redisMultiDiscarded = response.getChannelContext().channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED);
+                Attribute<Boolean> redisMultiDiscarded = request.getSession().attr(SessionAttributes.MULTI_DISCARDED);
                 redisMultiDiscarded.set(true);
                 exceptionToRespError(request, response, e);
                 return;
             }
 
-            Attribute<List<Request>> queuedCommands = response.getChannelContext().channel().attr(ChannelAttributes.QUEUED_COMMANDS);
+            Attribute<List<Request>> queuedCommands = request.getSession().attr(SessionAttributes.QUEUED_COMMANDS);
             queuedCommands.get().add(request);
             response.writeQUEUED();
             response.flush();
         } finally {
-            redisTransactionLock.readLock().unlock();
+            transactionLock.readLock().unlock();
         }
     }
 
@@ -324,51 +314,109 @@ public class Router extends ChannelDuplexHandler {
         LOGGER.debug("Received command: {}", String.join(" ", command));
     }
 
+    /**
+     * Executes a Redis-compatible command within the context of a transaction.
+     * Depending on the command, the method performs actions such as queuing the command,
+     * ending the transaction, or throwing appropriate errors for invalid operations.
+     *
+     * @param session  the session associated with the current transaction
+     * @param request  the request object containing the command and its parameters
+     * @param response the response object used to send results or errors back to the client
+     * @return a boolean indicating whether the transaction is still ongoing (true)
+     *         or has been discarded (false)
+     */
+    private boolean executeRedisCompatibleCommandInTransaction(Session session, Request request, Response response) {
+        switch (request.getCommand()) {
+            case MultiMessage.COMMAND:
+                response.writeError("MULTI calls can not be nested");
+                break;
+            case WatchMessage.COMMAND:
+                response.writeError("WATCH inside MULTI is not allowed");
+                break;
+            case ExecMessage.COMMAND:
+                try {
+                    executeRedisTransaction(session);
+                } finally {
+                    redisService.cleanupRedisTransaction(request.getSession());
+                }
+                break;
+            default:
+                if (request.getCommand().equals(DiscardMessage.COMMAND)) {
+                    return false; // discard the transaction
+                }
+                queueCommandsForRedisTransaction(request, response);
+        }
+        return true; // still in the transaction boundaries
+    }
+
+    /**
+     * Executes a Redis-compatible command by preparing the handler, executing the command,
+     * and handling any potential resource cleanup. This method ensures thread-safe access
+     * and releases resources if necessary, such as reference-counted messages.
+     *
+     * @param request  the request object containing the command, its parameters, and context
+     * @param response the response object used to send back the result or error to the client
+     * @param handler  the handler responsible for processing the specific command
+     */
+    private void executeRedisCompatibleCommand(Request request, Response response, Handler handler) {
+        transactionLock.readLock().lock();
+        try {
+            beforeExecute(handler, request);
+            executeCommand(handler, request, response);
+        } finally {
+            transactionLock.readLock().unlock();
+            if (request.getRedisMessage() instanceof ReferenceCounted message) {
+                message.release();
+            }
+        }
+    }
+
+    /**
+     * Executes a Kronotop command by preparing the handler, processing the command,
+     * and handling any exceptions that occur during execution.
+     *
+     * @param request  the request object containing the command information and parameters
+     * @param response the response object used to send the result or error back to the client
+     * @param handler  the handler responsible for processing the specific command
+     */
+    private void executeKronotopCommand(Request request, Response response, Handler handler) {
+        try {
+            beforeExecute(handler, request);
+            executeCommand(handler, request, response);
+        } finally {
+            if (request.getRedisMessage() instanceof ReferenceCounted message) {
+                message.release();
+            }
+        }
+    }
+
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        Request request = new RespRequest(ctx, msg);
-        Response response = new RespResponse(ctx);
+    public void channelRead(ChannelHandlerContext ctx, Object message) {
+        Session session = Session.extractSessionFromChannel(ctx.channel());
+
+        Request request = new RESP3Request(session, message);
+        Response response = new RESP3Response(ctx);
 
         if (logCommandForDebugging) {
             logCommandForDebugging(request);
         }
 
-        String command = request.getCommand();
-        Attribute<Boolean> redisMulti = ctx.channel().attr(ChannelAttributes.REDIS_MULTI);
-        if (Boolean.TRUE.equals(redisMulti.get())) {
-            switch (command) {
-                case MULTI_COMMAND:
-                    response.writeError("MULTI calls can not be nested");
-                    return;
-                case WATCH_COMMAND:
-                    response.writeError("WATCH inside MULTI is not allowed");
-                    return;
-                case EXEC_COMMAND:
-                    try {
-                        executeRedisTransaction(ctx);
-                    } finally {
-                        redisService.cleanupRedisTransaction(ctx);
-                    }
-                    return;
-                default:
-                    if (!command.equals(DISCARD_COMMAND)) {
-                        queueCommandsForRedisTransaction(request, response);
-                        return;
-                    }
-                    break;
+        Attribute<Boolean> multiAttr = session.attr(SessionAttributes.MULTI);
+        if (Boolean.TRUE.equals(multiAttr.get())) {
+            if (executeRedisCompatibleCommandInTransaction(session, request, response)) {
+                return;
             }
         }
 
         try {
-            redisTransactionLock.readLock().lock();
-            Handler handler = commands.get(command);
-            beforeExecute(handler, request);
-            executeCommand(handler, request, response);
+            Handler handler = commands.get(request.getCommand());
+            if (handler.isRedisCompatible()) {
+                executeRedisCompatibleCommand(request, response, handler);
+            } else {
+                executeKronotopCommand(request, response, handler);
+            }
         } catch (Exception e) {
             exceptionToRespError(request, response, e);
-        } finally {
-            redisTransactionLock.readLock().unlock();
-            ReferenceCountUtil.release(msg);
         }
     }
 }

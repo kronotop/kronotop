@@ -46,7 +46,7 @@ public class SetInfoSubcommand implements SubcommandHandler {
         request.getParams().get(2).readBytes(rawValue);
         String value = new String(rawValue);
 
-        HashMap<String, Object> channelAttributes = request.getChannelContext().channel().attr(ChannelAttributes.CLIENT_ATTRIBUTES).get();
+        HashMap<String, Object> channelAttributes = request.getSession().attr(SessionAttributes.CLIENT_ATTRIBUTES).get();
         if (attribute.equalsIgnoreCase(Attribute.LIBNAME.toString())) {
             channelAttributes.put(Attribute.LIBNAME.toString(), value);
         } else if (attribute.equalsIgnoreCase(Attribute.LIBVER.toString())) {

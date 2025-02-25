@@ -14,20 +14,24 @@
  * limitations under the License.
  */
 
-package com.kronotop.session;
+package com.kronotop.server.handlers.protocol;
 
-import com.kronotop.CommandHandlerService;
-import com.kronotop.Context;
-import com.kronotop.KronotopService;
-import com.kronotop.server.ServerKind;
-import com.kronotop.session.handlers.SessionAttributeHandler;
+import com.kronotop.server.ProtocolMessage;
 
-public class SessionService extends CommandHandlerService implements KronotopService {
-    public static String NAME = "Session";
+import java.util.List;
 
-    public SessionService(Context context) {
-        super(context, NAME);
+public class SessionAttributeMessage implements ProtocolMessage<Void> {
+    public static final String COMMAND = "SESSION.ATTRIBUTE";
+    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_PARAMETER_COUNT = 3;
 
-        handlerMethod(ServerKind.EXTERNAL, new SessionAttributeHandler());
+    @Override
+    public Void getKey() {
+        return null;
+    }
+
+    @Override
+    public List<Void> getKeys() {
+        return List.of();
     }
 }

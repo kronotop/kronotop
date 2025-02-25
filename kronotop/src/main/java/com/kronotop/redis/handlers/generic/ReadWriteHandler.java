@@ -35,7 +35,7 @@ public class ReadWriteHandler extends BaseGenericHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        request.getChannelContext().channel().attr(ChannelAttributes.READONLY).set(false);
+        request.getSession().attr(SessionAttributes.READONLY).set(false);
         response.writeOK();
     }
 }

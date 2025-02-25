@@ -29,7 +29,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 
-class VacuumSubcommand extends BaseHandler implements SubcommandHandler {
+class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
     VacuumSubcommand(VolumeService service) {
         super(service);
     }

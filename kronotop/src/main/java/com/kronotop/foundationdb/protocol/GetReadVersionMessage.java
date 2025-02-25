@@ -16,11 +16,11 @@
 
 package com.kronotop.foundationdb.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 
 import java.util.List;
 
-public class GetReadVersionMessage implements KronotopMessage<Void> {
+public class GetReadVersionMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "GETREADVERSION";
     public static final int MAXIMUM_PARAMETER_COUNT = 0;
 

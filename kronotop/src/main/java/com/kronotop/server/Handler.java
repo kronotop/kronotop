@@ -33,6 +33,15 @@ public interface Handler {
     }
 
     /**
+     * Determines if the handler is compatible with Redis.
+     *
+     * @return true if the handler is compatible with Redis, false otherwise
+     */
+    default boolean isRedisCompatible() {
+        return true;
+    }
+
+    /**
      * Retrieves the list of keys associated with a given request.
      *
      * @param request the Redis request object

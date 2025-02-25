@@ -104,7 +104,7 @@ public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        ByteBuf buf = response.getChannelContext().alloc().buffer();
+        ByteBuf buf = response.getCtx().alloc().buffer();
         buf.writeBytes(Double.toString(newValue).getBytes());
         response.write(buf);
     }

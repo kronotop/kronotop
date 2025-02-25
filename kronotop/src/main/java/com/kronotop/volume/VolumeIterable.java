@@ -33,11 +33,11 @@ import java.util.NoSuchElementException;
 class VolumeIterable implements Iterable<KeyEntry> {
     private final AsyncIterable<KeyValue> asyncIterable;
     private final Volume volume;
-    private final Session session;
+    private final VolumeSession session;
     private final int limit;
     private final boolean reverse;
 
-    VolumeIterable(Volume volume, Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
+    VolumeIterable(Volume volume, VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
         this.volume = volume;
         this.session = session;
         this.limit = limit;
@@ -45,7 +45,7 @@ class VolumeIterable implements Iterable<KeyEntry> {
         this.asyncIterable = createAsyncIterable(session, begin, end);
     }
 
-    private AsyncIterable<KeyValue> createAsyncIterable(Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+    private AsyncIterable<KeyValue> createAsyncIterable(VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
         VolumeSubspace subspace = volume.getSubspace();
         KeySelector beginKeySelector;
         if (begin == null) {
@@ -71,10 +71,10 @@ class VolumeIterable implements Iterable<KeyEntry> {
 
     private static class VolumeIterator implements Iterator<KeyEntry> {
         private final Volume volume;
-        private final Session session;
+        private final VolumeSession session;
         private final AsyncIterator<KeyValue> asyncIterator;
 
-        VolumeIterator(Volume volume, Session session, AsyncIterator<KeyValue> asyncIterator) {
+        VolumeIterator(Volume volume, VolumeSession session, AsyncIterator<KeyValue> asyncIterator) {
             this.volume = volume;
             this.session = session;
             this.asyncIterator = asyncIterator;

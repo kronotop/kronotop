@@ -113,13 +113,13 @@ class TaskServiceTest extends BaseClusterTest {
 
         service.scheduleAtFixedRate(new TestTask(), 0, 1, TimeUnit.MILLISECONDS);
         await().atMost(Duration.ofSeconds(5)).until(() -> {
-           List<ObservedTask> tasks = service.tasks();
-           for (ObservedTask task : tasks) {
-               if (task.name().equals(name)) {
-                   return task.lastRun() != 0;
-               }
-           }
-           return false;
+            List<ObservedTask> tasks = service.tasks();
+            for (ObservedTask task : tasks) {
+                if (task.name().equals(name)) {
+                    return task.lastRun() != 0;
+                }
+            }
+            return false;
         });
     }
 }

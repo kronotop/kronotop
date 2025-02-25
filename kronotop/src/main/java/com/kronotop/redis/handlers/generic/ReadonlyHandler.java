@@ -35,7 +35,7 @@ public class ReadonlyHandler extends BaseGenericHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        request.getChannelContext().channel().attr(ChannelAttributes.READONLY).set(true);
+        request.getSession().attr(SessionAttributes.READONLY).set(true);
         response.writeOK();
     }
 }

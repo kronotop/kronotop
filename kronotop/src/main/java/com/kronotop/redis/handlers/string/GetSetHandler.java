@@ -91,7 +91,7 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
             return;
         }
 
-        ByteBuf buf = response.getChannelContext().alloc().buffer();
+        ByteBuf buf = response.getCtx().alloc().buffer();
         buf.writeBytes(previous.string().value());
         response.write(buf);
     }

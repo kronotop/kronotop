@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.session.handlers;
+package com.kronotop.server.handlers;
 
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.handlers.protocol.SessionAttributeMessage;
+import com.kronotop.server.handlers.protocol.SessionAttributeParameters;
 import com.kronotop.server.resp3.BooleanRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.session.handlers.protocol.SessionAttributeMessage;
-import com.kronotop.session.handlers.protocol.SessionAttributeParameters;
 import io.netty.util.Attribute;
 
 import java.util.HashMap;
@@ -39,11 +39,16 @@ public class SessionAttributeHandler implements Handler {
         request.attr(MessageTypes.SESSIONATTRIBUTE).set(new SessionAttributeMessage());
     }
 
+    @Override
+    public boolean isRedisCompatible() {
+        return false;
+    }
+
     private void listSubcommand(Request request, Response response) {
         Map<RedisMessage, RedisMessage> children = new HashMap<>();
 
         // FUTURES
-        Attribute<Boolean> futuresAttr = request.getChannelContext().channel().attr(ChannelAttributes.FUTURES);
+        Attribute<Boolean> futuresAttr = request.getSession().attr(SessionAttributes.FUTURES);
         children.put(
                 new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.FUTURES.name().toLowerCase()),
                 futuresAttr.get() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
@@ -55,7 +60,7 @@ public class SessionAttributeHandler implements Handler {
     private void setSubcommand(Request request, Response response, SessionAttributeParameters parameters) {
         switch (parameters.getAttribute()) {
             case FUTURES -> {
-                request.getChannelContext().channel().attr(ChannelAttributes.FUTURES).set(parameters.getFutures());
+                request.getSession().attr(SessionAttributes.FUTURES).set(parameters.getFutures());
             }
         }
         response.writeOK();

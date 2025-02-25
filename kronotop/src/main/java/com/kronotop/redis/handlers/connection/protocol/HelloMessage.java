@@ -18,15 +18,15 @@ package com.kronotop.redis.handlers.connection.protocol;
 
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.server.KronotopMessage;
 import com.kronotop.server.NoProtoException;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-public class HelloMessage implements KronotopMessage<Void> {
+public class HelloMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "HELLO";
     public static final int RESP_VERSION_TWO = 2;
     public static final int RESP_VERSION_THREE = 3;

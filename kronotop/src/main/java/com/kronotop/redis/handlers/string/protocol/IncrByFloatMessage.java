@@ -18,12 +18,12 @@ package com.kronotop.redis.handlers.string.protocol;
 
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class IncrByFloatMessage implements KronotopMessage<String> {
+public class IncrByFloatMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "INCRBYFLOAT";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     public static final int MAXIMUM_PARAMETER_COUNT = 2;

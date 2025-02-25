@@ -16,11 +16,11 @@
 
 package com.kronotop.redis.handlers.transactions.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 
 import java.util.List;
 
-public class ExecMessage implements KronotopMessage<Void> {
+public class ExecMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "EXEC";
     public static final int MINIMUM_PARAMETER_COUNT = 0;
     public static final int MAXIMUM_PARAMETER_COUNT = 0;

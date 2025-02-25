@@ -17,13 +17,13 @@
 package com.kronotop.cluster.handlers.protocol;
 
 import com.kronotop.cluster.handlers.KrAdminSubcommand;
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
 
 import java.util.List;
 
-public class KrAdminMessage implements KronotopMessage<String> {
+public class KrAdminMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "KR.ADMIN";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;

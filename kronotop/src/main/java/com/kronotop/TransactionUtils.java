@@ -17,14 +17,12 @@
 package com.kronotop;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.server.ChannelAttributes;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
+import com.kronotop.server.Session;
+import com.kronotop.server.SessionAttributes;
 import io.netty.util.Attribute;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -32,86 +30,98 @@ public class TransactionUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionUtils.class);
 
     /**
-     * Retrieves an existing transaction from the channel context if it exists, otherwise creates a new transaction and sets it in the channel context.
+     * Retrieves the current transaction associated with the given session or creates a new one
+     * if no transaction is active. A new transaction is created when the session's "BEGIN"
+     * attribute is not set or is false. The method also initializes relevant session attributes
+     * for transaction management.
      *
-     * @param context        the Context object representing the Kronotop instance
-     * @param channelContext the ChannelHandlerContext object representing the channel context
-     * @return the existing or newly created Transaction object
+     * @param context the Context object containing the FoundationDB instance used for transaction creation
+     * @param session the Session object where transaction attributes are stored and managed
+     * @return the current transaction from the session, or a newly created transaction if none exists
      */
-    public static Transaction getOrCreateTransaction(Context context, ChannelHandlerContext channelContext) {
-        Channel channel = channelContext.channel();
-        Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
-
-        if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
+    public static Transaction getOrCreateTransaction(Context context, Session session) {
+        Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);
+        Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
+        if (!Boolean.TRUE.equals(beginAttr.get())) {
+            // There is no ongoing transaction in this Session, create a new one and
+            // set AUTO_COMMIT to true.
+            // This will be a one-off transaction.
             Transaction tr = context.getFoundationDB().createTransaction();
-            transactionAttr.set(tr);
-            channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
-            channel.attr(ChannelAttributes.AUTO_COMMIT).set(true);
-            channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
-            NamespaceUtils.clearOpenNamespaces(channelContext);
+            session.setTransaction(tr);
+            session.attr(SessionAttributes.AUTO_COMMIT).set(true);
             return tr;
         }
-
         return transactionAttr.get();
     }
 
     /**
-     * Adds a post-commit hook to the specified channel context. The hook will be executed after a transaction is committed.
+     * Adds a post-commit hook to the session. Post-commit hooks are executed
+     * after a transaction has been successfully committed.
      *
-     * @param hook           the commit hook to be added
-     * @param channelContext the channel context to which the hook will be added
+     * @param hook    the {@code CommitHook} instance to be added
+     * @param session the {@code Session} object where the hook will be registered
      */
-    public static void addPostCommitHook(CommitHook hook, ChannelHandlerContext channelContext) {
-        channelContext.channel().attr(ChannelAttributes.POST_COMMIT_HOOKS).get().add(hook);
+    public static void addPostCommitHook(CommitHook hook, Session session) {
+        session.attr(SessionAttributes.POST_COMMIT_HOOKS).get().add(hook);
     }
 
     /**
-     * Commits the transaction and executes any post-commit hooks if the channel context represents a one-off transaction.
+     * Commits the given transaction if auto-commit is enabled for the provided session.
+     * If the session's auto-commit status is true, the transaction is committed,
+     * followed by the execution of post-commit hooks and cleanup operations.
      *
-     * @param tr             the transaction to commit
-     * @param channelContext the channel context representing the transaction
+     * @param tr      the {@code Transaction} object representing the current transaction
+     * @param session the {@code Session} object that holds the session context and attributes
      */
-    public static void commitIfAutoCommitEnabled(Transaction tr, ChannelHandlerContext channelContext) {
-        if (getAutoCommit(channelContext)) {
-            tr.commit().join();
-            runPostCommitHooks(channelContext);
-            postCommitCleanup(channelContext);
+    public static void commitIfAutoCommitEnabled(Transaction tr, Session session) {
+        if (getAutoCommit(session)) {
+            try {
+                tr.commit().join();
+                runPostCommitHooks(session);
+            } finally {
+                session.unsetTransaction();
+            }
         }
     }
 
     /**
-     * Returns the value of the "auto_commit" attribute associated with the given ChannelHandlerContext.
+     * Retrieves the auto-commit status of the given session.
+     * The method checks the "AUTO_COMMIT" attribute in the session and returns
+     * {@code true} if it is set and not {@code false}; otherwise, returns {@code false}.
      *
-     * @param channelContext the ChannelHandlerContext object representing the channel context
-     * @return the value of the "auto_commit" attribute, or false if it is null
+     * @param session the {@code Session} object from which the auto-commit status will be retrieved
+     * @return {@code true} if auto-commit is enabled for the session; otherwise, {@code false}
      */
-    public static Boolean getAutoCommit(ChannelHandlerContext channelContext) {
-        Attribute<Boolean> autoCommitAttr = channelContext.channel().attr(ChannelAttributes.AUTO_COMMIT);
-        if (autoCommitAttr.get() == null) {
-            return false;
-        }
-        return autoCommitAttr.get();
+    public static Boolean getAutoCommit(Session session) {
+        Attribute<Boolean> autoCommitAttr = session.attr(SessionAttributes.AUTO_COMMIT);
+        return Boolean.TRUE.equals(autoCommitAttr.get());
     }
 
     /**
-     * Determines if the channel context represents a snapshot read.
+     * Determines if the current session is in snapshot read mode.
+     * The method checks the session's `SNAPSHOT_READ` attribute and returns true
+     * if it is set and evaluates to true; otherwise, it returns false.
      *
-     * @param channelContext the ChannelHandlerContext object representing the channel context
-     * @return true if the channel context represents a snapshot read, false otherwise
+     * @param session the {@code Session} object where the snapshot read attribute
+     *                will be checked
+     * @return {@code true} if snapshot read mode is enabled; otherwise, {@code false}
      */
-    public static Boolean isSnapshotRead(ChannelHandlerContext channelContext) {
-        Attribute<Boolean> snapshotReadAttr = channelContext.channel().attr(ChannelAttributes.SNAPSHOT_READ);
-        return snapshotReadAttr.get() != null && !Boolean.FALSE.equals(snapshotReadAttr.get());
+    public static Boolean isSnapshotRead(Session session) {
+        Attribute<Boolean> snapshotReadAttr = session.attr(SessionAttributes.SNAPSHOT_READ);
+        return Boolean.TRUE.equals(snapshotReadAttr.get());
     }
 
     /**
-     * Runs the post-commit hooks associated with the given channel context.
+     * Executes all post-commit hooks registered in the specified session.
+     * Each post-commit hook is run in sequence, and any exceptions that occur
+     * during the execution of a commit hook are logged without interrupting
+     * the execution of subsequent hooks.
      *
-     * @param channelContext the channel context representing the transaction
+     * @param session the {@code Session} object containing the post-commit hooks
+     *                to be executed
      */
-    public static void runPostCommitHooks(ChannelHandlerContext channelContext) {
-        List<CommitHook> commitHooks = channelContext.channel().attr(ChannelAttributes.POST_COMMIT_HOOKS).get();
+    public static void runPostCommitHooks(Session session) {
+        List<CommitHook> commitHooks = session.attr(SessionAttributes.POST_COMMIT_HOOKS).get();
         for (CommitHook commitHook : commitHooks) {
             try {
                 commitHook.run();
@@ -122,43 +132,14 @@ public class TransactionUtils {
     }
 
     /**
-     * Retrieves and increments the user version counter associated with a channel.
+     * Retrieves the current user version associated with the provided session,
+     * increments the version counter, and returns the previous version.
      *
-     * @param channelContext the {@code ChannelHandlerContext} containing the channel and relevant attributes.
-     * @return the current value of the user version counter before it is incremented.
+     * @param session the {@code Session} object from which the user version counter is retrieved
+     * @return the current user version before incrementing
      */
-    public static int getUserVersion(ChannelHandlerContext channelContext) {
-        AtomicInteger counter = channelContext.channel().attr(ChannelAttributes.USER_VERSION_COUNTER).get();
+    public static int getUserVersion(Session session) {
+        AtomicInteger counter = session.attr(SessionAttributes.USER_VERSION_COUNTER).get();
         return counter.getAndIncrement();
-    }
-
-    /**
-     * Cleans up various transaction-related attributes within a given channel context after a transaction is committed.
-     * This method resets attributes to their default state, ensuring the channel is ready for subsequent operations.
-     *
-     * @param channelContext the {@code ChannelHandlerContext} representing the channel context whose attributes need to be reset
-     */
-    public static void postCommitCleanup(ChannelHandlerContext channelContext) {
-        // TODO: SESSION-REFACTOR, this method should be moved to the session implementation
-        Channel channel = channelContext.channel();
-
-        // Close the Transaction object and release any associated resources.
-        // This must be called at least once after the Transaction object is no longer in use.
-        Transaction tr = channel.attr(ChannelAttributes.TRANSACTION).get();
-        if (tr != null) {
-            try {
-                tr.close();
-            } catch (Exception e) {
-                LOGGER.error("Error while closing transaction", e);
-            } finally {
-                channel.attr(ChannelAttributes.TRANSACTION).set(null);
-            }
-        }
-
-        channel.attr(ChannelAttributes.BEGIN).set(false);
-        channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
-        channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
-        channel.attr(ChannelAttributes.ASYNC_RETURNING).set(new LinkedList<>());
-        channel.attr(ChannelAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
     }
 }

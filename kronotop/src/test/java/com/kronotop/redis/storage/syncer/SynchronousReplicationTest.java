@@ -21,8 +21,8 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.Member;
 import com.kronotop.volume.AppendResult;
-import com.kronotop.volume.Session;
 import com.kronotop.volume.Volume;
+import com.kronotop.volume.VolumeSession;
 import com.kronotop.volume.VolumeTestUtils;
 import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -42,7 +42,7 @@ class SynchronousReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuffer[] entries = VolumeTestUtils.getEntries(2);
         AppendResult appendResult;
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, VolumeTestUtils.prefix);
+            VolumeSession session = new VolumeSession(tr, VolumeTestUtils.prefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
         }
@@ -59,7 +59,7 @@ class SynchronousReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         assertTrue(result);
 
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, VolumeTestUtils.prefix);
+            VolumeSession session = new VolumeSession(tr, VolumeTestUtils.prefix);
             for (int i = 0; i < keys.length; i++) {
                 Versionstamp key = keys[i];
                 ByteBuffer entry = entries[i];

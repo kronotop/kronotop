@@ -57,7 +57,7 @@ class NodesSubcommand implements SubcommandHandler {
             result.addAll(prepareLineForStandby(slotRange));
         }
 
-        ByteBuf buf = response.getChannelContext().alloc().buffer();
+        ByteBuf buf = response.getCtx().alloc().buffer();
         buf.writeBytes(String.join("\n", result).getBytes());
         response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
     }

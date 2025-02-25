@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume.handlers;
+package com.kronotop.redis.handlers;
 
-import com.kronotop.Context;
-import com.kronotop.volume.VolumeService;
+import com.kronotop.BaseHandlerTest;
+import com.kronotop.volume.Prefix;
+import com.typesafe.config.Config;
 
-public class BaseHandler {
-    protected VolumeService service;
-    protected Context context;
+import java.net.UnknownHostException;
 
-    public BaseHandler(VolumeService service) {
-        this.service = service;
-        this.context = service.getContext();
+public class BaseRedisHandlerTest extends BaseHandlerTest {
+    protected Prefix redisVolumeSyncerPrefix;
+
+    protected void setupCommon(Config config) throws UnknownHostException, InterruptedException {
+        redisVolumeSyncerPrefix = new Prefix(config.getString("redis.volume_syncer.prefix").getBytes());
+        super.setupCommon(config);
     }
 }

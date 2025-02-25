@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.session.handlers.protocol;
+package com.kronotop.server.handlers.protocol;
 
 import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;

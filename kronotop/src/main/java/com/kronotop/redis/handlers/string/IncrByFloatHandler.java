@@ -89,7 +89,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        ByteBuf buf = response.getChannelContext().alloc().buffer();
+        ByteBuf buf = response.getCtx().alloc().buffer();
         buf.writeBytes(result.get().toString().getBytes());
         response.write(buf);
     }

@@ -18,12 +18,12 @@ package com.kronotop.redis.handlers.generic.protocol;
 
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class ScanMessage implements KronotopMessage<Void> {
+public class ScanMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SCAN";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;

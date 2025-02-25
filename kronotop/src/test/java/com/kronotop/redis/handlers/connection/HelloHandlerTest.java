@@ -19,9 +19,9 @@ package com.kronotop.redis.handlers.connection;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.network.clients.Client;
 import com.kronotop.network.clients.Clients;
-import com.kronotop.redis.handlers.BaseHandlerTest;
+import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.redis.handlers.connection.protocol.HelloMessage;
-import com.kronotop.server.ChannelAttributes;
+import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class HelloHandlerTest extends BaseHandlerTest {
+public class HelloHandlerTest extends BaseRedisHandlerTest {
 
     @Test
     public void testHELLO_protover_2() {
@@ -63,7 +63,7 @@ public class HelloHandlerTest extends BaseHandlerTest {
                         assertEquals(Long.valueOf(HelloMessage.RESP_VERSION_TWO), protover.value());
                         continue;
                     case "id":
-                        Attribute<Long> expectedClientId = channel.attr(ChannelAttributes.CLIENT_ID);
+                        Attribute<Long> expectedClientId = channel.attr(SessionAttributes.CLIENT_ID);
                         IntegerRedisMessage clientId = (IntegerRedisMessage) response.children().get(valueIndex);
                         assertEquals(expectedClientId.get(), Long.valueOf(clientId.value()));
                         continue;
@@ -109,7 +109,7 @@ public class HelloHandlerTest extends BaseHandlerTest {
                     assertEquals(Long.valueOf(HelloMessage.RESP_VERSION_THREE), protover.value());
                     continue;
                 case "id":
-                    Attribute<Long> expectedClientId = channel.attr(ChannelAttributes.CLIENT_ID);
+                    Attribute<Long> expectedClientId = channel.attr(SessionAttributes.CLIENT_ID);
                     IntegerRedisMessage clientId = (IntegerRedisMessage) response.children().get(redisMessage);
                     assertEquals(expectedClientId.get(), Long.valueOf(clientId.value()));
                     continue;
@@ -151,7 +151,7 @@ public class HelloHandlerTest extends BaseHandlerTest {
         Object msg = channel.readOutbound();
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
-        Attribute<Long> clientID = channel.attr(ChannelAttributes.CLIENT_ID);
+        Attribute<Long> clientID = channel.attr(SessionAttributes.CLIENT_ID);
         Client client = Clients.getClient(clientID.get());
         assertNotNull(client);
         assertEquals(client.getName(), "foobar");

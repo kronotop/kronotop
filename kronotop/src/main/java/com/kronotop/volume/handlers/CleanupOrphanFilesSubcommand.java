@@ -41,7 +41,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class CleanupOrphanFilesSubcommand extends BaseHandler implements SubcommandHandler {
+public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
     public CleanupOrphanFilesSubcommand(VolumeService service) {
         super(service);

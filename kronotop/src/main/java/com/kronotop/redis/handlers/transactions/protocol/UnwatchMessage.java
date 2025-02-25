@@ -17,11 +17,11 @@
 package com.kronotop.redis.handlers.transactions.protocol;
 
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 
 import java.util.List;
 
-public class UnwatchMessage implements KronotopMessage<Void> {
+public class UnwatchMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "UNWATCH";
     public static final int MINIMUM_PARAMETER_COUNT = 0;
     public static final int MAXIMUM_PARAMETER_COUNT = 0;

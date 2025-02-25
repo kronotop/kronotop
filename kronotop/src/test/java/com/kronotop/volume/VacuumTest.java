@@ -38,7 +38,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         // Insert some data
         AppendResult appendResult;
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             ByteBuffer[] entries = new ByteBuffer[numIterations];
             for (int i = 0; i < numIterations; i++) {
                 entries[i] = randomBytes(bufferSize);
@@ -54,7 +54,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
                 Versionstamp key = versionstampedKeys[i];
                 pairs[i] = new KeyEntry(key, randomBytes(bufferSize));
             }
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             UpdateResult updateResult = volume.update(session, pairs);
             tr.commit().join();
             updateResult.complete();
@@ -97,7 +97,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             for (int i = 1; i <= numIterations; i++) {
                 volume.append(session, randomBytes((int) bufferSize));
             }

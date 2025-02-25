@@ -16,9 +16,9 @@
 
 package com.kronotop.foundationdb;
 
+import com.kronotop.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.DoubleRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;

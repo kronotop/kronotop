@@ -47,9 +47,9 @@ public class AuthHandler implements Handler {
 
     private void authAttrSet(Response response) {
         Attribute<Boolean> authAttr = response.
-                getChannelContext().
+                getCtx().
                 channel().
-                attr(ChannelAttributes.AUTH);
+                attr(SessionAttributes.AUTH);
         authAttr.set(true);
     }
 

@@ -17,13 +17,13 @@
 package com.kronotop.redis.handlers.hash.protocol;
 
 import com.kronotop.redis.handlers.hash.HashFieldValue;
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.WrongNumberOfArgumentsException;
 
 import java.util.List;
 
-public class HSetMessage extends SyncableHashMessage implements KronotopMessage<String> {
+public class HSetMessage extends SyncableHashMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "HSET";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;

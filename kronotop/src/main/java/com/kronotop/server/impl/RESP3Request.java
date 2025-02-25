@@ -18,12 +18,12 @@ package com.kronotop.server.impl;
 
 import com.kronotop.common.Preconditions;
 import com.kronotop.server.Request;
+import com.kronotop.server.Session;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.CodecException;
 import io.netty.util.CharsetUtil;
 import io.netty.util.DefaultAttributeMap;
@@ -36,15 +36,15 @@ import java.util.ListIterator;
  * RespRequest represents a request in the Redis protocol.
  * It extends the DefaultAttributeMap class for attribute management and implements the Request interface.
  */
-public class RespRequest extends DefaultAttributeMap implements Request {
-    private final RedisMessage msg;
-    private final ChannelHandlerContext ctx;
+public class RESP3Request extends DefaultAttributeMap implements Request {
+    private final RedisMessage message;
+    private final Session session;
     private ArrayList<ByteBuf> params;
     private String command;
 
-    public RespRequest(ChannelHandlerContext ctx, Object msg) {
-        this.msg = (RedisMessage) msg;
-        this.ctx = ctx;
+    public RESP3Request(Session session, Object message) {
+        this.message = (RedisMessage) message;
+        this.session = session;
     }
 
     /**
@@ -58,17 +58,17 @@ public class RespRequest extends DefaultAttributeMap implements Request {
             return command;
         }
 
-        Preconditions.checkNotNull(msg, "RedisMessage cannot be null");
-        if (msg instanceof ArrayRedisMessage) {
-            RedisMessage redisMessage = ((ArrayRedisMessage) msg).children().get(0);
+        Preconditions.checkNotNull(message, "RedisMessage cannot be null");
+        if (message instanceof ArrayRedisMessage) {
+            RedisMessage redisMessage = ((ArrayRedisMessage) message).children().get(0);
             if (redisMessage instanceof FullBulkStringRedisMessage) {
                 command = ((FullBulkStringRedisMessage) redisMessage).content().toString(CharsetUtil.US_ASCII).toUpperCase();
                 return command;
             }
-        } else if (msg instanceof SimpleStringRedisMessage) {
-            return ((SimpleStringRedisMessage) msg).content().toUpperCase();
+        } else if (message instanceof SimpleStringRedisMessage) {
+            return ((SimpleStringRedisMessage) message).content().toUpperCase();
         }
-        throw new CodecException("unknown or corrupt message: " + msg);
+        throw new CodecException("unknown or corrupt message: " + message);
     }
 
     /**
@@ -82,9 +82,9 @@ public class RespRequest extends DefaultAttributeMap implements Request {
         }
         params = new ArrayList<>();
 
-        Preconditions.checkNotNull(msg, "RedisMessage cannot be null");
-        if (msg instanceof ArrayRedisMessage) {
-            List<RedisMessage> rawParams = ((ArrayRedisMessage) msg).children();
+        Preconditions.checkNotNull(message, "RedisMessage cannot be null");
+        if (message instanceof ArrayRedisMessage) {
+            List<RedisMessage> rawParams = ((ArrayRedisMessage) message).children();
             ListIterator<RedisMessage> iterator = rawParams.listIterator(1);
 
             while (iterator.hasNext()) {
@@ -104,15 +104,15 @@ public class RespRequest extends DefaultAttributeMap implements Request {
      * @return the RedisMessage object associated with the Request
      */
     public RedisMessage getRedisMessage() {
-        return msg;
+        return message;
     }
 
     /**
-     * Retrieves the ChannelHandlerContext associated with the Request.
+     * Retrieves the session associated with this RESP3Request.
      *
-     * @return the ChannelHandlerContext associated with the Request
+     * @return the Session object associated with this request
      */
-    public ChannelHandlerContext getChannelContext() {
-        return ctx;
+    public Session getSession() {
+        return session;
     }
 }

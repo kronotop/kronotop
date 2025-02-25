@@ -17,6 +17,7 @@
 package com.kronotop.foundationdb;
 
 import com.kronotop.AssertArrayResponse;
+import com.kronotop.BaseHandlerTest;
 import com.kronotop.protocol.CommitArgs;
 import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.protocol.KronotopCommandBuilder;

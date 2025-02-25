@@ -20,14 +20,11 @@ import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.NamespaceUtils;
 import com.kronotop.TransactionUtils;
-import com.kronotop.foundationdb.BaseHandler;
+import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZGetRangeSizeMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -37,7 +34,7 @@ import java.util.concurrent.CompletableFuture;
 @Command(ZGetRangeSizeMessage.COMMAND)
 @MinimumParameterCount(ZGetRangeSizeMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZGetRangeSizeMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZGetRangeSizeHandler extends BaseHandler implements Handler {
+public class ZGetRangeSizeHandler extends BaseFoundationDBHandler implements Handler {
     public ZGetRangeSizeHandler(FoundationDBService service) {
         super(service);
     }
@@ -58,13 +55,14 @@ public class ZGetRangeSizeHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         ZGetRangeSizeMessage message = request.attr(MessageTypes.ZGETRANGESIZE).get();
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+        Session session = request.getSession();
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
         byte[] begin = namespace.getZMap().pack(message.getBegin());
         byte[] end = namespace.getZMap().pack(message.getEnd());
         Range range = new Range(begin, end);
-        Long size = getEstimatedRangeSizeBytes(tr, range, TransactionUtils.isSnapshotRead(response.getChannelContext())).join();
+        Long size = getEstimatedRangeSizeBytes(tr, range, TransactionUtils.isSnapshotRead(session)).join();
         response.writeInteger(size);
     }
 }

@@ -20,17 +20,17 @@ import com.apple.foundationdb.Transaction;
 
 import javax.annotation.Nonnull;
 
-public class Session {
+public class VolumeSession {
     private final UserVersion userVersion = new UserVersion();
     private final Transaction transaction;
     private final Prefix prefix;
 
-    public Session(@Nonnull Prefix prefix) {
+    public VolumeSession(@Nonnull Prefix prefix) {
         this.prefix = prefix;
         this.transaction = null;
     }
 
-    public Session(@Nonnull Transaction tr, @Nonnull Prefix prefix) {
+    public VolumeSession(@Nonnull Transaction tr, @Nonnull Prefix prefix) {
         this.transaction = tr;
         this.prefix = prefix;
     }

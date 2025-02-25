@@ -40,8 +40,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Set;
 
-class RouteHandler extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
-    public RouteHandler(RoutingService service) {
+class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
+    public RouteSubcommandHandler(RoutingService service) {
         super(service);
     }
 

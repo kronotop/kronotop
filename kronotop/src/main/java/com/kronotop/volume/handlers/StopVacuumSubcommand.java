@@ -30,7 +30,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 
-public class StopVacuumSubcommand extends BaseHandler implements SubcommandHandler {
+public class StopVacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
     public StopVacuumSubcommand(VolumeService service) {
         super(service);

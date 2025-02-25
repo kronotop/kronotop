@@ -16,11 +16,11 @@
 
 package com.kronotop.redis.handlers.generic.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 
 import java.util.List;
 
-public class RandomKeyMessage implements KronotopMessage<Void> {
+public class RandomKeyMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "RANDOMKEY";
     public static final int MINIMUM_PARAMETER_COUNT = 0;
     public static final int MAXIMUM_PARAMETER_COUNT = 0;

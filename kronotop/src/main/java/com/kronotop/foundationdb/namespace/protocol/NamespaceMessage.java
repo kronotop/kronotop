@@ -17,7 +17,7 @@
 
 package com.kronotop.foundationdb.namespace.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
 import com.kronotop.server.WrongNumberOfArgumentsException;
@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 
-public class NamespaceMessage implements KronotopMessage<Void> {
+public class NamespaceMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "NAMESPACE";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;

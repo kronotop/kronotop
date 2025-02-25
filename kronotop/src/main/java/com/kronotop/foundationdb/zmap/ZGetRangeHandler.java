@@ -23,15 +23,12 @@ import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.NamespaceUtils;
 import com.kronotop.TransactionUtils;
-import com.kronotop.foundationdb.BaseHandler;
+import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.RangeKeySelector;
 import com.kronotop.foundationdb.zmap.protocol.ZGetRangeMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -49,7 +46,7 @@ import java.util.concurrent.ExecutionException;
 @Command(ZGetRangeMessage.COMMAND)
 @MinimumParameterCount(ZGetRangeMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZGetRangeMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZGetRangeHandler extends BaseHandler implements Handler {
+public class ZGetRangeHandler extends BaseFoundationDBHandler implements Handler {
     public ZGetRangeHandler(FoundationDBService service) {
         super(service);
     }
@@ -71,8 +68,9 @@ public class ZGetRangeHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
         ZGetRangeMessage message = request.attr(MessageTypes.ZGETRANGE).get();
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+        Session session = request.getSession();
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
         byte[] begin;
         byte[] end;
@@ -93,12 +91,12 @@ public class ZGetRangeHandler extends BaseHandler implements Handler {
 
         AsyncIterable<KeyValue> asyncIterable = getRange(
                 tr, beginKeySelector, endKeySelector, message.getLimit(),
-                message.getReverse(), TransactionUtils.isSnapshotRead(response.getChannelContext()));
+                message.getReverse(), TransactionUtils.isSnapshotRead(session));
 
         List<RedisMessage> upperList = new ArrayList<>();
         for (KeyValue keyValue : asyncIterable) {
-            ByteBuf keyBuf = response.getChannelContext().alloc().buffer();
-            ByteBuf valueBuf = response.getChannelContext().alloc().buffer();
+            ByteBuf keyBuf = response.getCtx().alloc().buffer();
+            ByteBuf valueBuf = response.getCtx().alloc().buffer();
 
             try {
                 List<RedisMessage> pair = new ArrayList<>();

@@ -77,7 +77,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     private boolean checkAppendedEntries(Versionstamp[] versionstampedKeys, Volume standbyVolume) throws IOException {
-        Session session = new Session(prefix);
+        VolumeSession session = new VolumeSession(prefix);
         for (Versionstamp versionstampedKey : versionstampedKeys) {
             try {
                 ByteBuffer buf = volume.get(session, versionstampedKey);
@@ -99,7 +99,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         AppendResult result;
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(number);
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             result = instance.append(session, entries);
             tr.commit().join();
         }
@@ -329,7 +329,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             // Replication is running at the background.
             KeyEntry[] entries = new KeyEntry[versionstampedKeys.length];
             try (Transaction tr = database.createTransaction()) {
-                Session session = new Session(tr, prefix);
+                VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 0; i < versionstampedKeys.length; i++) {
                     Versionstamp key = versionstampedKeys[i];
                     entries[i] = new KeyEntry(key, ByteBuffer.wrap(String.format("new-entry-%d", i).getBytes()));

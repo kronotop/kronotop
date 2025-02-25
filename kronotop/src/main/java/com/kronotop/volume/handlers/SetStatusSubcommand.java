@@ -27,7 +27,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 
-public class SetStatusSubcommand extends BaseHandler implements SubcommandHandler {
+public class SetStatusSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
     public SetStatusSubcommand(VolumeService service) {
         super(service);

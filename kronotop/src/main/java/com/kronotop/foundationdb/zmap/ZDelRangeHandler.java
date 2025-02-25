@@ -21,14 +21,11 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.NamespaceUtils;
 import com.kronotop.TransactionUtils;
-import com.kronotop.foundationdb.BaseHandler;
+import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZDelRangeMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -38,7 +35,7 @@ import java.util.Arrays;
 @Command(ZDelRangeMessage.COMMAND)
 @MinimumParameterCount(ZDelRangeMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZDelRangeMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZDelRangeHandler extends BaseHandler implements Handler {
+public class ZDelRangeHandler extends BaseFoundationDBHandler implements Handler {
     public ZDelRangeHandler(FoundationDBService service) {
         super(service);
     }
@@ -57,8 +54,9 @@ public class ZDelRangeHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         ZDelRangeMessage message = request.attr(MessageTypes.ZDELRANGE).get();
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+        Session session = request.getSession();
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
+        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
         byte[] begin;
         byte[] end;
@@ -76,7 +74,7 @@ public class ZDelRangeHandler extends BaseHandler implements Handler {
 
         Range range = new Range(begin, end);
         tr.clear(range);
-        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
+        TransactionUtils.commitIfAutoCommitEnabled(tr, session);
 
         response.writeOK();
     }

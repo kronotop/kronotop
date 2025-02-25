@@ -4,7 +4,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.NamespaceUtils;
-import com.kronotop.directory.Volumes;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.volume.Prefix;
 import org.junit.jupiter.api.Test;

@@ -18,7 +18,6 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.TransactionUtils;
 import com.kronotop.VersionstampUtils;
 import com.kronotop.common.resp.RESPError;
@@ -28,16 +27,17 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Command(CommitMessage.COMMAND)
 @MaximumParameterCount(CommitMessage.MAXIMUM_PARAMETER_COUNT)
-class CommitHandler extends BaseHandler implements Handler {
+class CommitHandler extends BaseFoundationDBHandler implements Handler {
 
     CommitHandler(FoundationDBService service) {
         super(service);
@@ -53,31 +53,32 @@ class CommitHandler extends BaseHandler implements Handler {
         // Validates the request
         CommitMessage message = request.attr(MessageTypes.COMMIT).get();
 
-        Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
-        if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
+        Session session = request.getSession();
+        Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
+        if (!Boolean.TRUE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
             return;
         }
 
-        Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
-        try (Transaction tr = transactionAttr.get()) {
-            CompletableFuture<byte[]> versionstamp;
-            if (message.getReturning().contains(CommitMessage.Parameter.VERSIONSTAMP)) {
-                versionstamp = tr.getVersionstamp();
-            } else if (message.getReturning().contains(CommitMessage.Parameter.FUTURES)) {
-                versionstamp = tr.getVersionstamp();
-            } else {
-                // Effectively final
-                versionstamp = null;
-            }
+        Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);
+        Transaction tr = transactionAttr.get();
 
+        CompletableFuture<byte[]> versionstamp;
+        if (message.getReturning().contains(CommitMessage.Parameter.VERSIONSTAMP)) {
+            versionstamp = tr.getVersionstamp();
+        } else if (message.getReturning().contains(CommitMessage.Parameter.FUTURES)) {
+            versionstamp = tr.getVersionstamp();
+        } else {
+            // Effectively final
+            versionstamp = null;
+        }
+
+        try {
             tr.commit().join();
 
-            TransactionUtils.runPostCommitHooks(request.getChannelContext());
+            TransactionUtils.runPostCommitHooks(session);
 
             if (message.getReturning().isEmpty()) {
-                TransactionUtils.postCommitCleanup(request.getChannelContext());
                 response.writeOK();
                 return;
             }
@@ -93,7 +94,7 @@ class CommitHandler extends BaseHandler implements Handler {
                         assert versionstamp != null;
                         byte[] versionBytes = versionstamp.join();
                         String encoded = VersionstampUtils.base32HexEncode(Versionstamp.complete(versionBytes));
-                        ByteBuf buf = response.getChannelContext().alloc().buffer();
+                        ByteBuf buf = response.getCtx().alloc().buffer();
                         buf.writeBytes(encoded.getBytes());
                         children.add(new FullBulkStringRedisMessage(buf));
                     }
@@ -101,7 +102,7 @@ class CommitHandler extends BaseHandler implements Handler {
                         assert versionstamp != null;
                         byte[] versionBytes = versionstamp.join();
                         Map<RedisMessage, RedisMessage> futures = new HashMap<>();
-                        List<Integer> asyncReturning = request.getChannelContext().channel().attr(ChannelAttributes.ASYNC_RETURNING).get();
+                        List<Integer> asyncReturning = request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get();
                         if (asyncReturning != null) {
                             for (Integer userVersion : asyncReturning) {
                                 Versionstamp completed = Versionstamp.complete(versionBytes, userVersion);
@@ -115,7 +116,8 @@ class CommitHandler extends BaseHandler implements Handler {
                 }
                 response.writeArray(children);
             });
-            TransactionUtils.postCommitCleanup(request.getChannelContext());
+        } finally {
+            session.unsetTransaction();
         }
     }
 }

@@ -17,7 +17,7 @@ class LogicalPlannerTest {
 
     @Test
     public void test_prepareLogicalPlan() {
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket,"{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' }, tags: { $all: ['foo', 32]} }");
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' }, tags: { $all: ['foo', 32]} }");
         //QueryOptimizer optimizer = new QueryOptimizer("{ status: {$eq: 'ALIVE'}, username: {$eq: 'kronotop-admin'}, age: {$lt: 35} }");
         //QueryOptimizer optimizer = new QueryOptimizer("{ status: 'ALIVE', username: 'kronotop-admin' }");
         //QueryOptimizer optimizer = new QueryOptimizer("{}");
@@ -27,7 +27,7 @@ class LogicalPlannerTest {
 
     @Test
     public void when_no_child_expression() {
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket,"{}");
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{}");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullBucketScan.class, node);
         assertTrue(node.getFilters().isEmpty());
@@ -38,7 +38,7 @@ class LogicalPlannerTest {
 
     @Test
     public void when_implicit_EQ_operator() {
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket,"{ status: 'ALIVE' }");
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: 'ALIVE' }");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullBucketScan.class, node);
         assertEquals(1, node.getFilters().size());
@@ -60,7 +60,7 @@ class LogicalPlannerTest {
 
     @Test
     public void when_explicit_EQ_operator() {
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket,"{ status: { $eq: 'ALIVE' } }");
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: { $eq: 'ALIVE' } }");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullBucketScan.class, node);
         assertEquals(1, node.getFilters().size());
@@ -81,7 +81,7 @@ class LogicalPlannerTest {
 
     @Test
     public void when_multiple_EQ_operator() {
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket,"{ status: { $eq: 'ALIVE' }, qty: { $lt: 30 } }");
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: { $eq: 'ALIVE' }, qty: { $lt: 30 } }");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullBucketScan.class, node);
         assertEquals(2, node.getFilters().size());

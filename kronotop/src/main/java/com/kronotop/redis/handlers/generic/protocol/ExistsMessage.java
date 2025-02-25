@@ -16,13 +16,13 @@
 
 package com.kronotop.redis.handlers.generic.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class ExistsMessage implements KronotopMessage<String> {
+public class ExistsMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "EXISTS";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;

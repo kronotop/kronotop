@@ -10,13 +10,13 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.LinkedList;
 import java.util.List;
 
-public class BucketInsertMessage implements KronotopMessage<Void> {
+public class BucketInsertMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.INSERT";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;

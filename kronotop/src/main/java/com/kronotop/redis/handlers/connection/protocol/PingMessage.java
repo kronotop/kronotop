@@ -16,13 +16,13 @@
 
 package com.kronotop.redis.handlers.connection.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.util.CharsetUtil;
 
 import java.util.List;
 
-public class PingMessage implements KronotopMessage<Void> {
+public class PingMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "PING";
     public static final int MAXIMUM_PARAMETER_COUNT = 1;
 

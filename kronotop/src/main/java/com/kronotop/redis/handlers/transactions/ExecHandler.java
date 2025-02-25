@@ -22,7 +22,6 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
 @Command(ExecMessage.COMMAND)
@@ -42,9 +41,8 @@ public class ExecHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> redisMulti = channel.attr(ChannelAttributes.REDIS_MULTI);
-        if (!Boolean.TRUE.equals(redisMulti.get())) {
+        Attribute<Boolean> multiAttr = request.getSession().attr(SessionAttributes.MULTI);
+        if (!Boolean.TRUE.equals(multiAttr.get())) {
             response.writeError("EXEC without MULTI");
             return;
         }

@@ -16,11 +16,11 @@
 
 package com.kronotop.redis.handlers.transactions.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 
 import java.util.List;
 
-public class DiscardMessage implements KronotopMessage<Void> {
+public class DiscardMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "DISCARD";
     public static final int MINIMUM_PARAMETER_COUNT = 0;
     public static final int MAXIMUM_PARAMETER_COUNT = 0;

@@ -329,7 +329,7 @@ public class Volume {
      * @param kind          the kind of operation being logged.
      * @param entryMetadata metadata of the entry being appended to the segment.
      */
-    private void appendSegmentLog(Session session, OperationKind kind, Versionstamp versionstamp, EntryMetadata entryMetadata) {
+    private void appendSegmentLog(VolumeSession session, OperationKind kind, Versionstamp versionstamp, EntryMetadata entryMetadata) {
         appendSegmentLog(session.transaction(), kind, versionstamp, session.getAndIncrementUserVersion(), session.prefix().asLong(), entryMetadata);
     }
 
@@ -365,7 +365,7 @@ public class Volume {
      * @param entryMetadataList An array of entry metadata to be written.
      * @return A CompletableFuture containing the byte array of the transaction versionstamp.
      */
-    private CompletableFuture<byte[]> writeMetadata(Session session, EntryMetadata[] entryMetadataList) {
+    private CompletableFuture<byte[]> writeMetadata(VolumeSession session, EntryMetadata[] entryMetadataList) {
         Transaction tr = session.transaction();
         for (EntryMetadata entryMetadata : entryMetadataList) {
             int userVersion = session.getAndIncrementUserVersion();
@@ -422,7 +422,7 @@ public class Volume {
      * including metadata about the appended entries and a future for the transaction versionstamp.
      * @throws IOException If an I/O error occurs during the append operation.
      */
-    public AppendResult append(@Nonnull Session session, @Nonnull ByteBuffer... entries) throws IOException {
+    public AppendResult append(@Nonnull VolumeSession session, @Nonnull ByteBuffer... entries) throws IOException {
         if (entries.length > UserVersion.MAX_VALUE) {
             throw new TooManyEntriesException();
         }
@@ -528,7 +528,7 @@ public class Volume {
      * @return a ByteBuffer containing the value associated with the specified key, or null if no value is found
      * @throws IOException if an I/O error occurs during the operation
      */
-    public ByteBuffer get(@Nonnull Session session, @Nonnull Versionstamp key) throws IOException {
+    public ByteBuffer get(@Nonnull VolumeSession session, @Nonnull Versionstamp key) throws IOException {
         EntryMetadata entryMetadata;
         if (session.transaction() == null) {
             entryMetadata = loadEntryMetadataFromCache(session.prefix(), key);
@@ -571,7 +571,7 @@ public class Volume {
      * @return A DeleteResult containing the results of the deletion operation, including the count of deleted entries
      * and a callback for invalidating related cache entries.
      */
-    public DeleteResult delete(@Nonnull Session session, @Nonnull Versionstamp... keys) {
+    public DeleteResult delete(@Nonnull VolumeSession session, @Nonnull Versionstamp... keys) {
         Transaction tr = session.transaction();
 
         DeleteResult result = new DeleteResult(keys.length, entryMetadataCache.load(session.prefix())::invalidate);
@@ -612,7 +612,7 @@ public class Volume {
      * @throws IOException          If an I/O error occurs during the update.
      * @throws KeyNotFoundException If a key is not found during the update.
      */
-    public UpdateResult update(@Nonnull Session session, @Nonnull KeyEntry... pairs) throws IOException, KeyNotFoundException {
+    public UpdateResult update(@Nonnull VolumeSession session, @Nonnull KeyEntry... pairs) throws IOException, KeyNotFoundException {
         ByteBuffer[] entries = new ByteBuffer[pairs.length];
         for (int i = 0; i < pairs.length; i++) {
             entries[i] = pairs[i].entry();
@@ -732,7 +732,7 @@ public class Volume {
      * @param session the session for which to retrieve the KeyEntry objects
      * @return an iterable collection of KeyEntry objects within the specified session
      */
-    public Iterable<KeyEntry> getRange(@Nonnull Session session) {
+    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session) {
         return getRange(session, ReadTransaction.ROW_LIMIT_UNLIMITED);
     }
 
@@ -743,7 +743,7 @@ public class Volume {
      * @param reverse a boolean indicating the traversal direction; if true, traverses in reverse order
      * @return an Iterable of KeyEntry objects representing the resulting range
      */
-    public Iterable<KeyEntry> getRange(@Nonnull Session session, boolean reverse) {
+    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, boolean reverse) {
         return getRange(session, ReadTransaction.ROW_LIMIT_UNLIMITED, reverse);
     }
 
@@ -754,7 +754,7 @@ public class Volume {
      * @param limit   the maximum number of KeyEntry objects to retrieve
      * @return an Iterable of KeyEntry objects within the specified range
      */
-    public Iterable<KeyEntry> getRange(@Nonnull Session session, int limit) {
+    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, int limit) {
         return getRange(session, limit, false);
     }
 
@@ -766,7 +766,7 @@ public class Volume {
      * @param reverse if true, retrieves the entries in reverse order
      * @return an iterable collection of KeyEntry objects matching the specified range and order
      */
-    public Iterable<KeyEntry> getRange(@Nonnull Session session, int limit, boolean reverse) {
+    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, int limit, boolean reverse) {
         return new VolumeIterable(this, session, null, null, limit, reverse);
     }
 
@@ -778,7 +778,7 @@ public class Volume {
      * @param end     the ending VersionstampedKeySelector for the range
      * @return an Iterable of KeyEntry objects within the specified range
      */
-    public Iterable<KeyEntry> getRange(@Nonnull Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
         return getRange(session, begin, end, ReadTransaction.ROW_LIMIT_UNLIMITED);
     }
 
@@ -791,7 +791,7 @@ public class Volume {
      * @param limit   the maximum number of key entries to include in the range
      * @return an iterable collection of KeyEntry objects that falls within the specified range
      */
-    public Iterable<KeyEntry> getRange(@Nonnull Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
+    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
         return new VolumeIterable(this, session, begin, end, limit, false);
     }
 
@@ -805,7 +805,7 @@ public class Volume {
      * @param reverse whether to retrieve the range in reverse order
      * @return an Iterable collection of KeyEntry objects within the specified range
      */
-    public Iterable<KeyEntry> getRange(@Nonnull Session session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
+    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
         return new VolumeIterable(this, session, begin, end, limit, reverse);
     }
 
@@ -827,7 +827,7 @@ public class Volume {
             Tuple tuple = config.subspace().unpack(keyValue.getKey());
             byte[] prefixBytes = tuple.getBytes(2);
             Prefix prefix = Prefix.fromBytes(prefixBytes);
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
 
             cardinality += segmentContainer.metadata().cardinality(session);
             usedBytes += segmentContainer.metadata().usedBytes(session);
@@ -943,7 +943,7 @@ public class Volume {
 
                 List<UpdateResult> results = new ArrayList<>();
                 for (Map.Entry<Prefix, List<KeyEntry>> entry : pairsByPrefix.entrySet()) {
-                    UpdateResult updateResult = update(new Session(tr, entry.getKey()), entry.getValue().toArray(new KeyEntry[0]));
+                    UpdateResult updateResult = update(new VolumeSession(tr, entry.getKey()), entry.getValue().toArray(new KeyEntry[0]));
                     results.add(updateResult);
                 }
 
@@ -1038,7 +1038,7 @@ public class Volume {
         }
     }
 
-    private void clearSegmentsByPrefix(Session session) {
+    private void clearSegmentsByPrefix(VolumeSession session) {
         assert session.transaction() != null;
         // We need to open all segments before running the "clear prefix" logic.
         fillSegmentsMap(session.transaction());
@@ -1067,7 +1067,7 @@ public class Volume {
         }
     }
 
-    private void clearEntrySubspace(Session session) {
+    private void clearEntrySubspace(VolumeSession session) {
         byte[] begin = config.subspace().pack(Tuple.from(ENTRY_SUBSPACE, session.prefix().asBytes()));
         byte[] end = ByteArrayUtil.strinc(begin);
         session.transaction().clear(begin, end);
@@ -1078,7 +1078,7 @@ public class Volume {
      *
      * @param session the session containing the transaction and prefix information.
      */
-    public void clearPrefix(@Nonnull Session session) {
+    public void clearPrefix(@Nonnull VolumeSession session) {
         Objects.requireNonNull(session.transaction());
         Objects.requireNonNull(session.prefix());
 

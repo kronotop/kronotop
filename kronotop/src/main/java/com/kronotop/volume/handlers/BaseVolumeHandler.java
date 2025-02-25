@@ -14,18 +14,23 @@
  * limitations under the License.
  */
 
-package com.kronotop.server;
+package com.kronotop.volume.handlers;
 
-import java.util.List;
+import com.kronotop.Context;
+import com.kronotop.server.Handler;
+import com.kronotop.volume.VolumeService;
 
-/**
- * The KronotopMessage interface represents a message in the Kronotop system.
- * It provides methods to retrieve the key(s) associated with the message.
- *
- * @param <K> The type of the key(s)
- */
-public interface KronotopMessage<K> {
-    K getKey();
+public abstract class BaseVolumeHandler implements Handler {
+    protected VolumeService service;
+    protected Context context;
 
-    List<K> getKeys();
+    public BaseVolumeHandler(VolumeService service) {
+        this.service = service;
+        this.context = service.getContext();
+    }
+
+    @Override
+    public boolean isRedisCompatible() {
+        return false;
+    }
 }

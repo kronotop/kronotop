@@ -31,7 +31,7 @@ import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.Prefix;
-import com.kronotop.volume.Session;
+import com.kronotop.volume.VolumeSession;
 import org.bson.Document;
 
 import java.nio.ByteBuffer;
@@ -59,12 +59,12 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         // TODO: Distribute the requests among shards in a round robin fashion.
         int shardId = 1;
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getSession(), tr);
         Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, namespace, message.getBucket());
 
         List<RedisMessage> userVersions = new LinkedList<>();
-        boolean autoCommitEnabled = TransactionUtils.getAutoCommit(request.getChannelContext());
+        boolean autoCommitEnabled = TransactionUtils.getAutoCommit(request.getSession());
 
         ByteBuffer[] entries = new ByteBuffer[message.getDocuments().size()];
         for (int index = 0; index < message.getDocuments().size(); index++) {
@@ -72,21 +72,21 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             Document document = Document.parse(new String(data));
             entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
 
-            int userVersion = TransactionUtils.getUserVersion(request.getChannelContext());
+            int userVersion = TransactionUtils.getUserVersion(request.getSession());
             IndexBuilder.setIdIndex(tr, namespace, shardId, prefix, userVersion);
             if (!autoCommitEnabled) {
                 userVersions.add(new IntegerRedisMessage(userVersion));
-                request.getChannelContext().channel().attr(ChannelAttributes.ASYNC_RETURNING).get().add(userVersion);
+                request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get().add(userVersion);
             }
         }
 
-        Session session = new Session(tr, prefix);
+        VolumeSession volumeSession = new VolumeSession(tr, prefix);
         BucketShard shard = service.getShard(shardId);
-        AppendResult appendResult = shard.volume().append(session, entries);
+        AppendResult appendResult = shard.volume().append(volumeSession, entries);
 
         PostCommitHook postCommitHook = new PostCommitHook(appendResult);
-        TransactionUtils.addPostCommitHook(postCommitHook, request.getChannelContext());
-        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
+        TransactionUtils.addPostCommitHook(postCommitHook, request.getSession());
+        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
 
         if (autoCommitEnabled) {
             Versionstamp[] versionstamps = postCommitHook.getVersionstamps();

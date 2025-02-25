@@ -26,7 +26,7 @@ import com.kronotop.volume.VolumeService;
 import java.util.ArrayList;
 import java.util.List;
 
-class ListSubcommand extends BaseHandler implements SubcommandHandler {
+class ListSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
     public ListSubcommand(VolumeService service) {
         super(service);

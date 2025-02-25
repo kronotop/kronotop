@@ -35,7 +35,7 @@ import com.kronotop.redis.handlers.transactions.protocol.*;
 import com.kronotop.redis.server.protocol.CommandMessage;
 import com.kronotop.redis.server.protocol.FlushAllMessage;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
-import com.kronotop.session.handlers.protocol.SessionAttributeMessage;
+import com.kronotop.server.handlers.protocol.SessionAttributeMessage;
 import com.kronotop.task.handlers.protocol.TaskAdminMessage;
 import com.kronotop.volume.handlers.protocol.SegmentInsertMessage;
 import com.kronotop.volume.handlers.protocol.SegmentRangeMessage;

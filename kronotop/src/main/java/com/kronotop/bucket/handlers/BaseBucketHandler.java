@@ -13,13 +13,19 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.server.Handler;
 
-public class BaseBucketHandler {
+public abstract class BaseBucketHandler implements Handler {
     protected final BucketService service;
     protected final Context context;
 
     public BaseBucketHandler(BucketService service) {
         this.service = service;
         this.context = service.getContext();
+    }
+
+    @Override
+    public boolean isRedisCompatible() {
+        return false;
     }
 }

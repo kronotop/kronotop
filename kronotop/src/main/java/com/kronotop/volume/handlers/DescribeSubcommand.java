@@ -33,7 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-class DescribeSubcommand extends BaseHandler implements SubcommandHandler {
+class DescribeSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
     public DescribeSubcommand(VolumeService service) {
         super(service);

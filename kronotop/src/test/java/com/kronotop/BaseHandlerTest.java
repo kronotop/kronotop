@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-package com.kronotop.foundationdb;
+package com.kronotop;
 
-import com.kronotop.BaseTest;
-import com.kronotop.KronotopTestInstance;
 import com.typesafe.config.Config;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.AfterEach;
@@ -30,18 +28,27 @@ public class BaseHandlerTest extends BaseTest {
     protected KronotopTestInstance kronotopInstance;
     protected EmbeddedChannel channel;
     protected String namespace;
+    protected Config config;
 
     public EmbeddedChannel getChannel() {
         return channel;
     }
 
-    @BeforeEach
-    public void setup() throws UnknownHostException, InterruptedException {
-        Config config = loadConfig("test.conf");
+    protected EmbeddedChannel newChannel() {
+        return kronotopInstance.newChannel();
+    }
+
+    protected void setupCommon(Config config) throws UnknownHostException, InterruptedException {
         kronotopInstance = new KronotopTestInstance(config);
         kronotopInstance.start();
         channel = kronotopInstance.getChannel();
         namespace = UUID.randomUUID().toString();
+    }
+
+    @BeforeEach
+    public void setup() throws UnknownHostException, InterruptedException {
+        config = loadConfig("test.conf");
+        setupCommon(config);
     }
 
     @AfterEach

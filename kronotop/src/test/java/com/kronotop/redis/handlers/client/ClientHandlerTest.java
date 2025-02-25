@@ -17,9 +17,9 @@
 package com.kronotop.redis.handlers.client;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
-import com.kronotop.redis.handlers.BaseHandlerTest;
-import com.kronotop.server.ChannelAttributes;
+import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.server.Response;
+import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ClientHandlerTest extends BaseHandlerTest {
+public class ClientHandlerTest extends BaseRedisHandlerTest {
 
     @Test
     public void test_CLIENT_SETINFO_LIBNAME() {
@@ -43,7 +43,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
 
-        String value = (String) channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("lib-name");
+        String value = (String) channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().get("lib-name");
         assertEquals("kronotop", value);
     }
 
@@ -59,7 +59,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
 
-        String value = (String) channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("lib-ver");
+        String value = (String) channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().get("lib-ver");
         assertEquals("1.1.1", value);
     }
 
@@ -75,7 +75,7 @@ public class ClientHandlerTest extends BaseHandlerTest {
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
 
-        String value = (String) channel.attr(ChannelAttributes.CLIENT_ATTRIBUTES).get().get("name");
+        String value = (String) channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().get("name");
         assertEquals("kronotop", value);
     }
 }

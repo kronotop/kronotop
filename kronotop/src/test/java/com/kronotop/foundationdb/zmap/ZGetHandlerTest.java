@@ -16,7 +16,7 @@
 
 package com.kronotop.foundationdb.zmap;
 
-import com.kronotop.foundationdb.BaseHandlerTest;
+import com.kronotop.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;

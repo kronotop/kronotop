@@ -19,14 +19,11 @@ package com.kronotop.foundationdb.zmap;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.NamespaceUtils;
 import com.kronotop.TransactionUtils;
-import com.kronotop.foundationdb.BaseHandler;
+import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZGetMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -39,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 @Command(ZGetMessage.COMMAND)
 @MinimumParameterCount(ZGetMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZGetMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZGetHandler extends BaseHandler implements Handler {
+public class ZGetHandler extends BaseFoundationDBHandler implements Handler {
     public ZGetHandler(FoundationDBService service) {
         super(service);
     }
@@ -60,16 +57,17 @@ public class ZGetHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         ZGetMessage message = request.attr(MessageTypes.ZGET).get();
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+        Session session = request.getSession();
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
+        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
-        CompletableFuture<byte[]> future = get(tr, namespace.getZMap().pack(message.getKey()), TransactionUtils.isSnapshotRead(request.getChannelContext()));
+        CompletableFuture<byte[]> future = get(tr, namespace.getZMap().pack(message.getKey()), TransactionUtils.isSnapshotRead(session));
         byte[] result = future.join();
         if (result == null) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
             return;
         }
-        ByteBuf buf = response.getChannelContext().alloc().buffer();
+        ByteBuf buf = response.getCtx().alloc().buffer();
         try {
             buf.writeBytes(result);
             response.write(buf);

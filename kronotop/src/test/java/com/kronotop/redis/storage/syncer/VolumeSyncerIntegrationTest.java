@@ -33,9 +33,9 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.KeyEntry;
-import com.kronotop.volume.Session;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeService;
+import com.kronotop.volume.VolumeSession;
 import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -112,7 +112,7 @@ class VolumeSyncerIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         assertTrue(volumeSyncer.isQueueEmpty());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             VolumeService standbyVolumeService = standbyInstance.getContext().getService(VolumeService.NAME);
             Volume standbyVolume = standbyVolumeService.findVolume(shard.volume().getConfig().name());
             Iterable<KeyEntry> iterable = standbyVolume.getRange(session);

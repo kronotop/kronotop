@@ -17,7 +17,7 @@
 package com.kronotop.server;
 
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.server.impl.RespResponse;
+import com.kronotop.server.impl.RESP3Response;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -51,7 +51,7 @@ public class RespResponseTest {
     @Test
     public void test_writeRedisMessage() {
         // Create a RespResponse object and associate it with the channel
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
 
         // Call the writeOK() method to add a simple 'OK' string to the response
         response.writeRedisMessage(new SimpleStringRedisMessage("Hello!"));
@@ -65,7 +65,7 @@ public class RespResponseTest {
     @Test
     public void test_writeOK() {
         // Create a RespResponse object and associate it with the channel
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
 
         // Call the writeOK() method to add a simple 'OK' string to the response
         response.writeOK();
@@ -79,7 +79,7 @@ public class RespResponseTest {
     @Disabled("This test is skipped because EmbeddedChannel.flush doesn't work as expected.")
     @Test
     public void test_writeQUEUED() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         response.writeQUEUED();
         response.flush();
 
@@ -91,7 +91,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeInteger() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         response.writeInteger(100);
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
         assertInstanceOf(IntegerRedisMessage.class, redisMessage);
@@ -101,7 +101,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeDouble() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         response.writeDouble(100);
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
         assertInstanceOf(DoubleRedisMessage.class, redisMessage);
@@ -111,7 +111,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeArray() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         SimpleStringRedisMessage first = new SimpleStringRedisMessage("first message");
         DoubleRedisMessage second = new DoubleRedisMessage(100);
         List<RedisMessage> array = new ArrayList<>();
@@ -138,7 +138,7 @@ public class RespResponseTest {
         Map<RedisMessage, RedisMessage> map = new HashMap<>();
         map.put(key, value);
 
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         response.writeMap(map);
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -153,7 +153,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeBoolean() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         {
             response.writeBoolean(true);
             RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -173,7 +173,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeNULL() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         response.writeNULL();
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
         assertInstanceOf(NullRedisMessage.class, redisMessage);
@@ -183,7 +183,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeBigNumber() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         {
             response.writeBigNumber(BigInteger.valueOf(100));
             RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -211,7 +211,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeVerbatimString() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         ByteBuf content = Unpooled.buffer().alloc().buffer();
         content.writeBytes("message".getBytes());
         response.writeVerbatimString(content);
@@ -224,7 +224,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeError() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         response.writeError("error message");
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -235,7 +235,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeErrorWithPrefix() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         response.writeError(RESPError.CROSSSLOT, "error message");
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -246,7 +246,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeBulkError() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         response.writeBulkError("error message");
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -259,7 +259,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeBulkErrorWithPrefix() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
         response.writeBulkError(RESPError.CROSSSLOT, "error message");
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -273,7 +273,7 @@ public class RespResponseTest {
     @Test
     public void test_writeSimpleString() {
         // Create a RespResponse object and associate it with the channel
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
 
         response.writeSimpleString("message");
 
@@ -286,7 +286,7 @@ public class RespResponseTest {
     @Test
     public void test_writeFullBulkString() {
         // Create a RespResponse object and associate it with the channel
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
 
         ByteBuf content = Unpooled.copiedBuffer("message", CharsetUtil.UTF_8);
         response.writeFullBulkString(new FullBulkStringRedisMessage(content));
@@ -303,7 +303,7 @@ public class RespResponseTest {
     @Test
     public void test_write() {
         // Create a RespResponse object and associate it with the channel
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
 
         ByteBuf content = Unpooled.copiedBuffer("message", CharsetUtil.UTF_8);
         response.write(content);
@@ -319,7 +319,7 @@ public class RespResponseTest {
 
     @Test
     public void test_writeSet() {
-        RespResponse response = new RespResponse(ctx);
+        RESP3Response response = new RESP3Response(ctx);
 
         Set<RedisMessage> set = new HashSet<>();
         set.add(new SimpleStringRedisMessage("foobar"));

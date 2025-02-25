@@ -17,7 +17,7 @@
 package com.kronotop.redis.handlers.hash;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
-import com.kronotop.redis.handlers.BaseHandlerTest;
+import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class HIncrByFloatHandlerTest extends BaseHandlerTest {
+public class HIncrByFloatHandlerTest extends BaseRedisHandlerTest {
 
     @Test
     public void test_HINCRBYFLOAT() {

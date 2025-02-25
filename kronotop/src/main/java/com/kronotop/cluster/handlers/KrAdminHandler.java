@@ -49,8 +49,8 @@ public class KrAdminHandler implements Handler {
         handlers.put(KrAdminSubcommand.SET_MEMBER_STATUS, new SetMemberStatusSubcommand(service));
         handlers.put(KrAdminSubcommand.FIND_MEMBER, new FindMemberSubcommand(service));
         handlers.put(KrAdminSubcommand.REMOVE_MEMBER, new RemoveMemberSubcommand(service));
-        handlers.put(KrAdminSubcommand.LIST_SILENT_MEMBERS, new ListSilentMembers(service));
-        handlers.put(KrAdminSubcommand.ROUTE, new RouteHandler(service));
+        handlers.put(KrAdminSubcommand.LIST_SILENT_MEMBERS, new ListSilentMembersSubcommand(service));
+        handlers.put(KrAdminSubcommand.ROUTE, new RouteSubcommandHandler(service));
         handlers.put(KrAdminSubcommand.SET_SHARD_STATUS, new SetShardStatusSubcommand(service));
         handlers.put(KrAdminSubcommand.DESCRIBE_SHARD, new DescribeShardSubcommand(service));
         handlers.put(KrAdminSubcommand.SYNC_STANDBY, new SyncStandbySubcommand(service));
@@ -61,6 +61,11 @@ public class KrAdminHandler implements Handler {
         subcommandsRequireInitializedCluster.add(KrAdminSubcommand.ROUTE);
         subcommandsRequireInitializedCluster.add(KrAdminSubcommand.SET_SHARD_STATUS);
         subcommandsRequireInitializedCluster.add(KrAdminSubcommand.SYNC_STANDBY);
+    }
+
+    @Override
+    public boolean isRedisCompatible() {
+        return false;
     }
 
     @Override

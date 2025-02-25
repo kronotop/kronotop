@@ -49,8 +49,18 @@ public class ContextImpl implements Context {
     private final ConcurrentHashMap<String, ServiceContext<?>> contexts = new ConcurrentHashMap<>();
     private final Path dataDir;
     private final InternalConnectionPool<byte[], byte[]> internalConnectionPool;
+    private final String defaultNamespace;
 
     public ContextImpl(Config config, Member member, Database database) {
+        if (config.hasPath("default_namespace")) {
+            defaultNamespace = config.getString("default_namespace");
+            if (defaultNamespace.isEmpty() || defaultNamespace.isBlank()) {
+                throw new IllegalArgumentException("default namespace is empty or blank");
+            }
+        } else {
+            throw new MissingConfigException("cluster.name is missing in configuration");
+        }
+
         if (config.hasPath("cluster.name")) {
             clusterName = config.getString("cluster.name");
         } else {
@@ -68,6 +78,11 @@ public class ContextImpl implements Context {
         for (ServerKind kind : ServerKind.values()) {
             this.handlers.put(kind, new CommandHandlerRegistry());
         }
+    }
+
+    @Override
+    public String getDefaultNamespace() {
+        return defaultNamespace;
     }
 
     @Override

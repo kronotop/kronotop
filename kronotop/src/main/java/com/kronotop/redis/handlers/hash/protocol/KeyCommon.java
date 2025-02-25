@@ -16,12 +16,12 @@
 
 package com.kronotop.redis.handlers.hash.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-class KeyCommon implements KronotopMessage<String> {
+class KeyCommon implements ProtocolMessage<String> {
     private final Request request;
     private String key;
 

@@ -20,9 +20,9 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.AppendResult;
-import com.kronotop.volume.Session;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeConfig;
+import com.kronotop.volume.VolumeSession;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -66,7 +66,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeIntegratio
     private Versionstamp[] appendKeys(int number) throws IOException {
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(number);
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
 
@@ -86,7 +86,7 @@ public class StreamingStageIntegrationTest extends BaseNetworkedVolumeIntegratio
     }
 
     private boolean checkAppendedEntries(Versionstamp[] versionstampedKeys, Volume standbyVolume) throws IOException {
-        Session session = new Session(prefix);
+        VolumeSession session = new VolumeSession(prefix);
         for (Versionstamp versionstampedKey : versionstampedKeys) {
             try {
                 ByteBuffer buf = volume.get(session, versionstampedKey);

@@ -16,13 +16,13 @@
 
 package com.kronotop.redis.handlers.client.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
 
 import java.util.List;
 
-public class ClientMessage implements KronotopMessage<String> {
+public class ClientMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "CLIENT";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;

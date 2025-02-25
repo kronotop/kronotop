@@ -38,7 +38,7 @@ public class SetNameSubcommand implements SubcommandHandler {
         request.getParams().get(1).readBytes(rawName);
         String name = new String(rawName);
 
-        HashMap<String, Object> channelAttributes = request.getChannelContext().channel().attr(ChannelAttributes.CLIENT_ATTRIBUTES).get();
+        HashMap<String, Object> channelAttributes = request.getSession().attr(SessionAttributes.CLIENT_ATTRIBUTES).get();
         channelAttributes.put("name", name);
 
         response.writeOK();

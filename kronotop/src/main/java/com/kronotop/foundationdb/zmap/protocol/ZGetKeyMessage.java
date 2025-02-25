@@ -16,14 +16,13 @@
 
 package com.kronotop.foundationdb.zmap.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
 import java.util.List;
-import java.util.Locale;
 
-public class ZGetKeyMessage implements KronotopMessage<byte[]> {
+public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZGETKEY";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     public static final int MAXIMUM_PARAMETER_COUNT = 3;

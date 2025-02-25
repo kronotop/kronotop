@@ -16,10 +16,13 @@
 
 package com.kronotop.foundationdb.namespace;
 
-import com.kronotop.foundationdb.BaseHandlerTest;
+import com.kronotop.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.*;
+import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.IntegerRedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

@@ -16,19 +16,16 @@
 
 package com.kronotop.watcher;
 
-import io.netty.channel.ChannelId;
-import io.netty.channel.DefaultChannelId;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class WatcherTest {
-    ChannelId channelId = DefaultChannelId.newInstance();
 
     @Test
     public void testWatcher_watchKey() {
         Watcher w = new Watcher();
-        Long version = w.watchKey(channelId, "mykey");
+        Long version = w.watchKey(1L, "mykey");
         assertEquals(0, version);
         assertTrue(w.hasWatchers());
     }
@@ -37,10 +34,10 @@ public class WatcherTest {
     public void testWatcher_watchKey_Subsequent_Calls() {
         Watcher w = new Watcher();
 
-        long versionOne = w.watchKey(channelId, "mykey");
+        long versionOne = w.watchKey(1L, "mykey");
         assertEquals(0, versionOne);
 
-        Long versionTwo = w.watchKey(channelId, "mykey");
+        Long versionTwo = w.watchKey(1L, "mykey");
         assertEquals(0, versionTwo);
 
         assertEquals(versionTwo, versionOne);
@@ -50,19 +47,19 @@ public class WatcherTest {
     @Test
     public void testWatcher_unwatchKey() {
         Watcher w = new Watcher();
-        w.watchKey(channelId, "mykey");
-        w.unwatchKey(channelId, "mykey");
+        w.watchKey(1L, "mykey");
+        w.unwatchKey(1L, "mykey");
         assertFalse(w.hasWatchers());
     }
 
     @Test
     public void testWatcher_idempotency() {
         Watcher w = new Watcher();
-        w.watchKey(channelId, "mykey");
-        w.watchKey(channelId, "mykey");
-        w.watchKey(channelId, "mykey");
+        w.watchKey(1L, "mykey");
+        w.watchKey(1L, "mykey");
+        w.watchKey(1L, "mykey");
 
-        w.unwatchKey(channelId, "mykey");
+        w.unwatchKey(1L, "mykey");
 
         assertFalse(w.hasWatchers());
     }
@@ -70,11 +67,10 @@ public class WatcherTest {
     @Test
     public void testWatcher_Many_Watchers() {
         Watcher w = new Watcher();
-        w.watchKey(channelId, "mykey");
+        w.watchKey(1L, "mykey");
 
-        ChannelId newChannelId = DefaultChannelId.newInstance();
-        w.watchKey(newChannelId, "mykey");
-        w.unwatchKey(channelId, "mykey");
+        w.watchKey(2L, "mykey");
+        w.unwatchKey(1L, "mykey");
         assertTrue(w.hasWatchers());
     }
 
@@ -82,7 +78,7 @@ public class WatcherTest {
     public void testWatcher_increaseWatchedKeyVersion() {
         Watcher w = new Watcher();
 
-        Long version = w.watchKey(channelId, "mykey");
+        Long version = w.watchKey(1L, "mykey");
         w.increaseWatchedKeyVersion("mykey");
         Boolean result = w.isModified("mykey", version);
         assertTrue(result);

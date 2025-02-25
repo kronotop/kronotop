@@ -19,14 +19,11 @@ package com.kronotop.foundationdb.zmap;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.NamespaceUtils;
 import com.kronotop.TransactionUtils;
-import com.kronotop.foundationdb.BaseHandler;
+import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZMutateMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -37,7 +34,7 @@ import java.util.List;
 @Command(ZMutateMessage.COMMAND)
 @MinimumParameterCount(ZMutateMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(ZMutateMessage.MAXIMUM_PARAMETER_COUNT)
-public class ZMutateHandler extends BaseHandler implements Handler {
+public class ZMutateHandler extends BaseFoundationDBHandler implements Handler {
     public ZMutateHandler(FoundationDBService service) {
         super(service);
     }
@@ -61,11 +58,12 @@ public class ZMutateHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         ZMutateMessage message = request.attr(MessageTypes.ZMUTATE).get();
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getChannelContext());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+        Session session = request.getSession();
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
         tr.mutate(message.getMutationType(), namespace.getZMap().pack(message.getKey()), message.getParam());
-        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getChannelContext());
+        TransactionUtils.commitIfAutoCommitEnabled(tr, session);
 
         response.writeOK();
     }

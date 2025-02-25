@@ -17,9 +17,9 @@
 package com.kronotop.foundationdb.namespace;
 
 import com.kronotop.Context;
-import com.kronotop.server.ChannelAttributes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 
 class CurrentSubcommand extends BaseSubcommand implements SubcommandExecutor {
@@ -30,7 +30,7 @@ class CurrentSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        String namespace = response.getChannelContext().channel().attr(ChannelAttributes.CURRENT_NAMESPACE).get();
+        String namespace = response.getCtx().channel().attr(SessionAttributes.CURRENT_NAMESPACE).get();
         if (namespace == null || namespace.isBlank()) {
             response.writeError("current namespace is empty, blank or null");
             return;

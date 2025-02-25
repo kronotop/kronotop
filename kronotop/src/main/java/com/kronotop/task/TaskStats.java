@@ -17,9 +17,9 @@
 package com.kronotop.task;
 
 public class TaskStats {
+    private final long startedAt;
     private volatile long lastRun;
     private volatile boolean running;
-    private final long startedAt;
 
     public TaskStats() {
         this.startedAt = System.currentTimeMillis() / 1000L;
@@ -29,19 +29,19 @@ public class TaskStats {
         return startedAt;
     }
 
-    public void setLastRun(Long lastRun) {
-        this.lastRun = lastRun;
-    }
-
     public Long getLastRun() {
         return lastRun;
     }
 
-    public void setRunning(boolean running) {
-        this.running = running;
+    public void setLastRun(Long lastRun) {
+        this.lastRun = lastRun;
     }
 
     public boolean isRunning() {
         return running;
+    }
+
+    public void setRunning(boolean running) {
+        this.running = running;
     }
 }

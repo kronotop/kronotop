@@ -64,7 +64,7 @@ public abstract class RESPServer implements KronotopService {
                         p.addLast(new RedisArrayAggregator());
                         p.addLast(new RedisMapAggregator());
                         p.addLast(new RedisEncoder());
-                        p.addLast(new Router(context, commands));
+                        p.addLast(new KronotopChannelDuplexHandler(context, commands));
                     }
                 })
                 .option(ChannelOption.SO_BACKLOG, 1 << 9)

@@ -35,6 +35,21 @@ import java.util.Map;
  */
 public interface Context {
 
+    /**
+     * Retrieves the default namespace associated with the context.
+     *
+     * @return the default namespace as a String.
+     */
+    String getDefaultNamespace();
+
+    /**
+     * Retrieves the internal connection pool used to manage connections
+     * to Kronotop servers. The connection pool is responsible for handling
+     * the lifecycle of connections, ensuring efficient reuse and
+     * thread-safe access.
+     *
+     * @return the instance of the internal connection pool specialized for byte[] keys and byte[] values.
+     */
     InternalConnectionPool<byte[], byte[]> getInternalConnectionPool();
 
     /**

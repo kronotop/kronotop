@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.BaseVolumeIntegrationTest;
-import com.kronotop.volume.Session;
+import com.kronotop.volume.VolumeSession;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -35,7 +35,7 @@ class ReplicationMetadataTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(2);
         AppendResult result;
         try (Transaction tr = database.createTransaction()) {
-            Session session = new Session(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }

@@ -17,20 +17,16 @@
 package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.foundationdb.protocol.RollbackMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
-import io.netty.channel.Channel;
 import io.netty.util.Attribute;
-
-import java.util.LinkedList;
 
 @Command(RollbackMessage.COMMAND)
 @MaximumParameterCount(RollbackMessage.MAXIMUM_PARAMETER_COUNT)
-class RollbackHandler extends BaseHandler implements Handler {
+class RollbackHandler extends BaseFoundationDBHandler implements Handler {
 
     RollbackHandler(FoundationDBService service) {
         super(service);
@@ -43,24 +39,19 @@ class RollbackHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getChannelContext().channel();
-
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
-        if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
+        Session session = request.getSession();
+        Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
+        if (!Boolean.TRUE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
             return;
         }
 
-        Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
+        Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);
         Transaction tr = transactionAttr.get();
         try {
             tr.cancel();
         } finally {
-            beginAttr.set(false);
-            transactionAttr.set(null);
-            channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
-            channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
-            NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
+            session.unsetTransaction();
         }
 
         response.writeOK();

@@ -22,12 +22,12 @@ import com.kronotop.redis.SlotRange;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.Session;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,10 +39,10 @@ class SlotsSubcommand implements SubcommandHandler {
         this.service = service;
     }
 
-    private List<RedisMessage> prepareMember(ChannelHandlerContext context, Member member) {
+    private List<RedisMessage> prepareMember(Session session, Member member) {
         List<RedisMessage> result = new ArrayList<>();
         // HOST
-        ByteBuf hostBuf = context.alloc().buffer();
+        ByteBuf hostBuf = session.getCtx().alloc().buffer();
         hostBuf.writeBytes(member.getExternalAddress().getHost().getBytes());
         FullBulkStringRedisMessage fullBulkStringRedisMessage = new FullBulkStringRedisMessage(hostBuf);
         result.add(fullBulkStringRedisMessage);
@@ -52,7 +52,7 @@ class SlotsSubcommand implements SubcommandHandler {
         result.add(integerRedisMessage);
 
         // ID
-        ByteBuf idBuf = context.alloc().buffer();
+        ByteBuf idBuf = session.getCtx().alloc().buffer();
         idBuf.writeBytes(member.getId().getBytes());
         FullBulkStringRedisMessage idMessage = new FullBulkStringRedisMessage(idBuf);
         result.add(idMessage);
@@ -71,7 +71,7 @@ class SlotsSubcommand implements SubcommandHandler {
             List<RedisMessage> children = new ArrayList<>();
             IntegerRedisMessage beginSection = new IntegerRedisMessage(range.getBegin());
             IntegerRedisMessage endSection = new IntegerRedisMessage(range.getEnd());
-            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getChannelContext(), range.getPrimary()));
+            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getSession(), range.getPrimary()));
             children.add(beginSection);
             children.add(endSection);
             children.add(ownerSection);

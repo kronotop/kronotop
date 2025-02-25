@@ -29,9 +29,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-class ListSilentMembers extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
+class ListSilentMembersSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    public ListSilentMembers(RoutingService service) {
+    public ListSilentMembersSubcommand(RoutingService service) {
         super(service);
     }
 

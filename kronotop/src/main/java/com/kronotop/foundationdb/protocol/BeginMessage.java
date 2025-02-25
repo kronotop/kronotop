@@ -16,11 +16,11 @@
 
 package com.kronotop.foundationdb.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 
 import java.util.List;
 
-public class BeginMessage implements KronotopMessage<Void> {
+public class BeginMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BEGIN";
     public static final int MAXIMUM_PARAMETER_COUNT = 0;
 

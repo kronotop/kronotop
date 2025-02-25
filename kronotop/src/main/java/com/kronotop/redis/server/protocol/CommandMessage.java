@@ -16,14 +16,13 @@
 
 package com.kronotop.redis.server.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
-import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class CommandMessage implements KronotopMessage<Void> {
+public class CommandMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "COMMAND";
     public static final String SUBCOMMAND_COUNT = "COUNT";
     public static final String SUBCOMMAND_INFO = "INFO";
@@ -36,12 +35,6 @@ public class CommandMessage implements KronotopMessage<Void> {
     public CommandMessage(Request request) {
         this.request = request;
         parse();
-    }
-
-    private String readFromByteBuf(ByteBuf buf) {
-        byte[] rawItem = new byte[buf.readableBytes()];
-        buf.readBytes(rawItem);
-        return new String(rawItem);
     }
 
     private void parseCommands() {

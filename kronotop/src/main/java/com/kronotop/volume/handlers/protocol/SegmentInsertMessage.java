@@ -17,13 +17,13 @@
 package com.kronotop.volume.handlers.protocol;
 
 import com.kronotop.common.KronotopException;
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.volume.handlers.PackedEntry;
 
 import java.util.List;
 
-public class SegmentInsertMessage extends BaseMessage implements KronotopMessage<Void> {
+public class SegmentInsertMessage extends BaseMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SEGMENTINSERT";
     public static final int MINIMUM_PARAMETER_COUNT = 4;
     private String volume;

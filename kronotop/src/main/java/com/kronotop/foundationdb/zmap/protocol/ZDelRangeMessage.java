@@ -16,12 +16,12 @@
 
 package com.kronotop.foundationdb.zmap.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class ZDelRangeMessage implements KronotopMessage<Void> {
+public class ZDelRangeMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "ZDELRANGE";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     public static final int MAXIMUM_PARAMETER_COUNT = 2;

@@ -16,14 +16,14 @@
 
 package com.kronotop.redis.handlers.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class InfoMessage implements KronotopMessage<Void> {
+public class InfoMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "INFO";
     private final Request request;
     private final List<String> sections = new ArrayList<>();

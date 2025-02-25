@@ -43,7 +43,7 @@ import java.util.Map;
 
 import static com.kronotop.volume.Subspaces.REPLICATION_SLOT_SUBSPACE;
 
-public class ReplicationsSubcommand extends BaseHandler implements SubcommandHandler {
+public class ReplicationsSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
     public ReplicationsSubcommand(VolumeService service) {
         super(service);

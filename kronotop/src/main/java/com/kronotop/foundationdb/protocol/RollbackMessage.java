@@ -16,11 +16,11 @@
 
 package com.kronotop.foundationdb.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 
 import java.util.List;
 
-public class RollbackMessage implements KronotopMessage<Void> {
+public class RollbackMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "ROLLBACK";
     public static final int MAXIMUM_PARAMETER_COUNT = 0;
 

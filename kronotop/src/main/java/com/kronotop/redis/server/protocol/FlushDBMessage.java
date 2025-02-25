@@ -16,12 +16,12 @@
 
 package com.kronotop.redis.server.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class FlushDBMessage implements KronotopMessage<Void> {
+public class FlushDBMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "FLUSHDB";
     public static final int MINIMUM_PARAMETER_COUNT = 0;
     public static final int MAXIMUM_PARAMETER_COUNT = 1;

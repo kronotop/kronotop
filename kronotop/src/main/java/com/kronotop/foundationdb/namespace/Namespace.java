@@ -162,7 +162,7 @@ public class Namespace {
      * modification of the subspace map.
      *
      * @param shardId the identifier of the shard for which the bucket index subspace is being retrieved
-     * @param prefix the Prefix object representing the key space subset in the shard
+     * @param prefix  the Prefix object representing the key space subset in the shard
      * @return the Subspace object corresponding to the bucket index for the given shard and prefix
      */
     public Subspace getBucketIndexSubspace(int shardId, Prefix prefix) {

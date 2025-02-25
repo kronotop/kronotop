@@ -18,7 +18,7 @@ package com.kronotop.redis.handlers.string;
 
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
-import com.kronotop.redis.handlers.BaseHandlerTest;
+import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
@@ -33,7 +33,7 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class IncrByFloatHandlerTest extends BaseHandlerTest {
+public class IncrByFloatHandlerTest extends BaseRedisHandlerTest {
     @Test
     public void testINCRBYFLOAT_KeyNotExists() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);

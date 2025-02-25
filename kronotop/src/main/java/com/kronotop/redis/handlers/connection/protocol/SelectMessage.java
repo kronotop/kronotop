@@ -17,12 +17,12 @@
 package com.kronotop.redis.handlers.connection.protocol;
 
 import com.kronotop.common.utils.Utils;
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class SelectMessage implements KronotopMessage<Void> {
+public class SelectMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SELECT";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     public static final int MAXIMUM_PARAMETER_COUNT = 1;

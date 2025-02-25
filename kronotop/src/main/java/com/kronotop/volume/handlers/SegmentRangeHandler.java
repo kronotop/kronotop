@@ -39,7 +39,7 @@ import java.util.List;
 
 @Command(SegmentRangeMessage.COMMAND)
 @MinimumParameterCount(SegmentRangeMessage.MINIMUM_PARAMETER_COUNT)
-public class SegmentRangeHandler extends BaseHandler implements Handler {
+public class SegmentRangeHandler extends BaseVolumeHandler implements Handler {
     public SegmentRangeHandler(VolumeService service) {
         super(service);
     }

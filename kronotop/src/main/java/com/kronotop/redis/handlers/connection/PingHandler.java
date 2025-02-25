@@ -43,7 +43,7 @@ public class PingHandler implements Handler {
         PingMessage pingMessage = request.attr(MessageTypes.PING).get();
         if (pingMessage.getMessage() != null) {
             if (!pingMessage.getMessage().isEmpty() || !pingMessage.getMessage().isBlank()) {
-                ByteBuf buf = response.getChannelContext().alloc().buffer();
+                ByteBuf buf = response.getCtx().alloc().buffer();
                 buf.writeBytes(pingMessage.getMessage().getBytes(StandardCharsets.UTF_8));
                 response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
                 return;

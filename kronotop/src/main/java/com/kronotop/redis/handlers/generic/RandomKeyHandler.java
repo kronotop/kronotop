@@ -74,7 +74,7 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
         RedisShard shard = service.findShard(shardId, ShardStatus.READONLY);
         try {
             String randomKey = shard.index().random();
-            ByteBuf buf = response.getChannelContext().alloc().buffer();
+            ByteBuf buf = response.getCtx().alloc().buffer();
             buf.writeBytes(randomKey.getBytes());
             response.write(buf);
         } catch (NoSuchElementException e) {

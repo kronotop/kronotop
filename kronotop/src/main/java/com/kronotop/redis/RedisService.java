@@ -44,10 +44,9 @@ import com.kronotop.redis.storage.*;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.server.*;
 import com.kronotop.volume.Prefix;
-import com.kronotop.volume.Session;
+import com.kronotop.volume.VolumeSession;
 import com.kronotop.watcher.Watcher;
 import io.lettuce.core.cluster.SlotHash;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
@@ -300,7 +299,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Prefix prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
-                Session session = new Session(tr, prefix);
+                VolumeSession session = new VolumeSession(tr, prefix);
                 serviceContext.shards().values().forEach(shard -> shard.volume().clearPrefix(session));
                 tr.commit().join();
             }
@@ -318,15 +317,19 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     }
 
     /**
-     * Cleans up the Redis transaction by releasing the resources and resetting the transaction state.
+     * Cleans up the Redis transaction associated with the given session.
+     * This involves unwatching any keys that were being watched, resetting
+     * transaction-related attributes, releasing queued Redis messages, and
+     * resetting the queue of commands to prepare for a clean state.
      *
-     * @param ctx the channel handler context associated with the transaction
+     * @param session the session object associated with the Redis transaction to be cleaned up
      */
-    public void cleanupRedisTransaction(ChannelHandlerContext ctx) {
-        watcher.cleanupChannelHandlerContext(ctx);
-        ctx.channel().attr(ChannelAttributes.REDIS_MULTI).set(false);
-        ctx.channel().attr(ChannelAttributes.REDIS_MULTI_DISCARDED).set(false);
-        Attribute<List<Request>> queuedCommands = ctx.channel().attr(ChannelAttributes.QUEUED_COMMANDS);
+    public void cleanupRedisTransaction(Session session) {
+        watcher.unwatchWatchedKeys(session);
+
+        session.attr(SessionAttributes.MULTI).set(false);
+        session.attr(SessionAttributes.MULTI_DISCARDED).set(false);
+        Attribute<List<Request>> queuedCommands = session.attr(SessionAttributes.QUEUED_COMMANDS);
         for (Request cmd : queuedCommands.get()) {
             ReferenceCountUtil.release(cmd.getRedisMessage());
         }

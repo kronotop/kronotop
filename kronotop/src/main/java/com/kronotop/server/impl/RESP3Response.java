@@ -32,10 +32,10 @@ import java.util.Set;
  * The RespResponse class is an implementation of the Response interface.
  * It provides methods to write different types of Redis messages using the RESP (REdis Serialization Protocol).
  */
-public class RespResponse implements Response {
+public class RESP3Response implements Response {
     private final ChannelHandlerContext ctx;
 
-    public RespResponse(ChannelHandlerContext ctx) {
+    public RESP3Response(ChannelHandlerContext ctx) {
         this.ctx = ctx;
     }
 
@@ -252,7 +252,7 @@ public class RespResponse implements Response {
      * @return the ChannelHandlerContext associated with this Response object
      */
     @Override
-    public ChannelHandlerContext getChannelContext() {
+    public ChannelHandlerContext getCtx() {
         return this.ctx;
     }
 

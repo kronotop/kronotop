@@ -31,7 +31,7 @@ import com.kronotop.volume.handlers.protocol.SegmentInsertMessage;
 
 @Command(SegmentInsertMessage.COMMAND)
 @MinimumParameterCount(SegmentInsertMessage.MINIMUM_PARAMETER_COUNT)
-public class SegmentInsertHandler extends BaseHandler implements Handler {
+public class SegmentInsertHandler extends BaseVolumeHandler implements Handler {
 
     public SegmentInsertHandler(VolumeService service) {
         super(service);

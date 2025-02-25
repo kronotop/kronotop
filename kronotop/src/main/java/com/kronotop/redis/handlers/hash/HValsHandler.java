@@ -72,7 +72,7 @@ public class HValsHandler extends BaseHandler implements Handler {
 
             Collection<HashFieldValue> hashFields = container.hash().values();
             for (HashFieldValue hashField : hashFields) {
-                ByteBuf buf = response.getChannelContext().alloc().buffer();
+                ByteBuf buf = response.getCtx().alloc().buffer();
                 buf.writeBytes(hashField.value());
                 result.add(new FullBulkStringRedisMessage(buf));
             }

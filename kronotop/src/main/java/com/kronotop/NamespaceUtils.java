@@ -16,7 +16,6 @@
 
 package com.kronotop;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
@@ -26,8 +25,8 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.namespace.NoSuchNamespaceException;
-import com.kronotop.server.ChannelAttributes;
-import io.netty.channel.ChannelHandlerContext;
+import com.kronotop.server.Session;
+import com.kronotop.server.SessionAttributes;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -39,16 +38,6 @@ import java.util.concurrent.CompletionException;
  * The NamespaceUtils class provides utility methods for manipulating and accessing namespaces.
  */
 public class NamespaceUtils {
-
-    /**
-     * Clears all open namespaces associated with the given channel context.
-     *
-     * @param channelContext the ChannelHandlerContext object representing the channel context
-     */
-    public static void clearOpenNamespaces(ChannelHandlerContext channelContext) {
-        Map<String, Namespace> namespaces = channelContext.channel().attr(ChannelAttributes.OPEN_NAMESPACES).get();
-        namespaces.clear();
-    }
 
     private static List<String> splitNamespaceHierarchy(String name) {
         return new ArrayList<>(List.of(name.split("\\.")));
@@ -107,23 +96,24 @@ public class NamespaceUtils {
     }
 
     /**
-     * Opens a Namespace in the specified context and channel context using the provided transaction.
+     * Opens a namespace within the specified context and session using the provided transaction.
+     * This method checks if a namespace is currently open in the session. If it is,
+     * the method returns the namespace. Otherwise, it attempts to open the namespace
+     * and registers it within the session for subsequent use.
      *
-     * @param context        the Context object representing the context of a Kronotop instance
-     * @param channelContext the ChannelHandlerContext object representing the channel context
-     * @param tr             the Transaction object representing the transaction to perform
-     * @return the Namespace object representing the opened namespace
-     * @throws IllegalArgumentException if the namespace is not specified in the channel context
-     * @throws NoSuchNamespaceException if the specified namespace does not exist
-     * @throws KronotopException        if an exception occurs while opening the namespace
+     * @param context the Context object representing the environment within which the namespace is being accessed
+     * @param session the Session object containing the state and attributes related to the current execution context
+     * @param tr      the Transaction object used to perform operations within the FoundationDB environment
+     * @return the Namespace object representing the opened and initialized namespace
+     * @throws IllegalArgumentException if the namespace is not specified or cannot be found
      */
-    public static Namespace open(Context context, ChannelHandlerContext channelContext, Transaction tr) {
-        String name = channelContext.channel().attr(ChannelAttributes.CURRENT_NAMESPACE).get();
+    public static Namespace open(Context context, Session session, Transaction tr) {
+        String name = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
         if (name == null) {
             throw new IllegalArgumentException("namespace not specified");
         }
 
-        Map<String, Namespace> namespaces = channelContext.channel().attr(ChannelAttributes.OPEN_NAMESPACES).get();
+        Map<String, Namespace> namespaces = session.attr(SessionAttributes.OPEN_NAMESPACES).get();
         Namespace namespace = namespaces.get(name);
         if (namespace != null) {
             return namespace;

@@ -85,6 +85,10 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.NAMESPACE, new ArrayOutput<>(codec), args);
     }
 
+    public Command<K, V, String> namespaceCreate(K namespace) {
+        return namespaceCreate(namespace, null);
+    }
+
     public Command<K, V, String> namespaceCreate(K namespace, NamespaceArgs namespaceArgs) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(NamespaceKeywords.CREATE).

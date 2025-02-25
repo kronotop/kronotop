@@ -16,7 +16,7 @@
 
 package com.kronotop.foundationdb.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
 
@@ -24,7 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class CommitMessage implements KronotopMessage<Void> {
+public class CommitMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "COMMIT";
     public static final int MAXIMUM_PARAMETER_COUNT = 2;
     private static final String RETURNING_ARGUMENT = "RETURNING";

@@ -16,13 +16,13 @@
 
 package com.kronotop.task.handlers.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
 
 import java.util.List;
 
-public class TaskAdminMessage implements KronotopMessage<String> {
+public class TaskAdminMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "TASK.ADMIN";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;

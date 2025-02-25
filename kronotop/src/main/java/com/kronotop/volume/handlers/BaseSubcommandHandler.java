@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.foundationdb;
+package com.kronotop.volume.handlers;
 
-public class BaseHandler {
-    protected FoundationDBService service;
+import com.kronotop.Context;
+import com.kronotop.volume.VolumeService;
 
-    public BaseHandler(FoundationDBService service) {
+public class BaseSubcommandHandler {
+    protected VolumeService service;
+    protected Context context;
+
+    public BaseSubcommandHandler(VolumeService service) {
         this.service = service;
+        this.context = service.getContext();
     }
 }

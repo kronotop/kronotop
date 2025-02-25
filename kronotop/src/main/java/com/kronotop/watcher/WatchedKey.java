@@ -16,8 +16,6 @@
 
 package com.kronotop.watcher;
 
-import io.netty.channel.ChannelId;
-
 import java.util.HashSet;
 import java.util.Set;
 
@@ -26,7 +24,7 @@ import java.util.Set;
  * It keeps track of the set of channels associated with the key and the version of the key.
  */
 public class WatchedKey {
-    private final Set<ChannelId> channels = new HashSet<>();
+    private final Set<Long> sessionIds = new HashSet<>();
     private Long version = 0L;
 
     public Long getVersion() {
@@ -37,7 +35,7 @@ public class WatchedKey {
         version++;
     }
 
-    public Set<ChannelId> getChannels() {
-        return channels;
+    public Set<Long> getSessionIds() {
+        return sessionIds;
     }
 }

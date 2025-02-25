@@ -18,7 +18,6 @@ package com.kronotop.server;
 
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.AttributeMap;
 
 import java.util.ArrayList;
@@ -50,9 +49,9 @@ public interface Request extends AttributeMap {
     RedisMessage getRedisMessage();
 
     /**
-     * Retrieves the ChannelHandlerContext associated with the Request.
+     * Retrieves the current session associated with the request.
      *
-     * @return the ChannelHandlerContext associated with the Request
+     * @return the Session object associated with the request
      */
-    ChannelHandlerContext getChannelContext();
+    Session getSession();
 }

@@ -16,14 +16,14 @@
 
 package com.kronotop.redis.handlers.generic.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class DelMessage implements KronotopMessage<String> {
+public class DelMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "DEL";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;

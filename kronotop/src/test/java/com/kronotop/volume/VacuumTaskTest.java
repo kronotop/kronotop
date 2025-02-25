@@ -34,7 +34,7 @@ class VacuumTaskTest extends BaseVolumeIntegrationTest {
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Session session = new Session(tr, prefix);
+            VolumeSession session = new VolumeSession(tr, prefix);
             for (int i = 1; i <= numIterations; i++) {
                 volume.append(session, randomBytes((int) bufferSize));
             }

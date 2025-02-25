@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * The ChannelAttributes class defines static final AttributeKey objects to be used as attribute keys in the ChannelHandlerContext.
  * These attributes represent different properties or values associated with a channel.
  */
-public class ChannelAttributes {
+public class SessionAttributes {
     public static final AttributeKey<Boolean> AUTH = AttributeKey.valueOf("auth");
 
     public static final AttributeKey<Boolean> BEGIN = AttributeKey.valueOf("begin");
@@ -44,8 +44,6 @@ public class ChannelAttributes {
 
     public static final AttributeKey<List<CommitHook>> POST_COMMIT_HOOKS = AttributeKey.valueOf("post_commit_hooks");
 
-    public static final AttributeKey<Integer> TRANSACTION_USER_VERSION = AttributeKey.valueOf("transaction_user_version");
-
     public static final AttributeKey<String> CURRENT_NAMESPACE = AttributeKey.valueOf("current_namespace");
 
     public static final AttributeKey<Map<String, Namespace>> OPEN_NAMESPACES = AttributeKey.valueOf("open_namespaces");
@@ -54,13 +52,15 @@ public class ChannelAttributes {
 
     public static final AttributeKey<List<Request>> QUEUED_COMMANDS = AttributeKey.valueOf("queued_commands");
 
-    public static final AttributeKey<Boolean> REDIS_MULTI = AttributeKey.valueOf("redis_multi");
+    public static final AttributeKey<Boolean> MULTI = AttributeKey.valueOf("multi");
 
-    public static final AttributeKey<Boolean> REDIS_MULTI_DISCARDED = AttributeKey.valueOf("corrupt_redis_multi");
+    public static final AttributeKey<Boolean> MULTI_DISCARDED = AttributeKey.valueOf("multi_discarded");
 
     public static final AttributeKey<HashMap<String, Long>> WATCHED_KEYS = AttributeKey.valueOf("watched_keys");
 
     public static final AttributeKey<Long> CLIENT_ID = AttributeKey.valueOf("client_id");
+
+    public static final AttributeKey<Session> SESSION = AttributeKey.valueOf("session");
 
     public static final AttributeKey<HashMap<String, Object>> CLIENT_ATTRIBUTES = AttributeKey.valueOf("client_attributes");
 

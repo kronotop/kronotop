@@ -32,7 +32,7 @@ class MyIdSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        ByteBuf buf = response.getChannelContext().alloc().buffer();
+        ByteBuf buf = response.getCtx().alloc().buffer();
         String id = service.getContext().getMember().getId();
         buf.writeBytes(id.getBytes());
         response.writeFullBulkString(new FullBulkStringRedisMessage(buf));

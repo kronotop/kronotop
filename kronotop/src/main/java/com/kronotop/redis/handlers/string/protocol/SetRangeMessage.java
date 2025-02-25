@@ -16,12 +16,12 @@
 
 package com.kronotop.redis.handlers.string.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class SetRangeMessage implements KronotopMessage<String> {
+public class SetRangeMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "SETRANGE";
     public static final int MINIMUM_PARAMETER_COUNT = 3;
     public static final int MAXIMUM_PARAMETER_COUNT = 3;

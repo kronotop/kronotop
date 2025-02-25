@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.task.  handlers.protocol;
+package com.kronotop.task.handlers.protocol;
 
 public enum TaskAdminSubcommand {
     LIST("list");

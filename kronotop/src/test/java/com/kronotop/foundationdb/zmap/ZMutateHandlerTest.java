@@ -16,11 +16,10 @@
 
 package com.kronotop.foundationdb.zmap;
 
-import com.kronotop.foundationdb.BaseHandlerTest;
+import com.kronotop.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.protocol.ZMutateArgs;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -32,7 +31,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;

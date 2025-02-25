@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Command(GetApproximateSizeMessage.COMMAND)
 @MaximumParameterCount(GetApproximateSizeMessage.MAXIMUM_PARAMETER_COUNT)
-class GetApproximateSizeHandler extends BaseHandler implements Handler {
+class GetApproximateSizeHandler extends BaseFoundationDBHandler implements Handler {
 
     GetApproximateSizeHandler(FoundationDBService service) {
         super(service);
@@ -42,14 +42,14 @@ class GetApproximateSizeHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
-        if (beginAttr.get() == null || Boolean.FALSE.equals(beginAttr.get())) {
+        Channel channel = response.getCtx().channel();
+        Attribute<Boolean> beginAttr = channel.attr(SessionAttributes.BEGIN);
+        if (!Boolean.TRUE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
             return;
         }
 
-        Attribute<Transaction> transactionAttr = channel.attr(ChannelAttributes.TRANSACTION);
+        Attribute<Transaction> transactionAttr = channel.attr(SessionAttributes.TRANSACTION);
         Transaction tr = transactionAttr.get();
         CompletableFuture<Long> future = tr.getApproximateSize();
         Long size = future.join();

@@ -16,12 +16,12 @@
 
 package com.kronotop.redis.handlers.string.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class GetSetMessage implements KronotopMessage<String> {
+public class GetSetMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "GETSET";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     public static final int MAXIMUM_PARAMETER_COUNT = 2;

@@ -18,14 +18,14 @@ package com.kronotop.foundationdb.zmap.protocol;
 
 import com.kronotop.common.KronotopException;
 import com.kronotop.common.resp.RESPError;
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
 import java.util.List;
 import java.util.Locale;
 
-public class ZGetRangeMessage implements KronotopMessage<Void> {
+public class ZGetRangeMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "ZGETRANGE";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     public static final int MAXIMUM_PARAMETER_COUNT = 8;

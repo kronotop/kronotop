@@ -17,20 +17,16 @@
 package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.foundationdb.protocol.BeginMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
-import io.netty.channel.Channel;
 import io.netty.util.Attribute;
-
-import java.util.LinkedList;
 
 @Command(BeginMessage.COMMAND)
 @MaximumParameterCount(BeginMessage.MAXIMUM_PARAMETER_COUNT)
-class BeginHandler extends BaseHandler implements Handler {
+class BeginHandler extends BaseFoundationDBHandler implements Handler {
 
     BeginHandler(FoundationDBService service) {
         super(service);
@@ -43,20 +39,15 @@ class BeginHandler extends BaseHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = request.getChannelContext().channel();
-        Attribute<Boolean> beginAttr = channel.attr(ChannelAttributes.BEGIN);
+        Session session = request.getSession();
+        Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
         if (Boolean.TRUE.equals(beginAttr.get())) {
             response.writeError(RESPError.TRANSACTION, "there is already a transaction in progress.");
             return;
         }
 
         Transaction tr = service.getContext().getFoundationDB().createTransaction();
-        channel.attr(ChannelAttributes.TRANSACTION).set(tr);
-        channel.attr(ChannelAttributes.TRANSACTION_USER_VERSION).set(0);
-        channel.attr(ChannelAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
-        beginAttr.set(true);
-        NamespaceUtils.clearOpenNamespaces(request.getChannelContext());
-
+        session.setTransaction(tr);
         response.writeOK();
     }
 }

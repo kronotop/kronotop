@@ -16,13 +16,13 @@
 
 package com.kronotop.redis.handlers.hash.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class HMGetMessage implements KronotopMessage<String> {
+public class HMGetMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "HMGET";
     public static final int MINIMUM_PARAMETER_COUNT = 3;
     private final Request request;

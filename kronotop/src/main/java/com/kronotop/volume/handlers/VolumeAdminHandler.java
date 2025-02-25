@@ -28,10 +28,9 @@ import java.util.EnumMap;
 
 @Command(VolumeAdminMessage.COMMAND)
 @MinimumParameterCount(VolumeAdminMessage.MINIMUM_PARAMETER_COUNT)
-public class VolumeAdminHandler extends BaseHandler implements Handler {
+public class VolumeAdminHandler extends BaseSubcommandHandler implements Handler {
 
     private final EnumMap<VolumeAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(VolumeAdminSubcommand.class);
-
 
     public VolumeAdminHandler(VolumeService service) {
         super(service);
@@ -43,6 +42,11 @@ public class VolumeAdminHandler extends BaseHandler implements Handler {
         handlers.put(VolumeAdminSubcommand.VACUUM, new VacuumSubcommand(service));
         handlers.put(VolumeAdminSubcommand.STOP_VACUUM, new StopVacuumSubcommand(service));
         handlers.put(VolumeAdminSubcommand.CLEANUP_ORPHAN_FILES, new CleanupOrphanFilesSubcommand(service));
+    }
+
+    @Override
+    public boolean isRedisCompatible() {
+        return false;
     }
 
     @Override

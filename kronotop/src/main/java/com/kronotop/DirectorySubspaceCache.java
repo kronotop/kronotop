@@ -31,7 +31,6 @@ import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.directory.Shards;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedList;
 import java.util.List;

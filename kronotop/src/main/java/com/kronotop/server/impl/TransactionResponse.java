@@ -207,7 +207,7 @@ public class TransactionResponse implements Response {
      * @return the ChannelHandlerContext associated with this Response object
      */
     @Override
-    public ChannelHandlerContext getChannelContext() {
+    public ChannelHandlerContext getCtx() {
         return this.ctx;
     }
 

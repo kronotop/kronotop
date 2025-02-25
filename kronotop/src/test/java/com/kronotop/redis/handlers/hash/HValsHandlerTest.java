@@ -17,7 +17,7 @@
 package com.kronotop.redis.handlers.hash;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
-import com.kronotop.redis.handlers.BaseHandlerTest;
+import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -34,7 +34,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class HValsHandlerTest extends BaseHandlerTest {
+public class HValsHandlerTest extends BaseRedisHandlerTest {
 
     @Test
     public void test_HVALS() {

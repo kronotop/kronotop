@@ -42,8 +42,8 @@ public class MultiHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getChannelContext().channel();
-        Attribute<Boolean> redisTransaction = channel.attr(ChannelAttributes.REDIS_MULTI);
+        Channel channel = response.getCtx().channel();
+        Attribute<Boolean> redisTransaction = channel.attr(SessionAttributes.MULTI);
         redisTransaction.set(true);
         response.writeOK();
     }

@@ -60,7 +60,7 @@ public class GetHandler extends BaseStringHandler implements Handler {
             if (!container.kind().equals(RedisValueKind.STRING)) {
                 throw new WrongTypeException();
             }
-            ByteBuf buf = response.getChannelContext().alloc().buffer();
+            ByteBuf buf = response.getCtx().alloc().buffer();
             buf.writeBytes(container.string().value());
             response.write(buf);
         } finally {

@@ -110,7 +110,7 @@ public class KronotopTestInstance extends KronotopInstance {
                 new RedisBulkStringAggregator(),
                 new RedisArrayAggregator(),
                 new RedisMapAggregator(),
-                new Router(super.context, mergeCommandHandlerRegistries())
+                new KronotopChannelDuplexHandler(super.context, mergeCommandHandlerRegistries())
         );
     }
 

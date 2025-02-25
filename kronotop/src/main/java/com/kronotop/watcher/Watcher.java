@@ -19,9 +19,8 @@ package com.kronotop.watcher;
 import com.google.common.util.concurrent.Striped;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
-import com.kronotop.server.ChannelAttributes;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelId;
+import com.kronotop.server.Session;
+import com.kronotop.server.SessionAttributes;
 import io.netty.util.Attribute;
 
 import java.util.HashMap;
@@ -42,39 +41,41 @@ public class Watcher implements KronotopService {
     private final Striped<Lock> striped = Striped.lazyWeakLock(271);
 
     /**
-     * Watches a key for changes and associates a given channelId with it.
+     * Watches the specified key for the given session and returns the current version of the key.
+     * If the key is already being watched, the session is added to the existing watchers.
      *
-     * @param channelId The channelId to associate with the key
-     * @param key       The key to watch
-     * @return The version of the watched key
+     * @param sessionId The ID of the session that is watching the key.
+     * @param key       The key to be watched by the session.
+     * @return The current version of the key being watched.
      */
-    public Long watchKey(ChannelId channelId, String key) {
+    public Long watchKey(Long sessionId, String key) {
         AtomicLong version = new AtomicLong();
         watchedKeys.compute(key, (k, watchedKey) -> {
             if (watchedKey == null) {
                 watchedKey = new WatchedKey();
             }
             version.set(watchedKey.getVersion());
-            watchedKey.getChannels().add(channelId);
+            watchedKey.getSessionIds().add(sessionId);
             return watchedKey;
         });
         return version.get();
     }
 
     /**
-     * Removes the association between a channelId and a watched key.
+     * Removes the specified session from the watchers of a given key. If no sessions remain
+     * watching the key, the key is removed from the watched keys map.
      *
-     * @param channelId The channelId associated with the key
-     * @param key       The key to unwatch
+     * @param sessionId The ID of the session that should be removed from watching the key.
+     * @param key       The key for which the session should be unwatched.
      */
-    public void unwatchKey(ChannelId channelId, String key) {
+    public void unwatchKey(Long sessionId, String key) {
         watchedKeys.compute(key, (k, watchedKey) -> {
             if (watchedKey == null) {
                 return null;
             }
-            Set<ChannelId> channels = watchedKey.getChannels();
-            channels.remove(channelId);
-            if (channels.isEmpty()) {
+            Set<Long> sessionIds = watchedKey.getSessionIds();
+            sessionIds.remove(sessionId);
+            if (sessionIds.isEmpty()) {
                 return null;
             }
             return watchedKey;
@@ -130,23 +131,27 @@ public class Watcher implements KronotopService {
     }
 
     /**
-     * Cleans up the {@link ChannelHandlerContext} by unwatching all keys associated with the channel.
-     * Removes the association between the channel and watched keys, and releases the lock.
+     * Unwatches all the keys currently being watched by the given session.
+     * This method retrieves the keys watched by the session, removes the session
+     * as a watcher for each key, and clears the session's watched keys.
+     * If no keys are being watched, the method performs no operation.
      *
-     * @param ctx the ChannelHandlerContext to cleanup
+     * @param session The session whose watched keys are to be unwatched. It is expected
+     *                that the session's watched keys are stored as an attribute, which will
+     *                be accessed and cleared by this method.
      */
-    public void cleanupChannelHandlerContext(ChannelHandlerContext ctx) {
-        Lock lock = striped.get(ctx.channel().id());
+    public void unwatchWatchedKeys(Session session) {
+        Lock lock = striped.get(session.getClientId());
         lock.lock();
         try {
-            Attribute<HashMap<String, Long>> watchedKeysAttr = ctx.channel().attr(ChannelAttributes.WATCHED_KEYS);
+            Attribute<HashMap<String, Long>> watchedKeysAttr = session.attr(SessionAttributes.WATCHED_KEYS);
             HashMap<String, Long> watchedKeys = watchedKeysAttr.get();
             if (watchedKeys == null) {
                 return;
             }
 
             for (String key : watchedKeys.keySet()) {
-                this.unwatchKey(ctx.channel().id(), key);
+                unwatchKey(session.getClientId(), key);
             }
             watchedKeysAttr.set(null);
         } finally {

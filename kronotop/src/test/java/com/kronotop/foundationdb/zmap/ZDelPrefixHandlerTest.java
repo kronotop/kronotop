@@ -16,7 +16,7 @@ package com.kronotop.foundationdb.zmap;
  * limitations under the License.
  */
 
-import com.kronotop.foundationdb.BaseHandlerTest;
+import com.kronotop.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.protocol.NamespaceArgs;
 import com.kronotop.server.Response;

@@ -16,12 +16,12 @@
 
 package com.kronotop.redis.handlers.string.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class DecrMessage implements KronotopMessage<String> {
+public class DecrMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "DECR";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     public static final int MAXIMUM_PARAMETER_COUNT = 1;

@@ -1,8 +1,10 @@
 # Kronotop
 
-Kronotop is a Redis-compatible, distributed and transactional document database backed by [FoundationDB](https://www.foundationdb.org/).
+Kronotop is a Redis-compatible, distributed and transactional document database backed
+by [FoundationDB](https://www.foundationdb.org/).
 
-Kronotop's main focus is building a document database that supports [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/), [ACID transactions](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics)
+Kronotop's main focus is building a document database that
+supports [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/), [ACID transactions](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics)
 and on-disk storage engine with a primary-standby replication model.
 
 Kronotop is still in its early stages of development. The API is unstable and might be changed in the future releases.
@@ -13,8 +15,10 @@ See [Getting started](#getting-started) section.
 
 * Horizontally scalable and sharded by default,
 * Supports single or multi-master cluster topologies for different deployment strategies,
-* Supports [Redis Serialization Protocol](https://redis.io/docs/latest/develop/reference/protocol-spec/), you can use any Redis client to connect the cluster.
-* Partly supports [Redis cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/),
+* Supports [Redis Serialization Protocol](https://redis.io/docs/latest/develop/reference/protocol-spec/), you can use
+  any Redis client to connect the cluster.
+* Partly
+  supports [Redis cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/),
 * Uses FoundationDB as the metadata store for cluster management and data structures,
 * Implemented in Java and requires JDK 21+,
 
@@ -31,44 +35,46 @@ Kronotop is still in its early stages, but we have the following features with a
 ## Plans for the foreseeable future
 
 * Design and implement a data structure called **Bucket** to store JSON-like documents,
-* **Bucket** data structure will support an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and transactions backed by FoundationDB,
+* **Bucket** data structure will support
+  an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and transactions backed by
+  FoundationDB,
 * Provide the most common Redis data structures such as String, Hash, Sorted Sets, etc.
 
 ## Table of Contents
 
 * [Getting started](#getting-started)
-  * [Initializing a Kronotop cluster](#initializing-a-kronotop-cluster)
+    * [Initializing a Kronotop cluster](#initializing-a-kronotop-cluster)
 * [Redis compatibility](#redis-compatibility)
 * [Features](#features)
-  * [Transaction management](#transaction-management)
-    * [BEGIN](#begin)
-    * [COMMIT](#commit)
-    * [ROLLBACK](#rollback)
-    * [GETAPPROXIMATESIZE](#getapproximatesize)
-    * [GETREADVERSION](#getreadversion)
-    * [SNAPSHOTREAD](#snapshotread)
-  * [ZMap](#zmap)
-    * [ZSET](#zset)
-    * [ZGET](#zget)
-    * [ZGETKEY](#zgetkey)
-    * [ZGETRANGE](#zgetrange)
-    * [ZGETRANGESIZE](#zgetrangesize)
-    * [ZMUTATE](#zmutate)
-    * [ZDEL](#zdel)
-    * [ZDELRANGE](#zdelrange)
-  * [Namespaces](#namespaces)
-    * [NAMESPACE CREATE](#namespace-create)
-    * [NAMESPACE REMOVE](#namespace-remove)
-    * [NAMESPACE CURRENT](#namespace-current)
-    * [NAMESPACE USE](#namespace-use)
-    * [NAMESPACE EXISTS](#namespace-exists)
-    * [NAMESPACE LIST](#namespace-list)
-    * [NAMESPACE MOVE](#namespace-move)
+    * [Transaction management](#transaction-management)
+        * [BEGIN](#begin)
+        * [COMMIT](#commit)
+        * [ROLLBACK](#rollback)
+        * [GETAPPROXIMATESIZE](#getapproximatesize)
+        * [GETREADVERSION](#getreadversion)
+        * [SNAPSHOTREAD](#snapshotread)
+    * [ZMap](#zmap)
+        * [ZSET](#zset)
+        * [ZGET](#zget)
+        * [ZGETKEY](#zgetkey)
+        * [ZGETRANGE](#zgetrange)
+        * [ZGETRANGESIZE](#zgetrangesize)
+        * [ZMUTATE](#zmutate)
+        * [ZDEL](#zdel)
+        * [ZDELRANGE](#zdelrange)
+    * [Namespaces](#namespaces)
+        * [NAMESPACE CREATE](#namespace-create)
+        * [NAMESPACE REMOVE](#namespace-remove)
+        * [NAMESPACE CURRENT](#namespace-current)
+        * [NAMESPACE USE](#namespace-use)
+        * [NAMESPACE EXISTS](#namespace-exists)
+        * [NAMESPACE LIST](#namespace-list)
+        * [NAMESPACE MOVE](#namespace-move)
 * [Storage Engine](#storage-engine)
-  * [Design](#design) 
-  * [Replication](#replication)  
-  * [Vacuuming](#vacuuming)
-    
+    * [Design](#design)
+    * [Replication](#replication)
+    * [Vacuuming](#vacuuming)
+
 ## Getting started
 
 It's easy to try Kronotop with Docker Compose:
@@ -98,7 +104,8 @@ A cluster member serves from two ports:
 
 ### Initializing a Kronotop cluster
 
-Before using Kronotop in your project, you first need to initialize the cluster. `KR.ADMIN INITIALIZE-CLUSTER` command creates
+Before using Kronotop in your project, you first need to initialize the cluster. `KR.ADMIN INITIALIZE-CLUSTER` command
+creates
 the cluster's layout on the FoundationDB and initializes the cluster:
 
 ```
@@ -106,7 +113,7 @@ the cluster's layout on the FoundationDB and initializes the cluster:
 OK
 ```
 
-Then, we must set the shard's primary ownership and make the shards operable. Currently, we only have a running Kronotop 
+Then, we must set the shard's primary ownership and make the shards operable. Currently, we only have a running Kronotop
 instance in the cluster. It's good enough for demonstration purposes. We can assign all shards to this member.
 
 First, we should run `KR.ADMIN DESCRIBE-MEMBER` command to learn id of the current member:
@@ -147,15 +154,19 @@ OK
 "Hello"
 ```
 
-All in-memory data will be persisted and replicated by the storage engine. See [Storage Engine](#storage-engine) section for the details.
+All in-memory data will be persisted and replicated by the storage engine. See [Storage Engine](#storage-engine) section
+for the details.
 
 ## Redis compatibility
 
-Kronotop uses RESP3 as the client protocol. The reasoning behind this is simple: there are many high-quality Redis client implementations
+Kronotop uses RESP3 as the client protocol. The reasoning behind this is simple: there are many high-quality Redis
+client implementations
 in all languages, and almost everyone has some experience with Redis.
 
-Despite the main focus on building a transactional document database using FoundationDB as a metadata store, implementing
-the most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String* and *Hash*
+Despite the main focus on building a transactional document database using FoundationDB as a metadata store,
+implementing
+the most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String*
+and *Hash*
 data structures.
 
 ## Features
@@ -168,7 +179,7 @@ Kronotop exposes the FoundationDB API to Redis clients. This section explains tr
 
 #### BEGIN
 
-`BEGIN` creates a new transaction and set it to the current session. 
+`BEGIN` creates a new transaction and set it to the current session.
 
 **Example:**
 
@@ -195,8 +206,8 @@ If there is another transaction in progress in the current session, it returns a
 OK
 ```
 
-FoundationDB currently does not support transactions running for over five seconds. If the transaction is too old, 
-it returns `TRANSACTIONOLD` error. 
+FoundationDB currently does not support transactions running for over five seconds. If the transaction is too old,
+it returns `TRANSACTIONOLD` error.
 
 ```
 127.0.0.1:5484> COMMIT
@@ -230,7 +241,8 @@ If no transaction is in progress in the current session, it returns a `TRANSACTI
 
 #### GETAPPROXIMATESIZE
 
-`GETAPPROXIMATESIZE` returns the approximated size of the commit, which is the summation of mutations, read conflict ranges, 
+`GETAPPROXIMATESIZE` returns the approximated size of the commit, which is the summation of mutations, read conflict
+ranges,
 and write conflict ranges. This can be called multiple times before a transaction commit.
 
 ```
@@ -251,9 +263,11 @@ and write conflict ranges. This can be called multiple times before a transactio
 
 `SNAPSHOTREAD ON|OFF` enables or disables snapshot reads for the in-progess transaction.
 
-In the FoundationDB context, snapshots a special-purpose, read-only view of the database. Reads done through this interface 
-are known as "snapshot reads." Snapshot reads selectively relax FoundationDB's isolation property, reducing [Transaction 
-conflicts](https://apple.github.io/foundationdb/developer-guide.html#conflict-ranges) but making reasoning about concurrency harder.  For more information about how to use snapshot reads correctly, 
+In the FoundationDB context, snapshots a special-purpose, read-only view of the database. Reads done through this
+interface
+are known as "snapshot reads." Snapshot reads selectively relax FoundationDB's isolation property, reducing [Transaction
+conflicts](https://apple.github.io/foundationdb/developer-guide.html#conflict-ranges) but making reasoning about
+concurrency harder. For more information about how to use snapshot reads correctly,
 see Using [snapshot reads](https://apple.github.io/foundationdb/developer-guide.html#snapshot-reads).
 
 **Example:**
@@ -267,8 +281,10 @@ OK
 
 Kronotop also provides a new data structure called ZMap. ZMap is simply a RESP proxy for FoundationDB API.
 
-FoundationDB’s core data model is an ordered key-value store. Also known as an ordered associative array, map, or dictionary, 
-this is a common data structure composed of a collection of key-value pairs in which all keys are unique. Starting with this simple model, 
+FoundationDB’s core data model is an ordered key-value store. Also known as an ordered associative array, map, or
+dictionary,
+this is a common data structure composed of a collection of key-value pairs in which all keys are unique. Starting with
+this simple model,
 an application can create higher-level data models by mapping their elements to individual keys and values.
 
 See the [Data Modeling](https://apple.github.io/foundationdb/data-modeling.html) section on FoundationDB documents.
@@ -370,7 +386,7 @@ OK
 
 #### ZGETRANGE
 
-`ZGETRANGE` gets an ordered range of keys and values from the database. The *begin* and *end* keys can be specified by 
+`ZGETRANGE` gets an ordered range of keys and values from the database. The *begin* and *end* keys can be specified by
 key selectors, with the begin `BEGIN_KEY_SELECTOR` inclusive and the end `END_KEY_SELECTOR` exclusive.
 
 The default `BEGIN_KEY_SELECTOR` is `FIRST_GREATER_OR_EQUAL`.
@@ -462,19 +478,22 @@ Explicitly using key selectors, please note that you can use the key selectors i
 
 _FoundationDB says:_
 
-> Note: the estimated size is calculated based on the sampling done by FDB server. The sampling algorithm works roughly in
-> this way: the larger the key-value pair is, the more likely it would be sampled and the more accurate its sampled size would be.
+> Note: the estimated size is calculated based on the sampling done by FDB server. The sampling algorithm works roughly
+> in
+> this way: the larger the key-value pair is, the more likely it would be sampled and the more accurate its sampled size
+> would be.
 > And due to that reason, it is recommended to use this API to query against large ranges for accuracy considerations.
 > For a rough reference, if the returned size is larger than 3MB, one can consider the size to be accurate.
 
 #### ZMUTATE
 
-`ZMUTATE` runs an atomic operation on the given key. 
+`ZMUTATE` runs an atomic operation on the given key.
 
 Available mutation types:
 
 * `ADD`: Performs an addition of little-endian integers.
-* `APPEND_IF_FITS`: Appends param to the end of the existing value already in the database at the given key (or creates the key and sets the value to param if the key is empty).
+* `APPEND_IF_FITS`: Appends param to the end of the existing value already in the database at the given key (or creates
+  the key and sets the value to param if the key is empty).
 * `BIT_AND`: Performs a bitwise and operation.
 * `BIT_OR`: Performs a bitwise or operation.
 * `BIT_XOR`: Performs a bitwise xor operation.
@@ -503,7 +522,7 @@ OK
 
 #### ZDEL
 
-`ZDEL` clears a given key from the database. This will not affect the database until `COMMIT` is called. 
+`ZDEL` clears a given key from the database. This will not affect the database until `COMMIT` is called.
 
 **Example:**
 
@@ -573,14 +592,18 @@ OK
 
 ### Namespaces
 
-Namespace is a thin layer around FoundationDB's powerful [directory](https://apple.github.io/foundationdb/developer-guide.html#directories) concept. Namespaces are a recommended approach for administering applications. 
-Each application should create or open at least one directory to manage its subspaces. Namespaces are identified by 
+Namespace is a thin layer around FoundationDB's
+powerful [directory](https://apple.github.io/foundationdb/developer-guide.html#directories) concept. Namespaces are a
+recommended approach for administering applications.
+Each application should create or open at least one directory to manage its subspaces. Namespaces are identified by
 hierarchical paths analogous to the paths in a Unix-like file system.
 
-The hierarchy between directories is denoted by joining them with dot character. Let's assume that you have different 
-microservices and want to isolate their databases. You can create a namespace for each microservice under the `production` namespace.
+The hierarchy between directories is denoted by joining them with dot character. Let's assume that you have different
+microservices and want to isolate their databases. You can create a namespace for each microservice under the
+`production` namespace.
 
-If you have three microservices named `users`, `orders` and `products`, your namespace hierarchy might look like the following:
+If you have three microservices named `users`, `orders` and `products`, your namespace hierarchy might look like the
+following:
 
 * `production.users`
 * `production.orders`
@@ -588,7 +611,7 @@ If you have three microservices named `users`, `orders` and `products`, your nam
 
 All data structures used by these namespaces will be isolated.
 
-**Note:** Redis data structures are not stored under namespaces. Currently, namespaces cover only ZMap data structure. 
+**Note:** Redis data structures are not stored under namespaces. Currently, namespaces cover only ZMap data structure.
 
 #### NAMESPACE CREATE
 
@@ -602,8 +625,9 @@ All data structures used by these namespaces will be isolated.
 
 #### NAMESPACE REMOVE
 
-`NAMESPACE REMOVE` removes the given namespace hierarchy. It's the equivalent of `DROP DATABASE` command in other databases.
-So you should be careful when start typing this command. The result is irreversible. 
+`NAMESPACE REMOVE` removes the given namespace hierarchy. It's the equivalent of `DROP DATABASE` command in other
+databases.
+So you should be careful when start typing this command. The result is irreversible.
 
 **Example:**
 
@@ -621,7 +645,7 @@ You cannot remove the default namespace:
 
 #### NAMESPACE CURRENT
 
-`NAMESPACE CURRENT` command returns the current namespace in use for the session. The default namespace is in use if the 
+`NAMESPACE CURRENT` command returns the current namespace in use for the session. The default namespace is in use if the
 client doesn't set a different namespace by calling `NAMESPACE USE` command.
 
 **Example:**
@@ -664,7 +688,7 @@ It returns `1` for existing namespaces and `0` for non-existing ones.
 
 #### NAMESPACE LIST
 
-`NAMESPACE LIST` lists the namespaces under the given hierarchy. 
+`NAMESPACE LIST` lists the namespaces under the given hierarchy.
 
 **Example:**
 
@@ -673,7 +697,7 @@ It returns `1` for existing namespaces and `0` for non-existing ones.
 1) global
 ```
 
-It can take an optional parameter of namespace hierarchy. 
+It can take an optional parameter of namespace hierarchy.
 
 ```
 127.0.0.1:5484> NAMESPACE LIST global
@@ -711,43 +735,54 @@ Let's check the result:
 
 ### Design
 
-Kronotop has a storage engine implementation named **Volume**. It's responsible for storing all data on the disks and 
+Kronotop has a storage engine implementation named **Volume**. It's responsible for storing all data on the disks and
 replicate it from the primary members to the standbys.
 
-Volume has a simple yet elegant design philosophy. It stores all metadata information on the FoundationDB cluster. The data itself has 
+Volume has a simple yet elegant design philosophy. It stores all metadata information on the FoundationDB cluster. The
+data itself has
 stored on the disk and organized as **segments**.
 
-A segment is just a pre-allocated file on the disk and is seen as a huge byte array. When you want to append some entries to the volume,
-all data has been appended to the latest segment and then flushed. If the flush call succeeds, the metadata has been committed to the
+A segment is just a pre-allocated file on the disk and is seen as a huge byte array. When you want to append some
+entries to the volume,
+all data has been appended to the latest segment and then flushed. If the flush call succeeds, the metadata has been
+committed to the
 FoundationDB cluster in a single transaction. This process could be depicted as the following for easy digestion:
 
 - An outer layer of Kronotop tries to append some data to the volume,
 - Volume receives the request and finds the latest segment to append the data,
 - If there is no open segment, a new segment will be created,
-- If the latest segment doesn't have enough free space, a new segment will be created and the previous segment marked as readonly,
-- Segment implementation will find a location for the given amount of data and append it to the underling pre-allocated file,
+- If the latest segment doesn't have enough free space, a new segment will be created and the previous segment marked as
+  readonly,
+- Segment implementation will find a location for the given amount of data and append it to the underling pre-allocated
+  file,
 - The modified segment will be flushed to ensure all buffered changes are written to disk.
-- Volume implementation will commit metadata changes in a single transaction and will return IDs in FoundationDBs version stamp format.
+- Volume implementation will commit metadata changes in a single transaction and will return IDs in FoundationDBs
+  version stamp format.
 
 ### Replication
 
-The **asynchronous** replication process is also handled by the volume itself. When a new entry has been added to the volume, an entry will be added to the
-data structure named *SegmentLog* and standbys will be triggered to fetch the changes from the primary. Volume uses the [watch mechanism](https://apple.github.io/foundationdb/developer-guide.html#watches) 
-to implement this feature. 
+The **asynchronous** replication process is also handled by the volume itself. When a new entry has been added to the
+volume, an entry will be added to the
+data structure named *SegmentLog* and standbys will be triggered to fetch the changes from the primary. Volume uses
+the [watch mechanism](https://apple.github.io/foundationdb/developer-guide.html#watches)
+to implement this feature.
 
 The standby member copies all data from the primary, this happens in two stages:
 
 * Snapshot
 * Streaming
 
-In *snapshot* stage, the standby volume reads the `SegmentLog` data structure and copies all data chunk by chunk. 
-When the snapshot stage has completed, the *streaming* stage has started and a `watch` monitors a key constantly to fetch the
-latest changes from the primary. 
+In *snapshot* stage, the standby volume reads the `SegmentLog` data structure and copies all data chunk by chunk.
+When the snapshot stage has completed, the *streaming* stage has started and a `watch` monitors a key constantly to
+fetch the
+latest changes from the primary.
 
-Volume also supports synchronous replication, but it's a part of Redis Volume Syncer mechanism. 
+Volume also supports synchronous replication, but it's a part of Redis Volume Syncer mechanism.
 
 ### Vacuuming
 
-Volume supports manual vacuuming. A system administrator can start a vacuum process, and it has been processed in the background.
-Vacuum process scans the Volume metadata and evicts the entries from a segment if the garbage ratio of the segment exceeds a certain number.
+Volume supports manual vacuuming. A system administrator can start a vacuum process, and it has been processed in the
+background.
+Vacuum process scans the Volume metadata and evicts the entries from a segment if the garbage ratio of the segment
+exceeds a certain number.
 

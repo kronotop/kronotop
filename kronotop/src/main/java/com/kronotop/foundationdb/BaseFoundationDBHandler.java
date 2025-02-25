@@ -14,24 +14,19 @@
  * limitations under the License.
  */
 
-package com.kronotop.session.handlers.protocol;
+package com.kronotop.foundationdb;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.Handler;
 
-import java.util.List;
+public abstract class BaseFoundationDBHandler implements Handler {
+    protected FoundationDBService service;
 
-public class SessionAttributeMessage implements KronotopMessage<Void> {
-    public static final String COMMAND = "SESSION.ATTRIBUTE";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
-
-    @Override
-    public Void getKey() {
-        return null;
+    public BaseFoundationDBHandler(FoundationDBService service) {
+        this.service = service;
     }
 
     @Override
-    public List<Void> getKeys() {
-        return List.of();
+    public boolean isRedisCompatible() {
+        return false;
     }
 }

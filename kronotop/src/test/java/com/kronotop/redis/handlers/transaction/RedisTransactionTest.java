@@ -17,10 +17,10 @@
 package com.kronotop.redis.handlers.transaction;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
-import com.kronotop.redis.handlers.BaseHandlerTest;
-import com.kronotop.server.ChannelAttributes;
+import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -33,7 +33,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class RedisTransactionTest extends BaseHandlerTest {
+public class RedisTransactionTest extends BaseRedisHandlerTest {
     @Test
     public void testTransaction_MULTI_EXEC() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
@@ -159,11 +159,11 @@ public class RedisTransactionTest extends BaseHandlerTest {
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
 
-            List<Request> queuedCommands = channel.attr(ChannelAttributes.QUEUED_COMMANDS).get();
+            List<Request> queuedCommands = channel.attr(SessionAttributes.QUEUED_COMMANDS).get();
             assertEquals(0, queuedCommands.size());
-            assertFalse(channel.attr(ChannelAttributes.REDIS_MULTI).get());
-            assertFalse(channel.attr(ChannelAttributes.REDIS_MULTI_DISCARDED).get());
-            assertNull(channel.attr(ChannelAttributes.WATCHED_KEYS).get());
+            assertFalse(channel.attr(SessionAttributes.MULTI).get());
+            assertFalse(channel.attr(SessionAttributes.MULTI_DISCARDED).get());
+            assertNull(channel.attr(SessionAttributes.WATCHED_KEYS).get());
         }
 
         {

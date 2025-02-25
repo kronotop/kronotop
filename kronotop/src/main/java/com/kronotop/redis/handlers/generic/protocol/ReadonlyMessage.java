@@ -16,11 +16,11 @@
 
 package com.kronotop.redis.handlers.generic.protocol;
 
-import com.kronotop.server.KronotopMessage;
+import com.kronotop.server.ProtocolMessage;
 
 import java.util.List;
 
-public class ReadonlyMessage implements KronotopMessage<Void> {
+public class ReadonlyMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "READONLY";
 
     @Override
