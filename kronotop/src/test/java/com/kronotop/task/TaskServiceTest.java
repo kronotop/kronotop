@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -33,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class TaskServiceTest extends BaseClusterTest {
 
     @Test
-    public void when_many_tasks_exists() throws InterruptedException {
+    void when_many_tasks_exists() throws InterruptedException {
         KronotopInstance instance = getInstances().getFirst();
         TaskService service = instance.getContext().getService(TaskService.NAME);
 
@@ -65,7 +64,7 @@ class TaskServiceTest extends BaseClusterTest {
             }
 
             @Override
-            public void awaitTermination() {
+            public void awaitCompletion() {
 
             }
         }
@@ -79,7 +78,7 @@ class TaskServiceTest extends BaseClusterTest {
     }
 
     @Test
-    public void check_TaskStats() throws InterruptedException, ExecutionException {
+    void check_task_stats() {
         KronotopInstance instance = getInstances().getFirst();
         TaskService service = instance.getContext().getService(TaskService.NAME);
 
@@ -106,7 +105,7 @@ class TaskServiceTest extends BaseClusterTest {
             }
 
             @Override
-            public void awaitTermination() {
+            public void awaitCompletion() {
 
             }
         }

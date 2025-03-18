@@ -15,6 +15,7 @@ import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.NamespaceUtils;
 import com.kronotop.bucket.BucketPrefix;
+import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.volume.Prefix;
 import org.junit.jupiter.api.Test;
@@ -26,10 +27,11 @@ class IndexBuilderTest extends BaseClusterTest {
     void test_setIdIndex() {
         KronotopTestInstance instance = getInstances().getFirst();
         Namespace namespace = NamespaceUtils.createOrOpen(instance.getContext(), "index-builder-test");
+        BucketSubspace subspace = new BucketSubspace(namespace);
 
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
-            Prefix prefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, namespace, "test-bucket");
-            assertDoesNotThrow(() -> IndexBuilder.setIdIndex(tr, namespace, 1, prefix, 1));
+            Prefix prefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, subspace, "test-bucket");
+            assertDoesNotThrow(() -> IndexBuilder.setIdIndex(tr, subspace, 1, prefix, 1));
             tr.commit().join();
         }
     }

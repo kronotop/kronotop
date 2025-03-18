@@ -16,8 +16,12 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -30,6 +34,17 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
     protected Prefix redisVolumeSyncerPrefix;
 
     void setupVolumeTestEnv() throws IOException {
+        // Creating the global prefixes subspace is required for vacuum integration tests.
+        KronotopDirectoryNode prefixes = KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                prefixes();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectoryLayer.getDefault().createOrOpen(tr, prefixes.toList()).join();
+            tr.commit().join();
+        }
+
         VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
         VolumeConfig volumeConfig = generator.volumeConfig();
         service = context.getService(VolumeService.NAME);

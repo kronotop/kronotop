@@ -34,7 +34,7 @@ class SessionTest extends BaseHandlerTest {
     @Test
     public void test_setTransaction() {
         Session session = Session.extractSessionFromChannel(channel);
-        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             assertDoesNotThrow(() -> session.setTransaction(tr));
 
             assertEquals(true, session.attr(SessionAttributes.BEGIN).get());
@@ -49,7 +49,7 @@ class SessionTest extends BaseHandlerTest {
     @Test
     public void test_setTransaction_many_times() {
         Session session = Session.extractSessionFromChannel(channel);
-        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
             assertThrows(KronotopException.class, () -> session.setTransaction(tr));
         }
@@ -58,7 +58,7 @@ class SessionTest extends BaseHandlerTest {
     @Test
     public void test_unsetTransaction() {
         Session session = Session.extractSessionFromChannel(channel);
-        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
             assertDoesNotThrow(session::unsetTransaction);
 
@@ -74,7 +74,7 @@ class SessionTest extends BaseHandlerTest {
     @Test
     public void test_channelUnregistered() {
         Session session = Session.extractSessionFromChannel(channel);
-        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
             session.channelUnregistered();
             assertNull(session.attr(SessionAttributes.TRANSACTION).get());
@@ -84,7 +84,7 @@ class SessionTest extends BaseHandlerTest {
     @Test
     public void test_closeTransactionIfAny() {
         Session session = Session.extractSessionFromChannel(channel);
-        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
             session.closeTransactionIfAny();
             assertNull(session.attr(SessionAttributes.TRANSACTION).get());
@@ -94,7 +94,7 @@ class SessionTest extends BaseHandlerTest {
     @Test
     public void test_channelReadComplete() {
         Session session = Session.extractSessionFromChannel(channel);
-        try (Transaction tr = kronotopInstance.getContext().getFoundationDB().createTransaction()) {
+        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
             session.attr(SessionAttributes.AUTO_COMMIT).set(true);
             session.channelReadComplete();

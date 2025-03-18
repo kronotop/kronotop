@@ -17,7 +17,7 @@
 package com.kronotop.cluster;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.BaseMetadataStoreTest;
+import com.kronotop.BaseStandaloneInstanceTest;
 import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
@@ -25,7 +25,7 @@ import java.util.TreeSet;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class MemberRegistryTest extends BaseMetadataStoreTest {
+public class MemberRegistryTest extends BaseStandaloneInstanceTest {
 
     @Test
     public void test_add() throws UnknownHostException {
@@ -106,7 +106,8 @@ public class MemberRegistryTest extends BaseMetadataStoreTest {
         registry.add(two);
 
         TreeSet<Member> members = registry.listMembers();
-        assertEquals(2, members.size());
+        assertEquals(3, members.size());
+        assertTrue(members.contains(context.getMember()));
         assertTrue(members.contains(one));
         assertTrue(members.contains(two));
     }

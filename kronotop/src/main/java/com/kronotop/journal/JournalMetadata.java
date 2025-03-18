@@ -31,11 +31,11 @@ public class JournalMetadata {
         this.eventsSubspace = subspace.subspace(Tuple.from("events-subspace"));
     }
 
-    public Subspace getEventsSubspace() {
+    public Subspace eventsSubspace() {
         return eventsSubspace;
     }
 
-    public byte[] getTrigger() {
+    public byte[] trigger() {
         return trigger;
     }
 }

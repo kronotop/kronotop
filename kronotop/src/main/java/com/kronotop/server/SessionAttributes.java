@@ -18,6 +18,7 @@ package com.kronotop.server;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.CommitHook;
+import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.foundationdb.namespace.Namespace;
 import io.netty.util.AttributeKey;
 
@@ -47,6 +48,8 @@ public class SessionAttributes {
     public static final AttributeKey<String> CURRENT_NAMESPACE = AttributeKey.valueOf("current_namespace");
 
     public static final AttributeKey<Map<String, Namespace>> OPEN_NAMESPACES = AttributeKey.valueOf("open_namespaces");
+
+    public static final AttributeKey<Map<String, BucketSubspace>> OPEN_BUCKET_SUBSPACES = AttributeKey.valueOf("open_bucket_subspaces");
 
     public static final AttributeKey<LinkedList<Integer>> ASYNC_RETURNING = AttributeKey.valueOf("async_returning");
 

@@ -33,5 +33,9 @@ public class Journals extends KronotopDirectoryNode {
             super(layout);
             layout.add(name);
         }
+
+        public Consumers consumers() {
+            return new Consumers(layout);
+        }
     }
 }

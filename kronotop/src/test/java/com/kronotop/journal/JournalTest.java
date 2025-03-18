@@ -16,26 +16,29 @@
 
 package com.kronotop.journal;
 
-import com.apple.foundationdb.Transaction;
+import com.kronotop.BaseStandaloneInstanceTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class JournalTest extends BaseJournalTest {
+class JournalTest extends BaseStandaloneInstanceTest {
+    private final String TEST_JOURNAL = "test-journal";
 
     @Test
     public void test_listJournals() {
-        Journal journal = new Journal(config, database);
+        Journal journal = new Journal(context.getConfig(), context.getFoundationDB());
+        journal.getPublisher().publish(TEST_JOURNAL, "message");
 
-        try (Transaction tr = database.createTransaction()) {
-            journal.getPublisher().publish(tr, testJournal, "foo");
-            tr.commit().join();
-        }
-
+        boolean found = false;
         List<String> journals = journal.listJournals();
-        assertEquals(1, journals.size());
-        assertEquals(testJournal, journals.getFirst());
+        for (String name : journals) {
+            if (name.equals(TEST_JOURNAL)) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found);
     }
 }

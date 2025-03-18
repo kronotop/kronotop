@@ -14,26 +14,24 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.bucket.DefaultIndexes;
-import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.volume.Prefix;
 
 public class IndexBuilder {
     private static final byte[] NULL_BYTES = new byte[]{0};
 
     /**
-     * Sets an ID index in the specified transaction for the given shard and prefix within a namespace.
-     * This operation creates a key in the appropriate subspace of the provided namespace and associates it
-     * with a versionstamp and default value.
+     * Sets an ID-based index entry in the given transaction and subspace for a specified shard and prefix.
      *
-     * @param tr          the FoundationDB transaction within which the index is being set
-     * @param namespace   the logical namespace that provides access to the bucket index subspaces
-     * @param shardId     the identifier of the shard where the index will be stored
-     * @param prefix      the prefix representing the key space subset within the shard
-     * @param userVersion the user-defined version used to generate an incomplete versionstamp for the index
+     * @param tr          the FoundationDB transaction used to write the index entry
+     * @param subspace    the bucket subspace corresponding to the namespace and shard for the index
+     * @param shardId     the identifier of the shard where the index entry will be stored
+     * @param prefix      the Prefix object representing the key space subset for the index entry
+     * @param userVersion the user-defined version associated with the versionstamp in the index key
      */
-    public static void setIdIndex(Transaction tr, Namespace namespace, int shardId, Prefix prefix, int userVersion) {
-        Subspace indexSubspace = namespace.getBucketIndexSubspace(shardId, prefix);
+    public static void setIdIndex(Transaction tr, BucketSubspace subspace, int shardId, Prefix prefix, int userVersion) {
+        Subspace indexSubspace = subspace.getBucketIndexSubspace(shardId, prefix);
         Tuple idIndexTemplate = Tuple.from(DefaultIndexes.ID.name(), Versionstamp.incomplete(userVersion));
         byte[] idIndexKey = indexSubspace.packWithVersionstamp(idIndexTemplate);
         tr.set(idIndexKey, NULL_BYTES);

@@ -16,7 +16,7 @@
 
 package com.kronotop.volume.segment;
 
-import com.kronotop.BaseMetadataStoreTest;
+import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.VolumeConfiguration;
 import org.junit.jupiter.api.Test;
@@ -27,7 +27,7 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class SegmentTest extends BaseMetadataStoreTest {
+class SegmentTest extends BaseStandaloneInstanceTest {
     Random random = new Random();
 
     private ByteBuffer randomBytes(int size) {

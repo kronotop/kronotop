@@ -13,16 +13,11 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.TransactionUtils;
 import com.kronotop.VersionstampUtils;
-import com.kronotop.bucket.BSONUtils;
-import com.kronotop.bucket.BucketPrefix;
-import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.BucketShard;
+import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.IndexBuilder;
-import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -60,8 +55,9 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         int shardId = 1;
 
         Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getSession(), tr);
-        Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, namespace, message.getBucket());
+        BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
+
+        Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, subspace, message.getBucket());
 
         List<RedisMessage> userVersions = new LinkedList<>();
         boolean autoCommitEnabled = TransactionUtils.getAutoCommit(request.getSession());
@@ -73,7 +69,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
 
             int userVersion = TransactionUtils.getUserVersion(request.getSession());
-            IndexBuilder.setIdIndex(tr, namespace, shardId, prefix, userVersion);
+            IndexBuilder.setIdIndex(tr, subspace, shardId, prefix, userVersion);
             if (!autoCommitEnabled) {
                 userVersions.add(new IntegerRedisMessage(userVersion));
                 request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get().add(userVersion);

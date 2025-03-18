@@ -17,6 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
@@ -27,8 +28,8 @@ import java.util.ArrayList;
 
 class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    RemoveMemberSubcommand(RoutingService service) {
-        super(service);
+    RemoveMemberSubcommand(RoutingService routing) {
+        super(routing);
     }
 
     @Override
@@ -45,7 +46,7 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
         private final String memberId;
 
         RemoveMemberParameters(ArrayList<ByteBuf> params) {
-            memberId = readMemberId(params.get(1));
+            memberId = ByteBufUtils.readMemberId(context, params.get(1));
         }
     }
 }

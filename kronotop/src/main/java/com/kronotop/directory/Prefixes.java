@@ -19,7 +19,6 @@ package com.kronotop.directory;
 import java.util.List;
 
 public class Prefixes extends KronotopDirectoryNode {
-
     public Prefixes(List<String> layout) {
         super(layout);
         layout.add("prefixes");

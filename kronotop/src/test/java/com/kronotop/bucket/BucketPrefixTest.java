@@ -8,34 +8,39 @@ import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.volume.Prefix;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class BucketPrefixTest extends BaseClusterTest {
 
-    private Namespace createOrOpenNamespace(String name) {
+    private BucketSubspace createOrOpenBucketSubspace(String name) {
         KronotopTestInstance instance = getInstances().getFirst();
-        return NamespaceUtils.createOrOpen(instance.getContext(), name);
+        Namespace namespace = NamespaceUtils.createOrOpen(instance.getContext(), name);
+        return new BucketSubspace(namespace);
     }
 
     @Test
     public void test_getOrSetBucketPrefix() {
         String name = "third.two.one";
         KronotopTestInstance instance = getInstances().getFirst();
-        Namespace namespace = createOrOpenNamespace(name);
+        BucketSubspace subspace = createOrOpenBucketSubspace(name);
 
         String firstBucketName = "first-bucket-name";
         Prefix createdPrefix;
 
         // First, create the prefix.
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
-            createdPrefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, namespace, firstBucketName);
+            createdPrefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, subspace, firstBucketName);
             tr.commit().join();
         }
 
         // Retrieve the prefix again
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
-            Prefix retrievedPrefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, namespace, firstBucketName);
+            Prefix retrievedPrefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, subspace, firstBucketName);
             assertEquals(createdPrefix, retrievedPrefix);
         }
     }
@@ -45,26 +50,47 @@ class BucketPrefixTest extends BaseClusterTest {
         KronotopTestInstance instance = getInstances().getFirst();
 
         String firstName = "third.two.one";
-        Namespace firstNamespace = createOrOpenNamespace(firstName);
+        BucketSubspace firstSubspace = createOrOpenBucketSubspace(firstName);
 
         String secondName = "third.two";
-        Namespace secondNamespace = createOrOpenNamespace(secondName);
+        BucketSubspace secondSubspace = createOrOpenBucketSubspace(secondName);
 
         String bucketName = "first-bucket-name";
 
         Prefix firstPrefix;
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
-            firstPrefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, firstNamespace, bucketName);
+            firstPrefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, firstSubspace, bucketName);
             tr.commit().join();
         }
 
         Prefix secondPrefix;
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
-            secondPrefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, secondNamespace, bucketName);
+            secondPrefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, secondSubspace, bucketName);
             tr.commit().join();
         }
 
         assertNotEquals(firstPrefix, secondPrefix);
     }
 
+    @Test
+    public void test_listBucketPrefixes() {
+        String name = "third.two.one";
+        KronotopTestInstance instance = getInstances().getFirst();
+        BucketSubspace subspace = createOrOpenBucketSubspace(name);
+
+        Map<String, Prefix> expectedResult = new HashMap<>();
+        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
+            for (int i = 0; i < 10; i++) {
+                String bucketName = String.format("bucket-%d", i);
+                Prefix prefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, subspace, bucketName);
+                expectedResult.put(bucketName, prefix);
+            }
+            tr.commit().join();
+        }
+
+        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
+            Map<String, Prefix> result = BucketPrefix.listBucketPrefixes(tr, subspace);
+            assertThat(expectedResult).usingRecursiveComparison().isEqualTo(result);
+        }
+    }
 }

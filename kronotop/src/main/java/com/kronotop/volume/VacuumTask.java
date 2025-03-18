@@ -107,7 +107,7 @@ public class VacuumTask implements Task {
     }
 
     @Override
-    public void awaitTermination() throws InterruptedException {
+    public void awaitCompletion() throws InterruptedException {
         synchronized (completed) {
             if (completed.get()) {
                 // Already completed, no need to wait.

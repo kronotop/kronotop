@@ -17,6 +17,9 @@
 package com.kronotop.instance;
 
 import com.apple.foundationdb.Database;
+import com.apple.foundationdb.FDBException;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
 import com.kronotop.bucket.BucketService;
@@ -25,6 +28,8 @@ import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.common.KronotopException;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.journal.CleanupJournalTask;
 import com.kronotop.network.Address;
@@ -47,6 +52,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -139,6 +145,7 @@ public class KronotopInstance {
 
         membershipService.start();
         routingService.start();
+        volumeService.start();
         replicationService.start();
         redisService.start();
         bucketService.start();
@@ -205,6 +212,52 @@ public class KronotopInstance {
     }
 
     /**
+     * Initializes the directory structure for the Kronotop instance.
+     * <p>
+     * This method creates or opens essential directories in the FoundationDB
+     * directory layer for the Kronotop instance's operation. It organizes the
+     * directory layout as follows:
+     * <p>
+     * 1. Creates or opens the "cluster" directory using the current cluster name.
+     * 2. Creates or opens the "metadata/prefixes" directory inside the cluster directory.
+     * 3. Creates or opens a directory for the default namespace specified in the
+     * configuration under "namespaces" within the cluster directory.
+     * <p>
+     * After setting up the directories, the transaction is committed to persist
+     * the changes.
+     * <p>
+     * In cases where the transaction is not committed due to conflicts (error code 1020),
+     * the conflict is ignored and no exception is thrown. For other exceptions, a
+     * KronotopException is thrown to indicate an error.
+     * <p>
+     * This method ensures that the required directory structure is in place
+     * to support various functionalities of the Kronotop instance.
+     */
+    private void initializeDirectoryLayout() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            KronotopDirectoryNode cluster = KronotopDirectory.kronotop().cluster(context.getClusterName());
+            DirectoryLayer.getDefault().createOrOpen(tr, cluster.toList()).join();
+
+            KronotopDirectoryNode prefixes = KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata().prefixes();
+            DirectoryLayer.getDefault().createOrOpen(tr, prefixes.toList()).join();
+
+            String defaultNamespace = context.getConfig().getString("default_namespace");
+            KronotopDirectoryNode node = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(defaultNamespace);
+            DirectoryLayer.getDefault().createOrOpen(tr, node.toList()).join();
+            tr.commit().join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException ex) {
+                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                if (ex.getCode() == 1020) {
+                    // Ignore it.
+                    return;
+                }
+            }
+            throw new KronotopException(e.getCause());
+        }
+    }
+
+    /**
      * Starts the Kronotop instance.
      *
      * <p>
@@ -232,6 +285,7 @@ public class KronotopInstance {
         try {
             initializeMember(memberId);
             initializeContext();
+            initializeDirectoryLayout();
             registerKronotopServices();
             registerCleanupJournalTask();
             setStatus(KronotopInstanceStatus.RUNNING);

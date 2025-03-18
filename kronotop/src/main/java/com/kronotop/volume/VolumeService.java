@@ -16,11 +16,20 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
-import com.kronotop.CommandHandlerService;
-import com.kronotop.Context;
-import com.kronotop.KronotopService;
+import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.kronotop.*;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingEventKind;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.common.KronotopException;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.journal.*;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
 import com.kronotop.task.TaskService;
@@ -37,6 +46,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -46,34 +56,56 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class VolumeService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Volume";
+    private static final int DISUSED_PREFIXES_JOURNAL_BATCH_SIZE = 100;
     private static final Logger LOGGER = LoggerFactory.getLogger(VolumeService.class);
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final HashMap<String, Volume> volumes = new HashMap<>();
+    private final KeyWatcher keyWatcher = new KeyWatcher();
+    private final ScheduledThreadPoolExecutor scheduler;
+    private final Consumer disusedPrefixesConsumer;
+    private final RoutingService routing;
+    private volatile boolean isShutdown;
 
     public VolumeService(Context context) throws CommandAlreadyRegisteredException {
         super(context, NAME);
 
+        this.routing = context.getService(RoutingService.NAME);
+        assert routing != null;
+
+        ThreadFactory factory = Thread.ofVirtual().name("kr.volume").factory();
+        this.scheduler = new ScheduledThreadPoolExecutor(2, factory);
+
+        String consumerId = String.format("%s-member:%s", JournalName.DISUSED_PREFIXES.getValue(), context.getMember().getId());
+        ConsumerConfig config = new ConsumerConfig(consumerId, JournalName.DISUSED_PREFIXES.getValue(), ConsumerConfig.Offset.RESUME);
+        this.disusedPrefixesConsumer = new Consumer(context, config);
+
         handlerMethod(ServerKind.INTERNAL, new SegmentRangeHandler(this));
         handlerMethod(ServerKind.INTERNAL, new SegmentInsertHandler(this));
         handlerMethod(ServerKind.INTERNAL, new VolumeAdminHandler(this));
+
+        routing.registerHook(RoutingEventKind.PRIMARY_OWNER_CHANGED, new SubmitVacuumTaskHook(this));
+        routing.registerHook(RoutingEventKind.PRIMARY_OWNER_CHANGED, new StopVacuumTaskHook(this));
+
+        resumeMarkStalePrefixesTaskIfAny();
     }
 
     /**
-     * Shuts down the VolumeService, ensuring that all managed volumes are properly closed and cleared.
-     * This method acquires a write lock to ensure thread safety during the shutdown process.
-     * It iterates through all entries in the volumes map, closes each Volume, and then clears the map.
+     * Starts the VolumeService by executing a background task for monitoring and handling disused prefixes.
+     * This method schedules the {@code DisusePrefixesWatcher} task for execution using the internal scheduler.
+     * The watcher is responsible for observing specific journal triggers and
+     * performing actions based on the retrieved journal metadata.
+     * <p>
+     * If the service is shut down, no further actions are initiated by the watcher.
+     * The watcher reschedules itself upon completion unless the service has been shut down.
      */
-    @Override
-    public void shutdown() {
-        lock.writeLock().lock();
-        try {
-            for (Map.Entry<String, Volume> entry : volumes.entrySet()) {
-                entry.getValue().close();
-            }
-            volumes.clear();
-        } finally {
-            lock.writeLock().unlock();
-        }
+    public void start() {
+        disusedPrefixesConsumer.start();
+
+        DisusedPrefixesWatcher disusedPrefixesWatcher = new DisusedPrefixesWatcher();
+        scheduler.execute(disusedPrefixesWatcher);
+        disusedPrefixesWatcher.waitUntilStarted();
+
+        scheduler.scheduleAtFixedRate(new PeriodicDisusedPrefixesCheckerTask(), 5, 5, TimeUnit.MINUTES);
     }
 
     /**
@@ -102,7 +134,11 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
      *
      * @param volume the volume for which the vacuum task should be checked and submitted
      */
-    private void submitVacuumTaskIfAny(Volume volume) {
+    protected void submitVacuumTaskIfAny(Volume volume) {
+        if (!hasVolumeOwnership(volume)) {
+            // ownership belongs to another cluster member
+            return;
+        }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
             if (vacuumMetadata == null) {
@@ -112,6 +148,54 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
             VacuumTask task = new VacuumTask(context, volume, vacuumMetadata);
             LOGGER.debug("Submitting vacuum task {} for volume {}", task, volume.getConfig().name());
             taskService.execute(task);
+        }
+    }
+
+    /**
+     * Resumes MarkStalePrefixesTask for marking stale prefixes if it was previously started by the current member.
+     * This method attempts to locate the metadata of the `MarkStalePrefixesTask` in the FoundationDB directory.
+     * If it finds an entry that matches the current member's ID, it resumes executing the task.
+     * <p>
+     * The method:
+     * - Establishes a transaction with the FoundationDB instance.
+     * - Navigates the directory structure to locate metadata for the MarkStalePrefixesTask.
+     * - Validates the member ID stored in the metadata and ensures it matches the current member's ID.
+     * - Invokes the task execution using the `TaskService`.
+     * - Logs relevant information upon resuming the task.
+     * <p>
+     * If the metadata directory does not exist or the metadata entry is not found, no action is taken.
+     * This method safely ignores a `NoSuchDirectoryException` in the case where the required directory structure
+     * for the `MarkStalePrefixesTask` does not exist.
+     */
+    private void resumeMarkStalePrefixesTaskIfAny() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            KronotopDirectoryNode node = KronotopDirectory.
+                    kronotop().
+                    cluster(context.getClusterName()).
+                    metadata().
+                    tasks().
+                    task(MarkStalePrefixesTask.NAME);
+            try {
+                DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, node.toList()).join();
+                byte[] value = tr.get(subspace.pack(MarkStalePrefixesTask.METADATA_KEY.MEMBER_ID.name())).join();
+                if (value == null) {
+                    // This should not be happened
+                    return;
+                }
+                String memberId = new String(value);
+                if (context.getMember().getId().equals(memberId)) {
+                    TaskService taskService = context.getService(TaskService.NAME);
+                    MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
+                    taskService.execute(task);
+                    LOGGER.info("Resuming " + MarkStalePrefixesTask.NAME);
+                }
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof NoSuchDirectoryException) {
+                    // Ignore
+                    return;
+                }
+                throw e;
+            }
         }
     }
 
@@ -207,6 +291,208 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
             return volumes.values().stream().toList();
         } finally {
             lock.readLock().unlock();
+        }
+    }
+
+    public boolean hasVolumeOwnership(Volume volume) {
+        Integer shardId = volume.getAttribute(VolumeAttributes.SHARD_ID);
+        if (shardId == null) {
+            return false;
+        }
+        ShardKind shardKind = volume.getAttribute(VolumeAttributes.SHARD_KIND);
+        Route route = routing.findRoute(shardKind, shardId);
+        return route.primary().equals(context.getMember());
+    }
+
+    private void processDisusePrefix(Transaction tr, Event event) {
+        byte[] data = JSONUtils.readValue(event.value(), byte[].class);
+        Prefix prefix = Prefix.fromBytes(data);
+        VolumeSession session = new VolumeSession(tr, prefix);
+
+        lock.readLock().lock();
+        try {
+            for (Volume volume : volumes.values()) {
+                if (hasVolumeOwnership(volume)) {
+                    volume.clearPrefix(session);
+                }
+            }
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Processes events from the "disused-prefixes" journal and handles them accordingly.
+     * This method continuously polls the journal for up to 100 events at a time and processes
+     * each event by invoking {@code processDisusePrefix(Transaction tr, Event event)}.
+     * <p>
+     * The method operates within a transaction context provided by FoundationDB. Each event represents
+     * a disused prefix in the system, and this method ensures that the prefix is properly cleared
+     * from all volumes. The transaction commits successfully after processing each batch of events.
+     * <p>
+     * If no further events are available in the journal, the method terminates the polling loop.
+     * <p>
+     * Exceptions that occur during the prefix processing are caught and logged, but their occurrence
+     * does not interrupt the batch processing of remaining events within the transaction.
+     */
+    private synchronized void fetchDisusedPrefixes() {
+        boolean done = false;
+        while (!done) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                for (int i = 0; i < DISUSED_PREFIXES_JOURNAL_BATCH_SIZE; i++) {
+                    Event event = disusedPrefixesConsumer.consume(tr);
+                    if (event == null) {
+                        done = true;
+                        break;
+                    }
+                    try {
+                        processDisusePrefix(tr, event);
+                        disusedPrefixesConsumer.markConsumed(tr, event);
+                    } catch (Exception e) {
+                        // Periodic task will try to process again, quit now.
+                        done = true;
+                        if (e instanceof IllegalConsumerStateException) {
+                            throw e;
+                        }
+                        LOGGER.error("Failed to process a disused prefix", e);
+                        break;
+                    }
+                }
+                tr.commit().join();
+            } catch (IllegalConsumerStateException e) {
+                // Ignore this exception, this is mostly about the concurrency in the integration tests.
+                break;
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof FDBException ex) {
+                    if (ex.getCode() == 1020) {
+                        // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                        fetchDisusedPrefixes();
+                        return;
+                    }
+                }
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Shuts down the VolumeService, ensuring that all managed volumes are properly closed and cleared.
+     * This method acquires a write lock to ensure thread safety during the shutdown process.
+     * It iterates through all entries in the volumes map, closes each Volume, and then clears the map.
+     */
+    @Override
+    public void shutdown() {
+        lock.writeLock().lock();
+        try {
+            isShutdown = true;
+            disusedPrefixesConsumer.stop();
+            keyWatcher.unwatchAll();
+
+            lock.writeLock().lock();
+            try {
+                for (Map.Entry<String, Volume> entry : volumes.entrySet()) {
+                    entry.getValue().close();
+                }
+                volumes.clear();
+            } finally {
+                lock.writeLock().unlock();
+            }
+
+            scheduler.shutdownNow();
+            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
+                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * A periodic task that checks and processes disused prefixes in the system.
+     * <p>
+     * This task is designed to be executed as part of a scheduled background process in the containing
+     * {@code VolumeService} class. It triggers the fetching and processing of disused prefixes by invoking
+     * the {@code fetchDisusedPrefixes} method on the parent class.
+     * <p>
+     * The main operation of this task involves handling entries in the "disused-prefixes" journal, which keeps
+     * track of prefixes that are no longer being used. Each disused prefix is processed and cleared from
+     * the system. The task runs within a transactional context to ensure integrity and consistency during its operation.
+     * <p>
+     * This class implements the {@code Runnable} interface, making it suitable for execution by a thread or
+     * a scheduled executor service.
+     */
+    private class PeriodicDisusedPrefixesCheckerTask implements Runnable {
+
+        @Override
+        public void run() {
+            if (isShutdown) {
+                return;
+            }
+            fetchDisusedPrefixes();
+        }
+    }
+
+    /**
+     * Represents a task for monitoring and handling disused prefixes in the system.
+     * This class implements the {@link Runnable} interface and is designed to be executed
+     * by a scheduler. It continuously watches a key in the "disused-prefixes" journal and
+     * processes related events when triggered.
+     * <p>
+     * The {@code run()} method is the main entry point for the task execution, and it
+     * performs the following actions:
+     * <p>
+     * - If the service is in a shutdown state, the method gracefully exits without taking
+     * any further action.
+     * - Creates a FoundationDB transaction and sets up a key watcher on the journal associated
+     * with disused prefixes. The watcher is triggered when the associated key changes or
+     * is deleted.
+     * - Processes disused prefix events by invoking {@link VolumeService#fetchDisusedPrefixes}.
+     * - Handles exceptions during the watching or processing stages by logging errors,
+     * while ensuring that the task reschedules itself unless the service is shutdown.
+     * <p>
+     * In case of cancellation (e.g., a key watcher being explicitly cancelled), the method
+     * handles it gracefully and terminates further processing loop execution.
+     * <p>
+     * This task ensures that disused prefixes are timely handled, maintaining proper
+     * cleanup of resources and states in the system.
+     */
+    private class DisusedPrefixesWatcher implements Runnable {
+        private final CountDownLatch latch = new CountDownLatch(1);
+
+        public void waitUntilStarted() {
+            try {
+                latch.await(); // Wait until the watcher is started
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Wait interrupted", e);
+            }
+        }
+
+        @Override
+        public void run() {
+            if (isShutdown) {
+                return;
+            }
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.DISUSED_PREFIXES.getValue()).trigger());
+                tr.commit().join();
+                try {
+                    fetchDisusedPrefixes();
+                    latch.countDown();
+                    watcher.join();
+                } catch (CancellationException e) {
+                    LOGGER.debug("{} watcher has been cancelled", JournalName.DISUSED_PREFIXES);
+                    return;
+                }
+                fetchDisusedPrefixes();
+            } catch (Exception e) {
+                LOGGER.error("Error while watching journal: {}", JournalName.DISUSED_PREFIXES, e);
+            } finally {
+                if (!isShutdown) {
+                    scheduler.execute(this);
+                }
+            }
         }
     }
 }

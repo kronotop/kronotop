@@ -17,6 +17,8 @@
 package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.BucketShard;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.RoutingService;
@@ -125,19 +127,22 @@ public class KronotopTestInstance extends KronotopInstance {
     }
 
     /**
-     * Starts the Kronotop instance for testing.
-     *
+     * Starts the Kronotop test instance.
      * <p>
-     * This method performs the following steps:
+     * This method extends the behavior of the superclass's start method by adding specific startup
+     * tasks needed for the test instance. It performs the following operations:
      * <p>
-     * 1. Calls the start method of the super class.
-     * 2. Creates a new CheckClusterStatus object and adds it to the executor.
-     * 3. Waits until the clusterOperable object is notified.
-     * 4. Creates a new channel using the newChannel method.
-     * </p>
+     * 1. Invokes the superclass's start method to initialize core functionalities.
+     * 2. If the test instance is configured to run with a TCP server, it starts two Nio RESP servers:
+     * - One for the internal address of the member.
+     * - One for the external address of the member.
+     * 3. Creates a new communication channel using the {@link #newChannel()} method.
+     * 4. If initialization is required, it invokes the {@link #initialize()} method to initialize the
+     * cluster-related state and requirements.
+     * 5. Creates or opens a default namespace based on the provided configuration.
      *
-     * @throws UnknownHostException if the host address is unknown
-     * @throws InterruptedException if the thread is interrupted
+     * @throws UnknownHostException if an unknown host address issue occurs during startup.
+     * @throws InterruptedException if the thread is interrupted during the server startup or other processes.
      */
     @Override
     public void start() throws UnknownHostException, InterruptedException {
@@ -192,9 +197,9 @@ public class KronotopTestInstance extends KronotopInstance {
         return false;
     }
 
-    private void setPrimaryOwnersOfShards(KrAdminCommandBuilder<String, String> cmd) {
+    private void setPrimaryOwnersOfShards(KrAdminCommandBuilder<String, String> cmd, ShardKind shardKind) {
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", RouteKind.PRIMARY.name(), ShardKind.REDIS.name(), context.getMember().getId()).encode(buf);
+        cmd.route("SET", RouteKind.PRIMARY.name(), shardKind.name(), context.getMember().getId()).encode(buf);
         channel.writeInbound(buf);
 
         Object raw = channel.readOutbound();
@@ -205,9 +210,9 @@ public class KronotopTestInstance extends KronotopInstance {
         }
     }
 
-    private void setShardsReadWrite(KrAdminCommandBuilder<String, String> cmd) {
+    private void setShardsReadWrite(KrAdminCommandBuilder<String, String> cmd, ShardKind shardKind) {
         ByteBuf buf = Unpooled.buffer();
-        cmd.setShardStatus("REDIS", "READWRITE").encode(buf);
+        cmd.setShardStatus(shardKind.name(), "READWRITE").encode(buf);
         channel.writeInbound(buf);
 
         Object raw = channel.readOutbound();
@@ -232,10 +237,17 @@ public class KronotopTestInstance extends KronotopInstance {
         RoutingService routing = context.getService(RoutingService.NAME);
         await().atMost(5000, TimeUnit.MILLISECONDS).until(routing::isClusterInitialized);
 
-        setPrimaryOwnersOfShards(cmd);
+        // TODO: BUCKET-IMPLEMENTATION review this part when you start working on Buckets again
+        setPrimaryOwnersOfShards(cmd, ShardKind.REDIS);
         await().atMost(5, TimeUnit.SECONDS).until(this::areAllOwnedRedisShardsOperable);
 
-        setShardsReadWrite(cmd);
+        setPrimaryOwnersOfShards(cmd, ShardKind.BUCKET);
+        await().atMost(5, TimeUnit.SECONDS).until(this::areAllOwnedBucketsShardsOperable);
+
+        setShardsReadWrite(cmd, ShardKind.REDIS);
+        await().atMost(5, TimeUnit.SECONDS).until(this::areAllRedisShardsWritable);
+
+        setShardsReadWrite(cmd, ShardKind.BUCKET);
         await().atMost(5, TimeUnit.SECONDS).until(this::areAllRedisShardsWritable);
     }
 
@@ -244,6 +256,21 @@ public class KronotopTestInstance extends KronotopInstance {
         int shards = context.getConfig().getInt("redis.shards");
         for (int shardId = 0; shardId < shards; shardId++) {
             Route route = routing.findRoute(ShardKind.REDIS, shardId);
+            if (route == null) {
+                return false;
+            }
+            if (!route.shardStatus().equals(ShardStatus.READWRITE)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean areAllBucketShardsWritable() {
+        RoutingService routing = context.getService(RoutingService.NAME);
+        int shards = context.getConfig().getInt("bucket.shards");
+        for (int shardId = 0; shardId < shards; shardId++) {
+            Route route = routing.findRoute(ShardKind.BUCKET, shardId);
             if (route == null) {
                 return false;
             }
@@ -272,6 +299,27 @@ public class KronotopTestInstance extends KronotopInstance {
                 return false;
             }
             if (!shard.operable()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean areAllOwnedBucketsShardsOperable() {
+        RoutingService routing = context.getService(RoutingService.NAME);
+        BucketService bucketService = context.getService(BucketService.NAME);
+        int shards = context.getConfig().getInt("bucket.shards");
+        for (int shardId = 0; shardId < shards; shardId++) {
+            Route route = routing.findRoute(ShardKind.BUCKET, shardId);
+            if (route == null) {
+                return false;
+            }
+            if (!route.primary().equals(context.getMember())) {
+                // Not belong to this member
+                continue;
+            }
+            BucketShard shard = bucketService.getShard(shardId);
+            if (shard == null) {
                 return false;
             }
         }

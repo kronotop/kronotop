@@ -17,6 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.RoutingService;
@@ -30,8 +31,8 @@ import java.util.ArrayList;
 
 class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    SetMemberStatusSubcommand(RoutingService service) {
-        super(service);
+    SetMemberStatusSubcommand(RoutingService routing) {
+        super(routing);
     }
 
     @Override
@@ -55,7 +56,7 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
             if (params.size() != 3) {
                 throw new KronotopException("Invalid number of parameters");
             }
-            memberId = readMemberId(params.get(1));
+            memberId = ByteBufUtils.readMemberId(context, params.get(1));
             memberStatus = readMemberStatus(params.get(2));
         }
     }

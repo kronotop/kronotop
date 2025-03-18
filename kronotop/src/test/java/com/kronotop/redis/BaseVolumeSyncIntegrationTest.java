@@ -35,7 +35,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseRedisHandlerTest {
     protected static final String value = "value";
 
     protected boolean volumeContainsStringKey(String key) {
-        RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
+        RedisService service = instance.getContext().getService(RedisService.NAME);
         RedisShard shard = service.findShard(key, ShardStatus.READONLY);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
@@ -54,7 +54,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseRedisHandlerTest {
     }
 
     protected boolean volumeContainsHashField(String hashKey, String field) {
-        RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
+        RedisService service = instance.getContext().getService(RedisService.NAME);
         RedisShard shard = service.findShard(hashKey, ShardStatus.READONLY);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
@@ -73,7 +73,7 @@ public class BaseVolumeSyncIntegrationTest extends BaseRedisHandlerTest {
     }
 
     protected boolean checkOnVolume(String key, Predicate<KeyEntry> f) {
-        RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
+        RedisService service = instance.getContext().getService(RedisService.NAME);
         RedisShard shard = service.findShard(key, ShardStatus.READONLY);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);

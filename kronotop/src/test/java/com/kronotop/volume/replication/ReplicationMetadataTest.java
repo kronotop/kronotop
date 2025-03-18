@@ -34,7 +34,7 @@ class ReplicationMetadataTest extends BaseVolumeIntegrationTest {
     public void test_findLatestVersionstampedKey() throws IOException {
         ByteBuffer[] entries = getEntries(2);
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();

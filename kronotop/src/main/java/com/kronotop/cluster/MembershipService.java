@@ -24,7 +24,10 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.*;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.journal.Consumer;
+import com.kronotop.journal.ConsumerConfig;
 import com.kronotop.journal.Event;
+import com.kronotop.journal.JournalName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +35,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Membership service implements all business logic around cluster membership and health checks.
@@ -41,14 +43,13 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     public static final String NAME = "Membership";
     private static final byte[] PLUS_ONE = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipService.class);
-    private static final String CLUSTER_EVENTS_JOURNAL = "cluster-events";
     private final Context context;
     private final MemberRegistry registry;
     private final ScheduledThreadPoolExecutor scheduler;
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final ConcurrentHashMap<Member, DirectorySubspace> subspaces = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Member, MemberView> others = new ConcurrentHashMap<>();
-    private final AtomicReference<byte[]> latestClusterEventKey = new AtomicReference<>();
+    private final Consumer clusterEventsConsumer;
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
     private volatile boolean isShutdown;
@@ -61,15 +62,12 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
 
+        String consumerId = String.format("%s-member:%s", JournalName.CLUSTER_EVENTS.getValue(), context.getMember().getId());
+        ConsumerConfig config = new ConsumerConfig(consumerId, JournalName.CLUSTER_EVENTS.getValue(), ConsumerConfig.Offset.LATEST);
+        this.clusterEventsConsumer = new Consumer(context, config);
+
         ThreadFactory factory = Thread.ofVirtual().name("kr.membership").factory();
         this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
-    }
-
-    private void configureClusterEventsWatcher() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] key = context.getJournal().getConsumer().getLatestEventKey(tr, CLUSTER_EVENTS_JOURNAL);
-            this.latestClusterEventKey.set(key);
-        }
     }
 
     private DirectorySubspace openMemberSubspace(Transaction tr, Member member) {
@@ -123,10 +121,13 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         initializeInternalState();
 
         // Publish a MemberJoinEvent
-        context.getJournal().getPublisher().publish(CLUSTER_EVENTS_JOURNAL, new MemberJoinEvent(member));
-        configureClusterEventsWatcher();
+        context.getJournal().getPublisher().publish(JournalName.CLUSTER_EVENTS, new MemberJoinEvent(member));
+        clusterEventsConsumer.start();
 
-        scheduler.execute(new ClusterEventsJournalWatcher());
+        ClusterEventsJournalWatcher eventsJournalWatcher = new ClusterEventsJournalWatcher();
+        scheduler.execute(eventsJournalWatcher);
+        eventsJournalWatcher.waitUntilStarted();
+
         scheduler.execute(new HeartbeatTask());
         scheduler.execute(new FailureDetectionTask());
     }
@@ -223,6 +224,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         try {
             isShutdown = true;
             keyWatcher.unwatchAll();
+            clusterEventsConsumer.stop();
             scheduler.shutdownNow();
 
             if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
@@ -255,7 +257,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             member.setStatus(status);
             registry.update(tr, member);
-            context.getJournal().getPublisher().publish(tr, CLUSTER_EVENTS_JOURNAL, new MemberLeftEvent(member));
+            context.getJournal().getPublisher().publish(tr, JournalName.CLUSTER_EVENTS, new MemberLeftEvent(member));
             tr.commit().join();
         } catch (Exception e) {
             // Rollback the internal state
@@ -302,23 +304,30 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         context.getFoundationDB().run(tr -> {
             while (true) {
                 // Try to consume the latest event.
-                byte[] key = latestClusterEventKey.get();
-                Event event = context.getJournal().getConsumer().consumeNext(tr, CLUSTER_EVENTS_JOURNAL, key);
+                Event event = clusterEventsConsumer.consume(tr);
                 if (event == null) return null;
 
                 try {
                     processClusterEvent(event);
+                    clusterEventsConsumer.markConsumed(tr, event);
                 } catch (Exception e) {
                     LOGGER.error("Failed to process a broadcast event, passing it", e);
-                } finally {
-                    // Processed the event successfully. Forward the position.
-                    latestClusterEventKey.set(event.key());
                 }
             }
         });
     }
 
     private class ClusterEventsJournalWatcher implements Runnable {
+        private final CountDownLatch latch = new CountDownLatch(1);
+
+        public void waitUntilStarted() {
+            try {
+                latch.await(); // Wait until the watcher is started
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Wait interrupted", e);
+            }
+        }
+
         @Override
         public void run() {
             if (isShutdown) {
@@ -326,21 +335,21 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             }
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(CLUSTER_EVENTS_JOURNAL).getTrigger());
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.CLUSTER_EVENTS.getValue()).trigger());
                 tr.commit().join();
                 try {
                     // Try to fetch the latest events before start waiting
                     fetchClusterEvents();
-
+                    latch.countDown();
                     watcher.join();
                 } catch (CancellationException e) {
-                    LOGGER.debug("{} watcher has been cancelled", CLUSTER_EVENTS_JOURNAL);
+                    LOGGER.debug("{} watcher has been cancelled", JournalName.CLUSTER_EVENTS);
                     return;
                 }
                 // A new event is ready to read
                 fetchClusterEvents();
             } catch (Exception e) {
-                LOGGER.error("Error while watching journal: {}", CLUSTER_EVENTS_JOURNAL, e);
+                LOGGER.error("Error while watching journal: {}", JournalName.CLUSTER_EVENTS, e);
             } finally {
                 if (!isShutdown) {
                     scheduler.execute(this);

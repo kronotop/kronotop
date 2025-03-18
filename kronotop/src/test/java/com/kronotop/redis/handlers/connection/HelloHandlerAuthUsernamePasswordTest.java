@@ -20,24 +20,19 @@ import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
-import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.net.UnknownHostException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class HelloHandlerAuthUsernamePasswordTest extends BaseRedisHandlerTest {
+
     @Override
-    @BeforeEach
-    public void setup() throws UnknownHostException, InterruptedException {
-        Config config = loadConfig("auth-test.conf");
-        setupCommon(config);
+    protected String getConfigFileName() {
+        return "auth-test.conf";
     }
 
     @Test

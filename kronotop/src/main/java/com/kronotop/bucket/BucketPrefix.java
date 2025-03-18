@@ -10,79 +10,94 @@
 
 package com.kronotop.bucket;
 
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
-import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.subspace.Subspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.google.common.hash.HashCode;
 import com.kronotop.Context;
-import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.volume.Prefix;
+import com.kronotop.volume.PrefixUtils;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import static com.google.common.hash.Hashing.sipHash24;
 
 public class BucketPrefix {
     /**
-     * Creates a new prefix for the specified bucket within the given namespace, associates the prefix with
-     * the bucket, and stores it in the database using the provided transaction. The method generates a unique
-     * identifier for the prefix and ensures it is properly linked within the global and namespace-specific
-     * subspaces.
+     * Creates a unique prefix by generating a random UUID, converting it into a hash, and registering it with the given
+     * bucket key in the specified transaction.
      *
      * @param context   The context of the Kronotop instance for the current operation.
      * @param tr        The transaction to be used for database operations.
-     * @param namespace The namespace where the bucket is located.
-     * @param bucket    The name of the bucket to associate with the newly created prefix.
-     * @return The newly created prefix associated with the specified bucket.
+     * @param bucketKey The key representing the bucket for which the prefix is to be registered.
+     * @return A newly created {@link Prefix} object uniquely associated with the bucket key.
      */
-    private static Prefix createPrefix(Context context, Transaction tr, Namespace namespace, String bucket) {
+    private static Prefix createPrefix(Context context, Transaction tr, byte[] bucketKey) {
+        // We need a unique sequence of bytes. UUID will provide this.
         UUID uuid = UUID.randomUUID();
         HashCode hashCode = sipHash24().hashBytes(uuid.toString().getBytes());
 
-        byte[] bucketKey = namespace.getBucketPrefixesSubspace().pack(bucket);
-        byte[] rawPrefix = hashCode.asBytes();
-        tr.set(bucketKey, rawPrefix);
-
-        KronotopDirectoryNode node = KronotopDirectory.
-                kronotop().
-                cluster(context.getClusterName()).
-                metadata().
-                prefixes();
-        DirectorySubspace globalPrefixesSubspace = DirectoryLayer.getDefault().createOrOpen(tr, node.toList()).join();
-
         Prefix prefix = new Prefix(hashCode);
-        byte[] prefixKey = globalPrefixesSubspace.pack(Tuple.from((Object) rawPrefix));
-        tr.set(prefixKey, bucketKey);
+        PrefixUtils.register(context, tr, bucketKey, prefix);
         return prefix;
     }
 
     /**
-     * Retrieves the prefix associated with the specified bucket within the given namespace. If the prefix does not
-     * exist, it creates a new prefix, stores it in the namespace's bucket prefix subspace, and associates it with
-     * the given bucket.
+     * Retrieves the bucket prefix for the specified bucket, or creates and sets a new one if it does not already exist.
+     * This function checks if the prefix is present in the {@link BucketSubspace}, and if not, retrieves it from the
+     * database using a {@link Transaction}. If still absent, a new prefix is created, set, and returned.
      *
-     * @param context   The context of the Kronotop instance for the current operation.
-     * @param tr        The transaction to be used for database operations.
-     * @param namespace The namespace under which the bucket resides.
-     * @param bucket    The name of the bucket for which the prefix is being retrieved or created.
-     * @return The prefix associated with the specified bucket.
+     * @param context  The {@link Context} instance representing the state and configuration of the current operation.
+     * @param tr       The {@link Transaction} used for database read and write operations.
+     * @param subspace The {@link BucketSubspace} representing the logical grouping of bucket data.
+     * @param bucket   The name of the bucket whose prefix is to be retrieved or set.
+     * @return The {@link Prefix} object corresponding to the specified bucket.
      */
-    public static Prefix getOrSetBucketPrefix(Context context, Transaction tr, Namespace namespace, String bucket) {
-        Prefix prefix = namespace.getBucketPrefix(bucket);
+    public static Prefix getOrSetBucketPrefix(Context context, Transaction tr, BucketSubspace subspace, String bucket) {
+        Prefix prefix = subspace.getBucketPrefix(bucket);
         if (prefix != null) {
             return prefix;
         }
 
-        byte[] bucketKey = namespace.getBucketPrefixesSubspace().pack(bucket);
+        byte[] bucketKey = subspace.getBucketKey(bucket);
         byte[] rawPrefix = tr.get(bucketKey).join();
         if (rawPrefix != null) {
             prefix = Prefix.fromBytes(rawPrefix);
-            namespace.setBucketPrefix(bucket, prefix);
+            subspace.setBucketPrefix(bucket, prefix);
             return prefix;
         }
-        return createPrefix(context, tr, namespace, bucket);
+        return createPrefix(context, tr, bucketKey);
+    }
+
+    /**
+     * Retrieves a map of all bucket prefixes stored within the provided subspace.
+     * The method queries the database using the transaction to retrieve all key-value pairs
+     * in the range defined by the prefixes subspace and constructs a mapping of
+     * bucket names to their corresponding {@link Prefix} objects.
+     *
+     * @param tr       The {@link Transaction} used for database operations.
+     * @param subspace The {@link BucketSubspace} instance representing the subspace
+     *                 to query for bucket prefixes.
+     * @return A {@link Map} where the keys are bucket names (as strings) and the values
+     * are {@link Prefix} objects corresponding to those buckets.
+     */
+    public static Map<String, Prefix> listBucketPrefixes(Transaction tr, BucketSubspace subspace) {
+        Subspace prefixesSubspace = subspace.getPrefixesSubspace();
+        byte[] begin = prefixesSubspace.pack();
+        byte[] end = ByteArrayUtil.strinc(begin);
+
+        HashMap<String, Prefix> result = new HashMap<>();
+        Range range = new Range(begin, end);
+        for (KeyValue entry : tr.getRange(range)) {
+            Tuple key = prefixesSubspace.unpack(entry.getKey());
+            Prefix prefix = Prefix.fromBytes(entry.getValue());
+            result.put(key.getString(0), prefix);
+        }
+        return result;
     }
 }

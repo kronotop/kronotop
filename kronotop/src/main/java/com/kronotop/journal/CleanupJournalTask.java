@@ -70,7 +70,7 @@ public class CleanupJournalTask implements Task {
     }
 
     @Override
-    public void awaitTermination() throws InterruptedException {
+    public void awaitCompletion() throws InterruptedException {
         // Not required for this task
     }
 
@@ -99,8 +99,8 @@ public class CleanupJournalTask implements Task {
      */
     private Range findCleanupRange(Transaction tr, DirectorySubspace subspace) {
         JournalMetadata metadata = new JournalMetadata(subspace);
-        KeySelector begin = KeySelector.firstGreaterThan(metadata.getEventsSubspace().pack());
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(metadata.getEventsSubspace().pack()));
+        KeySelector begin = KeySelector.firstGreaterThan(metadata.eventsSubspace().pack());
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(metadata.eventsSubspace().pack()));
 
         byte[] rangeBegin = null;
         byte[] rangeEnd = null;

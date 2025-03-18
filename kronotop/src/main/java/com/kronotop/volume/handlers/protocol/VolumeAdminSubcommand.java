@@ -23,7 +23,8 @@ public enum VolumeAdminSubcommand {
     REPLICATIONS("replications"),
     VACUUM("vacuum"),
     STOP_VACUUM("stop-vacuum"),
-    CLEANUP_ORPHAN_FILES("cleanup-orphan-files");
+    CLEANUP_ORPHAN_FILES("cleanup-orphan-files"),
+    MARK_STALE_PREFIXES("mark-stale-prefixes");
 
     private final String value;
 

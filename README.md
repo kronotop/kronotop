@@ -11,6 +11,8 @@ Kronotop is still in its early stages of development. The API is unstable and mi
 
 See [Getting started](#getting-started) section.
 
+Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
+
 ## At a glance
 
 * Horizontally scalable and sharded by default,

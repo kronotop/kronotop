@@ -28,5 +28,5 @@ public interface Task extends Runnable {
 
     void shutdown();
 
-    void awaitTermination() throws InterruptedException;
+    void awaitCompletion() throws InterruptedException;
 }

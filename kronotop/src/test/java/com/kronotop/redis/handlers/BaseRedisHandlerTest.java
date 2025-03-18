@@ -18,15 +18,16 @@ package com.kronotop.redis.handlers;
 
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.volume.Prefix;
-import com.typesafe.config.Config;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
 
 public class BaseRedisHandlerTest extends BaseHandlerTest {
     protected Prefix redisVolumeSyncerPrefix;
 
-    protected void setupCommon(Config config) throws UnknownHostException, InterruptedException {
+    @BeforeEach
+    public void setup() throws UnknownHostException, InterruptedException {
+        super.setup();
         redisVolumeSyncerPrefix = new Prefix(config.getString("redis.volume_syncer.prefix").getBytes());
-        super.setupCommon(config);
     }
 }

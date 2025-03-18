@@ -16,13 +16,18 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.journal.JournalName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.time.Duration;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class VolumeServiceTest extends BaseVolumeTest {
@@ -76,9 +81,43 @@ public class VolumeServiceTest extends BaseVolumeTest {
     }
 
     @Test
-    public void test_volumes() throws IOException {
+    public void test_register_volume() throws IOException {
         Volume volume = service.newVolume(volumeConfig);
-        assertEquals(1, service.volumes().size());
-        volume.close();
+        try {
+            boolean found = false;
+            for (Volume v : service.volumes()) {
+                if (v.getConfig().name().equals(volumeConfig.name())) {
+                    found = true;
+                    break;
+                }
+            }
+            assertTrue(found);
+        } finally {
+            volume.close();
+        }
+    }
+
+    @Test
+    public void test_DisusedPrefixesWatcher() throws IOException {
+        Volume volume = service.newVolume(volumeConfig);
+
+        ByteBuffer entry = ByteBuffer.wrap("entry".getBytes());
+        try {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeSession session = new VolumeSession(tr, prefix);
+                volume.append(session, entry);
+                tr.commit().join();
+            }
+            context.getJournal().getPublisher().publish(JournalName.DISUSED_PREFIXES, prefix.asBytes());
+            await().atMost(Duration.ofSeconds(5)).until(() -> {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    VolumeSession session = new VolumeSession(tr, prefix);
+                    Iterable<KeyEntry> iterable = volume.getRange(session);
+                    return !iterable.iterator().hasNext();
+                }
+            });
+        } finally {
+            volume.close();
+        }
     }
 }

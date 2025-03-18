@@ -37,6 +37,10 @@ public class Metadata extends KronotopDirectoryNode {
         return new Members(layout);
     }
 
+    public Tasks tasks() {
+        return new Tasks(layout);
+    }
+
     public Prefixes prefixes() {
         return new Prefixes(layout);
     }

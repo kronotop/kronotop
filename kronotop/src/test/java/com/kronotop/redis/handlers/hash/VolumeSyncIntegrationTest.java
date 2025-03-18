@@ -93,7 +93,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         channel.writeInbound(buf);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, (keyEntry -> {
-            RedisService service = kronotopInstance.getContext().getService(RedisService.NAME);
+            RedisService service = instance.getContext().getService(RedisService.NAME);
             RedisShard shard = service.findShard(key, ShardStatus.READONLY);
             try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);

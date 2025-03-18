@@ -42,7 +42,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     public void test_append() throws IOException {
         ByteBuffer[] entries = getEntries(2);
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
@@ -51,11 +51,19 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    public void test_append_IllegalArgumentException() throws IOException {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            assertThrows(IllegalArgumentException.class, () -> volume.append(session));
+        }
+    }
+
+    @Test
     public void test_get() throws IOException {
         ByteBuffer[] entries = getEntries(3);
 
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
@@ -63,7 +71,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
         List<ByteBuffer> retrievedEntries = new ArrayList<>();
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             for (Versionstamp versionstamp : versionstampedKeys) {
                 ByteBuffer buffer = volume.get(session, versionstamp);
@@ -79,7 +87,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     public void test_delete() throws IOException {
         ByteBuffer[] entries = getEntries(2);
         AppendResult appendResult;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -87,14 +95,14 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
 
         DeleteResult deleteResult;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             deleteResult = volume.delete(session, versionstampedKeys);
             tr.commit().join();
         }
         deleteResult.complete();
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             for (Versionstamp versionstamp : versionstampedKeys) {
                 assertNull(volume.get(session, versionstamp));
@@ -109,6 +117,14 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    public void test_delete_IllegalArgumentException() throws IOException {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            assertThrows(IllegalArgumentException.class, () -> volume.delete(session));
+        }
+    }
+
+    @Test
     public void test_update() throws IOException, KeyNotFoundException {
         Versionstamp[] versionstampedKeys;
 
@@ -118,7 +134,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
                     ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
             };
             AppendResult result;
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                 result = volume.append(session, entries);
                 tr.commit().join();
@@ -131,7 +147,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             entries[0] = new KeyEntry(versionstampedKeys[0], ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
             entries[1] = new KeyEntry(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
             UpdateResult result;
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                 result = volume.update(session, entries);
                 tr.commit().join();
@@ -139,7 +155,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             result.complete();
 
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                 for (Versionstamp versionstamp : versionstampedKeys) {
                     ByteBuffer buffer = volume.get(session, versionstamp);
@@ -153,9 +169,17 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    public void test_update_IllegalArgumentException() throws IOException {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            assertThrows(IllegalArgumentException.class, () -> volume.update(session));
+        }
+    }
+
+    @Test
     public void test_flush() {
         ByteBuffer[] entries = getEntries(2);
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertDoesNotThrow(() -> volume.append(session, entries));
             tr.commit().join();
@@ -166,7 +190,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     public void test_close() {
         ByteBuffer[] entries = getEntries(2);
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertDoesNotThrow(() -> volume.append(session, entries));
             tr.commit().join();
@@ -180,7 +204,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(2);
         {
             AppendResult result;
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                 result = volume.append(session, entries);
                 tr.commit().join();
@@ -193,7 +217,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         {
             Volume reopenedVolume = service.newVolume(volume.getConfig());
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                 for (Versionstamp versionstamp : versionstampedKeys) {
                     ByteBuffer buffer = reopenedVolume.get(session, versionstamp);
@@ -213,7 +237,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] firstEntries = getEntries(2);
         {
             AppendResult result;
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                 result = volume.append(session, firstEntries);
                 tr.commit().join();
@@ -229,7 +253,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
 
             ByteBuffer[] secondEntries = getEntries(2);
             AppendResult result;
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                 result = reopenedVolume.append(session, secondEntries);
                 tr.commit().join();
@@ -237,7 +261,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             versionstampedKeys.addAll(Arrays.stream(result.getVersionstampedKeys()).toList());
 
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                 for (Versionstamp versionstamp : versionstampedKeys) {
                     ByteBuffer buffer = reopenedVolume.get(session, versionstamp);
@@ -289,7 +313,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             @Override
             public void run() {
                 AppendResult result;
-                try (Transaction tr = database.createTransaction()) {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                     result = volume.append(session, entries);
                     tr.commit().join();
@@ -315,7 +339,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
 
         assertEquals(numberOfThreads * entriesPerThread, pairs.size());
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             for (Map.Entry<Versionstamp, ByteBuffer> entry : pairs.entrySet()) {
                 ByteBuffer buffer = volume.get(session, entry.getKey());
@@ -338,7 +362,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             List<SegmentAnalysis> segmentAnalysis = volume.analyze(tr);
             assertEquals(2, segmentAnalysis.size());
 
@@ -373,7 +397,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         }
         deleteResult.complete();
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             List<SegmentAnalysis> analysis = volume.analyze(tr);
             SegmentAnalysis segmentAnalysis = analysis.getFirst();
             assertTrue(segmentAnalysis.garbageRatio() > 0);
@@ -385,7 +409,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     public void test_TooManyEntriesException_before_appending() {
         ByteBuffer[] entries = getEntries(UserVersion.MAX_VALUE + 1);
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertThrows(TooManyEntriesException.class, () -> volume.append(session, entries));
         }
@@ -393,7 +417,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
 
     @Test
     public void test_TooManyEntriesException_session() throws IOException {
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int batchSize = UserVersion.MAX_VALUE / 5;
             for (int i = 0; i < 5; i++) {
@@ -466,12 +490,10 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        long readVersion = getReadVersion();
-
         {
             List<SegmentAnalysis> segmentAnalysis = volume.analyze();
             String firstSegment = segmentAnalysis.getFirst().name();
-            VacuumContext vacuumContext = new VacuumContext(firstSegment, readVersion, new AtomicBoolean());
+            VacuumContext vacuumContext = new VacuumContext(firstSegment, new AtomicBoolean());
             volume.vacuumSegment(vacuumContext);
         }
 
@@ -494,7 +516,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     public void test_getRange_full_scan() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
@@ -505,7 +527,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] retrievedKeys = new Versionstamp[10];
         ByteBuffer[] retrievedEntries = new ByteBuffer[10];
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int index = 0;
             Iterable<KeyEntry> iterable = volume.getRange(session);
@@ -528,7 +550,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     public void test_getRange_limit() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
@@ -541,7 +563,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         int limit = 5;
         Versionstamp[] retrievedKeys = new Versionstamp[limit];
         ByteBuffer[] retrievedEntries = new ByteBuffer[limit];
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int index = 0;
             Iterable<KeyEntry> iterable = volume.getRange(session, limit);
@@ -565,7 +587,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     public void test_getRange_reverse() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
@@ -577,7 +599,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         // Retrieves the first 5 keys.
         Versionstamp[] retrievedKeys = new Versionstamp[10];
         ByteBuffer[] retrievedEntries = new ByteBuffer[10];
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int index = 0;
             Iterable<KeyEntry> iterable = volume.getRange(session, true);
@@ -605,7 +627,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     public void test_getRange_random_range() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
@@ -623,7 +645,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] retrievedKeys = new Versionstamp[expectedKeys.length];
         ByteBuffer[] retrievedEntries = new ByteBuffer[expectedKeys.length];
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(expectedKeys[0]);
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(expectedKeys[expectedKeys.length - 1]);
 
@@ -657,7 +679,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp keyTwo;
 
         {
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, prefixOne);
                 ByteBuffer entry = ByteBuffer.allocate(dataOne.length()).put(dataOne.getBytes()).flip();
                 AppendResult result = volume.append(session, entry);
@@ -667,7 +689,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         }
 
         {
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, prefixTwo);
                 ByteBuffer entry = ByteBuffer.allocate(dataTwo.length()).put(dataTwo.getBytes()).flip();
                 AppendResult result = volume.append(session, entry);
@@ -676,7 +698,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             }
         }
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefixOne);
             ByteBuffer entry = volume.get(session, keyTwo);
             assertNull(entry);
@@ -686,7 +708,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             assertEquals(dataOne, new String(entry.array()));
         }
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefixTwo);
             ByteBuffer entry = volume.get(session, keyOne);
             assertNull(entry);
@@ -697,14 +719,14 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         }
 
         {
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, prefixOne);
                 DeleteResult result = volume.delete(session, keyTwo);
                 tr.commit().join();
                 result.complete();
             }
 
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, prefixTwo);
                 ByteBuffer entry = volume.get(session, keyTwo);
                 assertNotNull(entry);
@@ -717,7 +739,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     public void test_getRange_prefix_isolation() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
@@ -728,7 +750,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
 
         {
             int index = 0;
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                 Iterable<KeyEntry> iterable = volume.getRange(session);
                 for (KeyEntry keyEntry : iterable) {
@@ -740,7 +762,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
 
         {
             int index = 0;
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, new Prefix("test"));
                 Iterable<KeyEntry> iterable = volume.getRange(session);
                 for (KeyEntry keyEntry : iterable) {
@@ -755,20 +777,20 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     public void test_clearPrefix() throws IOException {
         ByteBuffer[] entries = getEntries(3);
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             volume.clearPrefix(session);
             tr.commit().join();
         }
 
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             for (Versionstamp versionstamp : versionstampedKeys) {
                 assertNull(volume.get(session, versionstamp));
@@ -776,7 +798,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         }
 
         // Prefix cleared
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             SegmentAnalysis analysis = volume.analyze(tr).getFirst();
             assertEquals(0, analysis.cardinality());
             assertEquals(0, analysis.usedBytes());
@@ -791,7 +813,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
 
         List.of(prefixOne, prefixTwo).forEach((item) -> {
             ByteBuffer[] entries = getEntries(3);
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, item);
                 AppendResult result;
                 try {
@@ -804,14 +826,14 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
             }
         });
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefixOne);
             volume.clearPrefix(session);
             tr.commit().join();
         }
 
         // prefixOne has cleared
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             SegmentAnalysis analysis = volume.analyze(tr).getFirst();
             assertEquals(3, analysis.cardinality());
             assertTrue(analysis.usedBytes() > 0);
@@ -828,7 +850,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
                 ByteBuffer.wrap(second),
         };
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             result = volume.append(session, entries);
             tr.commit().join();
@@ -852,7 +874,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         standby.insert(segmentName, packedEntries);
         standby.flush();
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             Versionstamp[] versionstamps = result.getVersionstampedKeys();
 
@@ -865,6 +887,11 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    public void test_insert_IllegalArgumentException() throws IOException {
+        assertThrows(IllegalArgumentException.class, () -> volume.insert("test-segment"));
+    }
+
+    @Test
     public void test_getStatus_default_status() {
         assertEquals(VolumeStatus.READWRITE, volume.getStatus());
     }
@@ -874,7 +901,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         volume.setStatus(VolumeStatus.READONLY);
         assertEquals(VolumeStatus.READONLY, volume.getStatus());
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata -> {
                 assertEquals(VolumeStatus.READONLY, volumeMetadata.getStatus());
             }));
@@ -886,7 +913,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         volume.setStatus(VolumeStatus.READONLY);
 
         ByteBuffer[] entries = getEntries(1);
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertThrows(VolumeReadOnlyException.class, () -> volume.append(session, entries));
         }
@@ -896,7 +923,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     public void test_when_delete_raise_VolumeReadOnlyException() throws IOException {
         ByteBuffer[] entries = getEntries(1);
         AppendResult appendResult;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -904,7 +931,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
 
         volume.setStatus(VolumeStatus.READONLY);
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertThrows(VolumeReadOnlyException.class, () -> volume.delete(session, versionstampedKeys));
         }
@@ -920,7 +947,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
                     ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
             };
             AppendResult result;
-            try (Transaction tr = database.createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
                 result = volume.append(session, entries);
                 tr.commit().join();
@@ -933,7 +960,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
         KeyEntry[] entries = new KeyEntry[2];
         entries[0] = new KeyEntry(versionstampedKeys[0], ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
         entries[1] = new KeyEntry(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertThrows(VolumeReadOnlyException.class, () -> volume.update(session, entries));
         }
@@ -943,14 +970,14 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
     public void test_when_clearPrefix_raise_VolumeReadOnlyException() throws IOException {
         ByteBuffer[] entries = getEntries(3);
         AppendResult result;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
 
         volume.setStatus(VolumeStatus.READONLY);
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertThrows(VolumeReadOnlyException.class, () -> volume.clearPrefix(session));
         }
@@ -964,7 +991,7 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
                 ByteBuffer.wrap(first),
                 ByteBuffer.wrap(second),
         };
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.append(session, entries);
             tr.commit().join();
@@ -987,5 +1014,18 @@ public class VolumeTest extends BaseVolumeIntegrationTest {
                 new PackedEntry(3, second)
         };
         assertThrows(VolumeReadOnlyException.class, () -> standby.insert(segmentName, packedEntries));
+    }
+
+    @Test
+    void test_attributes() {
+        volume.setAttribute(VolumeAttributes.SHARD_ID, 1);
+        assertEquals(1, volume.getAttribute(VolumeAttributes.SHARD_ID));
+    }
+
+    @Test
+    void test_first_set_attribute_then_remove() {
+        volume.setAttribute(VolumeAttributes.SHARD_ID, 1);
+        volume.unsetAttribute(VolumeAttributes.SHARD_ID);
+        assertNull(volume.getAttribute(VolumeAttributes.SHARD_ID));
     }
 }

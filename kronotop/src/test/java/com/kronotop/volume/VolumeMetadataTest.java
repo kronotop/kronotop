@@ -18,13 +18,13 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.BaseMetadataStoreTest;
+import com.kronotop.BaseStandaloneInstanceTest;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class VolumeMetadataTest extends BaseMetadataStoreTest {
+class VolumeMetadataTest extends BaseStandaloneInstanceTest {
 
     @Test
     public void test_addSegment() {
@@ -45,7 +45,7 @@ class VolumeMetadataTest extends BaseMetadataStoreTest {
 
     @Test
     public void test_getStatus_default_status() {
-        DirectorySubspace subspace = getClusterSubspace("volume-metadata-test");
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("volume-metadata-test");
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, subspace);
             assertEquals(VolumeStatus.READWRITE, volumeMetadata.getStatus());
@@ -54,7 +54,7 @@ class VolumeMetadataTest extends BaseMetadataStoreTest {
 
     @Test
     public void test_setStatus_then_getStatus() {
-        DirectorySubspace subspace = getClusterSubspace("volume-metadata-test");
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("volume-metadata-test");
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeMetadata.compute(tr, subspace, volumeMetadata -> {
                 volumeMetadata.setStatus(VolumeStatus.READONLY);

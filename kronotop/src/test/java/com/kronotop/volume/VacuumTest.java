@@ -37,7 +37,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
         // Insert some data
         AppendResult appendResult;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             ByteBuffer[] entries = new ByteBuffer[numIterations];
             for (int i = 0; i < numIterations; i++) {
@@ -48,7 +48,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         }
 
         Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             KeyEntry[] pairs = new KeyEntry[versionstampedKeys.length];
             for (int i = 0; i < versionstampedKeys.length; i++) {
                 Versionstamp key = versionstampedKeys[i];
@@ -72,8 +72,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
             return false;
         });
 
-        long readVersion = getReadVersion();
-        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), readVersion, 0);
+        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
         Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
         List<String> files = assertDoesNotThrow(vacuum::start);
         assertFalse(files.isEmpty());
@@ -106,8 +105,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
         List<SegmentAnalysis> beforeVacuum = volume.analyze();
 
-        long readVersion = getReadVersion();
-        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), readVersion, 0);
+        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
         Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
         List<String> files = assertDoesNotThrow(vacuum::start);
         assertFalse(files.isEmpty());

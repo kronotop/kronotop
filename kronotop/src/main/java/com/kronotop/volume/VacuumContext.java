@@ -25,21 +25,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class VacuumContext {
     private final String segment;
-    private final long readVersion;
     private final AtomicBoolean stop;
 
-    VacuumContext(String segment, long readVersion, AtomicBoolean stop) {
+    VacuumContext(String segment, AtomicBoolean stop) {
         this.segment = segment;
-        this.readVersion = readVersion;
         this.stop = stop;
     }
 
     String segment() {
         return segment;
-    }
-
-    long readVersion() {
-        return readVersion;
     }
 
     boolean stop() {

@@ -31,12 +31,14 @@ import com.kronotop.volume.segment.Segment;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import com.kronotop.volume.segment.SegmentAppendResult;
 import com.kronotop.volume.segment.SegmentConfig;
+import io.netty.util.AttributeKey;
+import io.netty.util.AttributeMap;
+import io.netty.util.DefaultAttributeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -69,8 +71,10 @@ public class Volume {
     private final TreeMap<String, SegmentContainer> segments = new TreeMap<>();
 
     private final ReadWriteLock statusLock = new ReentrantReadWriteLock();
+    // The "attributes" variable is used to set, get and unset runtime attributes of the Volume
+    // A runtime attribute might be ShardId or ownership of the Volume.
+    private final AttributeMap attributes = new DefaultAttributeMap();
     private VolumeStatus status;
-
     private volatile boolean isClosed;
 
     public Volume(Context context, VolumeConfig config) throws IOException {
@@ -91,6 +95,46 @@ public class Volume {
     private VolumeStatus loadStatusFromMetadata() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return VolumeMetadata.load(tr, config.subspace()).getStatus();
+        }
+    }
+
+    /**
+     * Sets the specified attribute with the provided key and value.
+     * The operation is synchronized to ensure thread safety when accessing the attributes map.
+     *
+     * @param <T>   the type of the attribute value
+     * @param key   the key used to identify the attribute
+     * @param value the value to set for the specified attribute key
+     */
+    public <T> void setAttribute(AttributeKey<T> key, T value) {
+        synchronized (attributes) {
+            attributes.attr(key).set(value);
+        }
+    }
+
+    /**
+     * Retrieves the value associated with the specified attribute key.
+     *
+     * @param key the attribute key for which the value is to be retrieved
+     * @param <T> the type of the value associated with the attribute key
+     * @return the value associated with the specified attribute key, or null if no value is assigned
+     */
+    public <T> T getAttribute(AttributeKey<T> key) {
+        synchronized (attributes) {
+            return attributes.attr(key).get();
+        }
+    }
+
+    /**
+     * Removes the value associated with the specified attribute key.
+     * This operation sets the value of the attribute to null, effectively unsetting it.
+     *
+     * @param <T> the type of the value associated with the attribute key
+     * @param key the key of the attribute to unset, must not be null
+     */
+    public <T> void unsetAttribute(AttributeKey<T> key) {
+        synchronized (attributes) {
+            attributes.attr(key).set(null);
         }
     }
 
@@ -423,6 +467,9 @@ public class Volume {
      * @throws IOException If an I/O error occurs during the append operation.
      */
     public AppendResult append(@Nonnull VolumeSession session, @Nonnull ByteBuffer... entries) throws IOException {
+        if (entries.length == 0) {
+            throw new IllegalArgumentException("Empty entries array");
+        }
         if (entries.length > UserVersion.MAX_VALUE) {
             throw new TooManyEntriesException();
         }
@@ -572,6 +619,9 @@ public class Volume {
      * and a callback for invalidating related cache entries.
      */
     public DeleteResult delete(@Nonnull VolumeSession session, @Nonnull Versionstamp... keys) {
+        if (keys.length == 0) {
+            throw new IllegalArgumentException("Empty keys array");
+        }
         Transaction tr = session.transaction();
 
         DeleteResult result = new DeleteResult(keys.length, entryMetadataCache.load(session.prefix())::invalidate);
@@ -613,6 +663,10 @@ public class Volume {
      * @throws KeyNotFoundException If a key is not found during the update.
      */
     public UpdateResult update(@Nonnull VolumeSession session, @Nonnull KeyEntry... pairs) throws IOException, KeyNotFoundException {
+        if (pairs.length == 0) {
+            throw new IllegalArgumentException("Empty key pairs array");
+        }
+
         ByteBuffer[] entries = new ByteBuffer[pairs.length];
         for (int i = 0; i < pairs.length; i++) {
             entries[i] = pairs[i].entry();
@@ -878,21 +932,19 @@ public class Volume {
         }
     }
 
+    private void commitVacuumIfVolumeWritable(Transaction tr) {
+        raiseExceptionIfVolumeReadOnly();
+        tr.commit().join();
+    }
+
     /**
-     * Performs a vacuuming procedure on a specific segment. The vacuuming process
-     * involves clearing out obsolete or no longer needed entries within the segment
-     * to reclaim storage and improve performance.
-     * <p>
-     * This process iteratively processes entries in the segment, grouping them
-     * by their prefix, and applies updates in batches until the segment is
-     * fully processed. It also retries the operation in the case of transient
-     * exceptions, such as transaction read conflicts or outdated read versions.
+     * Performs a vacuum operation on a specific segment to clean up stale or unnecessary data.
+     * The method processes the segment in batches, checks for stale data prefixes, updates valid entries,
+     * and removes stale data, applying transactions to the underlying FDB cluster as needed.
      *
-     * @param vacuumContext Provides the contextual information needed for the vacuuming
-     *                      process, including the target segment identifier, read version,
-     *                      and configuration settings.
-     * @throws IOException If a critical I/O error occurs during the execution of the vacuuming
-     *                     process.
+     * @param vacuumContext Provides the context for the vacuum process, including the segment to vacuum
+     *                      and control flags to stop the operation gracefully if required.
+     * @throws IOException If an I/O error occurs during the vacuum process.
      */
     protected void vacuumSegment(VacuumContext vacuumContext) throws IOException {
         Segment segment = getOrOpenSegmentByName(vacuumContext.segment());
@@ -900,9 +952,9 @@ public class Volume {
         byte[] end = ByteArrayUtil.strinc(begin);
 
         while (!vacuumContext.stop()) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                tr.setReadVersion(vacuumContext.readVersion());
+            raiseExceptionIfVolumeReadOnly();
 
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 int batchSize = 0;
                 Range range = new Range(begin, end);
                 HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
@@ -924,11 +976,11 @@ public class Volume {
                     byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(key).get(1);
                     EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
 
-                    Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
                     Prefix prefix = Prefix.fromBytes(entryMetadata.prefix());
-
+                    Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
                     List<KeyEntry> pairs = pairsByPrefix.computeIfAbsent(prefix, (prefixAsLong) -> new ArrayList<>());
-                    ByteBuffer buffer = getByEntryMetadata(Prefix.fromBytes(entryMetadata.prefix()), versionstampedKey, entryMetadata);
+
+                    ByteBuffer buffer = getByEntryMetadata(prefix, versionstampedKey, entryMetadata);
                     pairs.add(new KeyEntry(versionstampedKey, buffer));
                     batchSize++;
                     if (batchSize >= SEGMENT_VACUUM_BATCH_SIZE) {
@@ -936,6 +988,7 @@ public class Volume {
                     }
                     begin = key;
                 }
+
                 if (pairsByPrefix.isEmpty()) {
                     // End of the segment
                     break;
@@ -947,17 +1000,19 @@ public class Volume {
                     results.add(updateResult);
                 }
 
-                tr.commit().join();
+                commitVacuumIfVolumeWritable(tr);
+
                 for (UpdateResult updateResult : results) {
                     updateResult.complete();
                 }
-
-                break;
             } catch (CompletionException e) {
                 if (e.getCause() instanceof FDBException fdbException) {
                     if (fdbException.getCode() == 1007) {
                         // Transaction is too old to perform reads or be committed
                         LOGGER.trace("Transaction is too old, retrying");
+                    } else if (fdbException.getCode() == 1020) {
+                        // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                        LOGGER.trace("Transaction not committed due to conflict with another transaction");
                     }
                 }
             } catch (IOException e) {
@@ -1022,48 +1077,31 @@ public class Volume {
     }
 
     /**
-     * Populates a map of segments by loading metadata and processing segment identifiers.
+     * Clears all segment entries in the database that match the specified prefix within the given volume session.
+     * This method effectively removes segment data and resets metadata associated with the cleared segments.
      *
-     * @param tr The transaction used to load volume metadata and perform operations.
+     * @param session the VolumeSession object containing the transaction context and prefix used to identify segments.
      */
-    private void fillSegmentsMap(Transaction tr) {
-        try {
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
-            for (long id : volumeMetadata.getSegments()) {
-                String name = Segment.generateName(id);
-                getOrOpenSegmentByName(name);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     private void clearSegmentsByPrefix(VolumeSession session) {
         assert session.transaction() != null;
-        // We need to open all segments before running the "clear prefix" logic.
-        fillSegmentsMap(session.transaction());
-        segmentsLock.readLock().lock();
-        try {
-            for (Map.Entry<String, SegmentContainer> entry : segments.entrySet()) {
-                String segmentName = entry.getKey();
+        VolumeMetadata volumeMetadata = VolumeMetadata.load(session.transaction(), config.subspace());
+        for (long id : volumeMetadata.getSegments()) {
+            String segmentName = Segment.generateName(id);
 
-                int capacity = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE;
-                ByteBuffer buffer = ByteBuffer.
-                        allocate(capacity).
-                        put(segmentName.getBytes()).
-                        put(SUBSPACE_SEPARATOR).
-                        put(session.prefix().asBytes()).flip();
+            int capacity = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE;
+            ByteBuffer buffer = ByteBuffer.
+                    allocate(capacity).
+                    put(segmentName.getBytes()).
+                    put(SUBSPACE_SEPARATOR).
+                    put(session.prefix().asBytes()).flip();
 
-                byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, buffer.array()));
-                byte[] end = ByteArrayUtil.strinc(begin);
-                session.transaction().clear(begin, end);
+            byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, buffer.array()));
+            byte[] end = ByteArrayUtil.strinc(begin);
+            session.transaction().clear(begin, end);
 
-                SegmentContainer segmentContainer = entry.getValue();
-                segmentContainer.metadata().resetCardinality(session);
-                segmentContainer.metadata().resetUsedBytes(session);
-            }
-        } finally {
-            segmentsLock.readLock().unlock();
+            SegmentMetadata metadata = new SegmentMetadata(subspace, segmentName);
+            metadata.resetCardinality(session);
+            metadata.resetUsedBytes(session);
         }
     }
 
@@ -1098,6 +1136,9 @@ public class Volume {
      * @throws IOException if an I/O error occurs while accessing the segment
      */
     public void insert(String segmentName, PackedEntry... entries) throws IOException {
+        if (entries.length == 0) {
+            throw new IllegalArgumentException("Empty entries array");
+        }
         Segment segment = getOrOpenSegmentByName(segmentName);
         for (PackedEntry entry : entries) {
             try {
@@ -1119,5 +1160,10 @@ public class Volume {
      */
     public void invalidateEntryMetadataCacheEntry(Prefix prefix, Versionstamp key) {
         entryMetadataCache.load(prefix).invalidate(key);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Volume [%s]", config.name());
     }
 }

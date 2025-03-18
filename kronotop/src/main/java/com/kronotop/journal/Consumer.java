@@ -16,133 +16,142 @@
 
 package com.kronotop.journal;
 
-import com.apple.foundationdb.*;
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.ReadTransaction;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterator;
+import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.google.common.cache.LoadingCache;
-import com.kronotop.common.KronotopException;
+import com.kronotop.Context;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.ExecutionException;
 
-/**
- * The Consumer class is responsible for consuming events from a journal.
- */
 public class Consumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(Consumer.class);
-    private final Database database;
-    private final LoadingCache<String, JournalMetadata> cache;
+    private final static byte OFFSET_KEY = 0x01;
+    private final Context context;
+    private final ConsumerConfig config;
+    private final JournalMetadata journalMetadata;
+    private final DirectorySubspace consumerSubspace;
+    private byte[] offset;
+    private boolean started;
+    private boolean stopped;
 
-    Consumer(Database database, LoadingCache<String, JournalMetadata> cache) {
-        this.database = database;
-        this.cache = cache;
+
+    public Consumer(Context context, ConsumerConfig config) {
+        this.context = context;
+        this.config = config;
+        this.journalMetadata = this.loadJournalMetadata();
+        this.consumerSubspace = this.createOrOpenConsumerSubspace();
+    }
+
+    public void start() {
+        // start method is required for fine-grained flow control
+        offset = this.inspectOffset();
+        started = true;
     }
 
     /**
-     * Retrieves the latest event key from a journal.
+     * Creates or opens a consumer subspace in FoundationDB based on the consumer's configuration
+     * and cluster context. The method ensures that the required directory structure is created
+     * or retrieved for the consumer to operate within the appropriate subspace.
      *
-     * @param tr      The ReadTransaction to perform the operation on.
-     * @param journal The journal to retrieve the event key from.
-     * @return The latest event key, or null if there is no event.
-     * @throws KronotopException If there is an error retrieving the event key.
+     * @return an instance of {@code DirectorySubspace} representing the consumer's subspace
+     * in FoundationDB, which allows for interaction with the underlying database.
      */
-    public byte[] getLatestEventKey(ReadTransaction tr, String journal) {
-        try {
-            JournalMetadata journalMetadata = cache.get(journal);
-            Subspace subspace = journalMetadata.getEventsSubspace();
+    private DirectorySubspace createOrOpenConsumerSubspace() {
+        assert context != null;
+        assert config != null;
 
-            AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(), 1, true).iterator();
-            if (!iterator.hasNext()) {
-                return null;
+        KronotopDirectoryNode directory =
+                KronotopDirectory.
+                        kronotop().
+                        cluster(context.getClusterName()).
+                        journals().
+                        journal(config.journal()).
+                        consumers().
+                        consumer(config.id());
+        return context.getFoundationDB().run(tr -> DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join());
+    }
+
+    /**
+     * Loads the metadata associated with a journal. This method interacts with the FoundationDB
+     * database to create or open the specified journal's subspace and constructs the journal's metadata
+     * using the resolved subspace.
+     *
+     * @return an instance of {@code JournalMetadata} containing the metadata of the journal.
+     */
+    private JournalMetadata loadJournalMetadata() {
+        assert context != null;
+        assert config != null;
+
+        KronotopDirectoryNode directory =
+                KronotopDirectory.
+                        kronotop().
+                        cluster(context.getClusterName()).
+                        journals().
+                        journal(config.journal());
+        return context.getFoundationDB().run(tr -> {
+            DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
+            return new JournalMetadata(subspace);
+        });
+    }
+
+    /**
+     * Inspects the current offset in the journal and determines the appropriate starting point
+     * based on the consumer configuration. This method interacts with the underlying FoundationDB
+     * instance to resolve the offset to a byte array.
+     *
+     * @return A byte array representing the resolved offset key. This is determined based on the
+     * consumer's `offset` setting: EARLIEST, LATEST, or RESUME. Throws an exception for
+     * unsupported offset types.
+     */
+    private byte[] inspectOffset() {
+        return context.getFoundationDB().read(tr -> {
+            Subspace subspace = journalMetadata.eventsSubspace();
+            if (config.offset().equals(ConsumerConfig.Offset.LATEST)) {
+                AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(), 1, true).iterator();
+                if (!iterator.hasNext()) {
+                    return subspace.pack();
+                }
+                return iterator.next().getKey();
+            } else if (config.offset().equals(ConsumerConfig.Offset.EARLIEST)) {
+                return subspace.pack();
+            } else if (config.offset().equals(ConsumerConfig.Offset.RESUME)) {
+                byte[] key = consumerSubspace.pack(Tuple.from(OFFSET_KEY));
+                byte[] value = tr.get(key).join();
+                return value == null ? subspace.pack() : value;
+            } else {
+                throw new IllegalStateException("Unsupported offset: " + config.offset());
             }
-            return iterator.next().getKey();
-        } catch (ExecutionException e) {
-            LOGGER.error("Failed to get latest index: {}", e.getMessage());
-            throw new KronotopException(e.getCause());
-        }
+        });
     }
 
     /**
-     * Retrieves the versionstamp from the given key in a journal.
+     * Consumes the next available event from the journal by interacting
+     * with the provided read transaction. If no more events are available
+     * for consumption, returns {@code null}.
      *
-     * @param journal The journal to retrieve the versionstamp from.
-     * @param key     The key to extract the versionstamp from.
-     * @return The versionstamp extracted from the key.
-     * @throws KronotopException If there is an error retrieving the versionstamp.
+     * @param tr The read transaction used to fetch the next event from the journal.
+     * @return An {@code Event} object representing the consumed event, or
+     * {@code null} if no events are available.
+     * @throws IllegalStateException if the consumer is not in a valid state
+     *                               to consume events (e.g., not started or already stopped).
      */
-    public Versionstamp getVersionstampFromKey(String journal, byte[] key) {
+    public Event consume(ReadTransaction tr) {
+        checkOperationStatus();
+
         try {
-            JournalMetadata journalMetadata = cache.get(journal);
-            Subspace subspace = journalMetadata.getEventsSubspace();
-            return subspace.unpack(key).getVersionstamp(0);
-        } catch (ExecutionException e) {
-            LOGGER.error("Failed to get latest index: {}", e.getMessage());
-            throw new KronotopException(e.getCause());
-        }
-    }
-
-    /**
-     * Consumes the next event from a journal based on the given versionstamp.
-     * <p>
-     * If there is no next event, returns null.
-     *
-     * @param tr           The transaction to perform the operation on.
-     * @param journal      The journal to consume the event from.
-     * @param versionstamp The versionstamp to use for consuming the event.
-     * @return The consumed event, or null if there is no next event.
-     * @throws KronotopException if there is an error consuming the event.
-     */
-    public Event consumeByVersionstamp(Transaction tr, String journal, Versionstamp versionstamp) {
-        try {
-            JournalMetadata journalMetadata = cache.get(journal);
-            Subspace subspace = journalMetadata.getEventsSubspace();
-
-            byte[] key = subspace.pack(Tuple.from(versionstamp));
-            byte[] value = tr.get(key).join();
-            if (value == null) {
-                return null;
-            }
-
-            Entry entry = Entry.decode(ByteBuffer.wrap(value));
-            return new Event(key, entry.event());
-        } catch (ExecutionException e) {
-            // Possible problem in loading JournalMetadata from FoundationDB
-            LOGGER.error(e.getCause().getMessage());
-            throw new KronotopException(e.getCause());
-        } catch (Exception e) {
-            LOGGER.error("Failed to consume the next event", e);
-            throw e;
-        }
-    }
-
-    public Event consumeByVersionstamp(String journal, Versionstamp versionstamp) {
-        return database.run(tr -> consumeByVersionstamp(tr, journal, versionstamp));
-    }
-
-    /**
-     * Consumes the next event from a journal based on the given key.
-     * <p>
-     * If there is no next event, returns null.
-     *
-     * @param tr      The ReadTransaction to perform the operation on.
-     * @param journal The journal to consume the event from.
-     * @param key     The key to use for consuming the event.
-     * @return The consumed event, or null if there is no next event.
-     * @throws KronotopException If there is an error consuming the event.
-     */
-    public Event consumeNext(ReadTransaction tr, String journal, byte[] key) {
-        try {
-            JournalMetadata journalMetadata = cache.get(journal);
-            Subspace subspace = journalMetadata.getEventsSubspace();
-            if (key == null) {
-                key = subspace.pack();
-            }
-            KeySelector begin = KeySelector.firstGreaterThan(key);
+            Subspace subspace = journalMetadata.eventsSubspace();
+            KeySelector begin = KeySelector.firstGreaterThan(offset);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(subspace.pack()));
 
             AsyncIterator<KeyValue> iterable = tr.getRange(begin, end, 1).iterator();
@@ -152,27 +161,40 @@ public class Consumer {
             KeyValue next = iterable.next();
             Entry entry = Entry.decode(ByteBuffer.wrap(next.getValue()));
             return new Event(next.getKey(), entry.event());
-        } catch (ExecutionException e) {
-            // Possible problem in loading JournalMetadata from FoundationDB
-            LOGGER.error(e.getCause().getMessage());
-            throw new KronotopException(e.getCause());
         } catch (Exception e) {
-            LOGGER.error("Failed to consume the next event", e);
+            LOGGER.error("Failed to consume the next event for journal '{}', key: {}", config.journal(), ByteArrayUtil.printable(offset), e);
             throw e;
         }
     }
 
     /**
-     * Consumes the next event from a journal based on the given key.
-     * <p>
-     * If there is no next event, returns null.
+     * Marks a specific event as consumed by recording its key in the consumer's offset and updating
+     * the transaction state.
      *
-     * @param journal The journal to consume the event from.
-     * @param key     The key to use for consuming the event.
-     * @return The consumed event, or null if there is no next event.
-     * @throws KronotopException If there is an error consuming the event.
+     * @param tr    The transaction in which the event consumption is recorded.
+     * @param event The event that has been consumed, whose key is to be recorded.
      */
-    public Event consumeNext(String journal, byte[] key) {
-        return database.run(tr -> consumeNext(tr, journal, key));
+    public void markConsumed(Transaction tr, Event event) {
+        checkOperationStatus();
+
+        byte[] key = consumerSubspace.pack(Tuple.from(OFFSET_KEY));
+        tr.set(key, event.key());
+        offset = event.key();
+    }
+
+    private void checkOperationStatus() {
+        if (!started) {
+            throw new IllegalConsumerStateException("Consumer is not started");
+        }
+        if (stopped) {
+            throw new IllegalConsumerStateException("Consumer is already stopped");
+        }
+    }
+
+    public void stop() {
+        if (!started) {
+            throw new IllegalStateException("Consumer is not started");
+        }
+        stopped = true;
     }
 }

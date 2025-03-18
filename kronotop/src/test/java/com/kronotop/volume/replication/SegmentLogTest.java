@@ -40,7 +40,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
         Segment segment = new Segment(segmentConfig);
         SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, prefix.asLong(), 0, 100);
             assertDoesNotThrow(() -> segmentLog.append(tr, 0, entry));
             tr.commit().join();
@@ -55,7 +55,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
         List<Versionstamp> keys = new ArrayList<>();
         List<SegmentLogValue> values = new ArrayList<>();
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             long start = 0;
             long length = 100;
             for (int userVersion = 0; userVersion < 10; userVersion++) {
@@ -76,7 +76,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
         }
 
         List<SegmentLogEntry> entries = new ArrayList<>();
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             SegmentLogIterable iterable = new SegmentLogIterable(tr, volume.getConfig().subspace(), segment.getName());
             for (SegmentLogEntry segmentLogEntry : iterable) {
                 entries.add(segmentLogEntry);
@@ -102,7 +102,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
         List<Versionstamp> keys = new ArrayList<>();
         List<SegmentLogValue> values = new ArrayList<>();
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             long start = 0;
             long length = 100;
             for (int userVersion = 0; userVersion < 10; userVersion++) {
@@ -126,7 +126,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
         VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(keys.get(7));
 
         List<SegmentLogEntry> entries = new ArrayList<>();
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             SegmentLogIterable iterable = new SegmentLogIterable(tr, volume.getConfig().subspace(), segment.getName(), begin, end);
             for (SegmentLogEntry segmentLogEntry : iterable) {
                 entries.add(segmentLogEntry);
@@ -151,7 +151,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
         SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
 
         int total = 100;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int userVersion = 0; userVersion < total; userVersion++) {
                 SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, prefix.asLong(), 0, 100);
                 int finalUserVersion = userVersion;
@@ -160,7 +160,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             assertEquals(total, segmentLog.getCardinality(tr));
         }
     }

@@ -1,5 +1,3 @@
-package com.kronotop.foundationdb.zmap;
-
 /*
  * Copyright (c) 2023-2025 Burak Sezer
  *
@@ -15,6 +13,8 @@ package com.kronotop.foundationdb.zmap;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package com.kronotop.foundationdb.zmap;
 
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;

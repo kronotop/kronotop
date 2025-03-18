@@ -80,15 +80,15 @@ class SegmentMetadata {
     }
 
     /**
-     * Resets the cardinality value associated with the given session to zero.
+     * Resets the cardinality value associated with the given session by clearing it in the transaction.
      *
      * @param session The session object containing the current transaction and prefix information.
+     * @throws KronotopException if an execution exception occurs while performing the operation.
      */
     void resetCardinality(VolumeSession session) {
-        byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(0).array();
         try {
             Key key = keys.get(session.prefix());
-            session.transaction().set(key.cardinality(), delta);
+            session.transaction().clear(key.cardinality());
         } catch (ExecutionException e) {
             throw new KronotopException(e);
         }
@@ -128,16 +128,15 @@ class SegmentMetadata {
     }
 
     /**
-     * Resets the number of used bytes to zero for the specified session.
+     * Resets the used bytes count associated with the given session by clearing it in the transaction.
      *
      * @param session The session object containing the current transaction and prefix information.
-     * @throws KronotopException if an execution exception occurs while resetting the used bytes.
+     * @throws KronotopException if an execution exception occurs while performing the operation.
      */
     void resetUsedBytes(VolumeSession session) {
-        byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(0).array();
         try {
             Key key = keys.get(session.prefix());
-            session.transaction().set(key.usedBytes(), delta);
+            session.transaction().clear(key.usedBytes());
         } catch (ExecutionException e) {
             throw new KronotopException(e);
         }

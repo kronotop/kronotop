@@ -69,13 +69,13 @@ public class Publisher {
             long readVersion = tr.getReadVersion().join();
             int userVersion = userVersions.get(readVersion).getAndIncrement();
 
-            Subspace subspace = journalMetadata.getEventsSubspace();
+            Subspace subspace = journalMetadata.eventsSubspace();
             Tuple tuple = Tuple.from(Versionstamp.incomplete(userVersion));
 
             Entry entry = new Entry(JSONUtils.writeValueAsBytes(event), Instant.now().toEpochMilli());
 
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), entry.encode());
-            tr.mutate(MutationType.ADD, journalMetadata.getTrigger(), TRIGGER_DELTA);
+            tr.mutate(MutationType.ADD, journalMetadata.trigger(), TRIGGER_DELTA);
 
             return new VersionstampContainer(tr.getVersionstamp(), userVersion);
         } catch (Exception e) {
@@ -97,6 +97,10 @@ public class Publisher {
         return publish_internal(tr, journal, event);
     }
 
+    public VersionstampContainer publish(Transaction tr, JournalName journal, Object event) {
+        return publish_internal(tr, journal.getValue(), event);
+    }
+
     /**
      * Publishes an event to a journal.
      *
@@ -107,6 +111,10 @@ public class Publisher {
      */
     public VersionstampContainer publish(String journal, Object event) {
         return database.run((Transaction tr) -> publish_internal(tr, journal, event));
+    }
+
+    public VersionstampContainer publish(JournalName journal, Object event) {
+        return database.run((Transaction tr) -> publish_internal(tr, journal.getValue(), event));
     }
 
     private static class UserVersionLoader extends CacheLoader<Long, AtomicInteger> {

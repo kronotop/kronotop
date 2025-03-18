@@ -41,8 +41,8 @@ import java.util.Arrays;
 import java.util.Set;
 
 class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
-    public RouteSubcommandHandler(RoutingService service) {
-        super(service);
+    public RouteSubcommandHandler(RoutingService routing) {
+        super(routing);
     }
 
     private void setPrimaryMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters, int shardId) {
@@ -224,7 +224,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
                 shardId = -1; // dummy assignment due to final declaration
             }
 
-            memberId = readMemberId(params.get(5));
+            memberId = ByteBufUtils.readMemberId(context, params.get(5));
         }
     }
 }

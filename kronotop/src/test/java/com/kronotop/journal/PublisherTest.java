@@ -18,6 +18,7 @@ package com.kronotop.journal;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.BaseStandaloneInstanceTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -25,15 +26,16 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class PublisherTest extends BaseJournalTest {
+public class PublisherTest extends BaseStandaloneInstanceTest {
+    private final String TEST_JOURNAL = "test-journal";
 
     @Test
     public void test_Publish() {
-        Journal journal = new Journal(config, database);
+        Journal journal = new Journal(config, context.getFoundationDB());
 
         Publisher publisher = journal.getPublisher();
-        VersionstampContainer first = publisher.publish(testJournal, "foo");
-        VersionstampContainer second = publisher.publish(testJournal, "bar");
+        VersionstampContainer first = publisher.publish(TEST_JOURNAL, "foo");
+        VersionstampContainer second = publisher.publish(TEST_JOURNAL, "bar");
 
         Versionstamp firstVersionstamp = Versionstamp.complete(first.versionstamp().join(), first.userVersion());
         Versionstamp secondVersionstamp = Versionstamp.complete(second.versionstamp().join(), second.userVersion());
@@ -42,15 +44,15 @@ public class PublisherTest extends BaseJournalTest {
 
     @Test
     public void test_Publish_single_transaction() {
-        Journal journal = new Journal(config, database);
+        Journal journal = new Journal(config, context.getFoundationDB());
 
         Publisher publisher = journal.getPublisher();
         List<VersionstampContainer> result = new ArrayList<>();
-        try (Transaction tr = database.createTransaction()) {
-            VersionstampContainer first = publisher.publish(tr, testJournal, "foo");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VersionstampContainer first = publisher.publish(tr, TEST_JOURNAL, "foo");
             result.add(first);
 
-            VersionstampContainer second = publisher.publish(tr, testJournal, "bar");
+            VersionstampContainer second = publisher.publish(tr, TEST_JOURNAL, "bar");
             result.add(second);
 
             tr.commit().join();

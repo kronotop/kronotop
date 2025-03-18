@@ -41,8 +41,7 @@ class VacuumTaskTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        long readVersion = getReadVersion();
-        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), readVersion, 0);
+        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
         return new VacuumTask(context, volume, vacuumMetadata);
     }
 
@@ -58,7 +57,7 @@ class VacuumTaskTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_VacuumTask_awaitTermination() throws IOException {
+    void test_VacuumTask_awaitCompletion() throws IOException {
         VacuumTask task = prepareTestEnv();
 
         CountDownLatch latch = new CountDownLatch(1);
@@ -74,7 +73,7 @@ class VacuumTaskTest extends BaseVolumeIntegrationTest {
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             latch.countDown();
-            task.awaitTermination();
+            task.awaitCompletion();
             return task.isCompleted();
         });
     }

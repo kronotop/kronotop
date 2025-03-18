@@ -218,14 +218,17 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         RoutingTable table = new RoutingTable();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (ShardKind shardKind : ShardKind.values()) {
+                String path;
                 if (shardKind.equals(ShardKind.REDIS)) {
-                    int numberOfShards = context.getConfig().getInt("redis.shards");
-                    loadRoute(tr, table, shardKind, numberOfShards);
+                    path = "redis.shards";
                 } else if (shardKind.equals(ShardKind.BUCKET)) {
-                    // TODO: BUCKET-IMPLEMENTATION
+                    path = "bucket.shards";
                 } else {
                     throw new KronotopException("Unknown shard kind: " + shardKind);
                 }
+
+                int numberOfShards = context.getConfig().getInt(path);
+                loadRoute(tr, table, shardKind, numberOfShards);
             }
         }
         RoutingTable previous = routingTable.getAndSet(table);
@@ -240,7 +243,11 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
             return;
         }
         for (RoutingEventHook hook : hooks) {
-            hook.run(shardKind, shardId);
+            try {
+                hook.run(shardKind, shardId);
+            } catch (Exception e) {
+                LOGGER.error("Error while running hook for ShardKind: {}, ShardId:{}", shardKind, shardId, e);
+            }
         }
     }
 

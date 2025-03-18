@@ -17,8 +17,15 @@
 
 package com.kronotop;
 
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.MemberIdGenerator;
+import com.kronotop.cluster.MembershipService;
 import com.kronotop.common.KronotopException;
 import io.netty.buffer.ByteBuf;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.TreeSet;
 
 public class ByteBufUtils {
 
@@ -72,6 +79,60 @@ public class ByteBufUtils {
             };
         } catch (IllegalArgumentException e) {
             throw new KronotopException("Invalid boolean value: " + value);
+        }
+    }
+
+    /**
+     * Finds a member from the list of members in the provided context whose ID starts with the given prefix.
+     * If no member is found or if multiple members match the prefix, an exception is thrown.
+     *
+     * @param context      the context containing the membership information
+     * @param memberPrefix the prefix string used to identify the member
+     * @return the member whose ID starts with the given prefix
+     * @throws KronotopException if no member or more than one member is found with the given prefix
+     */
+    private static Member findMemberWithPrefix(Context context, String memberPrefix) {
+        MembershipService membership = context.getService(MembershipService.NAME);
+        assert membership != null;
+
+        Set<Member> result = new HashSet<>();
+        TreeSet<Member> members = membership.listMembers();
+        for (Member member : members) {
+            if (member.getId().startsWith(memberPrefix)) {
+                result.add(member);
+            }
+        }
+        if (result.isEmpty()) {
+            throw new KronotopException("no member found with prefix: " + memberPrefix);
+        }
+        if (result.size() > 1) {
+            throw new KronotopException("more than one member found with prefix: " + memberPrefix);
+        }
+        return result.iterator().next();
+    }
+
+    /**
+     * Reads a member ID from the provided ByteBuf. If the member ID extracted from the buffer
+     * has a length of 4, it attempts to find a matching member based on the prefix. For other
+     * lengths, it validates the member ID and returns it if valid. Throws an exception if
+     * the member ID is invalid.
+     *
+     * @param context     the context from which the member information is retrieved
+     * @param memberIdBuf the ByteBuf containing the raw bytes representing the member ID
+     * @return the resolved member ID if valid
+     * @throws KronotopException if the member ID is invalid or cannot be resolved
+     */
+    public static String readMemberId(Context context, ByteBuf memberIdBuf) {
+        String memberId = readAsString(memberIdBuf);
+        if (memberId.length() == 4) {
+            Member member = findMemberWithPrefix(context, memberId);
+            return member.getId();
+        }
+        // Validate the member id.
+        if (MemberIdGenerator.validateId(memberId)) {
+            return memberId;
+        } else {
+            throw new KronotopException("Invalid memberId: " + memberId);
         }
     }
 

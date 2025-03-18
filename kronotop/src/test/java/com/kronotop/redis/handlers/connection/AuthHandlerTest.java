@@ -21,30 +21,25 @@ import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.net.UnknownHostException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class AuthHandlerTest extends BaseRedisHandlerTest {
+
     @Override
-    @BeforeEach
-    public void setup() throws UnknownHostException, InterruptedException {
-        Config config = loadConfig("auth-test.conf");
-        setupCommon(config);
+    protected String getConfigFileName() {
+        return "auth-test.conf";
     }
 
     @Test
     public void testNOAUTH() {
-        EmbeddedChannel noauthChannel = kronotopInstance.newChannel();
+        EmbeddedChannel noauthChannel = instance.newChannel();
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.ping().encode(buf);

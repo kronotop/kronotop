@@ -16,23 +16,29 @@
 
 package com.kronotop.foundationdb.namespace;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.NamespaceUtils;
+import com.kronotop.bucket.BucketPrefix;
+import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.volume.Prefix;
+import com.kronotop.volume.PrefixUtils;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NamespaceHandlerTest extends BaseHandlerTest {
 
@@ -138,7 +144,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
         assertEquals(1, actualMessage.children().size());
         SimpleStringRedisMessage item = (SimpleStringRedisMessage) actualMessage.children().getFirst();
-        String namespace = kronotopInstance.getContext().getConfig().getString("default_namespace");
+        String namespace = instance.getContext().getConfig().getString("default_namespace");
         assertEquals(namespace, item.content());
     }
 
@@ -201,7 +207,7 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
 
     @Test
     public void test_REMOVE_cannot_remove_default_namespace() {
-        String defaultNamespace = kronotopInstance.getContext().getConfig().getString("default_namespace");
+        String defaultNamespace = instance.getContext().getConfig().getString("default_namespace");
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.namespaceRemove(defaultNamespace).encode(buf);
@@ -250,6 +256,50 @@ public class NamespaceHandlerTest extends BaseHandlerTest {
             assertInstanceOf(IntegerRedisMessage.class, response);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) response;
             assertEquals(0, actualMessage.value());
+        }
+    }
+
+    @Test
+    public void test_PrefixUtils_isPrefixStale() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        String name = "one.two.three";
+
+        {
+            // Create it
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(name, null).encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        Prefix prefix;
+        {
+            Namespace testNamespace = NamespaceUtils.open(instance.getContext(), List.of("one", "two", "three"));
+            BucketSubspace subspace = new BucketSubspace(testNamespace);
+            try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
+                prefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, subspace, "test-bucket");
+                tr.commit().join();
+            }
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceRemove("one").encode(buf);
+            channel.writeInbound(buf);
+            Object response = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
+            assertTrue(PrefixUtils.isStale(instance.getContext(), tr, prefix));
         }
     }
 

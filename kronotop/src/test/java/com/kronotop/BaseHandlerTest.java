@@ -16,46 +16,28 @@
 
 package com.kronotop;
 
-import com.typesafe.config.Config;
 import io.netty.channel.embedded.EmbeddedChannel;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
 import java.util.UUID;
 
-public class BaseHandlerTest extends BaseTest {
-    protected KronotopTestInstance kronotopInstance;
+public class BaseHandlerTest extends BaseStandaloneInstanceTest {
     protected EmbeddedChannel channel;
     protected String namespace;
-    protected Config config;
 
     public EmbeddedChannel getChannel() {
         return channel;
     }
 
     protected EmbeddedChannel newChannel() {
-        return kronotopInstance.newChannel();
-    }
-
-    protected void setupCommon(Config config) throws UnknownHostException, InterruptedException {
-        kronotopInstance = new KronotopTestInstance(config);
-        kronotopInstance.start();
-        channel = kronotopInstance.getChannel();
-        namespace = UUID.randomUUID().toString();
+        return instance.newChannel();
     }
 
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
-        config = loadConfig("test.conf");
-        setupCommon(config);
-    }
-
-    @AfterEach
-    public void tearDown() {
-        if (kronotopInstance == null) {
-            return;
-        }
-        kronotopInstance.shutdown();
+        super.setup();
+        channel = instance.getChannel();
+        namespace = UUID.randomUUID().toString();
     }
 }

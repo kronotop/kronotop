@@ -323,7 +323,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
      * @param request  the request object containing the command and its parameters
      * @param response the response object used to send results or errors back to the client
      * @return a boolean indicating whether the transaction is still ongoing (true)
-     *         or has been discarded (false)
+     * or has been discarded (false)
      */
     private boolean executeRedisCompatibleCommandInTransaction(Session session, Request request, Response response) {
         switch (request.getCommand()) {

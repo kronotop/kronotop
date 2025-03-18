@@ -23,15 +23,13 @@ import com.kronotop.JSONUtils;
 
 public class VacuumMetadata {
     private String taskName;
-    private long readVersion;
     private double allowedGarbageRatio;
 
     VacuumMetadata() {
     }
 
-    public VacuumMetadata(String volumeName, long readVersion, double allowedGarbageRatio) {
+    public VacuumMetadata(String volumeName, double allowedGarbageRatio) {
         this.taskName = VacuumTaskName(volumeName);
-        this.readVersion = readVersion;
         this.allowedGarbageRatio = allowedGarbageRatio;
     }
 
@@ -66,10 +64,6 @@ public class VacuumMetadata {
 
     public double getAllowedGarbageRatio() {
         return allowedGarbageRatio;
-    }
-
-    public long getReadVersion() {
-        return readVersion;
     }
 
     public void save(Transaction tr, DirectorySubspace volumeSubspace) {

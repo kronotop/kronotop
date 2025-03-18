@@ -19,7 +19,6 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.DirectorySubspaceCache;
@@ -58,15 +57,25 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         }
     }
 
+
+    private void initializeBucketSection(Transaction tr, DirectorySubspace subspace) {
+        int numberOfBucketShards = membership.getContext().getConfig().getInt("bucket.shards");
+        for (int shardId = 0; shardId < numberOfBucketShards; shardId++) {
+            KronotopDirectoryNode directory = KronotopDirectory.
+                    kronotop().
+                    cluster(membership.getContext().getClusterName()).
+                    metadata().
+                    shards().
+                    bucket().
+                    shard(shardId);
+            DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
+            ShardUtils.setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
+        }
+    }
+
     private void setClusterInitializedTrue(Transaction tr, DirectorySubspace subspace) {
         byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
         tr.set(key, MembershipUtils.TRUE);
-    }
-
-    private void initializeDefaultNamespace(Transaction tr) {
-        String defaultNamespace = context.getConfig().getString("default_namespace");
-        KronotopDirectoryNode node = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(defaultNamespace);
-        DirectoryLayer.getDefault().createOrOpen(tr, node.toList()).join();
     }
 
     private void initializeCluster() {
@@ -76,8 +85,8 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
             if (MembershipUtils.isClusterInitialized(tr, clusterMetadataSubspace)) {
                 throw new KronotopException("cluster has already been initialized");
             }
-            initializeDefaultNamespace(tr);
             initializeRedisSection(tr, clusterMetadataSubspace);
+            initializeBucketSection(tr, clusterMetadataSubspace);
             setClusterInitializedTrue(tr, clusterMetadataSubspace);
             tr.commit().join();
         } catch (CompletionException e) {

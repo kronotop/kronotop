@@ -16,13 +16,10 @@
 
 package com.kronotop;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.Member;
 import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.volume.VolumeService;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,13 +27,18 @@ import org.junit.jupiter.api.BeforeEach;
 import java.net.UnknownHostException;
 import java.util.List;
 
-public class BaseMetadataStoreTest extends BaseTest {
-    protected Database database;
+public class BaseStandaloneInstanceTest extends BaseTest {
+    private static final String DEFAULT_CONFIG_FILE_NAME = "test.conf";
+    protected KronotopTestInstance instance;
     protected Config config;
-    protected Context context;
+    protected Context context; // shortcut
 
-    protected DirectorySubspace getClusterSubspace(String subspaceName) {
-        try (Transaction tr = database.createTransaction()) {
+    protected String getConfigFileName() {
+        return DEFAULT_CONFIG_FILE_NAME;
+    }
+
+    protected DirectorySubspace createOrOpenSubspaceUnderCluster(String subspaceName) {
+        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             String clusterName = config.getString("cluster.name");
             List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).extend(subspaceName);
             DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, subpath).join();
@@ -46,24 +48,18 @@ public class BaseMetadataStoreTest extends BaseTest {
     }
 
     @BeforeEach
-    public void setup() throws UnknownHostException {
-        Member member = createMemberWithEphemeralPort();
-        config = loadConfig("test.conf");
-        database = FoundationDBFactory.newDatabase(config);
-        context = new ContextImpl(config, member, database);
-        context.registerService(VolumeService.NAME, new VolumeService(context));
+    public void setup() throws UnknownHostException, InterruptedException {
+        config = loadConfig(getConfigFileName());
+        instance = new KronotopTestInstance(config);
+        instance.start();
+        context = instance.getContext();
     }
 
     @AfterEach
     public void tearDown() {
-        for (KronotopService service : context.getServices()) {
-            service.shutdown();
+        if (instance == null) {
+            return;
         }
-        try (Transaction tr = database.createTransaction()) {
-            String clusterName = config.getString("cluster.name");
-            List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).toList();
-            DirectoryLayer.getDefault().removeIfExists(tr, subpath).join();
-            tr.commit().join();
-        }
+        instance.shutdown();
     }
 }

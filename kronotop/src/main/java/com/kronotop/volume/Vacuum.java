@@ -38,13 +38,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 class Vacuum {
     private static final Logger LOGGER = LoggerFactory.getLogger(Vacuum.class);
     private final Context context;
+    private final VolumeService service;
     private final Volume volume;
     private final VacuumMetadata vacuumMetadata;
     private final AtomicBoolean stop = new AtomicBoolean();
-    private volatile VacuumContext vacuumContext;
 
     protected Vacuum(@Nonnull Context context, @Nonnull Volume volume, @Nonnull VacuumMetadata vacuumMetadata) {
         this.context = context;
+        this.service = context.getService(VolumeService.NAME);
         this.volume = volume;
         this.vacuumMetadata = vacuumMetadata;
     }
@@ -75,19 +76,18 @@ class Vacuum {
     List<String> start() throws IOException {
         List<SegmentAnalysis> segmentAnalysisList = analyze();
         if (segmentAnalysisList.isEmpty()) {
-            LOGGER.warn(
-                    "No segments found for read version {} on volume '{}'",
-                    vacuumMetadata.getReadVersion(),
-                    volume.getConfig().name()
-            );
+            LOGGER.warn("No segments found on volume '{}'", volume.getConfig().name());
             return List.of();
         }
 
         LOGGER.info("Starting Vacuum on volume '{}'", volume.getConfig().name());
         for (SegmentAnalysis segmentAnalysis : segmentAnalysisList) {
+            if (!service.hasVolumeOwnership(volume)) {
+                stop.set(true);
+            }
             if (stop.get()) {
                 LOGGER.info("Stopping Vacuum on volume '{}'", volume.getConfig().name());
-                break;
+                return List.of();
             }
             if (segmentAnalysis.garbageRatio() < vacuumMetadata.getAllowedGarbageRatio()) {
                 LOGGER.info("Garbage ratio doesn't exceed the allowed garbage ratio, skipping Vacuum on segment: {} on volume '{}'",
@@ -97,7 +97,7 @@ class Vacuum {
                 continue;
             }
             LOGGER.info("Vacuuming segment: {} on volume '{}'", segmentAnalysis.name(), volume.getConfig().name());
-            vacuumContext = new VacuumContext(segmentAnalysis.name(), vacuumMetadata.getReadVersion(), stop);
+            VacuumContext vacuumContext = new VacuumContext(segmentAnalysis.name(), stop);
             volume.vacuumSegment(vacuumContext);
         }
         return volume.cleanupStaleSegments(vacuumMetadata.getAllowedGarbageRatio());

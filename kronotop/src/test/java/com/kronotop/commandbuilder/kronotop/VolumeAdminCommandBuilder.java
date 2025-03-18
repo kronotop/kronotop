@@ -71,6 +71,11 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
     }
 
+    public Command<K, V, String> markStalePrefixes(String operation) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.MARK_STALE_PREFIXES).add(operation);
+        return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         VOLUME_ADMIN("VOLUME.ADMIN");
 
@@ -93,7 +98,8 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         REPLICATIONS("REPLICATIONS"),
         VACUUM("VACUUM"),
         STOP_VACUUM("STOP-VACUUM"),
-        CLEANUP_ORPHAN_FILES("CLEANUP-ORPHAN-FILES");
+        CLEANUP_ORPHAN_FILES("CLEANUP-ORPHAN-FILES"),
+        MARK_STALE_PREFIXES("MARK-STALE-PREFIXES");
 
         public final byte[] bytes;
 

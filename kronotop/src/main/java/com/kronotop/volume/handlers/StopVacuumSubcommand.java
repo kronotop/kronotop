@@ -48,7 +48,7 @@ public class StopVacuumSubcommand extends BaseSubcommandHandler implements Subco
             TaskService taskService = context.getService(TaskService.NAME);
             Task task = taskService.getTask(vacuumMetadata.getTaskName());
             task.shutdown();
-            task.awaitTermination();
+            task.awaitCompletion();
         } catch (ClosedVolumeException | VolumeNotOpenException | InterruptedException e) {
             throw new KronotopException(e);
         }

@@ -68,6 +68,14 @@ public final class DirectorySubspaceCache {
                             metadata();
                     subpaths.put(Key.CLUSTER_METADATA, directory.toList());
                 }
+                case PREFIXES -> {
+                    KronotopDirectoryNode node = KronotopDirectory.
+                            kronotop().
+                            cluster(cluster).
+                            metadata().
+                            prefixes();
+                    subpaths.put(Key.PREFIXES, node.toList());
+                }
             }
         }
 
@@ -125,6 +133,8 @@ public final class DirectorySubspaceCache {
                     shards();
             if (kind.equals(ShardKind.REDIS)) {
                 return root.redis().shard(shardId).toList();
+            } else if (kind.equals(ShardKind.BUCKET)) {
+                return root.bucket().shard(shardId).toList();
             }
             throw new RuntimeException("Unknown shard kind: " + kind);
         });
@@ -140,6 +150,7 @@ public final class DirectorySubspaceCache {
 
     public enum Key {
         CLUSTER_METADATA,
+        PREFIXES,
     }
 
     /**

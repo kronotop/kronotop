@@ -44,7 +44,6 @@ public class Journal {
     protected final String cluster;
     protected final Database database;
     private final Publisher publisher;
-    private final Consumer consumer;
     private final LoadingCache<String, JournalMetadata> journalMetadataCache;
 
     public Journal(Config config, Database database) {
@@ -57,17 +56,6 @@ public class Journal {
                 .expireAfterAccess(10, TimeUnit.MINUTES)
                 .build(new JournalMetadataLoader());
         this.publisher = new Publisher(database, journalMetadataCache);
-        this.consumer = new Consumer(database, journalMetadataCache);
-
-    }
-
-    /**
-     * Retrieves the Consumer object associated with the Journal.
-     *
-     * @return The Consumer object.
-     */
-    public Consumer getConsumer() {
-        return consumer;
     }
 
     /**

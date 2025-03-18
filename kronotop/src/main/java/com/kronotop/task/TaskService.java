@@ -104,12 +104,45 @@ public class TaskService extends CommandHandlerService implements KronotopServic
         return result;
     }
 
+    /**
+     * Retrieves the {@link Task} associated with the specified name.
+     * If no task with the given name exists, a {@link TaskNotFoundException} is thrown.
+     *
+     * @param name the name of the task to retrieve; must not be null
+     * @return the {@link Task} associated with the specified name
+     * @throws TaskNotFoundException if a task with the given name does not exist
+     */
     public Task getTask(@Nonnull String name) {
         TaskRunner runner = tasks.get(name);
         if (runner == null) {
-            throw new IllegalArgumentException("Task with name " + name + " does not exist");
+            throw new TaskNotFoundException(name);
         }
         return runner.task;
+    }
+
+    /**
+     * Shuts down and removes the task identified by the specified name. This method retrieves the task
+     * corresponding to the given name, shuts it down, waits for its termination, and removes it from
+     * the internal task collection. If the task's termination is interrupted, a {@link RuntimeException}
+     * is thrown.
+     *
+     * @param name the name of the task to be shut down and removed; must not be null
+     * @throws TaskNotFoundException if no task with the specified name exists
+     */
+    public void shutdownAndRemoveTask(@Nonnull String name) {
+        Task task = getTask(name);
+        task.shutdown();
+        tasks.remove(name);
+    }
+
+    /**
+     * Checks whether a task with the specified name exists in the task collection.
+     *
+     * @param name the name of the task to check; must not be null
+     * @return true if a task with the given name exists, false otherwise
+     */
+    public boolean hasTask(@Nonnull String name) {
+        return tasks.containsKey(name);
     }
 
     @Override

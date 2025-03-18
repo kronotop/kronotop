@@ -17,91 +17,179 @@
 package com.kronotop.journal;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.JSONUtils;
 import org.junit.jupiter.api.Test;
+
+import java.util.LinkedList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ConsumerTest extends BaseJournalTest {
-    private final String event = "{\"event\": \"foobar\"}";
+class ConsumerTest extends BaseStandaloneInstanceTest {
+    private final String CONSUMER_ID = "consumer-id";
+    private final String JOURNAL_NAME = "test-journal";
+    private final List<String> EVENTS = new LinkedList<>(List.of(
+            "{\"key1\": \"value1\"}",
+            "{\"key2\": \"value2\"}",
+            "{\"key3\": \"value3\"}"
+    ));
 
     @Test
-    public void test_consumeByVersionstamp() throws JsonProcessingException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        byte[] expectedEvent = objectMapper.writeValueAsBytes(event);
-
-        Journal journal = new Journal(config, database);
+    public void consume_events_when_offset_is_EARLIEST() {
+        Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
-        VersionstampContainer versionstampContainer = publisher.publish(testJournal, event);
-        publisher.publish(testJournal, "1");
-        publisher.publish(testJournal, "2");
-        publisher.publish(testJournal, "3");
 
-        Consumer consumer = journal.getConsumer();
-        Event consumedEvent = consumer.consumeByVersionstamp(testJournal, versionstampContainer.complete());
-        assertArrayEquals(expectedEvent, consumedEvent.value());
+        List<String> expectedEvents = new LinkedList<>();
+        for (String event : EVENTS) {
+            publisher.publish(JOURNAL_NAME, event).complete();
+            // publisher encodes the event into JSON.
+            expectedEvents.add(new String(JSONUtils.writeValueAsBytes(event)));
+        }
+
+        ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.EARLIEST);
+        Consumer consumer = new Consumer(context, config);
+        consumer.start();
+
+        List<String> consumedEvents = new LinkedList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            while (true) {
+                Event event = consumer.consume(tr);
+                if (event == null) {
+                    break;
+                }
+                consumer.markConsumed(tr, event);
+                consumedEvents.add(new String(event.value()));
+            }
+            tr.commit().join();
+        }
+        assertEquals(consumedEvents, expectedEvents);
     }
 
     @Test
-    public void test_getLatestEventKey() {
-        Journal journal = new Journal(config, database);
-
+    public void start_consumer_after_publishing_events_when_offset_is_LATEST() {
+        Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
-        VersionstampContainer first = publisher.publish(testJournal, "1");
-        publisher.publish(testJournal, "2");
-        publisher.publish(testJournal, "3");
+        for (String event : EVENTS) {
+            publisher.publish(JOURNAL_NAME, event).complete();
+        }
 
-        publisher.publish(testJournal, event);
+        ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.LATEST);
+        Consumer consumer = new Consumer(context, config);
+        consumer.start();
 
-        Consumer consumer = journal.getConsumer();
-        try (Transaction tr = database.createTransaction()) {
-            byte[] eventKey = consumer.getLatestEventKey(tr, testJournal);
-            assertNotNull(eventKey);
-
-            Versionstamp versionstamp = consumer.getVersionstampFromKey(testJournal, eventKey);
-            assertTrue(versionstamp.compareTo(first.complete()) > 0);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertNull(consumer.consume(tr));
         }
     }
 
     @Test
-    public void test_consumeNext() {
-        Journal journal = new Journal(config, database);
+    public void start_consumer_before_publishing_events_when_offset_is_LATEST() {
+        Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
-        Versionstamp first = publisher.publish(testJournal, "1").complete();
-        publisher.publish(testJournal, "2").complete();
-        publisher.publish(testJournal, event);
+        ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.LATEST);
+        Consumer consumer = new Consumer(context, config);
+        consumer.start();
 
-        String expectedValue = "\"2\"";
-        Consumer consumer = journal.getConsumer();
-        try (Transaction tr = database.createTransaction()) {
-            Event firstEvent = consumer.consumeByVersionstamp(tr, testJournal, first);
-            assertNotNull(firstEvent);
-            Event nextEvent = consumer.consumeNext(tr, testJournal, firstEvent.key());
-            assertArrayEquals(expectedValue.getBytes(), nextEvent.value());
+        List<String> expectedEvents = new LinkedList<>();
+        for (String event : EVENTS) {
+            publisher.publish(JOURNAL_NAME, event).complete();
+            // publisher encodes the event into JSON.
+            expectedEvents.add(new String(JSONUtils.writeValueAsBytes(event)));
+        }
+
+        List<String> consumedEvents = new LinkedList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            while (true) {
+                Event event = consumer.consume(tr);
+                if (event == null) {
+                    break;
+                }
+                consumer.markConsumed(tr, event);
+                consumedEvents.add(new String(event.value()));
+            }
+            tr.commit().join();
+        }
+        assertEquals(consumedEvents, expectedEvents);
+    }
+
+    @Test
+    public void resume_consumer_after_publishing_events_when_offset_is_RESUME() {
+        Journal journal = new Journal(config, context.getFoundationDB());
+        Publisher publisher = journal.getPublisher();
+
+        String firstEvent = "first-message";
+        publisher.publish(JOURNAL_NAME, firstEvent).complete();
+
+        ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.RESUME);
+        Consumer firstConsumer = new Consumer(context, config);
+        firstConsumer.start();
+
+        // Consume the first event
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Event event = firstConsumer.consume(tr);
+            firstConsumer.markConsumed(tr, event);
+            tr.commit().join();
+        }
+
+        String secondEvent = "second-message";
+        publisher.publish(JOURNAL_NAME, secondEvent).complete();
+
+        // Assume that the first consumer has been shut downed and we created a second one.
+        Consumer secondConsumer = new Consumer(context, config);
+        secondConsumer.start();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Event event = secondConsumer.consume(tr);
+            assertEquals(secondEvent, JSONUtils.readValue(event.value(), String.class));
         }
     }
 
     @Test
-    public void test_consumeNext_null_key() throws JsonProcessingException {
-        Journal journal = new Journal(config, database);
+    public void consume_the_same_message_if_markConsumed_not_called() {
+        Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
-        publisher.publish(testJournal, event);
-        publisher.publish(testJournal, "foo");
-        publisher.publish(testJournal, "bar");
+        String firstEvent = "first-message";
+        publisher.publish(JOURNAL_NAME, firstEvent).complete();
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        byte[] expectedEvent = objectMapper.writeValueAsBytes(event);
+        ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.EARLIEST);
+        Consumer firstConsumer = new Consumer(context, config);
+        firstConsumer.start();
 
-        Consumer consumer = journal.getConsumer();
-        try (Transaction tr = database.createTransaction()) {
-            Event consumed = consumer.consumeNext(tr, testJournal, null);
-            assertNotNull(consumed);
-            assertArrayEquals(expectedEvent, consumed.value());
+        // Consume the first event
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Event event = firstConsumer.consume(tr);
+            assertEquals(firstEvent, JSONUtils.readValue(event.value(), String.class));
+        }
+
+        Consumer secondConsumer = new Consumer(context, config);
+        secondConsumer.start();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Event event = secondConsumer.consume(tr);
+            assertEquals(firstEvent, JSONUtils.readValue(event.value(), String.class));
+        }
+    }
+
+    @Test
+    public void call_consume_before_starting_consumer() {
+        ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.EARLIEST);
+        Consumer consumer = new Consumer(context, config);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertThrows(IllegalStateException.class, () -> consumer.consume(tr));
+        }
+    }
+
+    @Test
+    public void call_consume_after_stopping_consumer() {
+        ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.EARLIEST);
+        Consumer consumer = new Consumer(context, config);
+        consumer.start();
+        consumer.stop();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertThrows(IllegalStateException.class, () -> consumer.consume(tr));
         }
     }
 }

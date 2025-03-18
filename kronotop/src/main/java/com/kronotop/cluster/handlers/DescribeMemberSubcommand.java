@@ -35,6 +35,10 @@ class DescribeMemberSubcommand extends BaseKrAdminSubcommandHandler implements S
 
     @Override
     public void execute(Request request, Response response) {
+        if (request.getParams().size() > 1) {
+            throw new InvalidNumberOfParametersException();
+        }
+
         Member member = context.getMember();
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
         result.put(new SimpleStringRedisMessage("member_id"), new SimpleStringRedisMessage(member.getId()));

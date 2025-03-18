@@ -43,7 +43,7 @@ import java.nio.file.Paths;
 import static com.kronotop.volume.VolumeTestUtils.getEntries;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
+class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     private void injectTestData() throws IOException {
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
@@ -55,7 +55,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_volume_admin_list() {
+    void test_volume_admin_list() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.list().encode(buf);
@@ -70,7 +70,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_volume_describe() throws IOException {
+    void test_volume_describe() throws IOException {
         injectTestData();
 
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
@@ -129,7 +129,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_volume_admin_set_status() {
+    void test_volume_admin_set_status() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -160,7 +160,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_volume_admin_vacuum() {
+    void test_volume_admin_vacuum() {
         String volumeName = "redis-shard-1";
 
         VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
@@ -198,7 +198,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_volume_admin_stop_vacuum() {
+    void test_volume_admin_stop_vacuum() {
         String volumeName = "redis-shard-1";
 
         VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
@@ -230,7 +230,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_volume_admin_stop_when_vacuum_task_not_found() {
+    void test_volume_admin_stop_when_vacuum_task_not_found() {
         String volumeName = "redis-shard-1";
 
         VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
@@ -246,7 +246,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_volume_admin_vacuum_when_volume_not_open() {
+    void test_volume_admin_vacuum_when_volume_not_open() {
         VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -260,7 +260,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_volume_replications() {
+    void test_volume_replications() {
         // TODO: We expose too much details to test this command.
         VolumeConfig volumeConfig = new VolumeConfigGenerator(context, ShardKind.REDIS, 1).volumeConfig();
         ReplicationConfig config = new ReplicationConfig(
@@ -317,7 +317,7 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_volume_cleanup_orphan_files() throws IOException {
+    void test_volume_cleanup_orphan_files() throws IOException {
         ByteBuffer[] entries = getEntries(3);
 
         VolumeService service = context.getService(VolumeService.NAME);
@@ -344,5 +344,181 @@ public class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(orphanFile.getAbsolutePath(), path.content());
         // Deleted
         assertFalse(orphanFile.exists());
+    }
+
+    @Test
+    void test_mark_stale_prefixes_start() {
+        {
+            VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf buf = Unpooled.buffer();
+            cmd.markStalePrefixes("START").encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            TaskAdminCommandBuilder<String, String> taskAdmin = new TaskAdminCommandBuilder<>(StringCodec.ASCII);
+
+            ByteBuf buf = Unpooled.buffer();
+            taskAdmin.list().encode(buf);
+
+            KronotopTestInstance instance = getInstances().getFirst();
+            instance.getChannel().writeInbound(buf);
+            Object msg = instance.getChannel().readOutbound();
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage actualMessage = (MapRedisMessage) msg;
+            boolean found = false;
+            for (RedisMessage message : actualMessage.children().keySet()) {
+                SimpleStringRedisMessage taskName = (SimpleStringRedisMessage) message;
+                if (MarkStalePrefixesTask.NAME.equals(taskName.content())) {
+                    found = true;
+                    break;
+                }
+            }
+            assertTrue(found);
+        }
+    }
+
+    @Test
+    void test_mark_stale_prefixes_start_already_exists() {
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.markStalePrefixes("START").encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.markStalePrefixes("START").encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Task volume:mark-stale-prefixes-task already exists", actualMessage.content());
+    }
+
+    @Test
+    void test_mark_stale_prefixes_stop() {
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.markStalePrefixes("STOP").encode(buf);
+
+        channel.writeInbound(buf);
+        Object msg = channel.readOutbound();
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Task with name volume:mark-stale-prefixes-task does not exist", actualMessage.content());
+    }
+
+    boolean hasMarkStalePrefixesTask() {
+        TaskAdminCommandBuilder<String, String> taskAdmin = new TaskAdminCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        taskAdmin.list().encode(buf);
+
+        KronotopTestInstance instance = getInstances().getFirst();
+        instance.getChannel().writeInbound(buf);
+        Object msg = instance.getChannel().readOutbound();
+        assertInstanceOf(MapRedisMessage.class, msg);
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        for (RedisMessage message : actualMessage.children().keySet()) {
+            SimpleStringRedisMessage taskName = (SimpleStringRedisMessage) message;
+            if (MarkStalePrefixesTask.NAME.equals(taskName.content())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Test
+    void test_mark_stale_prefixes_start_then_stop() {
+        {
+            VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf buf = Unpooled.buffer();
+            cmd.markStalePrefixes("START").encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+
+            ByteBuf buf = Unpooled.buffer();
+            cmd.markStalePrefixes("STOP").encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        assertFalse(hasMarkStalePrefixesTask());
+    }
+
+    @Test
+    void test_mark_stale_prefixes_remove() {
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.markStalePrefixes("START").encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.markStalePrefixes("REMOVE").encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        assertFalse(hasMarkStalePrefixesTask());
+    }
+
+    @Test
+    void test_mark_stale_prefixes_remove_not_found() {
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.markStalePrefixes("REMOVE").encode(buf);
+
+            channel.writeInbound(buf);
+            Object msg = channel.readOutbound();
+
+            assertInstanceOf(ErrorRedisMessage.class, msg);
+            ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+            assertEquals("ERR Task with name volume:mark-stale-prefixes-task does not exist", actualMessage.content());
+        }
     }
 }

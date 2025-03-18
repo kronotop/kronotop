@@ -58,14 +58,14 @@ class ClusterHandlerTest extends BaseRedisHandlerTest {
 
     private boolean isJoinCompleted(int numMembers) {
         // TODO: CLUSTER-REFACTOR
-        RoutingService service = kronotopInstance.getContext().getService(RoutingService.NAME);
+        RoutingService service = instance.getContext().getService(RoutingService.NAME);
         return service.isClusterInitialized();
     }
 
     @Test
     public void test_CLUSTER_NODES() {
         Map<Integer, KronotopTestInstance> instances = new HashMap<>();
-        instances.put(0, kronotopInstance);
+        instances.put(0, instance);
         instances.put(1, secondInstance);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> isJoinCompleted(instances.size()));
@@ -92,7 +92,7 @@ class ClusterHandlerTest extends BaseRedisHandlerTest {
     @Test
     public void test_CLUSTER_SLOTS() {
         Map<Integer, KronotopTestInstance> instances = new HashMap<>();
-        instances.put(0, kronotopInstance);
+        instances.put(0, instance);
         instances.put(1, secondInstance);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> isJoinCompleted(instances.size()));
@@ -128,7 +128,7 @@ class ClusterHandlerTest extends BaseRedisHandlerTest {
         Object msg = channel.readOutbound();
         assertInstanceOf(FullBulkStringRedisMessage.class, msg);
         FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
-        assertEquals(kronotopInstance.getContext().getMember().getId(), actualMessage.content().toString(CharsetUtil.US_ASCII));
+        assertEquals(instance.getContext().getMember().getId(), actualMessage.content().toString(CharsetUtil.US_ASCII));
     }
 
     @Test

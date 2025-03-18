@@ -29,10 +29,26 @@ public class Shards extends KronotopDirectoryNode {
         return new Redis(layout);
     }
 
-    public static class Redis extends KronotopDirectoryNode {
+    public Bucket bucket() {
+        return new Bucket(layout);
+    }
+
+    public static class Redis extends Common {
         public Redis(List<String> layout) {
+            super(layout, "redis");
+        }
+    }
+
+    public static class Bucket extends Common {
+        public Bucket(List<String> layout) {
+            super(layout, "bucket");
+        }
+    }
+
+    static class Common extends KronotopDirectoryNode {
+        public Common(List<String> layout, String name) {
             super(layout);
-            layout.add("redis");
+            layout.add(name);
         }
 
         public Shard shard(int shardId) {

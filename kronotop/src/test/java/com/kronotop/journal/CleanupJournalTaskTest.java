@@ -17,6 +17,7 @@
 package com.kronotop.journal;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.BaseStandaloneInstanceTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
@@ -24,15 +25,25 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-class CleanupJournalTaskTest extends BaseJournalTest {
+class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
+    private final String TEST_JOURNAL = "test-journal";
+
+    private Event fetchEarliestEvent() {
+        ConsumerConfig config = new ConsumerConfig("test-consumer", TEST_JOURNAL, ConsumerConfig.Offset.EARLIEST);
+        Consumer consumer = new Consumer(context, config);
+        consumer.start();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return consumer.consume(tr);
+        }
+    }
 
     @Test
     public void should_all_entries_be_evicted() {
-        Journal journal = new Journal(config, database);
+        Journal journal = new Journal(config, context.getFoundationDB());
 
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 0; i < 3; i++) {
-                journal.getPublisher().publish(tr, testJournal, "message " + i);
+                journal.getPublisher().publish(tr, TEST_JOURNAL, "message " + i);
                 Thread.sleep(10);
             }
             tr.commit().join();
@@ -43,26 +54,21 @@ class CleanupJournalTaskTest extends BaseJournalTest {
         CleanupJournalTask task = new CleanupJournalTask(journal, 5, TimeUnit.MILLISECONDS);
         task.run();
 
-        try (Transaction tr = database.createTransaction()) {
-            assertNull(journal.getConsumer().getLatestEventKey(tr, testJournal));
-        }
+        assertNull(fetchEarliestEvent());
     }
 
     @Test
     public void should_journal_entry_not_be_evicted() {
-        Journal journal = new Journal(config, database);
+        Journal journal = new Journal(config, context.getFoundationDB());
 
-        try (Transaction tr = database.createTransaction()) {
-            journal.getPublisher().publish(tr, testJournal, "message");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            journal.getPublisher().publish(tr, TEST_JOURNAL, "message");
             tr.commit().join();
         }
 
         // TTL = 1 second
         CleanupJournalTask task = new CleanupJournalTask(journal, 1000, TimeUnit.MILLISECONDS);
         task.run();
-
-        try (Transaction tr = database.createTransaction()) {
-            assertNotNull(journal.getConsumer().getLatestEventKey(tr, testJournal));
-        }
+        assertNotNull(fetchEarliestEvent());
     }
 }

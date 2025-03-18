@@ -113,6 +113,26 @@ public class VolumeSyncSession {
         throw new KronotopException("Synchronous replication failed due to errors");
     }
 
+    private AppendResult appendEntries(VolumeSession session) throws IOException {
+        if (entries.isEmpty()) {
+            return null;
+        }
+        return shard.volume().append(
+                session,
+                entries.toArray(new ByteBuffer[0])
+        );
+    }
+
+    private DeleteResult deleteEntries(VolumeSession session) {
+        if (versionstampedKeys.isEmpty()) {
+            return null;
+        }
+        return shard.volume().delete(
+                session,
+                versionstampedKeys.toArray(new Versionstamp[0])
+        );
+    }
+
     /**
      * Persists the data stored in the VolumeSyncSession to a storage system.
      * The data is packed into byte buffers and appended to the storage system.
@@ -129,20 +149,21 @@ public class VolumeSyncSession {
 
             VolumeSession session = new VolumeSession(tr, prefix);
 
-            AppendResult appendResult = shard.volume().append(
-                    session,
-                    entries.toArray(new ByteBuffer[entries.size()])
-            );
-            DeleteResult deleteResult = shard.volume().delete(
-                    session,
-                    versionstampedKeys.toArray(new Versionstamp[versionstampedKeys.size()])
-            );
+            AppendResult appendResult = appendEntries(session);
+            DeleteResult deleteResult = deleteEntries(session);
 
             shard.volume().flush();
-            synchronousReplication(appendResult);
+            if (appendResult != null) {
+                synchronousReplication(appendResult);
+            }
+
             tr.commit().join();
-            deleteResult.complete();
-            versionstamps = appendResult.getVersionstampedKeys();
+            if (deleteResult != null) {
+                deleteResult.complete();
+            }
+            if (appendResult != null) {
+                versionstamps = appendResult.getVersionstampedKeys();
+            }
         } catch (CompletionException e) {
             if (e.getCause() instanceof FDBException) {
                 if (((FDBException) e.getCause()).getCode() == 2021) {

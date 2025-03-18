@@ -16,6 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.kronotop.ByteBufUtils;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.common.KronotopException;
@@ -31,8 +32,8 @@ import java.util.Map;
 
 class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    FindMemberSubcommand(RoutingService service) {
-        super(service);
+    FindMemberSubcommand(RoutingService routing) {
+        super(routing);
     }
 
     @Override
@@ -51,7 +52,7 @@ class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements Subco
             if (params.size() < 2) {
                 throw new KronotopException("member id is required");
             }
-            memberId = readMemberId(params.get(1));
+            memberId = ByteBufUtils.readMemberId(context, params.get(1));
         }
     }
 }

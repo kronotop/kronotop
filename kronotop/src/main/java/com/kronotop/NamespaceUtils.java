@@ -28,7 +28,6 @@ import com.kronotop.foundationdb.namespace.NoSuchNamespaceException;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 
-import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +42,51 @@ public class NamespaceUtils {
         return new ArrayList<>(List.of(name.split("\\.")));
     }
 
+    private static String namespaceName(List<String> subpath) {
+        return String.join(".", subpath);
+    }
+
+    /**
+     * Opens a namespace within a specific cluster using the provided transaction
+     * and hierarchical namespace path. This method interacts with the Kronotop
+     * directory structure in the FoundationDB environment to access the namespace
+     * and returns a corresponding Namespace object.
+     *
+     * @param tr          the transaction used to perform directory layer operations
+     * @param clusterName the name of the cluster where the namespace resides
+     * @param name        the name of the namespace to open
+     * @param names       the list of strings representing the hierarchical path to the namespace
+     * @return the Namespace object representing the opened namespace
+     * @throws NoSuchNamespaceException if the specified namespace does not exist
+     * @throws KronotopException        if an unexpected error occurs during the operation
+     */
+    private static Namespace open(Transaction tr, String clusterName, String name, List<String> names) {
+        List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(names).toList();
+        try {
+            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
+            return new Namespace(name, subspace);
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NoSuchDirectoryException) {
+                throw new NoSuchNamespaceException(name);
+            }
+            throw new KronotopException(e.getCause());
+        }
+    }
+
+    /**
+     * Opens a namespace in the Kronotop instance based on the given context and hierarchy of names.
+     * This method interacts with the FoundationDB directory layer to locate and open the corresponding namespace.
+     *
+     * @param context the {@link Context} object representing the operational context of the Kronotop instance.
+     * @param names   the list of
+     */
+    public static Namespace open(Context context, List<String> names) {
+        String name = namespaceName(names);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return open(tr, context.getClusterName(), name, names);
+        }
+    }
+
     /**
      * Opens a namespace within the specified cluster and uses the provided transaction
      * to access the directory subspace associated with the namespace.
@@ -54,17 +98,94 @@ public class NamespaceUtils {
      * @throws NoSuchNamespaceException if the specified namespace does not exist
      * @throws KronotopException        if an exception occurs while opening the namespace
      */
-    public static Namespace open(String clusterName, @Nonnull String name, Transaction tr) {
-        List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(splitNamespaceHierarchy(name)).toList();
-        try {
-            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, subpath).join();
-            return new Namespace(name, subspace);
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new NoSuchNamespaceException(name);
-            }
-            throw new KronotopException(e.getCause());
+    public static Namespace open(Transaction tr, String clusterName, String name) {
+        return open(tr, clusterName, name, splitNamespaceHierarchy(name));
+    }
+
+    /**
+     * Opens a namespace within the specified context and session using the provided transaction.
+     * This method checks if a namespace is currently open in the session. If it is,
+     * the method returns the namespace. Otherwise, it attempts to open the namespace
+     * and registers it within the session for subsequent use.
+     *
+     * @param context the Context object representing the environment within which the namespace is being accessed
+     * @param session the Session object containing the state and attributes related to the current execution context
+     * @param tr      the Transaction object used to perform operations within the FoundationDB environment
+     * @return the Namespace object representing the opened and initialized namespace
+     * @throws IllegalArgumentException if the namespace is not specified or cannot be found
+     */
+    public static Namespace open(Context context, Session session, Transaction tr) {
+        String name = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
+        if (name == null) {
+            throw new IllegalArgumentException("namespace not specified");
         }
+
+        Map<String, Namespace> namespaces = session.attr(SessionAttributes.OPEN_NAMESPACES).get();
+        Namespace namespace = namespaces.get(name);
+        if (namespace != null) {
+            return namespace;
+        }
+
+        namespace = open(tr, context.getClusterName(), name);
+        namespaces.put(name, namespace);
+        return namespace;
+    }
+
+    /**
+     * Checks if a specified namespace exists in the Kronotop directory within the given context.
+     *
+     * @param context the Context object representing the context of a Kronotop instance
+     * @param names   the list of names representing the hierarchical namespace path
+     * @return true if the namespace exists, false otherwise
+     */
+    public static boolean exists(Context context, List<String> names) {
+        List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(names).toList();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return DirectoryLayer.getDefault().exists(tr, subpath).join();
+        }
+    }
+
+    /**
+     * Removes a namespace represented by the hierarchical namespace path from the given cluster
+     * using the specified transaction. It interacts with the Kronotop directory structure to
+     * resolve the namespace and performs the removal operation synchronously.
+     *
+     * @param tr          the Transaction object used to perform operations within the FoundationDB environment
+     * @param clusterName the name of the cluster containing the namespace to be removed
+     * @param names       the list of strings representing the hierarchical namespace path to be removed
+     */
+    public static void remove(Transaction tr, String clusterName, List<String> names) {
+        List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(names).toList();
+        DirectoryLayer.getDefault().remove(tr, subpath).join();
+    }
+
+    /**
+     * Removes a namespace from the cluster using the given list of hierarchical names.
+     * This method attempts to remove the namespace via a transactional operation in the FoundationDB environment,
+     * with a retry mechanism in case of transactional conflicts.
+     *
+     * @param context the Context object representing the operational context of the Kronotop instance.
+     * @param names   the list of strings representing the hierarchical namespace path to be removed.
+     */
+    public static void remove(Context context, List<String> names) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            remove(tr, context.getClusterName(), names);
+            tr.commit().join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException ex) {
+                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                if (ex.getCode() == 1020) {
+                    // retry
+                    remove(context, names);
+                    return;
+                }
+            }
+            throw e;
+        }
+    }
+
+    public static void remove(Context context, String name) {
+        remove(context, splitNamespaceHierarchy(name));
     }
 
     /**
@@ -93,78 +214,5 @@ public class NamespaceUtils {
             }
             throw new KronotopException(e);
         }
-    }
-
-    /**
-     * Opens a namespace within the specified context and session using the provided transaction.
-     * This method checks if a namespace is currently open in the session. If it is,
-     * the method returns the namespace. Otherwise, it attempts to open the namespace
-     * and registers it within the session for subsequent use.
-     *
-     * @param context the Context object representing the environment within which the namespace is being accessed
-     * @param session the Session object containing the state and attributes related to the current execution context
-     * @param tr      the Transaction object used to perform operations within the FoundationDB environment
-     * @return the Namespace object representing the opened and initialized namespace
-     * @throws IllegalArgumentException if the namespace is not specified or cannot be found
-     */
-    public static Namespace open(Context context, Session session, Transaction tr) {
-        String name = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
-        if (name == null) {
-            throw new IllegalArgumentException("namespace not specified");
-        }
-
-        Map<String, Namespace> namespaces = session.attr(SessionAttributes.OPEN_NAMESPACES).get();
-        Namespace namespace = namespaces.get(name);
-        if (namespace != null) {
-            return namespace;
-        }
-
-        namespace = open(context.getClusterName(), name, tr);
-        namespaces.put(name, namespace);
-        return namespace;
-    }
-
-    /**
-     * Checks if a specified namespace exists in the Kronotop directory within the given context.
-     *
-     * @param context the Context object representing the context of a Kronotop instance
-     * @param names   the list of names representing the hierarchical namespace path
-     * @return true if the namespace exists, false otherwise
-     */
-    public static boolean exists(Context context, List<String> names) {
-        List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(names).toList();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return DirectoryLayer.getDefault().exists(tr, subpath).join();
-        }
-    }
-
-    /**
-     * Removes a namespace specified by a list of names within the provided context.
-     * This method performs the removal using a transaction and retries in case of
-     * transactional conflicts.
-     *
-     * @param context the Context object representing the context of a Kronotop instance
-     * @param names   the list of strings representing the hierarchical namespace path to be removed
-     */
-    public static void remove(Context context, List<String> names) {
-        List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(names).toList();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectoryLayer.getDefault().remove(tr, subpath).join();
-            tr.commit().join();
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof FDBException ex) {
-                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
-                if (ex.getCode() == 1020) {
-                    // retry
-                    remove(context, names);
-                    return;
-                }
-            }
-            throw e;
-        }
-    }
-
-    public static void remove(Context context, String name) {
-        remove(context, splitNamespaceHierarchy(name));
     }
 }

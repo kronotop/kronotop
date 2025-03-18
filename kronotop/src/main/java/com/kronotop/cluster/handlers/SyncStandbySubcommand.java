@@ -33,8 +33,8 @@ import java.util.Set;
 
 public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    public SyncStandbySubcommand(RoutingService membership) {
-        super(membership);
+    public SyncStandbySubcommand(RoutingService routing) {
+        super(routing);
     }
 
     private void setSyncStandby(Transaction tr, SyncStandbyParameters parameters, DirectorySubspace subspace) {
@@ -128,7 +128,7 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
                 shardId = -1; // dummy assignment due to final declaration
             }
 
-            memberId = readMemberId(params.get(4));
+            memberId = ByteBufUtils.readMemberId(context, params.get(4));
         }
     }
 }

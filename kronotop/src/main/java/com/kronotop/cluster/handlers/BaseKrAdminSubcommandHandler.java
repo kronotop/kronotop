@@ -108,6 +108,8 @@ public class BaseKrAdminSubcommandHandler {
     protected int getNumberOfShards(ShardKind kind) {
         if (kind.equals(ShardKind.REDIS)) {
             return membership.getContext().getConfig().getInt("redis.shards");
+        } else if (kind.equals(ShardKind.BUCKET)) {
+            return membership.getContext().getConfig().getInt("bucket.shards");
         }
         throw new IllegalArgumentException("Unknown shard kind: " + kind);
     }
@@ -200,29 +202,6 @@ public class BaseKrAdminSubcommandHandler {
     }
 
     /**
-     * Reads and validates a member ID from the provided ByteBuf.
-     * If the member ID length is 4, it attempts to resolve the full ID by finding a matching member prefix.
-     * If the member ID length is not 4, it validates the ID.
-     *
-     * @param memberIdBuf the ByteBuf containing the raw bytes of the member ID to be read
-     * @return the resolved or validated member ID as a string
-     * @throws KronotopException if the member ID is invalid or no member can be resolved with the prefix
-     */
-    protected String readMemberId(ByteBuf memberIdBuf) {
-        String memberId = ByteBufUtils.readAsString(memberIdBuf);
-        if (memberId.length() == 4) {
-            Member member = findMemberWithPrefix(memberId);
-            return member.getId();
-        }
-        // Validate the member id.
-        if (MemberIdGenerator.validateId(memberId)) {
-            return memberId;
-        } else {
-            throw new KronotopException("Invalid memberId: " + memberId);
-        }
-    }
-
-    /**
      * Converts a {@link Member} object into a series of key-value pairs represented as {@link RedisMessage}
      * instances, and populates the provided map with these pairs.
      *
@@ -243,29 +222,5 @@ public class BaseKrAdminSubcommandHandler {
 
         long latestHeartbeat = membership.getLatestHeartbeat(member);
         current.put(new SimpleStringRedisMessage("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeat));
-    }
-
-    /**
-     * Finds a member with the given prefix in their ID.
-     *
-     * @param prefix the prefix to search for in member IDs
-     * @return the member whose ID starts with the given prefix
-     * @throws KronotopException if no member or more than one member is found with the given prefix
-     */
-    protected Member findMemberWithPrefix(String prefix) {
-        Set<Member> result = new HashSet<>();
-        TreeSet<Member> members = membership.listMembers();
-        for (Member member : members) {
-            if (member.getId().startsWith(prefix)) {
-                result.add(member);
-            }
-        }
-        if (result.isEmpty()) {
-            throw new KronotopException("no member found with prefix: " + prefix);
-        }
-        if (result.size() > 1) {
-            throw new KronotopException("more than one member found with prefix: " + prefix);
-        }
-        return result.iterator().next();
     }
 }

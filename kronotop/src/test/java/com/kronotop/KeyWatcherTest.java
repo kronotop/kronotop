@@ -27,16 +27,16 @@ import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
-class KeyWatcherTest extends BaseMetadataStoreTest {
+class KeyWatcherTest extends BaseStandaloneInstanceTest {
 
     @Test
     public void test_watch_then_unwatch() throws InterruptedException {
-        DirectorySubspace subspace = getClusterSubspace("test_watch_then_unwatch");
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test_watch_then_unwatch");
         byte[] key = subspace.pack("key");
         KeyWatcher keyWatcher = new KeyWatcher();
 
         CompletableFuture<Void> watcher;
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             watcher = keyWatcher.watch(tr, key);
             tr.commit().join();
         }
@@ -46,7 +46,7 @@ class KeyWatcherTest extends BaseMetadataStoreTest {
         class WatchTrigger implements Runnable {
             @Override
             public void run() {
-                try (Transaction tr = database.createTransaction()) {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     tr.set(key, "foobar".getBytes());
                     tr.commit().join();
                 }

@@ -40,8 +40,7 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
             if (vacuumMetadata != null) {
                 throw new KronotopException("Vacuum task on volume " + volume.getConfig().name() + " already exists");
             }
-            long readVersion = tr.getReadVersion().join();
-            vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), readVersion, parameters.allowedGarbageRatio);
+            vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), parameters.allowedGarbageRatio);
             vacuumMetadata.save(tr, volume.getConfig().subspace());
             tr.commit().join();
             return vacuumMetadata;
@@ -53,6 +52,9 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
         VacuumParameters parameters = new VacuumParameters(request.getParams());
         try {
             Volume volume = service.findVolume(parameters.volumeName);
+            if (!service.hasVolumeOwnership(volume)) {
+                throw new KronotopException("Volume " + volume.getConfig().name() + " is not owned by this member");
+            }
             VacuumMetadata vacuumMetadata = newVacuumMetadata(volume, parameters);
             TaskService taskService = context.getService(TaskService.NAME);
             VacuumTask task = new VacuumTask(service.getContext(), volume, vacuumMetadata);
