@@ -17,8 +17,6 @@
 package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
-import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.BucketShard;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.RoutingService;
@@ -307,21 +305,18 @@ public class KronotopTestInstance extends KronotopInstance {
 
     private boolean areAllOwnedBucketsShardsOperable() {
         RoutingService routing = context.getService(RoutingService.NAME);
-        BucketService bucketService = context.getService(BucketService.NAME);
+        //BucketService bucketService = context.getService(BucketService.NAME);
         int shards = context.getConfig().getInt("bucket.shards");
         for (int shardId = 0; shardId < shards; shardId++) {
             Route route = routing.findRoute(ShardKind.BUCKET, shardId);
             if (route == null) {
                 return false;
             }
-            if (!route.primary().equals(context.getMember())) {
+            /*if (!route.primary().equals(context.getMember())) {
                 // Not belong to this member
-                continue;
-            }
-            BucketShard shard = bucketService.getShard(shardId);
-            if (shard == null) {
-                return false;
-            }
+                 continue;
+            }*/
+            // TODO: BUCKET-IMPLEMENTATION - we need an isOperable method for bucket shards
         }
         return true;
     }

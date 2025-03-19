@@ -22,6 +22,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
+import com.kronotop.bucket.BucketContext;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberIdGenerator;
@@ -180,8 +181,14 @@ public class KronotopInstance {
         context = new ContextImpl(config, member, database);
 
         // Register child contexts here.
+
+        // RedisContext
         RedisContext redisContext = new RedisContext(context);
         context.registerServiceContext(RedisService.NAME, redisContext);
+
+        // BucketContext
+        BucketContext bucketContext = new BucketContext(context);
+        context.registerServiceContext(BucketService.NAME, bucketContext);
     }
 
     private Path prepareOnDiskDataDirectoryLayout() {

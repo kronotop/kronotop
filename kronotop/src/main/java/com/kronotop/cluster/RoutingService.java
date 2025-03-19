@@ -233,7 +233,8 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         }
         RoutingTable previous = routingTable.getAndSet(table);
         if (!firstRun) {
-            changesBetweenRoutingTables(previous);
+            changesBetweenRoutingTables(previous, ShardKind.REDIS);
+            changesBetweenRoutingTables(previous, ShardKind.BUCKET);
         }
     }
 
@@ -251,23 +252,35 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         }
     }
 
-    private void changesBetweenRoutingTables(RoutingTable previous) {
-        int shards = context.getConfig().getInt("redis.shards");
+    private void changesBetweenRoutingTables(RoutingTable previous, ShardKind shardKind) {
+        int shards;
+        if (shardKind.equals(ShardKind.BUCKET)) {
+            shards = context.getConfig().getInt("bucket.shards");
+        } else if (shardKind.equals(ShardKind.REDIS)) {
+            shards = context.getConfig().getInt("redis.shards");
+        } else {
+            throw new KronotopException("Unknown shard kind: " + shardKind);
+        }
+
         RoutingTable current = routingTable.get();
 
         for (int shardId = 0; shardId < shards; shardId++) {
-            Route currentRoute = current.get(ShardKind.REDIS, shardId);
+            Route currentRoute = current.get(shardKind, shardId);
             if (currentRoute == null) {
                 // Not assigned yet
                 continue;
             }
 
-            Route previousRoute = previous.get(ShardKind.REDIS, shardId);
+            Route previousRoute = previous.get(shardKind, shardId);
             if (previousRoute == null) {
                 // Bootstrapping...
                 if (currentRoute.primary().equals(context.getMember())) {
                     // Load the shard from local disk
-                    runHooks(RoutingEventKind.LOAD_REDIS_SHARD, ShardKind.REDIS, shardId);
+                    if (shardKind.equals(ShardKind.REDIS)) {
+                        runHooks(RoutingEventKind.LOAD_REDIS_SHARD, ShardKind.REDIS, shardId);
+                    } else {
+                        runHooks(RoutingEventKind.INITIALIZE_BUCKET_SHARD, ShardKind.BUCKET, shardId);
+                    }
                 }
             }
 
@@ -276,14 +289,14 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                     if (currentRoute.standbys().contains(context.getMember())) {
                         // New assignment
                         if (!previousRoute.standbys().contains(context.getMember())) {
-                            runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, ShardKind.REDIS, shardId);
+                            runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, shardKind, shardId);
                         }
                     }
                 } else {
                     // No previous root exists
                     if (currentRoute.standbys().contains(context.getMember())) {
                         // New assignment
-                        runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, ShardKind.REDIS, shardId);
+                        runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, shardKind, shardId);
                     }
                 }
             }
@@ -293,7 +306,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                     // Primary owner has changed
                     if (previousRoute.standbys().contains(context.getMember())) {
                         // Connect to the new primary owner
-                        runHooks(RoutingEventKind.PRIMARY_OWNER_CHANGED, ShardKind.REDIS, shardId);
+                        runHooks(RoutingEventKind.PRIMARY_OWNER_CHANGED, shardKind, shardId);
                     }
                 }
             }
@@ -302,7 +315,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 if (previousRoute.standbys().contains(context.getMember())) {
                     if (!currentRoute.standbys().contains(context.getMember())) {
                         // Stop replication
-                        runHooks(RoutingEventKind.STOP_REPLICATION, ShardKind.REDIS, shardId);
+                        runHooks(RoutingEventKind.STOP_REPLICATION, shardKind, shardId);
                     }
                 }
             }

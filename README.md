@@ -1,10 +1,8 @@
 # Kronotop
 
-Kronotop is a Redis-compatible, distributed and transactional document database backed
-by [FoundationDB](https://www.foundationdb.org/).
+Kronotop is a distributed and transactional document database backed by [FoundationDB](https://www.foundationdb.org/).
 
-Kronotop's main focus is building a document database that
-supports [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/), [ACID transactions](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics)
+Kronotop project aims to build a document database that supports [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/), [ACID transactions](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics)
 and on-disk storage engine with a primary-standby replication model.
 
 Kronotop is still in its early stages of development. The API is unstable and might be changed in the future releases.
@@ -15,12 +13,10 @@ Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
 
 ## At a glance
 
+* Uses [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) as the wire protocol, so it is compatible with all Redis clients,
 * Horizontally scalable and sharded by default,
-* Supports single or multi-master cluster topologies for different deployment strategies,
-* Supports [Redis Serialization Protocol](https://redis.io/docs/latest/develop/reference/protocol-spec/), you can use
-  any Redis client to connect the cluster.
-* Partly
-  supports [Redis cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/),
+* Supports *single* or *multi-master* cluster topologies for different deployment strategies and use cases,
+* Partly supports [Redis cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/),
 * Uses FoundationDB as the metadata store for cluster management and data structures,
 * Implemented in Java and requires JDK 21+,
 

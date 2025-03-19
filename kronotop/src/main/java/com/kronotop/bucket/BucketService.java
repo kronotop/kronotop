@@ -13,35 +13,66 @@ package com.kronotop.bucket;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
+import com.kronotop.ServiceContext;
 import com.kronotop.bucket.handlers.BucketInsertHandler;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingEventHook;
+import com.kronotop.cluster.RoutingEventKind;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ConcurrentHashMap;
-
 public class BucketService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Bucket";
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
-    private final ConcurrentHashMap<Integer, BucketShard> shards = new ConcurrentHashMap<>();
+    private final ServiceContext<BucketShard> serviceContext;
+    private final RoutingService routing;
 
     public BucketService(Context context) {
         super(context, NAME);
-
-        int numberOfShards = context.getConfig().getInt("bucket.shards");
-        for (int shardId = 0; shardId < numberOfShards; shardId++) {
-            BucketShard shard = new AbstractBucketShard(context, shardId);
-            shards.put(shardId, shard);
-        }
+        this.serviceContext = context.getServiceContext(NAME);
+        this.routing = context.getService(RoutingService.NAME);
 
         handlerMethod(ServerKind.EXTERNAL, new BucketInsertHandler(this));
+        routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
     }
 
     public BucketShard getShard(int shardId) {
-        return shards.get(shardId);
+        return serviceContext.shards().get(shardId);
+    }
+
+    /**
+     * Initializes the bucket shard for the specified shard ID if the current member is
+     * either the primary or one of the standby members for the shard. The initialized
+     * shard is added to the service context's shard map.
+     *
+     * @param shardId the unique identifier of the shard to be initialized
+     */
+    private void initializeBucketShardsIfOwned(int shardId) {
+        Route route = routing.findRoute(ShardKind.BUCKET, shardId);
+        if (route == null) {
+            return;
+        }
+        if (route.primary().equals(context.getMember()) || route.standbys().contains(context.getMember())) {
+            BucketShard shard = new AbstractBucketShard(context, shardId);
+            serviceContext.shards().put(shardId, shard);
+        }
     }
 
     public void start() {
+        int numberOfShards = context.getConfig().getInt("bucket.shards");
+        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            initializeBucketShardsIfOwned(shardId);
+        }
+    }
 
+    private class InitializeBucketShardHook implements RoutingEventHook {
+
+        @Override
+        public void run(ShardKind shardKind, int shardId) {
+            initializeBucketShardsIfOwned(shardId);
+        }
     }
 }

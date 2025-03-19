@@ -194,17 +194,17 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * It first attempts to find the route for the specified shard and then loads
      * the shard if the current member is either the primary or one of the standbys.
      *
-     * @param sharId the ID of the shard to load from disk
+     * @param shardId the ID of the shard to load from disk
      */
-    private void loadRedisShardFromDisk(int sharId) {
-        Route route = routing.findRoute(ShardKind.REDIS, sharId);
+    private void loadRedisShardFromDisk(int shardId) {
+        Route route = routing.findRoute(ShardKind.REDIS, shardId);
         if (route == null) {
             return;
         }
         if (route.primary().equals(context.getMember()) || route.standbys().contains(context.getMember())) {
-            LOGGER.trace("Loading Redis Shard: {} from the local disk", sharId);
+            LOGGER.trace("Loading Redis Shard: {} from the local disk", shardId);
             // Primary or standby owner
-            createAndLoadRedisShard(sharId);
+            createAndLoadRedisShard(shardId);
         }
     }
 
