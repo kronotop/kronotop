@@ -9,7 +9,7 @@
 **2-** Copy the JAR file to `docker` folder, the copied file must be named as `kronotop-SNAPSHOT.jar`.
 
 ```
-cp kronotop/target/kronotop-$VERSION-SNAPSHOT.jar kronotop-SNAPSHOT.jar
+cp kronotop/target/kronotop-$VERSION-SNAPSHOT.jar docker/kronotop-SNAPSHOT.jar
 ```
 
 Go to `docker` folder after copying the JAR.
