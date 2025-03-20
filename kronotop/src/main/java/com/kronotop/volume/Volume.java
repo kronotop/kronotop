@@ -1009,10 +1009,16 @@ public class Volume {
                 if (e.getCause() instanceof FDBException fdbException) {
                     if (fdbException.getCode() == 1007) {
                         // Transaction is too old to perform reads or be committed
-                        LOGGER.trace("Transaction is too old, retrying");
+                        LOGGER.trace("Vacuum on '{}', Segment: '{}' - Transaction is too old, retrying",
+                                config.name(),
+                                segment.getName()
+                        );
                     } else if (fdbException.getCode() == 1020) {
                         // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
-                        LOGGER.trace("Transaction not committed due to conflict with another transaction");
+                        LOGGER.trace("Vacuum on '{}', Segment: '{}' - Transaction not committed due to conflict with another transaction",
+                                config.name(),
+                                segment.getName()
+                        );
                     }
                 }
             } catch (IOException e) {
@@ -1021,7 +1027,7 @@ public class Volume {
             } catch (Exception e) {
                 // Catch all exceptions and start from scratch
                 begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.getName().getBytes()));
-                LOGGER.error("Vacuum on Segment: {} has failed", segment.getName(), e);
+                LOGGER.error("Vacuum on {}, Segment: {} has failed", config.name(), segment.getName(), e);
             }
         }
     }
@@ -1057,14 +1063,18 @@ public class Volume {
      * This method analyzes segments and identifies those with zero cardinality
      * and a garbage ratio exceeding the specified threshold for cleanup.
      *
-     * @param allowedGarbageRatio the threshold ratio of garbage to trigger cleanup
      * @return a list of file names that were successfully cleaned up
      */
-    protected List<String> cleanupStaleSegments(double allowedGarbageRatio) {
+    protected synchronized List<String> cleanupStaleSegments() {
         // This method should be used carefully.
         List<String> result = new ArrayList<>();
-        for (SegmentAnalysis analysis : analyze()) {
-            if (analysis.cardinality() == 0 && analysis.garbageRatio() > allowedGarbageRatio) {
+        List<SegmentAnalysis> analyses = analyze();
+        analyses.sort(Comparator.comparing(SegmentAnalysis::name));
+        for (int i = 0; i < analyses.size() - 1; i++) {
+            // found stale segments by iteration over segments and trying to find segments with zero cardinality
+            // the latest segment is writable, don't touch it.
+            SegmentAnalysis analysis = analyses.get(i);
+            if (analysis.cardinality() == 0) {
                 try {
                     List<String> deletedFiles = cleanupStaleSegment(analysis.name());
                     result.addAll(deletedFiles);

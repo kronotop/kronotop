@@ -29,10 +29,7 @@ import com.kronotop.common.resp.RESPError;
 import com.kronotop.redis.handlers.InfoHandler;
 import com.kronotop.redis.handlers.client.ClientHandler;
 import com.kronotop.redis.handlers.cluster.ClusterHandler;
-import com.kronotop.redis.handlers.connection.AuthHandler;
-import com.kronotop.redis.handlers.connection.HelloHandler;
-import com.kronotop.redis.handlers.connection.PingHandler;
-import com.kronotop.redis.handlers.connection.SelectHandler;
+import com.kronotop.redis.handlers.connection.*;
 import com.kronotop.redis.handlers.generic.*;
 import com.kronotop.redis.handlers.hash.*;
 import com.kronotop.redis.handlers.string.*;
@@ -86,6 +83,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         this.serviceContext = context.getServiceContext(NAME);
 
         handlerMethod(ServerKind.EXTERNAL, new PingHandler());
+        handlerMethod(ServerKind.EXTERNAL, new EchoHandler());
         handlerMethod(ServerKind.EXTERNAL, new AuthHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new InfoHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new SetHandler(this));
@@ -147,6 +145,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         handlerMethod(ServerKind.INTERNAL, new HelloHandler(this));
         handlerMethod(ServerKind.INTERNAL, new ClientHandler(this));
         handlerMethod(ServerKind.INTERNAL, new PingHandler());
+        handlerMethod(ServerKind.INTERNAL, new EchoHandler());
         handlerMethod(ServerKind.INTERNAL, new ClusterHandler(this));
         handlerMethod(ServerKind.INTERNAL, new InfoHandler(this));
         handlerMethod(ServerKind.INTERNAL, new CommandHandler(this));

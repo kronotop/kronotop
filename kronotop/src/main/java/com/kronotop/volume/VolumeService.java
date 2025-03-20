@@ -73,7 +73,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         assert routing != null;
 
         ThreadFactory factory = Thread.ofVirtual().name("kr.volume").factory();
-        this.scheduler = new ScheduledThreadPoolExecutor(2, factory);
+        this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
 
         String consumerId = String.format("%s-member:%s", JournalName.DISUSED_PREFIXES.getValue(), context.getMember().getId());
         ConsumerConfig config = new ConsumerConfig(consumerId, JournalName.DISUSED_PREFIXES.getValue(), ConsumerConfig.Offset.RESUME);
@@ -87,6 +87,8 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         routing.registerHook(RoutingEventKind.PRIMARY_OWNER_CHANGED, new StopVacuumTaskHook(this));
 
         resumeMarkStalePrefixesTaskIfAny();
+
+        this.scheduler.scheduleAtFixedRate(new CleanupStaleSegmentsOnStandbyTask(), 1, 1, TimeUnit.HOURS);
     }
 
     /**
@@ -284,7 +286,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
      *
      * @return a list of all managed volumes
      */
-    public List<Volume> volumes() {
+    public List<Volume> list() {
         lock.readLock().lock();
         try {
             // Returns an unmodifiable list
@@ -347,7 +349,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                     }
                     try {
                         processDisusePrefix(tr, event);
-                        disusedPrefixesConsumer.markConsumed(tr, event);
+                        disusedPrefixesConsumer.setOffset(event);
                     } catch (Exception e) {
                         // Periodic task will try to process again, quit now.
                         done = true;
@@ -358,6 +360,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                         break;
                     }
                 }
+                disusedPrefixesConsumer.complete(tr);
                 tr.commit().join();
             } catch (IllegalConsumerStateException e) {
                 // Ignore this exception, this is mostly about the concurrency in the integration tests.
@@ -382,11 +385,11 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
      */
     @Override
     public void shutdown() {
-        lock.writeLock().lock();
         try {
             isShutdown = true;
             disusedPrefixesConsumer.stop();
             keyWatcher.unwatchAll();
+            scheduler.shutdownNow();
 
             lock.writeLock().lock();
             try {
@@ -398,14 +401,11 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 lock.writeLock().unlock();
             }
 
-            scheduler.shutdownNow();
             if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
                 LOGGER.warn("{} service cannot be stopped gracefully", NAME);
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
@@ -492,6 +492,52 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 if (!isShutdown) {
                     scheduler.execute(this);
                 }
+            }
+        }
+    }
+
+    /**
+     * This task is responsible for cleaning up stale segments in volumes that are not owned by the
+     * current member. It is designed to be executed as a background task within the context of
+     * volume management.
+     * <p>
+     * The cleanup process iterates through all volumes and verifies ownership. If the volume is
+     * owned by the current member, the task skips it, as cleaning stale segments for owned volumes
+     * is handled by a separate vacuum task. For volumes not owned, the task invokes the necessary
+     * operations to clean up stale segments.
+     * <p>
+     * The task is implemented as a {@code Runnable} and is designed to respect the shutdown state
+     * of the service. If the service is in a shutdown state, the task terminates without performing
+     * any action.
+     * <p>
+     * Exception handling is implemented to ensure issues during the cleanup do not interrupt the
+     * processing of other volumes. All errors are logged for further analysis.
+     * <p>
+     * Thread-safety and consistency are maintained by periodically checking the shutdown state
+     * during execution.
+     */
+    private class CleanupStaleSegmentsOnStandbyTask implements Runnable {
+
+        @Override
+        public void run() {
+            if (isShutdown) {
+                return;
+            }
+            try {
+                for (Volume volume : list()) {
+                    if (isShutdown) {
+                        break;
+                    }
+                    if (hasVolumeOwnership(volume)) {
+                        // If this member is the current owner of volume, cleaning up the stale segment
+                        // must be handled by the vacuum task.
+                        continue;
+                    }
+                    // potentially a time-consuming operation
+                    volume.cleanupStaleSegments();
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error while cleaning up stale segments", e);
             }
         }
     }

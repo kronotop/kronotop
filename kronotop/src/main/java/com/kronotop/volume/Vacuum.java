@@ -82,9 +82,6 @@ class Vacuum {
 
         LOGGER.info("Starting Vacuum on volume '{}'", volume.getConfig().name());
         for (SegmentAnalysis segmentAnalysis : segmentAnalysisList) {
-            if (!service.hasVolumeOwnership(volume)) {
-                stop.set(true);
-            }
             if (stop.get()) {
                 LOGGER.info("Stopping Vacuum on volume '{}'", volume.getConfig().name());
                 return List.of();
@@ -96,11 +93,11 @@ class Vacuum {
                 );
                 continue;
             }
-            LOGGER.info("Vacuuming segment: {} on volume '{}'", segmentAnalysis.name(), volume.getConfig().name());
+            LOGGER.info("Vacuuming segment: '{}' on volume '{}'", segmentAnalysis.name(), volume.getConfig().name());
             VacuumContext vacuumContext = new VacuumContext(segmentAnalysis.name(), stop);
             volume.vacuumSegment(vacuumContext);
         }
-        return volume.cleanupStaleSegments(vacuumMetadata.getAllowedGarbageRatio());
+        return volume.cleanupStaleSegments();
     }
 
     /**

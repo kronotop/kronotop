@@ -17,16 +17,31 @@
 package com.kronotop.task;
 
 /**
- * Represents a unit of work that can be executed, shut down, and queried for its name.
- * This interface extends {@link Runnable}, allowing instances to be executed by threads
- * or task schedulers.
+ * The Task interface represents a unit of work that can be executed and monitored.
+ * It extends the Runnable interface, allowing it to be used in thread execution.
+ * Implementations of this interface encapsulate specific business logic in the `task` method.
  */
 public interface Task extends Runnable {
+
+    // Returns TaskStats for observing the internal state of Task implementation.
+    TaskStats stats();
+
+    // Returns the task name
     String name();
 
+    // Task method is called by run method of Runnable interface to run the business logic.
+    void task();
+
+    // Returns true if the task is completed. Completing means the task did its job successfully
+    // and deleted its own metadata from FDB.
     boolean isCompleted();
 
+    // Completes the task and removes its metadata if there is any.
+    void complete();
+
+    // Shuts down the running task but the metadata still remains in FDB
     void shutdown();
 
+    // Await until the complete method does its job
     void awaitCompletion() throws InterruptedException;
 }

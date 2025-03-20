@@ -25,7 +25,9 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
+import com.kronotop.task.TaskStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  * CleanupJournalsTask is a background task that periodically checks and removes expired entries
  * from a journal based on a configured time-to-live (TTL) value.
  */
-public class CleanupJournalTask implements Task {
+public class CleanupJournalTask extends BaseTask implements Task {
     private static final Logger LOGGER = LoggerFactory.getLogger(CleanupJournalTask.class);
 
     private final Duration retentionPeriod;
@@ -62,6 +64,11 @@ public class CleanupJournalTask implements Task {
     public boolean isCompleted() {
         // Never ending task
         return false;
+    }
+
+    @Override
+    public void complete() {
+        // Never ending task
     }
 
     @Override
@@ -126,7 +133,7 @@ public class CleanupJournalTask implements Task {
     }
 
     @Override
-    public void run() {
+    public void task() {
         try (Transaction tr = journal.database.createTransaction()) {
             List<String> journals = journal.listJournals(tr);
             for (String journalName : journals) {

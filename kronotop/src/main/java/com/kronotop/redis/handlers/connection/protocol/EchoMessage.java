@@ -22,22 +22,21 @@ import io.netty.util.CharsetUtil;
 
 import java.util.List;
 
-public class PingMessage implements ProtocolMessage<Void> {
-    public static final String COMMAND = "PING";
+public class EchoMessage implements ProtocolMessage<Void> {
+    public static final String COMMAND = "ECHO";
     public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_PARAMETER_COUNT = 1;
 
     private final Request request;
     private String message;
 
-    public PingMessage(Request request) {
+    public EchoMessage(Request request) {
         this.request = request;
         parse();
     }
 
     private void parse() {
-        if (!request.getParams().isEmpty()) {
-            message = request.getParams().getFirst().toString(CharsetUtil.UTF_8);
-        }
+        message = request.getParams().getFirst().toString(CharsetUtil.UTF_8);
     }
 
     public String getMessage() {

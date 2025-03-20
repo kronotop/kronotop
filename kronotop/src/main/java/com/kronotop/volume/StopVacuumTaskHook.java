@@ -30,16 +30,6 @@ public class StopVacuumTaskHook implements RoutingEventHook {
         this.service = service;
     }
 
-    private Task getTask(String taskName) {
-        TaskService taskService = service.getContext().getService(TaskService.NAME);
-        try {
-            return taskService.getTask(taskName);
-        } catch (IllegalArgumentException e) {
-            // not found
-            return null;
-        }
-    }
-
     @Override
     public void run(ShardKind shardKind, int shardId) {
         String name = VolumeConfigGenerator.volumeName(shardKind, shardId);
@@ -56,20 +46,15 @@ public class StopVacuumTaskHook implements RoutingEventHook {
             }
             // Stop the task
             TaskService taskService = service.getContext().getService(TaskService.NAME);
-            try {
-                // TODO: Do we need to remove VacuumMetadata?
-                Task task = taskService.getTask(vacuumMetadata.getTaskName());
-                if (task == null) {
-                    // No local task found
-                    return;
-                }
-                task.shutdown();
-                task.awaitCompletion();
-            } catch (TaskNotFoundException e) {
-                // Ignore
+            Task task = taskService.getTask(vacuumMetadata.getTaskName());
+            if (task == null) {
+                // No local task found
+                return;
             }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            // Stops the vacuum task but not completes it.
+            task.shutdown();
+        } catch (TaskNotFoundException e) {
+            // Ignore
         }
     }
 }

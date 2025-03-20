@@ -19,13 +19,16 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
+import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
+import com.kronotop.task.TaskStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -33,12 +36,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The task ensures that the garbage ratio within the volume does not exceed
  * the allowed threshold.
  */
-public class VacuumTask implements Task {
+public class VacuumTask extends BaseTask implements Task {
     private static final Logger LOGGER = LoggerFactory.getLogger(VacuumTask.class);
     private final Context context;
     private final Volume volume;
     private final VacuumMetadata vacuumMetadata;
-    private final AtomicBoolean completed = new AtomicBoolean();
+    private final CountDownLatch latch = new CountDownLatch(1);
     private Vacuum vacuum;
     private volatile boolean shutdown;
 
@@ -55,19 +58,16 @@ public class VacuumTask implements Task {
 
     @Override
     public boolean isCompleted() {
-        return completed.get();
+        return latch.getCount() == 0;
     }
 
-    private void complete() {
+    public void complete() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VacuumMetadata.remove(tr, volume.getConfig().subspace());
             tr.commit().join();
         }
         // removed from FDB, mark it as completed.
-        completed.set(true);
-        synchronized (completed) {
-            completed.notifyAll();
-        }
+        latch.countDown();
     }
 
     /**
@@ -83,7 +83,7 @@ public class VacuumTask implements Task {
      * @throws KronotopException if an error occurs during the vacuuming operation
      */
     @Override
-    public void run() {
+    public void task() {
         try {
             vacuum = new Vacuum(context, volume, vacuumMetadata);
             // Blocking call
@@ -91,10 +91,13 @@ public class VacuumTask implements Task {
             for (String file : files) {
                 LOGGER.debug("Cleaned up stale data file: {} on volume '{}'", file, volume.getConfig().name());
             }
+            if (!shutdown) {
+                // Only complete the task if Vacuum.start processed all entries without interruption.
+                complete();
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        complete();
     }
 
     @Override
@@ -108,12 +111,6 @@ public class VacuumTask implements Task {
 
     @Override
     public void awaitCompletion() throws InterruptedException {
-        synchronized (completed) {
-            if (completed.get()) {
-                // Already completed, no need to wait.
-                return;
-            }
-            completed.wait();
-        }
+        latch.await();
     }
 }

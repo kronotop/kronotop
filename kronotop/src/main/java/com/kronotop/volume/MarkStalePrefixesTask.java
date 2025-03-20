@@ -29,18 +29,19 @@ import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.journal.JournalName;
+import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CountDownLatch;
 
-public class MarkStalePrefixesTask implements Task {
+public class MarkStalePrefixesTask extends BaseTask implements Task {
     public static final String NAME = "volume:mark-stale-prefixes-task";
     private static final Logger LOGGER = LoggerFactory.getLogger(MarkStalePrefixesTask.class);
     private final int batchSize;
     private final Context context;
-    private final AtomicBoolean completed = new AtomicBoolean();
+    private final CountDownLatch latch = new CountDownLatch(1);
     private final DirectorySubspace subspace;
     private volatile boolean shutdown;
 
@@ -88,11 +89,11 @@ public class MarkStalePrefixesTask implements Task {
 
     @Override
     public boolean isCompleted() {
-        return completed.get();
+        return latch.getCount() == 0;
     }
 
-    private void complete() {
-        LOGGER.info("{} task has been completed", NAME);
+    public void complete() {
+        shutdown();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             KronotopDirectoryNode node = KronotopDirectory.
                     kronotop().
@@ -104,15 +105,12 @@ public class MarkStalePrefixesTask implements Task {
             tr.commit().join();
         }
         // removed from FDB, mark it as completed.
-        completed.set(true);
-        synchronized (completed) {
-            completed.notifyAll();
-        }
-        shutdown();
+        latch.countDown();
+        LOGGER.info("{} task has been completed", NAME);
     }
 
     @Override
-    public void run() {
+    public void task() {
         // Blocking call
         DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
         while (!shutdown) {
@@ -161,13 +159,7 @@ public class MarkStalePrefixesTask implements Task {
 
     @Override
     public void awaitCompletion() throws InterruptedException {
-        synchronized (completed) {
-            if (completed.get()) {
-                // Already completed, no need to wait.
-                return;
-            }
-            completed.wait();
-        }
+        latch.await();
     }
 
     protected enum METADATA_KEY {

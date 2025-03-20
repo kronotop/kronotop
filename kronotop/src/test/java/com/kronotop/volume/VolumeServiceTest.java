@@ -85,7 +85,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
         Volume volume = service.newVolume(volumeConfig);
         try {
             boolean found = false;
-            for (Volume v : service.volumes()) {
+            for (Volume v : service.list()) {
                 if (v.getConfig().name().equals(volumeConfig.name())) {
                     found = true;
                     break;

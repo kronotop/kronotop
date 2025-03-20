@@ -138,14 +138,14 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
         Object msg = channel.readOutbound();
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals(actualMessage.content(), "NOPROTO unsupported protocol version");
+        assertEquals("NOPROTO unsupported protocol version", actualMessage.content());
     }
 
     @Test
     public void testHELLO_SETNAME() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.hello(2, null, null, "foobar").encode(buf);
+        cmd.hello(2, null, null, "test").encode(buf);
 
         channel.writeInbound(buf);
         Object msg = channel.readOutbound();
@@ -154,6 +154,6 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
         Attribute<Long> clientID = channel.attr(SessionAttributes.CLIENT_ID);
         Client client = Clients.getClient(clientID.get());
         assertNotNull(client);
-        assertEquals(client.getName(), "foobar");
+        assertEquals("test", client.getName());
     }
 }

@@ -35,7 +35,7 @@ class ListSubcommand extends BaseSubcommandHandler implements SubcommandHandler 
     @Override
     public void execute(Request request, Response response) {
         List<RedisMessage> volumes = new ArrayList<>();
-        service.volumes().forEach(volume -> {
+        service.list().forEach(volume -> {
             volumes.add(new SimpleStringRedisMessage(volume.getConfig().name()));
         });
         response.writeArray(volumes);

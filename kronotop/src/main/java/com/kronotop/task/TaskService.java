@@ -91,13 +91,12 @@ public class TaskService extends CommandHandlerService implements KronotopServic
     public List<ObservedTask> tasks() {
         List<ObservedTask> result = new ArrayList<>();
         tasks.forEach((name, runner) -> {
-            TaskStats stats = runner.stats;
             ObservedTask observedTask = new ObservedTask(
                     name,
-                    stats.isRunning(),
+                    runner.task.stats().isRunning(),
                     runner.task.isCompleted(),
-                    stats.getStartedAt(),
-                    stats.getLastRun()
+                    runner.task.stats().getStartedAt(),
+                    runner.task.stats().getLastRun()
             );
             result.add(observedTask);
         });
@@ -149,7 +148,7 @@ public class TaskService extends CommandHandlerService implements KronotopServic
     public void shutdown() {
         tasks.forEach((name, runner) -> {
             LOGGER.debug("Shutting down task {}", name);
-            runner.stats.setRunning(false);
+            runner.task.stats().setRunning(false);
             runner.task.shutdown();
         });
 
@@ -165,25 +164,15 @@ public class TaskService extends CommandHandlerService implements KronotopServic
 
     static class TaskRunner implements Runnable {
         private final Task task;
-        private final TaskStats stats;
 
         TaskRunner(Task task) {
             this.task = task;
-            this.stats = new TaskStats();
         }
 
         @Override
         public void run() {
-            stats.setRunning(true);
-            try {
-                Thread.
-                        ofVirtual().
-                        name(String.format("TaskRunner-%d", System.currentTimeMillis() / 1000L)).
-                        start(task);
-            } finally {
-                stats.setLastRun(System.currentTimeMillis() / 1000L);
-                stats.setRunning(false);
-            }
+            String name = String.format("TaskRunner-%d", System.currentTimeMillis() / 1000L);
+            Thread.ofVirtual().name(name).start(task);
         }
     }
 

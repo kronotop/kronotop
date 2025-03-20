@@ -359,12 +359,12 @@ public class KronotopInstance {
         try {
             for (KronotopService service : context.getServices().reversed()) {
                 try {
+                    LOGGER.debug("{} service has been shutting down", service.getName());
                     service.shutdown();
                 } catch (Exception e) {
                     LOGGER.error("{} service cannot be closed due to errors", service.getName(), e);
                     continue;
                 }
-                LOGGER.debug("{} service has been shutting down", service.getName());
             }
 
             if (journalCleanupTaskFuture != null) {

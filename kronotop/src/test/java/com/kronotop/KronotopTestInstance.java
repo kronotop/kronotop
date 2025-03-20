@@ -30,6 +30,7 @@ import com.kronotop.network.Address;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
+import com.kronotop.redis.handlers.connection.protocol.EchoMessage;
 import com.kronotop.redis.handlers.connection.protocol.HelloMessage;
 import com.kronotop.redis.handlers.connection.protocol.PingMessage;
 import com.kronotop.redis.handlers.protocol.InfoMessage;
@@ -65,7 +66,8 @@ public class KronotopTestInstance extends KronotopInstance {
             CommandMessage.COMMAND,
             ClusterMessage.COMMAND,
             InfoMessage.COMMAND,
-            HelloMessage.COMMAND
+            HelloMessage.COMMAND,
+            EchoMessage.COMMAND
     ));
     private final boolean initialize; // The default is true. It's useful for integration tests that test some failure conditions.
     private final boolean runWithTCPServer; // the default is false

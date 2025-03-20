@@ -41,9 +41,9 @@ class TaskServiceTest extends BaseClusterTest {
         CountDownLatch latch = new CountDownLatch(NUMBER_OF_TASKS);
         AtomicInteger counter = new AtomicInteger();
 
-        class TestTask implements Task {
+        class TestTask extends BaseTask implements Task {
             @Override
-            public void run() {
+            public void task() {
                 counter.incrementAndGet();
                 latch.countDown();
             }
@@ -59,13 +59,15 @@ class TaskServiceTest extends BaseClusterTest {
             }
 
             @Override
-            public void shutdown() {
+            public void complete() {
+            }
 
+            @Override
+            public void shutdown() {
             }
 
             @Override
             public void awaitCompletion() {
-
             }
         }
 
@@ -83,9 +85,10 @@ class TaskServiceTest extends BaseClusterTest {
         TaskService service = instance.getContext().getService(TaskService.NAME);
 
         String name = "TestTask";
-        class TestTask implements Task {
+        class TestTask extends BaseTask implements Task {
+
             @Override
-            public void run() {
+            public void task() {
                 // nothing to do
             }
 
@@ -100,13 +103,16 @@ class TaskServiceTest extends BaseClusterTest {
             }
 
             @Override
+            public void complete() {
+            }
+
+            @Override
             public void shutdown() {
                 // nothing to do
             }
 
             @Override
             public void awaitCompletion() {
-
             }
         }
 

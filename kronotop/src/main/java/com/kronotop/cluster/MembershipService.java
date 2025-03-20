@@ -301,20 +301,24 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     }
 
     private synchronized void fetchClusterEvents() {
-        context.getFoundationDB().run(tr -> {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             while (true) {
                 // Try to consume the latest event.
                 Event event = clusterEventsConsumer.consume(tr);
-                if (event == null) return null;
+                if (event == null) {
+                    break;
+                }
 
                 try {
                     processClusterEvent(event);
-                    clusterEventsConsumer.markConsumed(tr, event);
+                    clusterEventsConsumer.setOffset(event);
                 } catch (Exception e) {
                     LOGGER.error("Failed to process a broadcast event, passing it", e);
                 }
             }
-        });
+            clusterEventsConsumer.complete(tr);
+            tr.commit().join();
+        };
     }
 
     private class ClusterEventsJournalWatcher implements Runnable {

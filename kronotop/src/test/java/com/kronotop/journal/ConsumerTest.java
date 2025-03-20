@@ -58,9 +58,10 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
                 if (event == null) {
                     break;
                 }
-                consumer.markConsumed(tr, event);
+                consumer.setOffset(event);
                 consumedEvents.add(new String(event.value()));
             }
+            consumer.complete(tr);
             tr.commit().join();
         }
         assertEquals(consumedEvents, expectedEvents);
@@ -107,12 +108,13 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
                 if (event == null) {
                     break;
                 }
-                consumer.markConsumed(tr, event);
+                consumer.setOffset(event);
                 consumedEvents.add(new String(event.value()));
             }
+            consumer.complete(tr);
             tr.commit().join();
         }
-        assertEquals(consumedEvents, expectedEvents);
+        assertEquals(expectedEvents, consumedEvents);
     }
 
     @Test
@@ -130,7 +132,8 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         // Consume the first event
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Event event = firstConsumer.consume(tr);
-            firstConsumer.markConsumed(tr, event);
+            firstConsumer.setOffset(event);
+            firstConsumer.complete(tr);
             tr.commit().join();
         }
 
@@ -147,7 +150,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void consume_the_same_message_if_markConsumed_not_called() {
+    public void consume_the_same_message_if_consumed_not_called() {
         Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 

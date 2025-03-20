@@ -18,26 +18,27 @@ package com.kronotop.redis.handlers.connection;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseRedisHandlerTest;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-class PingHandlerTest extends BaseRedisHandlerTest {
+class EchoHandlerTest extends BaseRedisHandlerTest {
     @Test
-    void test_PING() {
+    void test_ECHO() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.ping().encode(buf);
+        cmd.echo("test-message").encode(buf);
 
         channel.writeInbound(buf);
         Object msg = channel.readOutbound();
-        assertInstanceOf(SimpleStringRedisMessage.class, msg);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-        assertEquals("PONG", actualMessage.content());
+        assertInstanceOf(FullBulkStringRedisMessage.class, msg);
+        FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
+        assertEquals("test-message", actualMessage.content().toString(CharsetUtil.UTF_8));
     }
 }

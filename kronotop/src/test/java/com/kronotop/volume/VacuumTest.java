@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class VacuumTest extends BaseVolumeIntegrationTest {
 
     @Test
-    public void test_vacuum_after_update() throws IOException {
+    void test_vacuum_after_update() throws IOException {
         int bufferSize = 100480;
         long segmentSize = VolumeConfiguration.segmentSize;
         int numIterations = (int) (2 * (segmentSize / bufferSize));
@@ -90,7 +90,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    public void test_vacuum() throws IOException {
+    void test_vacuum() throws IOException {
         long bufferSize = 100480;
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
