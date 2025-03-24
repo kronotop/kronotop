@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.internal;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.directory.DirectoryLayer;
@@ -24,6 +24,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import com.kronotop.NoSuchDirectorySubspaceException;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.common.KronotopException;
 import com.kronotop.directory.KronotopDirectory;

@@ -18,7 +18,7 @@
 package com.kronotop.cluster;
 
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.ProcessIdGenerator;
+import com.kronotop.internal.ProcessIdGenerator;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

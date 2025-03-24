@@ -21,8 +21,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.internal.VersionstampUtils;
 
 import java.util.Arrays;
 import java.util.List;

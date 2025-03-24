@@ -21,7 +21,6 @@ import com.kronotop.Context;
 import com.kronotop.common.KronotopException;
 import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
-import com.kronotop.task.TaskStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +28,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Represents a task for performing a vacuuming operation on a specified volume.

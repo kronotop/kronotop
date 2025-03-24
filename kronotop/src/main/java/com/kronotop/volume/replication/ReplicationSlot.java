@@ -22,8 +22,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.kronotop.JSONUtils;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.internal.JSONUtils;
 import com.kronotop.volume.VolumeMetadata;
 import com.kronotop.volume.segment.Segment;
 

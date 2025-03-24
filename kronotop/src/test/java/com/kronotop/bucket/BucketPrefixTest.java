@@ -3,8 +3,8 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.volume.Prefix;
 import org.junit.jupiter.api.Test;
 

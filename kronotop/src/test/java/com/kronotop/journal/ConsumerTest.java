@@ -18,7 +18,7 @@ package com.kronotop.journal;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.JSONUtils;
+import com.kronotop.internal.JSONUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedList;

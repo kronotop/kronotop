@@ -18,9 +18,9 @@ package com.kronotop.foundationdb.namespace;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseHandlerTest;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.bucket.BucketPrefix;
 import com.kronotop.bucket.BucketSubspace;
+import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;

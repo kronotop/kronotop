@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.internal;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

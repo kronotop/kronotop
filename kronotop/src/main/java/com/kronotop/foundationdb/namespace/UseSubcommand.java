@@ -17,8 +17,8 @@
 package com.kronotop.foundationdb.namespace;
 
 import com.kronotop.Context;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
+import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;

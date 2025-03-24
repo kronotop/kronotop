@@ -26,6 +26,7 @@ import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.instance.KronotopInstance;
+import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.network.Address;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;

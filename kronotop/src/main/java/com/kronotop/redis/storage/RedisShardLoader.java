@@ -18,7 +18,7 @@ package com.kronotop.redis.storage;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
-import com.kronotop.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.redis.handlers.hash.HashValue;
 import com.kronotop.volume.KeyEntry;
 import com.kronotop.volume.Prefix;

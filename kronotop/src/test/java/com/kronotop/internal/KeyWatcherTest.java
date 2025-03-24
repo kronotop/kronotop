@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.internal;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.BaseStandaloneInstanceTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;

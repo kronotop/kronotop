@@ -15,8 +15,9 @@
  */
 
 
-package com.kronotop;
+package com.kronotop.internal;
 
+import com.kronotop.Context;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipService;

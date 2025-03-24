@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.internal;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.BaseTest;
 import com.kronotop.directory.KronotopDirectory;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;

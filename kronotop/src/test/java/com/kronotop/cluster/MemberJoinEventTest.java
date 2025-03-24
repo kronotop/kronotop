@@ -16,7 +16,7 @@
 
 package com.kronotop.cluster;
 
-import com.kronotop.JSONUtils;
+import com.kronotop.internal.JSONUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

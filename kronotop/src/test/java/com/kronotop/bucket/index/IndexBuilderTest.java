@@ -13,10 +13,10 @@ package com.kronotop.bucket.index;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.bucket.BucketPrefix;
 import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.volume.Prefix;
 import org.junit.jupiter.api.Test;
 

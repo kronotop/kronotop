@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.internal;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;

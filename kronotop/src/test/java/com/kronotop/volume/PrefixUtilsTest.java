@@ -18,9 +18,9 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.internal.NamespaceUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

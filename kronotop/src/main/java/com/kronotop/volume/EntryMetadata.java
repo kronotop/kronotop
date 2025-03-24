@@ -18,7 +18,6 @@ package com.kronotop.volume;
 
 import java.nio.ByteBuffer;
 
-import static com.google.common.hash.Hashing.sipHash24;
 import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
 
 /**

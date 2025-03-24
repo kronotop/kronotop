@@ -18,9 +18,9 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeConfigGenerator;
 import com.kronotop.volume.VolumeService;

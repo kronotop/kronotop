@@ -21,7 +21,7 @@ import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.kronotop.DirectorySubspaceCache;
+import com.kronotop.internal.DirectorySubspaceCache;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

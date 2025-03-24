@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.internal;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.CommitHook;
+import com.kronotop.Context;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 import io.netty.util.Attribute;

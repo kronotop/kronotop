@@ -18,10 +18,10 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.TransactionUtils;
-import com.kronotop.VersionstampUtils;
 import com.kronotop.common.resp.RESPError;
 import com.kronotop.foundationdb.protocol.CommitMessage;
+import com.kronotop.internal.TransactionUtils;
+import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;

@@ -17,11 +17,11 @@
 package com.kronotop.cluster.handlers;
 
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.VersionstampUtils;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
+import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;

@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.internal;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.BaseClusterTest;
+import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.sharding.ShardKind;
 import org.junit.jupiter.api.Test;
 

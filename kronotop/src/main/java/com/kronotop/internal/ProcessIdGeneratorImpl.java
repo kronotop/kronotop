@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.internal;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.MutationType;
@@ -23,6 +23,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.MissingConfigException;
 import com.kronotop.directory.KronotopDirectory;
 import com.typesafe.config.Config;
 

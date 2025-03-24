@@ -12,8 +12,8 @@ package com.kronotop.bucket;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
-import com.kronotop.NamespaceUtils;
 import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 

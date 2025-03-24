@@ -18,7 +18,7 @@ package com.kronotop.volume;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class EntryMetadataIdGeneratorTest {
     @Test

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.internal;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.io.BaseEncoding;
