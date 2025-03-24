@@ -67,4 +67,28 @@ class EntryMetadataTest {
         EntryMetadata decoded = EntryMetadata.decode(result);
         assertThat(entry).usingRecursiveComparison().isEqualTo(decoded);
     }
+
+    @Test
+    void should_extract_id_from_encoded_entry_metadata() {
+        Prefix prefix = new Prefix("test");
+
+        // Initialize necessary data
+        int segmentId = 10;
+        String segment = Segment.generateName(segmentId);
+        long position = 1L;
+        long length = 1L;
+        int id = EntryMetadataIdGenerator.generate(segmentId, position);
+
+        // Create EntryMetadata instance
+        EntryMetadata entry = new EntryMetadata(segment, prefix.asBytes(), position, length, id);
+
+        // Invoke method on test
+        ByteBuffer result = entry.encode();
+
+        assertEquals(id, EntryMetadata.extractId(result));
+
+        // Rewind works?
+        EntryMetadata decoded = EntryMetadata.decode(result);
+        assertThat(entry).usingRecursiveComparison().isEqualTo(decoded);
+    }
 }

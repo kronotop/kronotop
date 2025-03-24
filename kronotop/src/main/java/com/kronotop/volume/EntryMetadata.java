@@ -62,8 +62,27 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
         buffer.get(prefix);
         long position = buffer.getLong();
         long length = buffer.getLong();
-        int id = buffer.getInt();
+        int id = buffer.getInt(); // position = 44
         return new EntryMetadata(segment, prefix, position, length, id);
+    }
+
+    /**
+     * Extracts the ID from the specified ByteBuffer object. The method assumes
+     * that the ID is stored at a fixed offset (44) in the ByteBuffer. It
+     * retrieves the integer value from this position without altering the buffer's
+     * state, as it rewinds the buffer to its original position after the extraction.
+     *
+     * @param buffer the ByteBuffer containing the encoded data. The buffer should
+     *               have a valid layout where the ID can be read from the predefined
+     *               offset.
+     * @return the integer value representing the extracted ID.
+     */
+    public static int extractId(ByteBuffer buffer) {
+        // The position of id is 44 in the current layout of encoded EntryMetadata
+        buffer = buffer.position(44);
+        int id = buffer.getInt();
+        buffer.rewind();
+        return id;
     }
 
     /**
