@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.internal.roundrobin;
+package com.kronotop.internal;
 
 import java.util.ArrayList;
 import java.util.List;
