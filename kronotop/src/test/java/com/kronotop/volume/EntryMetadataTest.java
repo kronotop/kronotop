@@ -24,7 +24,7 @@ import java.nio.ByteBuffer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class EntryMetadataTest {
+class EntryMetadataTest {
 
     @Test
     void decode_should_return_corresponding_EntryMetadata() {
@@ -34,7 +34,7 @@ public class EntryMetadataTest {
         long position = 1L;
         long length = 1L;
         ByteBuffer buffer = ByteBuffer.allocate(EntryMetadata.ENTRY_METADATA_SIZE); // Including space for position and length
-        buffer.put(segment.getBytes()).put(EntryMetadata.SUBSPACE_SEPARATOR).put(prefix.asBytes()).putLong(position).putLong(length).flip();
+        buffer.put(segment.getBytes()).put(EntryMetadata.SUBSPACE_SEPARATOR).put(prefix.asBytes()).putLong(position).putLong(length).putInt(10).flip();
 
         // Invoke method on test
         EntryMetadata result = EntryMetadata.decode(buffer);
@@ -44,6 +44,7 @@ public class EntryMetadataTest {
         assertEquals(prefix, Prefix.fromBytes(result.prefix()));
         assertEquals(position, result.position());
         assertEquals(length, result.length());
+        assertEquals(10, result.id());
     }
 
     @Test
@@ -51,12 +52,14 @@ public class EntryMetadataTest {
         Prefix prefix = new Prefix("test");
 
         // Initialize necessary data
-        String segment = Segment.generateName(10);
+        int segmentId = 10;
+        String segment = Segment.generateName(segmentId);
         long position = 1L;
         long length = 1L;
+        int id = EntryMetadataIdGenerator.generate(segmentId, position);
 
         // Create EntryMetadata instance
-        EntryMetadata entry = new EntryMetadata(segment, prefix.asBytes(), position, length);
+        EntryMetadata entry = new EntryMetadata(segment, prefix.asBytes(), position, length, id);
 
         // Invoke method on test
         ByteBuffer result = entry.encode();

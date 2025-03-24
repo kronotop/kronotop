@@ -357,7 +357,8 @@ public class Volume {
             Segment segment = getLatestSegment(size);
             try {
                 SegmentAppendResult result = segment.append(entry);
-                return new EntryMetadata(segment.getName(), prefix.asBytes(), result.position(), result.length());
+                int id = EntryMetadataIdGenerator.generate(segment.getConfig().id(), result.position());
+                return new EntryMetadata(segment.getName(), prefix.asBytes(), result.position(), result.length(), id);
             } catch (NotEnoughSpaceException e) {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("Trying to find a new segment with length {}", size);

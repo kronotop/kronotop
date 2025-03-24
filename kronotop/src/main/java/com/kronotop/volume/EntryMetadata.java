@@ -36,11 +36,11 @@ import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
  * binary format. The design supports fixed sizes for various components to ensure direct access
  * and manipulation efficiency.
  */
-public record EntryMetadata(String segment, byte[] prefix, long position, long length) {
+public record EntryMetadata(String segment, byte[] prefix, long position, long length, int id) {
     public static int ENTRY_PREFIX_SIZE = 8;
     public static int SUBSPACE_SEPARATOR_SIZE = 1;
-    // 16 = position(8 bytes) + length (8 bytes)
-    public static int ENTRY_METADATA_SIZE = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE + 16;
+    // 20 = position(8 bytes) + length (8 bytes) + id (4 bytes)
+    public static int ENTRY_METADATA_SIZE = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE + 20;
     static byte SUBSPACE_SEPARATOR = 0x0;
 
 
@@ -62,7 +62,8 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
         buffer.get(prefix);
         long position = buffer.getLong();
         long length = buffer.getLong();
-        return new EntryMetadata(segment, prefix, position, length);
+        int id = buffer.getInt();
+        return new EntryMetadata(segment, prefix, position, length, id);
     }
 
     /**
@@ -105,10 +106,8 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
                 put(SUBSPACE_SEPARATOR).
                 put(prefix).
                 putLong(position).
-                putLong(length).flip();
-    }
-
-    public long cacheKey() {
-        return EntryMetadata.cacheKey(segment, position);
+                putLong(length).
+                putInt(id).
+                flip();
     }
 }
