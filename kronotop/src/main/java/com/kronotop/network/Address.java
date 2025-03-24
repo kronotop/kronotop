@@ -16,7 +16,7 @@
 
 package com.kronotop.network;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -24,7 +24,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.UnknownHostException;
 
-import static com.kronotop.common.Preconditions.checkNotNull;
+import static com.kronotop.internal.Preconditions.checkNotNull;
 
 /**
  * Represents an address of an instance in the cluster.

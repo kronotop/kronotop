@@ -16,8 +16,6 @@
 
 package com.kronotop;
 
-import com.kronotop.common.KronotopException;
-
 /**
  * The MissingConfigException class represents an exception that is thrown when a required configuration is missing.
  * <p>

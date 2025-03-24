@@ -19,7 +19,7 @@ package com.kronotop.server;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseHandlerTest;
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

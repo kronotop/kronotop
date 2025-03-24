@@ -16,8 +16,8 @@
 
 package com.kronotop.server.handlers.protocol;
 
+import com.kronotop.KronotopException;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
-import com.kronotop.common.KronotopException;
 import com.kronotop.internal.ByteBufUtils;
 import io.netty.buffer.ByteBuf;
 

@@ -16,7 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class InvalidShardIdException extends KronotopException {
     public InvalidShardIdException() {

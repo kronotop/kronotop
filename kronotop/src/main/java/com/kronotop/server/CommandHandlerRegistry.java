@@ -16,7 +16,7 @@
 
 package com.kronotop.server;
 
-import com.kronotop.common.Preconditions;
+import com.kronotop.internal.Preconditions;
 
 import java.util.HashMap;
 import java.util.Set;

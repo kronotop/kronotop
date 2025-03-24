@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.handlers.string.protocol;
 
-import com.kronotop.common.KronotopException;
-import com.kronotop.common.resp.RESPError;
+import com.kronotop.KronotopException;
+import com.kronotop.RESPError;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 

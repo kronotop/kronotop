@@ -16,7 +16,7 @@
 
 package com.kronotop.volume.handlers.protocol;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.volume.handlers.PackedEntry;

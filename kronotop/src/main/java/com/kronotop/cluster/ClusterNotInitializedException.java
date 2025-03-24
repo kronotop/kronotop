@@ -16,7 +16,7 @@
 
 package com.kronotop.cluster;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class ClusterNotInitializedException extends KronotopException {
     public ClusterNotInitializedException() {

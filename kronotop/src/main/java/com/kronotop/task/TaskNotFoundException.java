@@ -16,7 +16,7 @@
 
 package com.kronotop.task;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class TaskNotFoundException extends KronotopException {
     public TaskNotFoundException(String name) {

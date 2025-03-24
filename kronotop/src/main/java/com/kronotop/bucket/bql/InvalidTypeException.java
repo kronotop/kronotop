@@ -10,7 +10,7 @@
 
 package com.kronotop.bucket.bql;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class InvalidTypeException extends KronotopException {
     public InvalidTypeException(String message) {

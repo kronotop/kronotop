@@ -16,7 +16,7 @@
 
 package com.kronotop.server.impl;
 
-import com.kronotop.common.Preconditions;
+import com.kronotop.internal.Preconditions;
 import com.kronotop.server.Request;
 import com.kronotop.server.Session;
 import com.kronotop.server.resp3.ArrayRedisMessage;

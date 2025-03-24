@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.common;
-
-import com.kronotop.common.resp.RESPError;
+package com.kronotop;
 
 public class KronotopException extends RuntimeException {
     private RESPError prefix = RESPError.ERR;

@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class ShardInoperableException extends KronotopException {
     public ShardInoperableException(int shardId) {

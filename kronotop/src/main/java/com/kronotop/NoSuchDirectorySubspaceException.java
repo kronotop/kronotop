@@ -16,8 +16,6 @@
 
 package com.kronotop;
 
-import com.kronotop.common.KronotopException;
-
 import java.util.List;
 
 public class NoSuchDirectorySubspaceException extends KronotopException {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.common.resp;
+package com.kronotop;
 
 
 public enum RESPError {

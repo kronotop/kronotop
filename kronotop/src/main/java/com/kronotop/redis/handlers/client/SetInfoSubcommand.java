@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.handlers.client;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;

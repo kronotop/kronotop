@@ -18,7 +18,7 @@ package com.kronotop.server;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import com.kronotop.network.ClientIDGenerator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;

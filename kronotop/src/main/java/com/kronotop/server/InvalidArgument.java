@@ -16,7 +16,7 @@
 
 package com.kronotop.server;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 /**
  * Custom exception class for invalid arguments.

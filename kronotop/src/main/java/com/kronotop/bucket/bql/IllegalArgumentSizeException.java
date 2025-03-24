@@ -10,7 +10,7 @@
 
 package com.kronotop.bucket.bql;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class IllegalArgumentSizeException extends KronotopException {
     public IllegalArgumentSizeException(String message) {

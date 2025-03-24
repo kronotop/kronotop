@@ -25,7 +25,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import com.kronotop.internal.JSONUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

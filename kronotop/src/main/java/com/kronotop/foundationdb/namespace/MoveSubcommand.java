@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.Context;
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;

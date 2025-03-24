@@ -16,8 +16,8 @@
 
 package com.kronotop.foundationdb.namespace;
 
-import com.kronotop.common.KronotopException;
-import com.kronotop.common.resp.RESPError;
+import com.kronotop.KronotopException;
+import com.kronotop.RESPError;
 
 public class NamespaceAlreadyExistsException extends KronotopException {
     public NamespaceAlreadyExistsException(String namespace) {

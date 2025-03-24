@@ -18,7 +18,7 @@ package com.kronotop.volume.segment;
 
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import com.kronotop.volume.EntryOutOfBoundException;
 import com.kronotop.volume.NotEnoughSpaceException;
 import org.slf4j.Logger;

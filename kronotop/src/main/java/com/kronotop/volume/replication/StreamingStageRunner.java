@@ -24,7 +24,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.NotEnoughSpaceException;
 import com.kronotop.volume.VersionstampedKeySelector;

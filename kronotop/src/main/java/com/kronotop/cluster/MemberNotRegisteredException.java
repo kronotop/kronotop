@@ -16,7 +16,7 @@
 
 package com.kronotop.cluster;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class MemberNotRegisteredException extends KronotopException {
     public MemberNotRegisteredException(String content) {

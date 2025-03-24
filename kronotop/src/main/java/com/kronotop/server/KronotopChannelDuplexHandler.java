@@ -18,8 +18,8 @@ package com.kronotop.server;
 
 import com.apple.foundationdb.FDBException;
 import com.kronotop.Context;
-import com.kronotop.common.KronotopException;
-import com.kronotop.common.resp.RESPError;
+import com.kronotop.KronotopException;
+import com.kronotop.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.transactions.protocol.DiscardMessage;
 import com.kronotop.redis.handlers.transactions.protocol.ExecMessage;

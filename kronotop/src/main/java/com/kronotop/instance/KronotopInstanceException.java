@@ -16,7 +16,7 @@
 
 package com.kronotop.instance;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class KronotopInstanceException extends KronotopException {
     public KronotopInstanceException(String content) {

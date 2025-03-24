@@ -16,7 +16,7 @@
 
 package com.kronotop.server;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 /**
  * Exception thrown when a wrong number of arguments is provided.

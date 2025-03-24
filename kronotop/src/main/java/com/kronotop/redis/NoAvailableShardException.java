@@ -16,7 +16,7 @@
 
 package com.kronotop.redis;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class NoAvailableShardException extends KronotopException {
     public NoAvailableShardException() {

@@ -16,8 +16,8 @@
 
 package com.kronotop.directory;
 
+import com.kronotop.KronotopException;
 import com.kronotop.cluster.MemberIdGenerator;
-import com.kronotop.common.KronotopException;
 
 import java.util.List;
 

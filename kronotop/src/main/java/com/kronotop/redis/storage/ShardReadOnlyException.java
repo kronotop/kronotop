@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.storage;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class ShardReadOnlyException extends KronotopException {
     public ShardReadOnlyException(int shardId) {

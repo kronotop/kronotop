@@ -15,7 +15,7 @@
 
 package com.kronotop.server.resp3;
 
-import com.kronotop.common.resp.RESPError;
+import com.kronotop.RESPError;
 import io.netty.util.internal.UnstableApi;
 
 /**

@@ -16,7 +16,7 @@
 
 package com.kronotop.volume.replication;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class ReplicationSlotNotFoundException extends KronotopException {
 }

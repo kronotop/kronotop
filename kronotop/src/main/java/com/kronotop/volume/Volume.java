@@ -22,7 +22,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.CacheLoader;
 import com.kronotop.Context;
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import com.kronotop.volume.handlers.PackedEntry;
 import com.kronotop.volume.replication.SegmentLog;
 import com.kronotop.volume.replication.SegmentLogValue;

@@ -16,7 +16,7 @@
 
 package com.kronotop.server;
 
-import com.kronotop.common.resp.RESPError;
+import com.kronotop.RESPError;
 import com.kronotop.server.impl.RESP3Response;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;

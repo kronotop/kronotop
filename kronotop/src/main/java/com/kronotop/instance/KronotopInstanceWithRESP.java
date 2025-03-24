@@ -17,8 +17,8 @@
 package com.kronotop.instance;
 
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
-import com.kronotop.common.KronotopException;
 import com.kronotop.network.Address;
 import com.kronotop.server.*;
 

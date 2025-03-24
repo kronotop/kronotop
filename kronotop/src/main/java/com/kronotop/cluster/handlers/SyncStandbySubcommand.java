@@ -18,10 +18,10 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.KronotopException;
 import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.common.KronotopException;
 import com.kronotop.internal.ByteBufUtils;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;

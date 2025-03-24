@@ -16,7 +16,7 @@
 
 package com.kronotop.volume;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 public class VolumeReadOnlyException extends KronotopException {
     public VolumeReadOnlyException(String message) {

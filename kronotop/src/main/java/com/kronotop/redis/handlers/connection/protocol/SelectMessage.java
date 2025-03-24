@@ -16,7 +16,6 @@
 
 package com.kronotop.redis.handlers.connection.protocol;
 
-import com.kronotop.common.utils.Utils;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -34,11 +33,25 @@ public class SelectMessage implements ProtocolMessage<Void> {
         parse();
     }
 
+    private boolean isNumeric(final CharSequence cs) {
+        // Source: https://commons.apache.org/proper/commons-lang/javadocs/api-release/src-html/org/apache/commons/lang3/StringUtils.html#line.3752
+        if (cs == null || cs.isEmpty()) {
+            return false;
+        }
+        final int sz = cs.length();
+        for (int i = 0; i < sz; i++) {
+            if (!Character.isDigit(cs.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private void parse() {
-        byte[] indexBytes = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(indexBytes);
+        byte[] indexBytes = new byte[request.getParams().getFirst().readableBytes()];
+        request.getParams().getFirst().readBytes(indexBytes);
         index = new String(indexBytes);
-        if (!Utils.isNumeric(index)) {
+        if (!isNumeric(index)) {
             throw new IllegalArgumentException(String.format("index has to be a zero-based numeric: '%s'", index));
         }
     }

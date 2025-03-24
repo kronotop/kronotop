@@ -18,7 +18,7 @@ package com.kronotop.internal;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

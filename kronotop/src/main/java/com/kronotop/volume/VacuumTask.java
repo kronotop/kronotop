@@ -18,7 +18,7 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
 import org.slf4j.Logger;

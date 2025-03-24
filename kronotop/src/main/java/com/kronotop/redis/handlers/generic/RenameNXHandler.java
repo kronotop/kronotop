@@ -16,8 +16,8 @@
 
 package com.kronotop.redis.handlers.generic;
 
+import com.kronotop.KronotopException;
 import com.kronotop.cluster.sharding.ShardStatus;
-import com.kronotop.common.KronotopException;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.generic.protocol.RenameNXMessage;
 import com.kronotop.redis.storage.RedisShard;

@@ -16,7 +16,7 @@
 
 package com.kronotop.server;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 /**
  * Exception thrown when attempting to register a command that is already registered.

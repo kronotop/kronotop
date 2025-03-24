@@ -17,10 +17,10 @@
 package com.kronotop.redis.storage.syncer;
 
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.PackedEntry;
-import com.kronotop.common.KronotopException;
 import com.kronotop.server.Response;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.EntryMetadata;

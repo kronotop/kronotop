@@ -18,10 +18,10 @@
 package com.kronotop.internal;
 
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipService;
-import com.kronotop.common.KronotopException;
 import io.netty.buffer.ByteBuf;
 
 import java.util.HashSet;

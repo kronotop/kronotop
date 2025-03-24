@@ -20,7 +20,7 @@ import com.apple.foundationdb.MutationType;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;

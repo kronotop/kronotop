@@ -16,7 +16,7 @@
 
 package com.kronotop.server;
 
-import com.kronotop.common.KronotopException;
+import com.kronotop.KronotopException;
 
 /**
  * Represents an exception that is thrown when a command is not found.

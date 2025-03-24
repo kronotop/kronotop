@@ -20,7 +20,6 @@ import com.apple.foundationdb.Database;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.client.InternalConnectionPool;
 import com.kronotop.commands.CommandMetadata;
-import com.kronotop.common.KronotopException;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.journal.Journal;
 import com.kronotop.server.CommandHandlerRegistry;
