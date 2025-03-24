@@ -16,6 +16,8 @@
 
 package com.kronotop;
 
+import com.kronotop.server.RESPError;
+
 public class KronotopException extends RuntimeException {
     private RESPError prefix = RESPError.ERR;
 

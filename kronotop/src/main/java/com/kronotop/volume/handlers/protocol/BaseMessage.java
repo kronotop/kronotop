@@ -17,7 +17,7 @@
 package com.kronotop.volume.handlers.protocol;
 
 import com.kronotop.KronotopException;
-import com.kronotop.RESPError;
+import com.kronotop.server.RESPError;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 

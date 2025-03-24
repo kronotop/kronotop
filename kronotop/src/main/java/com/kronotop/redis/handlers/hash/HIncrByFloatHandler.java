@@ -17,7 +17,7 @@
 package com.kronotop.redis.handlers.hash;
 
 import com.kronotop.KronotopException;
-import com.kronotop.RESPError;
+import com.kronotop.server.RESPError;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.hash.protocol.FieldValuePair;

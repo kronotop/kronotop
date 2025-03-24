@@ -17,7 +17,7 @@
 package com.kronotop.foundationdb.zmap.protocol;
 
 import com.kronotop.KronotopException;
-import com.kronotop.RESPError;
+import com.kronotop.server.RESPError;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;

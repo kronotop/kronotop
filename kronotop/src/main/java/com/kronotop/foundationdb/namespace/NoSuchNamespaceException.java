@@ -17,7 +17,7 @@
 package com.kronotop.foundationdb.namespace;
 
 import com.kronotop.KronotopException;
-import com.kronotop.RESPError;
+import com.kronotop.server.RESPError;
 
 public class NoSuchNamespaceException extends KronotopException {
     public NoSuchNamespaceException(String namespace) {

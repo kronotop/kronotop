@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.handlers.connection;
 
-import com.kronotop.RESPError;
+import com.kronotop.server.RESPError;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.connection.protocol.AuthMessage;
 import com.kronotop.server.*;

@@ -17,7 +17,6 @@
 package com.kronotop.server;
 
 import com.kronotop.KronotopException;
-import com.kronotop.RESPError;
 
 /**
  * Custom exception class that represents a wrong type of value error in Kronotop.

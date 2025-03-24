@@ -17,7 +17,6 @@
 package com.kronotop.server;
 
 import com.kronotop.KronotopException;
-import com.kronotop.RESPError;
 
 /**
  * A custom exception class representing the case where a Redis transaction is aborted due to previous errors.
