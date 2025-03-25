@@ -16,6 +16,7 @@
 
 package com.kronotop.server;
 
+import com.kronotop.bucket.handlers.protocol.BucketFindMessage;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
@@ -127,6 +128,7 @@ public class MessageTypes {
 
     // Buckets
     public static final AttributeKey<BucketInsertMessage> BUCKETINSERT = AttributeKey.valueOf(BucketInsertMessage.COMMAND);
+    public static final AttributeKey<BucketFindMessage> BUCKETFIND = AttributeKey.valueOf(BucketFindMessage.COMMAND);
 
     // Session management
     public static final AttributeKey<SessionAttributeMessage> SESSIONATTRIBUTE = AttributeKey.valueOf(SessionAttributeMessage.COMMAND);

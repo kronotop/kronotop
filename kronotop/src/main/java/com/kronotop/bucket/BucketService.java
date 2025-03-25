@@ -14,6 +14,7 @@ import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.ServiceContext;
+import com.kronotop.bucket.handlers.BucketFindHandler;
 import com.kronotop.bucket.handlers.BucketInsertHandler;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
@@ -36,6 +37,8 @@ public class BucketService extends CommandHandlerService implements KronotopServ
         this.routing = context.getService(RoutingService.NAME);
 
         handlerMethod(ServerKind.EXTERNAL, new BucketInsertHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketFindHandler(this));
+
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
     }
 
