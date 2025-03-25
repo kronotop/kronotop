@@ -25,11 +25,11 @@ public class LogicalComparisonFilter extends LogicalFilter {
         return field;
     }
 
-    public void setField(String field) {
+    void setField(String field) {
         this.field = field;
     }
 
-    public void addValue(BqlValue<?> value) {
+    void addValue(BqlValue<?> value) {
         this.value = value;
     }
 

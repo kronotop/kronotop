@@ -1,11 +1,7 @@
-package com.kronotop.bucket.optimizer;
+package com.kronotop.bucket.optimizer.logical;
 
 import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.OperatorType;
-import com.kronotop.bucket.optimizer.logical.LogicalComparisonFilter;
-import com.kronotop.bucket.optimizer.logical.LogicalFullBucketScan;
-import com.kronotop.bucket.optimizer.logical.LogicalNode;
-import com.kronotop.bucket.optimizer.logical.LogicalPlanner;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -17,10 +13,12 @@ class LogicalPlannerTest {
 
     @Test
     public void test_prepareLogicalPlan() {
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' }, tags: { $all: ['foo', 32]} }");
+        //LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' }, tags: { $all: ['foo', 32]} }");
         //QueryOptimizer optimizer = new QueryOptimizer("{ status: {$eq: 'ALIVE'}, username: {$eq: 'kronotop-admin'}, age: {$lt: 35} }");
         //QueryOptimizer optimizer = new QueryOptimizer("{ status: 'ALIVE', username: 'kronotop-admin' }");
         //QueryOptimizer optimizer = new QueryOptimizer("{}");
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{_id: {$gte: '00010CRQ5VIMO0000000xxxx'}}");
+
         LogicalNode node = optimizer.plan();
         System.out.println(node);
     }

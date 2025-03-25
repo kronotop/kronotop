@@ -39,7 +39,7 @@ public class LogicalPlanner {
                 return i - 1;
             }
             switch (child.getOperatorType()) {
-                case EQ, LT, GT:
+                case EQ, LT, GT, GTE:
                     LogicalComparisonFilter filter = new LogicalComparisonFilter(child.getOperatorType());
                     filter.setField(operator.getField());
                     child.getValues().forEach(filter::addValue);
