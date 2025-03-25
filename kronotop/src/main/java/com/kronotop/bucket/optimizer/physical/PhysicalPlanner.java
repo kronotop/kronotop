@@ -20,6 +20,7 @@ public class PhysicalPlanner {
     }
 
     public PhysicalNode plan() {
+        System.out.println(root);
         return null;
     }
 }
