@@ -10,6 +10,7 @@
 
 package com.kronotop.bucket.optimizer.physical;
 
+import com.kronotop.bucket.optimizer.logical.LogicalFullBucketScan;
 import com.kronotop.bucket.optimizer.logical.LogicalNode;
 
 public class PhysicalPlanner {
@@ -19,8 +20,18 @@ public class PhysicalPlanner {
         this.root = root;
     }
 
+    private void convertFullBucketScan(LogicalFullBucketScan node) {
+        System.out.println(node.getBucket());
+        node.getFilters().forEach(System.out::println);
+    }
+
     public PhysicalNode plan() {
-        System.out.println(root);
+        switch (root) {
+            case LogicalFullBucketScan node -> {
+                convertFullBucketScan(node);
+            }
+            default -> throw new IllegalStateException("Unexpected value: " + root);
+        }
         return null;
     }
 }

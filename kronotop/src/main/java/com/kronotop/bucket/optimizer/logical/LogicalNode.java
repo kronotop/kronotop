@@ -10,13 +10,10 @@
 
 package com.kronotop.bucket.optimizer.logical;
 
-import com.kronotop.bucket.optimizer.Node;
-import com.kronotop.bucket.optimizer.NodeKind;
-
 import java.util.LinkedList;
 import java.util.List;
 
-public class LogicalNode implements Node {
+public class LogicalNode {
     protected final List<LogicalFilter> filters = new LinkedList<>();
 
     void addFilter(LogicalFilter filter) {
@@ -30,10 +27,5 @@ public class LogicalNode implements Node {
     @Override
     public String toString() {
         return "LogicalNode [filters=" + filters + "]";
-    }
-
-    @Override
-    public NodeKind nodeKind() {
-        return NodeKind.FULL_BUCKET_SCAN;
     }
 }
