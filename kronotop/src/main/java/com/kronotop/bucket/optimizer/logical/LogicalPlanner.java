@@ -36,7 +36,7 @@ public class LogicalPlanner {
         for (int i = index; i < operators.size(); i++) {
             BqlOperator child = operators.get(i);
             if (child.getLevel() <= operator.getLevel()) {
-                return i - 1;
+                return i;
             }
             switch (child.getOperatorType()) {
                 case EQ, LT, GT, GTE:
@@ -60,14 +60,17 @@ public class LogicalPlanner {
     }
 
     private int traverse(LogicalNode root, BqlOrOperator operator, int index) {
-        for (int i = index; i < operators.size(); i++) {
+        int i = index;
+        while (i < operators.size()) {
             BqlOperator child = operators.get(i);
             if (child.getLevel() <= operator.getLevel()) {
-                return i - 1;
+                return i;
             }
             if (child.getOperatorType().equals(OperatorType.EQ)) {
                 i = traverse(root, (BqlEqOperator) child, i + 1);
+                continue;
             }
+            i++;
         }
         return 0;
     }
@@ -76,7 +79,8 @@ public class LogicalPlanner {
         operators = BqlParser.parse(query);
 
         LogicalFullBucketScan logicalScan = new LogicalFullBucketScan(bucket);
-        for (int i = 0; i < operators.size(); i++) {
+        int i = 0;
+        while (i < operators.size()) {
             BqlOperator operator = operators.get(i);
             if (operator.getOperatorType().equals(OperatorType.EQ)) {
                 BqlEqOperator eq = (BqlEqOperator) operator;
@@ -85,6 +89,7 @@ public class LogicalPlanner {
                     if (i == 0) {
                         break;
                     }
+                    continue;
                 } else {
                     LogicalComparisonFilter root = new LogicalComparisonFilter(OperatorType.EQ);
                     root.setField(eq.getField());
@@ -95,11 +100,12 @@ public class LogicalPlanner {
                 LogicalOrFilter root = new LogicalOrFilter();
                 i = traverse(root, (BqlOrOperator) operator, i + 1);
                 logicalScan.addFilter(root);
-
                 if (i == 0) {
                     break;
                 }
+                continue;
             }
+            i++;
         }
 
         return logicalScan;

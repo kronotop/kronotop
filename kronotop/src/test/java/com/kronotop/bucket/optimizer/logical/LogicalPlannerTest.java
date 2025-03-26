@@ -17,8 +17,19 @@ class LogicalPlannerTest {
         //QueryOptimizer optimizer = new QueryOptimizer("{ status: {$eq: 'ALIVE'}, username: {$eq: 'kronotop-admin'}, age: {$lt: 35} }");
         //QueryOptimizer optimizer = new QueryOptimizer("{ status: 'ALIVE', username: 'kronotop-admin' }");
         //QueryOptimizer optimizer = new QueryOptimizer("{}");
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{_id: {$gte: '00010CRQ5VIMO0000000xxxx'}}");
+        //LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{_id: {$gte: '00010CRQ5VIMO0000000xxxx'}}");
+        //LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: {$eq: 'ALIVE'}, username: {$eq: 'kronotop-admin'}, age: {$lt: 35} }");
 
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' }, tags: { $all: ['foo', 32]} }");
+        LogicalNode node = optimizer.plan();
+        System.out.println(node);
+    }
+
+    @Test
+    public void test_prepareLogicalPlan2() {
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket,
+                "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }"
+        );
         LogicalNode node = optimizer.plan();
         System.out.println(node);
     }
@@ -82,6 +93,7 @@ class LogicalPlannerTest {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: { $eq: 'ALIVE' }, qty: { $lt: 30 } }");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullBucketScan.class, node);
+        System.out.println(node.getFilters());
         assertEquals(2, node.getFilters().size());
 
         LogicalFullBucketScan logicalFullBucketScan = (LogicalFullBucketScan) node;
