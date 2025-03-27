@@ -39,9 +39,9 @@ public class LogicalComparisonFilter extends LogicalFilter {
 
     @Override
     public String toString() {
-        return "LogicalComparisonFilter [" +
+        return "LogicalComparisonFilter {" +
                 "operatorType=" + getOperatorType() + ", " +
                 "field=" + getField() + ", " +
-                "value=" + getValue() + "]";
+                "value=" + getValue() + "}";
     }
 }

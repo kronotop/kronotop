@@ -20,6 +20,6 @@ public class LogicalOrFilter extends LogicalFilter {
 
     @Override
     public String toString() {
-        return "LogicalOrFilter [filters=" + filters + "]";
+        return "LogicalOrFilter {filters=" + filters + "}";
     }
 }

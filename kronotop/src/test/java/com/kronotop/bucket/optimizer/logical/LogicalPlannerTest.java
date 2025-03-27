@@ -56,6 +56,42 @@ class LogicalPlannerTest {
     }
 
     @Test
+    void single_field_int32_equality() {
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket,
+                "{ a: { $eq: 20 } }"
+        );
+        /*
+        LogicalFullBucketScan {
+            bucket=test-bucket,
+            filters=[
+                LogicalComparisonFilter {
+                    operatorType=EQ,
+                    field=a,
+                    value=BqlValue { type=INT32, value=20 }
+                }
+            ]
+        }
+        */
+        LogicalNode node = optimizer.plan();
+        assertInstanceOf(LogicalFullBucketScan.class, node);
+
+        LogicalFullBucketScan fullBucketScan = (LogicalFullBucketScan)node;
+
+        assertThat(fullBucketScan.getBucket()).isEqualTo(testBucket);
+        assertEquals(1, fullBucketScan.getFilters().size());
+
+        LogicalFilter eqFilter = fullBucketScan.getFilters().getFirst();
+        assertInstanceOf(LogicalComparisonFilter.class, eqFilter);
+
+        assertEquals(OperatorType.EQ, eqFilter.getOperatorType());
+
+        LogicalComparisonFilter comparisonFilter = (LogicalComparisonFilter) eqFilter;
+        assertEquals("a", comparisonFilter.getField());
+        assertEquals(BsonType.INT32, comparisonFilter.getValue().getBsonType());
+        assertEquals(20, comparisonFilter.getValue().getValue());
+    }
+
+    @Test
     void test_prepareLogicalPlan4() {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket,
                 "{ status: 'ALIVE', username: 'kronotop-admin' }"

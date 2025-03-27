@@ -26,6 +26,6 @@ public class LogicalNode {
 
     @Override
     public String toString() {
-        return "LogicalNode [filters=" + filters + "]";
+        return "LogicalNode {filters=" + filters + "}";
     }
 }
