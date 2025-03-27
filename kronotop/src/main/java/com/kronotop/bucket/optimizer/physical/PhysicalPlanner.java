@@ -30,10 +30,10 @@ public class PhysicalPlanner {
             switch (filter) {
                 case LogicalComparisonFilter f -> {
                     if (f.getField().equals("_id")) {
-                        IndexComparisonFilter indexComparisonFilter = new IndexComparisonFilter(node.getBucket(), "_id_index", f.getOperatorType());
-                        indexComparisonFilter.setField(f.getField());
-                        indexComparisonFilter.addValue(f.getValue());
-                        nodes.add(indexComparisonFilter);
+                        PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(node.getBucket(), "_id_index", f.getOperatorType());
+                        physicalIndexScan.setField(f.getField());
+                        physicalIndexScan.addValue(f.getValue());
+                        nodes.add(physicalIndexScan);
                     }
                 }
                 default -> throw new IllegalStateException("Unexpected value: " + filter);

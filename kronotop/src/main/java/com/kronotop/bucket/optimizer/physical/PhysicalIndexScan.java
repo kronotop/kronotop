@@ -10,6 +10,52 @@
 
 package com.kronotop.bucket.optimizer.physical;
 
-public class PhysicalIndexScan extends PhysicalNode {
-    //private final String indexName;
+import com.kronotop.bucket.bql.BqlValue;
+import com.kronotop.bucket.bql.operators.OperatorType;
+
+public class PhysicalIndexScan extends PhysicalFilter {
+    private final String bucket;
+    private final String index;
+    private BqlValue<?> value;
+    private String field;
+
+    public PhysicalIndexScan(String bucket, String index, OperatorType operatorType) {
+        super(operatorType);
+        this.bucket = bucket;
+        this.index = index;
+    }
+
+    public String getField() {
+        return field;
+    }
+
+    void setField(String field) {
+        this.field = field;
+    }
+
+    void addValue(BqlValue<?> value) {
+        this.value = value;
+    }
+
+    public BqlValue<?> getValue() {
+        return value;
+    }
+
+    public String getBucket() {
+        return bucket;
+    }
+
+    public String getIndex() {
+        return index;
+    }
+
+    @Override
+    public String toString() {
+        return "PhysicalIndexScan [" +
+                "bucket=" + bucket + ", " +
+                "index=" + index + ", " +
+                "operatorType=" + getOperatorType() + ", " +
+                "field=" + getField() + ", " +
+                "value=" + getValue() + "]";
+    }
 }
