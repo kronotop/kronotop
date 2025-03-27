@@ -10,8 +10,12 @@
 
 package com.kronotop.bucket.optimizer.physical;
 
+import com.kronotop.bucket.optimizer.logical.LogicalComparisonFilter;
 import com.kronotop.bucket.optimizer.logical.LogicalFullBucketScan;
 import com.kronotop.bucket.optimizer.logical.LogicalNode;
+
+import java.util.LinkedList;
+import java.util.List;
 
 public class PhysicalPlanner {
     private final LogicalNode root;
@@ -20,18 +24,34 @@ public class PhysicalPlanner {
         this.root = root;
     }
 
-    private void convertFullBucketScan(LogicalFullBucketScan node) {
-        System.out.println(node.getBucket());
-        node.getFilters().forEach(System.out::println);
+    private PhysicalNode convertFullBucketScan(LogicalFullBucketScan node) {
+        List<PhysicalNode> nodes = new LinkedList<>();
+        node.getFilters().forEach(filter -> {
+            switch (filter) {
+                case LogicalComparisonFilter f -> {
+                    if (f.getField().equals("_id")) {
+                        IndexComparisonFilter indexComparisonFilter = new IndexComparisonFilter(node.getBucket(), "_id_index", f.getOperatorType());
+                        indexComparisonFilter.setField(f.getField());
+                        indexComparisonFilter.addValue(f.getValue());
+                        nodes.add(indexComparisonFilter);
+                    }
+                }
+                default -> throw new IllegalStateException("Unexpected value: " + filter);
+            }
+        });
+        if (nodes.size() == 1) {
+            return nodes.getFirst();
+        }
+        // TODO
+        return null;
     }
 
     public PhysicalNode plan() {
         switch (root) {
             case LogicalFullBucketScan node -> {
-                convertFullBucketScan(node);
+                return convertFullBucketScan(node);
             }
             default -> throw new IllegalStateException("Unexpected value: " + root);
         }
-        return null;
     }
 }

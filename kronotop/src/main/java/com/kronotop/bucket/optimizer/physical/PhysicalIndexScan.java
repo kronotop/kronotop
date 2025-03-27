@@ -10,22 +10,6 @@
 
 package com.kronotop.bucket.optimizer.physical;
 
-import java.util.LinkedList;
-import java.util.List;
-
-public class PhysicalNode {
-    protected final List<PhysicalFilter> filters = new LinkedList<>();
-
-    void addFilter(PhysicalFilter filter) {
-        filters.add(filter);
-    }
-
-    public List<PhysicalFilter> getFilters() {
-        return filters;
-    }
-
-    @Override
-    public String toString() {
-        return "PhysicalNode [filters=" + filters + "]";
-    }
+public class PhysicalIndexScan extends PhysicalNode {
+    //private final String indexName;
 }

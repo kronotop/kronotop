@@ -8,13 +8,34 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PhysicalPlannerTest {
     @Test
-    void test_plan() {
+    void indexed_field_id_string_gte() {
         LogicalPlanner logical = new LogicalPlanner(
                 "test-bucket",
                 "{_id: {$gte: '00010CRQ5VIMO0000000xxxx'}}"
         );
-        LogicalNode node = logical.plan();
-        PhysicalPlanner physical = new PhysicalPlanner(node);
-        physical.plan();
+        /*
+        LogicalFullBucketScan {
+            bucket=test-bucket,
+            filters=[
+                LogicalComparisonFilter {
+                    operatorType=GTE,
+                    field=_id,
+                    value=BqlValue { type=STRING, value=00010CRQ5VIMO0000000xxxx }
+                }
+            ]
+        }
+
+        PhysicalIndexScan {
+            bucket=test-bucket,
+            index="_id_idx",
+            operatorType=GTE,
+            field=_id,
+            value=BqlValue { type=STRING, value=00010CRQ5VIMO0000000xxxx }
+        }
+        */
+        LogicalNode logicalNode = logical.plan();
+        PhysicalPlanner physical = new PhysicalPlanner(logicalNode);
+        PhysicalNode physicalNode = physical.plan();
+        System.out.println(physicalNode);
     }
 }
