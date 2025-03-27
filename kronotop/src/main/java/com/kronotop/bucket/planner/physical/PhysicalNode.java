@@ -26,6 +26,6 @@ public class PhysicalNode {
 
     @Override
     public String toString() {
-        return "PhysicalNode [filters=" + filters + "]";
+        return "PhysicalNode {filters=" + filters + "}";
     }
 }

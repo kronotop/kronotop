@@ -51,11 +51,11 @@ public class PhysicalIndexScan extends PhysicalFilter {
 
     @Override
     public String toString() {
-        return "PhysicalIndexScan [" +
+        return "PhysicalIndexScan {" +
                 "bucket=" + bucket + ", " +
                 "index=" + index + ", " +
                 "operatorType=" + getOperatorType() + ", " +
                 "field=" + getField() + ", " +
-                "value=" + getValue() + "]";
+                "value=" + getValue() + "}";
     }
 }
