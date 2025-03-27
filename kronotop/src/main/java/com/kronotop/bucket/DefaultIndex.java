@@ -10,6 +10,16 @@
 
 package com.kronotop.bucket;
 
-public enum DefaultIndexes {
-    ID
+public enum DefaultIndex {
+    ID("_id_idx");
+
+    final String value;
+
+    DefaultIndex(String value) {
+        this.value = value;
+    }
+
+    public String getValue() {
+        return value;
+    }
 }

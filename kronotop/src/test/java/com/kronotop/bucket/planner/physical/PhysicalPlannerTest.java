@@ -10,6 +10,7 @@
 
 package com.kronotop.bucket.planner.physical;
 
+import com.kronotop.bucket.DefaultIndex;
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
@@ -28,6 +29,10 @@ class PhysicalPlannerTest {
                 testBucket,
                 "{_id: {$gte: '00010CRQ5VIMO0000000xxxx'}}"
         );
+        LogicalNode logicalNode = logical.plan();
+        PhysicalPlanner physical = new PhysicalPlanner(logicalNode);
+        PhysicalNode physicalNode = physical.plan();
+
         /*
         LogicalFullBucketScan {
             bucket=test-bucket,
@@ -48,15 +53,12 @@ class PhysicalPlannerTest {
             value=BqlValue { type=STRING, value=00010CRQ5VIMO0000000xxxx }
         }
         */
-        LogicalNode logicalNode = logical.plan();
-        PhysicalPlanner physical = new PhysicalPlanner(logicalNode);
-        PhysicalNode physicalNode = physical.plan();
 
         assertInstanceOf(PhysicalIndexScan.class, physicalNode);
 
         PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalNode;
         assertEquals(testBucket, physicalIndexScan.getBucket());
-        assertEquals("_id_index", physicalIndexScan.getIndex());
+        assertEquals(DefaultIndex.ID.getValue(), physicalIndexScan.getIndex());
         assertEquals(OperatorType.GTE, physicalIndexScan.getOperatorType());
         assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
         assertEquals("00010CRQ5VIMO0000000xxxx", physicalIndexScan.getValue().getValue());

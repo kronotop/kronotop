@@ -15,7 +15,7 @@ import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketSubspace;
-import com.kronotop.bucket.DefaultIndexes;
+import com.kronotop.bucket.DefaultIndex;
 import com.kronotop.volume.Prefix;
 
 public class IndexBuilder {
@@ -32,7 +32,7 @@ public class IndexBuilder {
      */
     public static void setIdIndex(Transaction tr, BucketSubspace subspace, int shardId, Prefix prefix, int userVersion) {
         Subspace indexSubspace = subspace.getBucketIndexSubspace(shardId, prefix);
-        Tuple idIndexTemplate = Tuple.from(DefaultIndexes.ID.name(), Versionstamp.incomplete(userVersion));
+        Tuple idIndexTemplate = Tuple.from(DefaultIndex.ID.getValue(), Versionstamp.incomplete(userVersion));
         byte[] idIndexKey = indexSubspace.packWithVersionstamp(idIndexTemplate);
         tr.set(idIndexKey, NULL_BYTES);
     }
