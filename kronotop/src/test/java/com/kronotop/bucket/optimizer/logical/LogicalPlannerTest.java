@@ -12,7 +12,9 @@ package com.kronotop.bucket.optimizer.logical;
 
 import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
 import org.bson.BsonType;
+import org.bson.conversions.Bson;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -22,7 +24,7 @@ class LogicalPlannerTest {
     private final String testBucket = "test-bucket";
 
     @Test
-    public void test_prepareLogicalPlan() {
+    void test_prepareLogicalPlan() {
         //LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' }, tags: { $all: ['foo', 32]} }");
         //QueryOptimizer optimizer = new QueryOptimizer("{ status: {$eq: 'ALIVE'}, username: {$eq: 'kronotop-admin'}, age: {$lt: 35} }");
         //QueryOptimizer optimizer = new QueryOptimizer("{ status: 'ALIVE', username: 'kronotop-admin' }");
@@ -36,12 +38,60 @@ class LogicalPlannerTest {
     }
 
     @Test
-    public void test_prepareLogicalPlan2() {
+    void test_prepareLogicalPlan2() {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket,
                 "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }"
         );
         LogicalNode node = optimizer.plan();
         System.out.println(node);
+    }
+
+    @Test
+    void test_prepareLogicalPlan3() {
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket,
+                "{ _id: { $gte: '00010CRQ5VIMO0000000xxxx' } }"
+        );
+        LogicalNode node = optimizer.plan();
+        System.out.println(node);
+    }
+
+    @Test
+    void test_prepareLogicalPlan4() {
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket,
+                "{ status: 'ALIVE', username: 'kronotop-admin' }"
+        );
+        LogicalNode node = optimizer.plan();
+
+        assertInstanceOf(LogicalFullBucketScan.class, node);
+
+        LogicalFullBucketScan fullBucketScan = (LogicalFullBucketScan)node;
+
+        assertThat(fullBucketScan.getBucket()).isEqualTo(testBucket);
+        assertEquals(2, fullBucketScan.getFilters().size());
+
+        {
+            LogicalFilter eqFilter = fullBucketScan.getFilters().get(0);
+            assertInstanceOf(LogicalComparisonFilter.class, eqFilter);
+
+            assertEquals(OperatorType.EQ, eqFilter.getOperatorType());
+
+            LogicalComparisonFilter comparisonFilter = (LogicalComparisonFilter) eqFilter;
+            assertEquals("status", comparisonFilter.getField());
+            assertEquals(BsonType.STRING, comparisonFilter.getValue().getBsonType());
+            assertEquals("ALIVE", comparisonFilter.getValue().getValue());
+        }
+
+        {
+            LogicalFilter eqFilter = fullBucketScan.getFilters().get(1);
+            assertInstanceOf(LogicalComparisonFilter.class, eqFilter);
+
+            assertEquals(OperatorType.EQ, eqFilter.getOperatorType());
+
+            LogicalComparisonFilter comparisonFilter = (LogicalComparisonFilter) eqFilter;
+            assertEquals("username", comparisonFilter.getField());
+            assertEquals(BsonType.STRING, comparisonFilter.getValue().getBsonType());
+            assertEquals("kronotop-admin", comparisonFilter.getValue().getValue());
+        }
     }
 
     @Test
@@ -56,7 +106,7 @@ class LogicalPlannerTest {
     }
 
     @Test
-    public void when_implicit_EQ_operator() {
+    void when_implicit_EQ_operator() {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: 'ALIVE' }");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullBucketScan.class, node);
@@ -76,9 +126,8 @@ class LogicalPlannerTest {
         assertThat(logicalComparisonFilter).usingRecursiveComparison().isEqualTo(expected);
     }
 
-
     @Test
-    public void when_explicit_EQ_operator() {
+    void when_explicit_EQ_operator() {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: { $eq: 'ALIVE' } }");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullBucketScan.class, node);
@@ -99,7 +148,7 @@ class LogicalPlannerTest {
     }
 
     @Test
-    public void when_multiple_EQ_operator() {
+    void when_multiple_EQ_operator() {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: { $eq: 'ALIVE' }, qty: { $lt: 30 } }");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullBucketScan.class, node);
