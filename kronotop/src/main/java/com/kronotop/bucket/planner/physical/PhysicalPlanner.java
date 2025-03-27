@@ -13,9 +13,7 @@ package com.kronotop.bucket.planner.physical;
 import com.kronotop.bucket.ReservedFieldName;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.PlannerContext;
-import com.kronotop.bucket.planner.logical.LogicalComparisonFilter;
-import com.kronotop.bucket.planner.logical.LogicalFullBucketScan;
-import com.kronotop.bucket.planner.logical.LogicalNode;
+import com.kronotop.bucket.planner.logical.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,15 +27,14 @@ public class PhysicalPlanner {
         this.root = root;
     }
 
-    private PhysicalNode convertFullBucketScan(LogicalFullBucketScan node) {
-        List<PhysicalFilter> nodes = new ArrayList<>();
-        node.getFilters().forEach(filter -> {
+    private void traverse(String bucket, List<LogicalFilter> filters, List<PhysicalFilter> nodes) {
+        filters.forEach(filter -> {
             switch (filter) {
                 case LogicalComparisonFilter f -> {
                     Index index = context.indexes().get(f.getField());
                     if (index != null) {
                         PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(
-                                node.getBucket(),
+                                bucket,
                                 index.name(),
                                 f.getOperatorType()
                         );
@@ -45,15 +42,23 @@ public class PhysicalPlanner {
                         physicalIndexScan.addValue(f.getValue());
                         nodes.add(physicalIndexScan);
                     } else {
-                        PhysicalFullScan physicalFullScan = new PhysicalFullScan(node.getBucket(), f.getOperatorType());
+                        PhysicalFullScan physicalFullScan = new PhysicalFullScan(bucket, f.getOperatorType());
                         physicalFullScan.setField(f.getField());
                         physicalFullScan.addValue(f.getValue());
                         nodes.add(physicalFullScan);
                     }
                 }
+                case LogicalOrFilter f -> {
+                    traverse(bucket, f.getFilters(), nodes);
+                }
                 default -> throw new IllegalStateException("Unexpected value: " + filter);
             }
         });
+    }
+
+    private PhysicalNode convertFullBucketScan(LogicalFullBucketScan node) {
+        List<PhysicalFilter> nodes = new ArrayList<>();
+        traverse(node.getBucket(), node.getFilters(), nodes);
         if (nodes.size() == 1) {
             return nodes.getFirst();
         }

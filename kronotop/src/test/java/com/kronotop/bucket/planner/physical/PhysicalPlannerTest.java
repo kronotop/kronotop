@@ -109,4 +109,21 @@ class PhysicalPlannerTest {
         PhysicalNode physicalNode = physical.plan();
         System.out.println(physicalNode);
     }
+
+    @Test
+    void foo() {
+        LogicalPlanner logical = new LogicalPlanner(
+                testBucket,
+                "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }"
+        );
+        LogicalNode logicalNode = logical.plan();
+
+        Map<String, Index> indexes = Map.of(
+                "status", new Index("status_idx", BsonType.STRING),
+                "qty", new Index("qty_idx", BsonType.INT32)
+        );
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
+        PhysicalNode physicalNode = physical.plan();
+        System.out.println(physicalNode);
+    }
 }
