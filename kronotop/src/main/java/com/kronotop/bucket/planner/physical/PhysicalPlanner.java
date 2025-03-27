@@ -17,7 +17,7 @@ import com.kronotop.bucket.planner.logical.LogicalComparisonFilter;
 import com.kronotop.bucket.planner.logical.LogicalFullBucketScan;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 public class PhysicalPlanner {
@@ -30,11 +30,11 @@ public class PhysicalPlanner {
     }
 
     private PhysicalNode convertFullBucketScan(LogicalFullBucketScan node) {
-        List<PhysicalNode> nodes = new LinkedList<>();
+        List<PhysicalFilter> nodes = new ArrayList<>();
         node.getFilters().forEach(filter -> {
             switch (filter) {
                 case LogicalComparisonFilter f -> {
-                    Index index = context.indexes().get(ReservedFieldName.ID.getValue());
+                    Index index = context.indexes().get(f.getField());
                     if (index != null) {
                         PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(
                                 node.getBucket(),
@@ -57,8 +57,8 @@ public class PhysicalPlanner {
         if (nodes.size() == 1) {
             return nodes.getFirst();
         }
-        // TODO
-        return null;
+        // And operator
+        return new PhysicalIntersectionOperator(nodes);
     }
 
     public PhysicalNode plan() {

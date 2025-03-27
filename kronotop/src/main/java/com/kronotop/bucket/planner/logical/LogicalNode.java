@@ -10,11 +10,12 @@
 
 package com.kronotop.bucket.planner.logical;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
 public class LogicalNode {
-    protected final List<LogicalFilter> filters = new LinkedList<>();
+    protected final List<LogicalFilter> filters = new ArrayList<>();
 
     void addFilter(LogicalFilter filter) {
         filters.add(filter);

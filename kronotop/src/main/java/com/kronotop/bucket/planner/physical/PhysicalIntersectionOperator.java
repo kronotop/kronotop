@@ -10,30 +10,15 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class PhysicalNode {
-    protected final List<PhysicalFilter> filters;
-
-    public PhysicalNode() {
-        this.filters = new ArrayList<>();
-    }
-
-    public PhysicalNode(List<PhysicalFilter> filters) {
-        this.filters = filters;
-    }
-
-    void addFilter(PhysicalFilter filter) {
-        filters.add(filter);
-    }
-
-    public List<PhysicalFilter> getFilters() {
-        return filters;
+public class PhysicalIntersectionOperator extends PhysicalNode {
+    public PhysicalIntersectionOperator(List<PhysicalFilter> filters) {
+        super(filters);
     }
 
     @Override
     public String toString() {
-        return "PhysicalNode {filters=" + filters + "}";
+        return "PhysicalIntersectionOperator {filters=" + filters + "}";
     }
 }

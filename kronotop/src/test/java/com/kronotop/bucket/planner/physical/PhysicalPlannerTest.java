@@ -20,8 +20,6 @@ import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -93,5 +91,22 @@ class PhysicalPlannerTest {
         assertEquals(OperatorType.GTE, physicalFullScan.getOperatorType());
         assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
         assertEquals(20, physicalFullScan.getValue().getValue());
+    }
+
+    @Test
+    void double_scan_int32_field_gte() {
+        LogicalPlanner logical = new LogicalPlanner(
+                testBucket,
+                "{ a: { $gte: 20 }, b: { $eq: 'string-value' } }"
+        );
+        LogicalNode logicalNode = logical.plan();
+
+        Map<String, Index> indexes = Map.of(
+                "a", new Index("a_idx", BsonType.INT32),
+                "b", new Index("b_idx", BsonType.STRING)
+        );
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
+        PhysicalNode physicalNode = physical.plan();
+        System.out.println(physicalNode);
     }
 }
