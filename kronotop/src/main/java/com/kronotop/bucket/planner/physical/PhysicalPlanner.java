@@ -12,6 +12,7 @@ package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.DefaultIndex;
 import com.kronotop.bucket.ReservedFieldName;
+import com.kronotop.bucket.planner.PlannerContext;
 import com.kronotop.bucket.planner.logical.LogicalComparisonFilter;
 import com.kronotop.bucket.planner.logical.LogicalFullBucketScan;
 import com.kronotop.bucket.planner.logical.LogicalNode;
@@ -20,9 +21,11 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class PhysicalPlanner {
+    private final PlannerContext context;
     private final LogicalNode root;
 
-    public PhysicalPlanner(LogicalNode root) {
+    public PhysicalPlanner(PlannerContext context, LogicalNode root) {
+        this.context = context;
         this.root = root;
     }
 

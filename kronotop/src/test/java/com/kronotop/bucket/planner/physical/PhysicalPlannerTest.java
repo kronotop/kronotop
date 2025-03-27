@@ -12,6 +12,7 @@ package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.DefaultIndex;
 import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.planner.PlannerContext;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import org.bson.BsonType;
@@ -25,12 +26,13 @@ class PhysicalPlannerTest {
 
     @Test
     void indexed_field_id_string_gte() {
+        PlannerContext context = new PlannerContext();
         LogicalPlanner logical = new LogicalPlanner(
                 testBucket,
                 "{_id: {$gte: '00010CRQ5VIMO0000000xxxx'}}"
         );
         LogicalNode logicalNode = logical.plan();
-        PhysicalPlanner physical = new PhysicalPlanner(logicalNode);
+        PhysicalPlanner physical = new PhysicalPlanner(context, logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
         /*
