@@ -8,7 +8,7 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.optimizer.logical;
+package com.kronotop.bucket.planner.logical;
 
 import com.kronotop.bucket.bql.operators.OperatorType;
 

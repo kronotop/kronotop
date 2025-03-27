@@ -8,21 +8,24 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.optimizer.logical;
+package com.kronotop.bucket.planner.logical;
 
-public class LogicalFullBucketScan extends LogicalNode {
-    private final String bucket;
+import java.util.LinkedList;
+import java.util.List;
 
-    public LogicalFullBucketScan(String bucket) {
-        this.bucket = bucket;
+public class LogicalNode {
+    protected final List<LogicalFilter> filters = new LinkedList<>();
+
+    void addFilter(LogicalFilter filter) {
+        filters.add(filter);
     }
 
-    public String getBucket() {
-        return bucket;
+    public List<LogicalFilter> getFilters() {
+        return filters;
     }
 
     @Override
     public String toString() {
-        return "LogicalFullBucketScan {bucket=" + bucket + ", filters=" + filters + "}";
+        return "LogicalNode {filters=" + filters + "}";
     }
 }

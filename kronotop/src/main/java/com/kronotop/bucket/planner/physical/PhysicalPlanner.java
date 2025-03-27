@@ -8,11 +8,11 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.optimizer.physical;
+package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.optimizer.logical.LogicalComparisonFilter;
-import com.kronotop.bucket.optimizer.logical.LogicalFullBucketScan;
-import com.kronotop.bucket.optimizer.logical.LogicalNode;
+import com.kronotop.bucket.planner.logical.LogicalComparisonFilter;
+import com.kronotop.bucket.planner.logical.LogicalFullBucketScan;
+import com.kronotop.bucket.planner.logical.LogicalNode;
 
 import java.util.LinkedList;
 import java.util.List;

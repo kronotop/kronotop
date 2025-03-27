@@ -8,11 +8,11 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.optimizer.physical;
+package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.bql.operators.OperatorType;
-import com.kronotop.bucket.optimizer.logical.LogicalNode;
-import com.kronotop.bucket.optimizer.logical.LogicalPlanner;
+import com.kronotop.bucket.planner.logical.LogicalNode;
+import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 

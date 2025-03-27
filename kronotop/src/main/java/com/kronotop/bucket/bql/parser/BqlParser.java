@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+// Parser for Bucket Query Language
 public class BqlParser {
     private final String query;
     private final List<BqlOperator> operators = new LinkedList<>();

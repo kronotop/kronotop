@@ -8,14 +8,14 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.optimizer.logical;
+package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.bql.operators.OperatorType;
 
-public class LogicalFilter extends LogicalNode {
+public class PhysicalFilter extends PhysicalNode {
     private final OperatorType operatorType;
 
-    public LogicalFilter(OperatorType operatorType) {
+    public PhysicalFilter(OperatorType operatorType) {
         this.operatorType = operatorType;
     }
 

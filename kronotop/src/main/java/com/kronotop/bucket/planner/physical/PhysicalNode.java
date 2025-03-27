@@ -8,18 +8,24 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.optimizer.logical;
+package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
+import java.util.LinkedList;
+import java.util.List;
 
-public class LogicalAndFilter extends LogicalFilter {
+public class PhysicalNode {
+    protected final List<PhysicalFilter> filters = new LinkedList<>();
 
-    public LogicalAndFilter() {
-        super(OperatorType.AND);
+    void addFilter(PhysicalFilter filter) {
+        filters.add(filter);
+    }
+
+    public List<PhysicalFilter> getFilters() {
+        return filters;
     }
 
     @Override
     public String toString() {
-        return "LogicalAndFilter {filters=" + filters + "}";
+        return "PhysicalNode [filters=" + filters + "]";
     }
 }
