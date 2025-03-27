@@ -47,12 +47,40 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void test_prepareLogicalPlan3() {
+    void single_field_string_gte() {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket,
-                "{ _id: { $gte: '00010CRQ5VIMO0000000xxxx' } }"
+                "{ a: { $gte: 'string-value' } }"
         );
+        /*
+        LogicalFullBucketScan {
+            bucket=test-bucket,
+            filters=[
+                LogicalComparisonFilter {
+                    operatorType=GTE,
+                    field=_id,
+                    value=BqlValue { type=STRING, value=string-value }
+                }
+            ]
+        }
+        */
+
         LogicalNode node = optimizer.plan();
-        System.out.println(node);
+        assertInstanceOf(LogicalFullBucketScan.class, node);
+
+        LogicalFullBucketScan fullBucketScan = (LogicalFullBucketScan)node;
+
+        assertThat(fullBucketScan.getBucket()).isEqualTo(testBucket);
+        assertEquals(1, fullBucketScan.getFilters().size());
+
+        LogicalFilter eqFilter = fullBucketScan.getFilters().getFirst();
+        assertInstanceOf(LogicalComparisonFilter.class, eqFilter);
+
+        assertEquals(OperatorType.GTE, eqFilter.getOperatorType());
+
+        LogicalComparisonFilter comparisonFilter = (LogicalComparisonFilter) eqFilter;
+        assertEquals("a", comparisonFilter.getField());
+        assertEquals(BsonType.STRING, comparisonFilter.getValue().getBsonType());
+        assertEquals("string-value", comparisonFilter.getValue().getValue());
     }
 
     @Test
