@@ -10,7 +10,6 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.DefaultIndex;
 import com.kronotop.bucket.ReservedFieldName;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.PlannerContext;
@@ -45,6 +44,11 @@ public class PhysicalPlanner {
                         physicalIndexScan.setField(f.getField());
                         physicalIndexScan.addValue(f.getValue());
                         nodes.add(physicalIndexScan);
+                    } else {
+                        PhysicalFullScan physicalFullScan = new PhysicalFullScan(node.getBucket(), f.getOperatorType());
+                        physicalFullScan.setField(f.getField());
+                        physicalFullScan.addValue(f.getValue());
+                        nodes.add(physicalFullScan);
                     }
                 }
                 default -> throw new IllegalStateException("Unexpected value: " + filter);

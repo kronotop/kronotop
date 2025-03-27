@@ -34,7 +34,7 @@ class PhysicalPlannerTest {
     void indexed_field_id_string_gte() {
         LogicalPlanner logical = new LogicalPlanner(
                 testBucket,
-                "{_id: {$gte: '00010CRQ5VIMO0000000xxxx'}}"
+                "{ _id: { $gte: '00010CRQ5VIMO0000000xxxx'} }"
         );
         LogicalNode logicalNode = logical.plan();
 
@@ -74,5 +74,24 @@ class PhysicalPlannerTest {
         assertEquals(OperatorType.GTE, physicalIndexScan.getOperatorType());
         assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
         assertEquals("00010CRQ5VIMO0000000xxxx", physicalIndexScan.getValue().getValue());
+    }
+
+    @Test
+    void full_scan_int32_field_gte() {
+        LogicalPlanner logical = new LogicalPlanner(
+                testBucket,
+                "{ a: { $gte: 20 } }"
+        );
+        LogicalNode logicalNode = logical.plan();
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
+        PhysicalNode physicalNode = physical.plan();
+
+        assertInstanceOf(PhysicalFullScan.class, physicalNode);
+
+        PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalNode;
+        assertEquals(testBucket, physicalFullScan.getBucket());
+        assertEquals(OperatorType.GTE, physicalFullScan.getOperatorType());
+        assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
+        assertEquals(20, physicalFullScan.getValue().getValue());
     }
 }
