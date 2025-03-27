@@ -23,11 +23,11 @@ public class PlannerContext {
         this.indexes = Collections.unmodifiableMap(new HashMap<>());
     }
 
-    public PlannerContext(HashMap<String, Index> indexes) {
+    public PlannerContext(Map<String, Index> indexes) {
         this.indexes = Collections.unmodifiableMap(indexes);
     }
 
-    public Map<String, Index> getIndexes() {
+    public Map<String, Index> indexes() {
         return indexes;
     }
 }

@@ -12,9 +12,9 @@ package com.kronotop.bucket.index;
 
 import org.bson.BsonType;
 
-public record Index(BsonType type) {
+public record Index(String name, BsonType type) {
     @Override
     public String toString() {
-        return "Index { type=" + type + " }";
+        return "Index { name=" + name + ", type=" + type + " }";
     }
 }

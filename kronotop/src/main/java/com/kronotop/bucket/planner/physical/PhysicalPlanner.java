@@ -12,6 +12,7 @@ package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.DefaultIndex;
 import com.kronotop.bucket.ReservedFieldName;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.PlannerContext;
 import com.kronotop.bucket.planner.logical.LogicalComparisonFilter;
 import com.kronotop.bucket.planner.logical.LogicalFullBucketScan;
@@ -34,10 +35,11 @@ public class PhysicalPlanner {
         node.getFilters().forEach(filter -> {
             switch (filter) {
                 case LogicalComparisonFilter f -> {
-                    if (f.getField().equals(ReservedFieldName.ID.getValue())) {
+                    Index index = context.indexes().get(ReservedFieldName.ID.getValue());
+                    if (index != null) {
                         PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(
                                 node.getBucket(),
-                                DefaultIndex.ID.getValue(),
+                                index.name(),
                                 f.getOperatorType()
                         );
                         physicalIndexScan.setField(f.getField());

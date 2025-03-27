@@ -11,12 +11,18 @@
 package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.DefaultIndex;
+import com.kronotop.bucket.ReservedFieldName;
 import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.PlannerContext;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -26,12 +32,16 @@ class PhysicalPlannerTest {
 
     @Test
     void indexed_field_id_string_gte() {
-        PlannerContext context = new PlannerContext();
         LogicalPlanner logical = new LogicalPlanner(
                 testBucket,
                 "{_id: {$gte: '00010CRQ5VIMO0000000xxxx'}}"
         );
         LogicalNode logicalNode = logical.plan();
+
+        Map<String, Index> indexes = Map.of(
+                ReservedFieldName.ID.getValue(), new Index(DefaultIndex.ID.getValue(), BsonType.STRING)
+        );
+        PlannerContext context = new PlannerContext(indexes);
         PhysicalPlanner physical = new PhysicalPlanner(context, logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
