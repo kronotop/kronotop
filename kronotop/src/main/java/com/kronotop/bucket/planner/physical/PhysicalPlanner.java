@@ -30,20 +30,20 @@ public class PhysicalPlanner {
         List<PhysicalFilter> nodes = new ArrayList<>();
         filters.forEach(filter -> {
             switch (filter) {
-                case LogicalComparisonFilter f -> {
-                    Index index = context.indexes().get(f.getField());
+                case LogicalComparisonFilter logicalFilter -> {
+                    Index index = context.indexes().get(logicalFilter.getField());
                     if (index != null) {
                         PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(
                                 index.name(),
-                                f.getOperatorType()
+                                logicalFilter.getOperatorType()
                         );
-                        physicalIndexScan.setField(f.getField());
-                        physicalIndexScan.addValue(f.getValue());
+                        physicalIndexScan.setField(logicalFilter.getField());
+                        physicalIndexScan.addValue(logicalFilter.getValue());
                         nodes.add(physicalIndexScan);
                     } else {
-                        PhysicalFullScan physicalFullScan = new PhysicalFullScan(f.getOperatorType());
-                        physicalFullScan.setField(f.getField());
-                        physicalFullScan.addValue(f.getValue());
+                        PhysicalFullScan physicalFullScan = new PhysicalFullScan(logicalFilter.getOperatorType());
+                        physicalFullScan.setField(logicalFilter.getField());
+                        physicalFullScan.addValue(logicalFilter.getValue());
                         nodes.add(physicalFullScan);
                     }
                 }

@@ -26,7 +26,6 @@ public class PhysicalFilter extends PhysicalNode {
         this.operatorType = operatorType;
     }
 
-
     public OperatorType getOperatorType() {
         return operatorType;
     }
