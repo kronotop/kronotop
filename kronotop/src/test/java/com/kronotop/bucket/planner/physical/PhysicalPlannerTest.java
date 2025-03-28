@@ -43,27 +43,6 @@ class PhysicalPlannerTest {
         PhysicalPlanner physical = new PhysicalPlanner(context, logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
-        /*
-        LogicalFullBucketScan {
-            bucket=test-bucket,
-            filters=[
-                LogicalComparisonFilter {
-                    operatorType=GTE,
-                    field=_id,
-                    value=BqlValue { type=STRING, value=00010CRQ5VIMO0000000xxxx }
-                }
-            ]
-        }
-
-        PhysicalIndexScan {
-            bucket=test-bucket,
-            index="_id_idx",
-            operatorType=GTE,
-            field=_id,
-            value=BqlValue { type=STRING, value=00010CRQ5VIMO0000000xxxx }
-        }
-        */
-
         assertInstanceOf(PhysicalIndexScan.class, physicalNode);
 
         PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalNode;
