@@ -21,7 +21,7 @@ import java.util.List;
 public class LogicalPlanner {
     private final String bucket;
     private final String query;
-    private List<BqlOperator> operators;
+    private List<BqlOperator> bqlOperators;
 
     public LogicalPlanner(String bucket, String query) {
         this.bucket = bucket;
@@ -33,27 +33,27 @@ public class LogicalPlanner {
     }
 
     private int traverse(LogicalNode root, BqlEqOperator operator, int index) {
-        for (int i = index; i < operators.size(); i++) {
-            BqlOperator child = operators.get(i);
-            if (child.getLevel() <= operator.getLevel()) {
+        for (int i = index; i < bqlOperators.size(); i++) {
+            BqlOperator bqlOperator = bqlOperators.get(i);
+            if (bqlOperator.getLevel() <= operator.getLevel()) {
                 return i;
             }
-            switch (child.getOperatorType()) {
+            switch (bqlOperator.getOperatorType()) {
                 case EQ, LT, GT, GTE:
-                    LogicalComparisonFilter filter = new LogicalComparisonFilter(child.getOperatorType());
+                    LogicalComparisonFilter filter = new LogicalComparisonFilter(bqlOperator.getOperatorType());
                     filter.setField(operator.getField());
-                    child.getValues().forEach(filter::addValue);
+                    bqlOperator.getValues().forEach(filter::addValue);
                     root.addFilter(filter);
                     break;
                 case ALL:
-                    LogicalAndOperator andFilter = new LogicalAndOperator();
-                    child.getValues().forEach(bqlValue -> {
+                    LogicalAndOperator andOperator = new LogicalAndOperator();
+                    bqlOperator.getValues().forEach(bqlValue -> {
                         LogicalComparisonFilter eqFilter = new LogicalComparisonFilter(OperatorType.EQ);
                         eqFilter.setField(operator.getField());
                         eqFilter.addValue(bqlValue);
-                        andFilter.addFilter(eqFilter);
+                        andOperator.addFilter(eqFilter);
                     });
-                    root.addFilter(andFilter);
+                    root.addFilter(andOperator);
             }
         }
         return 0;
@@ -61,8 +61,8 @@ public class LogicalPlanner {
 
     private int traverse(LogicalNode root, BqlOrOperator operator, int index) {
         int i = index;
-        while (i < operators.size()) {
-            BqlOperator child = operators.get(i);
+        while (i < bqlOperators.size()) {
+            BqlOperator child = bqlOperators.get(i);
             if (child.getLevel() <= operator.getLevel()) {
                 return i;
             }
@@ -76,12 +76,12 @@ public class LogicalPlanner {
     }
 
     public LogicalNode plan() {
-        operators = BqlParser.parse(query);
+        bqlOperators = BqlParser.parse(query);
 
         LogicalFullBucketScan logicalScan = new LogicalFullBucketScan(bucket);
         int i = 0;
-        while (i < operators.size()) {
-            BqlOperator operator = operators.get(i);
+        while (i < bqlOperators.size()) {
+            BqlOperator operator = bqlOperators.get(i);
             if (operator.getOperatorType().equals(OperatorType.EQ)) {
                 BqlEqOperator eq = (BqlEqOperator) operator;
                 if (eq.getValues() == null) {

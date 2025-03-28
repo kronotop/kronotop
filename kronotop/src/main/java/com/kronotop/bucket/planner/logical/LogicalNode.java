@@ -11,7 +11,6 @@
 package com.kronotop.bucket.planner.logical;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 public class LogicalNode {
