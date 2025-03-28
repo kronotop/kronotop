@@ -64,17 +64,35 @@ public class LogicalPlanner {
     }
 
     private int traverse(LogicalNode root, int level, int index) {
-        int i = index;
-        while (i < bqlOperators.size()) {
-            BqlOperator child = bqlOperators.get(i);
+        int idx = index;
+        while (idx < bqlOperators.size()) {
+            BqlOperator child = bqlOperators.get(idx);
             if (child.getLevel() <= level) {
-                return i;
+                return idx;
             }
             if (child.getOperatorType().equals(OperatorType.EQ)) {
-                i = traverse(root, (BqlEqOperator) child, i + 1);
+                if (child.getValues() == null) {
+                    idx = traverse(root, (BqlEqOperator) child, idx + 1);
+                    if (idx == 0) {
+                        break;
+                    }
+                    continue;
+                } else {
+                    LogicalComparisonFilter comparisonFilter = new LogicalComparisonFilter(OperatorType.EQ);
+                    comparisonFilter.setField(((BqlEqOperator) child).getField());
+                    child.getValues().forEach(comparisonFilter::addValue);
+                    root.addFilter(comparisonFilter);
+                }
+            } else if (child.getOperatorType().equals(OperatorType.OR)) {
+                LogicalOrFilter orFilter = new LogicalOrFilter();
+                idx = traverse(orFilter, child.getLevel(), idx + 1);
+                root.addFilter(orFilter);
+                if (idx == 0) {
+                    break;
+                }
                 continue;
             }
-            i++;
+            idx++;
         }
         return 0;
     }
@@ -100,16 +118,8 @@ public class LogicalPlanner {
                     eq.getValues().forEach(root::addValue);
                     logicalScan.addFilter(root);
                 }
-            } else if (operator.getOperatorType().equals(OperatorType.OR)) {
-                LogicalOrFilter root = new LogicalOrFilter();
-                idx = traverse(root, operator.getLevel(), idx + 1);
-                logicalScan.addFilter(root);
-                if (idx == 0) {
-                    break;
-                }
-                continue;
-            } else if (operator.getOperatorType().equals(OperatorType.AND)) {
-                LogicalAndFilter root = new LogicalAndFilter();
+            } else if (operator.getOperatorType().equals(OperatorType.OR) || operator.getOperatorType().equals(OperatorType.AND)) {
+                LogicalNode root = makeRootNode(operator.getOperatorType());
                 idx = traverse(root, operator.getLevel(), idx + 1);
                 logicalScan.addFilter(root);
                 if (idx == 0) {
@@ -121,5 +131,13 @@ public class LogicalPlanner {
         }
 
         return logicalScan;
+    }
+
+    private LogicalNode makeRootNode(OperatorType operatorType) {
+        return switch (operatorType) {
+            case AND -> new LogicalAndFilter();
+            case OR -> new LogicalOrFilter();
+            default -> throw new IllegalArgumentException("Unsupported operator type: " + operatorType);
+        };
     }
 }

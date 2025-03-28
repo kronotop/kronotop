@@ -259,8 +259,7 @@ class LogicalPlannerTest {
     @Test
     void test_foo2() {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket,
-                "{ $and: [{ $or: [ { qty: { $lt : 10 } }, " +
-                        "{ qty : { $gt: 50 } } ] },{ $or: [ { sale: true }, { price : { $lt : 5 } } ] }]}"
+                "{ $and: [{ $or: [ { qty: { $lt : 10 } }, { qty : { $gt: 50 } } ] },{ $or: [ { sale: true }, { price : { $lt : 5 } } ] }]}"
         );
         LogicalNode node = optimizer.plan();
         System.out.println(node);
