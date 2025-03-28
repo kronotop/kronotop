@@ -26,14 +26,13 @@ public class PhysicalPlanner {
         this.root = root;
     }
 
-    private void traverse(String bucket, List<LogicalFilter> filters, List<PhysicalFilter> nodes) {
+    private void traverse(List<LogicalFilter> filters, List<PhysicalFilter> nodes) {
         filters.forEach(filter -> {
             switch (filter) {
                 case LogicalComparisonFilter f -> {
                     Index index = context.indexes().get(f.getField());
                     if (index != null) {
                         PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(
-                                bucket,
                                 index.name(),
                                 f.getOperatorType()
                         );
@@ -41,14 +40,14 @@ public class PhysicalPlanner {
                         physicalIndexScan.addValue(f.getValue());
                         nodes.add(physicalIndexScan);
                     } else {
-                        PhysicalFullScan physicalFullScan = new PhysicalFullScan(bucket, f.getOperatorType());
+                        PhysicalFullScan physicalFullScan = new PhysicalFullScan(f.getOperatorType());
                         physicalFullScan.setField(f.getField());
                         physicalFullScan.addValue(f.getValue());
                         nodes.add(physicalFullScan);
                     }
                 }
                 case LogicalOrFilter f -> {
-                    traverse(bucket, f.getFilters(), nodes);
+                    traverse(f.getFilters(), nodes);
                 }
                 default -> throw new IllegalStateException("Unexpected value: " + filter);
             }
@@ -57,7 +56,7 @@ public class PhysicalPlanner {
 
     private PhysicalNode convertFullBucketScan(LogicalFullBucketScan node) {
         List<PhysicalFilter> nodes = new ArrayList<>();
-        traverse(node.getBucket(), node.getFilters(), nodes);
+        traverse(node.getFilters(), nodes);
         if (nodes.size() == 1) {
             return nodes.getFirst();
         }

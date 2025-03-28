@@ -14,13 +14,11 @@ import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.OperatorType;
 
 public class PhysicalFullScan extends PhysicalFilter {
-    private final String bucket;
     private BqlValue<?> value;
     private String field;
 
-    public PhysicalFullScan(String bucket, OperatorType operatorType) {
+    public PhysicalFullScan(OperatorType operatorType) {
         super(operatorType);
-        this.bucket = bucket;
     }
 
     public String getField() {
@@ -39,14 +37,9 @@ public class PhysicalFullScan extends PhysicalFilter {
         return value;
     }
 
-    public String getBucket() {
-        return bucket;
-    }
-
     @Override
     public String toString() {
         return "PhysicalFullScan {" +
-                "bucket=" + bucket + ", " +
                 "operatorType=" + getOperatorType() + ", " +
                 "field=" + getField() + ", " +
                 "value=" + getValue() + "}";
