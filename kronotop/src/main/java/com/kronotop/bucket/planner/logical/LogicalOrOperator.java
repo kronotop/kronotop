@@ -12,14 +12,14 @@ package com.kronotop.bucket.planner.logical;
 
 import com.kronotop.bucket.bql.operators.OperatorType;
 
-public class LogicalAndFilter extends LogicalFilter {
+public class LogicalOrOperator extends LogicalFilter {
 
-    public LogicalAndFilter() {
-        super(OperatorType.AND);
+    public LogicalOrOperator() {
+        super(OperatorType.OR);
     }
 
     @Override
     public String toString() {
-        return "LogicalAndFilter {filters=" + filters + "}";
+        return "LogicalOrOperator {filters=" + filters + "}";
     }
 }

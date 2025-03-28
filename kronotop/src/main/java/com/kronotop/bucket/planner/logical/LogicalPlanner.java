@@ -46,7 +46,7 @@ public class LogicalPlanner {
                     root.addFilter(filter);
                     break;
                 case ALL:
-                    LogicalAndFilter andFilter = new LogicalAndFilter();
+                    LogicalAndOperator andFilter = new LogicalAndOperator();
                     child.getValues().forEach(bqlValue -> {
                         LogicalComparisonFilter eqFilter = new LogicalComparisonFilter(OperatorType.EQ);
                         eqFilter.setField(operator.getField());
@@ -97,7 +97,7 @@ public class LogicalPlanner {
                     logicalScan.addFilter(root);
                 }
             } else if (operator.getOperatorType().equals(OperatorType.OR)) {
-                LogicalOrFilter root = new LogicalOrFilter();
+                LogicalOrOperator root = new LogicalOrOperator();
                 i = traverse(root, (BqlOrOperator) operator, i + 1);
                 logicalScan.addFilter(root);
                 if (i == 0) {

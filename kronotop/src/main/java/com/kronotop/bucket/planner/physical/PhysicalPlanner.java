@@ -10,7 +10,6 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.ReservedFieldName;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.PlannerContext;
 import com.kronotop.bucket.planner.logical.*;
@@ -48,7 +47,7 @@ public class PhysicalPlanner {
                         nodes.add(physicalFullScan);
                     }
                 }
-                case LogicalOrFilter f -> {
+                case LogicalOrOperator f -> {
                     traverse(bucket, f.getFilters(), nodes);
                 }
                 default -> throw new IllegalStateException("Unexpected value: " + filter);
