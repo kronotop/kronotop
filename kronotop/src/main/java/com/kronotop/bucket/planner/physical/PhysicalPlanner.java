@@ -47,7 +47,7 @@ public class PhysicalPlanner {
                         nodes.add(physicalFullScan);
                     }
                 }
-                case LogicalOrOperator f -> {
+                case LogicalOrFilter f -> {
                     traverse(bucket, f.getFilters(), nodes);
                 }
                 default -> throw new IllegalStateException("Unexpected value: " + filter);
