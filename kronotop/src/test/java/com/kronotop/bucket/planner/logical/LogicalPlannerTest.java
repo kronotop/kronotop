@@ -246,4 +246,23 @@ class LogicalPlannerTest {
             assertThat(logicalComparisonFilter).usingRecursiveComparison().isEqualTo(eqFilter_status);
         }
     }
+
+    @Test
+    void test_foo() {
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket,
+                "{ $and: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }"
+        );
+        LogicalNode node = optimizer.plan();
+        System.out.println(node);
+    }
+
+    @Test
+    void test_foo2() {
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket,
+                "{ $and: [{ $or: [ { qty: { $lt : 10 } }, " +
+                        "{ qty : { $gt: 50 } } ] },{ $or: [ { sale: true }, { price : { $lt : 5 } } ] }]}"
+        );
+        LogicalNode node = optimizer.plan();
+        System.out.println(node);
+    }
 }

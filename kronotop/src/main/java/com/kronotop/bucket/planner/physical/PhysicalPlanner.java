@@ -47,8 +47,8 @@ public class PhysicalPlanner {
                         nodes.add(physicalFullScan);
                     }
                 }
-                case LogicalOrFilter f -> {
-                    List<PhysicalNode> result = traverse(f.getChildren());
+                case LogicalOrFilter logicalFilter -> {
+                    List<PhysicalNode> result = traverse(logicalFilter.getChildren());
                     PhysicalUnionOperator node = new PhysicalUnionOperator(result);
                     nodes.add(node);
                 }

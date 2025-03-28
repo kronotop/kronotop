@@ -13,7 +13,6 @@ package com.kronotop.bucket.planner.logical;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
-import com.kronotop.bucket.bql.operators.logical.BqlOrOperator;
 import com.kronotop.bucket.bql.parser.BqlParser;
 
 import java.util.List;
@@ -59,11 +58,11 @@ public class LogicalPlanner {
         return 0;
     }
 
-    private int traverse(LogicalNode root, BqlOrOperator operator, int index) {
+    private int traverse(LogicalNode root, int level, int index) {
         int i = index;
         while (i < bqlOperators.size()) {
             BqlOperator child = bqlOperators.get(i);
-            if (child.getLevel() <= operator.getLevel()) {
+            if (child.getLevel() <= level) {
                 return i;
             }
             if (child.getOperatorType().equals(OperatorType.EQ)) {
@@ -79,14 +78,14 @@ public class LogicalPlanner {
         bqlOperators = BqlParser.parse(query);
 
         LogicalFullScan logicalScan = new LogicalFullScan(bucket);
-        int i = 0;
-        while (i < bqlOperators.size()) {
-            BqlOperator operator = bqlOperators.get(i);
+        int idx = 0;
+        while (idx < bqlOperators.size()) {
+            BqlOperator operator = bqlOperators.get(idx);
             if (operator.getOperatorType().equals(OperatorType.EQ)) {
                 BqlEqOperator eq = (BqlEqOperator) operator;
                 if (eq.getValues() == null) {
-                    i = traverse(logicalScan, eq, i + 1);
-                    if (i == 0) {
+                    idx = traverse(logicalScan, eq, idx + 1);
+                    if (idx == 0) {
                         break;
                     }
                     continue;
@@ -98,14 +97,22 @@ public class LogicalPlanner {
                 }
             } else if (operator.getOperatorType().equals(OperatorType.OR)) {
                 LogicalOrFilter root = new LogicalOrFilter();
-                i = traverse(root, (BqlOrOperator) operator, i + 1);
+                idx = traverse(root, operator.getLevel(), idx + 1);
                 logicalScan.addFilter(root);
-                if (i == 0) {
+                if (idx == 0) {
+                    break;
+                }
+                continue;
+            } else if (operator.getOperatorType().equals(OperatorType.AND)) {
+                LogicalAndFilter root = new LogicalAndFilter();
+                idx = traverse(root, operator.getLevel(), idx + 1);
+                logicalScan.addFilter(root);
+                if (idx == 0) {
                     break;
                 }
                 continue;
             }
-            i++;
+            idx++;
         }
 
         return logicalScan;
