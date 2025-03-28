@@ -78,7 +78,7 @@ public class LogicalPlanner {
     public LogicalNode plan() {
         bqlOperators = BqlParser.parse(query);
 
-        LogicalFullBucketScan logicalScan = new LogicalFullBucketScan(bucket);
+        LogicalFullScan logicalScan = new LogicalFullScan(bucket);
         int i = 0;
         while (i < bqlOperators.size()) {
             BqlOperator operator = bqlOperators.get(i);

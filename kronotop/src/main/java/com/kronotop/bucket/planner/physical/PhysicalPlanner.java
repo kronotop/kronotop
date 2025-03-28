@@ -60,7 +60,7 @@ public class PhysicalPlanner {
 
     public PhysicalNode plan() {
         switch (root) {
-            case LogicalFullBucketScan node -> {
+            case LogicalFullScan node -> {
                 List<PhysicalFilter> result = traverse(node.getFilters());
                 if (result.size() == 1) {
                     return result.getFirst();

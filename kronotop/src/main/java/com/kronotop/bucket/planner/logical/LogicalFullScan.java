@@ -10,10 +10,10 @@
 
 package com.kronotop.bucket.planner.logical;
 
-public class LogicalFullBucketScan extends LogicalNode {
+public class LogicalFullScan extends LogicalNode {
     private final String bucket;
 
-    public LogicalFullBucketScan(String bucket) {
+    public LogicalFullScan(String bucket) {
         this.bucket = bucket;
     }
 
@@ -23,6 +23,6 @@ public class LogicalFullBucketScan extends LogicalNode {
 
     @Override
     public String toString() {
-        return "LogicalFullBucketScan {bucket=" + bucket + ", filters=" + filters + "}";
+        return "LogicalFullScan {bucket=" + bucket + ", filters=" + filters + "}";
     }
 }
