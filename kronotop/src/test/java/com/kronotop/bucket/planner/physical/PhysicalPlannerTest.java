@@ -122,4 +122,57 @@ class PhysicalPlannerTest {
             assertEquals(30, physicalIndexScan.getValue().getValue());
         }
     }
+
+    @Test
+    void or_operator_with_two_not_indexed_fields() {
+        LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
+        PhysicalNode physicalNode = physical.plan();
+
+        assertInstanceOf(PhysicalUnionOperator.class, physicalNode);
+
+        PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalNode;
+
+        {
+            PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(0);
+            assertEquals(OperatorType.EQ, physicalFullScan.getOperatorType());
+            assertEquals(BsonType.STRING, physicalFullScan.getValue().getBsonType());
+            assertEquals("A", physicalFullScan.getValue().getValue());
+        }
+
+        {
+            PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
+            assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
+            assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
+            assertEquals(30, physicalFullScan.getValue().getValue());
+        }
+    }
+
+    @Test
+    void or_operator_with_only_one_indexed_field() {
+        LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
+        Map<String, Index> indexes = Map.of(
+                "status", new Index("status_idx", BsonType.STRING)
+        );
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
+        PhysicalNode physicalNode = physical.plan();
+
+        assertInstanceOf(PhysicalUnionOperator.class, physicalNode);
+
+        PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalNode;
+
+        {
+            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(0);
+            assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
+            assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
+            assertEquals("A", physicalIndexScan.getValue().getValue());
+        }
+
+        {
+            PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
+            assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
+            assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
+            assertEquals(30, physicalFullScan.getValue().getValue());
+        }
+    }
 }
