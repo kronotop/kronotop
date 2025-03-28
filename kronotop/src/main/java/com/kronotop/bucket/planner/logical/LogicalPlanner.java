@@ -63,74 +63,40 @@ public class LogicalPlanner {
         return 0;
     }
 
-    private int traverse(LogicalNode root, int level, int index) {
+    private int traverse1(LogicalNode root, int level, int index) {
         int idx = index;
         while (idx < bqlOperators.size()) {
             BqlOperator child = bqlOperators.get(idx);
             if (child.getLevel() <= level) {
                 return idx;
             }
-            if (child.getOperatorType().equals(OperatorType.EQ)) {
-                if (child.getValues() == null) {
-                    idx = traverse(root, (BqlEqOperator) child, idx + 1);
-                    if (idx == 0) {
-                        break;
-                    }
-                    continue;
-                } else {
-                    LogicalComparisonFilter comparisonFilter = new LogicalComparisonFilter(OperatorType.EQ);
-                    comparisonFilter.setField(((BqlEqOperator) child).getField());
-                    child.getValues().forEach(comparisonFilter::addValue);
-                    root.addFilter(comparisonFilter);
-                }
-            } else if (child.getOperatorType().equals(OperatorType.OR)) {
-                LogicalOrFilter orFilter = new LogicalOrFilter();
-                idx = traverse(orFilter, child.getLevel(), idx + 1);
-                root.addFilter(orFilter);
-                if (idx == 0) {
-                    break;
-                }
-                continue;
+            idx = traverse0(idx, root);
+            if (idx == 0) {
+                break;
             }
-            idx++;
         }
         return 0;
     }
 
-    public LogicalNode plan() {
-        bqlOperators = BqlParser.parse(query);
-
-        LogicalFullScan logicalScan = new LogicalFullScan(bucket);
-        int idx = 0;
-        while (idx < bqlOperators.size()) {
-            BqlOperator operator = bqlOperators.get(idx);
-            if (operator.getOperatorType().equals(OperatorType.EQ)) {
-                BqlEqOperator eq = (BqlEqOperator) operator;
-                if (eq.getValues() == null) {
-                    idx = traverse(logicalScan, eq, idx + 1);
-                    if (idx == 0) {
-                        break;
-                    }
-                    continue;
-                } else {
-                    LogicalComparisonFilter root = new LogicalComparisonFilter(OperatorType.EQ);
-                    root.setField(eq.getField());
-                    eq.getValues().forEach(root::addValue);
-                    logicalScan.addFilter(root);
-                }
-            } else if (operator.getOperatorType().equals(OperatorType.OR) || operator.getOperatorType().equals(OperatorType.AND)) {
-                LogicalNode root = makeRootNode(operator.getOperatorType());
-                idx = traverse(root, operator.getLevel(), idx + 1);
-                logicalScan.addFilter(root);
-                if (idx == 0) {
-                    break;
-                }
-                continue;
+    private int traverse0(int idx, LogicalNode root) {
+        BqlOperator operator = bqlOperators.get(idx);
+        if (operator.getOperatorType().equals(OperatorType.EQ)) {
+            BqlEqOperator eq = (BqlEqOperator) operator;
+            if (eq.getValues() == null) {
+                return traverse(root, eq, idx + 1);
+            } else {
+                LogicalComparisonFilter comparisonFilter = new LogicalComparisonFilter(OperatorType.EQ);
+                comparisonFilter.setField(eq.getField());
+                eq.getValues().forEach(comparisonFilter::addValue);
+                root.addFilter(comparisonFilter);
             }
-            idx++;
+        } else if (operator.getOperatorType().equals(OperatorType.OR) || operator.getOperatorType().equals(OperatorType.AND)) {
+            LogicalNode newRoot = makeRootNode(operator.getOperatorType());
+            idx = traverse1(newRoot, operator.getLevel(), idx + 1);
+            root.addFilter(newRoot);
+            return idx;
         }
-
-        return logicalScan;
+        return idx+1;
     }
 
     private LogicalNode makeRootNode(OperatorType operatorType) {
@@ -139,5 +105,20 @@ public class LogicalPlanner {
             case OR -> new LogicalOrFilter();
             default -> throw new IllegalArgumentException("Unsupported operator type: " + operatorType);
         };
+    }
+
+    public LogicalNode plan() {
+        bqlOperators = BqlParser.parse(query);
+
+        LogicalFullScan logicalScan = new LogicalFullScan(bucket);
+        int idx = 0;
+        while (idx < bqlOperators.size()) {
+            idx = traverse0(idx, logicalScan);
+            if (idx == 0) {
+                break;
+            }
+        }
+
+        return logicalScan;
     }
 }
