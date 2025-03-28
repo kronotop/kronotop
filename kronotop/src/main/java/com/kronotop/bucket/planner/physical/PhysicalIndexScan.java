@@ -10,33 +10,14 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.OperatorType;
 
-public class PhysicalIndexScan extends PhysicalFilter {
+public class PhysicalIndexScan extends PhysicalScan {
     private final String index;
-    private BqlValue<?> value;
-    private String field;
 
     public PhysicalIndexScan(String index, OperatorType operatorType) {
         super(operatorType);
         this.index = index;
-    }
-
-    public String getField() {
-        return field;
-    }
-
-    void setField(String field) {
-        this.field = field;
-    }
-
-    void addValue(BqlValue<?> value) {
-        this.value = value;
-    }
-
-    public BqlValue<?> getValue() {
-        return value;
     }
 
     public String getIndex() {

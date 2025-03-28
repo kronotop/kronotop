@@ -10,31 +10,11 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.OperatorType;
 
-public class PhysicalFullScan extends PhysicalFilter {
-    private BqlValue<?> value;
-    private String field;
-
+public class PhysicalFullScan extends PhysicalScan {
     public PhysicalFullScan(OperatorType operatorType) {
         super(operatorType);
-    }
-
-    public String getField() {
-        return field;
-    }
-
-    void setField(String field) {
-        this.field = field;
-    }
-
-    void addValue(BqlValue<?> value) {
-        this.value = value;
-    }
-
-    public BqlValue<?> getValue() {
-        return value;
     }
 
     @Override
