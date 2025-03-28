@@ -36,12 +36,45 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void test_prepareLogicalPlan2() {
+    void single_or_filter() {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket,
                 "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }"
         );
         LogicalNode node = optimizer.plan();
-        System.out.println(node);
+        /*
+            LogicalFullScan {
+                bucket=test-bucket,
+                children=[
+                    LogicalOrFilter {
+                        children=[
+                            LogicalComparisonFilter {operatorType=EQ, field=status, value=BqlValue { type=STRING, value=A }},
+                            LogicalComparisonFilter {operatorType=LT, field=qty, value=BqlValue { type=INT32, value=30 }
+                            }
+                        ]
+                    }
+                ]
+            }
+         */
+        assertInstanceOf(LogicalFullScan.class, node);
+        LogicalFullScan fullScan = (LogicalFullScan) node;
+        LogicalNode logicalOrFilter = fullScan.getChildren().getFirst();
+        {
+            LogicalNode logicalNode = logicalOrFilter.getChildren().get(0);
+            assertInstanceOf(LogicalComparisonFilter.class, logicalNode);
+            LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
+            assertThat(logicalComparisonFilter.getOperatorType()).isEqualTo(OperatorType.EQ);
+            assertThat(logicalComparisonFilter.getField()).isEqualTo("status");
+            assertThat(logicalComparisonFilter.getValue().getValue()).isEqualTo("A");
+        }
+
+        {
+            LogicalNode logicalNode = logicalOrFilter.getChildren().get(1);
+            assertInstanceOf(LogicalComparisonFilter.class, logicalNode);
+            LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
+            assertThat(logicalComparisonFilter.getOperatorType()).isEqualTo(OperatorType.LT);
+            assertThat(logicalComparisonFilter.getField()).isEqualTo("qty");
+            assertThat(logicalComparisonFilter.getValue().getValue()).isEqualTo(30);
+        }
     }
 
     @Test
