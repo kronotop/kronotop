@@ -23,6 +23,6 @@ public class LogicalFullScan extends LogicalNode {
 
     @Override
     public String toString() {
-        return "LogicalFullScan {bucket=" + bucket + ", filters=" + filters + "}";
+        return "LogicalFullScan {bucket=" + bucket + ", children=" + children + "}";
     }
 }

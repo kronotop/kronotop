@@ -14,18 +14,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class LogicalNode {
-    protected final List<LogicalFilter> filters = new ArrayList<>();
+    protected final List<LogicalNode> children = new ArrayList<>();
 
-    void addFilter(LogicalFilter filter) {
-        filters.add(filter);
+    void addFilter(LogicalNode child) {
+        children.add(child);
     }
 
-    public List<LogicalFilter> getFilters() {
-        return filters;
-    }
-
-    @Override
-    public String toString() {
-        return "LogicalNode {filters=" + filters + "}";
+    public List<LogicalNode> getChildren() {
+        return children;
     }
 }

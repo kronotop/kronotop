@@ -68,9 +68,9 @@ class LogicalPlannerTest {
         LogicalFullScan fullBucketScan = (LogicalFullScan)node;
 
         assertThat(fullBucketScan.getBucket()).isEqualTo(testBucket);
-        assertEquals(1, fullBucketScan.getFilters().size());
+        assertEquals(1, fullBucketScan.getChildren().size());
 
-        LogicalFilter eqFilter = fullBucketScan.getFilters().getFirst();
+        LogicalFilter eqFilter = (LogicalFilter) fullBucketScan.getChildren().getFirst();
         assertInstanceOf(LogicalComparisonFilter.class, eqFilter);
 
         assertEquals(OperatorType.GTE, eqFilter.getOperatorType());
@@ -104,9 +104,9 @@ class LogicalPlannerTest {
         LogicalFullScan fullBucketScan = (LogicalFullScan)node;
 
         assertThat(fullBucketScan.getBucket()).isEqualTo(testBucket);
-        assertEquals(1, fullBucketScan.getFilters().size());
+        assertEquals(1, fullBucketScan.getChildren().size());
 
-        LogicalFilter eqFilter = fullBucketScan.getFilters().getFirst();
+        LogicalFilter eqFilter = (LogicalFilter) fullBucketScan.getChildren().getFirst();
         assertInstanceOf(LogicalComparisonFilter.class, eqFilter);
 
         assertEquals(OperatorType.EQ, eqFilter.getOperatorType());
@@ -129,10 +129,10 @@ class LogicalPlannerTest {
         LogicalFullScan fullBucketScan = (LogicalFullScan)node;
 
         assertThat(fullBucketScan.getBucket()).isEqualTo(testBucket);
-        assertEquals(2, fullBucketScan.getFilters().size());
+        assertEquals(2, fullBucketScan.getChildren().size());
 
         {
-            LogicalFilter eqFilter = fullBucketScan.getFilters().get(0);
+            LogicalFilter eqFilter = (LogicalFilter) fullBucketScan.getChildren().get(0);
             assertInstanceOf(LogicalComparisonFilter.class, eqFilter);
 
             assertEquals(OperatorType.EQ, eqFilter.getOperatorType());
@@ -144,7 +144,7 @@ class LogicalPlannerTest {
         }
 
         {
-            LogicalFilter eqFilter = fullBucketScan.getFilters().get(1);
+            LogicalFilter eqFilter = (LogicalFilter) fullBucketScan.getChildren().get(1);
             assertInstanceOf(LogicalComparisonFilter.class, eqFilter);
 
             assertEquals(OperatorType.EQ, eqFilter.getOperatorType());
@@ -157,11 +157,11 @@ class LogicalPlannerTest {
     }
 
     @Test
-    public void when_no_child_expression() {
+    void when_no_child_expression() {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{}");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullScan.class, node);
-        assertTrue(node.getFilters().isEmpty());
+        assertTrue(node.getChildren().isEmpty());
         LogicalFullScan logicalFullBucketScan = (LogicalFullScan) node;
         assertEquals(testBucket, logicalFullBucketScan.getBucket());
         // bucket.insert <bucket-name> <document> <document>
@@ -172,10 +172,10 @@ class LogicalPlannerTest {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: 'ALIVE' }");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullScan.class, node);
-        assertEquals(1, node.getFilters().size());
+        assertEquals(1, node.getChildren().size());
 
         LogicalFullScan logicalFullBucketScan = (LogicalFullScan) node;
-        LogicalNode logicalNode = logicalFullBucketScan.getFilters().getFirst();
+        LogicalNode logicalNode = logicalFullBucketScan.getChildren().getFirst();
         assertInstanceOf(LogicalComparisonFilter.class, logicalNode);
         LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
 
@@ -193,10 +193,10 @@ class LogicalPlannerTest {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: { $eq: 'ALIVE' } }");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullScan.class, node);
-        assertEquals(1, node.getFilters().size());
+        assertEquals(1, node.getChildren().size());
 
         LogicalFullScan logicalFullBucketScan = (LogicalFullScan) node;
-        LogicalNode logicalNode = logicalFullBucketScan.getFilters().getFirst();
+        LogicalNode logicalNode = logicalFullBucketScan.getChildren().getFirst();
         assertInstanceOf(LogicalComparisonFilter.class, logicalNode);
         LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
 
@@ -214,12 +214,12 @@ class LogicalPlannerTest {
         LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{ status: { $eq: 'ALIVE' }, qty: { $lt: 30 } }");
         LogicalNode node = optimizer.plan();
         assertInstanceOf(LogicalFullScan.class, node);
-        System.out.println(node.getFilters());
-        assertEquals(2, node.getFilters().size());
+        System.out.println(node.getChildren());
+        assertEquals(2, node.getChildren().size());
 
         LogicalFullScan logicalFullBucketScan = (LogicalFullScan) node;
         {
-            LogicalNode logicalNode = logicalFullBucketScan.getFilters().getFirst();
+            LogicalNode logicalNode = logicalFullBucketScan.getChildren().getFirst();
             assertInstanceOf(LogicalComparisonFilter.class, logicalNode);
             LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
 
@@ -233,7 +233,7 @@ class LogicalPlannerTest {
         }
 
         {
-            LogicalNode logicalNode = logicalFullBucketScan.getFilters().get(1);
+            LogicalNode logicalNode = logicalFullBucketScan.getChildren().get(1);
             assertInstanceOf(LogicalComparisonFilter.class, logicalNode);
             LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
 
