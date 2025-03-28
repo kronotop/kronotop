@@ -31,9 +31,4 @@ public class PhysicalNode {
     public List<PhysicalFilter> getFilters() {
         return filters;
     }
-
-    @Override
-    public String toString() {
-        return "PhysicalNode {filters=" + filters + "}";
-    }
 }
