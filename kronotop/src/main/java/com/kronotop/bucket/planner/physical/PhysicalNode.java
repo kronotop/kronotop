@@ -14,21 +14,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PhysicalNode {
-    protected final List<PhysicalFilter> filters;
+    protected final List<PhysicalNode> children;
 
     public PhysicalNode() {
-        this.filters = new ArrayList<>();
+        this.children = new ArrayList<>();
     }
 
-    public PhysicalNode(List<PhysicalFilter> filters) {
-        this.filters = filters;
+    public PhysicalNode(List<PhysicalNode> children) {
+        this.children = children;
     }
 
-    void addFilter(PhysicalFilter filter) {
-        filters.add(filter);
+    void addChild(PhysicalNode child) {
+        children.add(child);
     }
 
-    public List<PhysicalFilter> getFilters() {
-        return filters;
+    public List<PhysicalNode> getChildren() {
+        return children;
     }
 }

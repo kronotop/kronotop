@@ -26,8 +26,8 @@ public class PhysicalPlanner {
         this.root = root;
     }
 
-    private List<PhysicalFilter> traverse(List<LogicalFilter> filters) {
-        List<PhysicalFilter> nodes = new ArrayList<>();
+    private List<PhysicalNode> traverse(List<LogicalFilter> filters) {
+        List<PhysicalNode> nodes = new ArrayList<>();
         filters.forEach(filter -> {
             switch (filter) {
                 case LogicalComparisonFilter logicalFilter -> {
@@ -48,7 +48,7 @@ public class PhysicalPlanner {
                     }
                 }
                 case LogicalOrFilter f -> {
-                    List<PhysicalFilter> result = traverse(f.getFilters());
+                    List<PhysicalNode> result = traverse(f.getFilters());
                     PhysicalUnionOperator node = new PhysicalUnionOperator(result);
                     nodes.add(node);
                 }
@@ -61,7 +61,7 @@ public class PhysicalPlanner {
     public PhysicalNode plan() {
         switch (root) {
             case LogicalFullScan node -> {
-                List<PhysicalFilter> result = traverse(node.getFilters());
+                List<PhysicalNode> result = traverse(node.getFilters());
                 if (result.size() == 1) {
                     return result.getFirst();
                 }

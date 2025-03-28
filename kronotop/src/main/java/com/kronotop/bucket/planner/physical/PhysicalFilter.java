@@ -21,8 +21,8 @@ public class PhysicalFilter extends PhysicalNode {
         this.operatorType = operatorType;
     }
 
-    public PhysicalFilter(OperatorType operatorType, List<PhysicalFilter> filters) {
-        super(filters);
+    public PhysicalFilter(OperatorType operatorType, List<PhysicalNode> children) {
+        super(children);
         this.operatorType = operatorType;
     }
 

@@ -15,12 +15,12 @@ import com.kronotop.bucket.bql.operators.OperatorType;
 import java.util.List;
 
 public class PhysicalIntersectionOperator extends PhysicalFilter {
-    public PhysicalIntersectionOperator(List<PhysicalFilter> filters) {
-        super(OperatorType.AND, filters);
+    public PhysicalIntersectionOperator(List<PhysicalNode> children) {
+        super(OperatorType.AND, children);
     }
 
     @Override
     public String toString() {
-        return "PhysicalIntersectionOperator {filters=" + filters + "}";
+        return "PhysicalIntersectionOperator {children=" + children + "}";
     }
 }
