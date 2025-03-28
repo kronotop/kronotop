@@ -80,23 +80,25 @@ public class LogicalPlanner {
 
     private int traverse0(int idx, LogicalNode root) {
         BqlOperator operator = bqlOperators.get(idx);
-        if (operator.getOperatorType().equals(OperatorType.EQ)) {
-            BqlEqOperator eq = (BqlEqOperator) operator;
-            if (eq.getValues() == null) {
-                return traverse(root, eq, idx + 1);
-            } else {
-                LogicalComparisonFilter comparisonFilter = new LogicalComparisonFilter(OperatorType.EQ);
-                comparisonFilter.setField(eq.getField());
-                eq.getValues().forEach(comparisonFilter::addValue);
-                root.addFilter(comparisonFilter);
-            }
-        } else if (operator.getOperatorType().equals(OperatorType.OR) || operator.getOperatorType().equals(OperatorType.AND)) {
-            LogicalNode newRoot = makeRootNode(operator.getOperatorType());
-            idx = traverse1(newRoot, operator.getLevel(), idx + 1);
-            root.addFilter(newRoot);
-            return idx;
+        switch (operator.getOperatorType()) {
+            case EQ:
+                BqlEqOperator eq = (BqlEqOperator) operator;
+                if (eq.getValues() == null) {
+                    return traverse(root, eq, idx + 1);
+                } else {
+                    LogicalComparisonFilter comparisonFilter = new LogicalComparisonFilter(OperatorType.EQ);
+                    comparisonFilter.setField(eq.getField());
+                    eq.getValues().forEach(comparisonFilter::addValue);
+                    root.addFilter(comparisonFilter);
+                }
+                break;
+            case OR, AND:
+                LogicalNode newRoot = makeRootNode(operator.getOperatorType());
+                idx = traverse1(newRoot, operator.getLevel(), idx + 1);
+                root.addFilter(newRoot);
+                return idx;
         }
-        return idx+1;
+        return idx + 1;
     }
 
     private LogicalNode makeRootNode(OperatorType operatorType) {
