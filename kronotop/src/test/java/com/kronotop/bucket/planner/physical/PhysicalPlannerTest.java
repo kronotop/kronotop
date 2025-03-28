@@ -28,14 +28,14 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 class PhysicalPlannerTest {
     final String testBucket = "test-bucket";
 
+    private LogicalNode getLogicalPlan(String query) {
+        LogicalPlanner logical = new LogicalPlanner(testBucket, query);
+        return logical.plan();
+    }
+
     @Test
     void indexed_field_id_string_gte() {
-        LogicalPlanner logical = new LogicalPlanner(
-                testBucket,
-                "{ _id: { $gte: '00010CRQ5VIMO0000000xxxx'} }"
-        );
-        LogicalNode logicalNode = logical.plan();
-
+        LogicalNode logicalNode = getLogicalPlan("{ _id: { $gte: '00010CRQ5VIMO0000000xxxx'} }");
         Map<String, Index> indexes = Map.of(
                 ReservedFieldName.ID.getValue(), new Index(DefaultIndex.ID.getValue(), BsonType.STRING)
         );
@@ -54,11 +54,7 @@ class PhysicalPlannerTest {
 
     @Test
     void full_scan_int32_field_gte() {
-        LogicalPlanner logical = new LogicalPlanner(
-                testBucket,
-                "{ a: { $gte: 20 } }"
-        );
-        LogicalNode logicalNode = logical.plan();
+        LogicalNode logicalNode = getLogicalPlan("{ a: { $gte: 20 } }");
         PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
@@ -71,29 +67,35 @@ class PhysicalPlannerTest {
     }
 
     @Test
-    void double_scan_int32_field_gte() {
-        LogicalPlanner logical = new LogicalPlanner(
-                testBucket,
-                "{ a: { $gte: 20 }, b: { $eq: 'string-value' } }"
-        );
-        LogicalNode logicalNode = logical.plan();
-
+    void intersection_operator_with_two_indexed_fields() {
+        LogicalNode logicalNode = getLogicalPlan("{ a: { $gte: 20 }, b: { $eq: 'string-value' } }");
         Map<String, Index> indexes = Map.of(
                 "a", new Index("a_idx", BsonType.INT32),
                 "b", new Index("b_idx", BsonType.STRING)
         );
         PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
         PhysicalNode physicalNode = physical.plan();
-        System.out.println(physicalNode);
+
+        PhysicalIntersectionOperator physicalIntersectionOperator = (PhysicalIntersectionOperator) physicalNode;
+
+        {
+            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalIntersectionOperator.getChildren().get(0);
+            assertEquals(OperatorType.GTE, physicalIndexScan.getOperatorType());
+            assertEquals(BsonType.INT32, physicalIndexScan.getValue().getBsonType());
+            assertEquals(20, physicalIndexScan.getValue().getValue());
+        }
+
+        {
+            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalIntersectionOperator.getChildren().get(1);
+            assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
+            assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
+            assertEquals("string-value", physicalIndexScan.getValue().getValue());
+        }
     }
 
     @Test
-    void foo() {
-        LogicalPlanner logical = new LogicalPlanner(
-                testBucket,
-                "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }"
-        );
-        LogicalNode logicalNode = logical.plan();
+    void or_operator_with_two_indexed_fields() {
+        LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
 
         Map<String, Index> indexes = Map.of(
                 "status", new Index("status_idx", BsonType.STRING),
@@ -101,6 +103,23 @@ class PhysicalPlannerTest {
         );
         PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
         PhysicalNode physicalNode = physical.plan();
-        System.out.println(physicalNode);
+
+        assertInstanceOf(PhysicalUnionOperator.class, physicalNode);
+
+        PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalNode;
+
+        {
+            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(0);
+            assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
+            assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
+            assertEquals("A", physicalIndexScan.getValue().getValue());
+        }
+
+        {
+            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(1);
+            assertEquals(OperatorType.LT, physicalIndexScan.getOperatorType());
+            assertEquals(BsonType.INT32, physicalIndexScan.getValue().getBsonType());
+            assertEquals(30, physicalIndexScan.getValue().getValue());
+        }
     }
 }
