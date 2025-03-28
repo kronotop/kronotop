@@ -265,4 +265,13 @@ class LogicalPlannerTest {
         LogicalNode node = optimizer.plan();
         System.out.println(node);
     }
+
+    @Test
+    void test_foo3() {
+        LogicalPlanner optimizer = new LogicalPlanner(testBucket,
+                "{ price: { $ne: 1.99, $exists: true } }"
+        );
+        LogicalNode node = optimizer.plan();
+        System.out.println(node);
+    }
 }

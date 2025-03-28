@@ -38,11 +38,16 @@ public class LogicalPlanner {
                 return i;
             }
             switch (bqlOperator.getOperatorType()) {
-                case EQ, LT, GT, GTE:
+                case EQ, LT, GT, GTE, NE:
                     LogicalComparisonFilter filter = new LogicalComparisonFilter(bqlOperator.getOperatorType());
                     filter.setField(operator.getField());
                     bqlOperator.getValues().forEach(filter::addValue);
                     root.addFilter(filter);
+                    break;
+                case EXISTS:
+                    LogicalExistsFilter existsFilter = new LogicalExistsFilter();
+                    existsFilter.setField(operator.getField());
+                    root.addFilter(existsFilter);
                     break;
                 case ALL:
                     LogicalAndFilter andOperator = new LogicalAndFilter();
