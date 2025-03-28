@@ -1,10 +1,12 @@
 package com.kronotop.bucket.planner.physical;
 
+import com.kronotop.bucket.bql.operators.OperatorType;
+
 import java.util.List;
 
-public class PhysicalUnionOperator extends PhysicalNode {
+public class PhysicalUnionOperator extends PhysicalFilter {
     public PhysicalUnionOperator(List<PhysicalFilter> filters) {
-        super(filters);
+        super(OperatorType.OR, filters);
     }
 
     @Override

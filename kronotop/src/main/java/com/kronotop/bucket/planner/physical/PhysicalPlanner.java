@@ -26,7 +26,8 @@ public class PhysicalPlanner {
         this.root = root;
     }
 
-    private void traverse(List<LogicalFilter> filters, List<PhysicalFilter> nodes) {
+    private List<PhysicalFilter> traverse(List<LogicalFilter> filters) {
+        List<PhysicalFilter> nodes = new ArrayList<>();
         filters.forEach(filter -> {
             switch (filter) {
                 case LogicalComparisonFilter f -> {
@@ -47,27 +48,24 @@ public class PhysicalPlanner {
                     }
                 }
                 case LogicalOrFilter f -> {
-                    traverse(f.getFilters(), nodes);
+                    List<PhysicalFilter> result = traverse(f.getFilters());
+                    PhysicalUnionOperator node = new PhysicalUnionOperator(result);
+                    nodes.add(node);
                 }
                 default -> throw new IllegalStateException("Unexpected value: " + filter);
             }
         });
-    }
-
-    private PhysicalNode convertFullBucketScan(LogicalFullBucketScan node) {
-        List<PhysicalFilter> nodes = new ArrayList<>();
-        traverse(node.getFilters(), nodes);
-        if (nodes.size() == 1) {
-            return nodes.getFirst();
-        }
-        // And operator
-        return new PhysicalIntersectionOperator(nodes);
+        return nodes;
     }
 
     public PhysicalNode plan() {
         switch (root) {
             case LogicalFullBucketScan node -> {
-                return convertFullBucketScan(node);
+                List<PhysicalFilter> result = traverse(node.getFilters());
+                if (result.size() == 1) {
+                    return result.getFirst();
+                }
+                return new PhysicalIntersectionOperator(result);
             }
             default -> throw new IllegalStateException("Unexpected value: " + root);
         }

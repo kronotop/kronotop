@@ -67,7 +67,6 @@ class PhysicalPlannerTest {
         assertInstanceOf(PhysicalIndexScan.class, physicalNode);
 
         PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalNode;
-        assertEquals(testBucket, physicalIndexScan.getBucket());
         assertEquals(DefaultIndex.ID.getValue(), physicalIndexScan.getIndex());
         assertEquals(OperatorType.GTE, physicalIndexScan.getOperatorType());
         assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
@@ -87,7 +86,6 @@ class PhysicalPlannerTest {
         assertInstanceOf(PhysicalFullScan.class, physicalNode);
 
         PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalNode;
-        assertEquals(testBucket, physicalFullScan.getBucket());
         assertEquals(OperatorType.GTE, physicalFullScan.getOperatorType());
         assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
         assertEquals(20, physicalFullScan.getValue().getValue());

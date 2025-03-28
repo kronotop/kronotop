@@ -19,7 +19,7 @@ import java.util.Map;
 public class PlannerContext {
     private final Map<String, Index> indexes;
 
-    public PlannerContext(String bucket) {
+    public PlannerContext() {
         this.indexes = Collections.unmodifiableMap(new HashMap<>());
     }
 
