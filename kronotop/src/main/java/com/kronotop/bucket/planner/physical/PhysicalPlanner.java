@@ -52,6 +52,11 @@ public class PhysicalPlanner {
                     PhysicalUnionOperator node = new PhysicalUnionOperator(result);
                     nodes.add(node);
                 }
+                case LogicalAndFilter logicalFilter -> {
+                    List<PhysicalNode> result = traverse(logicalFilter.getChildren());
+                    PhysicalIntersectionOperator node = new PhysicalIntersectionOperator(result);
+                    nodes.add(node);
+                }
                 default -> throw new IllegalStateException("Unexpected value: " + child);
             }
         });

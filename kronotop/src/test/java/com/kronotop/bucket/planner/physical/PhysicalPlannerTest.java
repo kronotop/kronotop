@@ -189,7 +189,8 @@ class PhysicalPlannerTest {
 
     @Test
     void when_planning_complex_query_one() {
-        LogicalNode logicalNode = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_IN32_TYPE_AND_EQ);
+        // OK
+        LogicalNode logicalNode = getLogicalPlan(TestQuery.COMPLEX_QUERY_ONE);
         PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
         PhysicalNode physicalNode = physical.plan();
         System.out.println(physicalNode);
