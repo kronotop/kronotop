@@ -35,7 +35,7 @@ class PhysicalPlannerTest {
     }
 
     @Test
-    void indexed_field_id_string_gte() {
+    void when_planning_single_field_with_string_type_and_gte() {
         LogicalNode logicalNode = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_STRING_TYPE_AND_GTE);
         Map<String, Index> indexes = Map.of(
                 "a", new Index("a_idx", BsonType.STRING)
@@ -54,15 +54,16 @@ class PhysicalPlannerTest {
     }
 
     @Test
-    void full_scan_int32_field_gte() {
-        LogicalNode logicalNode = getLogicalPlan("{ a: { $gte: 20 } }");
+    void when_planning_single_field_with_int32_type_and_eq() {
+        // FULL SCAN
+        LogicalNode logicalNode = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_IN32_TYPE_AND_EQ);
         PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
         assertInstanceOf(PhysicalFullScan.class, physicalNode);
 
         PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalNode;
-        assertEquals(OperatorType.GTE, physicalFullScan.getOperatorType());
+        assertEquals(OperatorType.EQ, physicalFullScan.getOperatorType());
         assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
         assertEquals(20, physicalFullScan.getValue().getValue());
     }
