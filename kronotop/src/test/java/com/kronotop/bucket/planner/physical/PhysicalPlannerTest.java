@@ -27,10 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class PhysicalPlannerTest {
-    final String testBucket = "test-bucket";
 
     private LogicalNode getLogicalPlan(String query) {
-        LogicalPlanner logical = new LogicalPlanner(testBucket, query);
+        LogicalPlanner logical = new LogicalPlanner(query);
         return logical.plan();
     }
 
@@ -176,5 +175,13 @@ class PhysicalPlannerTest {
             assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
             assertEquals(30, physicalFullScan.getValue().getValue());
         }
+    }
+
+    @Test
+    void when_planning_complex_query_one() {
+        LogicalNode logicalNode = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_IN32_TYPE_AND_EQ);
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
+        PhysicalNode physicalNode = physical.plan();
+        System.out.println(physicalNode);
     }
 }

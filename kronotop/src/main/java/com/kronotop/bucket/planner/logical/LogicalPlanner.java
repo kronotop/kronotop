@@ -10,7 +10,6 @@
 
 package com.kronotop.bucket.planner.logical;
 
-import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
@@ -19,17 +18,11 @@ import com.kronotop.bucket.bql.parser.BqlParser;
 import java.util.List;
 
 public class LogicalPlanner {
-    private final String bucket;
     private final String query;
     private List<BqlOperator> bqlOperators;
 
-    public LogicalPlanner(String bucket, String query) {
-        this.bucket = bucket;
+    public LogicalPlanner(String query) {
         this.query = query;
-    }
-
-    public String getBucket() {
-        return bucket;
     }
 
     private int traverse(LogicalNode root, BqlEqOperator operator, int index) {
@@ -117,7 +110,7 @@ public class LogicalPlanner {
     public LogicalNode plan() {
         bqlOperators = BqlParser.parse(query);
 
-        LogicalFullScan logicalScan = new LogicalFullScan(bucket);
+        LogicalFullScan logicalScan = new LogicalFullScan();
         int idx = 0;
         while (idx < bqlOperators.size()) {
             idx = traverse0(idx, logicalScan);

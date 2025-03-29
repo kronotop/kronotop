@@ -12,6 +12,10 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketFindMessage;
+import com.kronotop.bucket.planner.PlannerContext;
+import com.kronotop.bucket.planner.logical.LogicalNode;
+import com.kronotop.bucket.planner.logical.LogicalPlanner;
+import com.kronotop.bucket.planner.physical.PhysicalPlanner;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -19,6 +23,8 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -26,6 +32,8 @@ import java.util.List;
 @MaximumParameterCount(BucketFindMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(BucketFindMessage.MINIMUM_PARAMETER_COUNT)
 public class BucketFindHandler extends BaseBucketHandler implements Handler {
+
+    private static final Logger log = LoggerFactory.getLogger(BucketFindHandler.class);
 
     public BucketFindHandler(BucketService service) {
         super(service);
@@ -39,8 +47,11 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
     @Override
     public void execute(Request request, Response response) throws Exception {
         BucketFindMessage message = request.attr(MessageTypes.BUCKETFIND).get();
-        System.out.println(message.getBucket());
-        System.out.println(new String(message.getQuery()));
+
+        LogicalPlanner logicalPlanner = new LogicalPlanner(new String(message.getQuery()));
+        LogicalNode logicalPlan = logicalPlanner.plan();
+        PhysicalPlanner planner = new PhysicalPlanner(new PlannerContext(), logicalPlan);
+        System.out.println(planner.plan());
         response.writeArray(List.of());
     }
 }

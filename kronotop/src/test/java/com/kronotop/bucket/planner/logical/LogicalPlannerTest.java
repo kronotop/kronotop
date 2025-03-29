@@ -23,7 +23,7 @@ class LogicalPlannerTest {
     private final String testBucket = "test-bucket";
 
     private LogicalNode getLogicalPlan(String query) {
-        LogicalPlanner planner = new LogicalPlanner(testBucket, query);
+        LogicalPlanner planner = new LogicalPlanner(query);
         return planner.plan();
     }
 
@@ -60,7 +60,6 @@ class LogicalPlannerTest {
 
         LogicalFullScan fullBucketScan = (LogicalFullScan)node;
 
-        assertThat(fullBucketScan.getBucket()).isEqualTo(testBucket);
         assertEquals(1, fullBucketScan.getChildren().size());
 
         LogicalFilter eqFilter = (LogicalFilter) fullBucketScan.getChildren().getFirst();
@@ -81,7 +80,6 @@ class LogicalPlannerTest {
 
         LogicalFullScan fullBucketScan = (LogicalFullScan)node;
 
-        assertThat(fullBucketScan.getBucket()).isEqualTo(testBucket);
         assertEquals(1, fullBucketScan.getChildren().size());
 
         LogicalFilter eqFilter = (LogicalFilter) fullBucketScan.getChildren().getFirst();
@@ -103,7 +101,6 @@ class LogicalPlannerTest {
 
         LogicalFullScan fullBucketScan = (LogicalFullScan)node;
 
-        assertThat(fullBucketScan.getBucket()).isEqualTo(testBucket);
         assertEquals(2, fullBucketScan.getChildren().size());
 
         {
@@ -137,8 +134,6 @@ class LogicalPlannerTest {
 
         assertInstanceOf(LogicalFullScan.class, node);
         assertTrue(node.getChildren().isEmpty());
-        LogicalFullScan logicalFullBucketScan = (LogicalFullScan) node;
-        assertEquals(testBucket, logicalFullBucketScan.getBucket());
     }
 
     @Test
