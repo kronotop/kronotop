@@ -10,7 +10,7 @@
 
 package com.kronotop.bucket.planner;
 
-public class TestQueries {
+public class TestQuery {
     public static final String OR_FILTER_WITH_TWO_SUB_FILTERS = "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }";
 
     public static final String SINGLE_FIELD_WITH_STRING_TYPE_AND_GTE = "{ a: { $gte: 'string-value' } }";

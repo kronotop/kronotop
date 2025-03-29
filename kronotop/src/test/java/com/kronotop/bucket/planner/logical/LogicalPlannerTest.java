@@ -12,7 +12,7 @@ package com.kronotop.bucket.planner.logical;
 
 import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.OperatorType;
-import com.kronotop.bucket.planner.TestQueries;
+import com.kronotop.bucket.planner.TestQuery;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +29,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_or_filter_with_two_sub_filters() {
-        LogicalNode node = getLogicalPlan(TestQueries.OR_FILTER_WITH_TWO_SUB_FILTERS);
+        LogicalNode node = getLogicalPlan(TestQuery.OR_FILTER_WITH_TWO_SUB_FILTERS);
 
         assertInstanceOf(LogicalFullScan.class, node);
         LogicalFullScan fullScan = (LogicalFullScan) node;
@@ -55,7 +55,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_single_field_with_string_type_and_gte() {
-        LogicalNode node = getLogicalPlan(TestQueries.SINGLE_FIELD_WITH_STRING_TYPE_AND_GTE);
+        LogicalNode node = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_STRING_TYPE_AND_GTE);
         assertInstanceOf(LogicalFullScan.class, node);
 
         LogicalFullScan fullBucketScan = (LogicalFullScan)node;
@@ -76,7 +76,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_single_field_with_int32_type_and_eq() {
-        LogicalNode node = getLogicalPlan(TestQueries.SINGLE_FIELD_WITH_IN32_TYPE_AND_EQ);
+        LogicalNode node = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_IN32_TYPE_AND_EQ);
         assertInstanceOf(LogicalFullScan.class, node);
 
         LogicalFullScan fullBucketScan = (LogicalFullScan)node;
@@ -97,7 +97,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_implicit_and_filter() {
-        LogicalNode node = getLogicalPlan(TestQueries.IMPLICIT_AND_FILTER);
+        LogicalNode node = getLogicalPlan(TestQuery.IMPLICIT_AND_FILTER);
 
         assertInstanceOf(LogicalFullScan.class, node);
 
@@ -133,7 +133,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_no_child_expression() {
-        LogicalNode node = getLogicalPlan(TestQueries.NO_CHILD_EXPRESSION);
+        LogicalNode node = getLogicalPlan(TestQuery.NO_CHILD_EXPRESSION);
 
         assertInstanceOf(LogicalFullScan.class, node);
         assertTrue(node.getChildren().isEmpty());
@@ -143,7 +143,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_implicit_EQ_FILTER() {
-        LogicalNode node = getLogicalPlan(TestQueries.IMPLICIT_EQ_FILTER);
+        LogicalNode node = getLogicalPlan(TestQuery.IMPLICIT_EQ_FILTER);
 
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(1, node.getChildren().size());
@@ -164,7 +164,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_explicit_EQ_filter() {
-        LogicalNode node = getLogicalPlan(TestQueries.EXPLICIT_EQ_FILTER);
+        LogicalNode node = getLogicalPlan(TestQuery.EXPLICIT_EQ_FILTER);
 
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(1, node.getChildren().size());
@@ -185,7 +185,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_explicit_EQ_filter_with_implicit_and_filter() {
-        LogicalNode node = getLogicalPlan(TestQueries.EXPLICIT_EQ_FILTER_WITH_IMPLICIT_AND_FILTER);
+        LogicalNode node = getLogicalPlan(TestQuery.EXPLICIT_EQ_FILTER_WITH_IMPLICIT_AND_FILTER);
 
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(2, node.getChildren().size());
@@ -222,7 +222,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_explicit_and_filter_with_two_sub_filters() {
-        LogicalNode node = getLogicalPlan(TestQueries.EXPLICIT_AND_FILTER_WITH_TWO_SUB_FILTERS);
+        LogicalNode node = getLogicalPlan(TestQuery.EXPLICIT_AND_FILTER_WITH_TWO_SUB_FILTERS);
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(1, node.getChildren().size());
 
@@ -252,7 +252,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_complex_query_one() {
-        LogicalNode node = getLogicalPlan(TestQueries.COMPLEX_QUERY_ONE);
+        LogicalNode node = getLogicalPlan(TestQuery.COMPLEX_QUERY_ONE);
         assertInstanceOf(LogicalFullScan.class, node);
 
         LogicalFullScan logicalFullScan = (LogicalFullScan) node;
@@ -317,7 +317,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_implicit_and_with_ne_and_exists_filter() {
-        LogicalNode node = getLogicalPlan(TestQueries.IMPLICIT_AND_WITH_NE_AND_EXISTS);
+        LogicalNode node = getLogicalPlan(TestQuery.IMPLICIT_AND_WITH_NE_AND_EXISTS);
 
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(2, node.getChildren().size());
@@ -343,7 +343,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_exists_filter() {
-        LogicalNode node = getLogicalPlan(TestQueries.EXISTS_FILTER);
+        LogicalNode node = getLogicalPlan(TestQuery.EXISTS_FILTER);
 
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(1, node.getChildren().size());
@@ -358,7 +358,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_ne_filter_with_implicit_eq_filter() {
-        LogicalNode node = getLogicalPlan(TestQueries.NOT_EQUALS_FILTER_WITH_IMPLICIT_EQ_FILTER);
+        LogicalNode node = getLogicalPlan(TestQuery.NOT_EQUALS_FILTER_WITH_IMPLICIT_EQ_FILTER);
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(1, node.getChildren().size());
 
@@ -372,7 +372,7 @@ class LogicalPlannerTest {
 
     @Test
     void when_planning_ne_filter_with_explicit_eq_filter() {
-        LogicalNode node = getLogicalPlan(TestQueries.NOT_EQUALS_FILTER_WITH_EXPLICIT_EQ_FILTER);
+        LogicalNode node = getLogicalPlan(TestQuery.NOT_EQUALS_FILTER_WITH_EXPLICIT_EQ_FILTER);
 
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(1, node.getChildren().size());

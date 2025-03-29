@@ -15,6 +15,7 @@ import com.kronotop.bucket.ReservedFieldName;
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.PlannerContext;
+import com.kronotop.bucket.planner.TestQuery;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import org.bson.BsonType;
@@ -35,9 +36,9 @@ class PhysicalPlannerTest {
 
     @Test
     void indexed_field_id_string_gte() {
-        LogicalNode logicalNode = getLogicalPlan("{ _id: { $gte: '00010CRQ5VIMO0000000xxxx'} }");
+        LogicalNode logicalNode = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_STRING_TYPE_AND_GTE);
         Map<String, Index> indexes = Map.of(
-                ReservedFieldName.ID.getValue(), new Index(DefaultIndex.ID.getValue(), BsonType.STRING)
+                "a", new Index("a_idx", BsonType.STRING)
         );
         PlannerContext context = new PlannerContext(indexes);
         PhysicalPlanner physical = new PhysicalPlanner(context, logicalNode);
@@ -46,10 +47,10 @@ class PhysicalPlannerTest {
         assertInstanceOf(PhysicalIndexScan.class, physicalNode);
 
         PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalNode;
-        assertEquals(DefaultIndex.ID.getValue(), physicalIndexScan.getIndex());
+        assertEquals("a_idx", physicalIndexScan.getIndex());
         assertEquals(OperatorType.GTE, physicalIndexScan.getOperatorType());
         assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
-        assertEquals("00010CRQ5VIMO0000000xxxx", physicalIndexScan.getValue().getValue());
+        assertEquals("string-value", physicalIndexScan.getValue().getValue());
     }
 
     @Test
