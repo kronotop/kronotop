@@ -274,12 +274,29 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void test_foo3() {
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket,
-                "{ price: { $ne: 1.99, $exists: true } }"
-        );
-        LogicalNode node = optimizer.plan();
-        System.out.println(node);
+    void when_plan_implicit_and_with_ne_and_exists_filter() {
+        LogicalNode node = getLogicalPlan(TestQueries.IMPLICIT_AND_WITH_NE_AND_EXISTS);
+
+        assertInstanceOf(LogicalFullScan.class, node);
+        assertEquals(2, node.getChildren().size());
+
+        {
+            LogicalNode childNode = node.getChildren().getFirst();
+            assertInstanceOf(LogicalComparisonFilter.class, childNode);
+            LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) childNode;
+            assertEquals(OperatorType.NE, logicalComparisonFilter.getOperatorType());
+            assertEquals("price", logicalComparisonFilter.getField());
+            assertEquals(1.99, logicalComparisonFilter.getValue().getValue());
+        }
+
+        {
+            LogicalNode childNode = node.getChildren().get(1);
+            assertInstanceOf(LogicalExistsFilter.class, childNode);
+            LogicalExistsFilter logicalExistsFilter = (LogicalExistsFilter) childNode;
+            assertEquals(OperatorType.EXISTS, logicalExistsFilter.getOperatorType());
+            assertEquals("price", logicalExistsFilter.getField());
+            assertTrue(logicalExistsFilter.getValue());
+        }
     }
 
     @Test
