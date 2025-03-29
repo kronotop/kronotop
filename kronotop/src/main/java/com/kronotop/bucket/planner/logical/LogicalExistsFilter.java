@@ -4,9 +4,15 @@ import com.kronotop.bucket.bql.operators.OperatorType;
 
 public class LogicalExistsFilter extends LogicalFilter {
     private String field;
+    private final boolean value;
 
-    public LogicalExistsFilter() {
+    public LogicalExistsFilter(boolean value) {
         super(OperatorType.EXISTS);
+        this.value = value;
+    }
+
+    public boolean getValue() {
+        return value;
     }
 
     public String getField() {
@@ -21,6 +27,7 @@ public class LogicalExistsFilter extends LogicalFilter {
     public String toString() {
         return "LogicalExistsFilter {" +
                 "operatorType=" + getOperatorType() + ", " +
+                "value=" + getValue() + ", " +
                 "field=" + getField() + "}";
     }
 }

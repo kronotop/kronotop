@@ -283,6 +283,21 @@ class LogicalPlannerTest {
     }
 
     @Test
+    void when_plan_exists_filter() {
+        LogicalNode node = getLogicalPlan(TestQueries.EXISTS_FILTER);
+
+        assertInstanceOf(LogicalFullScan.class, node);
+        assertEquals(1, node.getChildren().size());
+
+        LogicalNode childNode = node.getChildren().getFirst();
+        assertInstanceOf(LogicalExistsFilter.class, childNode);
+        LogicalExistsFilter logicalExistsFilter = (LogicalExistsFilter) childNode;
+        assertEquals(OperatorType.EXISTS, logicalExistsFilter.getOperatorType());
+        assertEquals("price", logicalExistsFilter.getField());
+        assertTrue(logicalExistsFilter.getValue());
+    }
+
+    @Test
     void when_plan_ne_filter_with_implicit_eq_filter() {
         LogicalNode node = getLogicalPlan(TestQueries.NOT_EQUALS_FILTER_WITH_IMPLICIT_EQ_FILTER);
         assertInstanceOf(LogicalFullScan.class, node);

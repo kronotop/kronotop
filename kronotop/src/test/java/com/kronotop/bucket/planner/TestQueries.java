@@ -32,4 +32,6 @@ public class TestQueries {
     public static final String NOT_EQUALS_FILTER_WITH_IMPLICIT_EQ_FILTER = "{ status: { $ne: 'A' } }";
 
     public static final String NOT_EQUALS_FILTER_WITH_EXPLICIT_EQ_FILTER = "{ status: { $ne: { $eq: 'A' } } }";
+
+    public static final String EXISTS_FILTER = "{ price: { $exists: true } }";
 }

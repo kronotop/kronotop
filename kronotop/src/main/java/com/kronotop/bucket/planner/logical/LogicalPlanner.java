@@ -10,6 +10,7 @@
 
 package com.kronotop.bucket.planner.logical;
 
+import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
@@ -48,7 +49,8 @@ public class LogicalPlanner {
                     root.addFilter(filter);
                     break;
                 case EXISTS:
-                    LogicalExistsFilter existsFilter = new LogicalExistsFilter();
+                    boolean value = (boolean) bqlOperator.getValues().getFirst().getValue();
+                    LogicalExistsFilter existsFilter = new LogicalExistsFilter(value);
                     existsFilter.setField(operator.getField());
                     root.addFilter(existsFilter);
                     break;
