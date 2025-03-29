@@ -12,6 +12,7 @@ package com.kronotop.bucket.planner.logical;
 
 import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.planner.TestQueries;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -41,8 +42,8 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void when_single_or_filter() {
-        LogicalNode node = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
+    void when_plan_or_filter_with_two_sub_filters() {
+        LogicalNode node = getLogicalPlan(TestQueries.OR_FILTER_WITH_TWO_SUB_FILTERS);
 
         assertInstanceOf(LogicalFullScan.class, node);
         LogicalFullScan fullScan = (LogicalFullScan) node;
@@ -67,8 +68,8 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void when_single_field_string_gte() {
-        LogicalNode node = getLogicalPlan("{ a: { $gte: 'string-value' } }");
+    void when_plan_single_field_with_string_type_and_gte() {
+        LogicalNode node = getLogicalPlan(TestQueries.SINGLE_FIELD_WITH_STRING_TYPE_AND_GTE);
         assertInstanceOf(LogicalFullScan.class, node);
 
         LogicalFullScan fullBucketScan = (LogicalFullScan)node;
@@ -88,8 +89,8 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void when_single_field_int32_equality() {
-        LogicalNode node = getLogicalPlan("{ a: { $eq: 20 } }");
+    void when_plan_single_field_with_int32_type_and_eq() {
+        LogicalNode node = getLogicalPlan(TestQueries.SINGLE_FIELD_WITH_IN32_TYPE_AND_EQ);
         assertInstanceOf(LogicalFullScan.class, node);
 
         LogicalFullScan fullBucketScan = (LogicalFullScan)node;
@@ -109,8 +110,8 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void when_implicit_and_filter() {
-        LogicalNode node = getLogicalPlan("{ status: 'ALIVE', username: 'kronotop-admin' }");
+    void when_plan_implicit_and_filter() {
+        LogicalNode node = getLogicalPlan(TestQueries.IMPLICIT_AND_FILTER);
 
         assertInstanceOf(LogicalFullScan.class, node);
 
@@ -146,8 +147,8 @@ class LogicalPlannerTest {
 
     @Test
     void when_no_child_expression() {
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{}");
-        LogicalNode node = optimizer.plan();
+        LogicalNode node = getLogicalPlan(TestQueries.NO_CHILD_EXPRESSION);
+
         assertInstanceOf(LogicalFullScan.class, node);
         assertTrue(node.getChildren().isEmpty());
         LogicalFullScan logicalFullBucketScan = (LogicalFullScan) node;
@@ -155,8 +156,8 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void when_implicit_EQ_operator() {
-        LogicalNode node = getLogicalPlan("{ status: 'ALIVE' }");
+    void when_implicit_EQ_FILTER() {
+        LogicalNode node = getLogicalPlan(TestQueries.IMPLICIT_EQ_FILTER);
 
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(1, node.getChildren().size());
@@ -176,8 +177,8 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void when_explicit_EQ_operator() {
-        LogicalNode node = getLogicalPlan("{ status: { $eq: 'ALIVE' } }");
+    void when_plan_explicit_EQ_filter() {
+        LogicalNode node = getLogicalPlan(TestQueries.EXPLICIT_EQ_FILTER);
 
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(1, node.getChildren().size());
@@ -197,11 +198,10 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void when_multiple_EQ_operator() {
-        LogicalNode node = getLogicalPlan("{ status: { $eq: 'ALIVE' }, qty: { $lt: 30 } }");
+    void when_plan_explicit_EQ_filter_with_implicit_and_filter() {
+        LogicalNode node = getLogicalPlan(TestQueries.EXPLICIT_EQ_FILTER_WITH_IMPLICIT_AND_FILTER);
 
         assertInstanceOf(LogicalFullScan.class, node);
-        System.out.println(node.getChildren());
         assertEquals(2, node.getChildren().size());
 
         LogicalFullScan logicalFullBucketScan = (LogicalFullScan) node;
@@ -235,12 +235,33 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void test_foo() {
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket,
-                "{ $and: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }"
-        );
-        LogicalNode node = optimizer.plan();
-        System.out.println(node);
+    void when_plan_explicit_and_filter_with_two_sub_filters() {
+        LogicalNode node = getLogicalPlan(TestQueries.EXPLICIT_AND_FILTER_WITH_TWO_SUB_FILTERS);
+        assertInstanceOf(LogicalFullScan.class, node);
+        assertEquals(1, node.getChildren().size());
+
+        LogicalNode childNode = node.getChildren().getFirst();
+        assertInstanceOf(LogicalAndFilter.class, childNode);
+        LogicalAndFilter logicalAndFilter = (LogicalAndFilter) childNode;
+        assertEquals(2, logicalAndFilter.getChildren().size());
+
+        {
+            LogicalNode logicalNode = logicalAndFilter.getChildren().getFirst();
+            assertInstanceOf(LogicalComparisonFilter.class, logicalNode);
+            LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
+            assertEquals(OperatorType.EQ, logicalComparisonFilter.getOperatorType());
+            assertEquals("status", logicalComparisonFilter.getField());
+            assertEquals("A", logicalComparisonFilter.getValue().getValue());
+        }
+
+        {
+            LogicalNode logicalNode = logicalAndFilter.getChildren().get(1);
+            assertInstanceOf(LogicalComparisonFilter.class, logicalNode);
+            LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
+            assertEquals(OperatorType.LT, logicalComparisonFilter.getOperatorType());
+            assertEquals("qty", logicalComparisonFilter.getField());
+            assertEquals(30, logicalComparisonFilter.getValue().getValue());
+        }
     }
 
     @Test
