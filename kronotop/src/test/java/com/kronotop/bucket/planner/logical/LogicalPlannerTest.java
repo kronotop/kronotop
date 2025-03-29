@@ -265,12 +265,68 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void test_foo2() {
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket,
-                "{ $and: [{ $or: [ { qty: { $lt : 10 } }, { qty : { $gt: 50 } } ] },{ $or: [ { sale: true }, { price : { $lt : 5 } } ] }]}"
-        );
-        LogicalNode node = optimizer.plan();
-        System.out.println(node);
+    void when_planning_complex_query_one() {
+        LogicalNode node = getLogicalPlan(TestQueries.COMPLEX_QUERY_ONE);
+        assertInstanceOf(LogicalFullScan.class, node);
+
+        LogicalFullScan logicalFullScan = (LogicalFullScan) node;
+        assertEquals(1, logicalFullScan.getChildren().size());
+
+        LogicalAndFilter logicalAndFilter = (LogicalAndFilter) logicalFullScan.getChildren().getFirst();
+        assertEquals(2, logicalAndFilter.getChildren().size());
+
+        {
+            LogicalNode logicalNode = logicalAndFilter.getChildren().getFirst();
+            assertInstanceOf(LogicalOrFilter.class, logicalNode);
+            LogicalOrFilter logicalOrFilter = (LogicalOrFilter) logicalNode;
+            assertEquals(2, logicalOrFilter.getChildren().size());
+            {
+                LogicalNode first = logicalOrFilter.getChildren().get(0);
+                assertInstanceOf(LogicalComparisonFilter.class, first);
+                LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) first;
+                assertEquals(OperatorType.LT, logicalComparisonFilter.getOperatorType());
+                assertEquals("qty", logicalComparisonFilter.getField());
+                assertEquals(BsonType.INT32, logicalComparisonFilter.getValue().getBsonType());
+                assertEquals(10, logicalComparisonFilter.getValue().getValue());
+            }
+
+            {
+                LogicalNode first = logicalOrFilter.getChildren().get(1);
+                assertInstanceOf(LogicalComparisonFilter.class, first);
+                LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) first;
+                assertEquals(OperatorType.GT, logicalComparisonFilter.getOperatorType());
+                assertEquals("qty", logicalComparisonFilter.getField());
+                assertEquals(BsonType.INT32, logicalComparisonFilter.getValue().getBsonType());
+                assertEquals(50, logicalComparisonFilter.getValue().getValue());
+            }
+        }
+
+        {
+            LogicalNode logicalNode = logicalAndFilter.getChildren().get(1);
+            assertInstanceOf(LogicalOrFilter.class, logicalNode);
+            LogicalOrFilter logicalOrFilter = (LogicalOrFilter) logicalNode;
+            assertEquals(2, logicalOrFilter.getChildren().size());
+
+            {
+                LogicalNode first = logicalOrFilter.getChildren().get(0);
+                assertInstanceOf(LogicalComparisonFilter.class, first);
+                LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) first;
+                assertEquals(OperatorType.EQ, logicalComparisonFilter.getOperatorType());
+                assertEquals("sale", logicalComparisonFilter.getField());
+                assertEquals(BsonType.BOOLEAN, logicalComparisonFilter.getValue().getBsonType());
+                assertEquals(true, logicalComparisonFilter.getValue().getValue());
+            }
+
+            {
+                LogicalNode first = logicalOrFilter.getChildren().get(1);
+                assertInstanceOf(LogicalComparisonFilter.class, first);
+                LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) first;
+                assertEquals(OperatorType.LT, logicalComparisonFilter.getOperatorType());
+                assertEquals("price", logicalComparisonFilter.getField());
+                assertEquals(BsonType.INT32, logicalComparisonFilter.getValue().getBsonType());
+                assertEquals(5, logicalComparisonFilter.getValue().getValue());
+            }
+        }
     }
 
     @Test

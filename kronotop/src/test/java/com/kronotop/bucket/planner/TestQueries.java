@@ -36,4 +36,6 @@ public class TestQueries {
     public static final String EXISTS_FILTER = "{ price: { $exists: true } }";
 
     public static final String IMPLICIT_AND_WITH_NE_AND_EXISTS = "{ price: { $ne: 1.99, $exists: true } }";
+
+    public static final String COMPLEX_QUERY_ONE = "{ $and: [{ $or: [ { qty: { $lt : 10 } }, { qty : { $gt: 50 } } ] },{ $or: [ { sale: true }, { price : { $lt : 5 } } ] }]}";
 }
