@@ -10,8 +10,6 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.DefaultIndex;
-import com.kronotop.bucket.ReservedFieldName;
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.PlannerContext;
