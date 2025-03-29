@@ -28,20 +28,6 @@ class LogicalPlannerTest {
     }
 
     @Test
-    void test_prepareLogicalPlan() {
-        //LogicalPlanner planner = new LogicalPlanner(testBucket, "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' }, tags: { $all: ['foo', 32]} }");
-        //QueryOptimizer planner = new QueryOptimizer("{ status: {$eq: 'ALIVE'}, username: {$eq: 'kronotop-admin'}, age: {$lt: 35} }");
-        //QueryOptimizer planner = new QueryOptimizer("{ status: 'ALIVE', username: 'kronotop-admin' }");
-        //QueryOptimizer planner = new QueryOptimizer("{}");
-        LogicalPlanner optimizer = new LogicalPlanner(testBucket, "{_id: {$gte: '00010CRQ5VIMO0000000xxxx'}}");
-        //LogicalPlanner planner = new LogicalPlanner(testBucket, "{ status: {$eq: 'ALIVE'}, username: {$eq: 'kronotop-admin'}, age: {$lt: 35} }");
-
-        //LogicalPlanner planner = new LogicalPlanner(testBucket, "{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ], username: { $eq: 'buraksezer' }, tags: { $all: ['foo', 32]} }");
-        LogicalNode node = optimizer.plan();
-        System.out.println(node);
-    }
-
-    @Test
     void when_plan_or_filter_with_two_sub_filters() {
         LogicalNode node = getLogicalPlan(TestQueries.OR_FILTER_WITH_TWO_SUB_FILTERS);
 
