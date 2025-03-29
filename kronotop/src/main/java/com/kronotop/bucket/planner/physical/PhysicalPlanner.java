@@ -62,7 +62,9 @@ public class PhysicalPlanner {
         switch (root) {
             case LogicalFullScan node -> {
                 List<PhysicalNode> result = traverse(node.getChildren());
-                if (result.size() == 1) {
+                if (result.isEmpty()) {
+                    return new PhysicalFullScan();
+                } else if (result.size() == 1) {
                     return result.getFirst();
                 }
                 return new PhysicalIntersectionOperator(result);

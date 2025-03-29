@@ -13,6 +13,11 @@ package com.kronotop.bucket.planner.physical;
 import com.kronotop.bucket.bql.operators.OperatorType;
 
 public class PhysicalFullScan extends PhysicalScan {
+
+    public PhysicalFullScan() {
+        super(null);
+    }
+
     public PhysicalFullScan(OperatorType operatorType) {
         super(operatorType);
     }

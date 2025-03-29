@@ -23,14 +23,26 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.*;
 
 class PhysicalPlannerTest {
 
     private LogicalNode getLogicalPlan(String query) {
         LogicalPlanner logical = new LogicalPlanner(query);
         return logical.plan();
+    }
+
+    @Test
+    void when_planning_no_child_expression() {
+        LogicalNode logicalNode = getLogicalPlan(TestQuery.NO_CHILD_EXPRESSION);
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
+        PhysicalNode physicalNode = physical.plan();
+
+        assertInstanceOf(PhysicalFullScan.class, physicalNode);
+        PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalNode;
+        assertNull(physicalFullScan.getOperatorType());
+        assertNull(physicalFullScan.getValue());
+        assertNull(physicalFullScan.getField());
     }
 
     @Test
