@@ -299,13 +299,14 @@ class LogicalPlannerTest {
     @Test
     void when_plan_ne_filter_with_explicit_eq_filter() {
         LogicalNode node = getLogicalPlan(TestQueries.NOT_EQUALS_FILTER_WITH_EXPLICIT_EQ_FILTER);
+
         assertInstanceOf(LogicalFullScan.class, node);
         assertEquals(1, node.getChildren().size());
 
         LogicalNode childNode = node.getChildren().getFirst();
         assertInstanceOf(LogicalComparisonFilter.class, childNode);
         LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) childNode;
-        assertEquals(OperatorType.NE, logicalComparisonFilter.getOperatorType());
+        assertEquals(OperatorType.EQ, logicalComparisonFilter.getOperatorType());
         assertEquals("status", logicalComparisonFilter.getField());
         assertEquals("A", logicalComparisonFilter.getValue().getValue());
     }
