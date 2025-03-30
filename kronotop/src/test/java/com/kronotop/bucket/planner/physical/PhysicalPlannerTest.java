@@ -243,4 +243,70 @@ class PhysicalPlannerTest {
             }
         }
     }
+
+    @Test
+    void when_planning_complex_query_one_with_indexes() {
+        Map<String, Index> indexes = Map.of(
+                "sale", new Index("sale_idx", BsonType.BOOLEAN),
+                "price", new Index("price_idx", BsonType.INT32),
+                "qty", new Index("qty_idx", BsonType.INT32)
+        );
+        LogicalNode logicalNode = getLogicalPlan(TestQuery.COMPLEX_QUERY_ONE);
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
+        PhysicalNode physicalNode = physical.plan();
+
+        assertInstanceOf(PhysicalIntersectionOperator.class, physicalNode);
+        PhysicalIntersectionOperator physicalIntersectionOperator = (PhysicalIntersectionOperator) physicalNode;
+        assertEquals(2, physicalIntersectionOperator.getChildren().size());
+
+        {
+            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().get(0));
+            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().get(0);
+            assertEquals(2, physicalUnionOperator.getChildren().size());
+            {
+                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().get(0));
+                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(0);
+                assertEquals("qty", physicalIndexScan.getField());
+                assertEquals("qty_idx", physicalIndexScan.getIndex());
+                assertEquals(OperatorType.LT, physicalIndexScan.getOperatorType());
+                assertEquals(BsonType.INT32, physicalIndexScan.getValue().getBsonType());
+                assertEquals(10, physicalIndexScan.getValue().getValue());
+            }
+
+            {
+                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().get(1));
+                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(1);
+                assertEquals("qty", physicalIndexScan.getField());
+                assertEquals("qty_idx", physicalIndexScan.getIndex());
+                assertEquals(OperatorType.GT, physicalIndexScan.getOperatorType());
+                assertEquals(BsonType.INT32, physicalIndexScan.getValue().getBsonType());
+                assertEquals(50, physicalIndexScan.getValue().getValue());
+            }
+        }
+
+        {
+            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().get(1));
+            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().get(1);
+            assertEquals(2, physicalUnionOperator.getChildren().size());
+            {
+                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().get(0));
+                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(0);
+                assertEquals("sale", physicalIndexScan.getField());
+                assertEquals("sale_idx", physicalIndexScan.getIndex());
+                assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
+                assertEquals(BsonType.BOOLEAN, physicalIndexScan.getValue().getBsonType());
+                assertTrue((Boolean) physicalIndexScan.getValue().getValue());
+            }
+
+            {
+                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().get(1));
+                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(1);
+                assertEquals("price", physicalIndexScan.getField());
+                assertEquals("price_idx", physicalIndexScan.getIndex());
+                assertEquals(OperatorType.LT, physicalIndexScan.getOperatorType());
+                assertEquals(BsonType.INT32, physicalIndexScan.getValue().getBsonType());
+                assertEquals(5, physicalIndexScan.getValue().getValue());
+            }
+        }
+    }
 }
