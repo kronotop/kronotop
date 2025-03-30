@@ -13,12 +13,15 @@ package com.kronotop.bucket.executor;
 import com.kronotop.Context;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 
+import java.util.List;
+
 public class PlanExecutor {
 
     public PlanExecutor(Context context, PhysicalNode plan) {
 
     }
 
-    public void execute() {
+    public List<byte[]> execute() {
+        return List.of();
     }
 }

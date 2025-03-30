@@ -20,7 +20,7 @@ public class BucketFindMessage implements ProtocolMessage<Void> {
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     public static final int MAXIMUM_PARAMETER_COUNT = 2;
     private final Request request;
-    private byte[] query;
+    private String query;
     private String bucket;
 
     public BucketFindMessage(Request request) {
@@ -35,10 +35,10 @@ public class BucketFindMessage implements ProtocolMessage<Void> {
 
         byte[] rawQuery = new byte[request.getParams().get(1).readableBytes()];
         request.getParams().get(1).readBytes(rawQuery);
-        query = rawQuery;
+        query = new String(rawQuery);
     }
 
-    public byte[] getQuery() {
+    public String getQuery() {
         return query;
     }
 
