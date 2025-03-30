@@ -189,10 +189,58 @@ class PhysicalPlannerTest {
 
     @Test
     void when_planning_complex_query_one() {
-        // OK
         LogicalNode logicalNode = getLogicalPlan(TestQuery.COMPLEX_QUERY_ONE);
         PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
         PhysicalNode physicalNode = physical.plan();
-        System.out.println(physicalNode);
+
+        assertInstanceOf(PhysicalIntersectionOperator.class, physicalNode);
+        PhysicalIntersectionOperator physicalIntersectionOperator = (PhysicalIntersectionOperator) physicalNode;
+        assertEquals(2, physicalIntersectionOperator.getChildren().size());
+
+        {
+            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().get(0));
+            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().get(0);
+            assertEquals(2, physicalUnionOperator.getChildren().size());
+            {
+                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().get(0));
+                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(0);
+                assertEquals("qty", physicalFullScan.getField());
+                assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
+                assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
+                assertEquals(10, physicalFullScan.getValue().getValue());
+            }
+
+            {
+                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().get(1));
+                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
+                assertEquals("qty", physicalFullScan.getField());
+                assertEquals(OperatorType.GT, physicalFullScan.getOperatorType());
+                assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
+                assertEquals(50, physicalFullScan.getValue().getValue());
+            }
+        }
+
+        {
+            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().get(1));
+            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().get(1);
+            assertEquals(2, physicalUnionOperator.getChildren().size());
+            {
+                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().get(0));
+                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(0);
+                assertEquals("sale", physicalFullScan.getField());
+                assertEquals(OperatorType.EQ, physicalFullScan.getOperatorType());
+                assertEquals(BsonType.BOOLEAN, physicalFullScan.getValue().getBsonType());
+                assertTrue((Boolean) physicalFullScan.getValue().getValue());
+            }
+
+            {
+                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().get(1));
+                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
+                assertEquals("price", physicalFullScan.getField());
+                assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
+                assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
+                assertEquals(5, physicalFullScan.getValue().getValue());
+            }
+        }
     }
 }
