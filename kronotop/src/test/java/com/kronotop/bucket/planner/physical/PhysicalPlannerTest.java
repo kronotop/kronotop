@@ -47,7 +47,7 @@ class PhysicalPlannerTest {
     void when_planning_single_field_with_string_type_and_gte() {
         LogicalNode logicalNode = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_STRING_TYPE_AND_GTE);
         Map<String, Index> indexes = Map.of(
-                "a", new Index("a_idx", BsonType.STRING)
+                "a", new Index("a_idx", "a", BsonType.STRING)
         );
         PlannerContext context = new PlannerContext(indexes);
         PhysicalPlanner physical = new PhysicalPlanner(context, logicalNode);
@@ -81,8 +81,8 @@ class PhysicalPlannerTest {
     void intersection_operator_with_two_indexed_fields() {
         LogicalNode logicalNode = getLogicalPlan("{ a: { $gte: 20 }, b: { $eq: 'string-value' } }");
         Map<String, Index> indexes = Map.of(
-                "a", new Index("a_idx", BsonType.INT32),
-                "b", new Index("b_idx", BsonType.STRING)
+                "a", new Index("a_idx", "a", BsonType.INT32),
+                "b", new Index("b_idx", "b", BsonType.STRING)
         );
         PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
         PhysicalNode physicalNode = physical.plan();
@@ -109,8 +109,8 @@ class PhysicalPlannerTest {
         LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
 
         Map<String, Index> indexes = Map.of(
-                "status", new Index("status_idx", BsonType.STRING),
-                "qty", new Index("qty_idx", BsonType.INT32)
+                "status", new Index("status_idx", "status", BsonType.STRING),
+                "qty", new Index("qty_idx", "qty", BsonType.INT32)
         );
         PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
         PhysicalNode physicalNode = physical.plan();
@@ -163,7 +163,7 @@ class PhysicalPlannerTest {
     void or_operator_with_only_one_indexed_field() {
         LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
         Map<String, Index> indexes = Map.of(
-                "status", new Index("status_idx", BsonType.STRING)
+                "status", new Index("status_idx", "status", BsonType.STRING)
         );
         PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
         PhysicalNode physicalNode = physical.plan();
@@ -247,9 +247,9 @@ class PhysicalPlannerTest {
     @Test
     void when_planning_complex_query_one_with_indexes() {
         Map<String, Index> indexes = Map.of(
-                "sale", new Index("sale_idx", BsonType.BOOLEAN),
-                "price", new Index("price_idx", BsonType.INT32),
-                "qty", new Index("qty_idx", BsonType.INT32)
+                "sale", new Index("sale_idx", "sale", BsonType.BOOLEAN),
+                "price", new Index("price_idx", "price", BsonType.INT32),
+                "qty", new Index("qty_idx", "qty", BsonType.INT32)
         );
         LogicalNode logicalNode = getLogicalPlan(TestQuery.COMPLEX_QUERY_ONE);
         PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);

@@ -16,7 +16,9 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.bucket.DefaultIndex;
+import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.Prefix;
+import org.bson.BsonType;
 
 public class IndexBuilder {
     private static final byte[] NULL_BYTES = new byte[]{0};
@@ -35,5 +37,13 @@ public class IndexBuilder {
         Tuple idIndexTemplate = Tuple.from(DefaultIndex.ID.getValue(), Versionstamp.incomplete(userVersion));
         byte[] idIndexKey = indexSubspace.packWithVersionstamp(idIndexTemplate);
         tr.set(idIndexKey, NULL_BYTES);
+    }
+
+    public static void setIndex(Transaction tr, BucketSubspace subspace, int shardId, Prefix prefix, int userVersion, Index index, byte[] metadata) {
+        // index-subspace / index-name / field-path / bson-type / versionstamped-key
+        Subspace indexSubspace = subspace.getBucketIndexSubspace(shardId, prefix);
+        Tuple indexTemplate = Tuple.from(index.name(), index.type(), Versionstamp.incomplete(userVersion));
+        byte[] indexKey = indexSubspace.packWithVersionstamp(indexTemplate);
+        tr.set(indexKey, metadata);
     }
 }
