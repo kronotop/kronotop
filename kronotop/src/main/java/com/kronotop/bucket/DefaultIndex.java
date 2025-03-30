@@ -10,16 +10,9 @@
 
 package com.kronotop.bucket;
 
-public enum DefaultIndex {
-    ID("_id_idx");
+import com.kronotop.bucket.index.Index;
+import org.bson.BsonType;
 
-    final String value;
-
-    DefaultIndex(String value) {
-        this.value = value;
-    }
-
-    public String getValue() {
-        return value;
-    }
+public class DefaultIndex {
+    public static Index ID = new Index("_id_idx", "_id", BsonType.BINARY);
 }

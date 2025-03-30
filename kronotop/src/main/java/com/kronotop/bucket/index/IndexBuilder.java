@@ -34,7 +34,7 @@ public class IndexBuilder {
      */
     public static void setIdIndex(Transaction tr, BucketSubspace subspace, int shardId, Prefix prefix, int userVersion) {
         Subspace indexSubspace = subspace.getBucketIndexSubspace(shardId, prefix);
-        Tuple idIndexTemplate = Tuple.from(DefaultIndex.ID.getValue(), Versionstamp.incomplete(userVersion));
+        Tuple idIndexTemplate = Tuple.from(DefaultIndex.ID.name(), Versionstamp.incomplete(userVersion));
         byte[] idIndexKey = indexSubspace.packWithVersionstamp(idIndexTemplate);
         tr.set(idIndexKey, NULL_BYTES);
     }
@@ -42,7 +42,7 @@ public class IndexBuilder {
     public static void setIndex(Transaction tr, BucketSubspace subspace, int shardId, Prefix prefix, int userVersion, Index index, byte[] metadata) {
         // index-subspace / index-name / field-path / bson-type / versionstamped-key
         Subspace indexSubspace = subspace.getBucketIndexSubspace(shardId, prefix);
-        Tuple indexTemplate = Tuple.from(index.name(), index.type(), Versionstamp.incomplete(userVersion));
+        Tuple indexTemplate = Tuple.from(index.name(), index.path(), index.type(), Versionstamp.incomplete(userVersion));
         byte[] indexKey = indexSubspace.packWithVersionstamp(indexTemplate);
         tr.set(indexKey, metadata);
     }
