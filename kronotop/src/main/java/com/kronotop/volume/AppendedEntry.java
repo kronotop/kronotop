@@ -17,17 +17,19 @@
 package com.kronotop.volume;
 
 /**
- * AppendedEntry is a record class representing an entry that has been appended
- * in a segmented storage system. It encapsulates the version of the user data
- * and the metadata associated with the appended entry.
+ * AppendedEntry is an immutable representation of an entry appended to a segmented storage system.
+ * It is primarily used to encapsulate information about the appended entry, including its index,
+ * the user-defined version of the entry, and metadata describing its properties.
  * <p>
- * The `userVersion` field denotes a version identifier provided by the user,
- * which can be used to track changes or revisions of the stored entry.
+ * The class consists of:
+ * - An `index` indicating the order or position of the appended entry.
+ * - A `userVersion` representing the user-defined version of the entry, typically used for
+ *   tracking or versioning purposes.
+ * - An `EntryMetadata` object encapsulating detailed information such as segment name, prefix,
+ *   position, and length of the entry in the storage.
  * <p>
- * The `metadata` field stores the {@link EntryMetadata} object, which contains
- * details such as the segment name, prefix, position, length, and other
- * attributes providing information about the entry's location and organization
- * within storage.
+ * This design ensures immutability and is suitable for applications requiring thread safety
+ * and reliable encapsulation of entry data.
  */
 public record AppendedEntry(int index, int userVersion, EntryMetadata metadata) {
 }

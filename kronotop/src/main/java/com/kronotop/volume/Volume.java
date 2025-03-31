@@ -402,13 +402,12 @@ public class Volume {
     }
 
     /**
-     * Writes an array of entry metadata to the current session and updates the transaction with the provided metadata.
-     * Each metadata entry will be encoded and set with a versionstamp key and value.
-     * Furthermore, it updates the segment metadata and triggers streaming subscribers as necessary.
+     * Writes metadata entries to the specified volume session and updates the transaction accordingly.
+     * Also handles segment metadata updates and triggers any associated subscribers.
      *
-     * @param session The session object containing the current transaction and user version.
-     * @param entries An array of entry metadata to be written.
-     * @return A CompletableFuture containing the byte array of the transaction versionstamp.
+     * @param session the volume session containing the transaction and associated metadata.
+     * @param entries an array of metadata entries to be written.
+     * @return a result object containing the appended entries and the transaction's versionstamp.
      */
     private WriteMetadataResult writeMetadata(VolumeSession session, EntryMetadata[] entries) {
         AppendedEntry[] appendedEntries = new AppendedEntry[entries.length];
