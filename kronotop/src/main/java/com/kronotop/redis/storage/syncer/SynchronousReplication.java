@@ -23,7 +23,7 @@ import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.client.protocol.PackedEntry;
 import com.kronotop.server.Response;
 import com.kronotop.volume.AppendResult;
-import com.kronotop.volume.EntryMetadata;
+import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeConfig;
 
 import java.nio.ByteBuffer;
@@ -68,8 +68,8 @@ public class SynchronousReplication {
      */
     private HashMap<String, PackedEntry[]> allocateEntriesBySegment(AppendResult result) {
         HashMap<String, Integer> capacityBySegment = new HashMap<>();
-        for (EntryMetadata entryMetadata : result.getEntryMetadataList()) {
-            capacityBySegment.compute(entryMetadata.segment(), (k, number) -> {
+        for (AppendedEntry entryMetadata : result.getAppendedEntries()) {
+            capacityBySegment.compute(entryMetadata.metadata().segment(), (k, number) -> {
                 if (number == null) {
                     number = 0;
                 }
@@ -87,14 +87,14 @@ public class SynchronousReplication {
     public boolean run() {
         HashMap<String, PackedEntry[]> entriesBySegment = allocateEntriesBySegment(appendResult);
         HashMap<String, AtomicInteger> segmentIndexCounter = getSegmentIndexCounter(entriesBySegment.keySet());
-        for (int index = 0; index < appendResult.getEntryMetadataList().length; index++) {
-            EntryMetadata entryMetadata = appendResult.getEntryMetadataList()[index];
-            PackedEntry[] packedEntries = entriesBySegment.get(entryMetadata.segment());
+        for (int index = 0; index < appendResult.getAppendedEntries().length; index++) {
+            AppendedEntry appendedEntry = appendResult.getAppendedEntries()[index];
+            PackedEntry[] packedEntries = entriesBySegment.get(appendedEntry.metadata().segment());
             ByteBuffer buffer = entries.get(index);
             buffer.flip();
 
-            int segmentIndex = segmentIndexCounter.get(entryMetadata.segment()).getAndIncrement();
-            packedEntries[segmentIndex] = new PackedEntry(entryMetadata.position(), buffer.array());
+            int segmentIndex = segmentIndexCounter.get(appendedEntry.metadata().segment()).getAndIncrement();
+            packedEntries[segmentIndex] = new PackedEntry(appendedEntry.metadata().position(), buffer.array());
         }
 
         CountDownLatch latch = new CountDownLatch(members.size());

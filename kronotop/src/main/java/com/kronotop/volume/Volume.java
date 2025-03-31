@@ -406,14 +406,17 @@ public class Volume {
      * Each metadata entry will be encoded and set with a versionstamp key and value.
      * Furthermore, it updates the segment metadata and triggers streaming subscribers as necessary.
      *
-     * @param session           The session object containing the current transaction and user version.
-     * @param entryMetadataList An array of entry metadata to be written.
+     * @param session The session object containing the current transaction and user version.
+     * @param entries An array of entry metadata to be written.
      * @return A CompletableFuture containing the byte array of the transaction versionstamp.
      */
-    private CompletableFuture<byte[]> writeMetadata(VolumeSession session, EntryMetadata[] entryMetadataList) {
+    private WriteMetadataResult writeMetadata(VolumeSession session, EntryMetadata[] entries) {
+        AppendedEntry[] appendedEntries = new AppendedEntry[entries.length];
         Transaction tr = session.transaction();
-        for (EntryMetadata entryMetadata : entryMetadataList) {
+        for (int index = 0; index < entries.length; index++) {
+            EntryMetadata entryMetadata = entries[index];
             int userVersion = session.getAndIncrementUserVersion();
+            appendedEntries[index] = new AppendedEntry(index, userVersion, entryMetadata);
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
 
             tr.mutate(
@@ -436,7 +439,7 @@ public class Volume {
             appendSegmentLog(tr, OperationKind.APPEND, null, userVersion, session.prefix().asLong(), entryMetadata);
             triggerStreamingSubscribers(tr);
         }
-        return tr.getVersionstamp();
+        return new WriteMetadataResult(appendedEntries, tr.getVersionstamp());
     }
 
     /**
@@ -480,10 +483,10 @@ public class Volume {
         // Forces any updates to this channel's file to be written to the storage device that contains it.
         flushMutatedSegments(entryMetadataList);
 
-        CompletableFuture<byte[]> future = writeMetadata(session, entryMetadataList);
+        WriteMetadataResult result = writeMetadata(session, entryMetadataList);
 
         raiseExceptionIfVolumeReadOnly();
-        return new AppendResult(future, entryMetadataList, entryMetadataCache.load(session.prefix())::put);
+        return new AppendResult(result.versionstampFuture(), result.entries(), entryMetadataCache.load(session.prefix())::put);
     }
 
     /**
@@ -1136,7 +1139,6 @@ public class Volume {
         clearEntrySubspace(session);
     }
 
-
     /**
      * Inserts the given entries into the specified segment.
      * <p>
@@ -1176,5 +1178,8 @@ public class Volume {
     @Override
     public String toString() {
         return String.format("Volume [%s]", config.name());
+    }
+
+    record WriteMetadataResult(AppendedEntry[] entries, CompletableFuture<byte[]> versionstampFuture) {
     }
 }
