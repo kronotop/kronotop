@@ -31,5 +31,5 @@ package com.kronotop.volume;
  * This design ensures immutability and is suitable for applications requiring thread safety
  * and reliable encapsulation of entry data.
  */
-public record AppendedEntry(int index, int userVersion, EntryMetadata metadata) {
+public record AppendedEntry(int index, int userVersion, EntryMetadata metadata, byte[] encodedMetadata) {
 }

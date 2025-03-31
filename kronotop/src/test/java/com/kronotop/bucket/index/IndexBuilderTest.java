@@ -15,6 +15,7 @@ import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.bucket.BucketPrefix;
 import com.kronotop.bucket.BucketSubspace;
+import com.kronotop.bucket.DefaultIndex;
 import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.volume.Prefix;
@@ -23,15 +24,17 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class IndexBuilderTest extends BaseClusterTest {
+    final byte[] data = "test-data".getBytes();
+
     @Test
-    void test_setIdIndex() {
+    void test_setIndex_default_index_id() {
         KronotopTestInstance instance = getInstances().getFirst();
         Namespace namespace = NamespaceUtils.createOrOpen(instance.getContext(), "index-builder-test");
         BucketSubspace subspace = new BucketSubspace(namespace);
 
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             Prefix prefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, subspace, "test-bucket");
-            assertDoesNotThrow(() -> IndexBuilder.setIdIndex(tr, subspace, 1, prefix, 1));
+            assertDoesNotThrow(() -> IndexBuilder.setIndex(tr, subspace, 1, prefix, 1, DefaultIndex.ID, data));
             tr.commit().join();
         }
     }

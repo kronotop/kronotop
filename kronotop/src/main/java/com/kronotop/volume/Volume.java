@@ -415,8 +415,8 @@ public class Volume {
         for (int index = 0; index < entries.length; index++) {
             EntryMetadata entryMetadata = entries[index];
             int userVersion = session.getAndIncrementUserVersion();
-            appendedEntries[index] = new AppendedEntry(index, userVersion, entryMetadata);
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
+            appendedEntries[index] = new AppendedEntry(index, userVersion, entryMetadata, encodedEntryMetadata);
 
             tr.mutate(
                     MutationType.SET_VERSIONSTAMPED_KEY,
