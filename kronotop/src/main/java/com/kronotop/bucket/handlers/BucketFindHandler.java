@@ -11,9 +11,9 @@
 package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.executor.PlanExecutor;
 import com.kronotop.bucket.handlers.protocol.BucketFindMessage;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
-import com.kronotop.bucket.planner.physical.PhysicalPlanner;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -21,7 +21,11 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
+import io.netty.buffer.ByteBuf;
 
+import java.util.LinkedList;
 import java.util.List;
 
 @Command(BucketFindMessage.COMMAND)
@@ -43,8 +47,18 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
         BucketFindMessage message = request.attr(MessageTypes.BUCKETFIND).get();
 
         PhysicalNode plan = service.getPlanner().plan(message.getBucket(), message.getQuery());
-        System.out.println(plan);
-
-        response.writeArray(List.of());
+        PlanExecutor executor = new PlanExecutor(context, plan);
+        List<byte[]> entries = executor.execute();
+        if (entries == null || entries.isEmpty()) {
+            response.writeArray(List.of());
+            return;
+        }
+        List<RedisMessage> children = new LinkedList<>();
+        for (byte[] entry : entries) {
+            ByteBuf buf = response.getCtx().alloc().buffer();
+            buf.writeBytes(entry);
+            children.add(new FullBulkStringRedisMessage(buf));
+        }
+        response.writeArray(children);
     }
 }
