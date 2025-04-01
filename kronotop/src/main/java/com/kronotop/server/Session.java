@@ -96,6 +96,7 @@ public class Session {
         channel.attr(SessionAttributes.QUEUED_COMMANDS).set(new LinkedList<>());
         channel.attr(SessionAttributes.MULTI).set(false);
         channel.attr(SessionAttributes.MULTI_DISCARDED).set(false);
+        channel.attr(SessionAttributes.REPLY_CONTENT_TYPE).set(ReplyContentType.BSON);
     }
 
     /**

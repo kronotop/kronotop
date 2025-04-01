@@ -19,6 +19,7 @@ package com.kronotop.server.handlers.protocol;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.server.ReplyContentType;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ import java.util.ArrayList;
 public class SessionAttributeParameters {
     private final SessionAttributeSubcommand subcommand;
     private SessionAttribute attribute;
-    private Boolean futures;
+    private ReplyContentType replyContentType;
 
     public SessionAttributeParameters(ArrayList<ByteBuf> params) {
         String rawSubcommand = ByteBufUtils.readAsString(params.get(0));
@@ -60,9 +61,13 @@ public class SessionAttributeParameters {
         }
 
         switch (attribute) {
-            case FUTURES:
-                futures = ByteBufUtils.readBooleanValue(params.get(2));
-                break;
+            case REPLY_CONTENT_TYPE:
+                String value = ByteBufUtils.readAsString(params.get(2));
+                try {
+                    replyContentType = ReplyContentType.valueOf(value.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    throw new KronotopException("Invalid reply content type: " + value);
+                }
             default:
                 throw new KronotopException("Unknown session attribute: " + rawSessionAttribute);
         }
@@ -76,8 +81,8 @@ public class SessionAttributeParameters {
         return attribute;
     }
 
-    public Boolean getFutures() {
-        return futures;
+    public ReplyContentType replyContentType() {
+        return replyContentType;
     }
 
     public enum SessionAttributeSubcommand {
@@ -87,6 +92,16 @@ public class SessionAttributeParameters {
     }
 
     public enum SessionAttribute {
-        FUTURES
+        REPLY_CONTENT_TYPE("reply-content-type");
+
+        final String value;
+
+        SessionAttribute(String value) {
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
     }
 }

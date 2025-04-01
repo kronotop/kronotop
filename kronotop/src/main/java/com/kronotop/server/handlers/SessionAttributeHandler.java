@@ -22,7 +22,6 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.handlers.protocol.SessionAttributeMessage;
 import com.kronotop.server.handlers.protocol.SessionAttributeParameters;
-import com.kronotop.server.resp3.BooleanRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.netty.util.Attribute;
@@ -47,11 +46,12 @@ public class SessionAttributeHandler implements Handler {
     private void listSubcommand(Request request, Response response) {
         Map<RedisMessage, RedisMessage> children = new HashMap<>();
 
-        // FUTURES
-        Attribute<Boolean> futuresAttr = request.getSession().attr(SessionAttributes.FUTURES);
+        // List the attributes have default value
+        // REPLY_CONTENT_TYPE
+        Attribute<ReplyContentType> replyContentTypeAttr = request.getSession().attr(SessionAttributes.REPLY_CONTENT_TYPE);
         children.put(
-                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.FUTURES.name().toLowerCase()),
-                futuresAttr.get() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
+                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.REPLY_CONTENT_TYPE.name().toLowerCase()),
+                new SimpleStringRedisMessage(replyContentTypeAttr.get().name().toLowerCase())
         );
 
         response.writeMap(children);
@@ -59,8 +59,8 @@ public class SessionAttributeHandler implements Handler {
 
     private void setSubcommand(Request request, Response response, SessionAttributeParameters parameters) {
         switch (parameters.getAttribute()) {
-            case FUTURES -> {
-                request.getSession().attr(SessionAttributes.FUTURES).set(parameters.getFutures());
+            case REPLY_CONTENT_TYPE -> {
+                request.getSession().attr(SessionAttributes.REPLY_CONTENT_TYPE).set(parameters.replyContentType());
             }
         }
         response.writeOK();
