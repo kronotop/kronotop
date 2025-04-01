@@ -16,9 +16,12 @@ import com.kronotop.bucket.planner.physical.PhysicalNode;
 import java.util.List;
 
 public class PlanExecutor {
+    private final Context context;
+    private final PhysicalNode plan;
 
     public PlanExecutor(Context context, PhysicalNode plan) {
-
+        this.context = context;
+        this.plan = plan;
     }
 
     public List<byte[]> execute() {

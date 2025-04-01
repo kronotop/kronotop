@@ -10,10 +10,15 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.Transaction;
+import com.kronotop.bucket.BucketPrefix;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.BucketSubspace;
+import com.kronotop.bucket.BucketSubspaceUtils;
 import com.kronotop.bucket.executor.PlanExecutor;
 import com.kronotop.bucket.handlers.protocol.BucketFindMessage;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -23,6 +28,7 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.volume.Prefix;
 import io.netty.buffer.ByteBuf;
 
 import java.util.LinkedList;
@@ -46,8 +52,14 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         BucketFindMessage message = request.attr(MessageTypes.BUCKETFIND).get();
 
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+        BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
+
+        Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, subspace, message.getBucket());
+
         PhysicalNode plan = service.getPlanner().plan(message.getBucket(), message.getQuery());
         PlanExecutor executor = new PlanExecutor(context, plan);
+
         List<byte[]> entries = executor.execute();
         if (entries == null || entries.isEmpty()) {
             response.writeArray(List.of());

@@ -28,7 +28,7 @@ public class IndexBuilder {
      * @param prefix      the Prefix object representing the namespace prefix for the bucket
      * @param userVersion the user-specified version used for the version-stamped operation
      * @param index       the Index object containing details such as name, path, and type
-     * @param metadata    the byte array representing additional metadata associated with the index
+     * @param metadata    the byte array representing {@code EntryMetadata}
      */
     public static void setIndex(Transaction tr, BucketSubspace subspace, int shardId, Prefix prefix, int userVersion, Index index, byte[] metadata) {
         // index-subspace / index-name / field-path / bson-type / versionstamped-key
