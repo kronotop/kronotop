@@ -61,7 +61,7 @@ public class BucketSubspace {
      * @param bucket the name of the bucket for which the prefix is being set
      * @param prefix the Prefix object to associate with the specified bucket
      */
-    public void setBucketPrefix(String bucket, Prefix prefix) {
+    protected void setBucketPrefix(String bucket, Prefix prefix) {
         lock.writeLock().lock();
         try {
             prefixes.putIfAbsent(bucket, prefix);
@@ -76,7 +76,7 @@ public class BucketSubspace {
      * @param bucket the name of the bucket for which the prefix is to be retrieved
      * @return the Prefix object associated with the specified bucket, or null if no prefix is found
      */
-    public Prefix getBucketPrefix(String bucket) {
+    protected Prefix getBucketPrefix(String bucket) {
         lock.readLock().lock();
         try {
             return prefixes.get(bucket);
@@ -91,7 +91,7 @@ public class BucketSubspace {
      *
      * @param bucket the name of the bucket to be cleaned up
      */
-    public void cleanupBucket(String bucket) {
+    protected void cleanupBucket(String bucket) {
         lock.writeLock().lock();
         try {
             Prefix prefix = prefixes.remove(bucket);
@@ -137,6 +137,13 @@ public class BucketSubspace {
      * @return the Subspace object corresponding to the bucket index for the given shard and prefix
      */
     public Subspace getBucketIndexSubspace(int shardId, Prefix prefix) {
+        // How indexes work:
+        //
+        // index-subspace / index-name / field-path / bson-type / versionstamped-key
+        //
+        // Index metadata
+        //
+        // index-subspace / metadata / index-name / encoded-index
         lock.readLock().lock();
         try {
             Subspace subspace = getBucketIndexSubspaceIfExists(shardId, prefix);
