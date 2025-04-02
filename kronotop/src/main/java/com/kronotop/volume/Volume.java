@@ -46,6 +46,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.StampedLock;
 
 import static com.kronotop.volume.EntryMetadata.*;
 import static com.kronotop.volume.Subspaces.*;
@@ -67,7 +68,7 @@ public class Volume {
     private final byte[] streamingSubscribersTriggerKey;
 
     // segmentsLock protects segments map
-    private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
+    private final StampedLock segmentsLock = new StampedLock();
     private final TreeMap<String, SegmentContainer> segments = new TreeMap<>();
 
     private final ReadWriteLock statusLock = new ReentrantReadWriteLock();
@@ -301,7 +302,7 @@ public class Volume {
      * @throws IOException if an I/O error occurs during the segment retrieval or creation.
      */
     private Segment getOrCreateLatestSegment(int size) throws IOException {
-        segmentsLock.writeLock().lock();
+        long stamp = segmentsLock.writeLock();
         try {
             Map.Entry<String, SegmentContainer> entry = segments.lastEntry();
             if (entry == null) {
@@ -314,7 +315,7 @@ public class Volume {
             }
             return segment;
         } finally {
-            segmentsLock.writeLock().unlock();
+            segmentsLock.unlockWrite(stamp);
         }
     }
 
@@ -326,7 +327,7 @@ public class Volume {
      * @throws IOException if an I/O error occurs during the segment retrieval or creation.
      */
     private Segment getLatestSegment(int size) throws IOException {
-        segmentsLock.readLock().lock();
+        long stamp = segmentsLock.readLock();
         try {
             Map.Entry<String, SegmentContainer> entry = segments.lastEntry();
             if (entry != null) {
@@ -336,7 +337,7 @@ public class Volume {
                 }
             }
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
         return getOrCreateLatestSegment(size);
     }
@@ -388,7 +389,7 @@ public class Volume {
      * @throws IllegalStateException if the segment specified in the entry metadata cannot be found.
      */
     private void appendSegmentLog(Transaction tr, OperationKind kind, Versionstamp versionstamp, int userVersion, long prefix, EntryMetadata entryMetadata) {
-        segmentsLock.readLock().lock();
+        long stamp = segmentsLock.readLock();
         try {
             SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
             if (segmentContainer == null) {
@@ -397,7 +398,7 @@ public class Volume {
             SegmentLogValue value = new SegmentLogValue(kind, prefix, entryMetadata.position(), entryMetadata.length());
             segmentContainer.log().append(tr, versionstamp, userVersion, value);
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
     }
 
@@ -498,18 +499,18 @@ public class Volume {
      * @throws SegmentNotFoundException if the specified segment cannot be found.
      */
     private Segment getOrOpenSegmentByName(String name) throws IOException, SegmentNotFoundException {
-        segmentsLock.readLock().lock();
+        long stamp = segmentsLock.readLock();
         try {
             SegmentContainer segmentContainer = segments.get(name);
             if (segmentContainer != null) {
                 return segmentContainer.segment();
             }
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
 
         // Try to open the segment but check it first
-        segmentsLock.writeLock().lock();
+        long writeStamp = segmentsLock.writeLock();
         try {
             SegmentContainer segmentContainer = segments.get(name);
             if (segmentContainer != null) {
@@ -523,7 +524,7 @@ public class Volume {
                 return openSegment(segmentId);
             }
         } finally {
-            segmentsLock.writeLock().unlock();
+            segmentsLock.unlockWrite(writeStamp);
         }
     }
 
@@ -731,7 +732,7 @@ public class Volume {
      * preventing them from propagating further.
      */
     public void flush() {
-        segmentsLock.readLock().lock();
+        long stamp = segmentsLock.readLock();
         try {
             for (Map.Entry<String, SegmentContainer> entry : segments.entrySet()) {
                 try {
@@ -741,7 +742,7 @@ public class Volume {
                 }
             }
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
     }
 
@@ -758,7 +759,7 @@ public class Volume {
      */
     public void close() {
         isClosed = true;
-        segmentsLock.readLock().lock();
+        long stamp = segmentsLock.readLock();
         try {
             for (Map.Entry<String, SegmentContainer> entry : segments.entrySet()) {
                 Segment segment = entry.getValue().segment();
@@ -770,7 +771,7 @@ public class Volume {
                 }
             }
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
     }
 
@@ -909,14 +910,14 @@ public class Volume {
         // Read-only access to the segments is not an issue. A segment can only be removed by the Vacuum daemon.
         TreeMap<String, SegmentContainer> swallowCopy;
         List<SegmentAnalysis> result = new ArrayList<>();
-        segmentsLock.readLock().lock();
+        long stamp = segmentsLock.readLock();
         try {
             if (segments.isEmpty()) {
                 return result;
             }
             swallowCopy = (TreeMap<String, SegmentContainer>) segments.clone();
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
         for (Map.Entry<String, SegmentContainer> entry : swallowCopy.entrySet()) {
             result.add(analyzeSegment(tr, entry.getValue()));
@@ -1055,9 +1056,9 @@ public class Volume {
             });
             return null;
         });
-        segmentsLock.writeLock().lock();
+        long stamp = segmentsLock.writeLock();
         segments.remove(name);
-        segmentsLock.writeLock().unlock();
+        segmentsLock.unlockWrite(stamp);
         return segment.delete();
     }
 

@@ -33,8 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.StampedLock;
 
 /**
  * Represents a file segment used to store and manage data in a structured manner.
@@ -49,7 +48,7 @@ public class Segment {
     private final SegmentConfig config;
     private final String name;
     private final SegmentMetadata metadata;
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private final StampedLock lock = new StampedLock();
     private final RandomAccessFile segmentFile;
     private final RandomAccessFile metadataFile;
     private volatile boolean flushed = true;
@@ -93,11 +92,11 @@ public class Segment {
     }
 
     public long getFreeBytes() {
-        lock.readLock().lock();
+        long stamp = lock.readLock();
         try {
             return metadata.getSize() - metadata.getPosition();
         } finally {
-            lock.readLock().unlock();
+            lock.unlockRead(stamp);
         }
     }
 
@@ -158,7 +157,7 @@ public class Segment {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     private long forwardMetadataPosition(int length) throws NotEnoughSpaceException, IOException {
-        lock.writeLock().lock();
+        long stamp = lock.writeLock();
         try {
             long position = metadata.getPosition();
             if (position + length > metadata.getSize()) {
@@ -169,7 +168,7 @@ public class Segment {
             metadataFile.getChannel().write(buffer, 0);
             return position;
         } finally {
-            lock.writeLock().unlock();
+            lock.unlockWrite(stamp);
         }
     }
 
@@ -203,7 +202,7 @@ public class Segment {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     private void updateMetadataPosition(long position) throws NotEnoughSpaceException, IOException {
-        lock.writeLock().lock();
+        long stamp = lock.writeLock();
         try {
             if (position > metadata.getSize()) {
                 throw new NotEnoughSpaceException();
@@ -212,7 +211,7 @@ public class Segment {
             ByteBuffer buffer = metadata.encode();
             metadataFile.getChannel().write(buffer, 0);
         } finally {
-            lock.writeLock().unlock();
+            lock.unlockWrite(stamp);
         }
     }
 
