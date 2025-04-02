@@ -33,6 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
 
 /**
@@ -49,9 +50,10 @@ public class Segment {
     private final String name;
     private final SegmentMetadata metadata;
     private final StampedLock lock = new StampedLock();
+    private final StampedLock flushLock = new StampedLock();
     private final RandomAccessFile segmentFile;
     private final RandomAccessFile metadataFile;
-    private volatile boolean flushed = true;
+    private final AtomicInteger flushCounter = new AtomicInteger(0);
 
     public Segment(SegmentConfig config) throws IOException {
         this.config = config;
@@ -103,10 +105,6 @@ public class Segment {
     public long getSize() {
         // No need to use lock here. Size is a final property.
         return metadata.getSize();
-    }
-
-    private void setFlushed(boolean flushed) {
-        this.flushed = flushed;
     }
 
     private SegmentMetadata createOrDecodeSegmentMetadata(long id) throws IOException {
@@ -196,7 +194,7 @@ public class Segment {
             return new SegmentAppendResult(position, length);
         } finally {
             // Now this segment requires a flush.
-            setFlushed(false);
+            flushCounter.incrementAndGet();
         }
     }
 
@@ -237,7 +235,7 @@ public class Segment {
             updateMetadataPosition(position);
         } finally {
             // Now this segment requires a flush.
-            setFlushed(false);
+            flushCounter.incrementAndGet();
         }
     }
 
@@ -264,37 +262,56 @@ public class Segment {
     }
 
     /**
-     * Flushes the data to ensure that any buffered writes are persisted to the disk.
+     * Ensures that all data written to the segment and metadata files is persisted to the underlying
+     * storage device.
      * <p>
-     * This method performs a synchronized flush operation for the segment and its metadata files.
-     * It ensures that the operating system writes any buffered data from both the segment file
-     * and the metadata file to their respective storage devices, guaranteeing data durability.
+     * This method performs a synchronization operation to flush any modifications to the
+     * segment and metadata files onto durable storage. It acquires a write lock to guarantee thread
+     * safety during the flushing process. If no data is pending for flush (indicated by the flushCounter
+     * being zero), the method returns immediately.
      * <p>
-     * If both files have already been flushed, the method returns without any action. If a failed
-     * synchronization occurs for either file (due to a {@code SyncFailedException}), the issue
-     * is logged and the method attempts to proceed with flushing the other file.
+     * The method tries to sync the file descriptors of both the segment and metadata files. If any of
+     * these operations fail due to a {@code SyncFailedException}, an error message is logged, and the
+     * operation continues to sync the other file(s). The flush operation will only be considered
+     * successful if both files are synced without any exceptions.
      * <p>
-     * After successfully flushing all relevant files, the segment is marked as flushed.
+     * Upon a successful flush, the method updates the flushCounter to reflect the number of flushed
+     * operations since the last invocation of this method.
      *
      * @throws IOException if an I/O error occurs during the flush operation
      */
-    public synchronized void flush() throws IOException {
-        if (flushed) {
+    public void flush() throws IOException {
+        if (flushCounter.get() == 0) {
             // Already flushed
             return;
         }
+
+        long stamp = flushLock.writeLock();
         try {
-            segmentFile.getFD().sync();
-        } catch (SyncFailedException e) {
-            LOGGER.error("Calling sync on failed", e);
-            // Continue syncing the other file or files.
+            int count = flushCounter.get();
+            if (count == 0) {
+                return;
+            }
+            boolean success = true;
+            try {
+                segmentFile.getFD().sync();
+            } catch (SyncFailedException e) {
+                LOGGER.error("Calling sync on failed", e);
+                // Continue syncing the other file or files.
+                success = false;
+            }
+            try {
+                metadataFile.getFD().sync();
+            } catch (SyncFailedException e) {
+                LOGGER.error("Calling sync on failed", e);
+                success = false;
+            }
+            if (success) {
+                flushCounter.updateAndGet(v -> v - count);
+            }
+        } finally {
+            flushLock.unlockWrite(stamp);
         }
-        try {
-            metadataFile.getFD().sync();
-        } catch (SyncFailedException e) {
-            LOGGER.error("Calling sync on failed", e);
-        }
-        setFlushed(true);
     }
 
     /**
