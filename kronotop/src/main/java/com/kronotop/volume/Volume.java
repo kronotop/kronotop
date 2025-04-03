@@ -44,9 +44,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
@@ -88,6 +86,15 @@ public class Volume {
         this.status = loadStatusFromMetadata();
         this.entryMetadataCache = new EntryMetadataCache(context, subspace);
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
+    }
+
+    private SegmentContainer getSegmentContainer(String segmentName) {
+        long stamp = segmentsLock.readLock();
+        try {
+            return segments.get(segmentName);
+        } finally {
+            segmentsLock.unlockRead(stamp);
+        }
     }
 
     /**
@@ -392,17 +399,12 @@ public class Volume {
      * @throws IllegalStateException if the segment specified in the entry metadata cannot be found.
      */
     private void appendSegmentLog(Transaction tr, OperationKind kind, Versionstamp versionstamp, int userVersion, long prefix, EntryMetadata entryMetadata) {
-        long stamp = segmentsLock.readLock();
-        try {
-            SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
-            if (segmentContainer == null) {
-                throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
-            }
-            SegmentLogValue value = new SegmentLogValue(kind, prefix, entryMetadata.position(), entryMetadata.length());
-            segmentContainer.log().append(tr, versionstamp, userVersion, value);
-        } finally {
-            segmentsLock.unlockRead(stamp);
+        SegmentContainer segmentContainer = getSegmentContainer(entryMetadata.segment());
+        if (segmentContainer == null) {
+            throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
         }
+        SegmentLogValue value = new SegmentLogValue(kind, prefix, entryMetadata.position(), entryMetadata.length());
+        segmentContainer.log().append(tr, versionstamp, userVersion, value);
     }
 
     /**
@@ -433,7 +435,10 @@ public class Volume {
                     Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp()
             );
 
-            SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
+            SegmentContainer segmentContainer = getSegmentContainer(entryMetadata.segment());
+            if (segmentContainer == null) {
+                throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
+            }
             segmentContainer.metadata().increaseCardinalityByOne(session);
             segmentContainer.metadata().increaseUsedBytes(session, entryMetadata.length());
 
