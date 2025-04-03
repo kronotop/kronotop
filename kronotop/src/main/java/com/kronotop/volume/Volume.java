@@ -39,11 +39,14 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
@@ -437,8 +440,8 @@ public class Volume {
             // Passing versionstamp as null because we don't have any key for this entry for now.
             // It will be automatically filled by FDB during the commit. It'll be the same versionstamp with entry's key.
             appendSegmentLog(tr, OperationKind.APPEND, null, userVersion, session.prefix().asLong(), entryMetadata);
-            triggerStreamingSubscribers(tr);
         }
+        triggerStreamingSubscribers(tr);
         return new WriteMetadataResult(appendedEntries, tr.getVersionstamp());
     }
 
@@ -480,10 +483,22 @@ public class Volume {
 
         EntryMetadata[] entryMetadataList = appendEntries(session.prefix(), entries);
 
-        // Forces any updates to this channel's file to be written to the storage device that contains it.
-        flushMutatedSegments(entryMetadataList);
+        Thread asyncFlush = Thread.ofVirtual().start(() -> {
+            // Forces any updates to this channel's file to be written to the storage device that contains it.
+            try {
+                flushMutatedSegments(entryMetadataList);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
 
         WriteMetadataResult result = writeMetadata(session, entryMetadataList);
+
+        try {
+            asyncFlush.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
         raiseExceptionIfVolumeReadOnly();
         return new AppendResult(result.versionstampFuture(), result.entries(), entryMetadataCache.load(session.prefix())::put);
