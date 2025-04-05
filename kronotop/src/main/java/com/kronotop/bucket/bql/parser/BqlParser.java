@@ -16,6 +16,7 @@ import com.kronotop.bucket.bql.operators.array.BqlAllOperator;
 import com.kronotop.bucket.bql.operators.array.BqlElemMatchOperator;
 import com.kronotop.bucket.bql.operators.array.BqlSizeOperator;
 import com.kronotop.bucket.bql.operators.comparison.*;
+import com.kronotop.bucket.bql.operators.element.BqlExistsOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlAndOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNorOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
@@ -28,6 +29,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+// Parser for Bucket Query Language
 public class BqlParser {
     private final String query;
     private final List<BqlOperator> operators = new LinkedList<>();
@@ -104,6 +106,7 @@ public class BqlParser {
                 case BqlNorOperator.NAME -> new BqlNorOperator(level);
                 case BqlSizeOperator.NAME -> new BqlSizeOperator(level);
                 case BqlElemMatchOperator.NAME -> new BqlElemMatchOperator(level);
+                case BqlExistsOperator.NAME -> new BqlExistsOperator(level);
                 default -> new BqlEqOperator(level, field);
             };
             operators.add(bqlOperator);

@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BucketInsertHandlerTest extends BaseHandlerTest {
 
     @Test
-    public void test_insert_single_document_with_oneOff_transaction() {
+    void test_insert_single_document_with_oneOff_transaction() {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
         cmd.insert("test-bucket", "{\"one\": \"two\"}").encode(buf);
@@ -41,7 +41,7 @@ class BucketInsertHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_insert_documents_with_oneOff_transaction() {
+    void test_insert_documents_with_oneOff_transaction() {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
         cmd.insert("test-bucket", "{\"one\": \"two\"}", "{\"three\": \"four\"}").encode(buf);
@@ -58,7 +58,7 @@ class BucketInsertHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_insert() {
+    void test_insert() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();

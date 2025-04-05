@@ -8,21 +8,19 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.optimizer.logical;
+package com.kronotop.bucket.planner.physical;
 
-public class LogicalFullBucketScan extends LogicalNode {
-    private final String bucket;
+import com.kronotop.bucket.bql.operators.OperatorType;
 
-    public LogicalFullBucketScan(String bucket) {
-        this.bucket = bucket;
-    }
+import java.util.List;
 
-    public String getBucket() {
-        return bucket;
+public class PhysicalIntersectionOperator extends PhysicalFilter {
+    public PhysicalIntersectionOperator(List<PhysicalNode> children) {
+        super(OperatorType.AND, children);
     }
 
     @Override
     public String toString() {
-        return "LogicalFullBucketScan [bucket=" + bucket + ", filters=" + filters + "]";
+        return "PhysicalIntersectionOperator {children=" + children + "}";
     }
 }

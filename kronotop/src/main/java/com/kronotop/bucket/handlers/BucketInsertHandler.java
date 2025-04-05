@@ -25,6 +25,7 @@ import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.AppendResult;
+import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.VolumeSession;
 import org.bson.Document;
@@ -62,23 +63,35 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         List<RedisMessage> userVersions = new LinkedList<>();
         boolean autoCommitEnabled = TransactionUtils.getAutoCommit(request.getSession());
 
+        Document[] documents = new Document[message.getDocuments().size()];
         ByteBuffer[] entries = new ByteBuffer[message.getDocuments().size()];
         for (int index = 0; index < message.getDocuments().size(); index++) {
             byte[] data = message.getDocuments().get(index);
             Document document = Document.parse(new String(data));
             entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
-
-            int userVersion = TransactionUtils.getUserVersion(request.getSession());
-            IndexBuilder.setIdIndex(tr, subspace, shardId, prefix, userVersion);
-            if (!autoCommitEnabled) {
-                userVersions.add(new IntegerRedisMessage(userVersion));
-                request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get().add(userVersion);
-            }
+            documents[index] = document;
         }
 
         VolumeSession volumeSession = new VolumeSession(tr, prefix);
         BucketShard shard = service.getShard(shardId);
         AppendResult appendResult = shard.volume().append(volumeSession, entries);
+        // Set indexes
+        for (AppendedEntry appendedEntry : appendResult.getAppendedEntries()) {
+            // Set the default ID index
+            IndexBuilder.setIndex(
+                    tr,
+                    subspace,
+                    shardId,
+                    prefix,
+                    appendedEntry.userVersion(),
+                    DefaultIndex.ID,
+                    appendedEntry.encodedMetadata()
+            );
+            if (!autoCommitEnabled) {
+                userVersions.add(new IntegerRedisMessage(appendedEntry.userVersion()));
+                request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get().add(appendedEntry.userVersion());
+            }
+        }
 
         PostCommitHook postCommitHook = new PostCommitHook(appendResult);
         TransactionUtils.addPostCommitHook(postCommitHook, request.getSession());

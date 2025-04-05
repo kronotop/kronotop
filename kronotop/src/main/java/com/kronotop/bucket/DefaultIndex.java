@@ -8,18 +8,11 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.optimizer.logical;
+package com.kronotop.bucket;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.index.Index;
+import org.bson.BsonType;
 
-public class LogicalFilter extends LogicalNode {
-    private final OperatorType operatorType;
-
-    public LogicalFilter(OperatorType operatorType) {
-        this.operatorType = operatorType;
-    }
-
-    public OperatorType getOperatorType() {
-        return operatorType;
-    }
+public class DefaultIndex {
+    public static Index ID = new Index("_id_idx", "_id", BsonType.BINARY);
 }

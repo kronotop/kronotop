@@ -18,7 +18,6 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.server.RESPError;
 import com.kronotop.foundationdb.protocol.CommitMessage;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtils;

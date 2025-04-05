@@ -71,5 +71,5 @@ public class SessionAttributes {
 
     public static final AttributeKey<AtomicInteger> USER_VERSION_COUNTER = AttributeKey.valueOf("user_version_counter");
 
-    public static final AttributeKey<Boolean> FUTURES = AttributeKey.valueOf("futures");
+    public static final AttributeKey<ReplyContentType> REPLY_CONTENT_TYPE = AttributeKey.valueOf("reply_content_type");
 }

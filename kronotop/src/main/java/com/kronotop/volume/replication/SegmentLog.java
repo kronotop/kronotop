@@ -93,24 +93,24 @@ public class SegmentLog {
      */
     private void append_internal(Transaction tr, Versionstamp versionstamp, int userVersion, SegmentLogValue value) {
         byte[] key;
+        Tuple preKey;
         if (versionstamp == null) {
-            Tuple preKey = Tuple.from(
+            preKey = Tuple.from(
                     SEGMENT_LOG_SUBSPACE,
                     segmentName,
                     Versionstamp.incomplete(userVersion),
                     Instant.now().toEpochMilli()
             );
-            key = subspace.packWithVersionstamp(preKey);
         } else {
-            Tuple preKey = Tuple.from(
+            preKey = Tuple.from(
                     SEGMENT_LOG_SUBSPACE,
                     segmentName,
                     Versionstamp.incomplete(userVersion),
                     versionstamp,
                     Instant.now().toEpochMilli()
             );
-            key = subspace.packWithVersionstamp(preKey);
         }
+        key = subspace.packWithVersionstamp(preKey);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value.encode().array());
         tr.mutate(MutationType.ADD, cardinalityKey, CARDINALITY_INCREASE_DELTA);
     }

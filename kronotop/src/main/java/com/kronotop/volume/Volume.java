@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.*;
+import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
@@ -39,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +48,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.StampedLock;
 
 import static com.kronotop.volume.EntryMetadata.*;
 import static com.kronotop.volume.Subspaces.*;
@@ -67,7 +70,7 @@ public class Volume {
     private final byte[] streamingSubscribersTriggerKey;
 
     // segmentsLock protects segments map
-    private final ReadWriteLock segmentsLock = new ReentrantReadWriteLock();
+    private final StampedLock segmentsLock = new StampedLock();
     private final TreeMap<String, SegmentContainer> segments = new TreeMap<>();
 
     private final ReadWriteLock statusLock = new ReentrantReadWriteLock();
@@ -84,6 +87,15 @@ public class Volume {
         this.status = loadStatusFromMetadata();
         this.entryMetadataCache = new EntryMetadataCache(context, subspace);
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
+    }
+
+    private SegmentContainer getSegmentContainer(String segmentName) {
+        long stamp = segmentsLock.readLock();
+        try {
+            return segments.get(segmentName);
+        } finally {
+            segmentsLock.unlockRead(stamp);
+        }
     }
 
     /**
@@ -220,23 +232,20 @@ public class Volume {
         }
     }
 
-    private boolean hasSegment(Transaction tr, long segmentId) {
-        VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
-        return volumeMetadata.getSegments().stream().anyMatch(existingSegmentId -> Objects.equals(existingSegmentId, segmentId));
-    }
-
     /**
-     * Opens a segment based on the given segment ID. This method initializes the segment configuration,
-     * segment log, and segment metadata, and stores them in the segments map.
+     * Opens and initializes a new segment with the specified segment ID and position.
+     * The method creates a new segment, segment log, and segment metadata,
+     * then stores them in a segment container protected by the `segmentsLock`.
      *
-     * @param segmentId the ID of the segment to be opened.
-     * @return the Segment instance that has been created and opened.
-     * @throws IOException if an I/O error occurs while creating or opening the segment.
+     * @param segmentId the unique identifier for the segment to be opened
+     * @param position the initial position within the segment
+     * @return the initialized Segment instance
+     * @throws IOException if an I/O error occurs during segment initialization
      */
-    private Segment openSegment(long segmentId) throws IOException {
-        // NOTE: should be protected by segmentsLock
+    private Segment openSegment(long segmentId, long position) throws IOException {
+        // NOTE: must be protected by segmentsLock
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
-        Segment segment = new Segment(segmentConfig);
+        Segment segment = new Segment(segmentConfig, position);
         SegmentLog segmentLog = new SegmentLog(segment.getName(), config.subspace());
         SegmentMetadata segmentMetadata = new SegmentMetadata(subspace, segment.getName());
         segments.put(segment.getName(), new SegmentContainer(segment, segmentLog, segmentMetadata));
@@ -275,7 +284,7 @@ public class Volume {
         // createsSegment protected by segmentsLock
         long segmentId = getAndIncreaseSegmentId();
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
-        Segment segment = new Segment(segmentConfig);
+        Segment segment = new Segment(segmentConfig, 0);
 
         // After this point, the Segment has been created on the physical medium.
 
@@ -294,14 +303,16 @@ public class Volume {
     }
 
     /**
-     * Retrieves the latest segment if there is enough free space; otherwise, creates a new segment.
+     * Retrieves the writable segment. If no segments exist or the latest segment
+     * does not have enough free space to accommodate the specified size, a new segment
+     * is created and returned.
      *
-     * @param size the size in bytes required in the segment.
-     * @return the Segment instance that has enough free bytes or a newly created Segment.
-     * @throws IOException if an I/O error occurs during the segment retrieval or creation.
+     * @param size the size that needs to be accommodated in the writable segment
+     * @return a writable {@code Segment} instance that can accommodate the specified size
+     * @throws IOException if an I/O error occurs while creating a new segment
      */
-    private Segment getOrCreateLatestSegment(int size) throws IOException {
-        segmentsLock.writeLock().lock();
+    private Segment getOrCreateWritableSegment(int size) throws IOException {
+        long stamp = segmentsLock.writeLock();
         try {
             Map.Entry<String, SegmentContainer> entry = segments.lastEntry();
             if (entry == null) {
@@ -314,19 +325,20 @@ public class Volume {
             }
             return segment;
         } finally {
-            segmentsLock.writeLock().unlock();
+            segmentsLock.unlockWrite(stamp);
         }
     }
 
     /**
-     * Retrieves the latest segment if there is enough free space; otherwise, creates a new segment.
+     * Retrieves a writable segment that has sufficient free space to accommodate the specified size.
+     * If no existing segment has enough space, a new writable segment is created or acquired.
      *
-     * @param size the size in bytes required in the segment.
-     * @return the Segment instance that has enough free bytes or a newly created Segment.
-     * @throws IOException if an I/O error occurs during the segment retrieval or creation.
+     * @param size the minimum amount of free space (in bytes) required in the writable segment
+     * @return a writable segment with at least the specified free space available
+     * @throws IOException if an I/O error occurs while attempting to acquire or create a writable segment
      */
-    private Segment getLatestSegment(int size) throws IOException {
-        segmentsLock.readLock().lock();
+    private Segment getWritableSegment(int size) throws IOException {
+        long stamp = segmentsLock.readLock();
         try {
             Map.Entry<String, SegmentContainer> entry = segments.lastEntry();
             if (entry != null) {
@@ -336,13 +348,13 @@ public class Volume {
                 }
             }
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
-        return getOrCreateLatestSegment(size);
+        return getOrCreateWritableSegment(size);
     }
 
     /**
-     * Attempts to append an entry to the latest segment that has enough free space.
+     * Attempts to append an entry to the writable segment that has enough free space.
      * If the current latest segment does not have enough free space, it will find
      * or create a new segment and try again.
      *
@@ -354,7 +366,7 @@ public class Volume {
     private EntryMetadata tryAppend(Prefix prefix, ByteBuffer entry) throws IOException {
         int size = entry.remaining();
         while (true) {
-            Segment segment = getLatestSegment(size);
+            Segment segment = getWritableSegment(size);
             try {
                 SegmentAppendResult result = segment.append(entry);
                 int id = EntryMetadataIdGenerator.generate(segment.getConfig().id(), result.position());
@@ -388,33 +400,31 @@ public class Volume {
      * @throws IllegalStateException if the segment specified in the entry metadata cannot be found.
      */
     private void appendSegmentLog(Transaction tr, OperationKind kind, Versionstamp versionstamp, int userVersion, long prefix, EntryMetadata entryMetadata) {
-        segmentsLock.readLock().lock();
-        try {
-            SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
-            if (segmentContainer == null) {
-                throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
-            }
-            SegmentLogValue value = new SegmentLogValue(kind, prefix, entryMetadata.position(), entryMetadata.length());
-            segmentContainer.log().append(tr, versionstamp, userVersion, value);
-        } finally {
-            segmentsLock.readLock().unlock();
+        SegmentContainer segmentContainer = getSegmentContainer(entryMetadata.segment());
+        if (segmentContainer == null) {
+            throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
         }
+        SegmentLogValue value = new SegmentLogValue(kind, prefix, entryMetadata.position(), entryMetadata.length());
+        segmentContainer.log().append(tr, versionstamp, userVersion, value);
     }
 
     /**
-     * Writes an array of entry metadata to the current session and updates the transaction with the provided metadata.
-     * Each metadata entry will be encoded and set with a versionstamp key and value.
-     * Furthermore, it updates the segment metadata and triggers streaming subscribers as necessary.
+     * Writes metadata entries to the specified volume session and updates the transaction accordingly.
+     * Also handles segment metadata updates and triggers any associated subscribers.
      *
-     * @param session           The session object containing the current transaction and user version.
-     * @param entryMetadataList An array of entry metadata to be written.
-     * @return A CompletableFuture containing the byte array of the transaction versionstamp.
+     * @param session the volume session containing the transaction and associated metadata.
+     * @param entries an array of metadata entries to be written.
+     * @return a result object containing the appended entries and the transaction's versionstamp.
      */
-    private CompletableFuture<byte[]> writeMetadata(VolumeSession session, EntryMetadata[] entryMetadataList) {
+    private WriteMetadataResult writeMetadata(VolumeSession session, EntryMetadata[] entries) {
+        AppendedEntry[] appendedEntries = new AppendedEntry[entries.length];
         Transaction tr = session.transaction();
-        for (EntryMetadata entryMetadata : entryMetadataList) {
+
+        for (int index = 0; index < entries.length; index++) {
+            EntryMetadata entryMetadata = entries[index];
             int userVersion = session.getAndIncrementUserVersion();
             byte[] encodedEntryMetadata = entryMetadata.encode().array();
+            appendedEntries[index] = new AppendedEntry(index, userVersion, entryMetadata, encodedEntryMetadata);
 
             tr.mutate(
                     MutationType.SET_VERSIONSTAMPED_KEY,
@@ -427,16 +437,20 @@ public class Volume {
                     Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp()
             );
 
-            SegmentContainer segmentContainer = segments.get(entryMetadata.segment());
+            SegmentContainer segmentContainer = getSegmentContainer(entryMetadata.segment());
+            if (segmentContainer == null) {
+                throw new IllegalStateException("Segment " + entryMetadata.segment() + " not found");
+            }
             segmentContainer.metadata().increaseCardinalityByOne(session);
             segmentContainer.metadata().increaseUsedBytes(session, entryMetadata.length());
 
             // Passing versionstamp as null because we don't have any key for this entry for now.
             // It will be automatically filled by FDB during the commit. It'll be the same versionstamp with entry's key.
             appendSegmentLog(tr, OperationKind.APPEND, null, userVersion, session.prefix().asLong(), entryMetadata);
-            triggerStreamingSubscribers(tr);
         }
-        return tr.getVersionstamp();
+
+        triggerStreamingSubscribers(tr);
+        return new WriteMetadataResult(appendedEntries, tr.getVersionstamp());
     }
 
     /**
@@ -448,14 +462,14 @@ public class Volume {
      * @throws IOException if an I/O error occurs during the append operation.
      */
     private EntryMetadata[] appendEntries(Prefix prefix, ByteBuffer[] entries) throws IOException {
-        EntryMetadata[] entryMetadataList = new EntryMetadata[entries.length];
+        EntryMetadata[] appendedEntries = new EntryMetadata[entries.length];
         int index = 0;
         for (ByteBuffer entry : entries) {
             EntryMetadata entryMetadata = tryAppend(prefix, entry);
-            entryMetadataList[index] = entryMetadata;
+            appendedEntries[index] = entryMetadata;
             index++;
         }
-        return entryMetadataList;
+        return appendedEntries;
     }
 
     /**
@@ -475,15 +489,52 @@ public class Volume {
             throw new TooManyEntriesException();
         }
 
-        EntryMetadata[] entryMetadataList = appendEntries(session.prefix(), entries);
+        EntryMetadata[] appendEntries = appendEntries(session.prefix(), entries);
 
-        // Forces any updates to this channel's file to be written to the storage device that contains it.
-        flushMutatedSegments(entryMetadataList);
+        Thread asyncFlush = Thread.ofVirtual().start(() -> {
+            // Forces any updates to this channel's file to be written to the storage device that contains it.
+            try {
+                flushMutatedSegments(appendEntries);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
 
-        CompletableFuture<byte[]> future = writeMetadata(session, entryMetadataList);
+        WriteMetadataResult result = writeMetadata(session, appendEntries);
+
+        try {
+            asyncFlush.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
         raiseExceptionIfVolumeReadOnly();
-        return new AppendResult(future, entryMetadataList, entryMetadataCache.load(session.prefix())::put);
+        return new AppendResult(result.versionstampFuture(), result.entries(), entryMetadataCache.load(session.prefix())::put);
+    }
+
+    /**
+     * Finds the position of a segment based on its name. The method interacts with FDB
+     * to retrieve metadata related to the segment and computes its position.
+     *
+     * @param name the name of the segment whose position is being determined
+     * @return the position of the segment as a long value
+     */
+    private long findSegmentPosition(String name) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, name.getBytes()));
+            byte[] end = ByteArrayUtil.strinc(begin);
+
+            AsyncIterable<KeyValue> iterable = tr.getRange(new Range(begin, end), 1, true);
+            List<KeyValue> result = iterable.asList().join();
+            if (result.isEmpty()) {
+                // No entries found
+                return 0;
+            }
+            byte[] data = (byte[]) config.subspace().unpack(result.getFirst().getKey()).get(1);
+            EntryMetadata last = EntryMetadata.decode(ByteBuffer.wrap(data));
+
+            return last.position() + last.length();
+        }
     }
 
     /**
@@ -496,18 +547,18 @@ public class Volume {
      * @throws SegmentNotFoundException if the specified segment cannot be found.
      */
     private Segment getOrOpenSegmentByName(String name) throws IOException, SegmentNotFoundException {
-        segmentsLock.readLock().lock();
+        long stamp = segmentsLock.readLock();
         try {
             SegmentContainer segmentContainer = segments.get(name);
             if (segmentContainer != null) {
                 return segmentContainer.segment();
             }
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
 
         // Try to open the segment but check it first
-        segmentsLock.writeLock().lock();
+        long writeStamp = segmentsLock.writeLock();
         try {
             SegmentContainer segmentContainer = segments.get(name);
             if (segmentContainer != null) {
@@ -515,13 +566,19 @@ public class Volume {
             }
             long segmentId = Segment.extractIdFromName(name);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                if (!hasSegment(tr, segmentId)) {
+                VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
+                boolean has = volumeMetadata.getSegments().stream().anyMatch(
+                        existingSegmentId -> Objects.equals(existingSegmentId, segmentId)
+                );
+                if (!has) {
                     throw new SegmentNotFoundException(name);
                 }
-                return openSegment(segmentId);
+
+                long position = findSegmentPosition(name);
+                return openSegment(segmentId, position);
             }
         } finally {
-            segmentsLock.writeLock().unlock();
+            segmentsLock.unlockWrite(writeStamp);
         }
     }
 
@@ -577,10 +634,10 @@ public class Volume {
      * @throws IOException if an I/O error occurs during the operation
      */
     public ByteBuffer get(@Nonnull VolumeSession session, @Nonnull Versionstamp key) throws IOException {
-        EntryMetadata entryMetadata;
+        EntryMetadata metadata;
         if (session.transaction() == null) {
-            entryMetadata = loadEntryMetadataFromCache(session.prefix(), key);
-            if (entryMetadata == null) {
+            metadata = loadEntryMetadataFromCache(session.prefix(), key);
+            if (metadata == null) {
                 return null;
             }
         } else {
@@ -588,9 +645,9 @@ public class Volume {
             if (value == null) {
                 return null;
             }
-            entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(value));
+            metadata = EntryMetadata.decode(ByteBuffer.wrap(value));
         }
-        return getByEntryMetadata(session.prefix(), key, entryMetadata);
+        return getByEntryMetadata(session.prefix(), key, metadata);
     }
 
     /**
@@ -729,7 +786,7 @@ public class Volume {
      * preventing them from propagating further.
      */
     public void flush() {
-        segmentsLock.readLock().lock();
+        long stamp = segmentsLock.readLock();
         try {
             for (Map.Entry<String, SegmentContainer> entry : segments.entrySet()) {
                 try {
@@ -739,7 +796,7 @@ public class Volume {
                 }
             }
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
     }
 
@@ -756,7 +813,7 @@ public class Volume {
      */
     public void close() {
         isClosed = true;
-        segmentsLock.readLock().lock();
+        long stamp = segmentsLock.readLock();
         try {
             for (Map.Entry<String, SegmentContainer> entry : segments.entrySet()) {
                 Segment segment = entry.getValue().segment();
@@ -768,7 +825,7 @@ public class Volume {
                 }
             }
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
     }
 
@@ -907,14 +964,14 @@ public class Volume {
         // Read-only access to the segments is not an issue. A segment can only be removed by the Vacuum daemon.
         TreeMap<String, SegmentContainer> swallowCopy;
         List<SegmentAnalysis> result = new ArrayList<>();
-        segmentsLock.readLock().lock();
+        long stamp = segmentsLock.readLock();
         try {
             if (segments.isEmpty()) {
                 return result;
             }
             swallowCopy = (TreeMap<String, SegmentContainer>) segments.clone();
         } finally {
-            segmentsLock.readLock().unlock();
+            segmentsLock.unlockRead(stamp);
         }
         for (Map.Entry<String, SegmentContainer> entry : swallowCopy.entrySet()) {
             result.add(analyzeSegment(tr, entry.getValue()));
@@ -1044,7 +1101,7 @@ public class Volume {
      * @param name The name of the segment to be cleaned up.
      * @throws IOException If an I/O error occurs during the cleanup process.
      */
-    private List<String> cleanupStaleSegment(String name) throws IOException {
+    private String cleanupStaleSegment(String name) throws IOException {
         Segment segment = getOrOpenSegmentByName(name);
         // This will retry.
         context.getFoundationDB().run(tr -> {
@@ -1053,9 +1110,9 @@ public class Volume {
             });
             return null;
         });
-        segmentsLock.writeLock().lock();
+        long stamp = segmentsLock.writeLock();
         segments.remove(name);
-        segmentsLock.writeLock().unlock();
+        segmentsLock.unlockWrite(stamp);
         return segment.delete();
     }
 
@@ -1077,8 +1134,8 @@ public class Volume {
             SegmentAnalysis analysis = analyses.get(i);
             if (analysis.cardinality() == 0) {
                 try {
-                    List<String> deletedFiles = cleanupStaleSegment(analysis.name());
-                    result.addAll(deletedFiles);
+                    String deletedFile = cleanupStaleSegment(analysis.name());
+                    result.add(deletedFile);
                 } catch (Exception e) {
                     LOGGER.error("Volume '{}' may has orphan segments", config.name(), e);
                 }
@@ -1136,7 +1193,6 @@ public class Volume {
         clearEntrySubspace(session);
     }
 
-
     /**
      * Inserts the given entries into the specified segment.
      * <p>
@@ -1176,5 +1232,8 @@ public class Volume {
     @Override
     public String toString() {
         return String.format("Volume [%s]", config.name());
+    }
+
+    record WriteMetadataResult(AppendedEntry[] entries, CompletableFuture<byte[]> versionstampFuture) {
     }
 }

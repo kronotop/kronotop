@@ -14,7 +14,9 @@ import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.ServiceContext;
+import com.kronotop.bucket.handlers.BucketFindHandler;
 import com.kronotop.bucket.handlers.BucketInsertHandler;
+import com.kronotop.bucket.planner.Planner;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingEventKind;
@@ -29,14 +31,22 @@ public class BucketService extends CommandHandlerService implements KronotopServ
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
     private final ServiceContext<BucketShard> serviceContext;
     private final RoutingService routing;
+    private final Planner planner;
 
     public BucketService(Context context) {
         super(context, NAME);
         this.serviceContext = context.getServiceContext(NAME);
         this.routing = context.getService(RoutingService.NAME);
+        this.planner = new Planner(context);
 
         handlerMethod(ServerKind.EXTERNAL, new BucketInsertHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketFindHandler(this));
+
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
+    }
+
+    public Planner getPlanner() {
+        return planner;
     }
 
     public BucketShard getShard(int shardId) {

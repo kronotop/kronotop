@@ -15,25 +15,26 @@ import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketSubspace;
-import com.kronotop.bucket.DefaultIndexes;
 import com.kronotop.volume.Prefix;
 
 public class IndexBuilder {
-    private static final byte[] NULL_BYTES = new byte[]{0};
 
     /**
-     * Sets an ID-based index entry in the given transaction and subspace for a specified shard and prefix.
+     * Sets an index with the specified parameters in the transaction.
      *
-     * @param tr          the FoundationDB transaction used to write the index entry
-     * @param subspace    the bucket subspace corresponding to the namespace and shard for the index
-     * @param shardId     the identifier of the shard where the index entry will be stored
-     * @param prefix      the Prefix object representing the key space subset for the index entry
-     * @param userVersion the user-defined version associated with the versionstamp in the index key
+     * @param tr          the Transaction object used to set the index key-value pair
+     * @param subspace    the BucketSubspace object providing the index subspace
+     * @param shardId     the identifier for the shard where the index resides
+     * @param prefix      the Prefix object representing the namespace prefix for the bucket
+     * @param userVersion the user-specified version used for the version-stamped operation
+     * @param index       the Index object containing details such as name, path, and type
+     * @param metadata    the byte array representing {@code EntryMetadata}
      */
-    public static void setIdIndex(Transaction tr, BucketSubspace subspace, int shardId, Prefix prefix, int userVersion) {
+    public static void setIndex(Transaction tr, BucketSubspace subspace, int shardId, Prefix prefix, int userVersion, Index index, byte[] metadata) {
+        // index-subspace / index-name / field-path / bson-type / versionstamped-key
         Subspace indexSubspace = subspace.getBucketIndexSubspace(shardId, prefix);
-        Tuple idIndexTemplate = Tuple.from(DefaultIndexes.ID.name(), Versionstamp.incomplete(userVersion));
-        byte[] idIndexKey = indexSubspace.packWithVersionstamp(idIndexTemplate);
-        tr.set(idIndexKey, NULL_BYTES);
+        Tuple indexTemplate = Tuple.from(index.name(), index.path(), index.type().getValue(), Versionstamp.incomplete(userVersion));
+        byte[] indexKey = indexSubspace.packWithVersionstamp(indexTemplate);
+        tr.set(indexKey, metadata);
     }
 }

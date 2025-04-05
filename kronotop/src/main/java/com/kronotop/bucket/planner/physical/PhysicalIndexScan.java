@@ -8,40 +8,28 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.optimizer.logical;
+package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.OperatorType;
 
-public class LogicalComparisonFilter extends LogicalFilter {
-    private BqlValue<?> value;
-    private String field;
+public class PhysicalIndexScan extends PhysicalScan {
+    private final String index;
 
-    public LogicalComparisonFilter(OperatorType operatorType) {
+    public PhysicalIndexScan(String index, OperatorType operatorType) {
         super(operatorType);
+        this.index = index;
     }
 
-    public String getField() {
-        return field;
-    }
-
-    public void setField(String field) {
-        this.field = field;
-    }
-
-    public void addValue(BqlValue<?> value) {
-        this.value = value;
-    }
-
-    public BqlValue<?> getValue() {
-        return value;
+    public String getIndex() {
+        return index;
     }
 
     @Override
     public String toString() {
-        return "LogicalComparisonFilter [" +
+        return "PhysicalIndexScan {" +
+                "index=" + index + ", " +
                 "operatorType=" + getOperatorType() + ", " +
                 "field=" + getField() + ", " +
-                "value=" + getValue() + "]";
+                "value=" + getValue() + "}";
     }
 }

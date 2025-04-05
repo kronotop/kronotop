@@ -25,7 +25,8 @@ public enum OperatorType {
     IN(11),
     NOR(12),
     SIZE(13),
-    ELEM_MATCH(14);
+    ELEM_MATCH(14),
+    EXISTS(15);
 
     private final int value;
 

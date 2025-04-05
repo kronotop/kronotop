@@ -26,7 +26,8 @@ public enum SubspaceMagic {
     ZMAP((byte) 0x01),
     BUCKET((byte) 0x02),
     BUCKET_PREFIX((byte) 0x03),
-    BUCKET_INDEX((byte) 0x04);
+    BUCKET_INDEX((byte) 0x04),
+    BUCKET_INDEX_METADATA((byte) (0x05));
 
     public final byte value;
 

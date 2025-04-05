@@ -23,13 +23,13 @@ import java.util.function.BiConsumer;
 
 public class AppendResult {
     private final CompletableFuture<byte[]> future;
-    private final EntryMetadata[] entryMetadataList;
+    private final AppendedEntry[] appendedEntries;
     private final BiConsumer<Versionstamp, EntryMetadata> cacheUpdater;
     private boolean calledOnce = false;
 
-    AppendResult(CompletableFuture<byte[]> future, EntryMetadata[] entryMetadataList, BiConsumer<Versionstamp, EntryMetadata> cacheUpdater) {
+    AppendResult(CompletableFuture<byte[]> future, AppendedEntry[] appendedEntries, BiConsumer<Versionstamp, EntryMetadata> cacheUpdater) {
         this.future = future;
-        this.entryMetadataList = entryMetadataList;
+        this.appendedEntries = appendedEntries;
         this.cacheUpdater = cacheUpdater;
     }
 
@@ -39,13 +39,11 @@ public class AppendResult {
         }
         byte[] trVersion = future.join();
         calledOnce = true;
-        int userVersion = 0;
-        Versionstamp[] versionstampedKeys = new Versionstamp[entryMetadataList.length];
-        for (EntryMetadata entryMetadata : entryMetadataList) {
-            Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
-            cacheUpdater.accept(versionstampedKey, entryMetadata);
-            versionstampedKeys[userVersion] = versionstampedKey;
-            userVersion++;
+        Versionstamp[] versionstampedKeys = new Versionstamp[appendedEntries.length];
+        for (AppendedEntry appendedEntry : appendedEntries) {
+            Versionstamp versionstampedKey = Versionstamp.complete(trVersion, appendedEntry.userVersion());
+            cacheUpdater.accept(versionstampedKey, appendedEntry.metadata());
+            versionstampedKeys[appendedEntry.index()] = versionstampedKey;
         }
         return versionstampedKeys;
     }
@@ -69,7 +67,7 @@ public class AppendResult {
         getVersionstampedKeys();
     }
 
-    public EntryMetadata[] getEntryMetadataList() {
-        return entryMetadataList;
+    public AppendedEntry[] getAppendedEntries() {
+        return appendedEntries;
     }
 }

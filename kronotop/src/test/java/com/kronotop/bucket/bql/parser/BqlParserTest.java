@@ -1,15 +1,25 @@
-package com.kronotop.bql.parser;
+// Copyright (C) 2025 Burak Sezer
+// Use of this software is governed by the Business Source License included
+// in the LICENSE.TXT file and at www.mariadb.com/bsl11.
+
+// Change Date: 5 years after release
+
+// On the date above, in accordance with the Business Source License,
+// use of this software will be governed by the open source license specified
+// in the LICENSE.TXT file.
+
+package com.kronotop.bucket.bql.parser;
 
 import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.array.BqlElemMatchOperator;
 import com.kronotop.bucket.bql.operators.array.BqlSizeOperator;
 import com.kronotop.bucket.bql.operators.comparison.*;
+import com.kronotop.bucket.bql.operators.element.BqlExistsOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlAndOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNorOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlOrOperator;
-import com.kronotop.bucket.bql.parser.BqlParser;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -314,6 +324,20 @@ class BqlParserTest {
                 gteOperator
         );
         List<BqlOperator> operators = BqlParser.parse("{ results: { $elemMatch: { product: 'xyz', score: { $gte: 8 } } } }");
+        assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_exists() {
+        BqlExistsOperator existsOperator = new BqlExistsOperator(2);
+        BqlValue<Boolean> bqlValue = new BqlValue<>(BsonType.BOOLEAN);
+        bqlValue.setValue(true);
+        existsOperator.addValue(bqlValue);
+        List<BqlOperator> operators = BqlParser.parse("{ field: { $exists: true } }");
+        List<BqlOperator> expectedOperators = List.of(
+                new BqlEqOperator(1, "field"),
+                existsOperator
+        );
         assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
     }
 }

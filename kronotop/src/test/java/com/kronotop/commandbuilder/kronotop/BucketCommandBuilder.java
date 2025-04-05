@@ -30,8 +30,14 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
     }
 
+    public final Command<K, V, List<String>> find(String bucket, String query) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
+        return createCommand(CommandType.BUCKET_FIND, new StringListOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
-        BUCKET_INSERT("BUCKET.INSERT");
+        BUCKET_INSERT("BUCKET.INSERT"),
+        BUCKET_FIND("BUCKET.FIND");
 
         public final byte[] bytes;
 

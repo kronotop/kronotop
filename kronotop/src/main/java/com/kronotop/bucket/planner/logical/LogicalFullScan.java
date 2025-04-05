@@ -8,8 +8,15 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket;
+package com.kronotop.bucket.planner.logical;
 
-public enum DefaultIndexes {
-    ID
+public class LogicalFullScan extends LogicalNode {
+
+    public LogicalFullScan() {
+    }
+
+    @Override
+    public String toString() {
+        return "LogicalFullScan {children=" + children + "}";
+    }
 }

@@ -38,6 +38,7 @@ import com.kronotop.redis.handlers.protocol.InfoMessage;
 import com.kronotop.redis.server.protocol.CommandMessage;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.*;
+import com.kronotop.server.handlers.protocol.SessionAttributeMessage;
 import com.kronotop.server.resp3.*;
 import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
@@ -68,7 +69,8 @@ public class KronotopTestInstance extends KronotopInstance {
             ClusterMessage.COMMAND,
             InfoMessage.COMMAND,
             HelloMessage.COMMAND,
-            EchoMessage.COMMAND
+            EchoMessage.COMMAND,
+            SessionAttributeMessage.COMMAND
     ));
     private final boolean initialize; // The default is true. It's useful for integration tests that test some failure conditions.
     private final boolean runWithTCPServer; // the default is false

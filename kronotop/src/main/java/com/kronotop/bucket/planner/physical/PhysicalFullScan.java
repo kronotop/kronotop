@@ -8,18 +8,25 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.optimizer.logical;
+package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.bql.operators.OperatorType;
 
-public class LogicalAndFilter extends LogicalFilter {
+public class PhysicalFullScan extends PhysicalScan {
 
-    public LogicalAndFilter() {
-        super(OperatorType.AND);
+    public PhysicalFullScan() {
+        super(null);
+    }
+
+    public PhysicalFullScan(OperatorType operatorType) {
+        super(operatorType);
     }
 
     @Override
     public String toString() {
-        return "LogicalAndFilter [filters=" + filters + "]";
+        return "PhysicalFullScan {" +
+                "operatorType=" + getOperatorType() + ", " +
+                "field=" + getField() + ", " +
+                "value=" + getValue() + "}";
     }
 }

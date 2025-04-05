@@ -42,6 +42,7 @@ import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
 import com.kronotop.redis.RedisContext;
 import com.kronotop.redis.RedisService;
+import com.kronotop.server.SessionService;
 import com.kronotop.task.TaskService;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.replication.ReplicationService;
@@ -127,6 +128,9 @@ public class KronotopInstance {
 
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
+
+        SessionService sessionService = new SessionService(context);
+        context.registerService(SessionService.NAME, sessionService);
 
         FoundationDBService foundationDBService = new FoundationDBService(context);
         context.registerService(FoundationDBService.NAME, foundationDBService);

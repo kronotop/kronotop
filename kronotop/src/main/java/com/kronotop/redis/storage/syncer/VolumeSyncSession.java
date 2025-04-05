@@ -93,7 +93,7 @@ public class VolumeSyncSession {
             return;
         }
 
-        if (appendResult.getEntryMetadataList().length == 0) {
+        if (appendResult.getAppendedEntries().length == 0) {
             return;
         }
 
