@@ -303,13 +303,15 @@ public class Volume {
     }
 
     /**
-     * Retrieves the latest segment if there is enough free space; otherwise, creates a new segment.
+     * Retrieves the writable segment. If no segments exist or the latest segment
+     * does not have enough free space to accommodate the specified size, a new segment
+     * is created and returned.
      *
-     * @param size the size in bytes required in the segment.
-     * @return the Segment instance that has enough free bytes or a newly created Segment.
-     * @throws IOException if an I/O error occurs during the segment retrieval or creation.
+     * @param size the size that needs to be accommodated in the writable segment
+     * @return a writable {@code Segment} instance that can accommodate the specified size
+     * @throws IOException if an I/O error occurs while creating a new segment
      */
-    private Segment getOrCreateLatestSegment(int size) throws IOException {
+    private Segment getOrCreateWritableSegment(int size) throws IOException {
         long stamp = segmentsLock.writeLock();
         try {
             Map.Entry<String, SegmentContainer> entry = segments.lastEntry();
@@ -328,13 +330,14 @@ public class Volume {
     }
 
     /**
-     * Retrieves the latest segment if there is enough free space; otherwise, creates a new segment.
+     * Retrieves a writable segment that has sufficient free space to accommodate the specified size.
+     * If no existing segment has enough space, a new writable segment is created or acquired.
      *
-     * @param size the size in bytes required in the segment.
-     * @return the Segment instance that has enough free bytes or a newly created Segment.
-     * @throws IOException if an I/O error occurs during the segment retrieval or creation.
+     * @param size the minimum amount of free space (in bytes) required in the writable segment
+     * @return a writable segment with at least the specified free space available
+     * @throws IOException if an I/O error occurs while attempting to acquire or create a writable segment
      */
-    private Segment getLatestSegment(int size) throws IOException {
+    private Segment getWritableSegment(int size) throws IOException {
         long stamp = segmentsLock.readLock();
         try {
             Map.Entry<String, SegmentContainer> entry = segments.lastEntry();
@@ -347,11 +350,11 @@ public class Volume {
         } finally {
             segmentsLock.unlockRead(stamp);
         }
-        return getOrCreateLatestSegment(size);
+        return getOrCreateWritableSegment(size);
     }
 
     /**
-     * Attempts to append an entry to the latest segment that has enough free space.
+     * Attempts to append an entry to the writable segment that has enough free space.
      * If the current latest segment does not have enough free space, it will find
      * or create a new segment and try again.
      *
@@ -363,7 +366,7 @@ public class Volume {
     private EntryMetadata tryAppend(Prefix prefix, ByteBuffer entry) throws IOException {
         int size = entry.remaining();
         while (true) {
-            Segment segment = getLatestSegment(size);
+            Segment segment = getWritableSegment(size);
             try {
                 SegmentAppendResult result = segment.append(entry);
                 int id = EntryMetadataIdGenerator.generate(segment.getConfig().id(), result.position());
@@ -416,6 +419,7 @@ public class Volume {
     private WriteMetadataResult writeMetadata(VolumeSession session, EntryMetadata[] entries) {
         AppendedEntry[] appendedEntries = new AppendedEntry[entries.length];
         Transaction tr = session.transaction();
+
         for (int index = 0; index < entries.length; index++) {
             EntryMetadata entryMetadata = entries[index];
             int userVersion = session.getAndIncrementUserVersion();
@@ -444,6 +448,7 @@ public class Volume {
             // It will be automatically filled by FDB during the commit. It'll be the same versionstamp with entry's key.
             appendSegmentLog(tr, OperationKind.APPEND, null, userVersion, session.prefix().asLong(), entryMetadata);
         }
+
         triggerStreamingSubscribers(tr);
         return new WriteMetadataResult(appendedEntries, tr.getVersionstamp());
     }
@@ -457,14 +462,14 @@ public class Volume {
      * @throws IOException if an I/O error occurs during the append operation.
      */
     private EntryMetadata[] appendEntries(Prefix prefix, ByteBuffer[] entries) throws IOException {
-        EntryMetadata[] entryMetadataList = new EntryMetadata[entries.length];
+        EntryMetadata[] appendedEntries = new EntryMetadata[entries.length];
         int index = 0;
         for (ByteBuffer entry : entries) {
             EntryMetadata entryMetadata = tryAppend(prefix, entry);
-            entryMetadataList[index] = entryMetadata;
+            appendedEntries[index] = entryMetadata;
             index++;
         }
-        return entryMetadataList;
+        return appendedEntries;
     }
 
     /**
@@ -484,18 +489,18 @@ public class Volume {
             throw new TooManyEntriesException();
         }
 
-        EntryMetadata[] entryMetadataList = appendEntries(session.prefix(), entries);
+        EntryMetadata[] appendEntries = appendEntries(session.prefix(), entries);
 
         Thread asyncFlush = Thread.ofVirtual().start(() -> {
             // Forces any updates to this channel's file to be written to the storage device that contains it.
             try {
-                flushMutatedSegments(entryMetadataList);
+                flushMutatedSegments(appendEntries);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
         });
 
-        WriteMetadataResult result = writeMetadata(session, entryMetadataList);
+        WriteMetadataResult result = writeMetadata(session, appendEntries);
 
         try {
             asyncFlush.join();
@@ -625,10 +630,10 @@ public class Volume {
      * @throws IOException if an I/O error occurs during the operation
      */
     public ByteBuffer get(@Nonnull VolumeSession session, @Nonnull Versionstamp key) throws IOException {
-        EntryMetadata entryMetadata;
+        EntryMetadata metadata;
         if (session.transaction() == null) {
-            entryMetadata = loadEntryMetadataFromCache(session.prefix(), key);
-            if (entryMetadata == null) {
+            metadata = loadEntryMetadataFromCache(session.prefix(), key);
+            if (metadata == null) {
                 return null;
             }
         } else {
@@ -636,9 +641,9 @@ public class Volume {
             if (value == null) {
                 return null;
             }
-            entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(value));
+            metadata = EntryMetadata.decode(ByteBuffer.wrap(value));
         }
-        return getByEntryMetadata(session.prefix(), key, entryMetadata);
+        return getByEntryMetadata(session.prefix(), key, metadata);
     }
 
     /**
