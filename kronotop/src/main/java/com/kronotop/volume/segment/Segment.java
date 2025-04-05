@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,15 +47,17 @@ public class Segment {
     private static final Logger LOGGER = LoggerFactory.getLogger(Segment.class);
     private final SegmentConfig config;
     private final String name;
+    private final long size;
     private final StampedLock flushLock = new StampedLock();
-    private final RandomAccessFile segmentFile;
+    private final RandomAccessFile file;
     private final AtomicInteger flushCounter = new AtomicInteger(0);
     private final AtomicLong atomicPosition = new AtomicLong(0);
 
     public Segment(SegmentConfig config) throws IOException {
         this.config = config;
         this.name = generateName(config.id());
-        this.segmentFile = createOrOpenSegmentFile();
+        this.file = createOrOpenSegmentFile();
+        this.size = this.file.length();
     }
 
     public Segment(SegmentConfig config, long position) throws IOException {
@@ -125,14 +126,9 @@ public class Segment {
      * Retrieves the size of the segment file.
      *
      * @return the size of the segment file in bytes
-     * @throws UncheckedIOException if an I/O error occurs while accessing the segment file
      */
     public long getSize() {
-        try {
-            return segmentFile.length();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return size;
     }
 
     private Path getSegmentFilePath() {
@@ -167,7 +163,7 @@ public class Segment {
     private long forwardMetadataPosition(int length) throws NotEnoughSpaceException {
         try {
             return atomicPosition.getAndUpdate(position -> {
-                if (position + length > config.size()) {
+                if (position + length > size) {
                     throw new RuntimeException(new NotEnoughSpaceException());
                 }
                 return position + length;
@@ -196,7 +192,7 @@ public class Segment {
     public SegmentAppendResult append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
         try {
             long position = forwardMetadataPosition(entry.remaining());
-            int length = segmentFile.getChannel().write(entry, position);
+            int length = file.getChannel().write(entry, position);
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("{} bytes has been written to segment {}", length, getName());
             }
@@ -218,7 +214,7 @@ public class Segment {
      */
     public void insert(ByteBuffer entry, long position) throws IOException, NotEnoughSpaceException {
         try {
-            int length = segmentFile.getChannel().write(entry, position);
+            int length = file.getChannel().write(entry, position);
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("{} bytes has been inserted to segment {}", length, getName());
             }
@@ -243,7 +239,7 @@ public class Segment {
             throw new EntryOutOfBoundException(message);
         }
         ByteBuffer buffer = ByteBuffer.allocate((int) length);
-        int nr = segmentFile.getChannel().read(buffer, position);
+        int nr = file.getChannel().read(buffer, position);
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("{} bytes has been read from segment {}", nr, getName());
         }
@@ -277,7 +273,7 @@ public class Segment {
             }
             boolean success = true;
             try {
-                segmentFile.getFD().sync();
+                file.getFD().sync();
             } catch (Exception e) {
                 LOGGER.error("Calling sync failed", e);
                 success = false;
@@ -307,7 +303,7 @@ public class Segment {
      */
     public void close() throws IOException {
         flush();
-        segmentFile.close();
+        file.close();
     }
 
     /**
@@ -318,7 +314,7 @@ public class Segment {
      * If the file cannot be deleted, a {@code KronotopException} is thrown.
      *
      * @return the string representation of the path of the deleted file
-     * @throws IOException if an I/O error occurs during the close operation
+     * @throws IOException       if an I/O error occurs during the close operation
      * @throws KronotopException if the file cannot be deleted
      */
     public String delete() throws IOException {
