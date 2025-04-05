@@ -54,14 +54,15 @@ public class Segment {
     private final AtomicLong atomicPosition = new AtomicLong(0);
 
     public Segment(SegmentConfig config) throws IOException {
+        // for clarity
+        this(config, 0L);
+    }
+
+    public Segment(SegmentConfig config, long position) throws IOException {
         this.config = config;
         this.name = generateName(config.id());
         this.file = createOrOpenSegmentFile();
         this.size = this.file.length();
-    }
-
-    public Segment(SegmentConfig config, long position) throws IOException {
-        this(config);
         this.atomicPosition.set(position);
     }
 
