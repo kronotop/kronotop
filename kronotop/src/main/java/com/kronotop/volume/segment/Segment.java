@@ -32,7 +32,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.StampedLock;
 
 /**
  * Represents a segment of data with capabilities for managing and manipulating
@@ -48,7 +47,7 @@ public class Segment {
     private final SegmentConfig config;
     private final String name;
     private final long size;
-    private final StampedLock flushLock = new StampedLock();
+    private final Object flushLock = new Object();
     private final RandomAccessFile file;
     private final AtomicInteger flushCounter = new AtomicInteger(0);
     private final AtomicLong atomicPosition = new AtomicLong(0);
@@ -266,8 +265,7 @@ public class Segment {
             return;
         }
 
-        long stamp = flushLock.writeLock();
-        try {
+        synchronized (flushLock) {
             int count = flushCounter.get();
             if (count == 0) {
                 return;
@@ -282,8 +280,6 @@ public class Segment {
             if (success) {
                 flushCounter.updateAndGet(waiting -> waiting - count);
             }
-        } finally {
-            flushLock.unlockWrite(stamp);
         }
     }
 
