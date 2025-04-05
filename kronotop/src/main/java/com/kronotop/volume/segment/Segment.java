@@ -31,8 +31,6 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.StampedLock;
@@ -313,27 +311,23 @@ public class Segment {
     }
 
     /**
-     * Deletes the segment and its associated metadata files from the storage.
-     * <p>
-     * This method attempts to delete the segment file and the segment metadata file
-     * associated with the current segment. If any of the files cannot be deleted,
-     * a {@code KronotopException} is thrown. The method returns a list of file paths
-     * that were successfully deleted.
+     * Deletes the segment file associated with this segment.
+     * This method first ensures that the segment is properly closed
+     * by invoking the {@code close()} method. After that, it attempts
+     * to delete the file identified by the segment's file path.
+     * If the file cannot be deleted, a {@code KronotopException} is thrown.
      *
-     * @return a list of strings representing the paths of the deleted files
-     * @throws IOException       if an I/O error occurs during the closing of the segment
-     * @throws KronotopException if a file cannot be deleted
+     * @return the string representation of the path of the deleted file
+     * @throws IOException if an I/O error occurs during the close operation
+     * @throws KronotopException if the file cannot be deleted
      */
-    public List<String> delete() throws IOException {
+    public String delete() throws IOException {
         close();
 
-        List<String> result = new ArrayList<>();
-        for (Path path : List.of(getSegmentFilePath())) {
-            if (!path.toFile().delete()) {
-                throw new KronotopException("File could not be deleted: " + path);
-            }
-            result.add(path.toString());
+        Path path = getSegmentFilePath();
+        if (!path.toFile().delete()) {
+            throw new KronotopException("File could not be deleted: " + path);
         }
-        return result;
+        return path.toString();
     }
 }

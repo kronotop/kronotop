@@ -1097,7 +1097,7 @@ public class Volume {
      * @param name The name of the segment to be cleaned up.
      * @throws IOException If an I/O error occurs during the cleanup process.
      */
-    private List<String> cleanupStaleSegment(String name) throws IOException {
+    private String cleanupStaleSegment(String name) throws IOException {
         Segment segment = getOrOpenSegmentByName(name);
         // This will retry.
         context.getFoundationDB().run(tr -> {
@@ -1130,8 +1130,8 @@ public class Volume {
             SegmentAnalysis analysis = analyses.get(i);
             if (analysis.cardinality() == 0) {
                 try {
-                    List<String> deletedFiles = cleanupStaleSegment(analysis.name());
-                    result.addAll(deletedFiles);
+                    String deletedFile = cleanupStaleSegment(analysis.name());
+                    result.add(deletedFile);
                 } catch (Exception e) {
                     LOGGER.error("Volume '{}' may has orphan segments", config.name(), e);
                 }
