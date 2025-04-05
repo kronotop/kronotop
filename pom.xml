@@ -6,7 +6,7 @@
 
     <groupId>com.kronotop</groupId>
     <artifactId>kronotop-root</artifactId>
-    <version>0.3-SNAPSHOT</version>
+    <version>0.4-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Kronotop Root</name>
     <description>Kronotop is a distributed and transactional document database backed by FoundationDB</description>
