@@ -18,12 +18,14 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.volume.handlers.PackedEntry;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.*;
@@ -1025,5 +1027,63 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         volume.setAttribute(VolumeAttributes.SHARD_ID, 1);
         volume.unsetAttribute(VolumeAttributes.SHARD_ID);
         assertNull(volume.getAttribute(VolumeAttributes.SHARD_ID));
+    }
+
+    @Test
+    void test_concurrent_appends_then_get_all() throws IOException, InterruptedException {
+        int PARALLEL_APPENDS = 100;
+        ConcurrentHashMap<String, String> expected = new ConcurrentHashMap<>();
+
+        class Append implements Runnable {
+            final CountDownLatch latch;
+
+            Append(CountDownLatch latch) {
+                this.latch = latch;
+            }
+
+            @Override
+            public void run() {
+                ByteBuffer[] entries = new ByteBuffer[10];
+                List<String> values = new ArrayList<>();
+
+                for (int i = 0; i < entries.length; i++) {
+                    String value = UUID.randomUUID().toString();
+                    values.add(value);
+                    entries[i] = ByteBuffer.wrap(value.getBytes());
+                }
+
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                    AppendResult result = volume.append(session, entries);
+                    tr.commit().join();
+                    Versionstamp[] keys = result.getVersionstampedKeys();
+                    for (int i = 0; i < keys.length; i++) {
+                        Versionstamp key = keys[i];
+                        expected.put(VersionstampUtils.base32HexEncode(key), values.get(i));
+                    }
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                } finally {
+                    latch.countDown();
+                }
+            }
+        }
+
+        CountDownLatch latch = new CountDownLatch(PARALLEL_APPENDS);
+        for (int i = 0; i < PARALLEL_APPENDS; i++) {
+            Thread.ofVirtual().start(new Append(latch));
+        }
+        latch.await();
+
+        ConcurrentHashMap<String, String> result = new ConcurrentHashMap<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (String key : expected.keySet()) {
+                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                ByteBuffer buffer = volume.get(session, VersionstampUtils.base32HexDecode(key));
+                assertNotNull(buffer);
+                result.put(key, new String(buffer.array()));
+            }
+        }
+        assertEquals(expected, result);
     }
 }
