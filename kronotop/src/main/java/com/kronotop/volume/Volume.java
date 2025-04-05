@@ -526,6 +526,10 @@ public class Volume {
 
             AsyncIterable<KeyValue> iterable = tr.getRange(new Range(begin, end), 1, true);
             List<KeyValue> result = iterable.asList().join();
+            if (result.isEmpty()) {
+                // No entries found
+                return 0;
+            }
             byte[] data = (byte[]) config.subspace().unpack(result.getFirst().getKey()).get(1);
             EntryMetadata last = EntryMetadata.decode(ByteBuffer.wrap(data));
 

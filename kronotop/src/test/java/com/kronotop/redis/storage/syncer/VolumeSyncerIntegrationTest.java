@@ -82,7 +82,7 @@ class VolumeSyncerIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void sync_replication_when_standby_members_exists() throws IOException, InterruptedException {
+    void sync_replication_when_standby_members_exists() throws IOException {
         KronotopTestInstance standbyInstance = addNewInstance(true);
         setSyncStandby(standbyInstance);
 
