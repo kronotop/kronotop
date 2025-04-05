@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.*;
+import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
@@ -231,23 +232,20 @@ public class Volume {
         }
     }
 
-    private boolean hasSegment(Transaction tr, long segmentId) {
-        VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
-        return volumeMetadata.getSegments().stream().anyMatch(existingSegmentId -> Objects.equals(existingSegmentId, segmentId));
-    }
-
     /**
-     * Opens a segment based on the given segment ID. This method initializes the segment configuration,
-     * segment log, and segment metadata, and stores them in the segments map.
+     * Opens and initializes a new segment with the specified segment ID and position.
+     * The method creates a new segment, segment log, and segment metadata,
+     * then stores them in a segment container protected by the `segmentsLock`.
      *
-     * @param segmentId the ID of the segment to be opened.
-     * @return the Segment instance that has been created and opened.
-     * @throws IOException if an I/O error occurs while creating or opening the segment.
+     * @param segmentId the unique identifier for the segment to be opened
+     * @param position the initial position within the segment
+     * @return the initialized Segment instance
+     * @throws IOException if an I/O error occurs during segment initialization
      */
-    private Segment openSegment(long segmentId) throws IOException {
-        // NOTE: should be protected by segmentsLock
+    private Segment openSegment(long segmentId, long position) throws IOException {
+        // NOTE: must be protected by segmentsLock
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
-        Segment segment = new Segment(segmentConfig);
+        Segment segment = new Segment(segmentConfig, position);
         SegmentLog segmentLog = new SegmentLog(segment.getName(), config.subspace());
         SegmentMetadata segmentMetadata = new SegmentMetadata(subspace, segment.getName());
         segments.put(segment.getName(), new SegmentContainer(segment, segmentLog, segmentMetadata));
@@ -286,7 +284,7 @@ public class Volume {
         // createsSegment protected by segmentsLock
         long segmentId = getAndIncreaseSegmentId();
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
-        Segment segment = new Segment(segmentConfig);
+        Segment segment = new Segment(segmentConfig, 0);
 
         // After this point, the Segment has been created on the physical medium.
 
@@ -510,6 +508,27 @@ public class Volume {
     }
 
     /**
+     * Finds the position of a segment based on its name. The method interacts with FDB
+     * to retrieve metadata related to the segment and computes its position.
+     *
+     * @param name the name of the segment whose position is being determined
+     * @return the position of the segment as a long value
+     */
+    private long findSegmentPosition(String name) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, name.getBytes()));
+            byte[] end = ByteArrayUtil.strinc(begin);
+
+            AsyncIterable<KeyValue> iterable = tr.getRange(new Range(begin, end), 1, true);
+            List<KeyValue> result = iterable.asList().join();
+            byte[] data = (byte[]) config.subspace().unpack(result.getFirst().getKey()).get(1);
+            EntryMetadata last = EntryMetadata.decode(ByteBuffer.wrap(data));
+
+            return last.position() + last.length();
+        }
+    }
+
+    /**
      * Retrieves an existing segment by its name or opens a new segment if it does not already exist.
      * This method ensures thread safety by using read and write locks.
      *
@@ -538,10 +557,16 @@ public class Volume {
             }
             long segmentId = Segment.extractIdFromName(name);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                if (!hasSegment(tr, segmentId)) {
+                VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, config.subspace());
+                boolean has = volumeMetadata.getSegments().stream().anyMatch(
+                        existingSegmentId -> Objects.equals(existingSegmentId, segmentId)
+                );
+                if (!has) {
                     throw new SegmentNotFoundException(name);
                 }
-                return openSegment(segmentId);
+
+                long position = findSegmentPosition(name);
+                return openSegment(segmentId, position);
             }
         } finally {
             segmentsLock.unlockWrite(writeStamp);

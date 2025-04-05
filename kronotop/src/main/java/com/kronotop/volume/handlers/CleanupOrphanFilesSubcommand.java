@@ -69,7 +69,6 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
             volumeMetadata.getSegments().forEach(segmentId -> {
                 String segmentName = Segment.generateName(segmentId);
                 assumedFiles.add(segmentName);
-                assumedFiles.add(segmentName + "." + Segment.SEGMENT_METADATA_FILE_EXTENSION);
             });
 
             Set<String> orphanFiles = new HashSet<>();
