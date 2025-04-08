@@ -11,11 +11,15 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.IndexBuilder;
+import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.server.*;
@@ -32,6 +36,7 @@ import org.bson.Document;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -50,7 +55,16 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
+        byte[] data = "foo".getBytes();
+        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+        DirectorySubspace ds = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
+        for (int i = 0; i < 1; i++) {
+            System.out.println(Arrays.toString(ds.pack(Tuple.from(i))));
+            tr.set(ds.pack(Tuple.from(i)), data);
+        }
+        long START = System.nanoTime();
+        tr.commit().join();
+        /*BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
 
         // TODO: Distribute the requests among shards in a round robin fashion.
         int shardId = 1;
@@ -95,7 +109,10 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
         PostCommitHook postCommitHook = new PostCommitHook(appendResult);
         TransactionUtils.addPostCommitHook(postCommitHook, request.getSession());
+        long start = System.nanoTime();
         TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
+        long end = System.nanoTime();
+        System.out.println("COMMIT: " + (end - start)/1000000.0 + " ms");
 
         if (autoCommitEnabled) {
             Versionstamp[] versionstamps = postCommitHook.getVersionstamps();
@@ -107,7 +124,10 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         } else {
             // Return userVersions to track the versionstamps in the COMMIT response
             response.writeArray(userVersions);
-        }
+        }*/
+        long END = System.nanoTime();
+        System.out.println("TOTAL: " + (END - START)/1000000.0 + " ms");
+        response.writeOK();
     }
 
     private static class PostCommitHook implements CommitHook {

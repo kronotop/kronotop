@@ -34,6 +34,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -1085,5 +1086,63 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             }
         }
         assertEquals(expected, result);
+    }
+
+    AtomicLong counter = new AtomicLong(0);
+    AtomicLong longestResponse = new AtomicLong(0);
+    AtomicBoolean stop = new AtomicBoolean(false);
+
+    @Test
+    void volume_benchmark() throws InterruptedException {
+        long start = System.currentTimeMillis();
+        var SIZE = 1;
+        CountDownLatch latch = new CountDownLatch(SIZE);
+        for (int i = 0; i < SIZE; i++) {
+            Thread.ofVirtual().start(new Runner(latch));
+        }
+
+        Thread.sleep(60000);
+        stop.set(true);
+        latch.await();
+        System.out.println("Total number of inserts: " + counter.get());
+        System.out.println("Transaction per second: " + counter.get() / 60.0);
+        System.out.println("Time elapsed: " + (System.currentTimeMillis() - start) / 1000.0);
+        System.out.println(longestResponse.get());
+    }
+
+    class Runner implements Runnable {
+        final CountDownLatch latch;
+
+        Runner(CountDownLatch latch) {
+            this.latch = latch;
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (!stop.get()) {
+                    long start = System.nanoTime();
+                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                        try {
+                            if (context.getFoundationDB().getMainThreadBusyness() >= 1) {
+                                System.out.println(context.getFoundationDB().getMainThreadBusyness());
+                            }
+                            ByteBuffer[] entries = getEntries(1);
+                            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                            volume.append(session, entries);
+                            tr.commit().join();
+                            long end = System.nanoTime();
+                            System.out.println("Time elapsed: " + (end - start) / 1000000.0);
+                            longestResponse.updateAndGet(v -> Math.max(v, end - start));
+                            counter.addAndGet(1);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+            } finally {
+                latch.countDown();
+            }
+        }
     }
 }

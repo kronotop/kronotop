@@ -78,7 +78,10 @@ public class TransactionUtils {
     public static void commitIfAutoCommitEnabled(Transaction tr, Session session) {
         if (getAutoCommit(session)) {
             try {
+                long start = System.nanoTime();
                 tr.commit().join();
+                long end = System.nanoTime();
+                System.out.println("Committed in " + (end - start)/1000000.0 + " ms");
                 runPostCommitHooks(session);
             } finally {
                 session.unsetTransaction();
