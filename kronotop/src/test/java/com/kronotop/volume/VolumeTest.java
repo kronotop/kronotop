@@ -1095,7 +1095,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     void volume_benchmark() throws InterruptedException {
         long start = System.currentTimeMillis();
-        var SIZE = 1;
+        var SIZE = 100;
         CountDownLatch latch = new CountDownLatch(SIZE);
         for (int i = 0; i < SIZE; i++) {
             Thread.ofVirtual().start(new Runner(latch));
@@ -1132,7 +1132,6 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                             volume.append(session, entries);
                             tr.commit().join();
                             long end = System.nanoTime();
-                            System.out.println("Time elapsed: " + (end - start) / 1000000.0);
                             longestResponse.updateAndGet(v -> Math.max(v, end - start));
                             counter.addAndGet(1);
                         } catch (IOException e) {
