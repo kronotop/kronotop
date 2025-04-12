@@ -40,9 +40,11 @@ import io.netty.util.ReferenceCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -417,5 +419,13 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         } catch (Exception e) {
             exceptionToRespError(request, response, e);
         }
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        if (!(Objects.requireNonNull(cause) instanceof SocketException)) {
+            LOGGER.error("Unhandled exception caught in channel handler", cause);
+        }
+        ctx.close();
     }
 }
