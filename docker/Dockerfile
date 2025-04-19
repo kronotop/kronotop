@@ -2,8 +2,8 @@ FROM ubuntu:noble
 
 ARG JDK_VERSION="21"
 ARG KR_HOME="/opt/kronotop"
-ARG FOUNDATIONDB_VERSION="7.3.26"
-ARG FOUNDATIONDB_CLIENTS_DEB="foundationdb-clients_7.3.26-1_amd64.deb"
+ARG FOUNDATIONDB_VERSION="7.3.64"
+ARG FOUNDATIONDB_CLIENTS_DEB="foundationdb-clients_7.3.64-1_amd64.deb"
 
 WORKDIR $KR_HOME
 
@@ -18,7 +18,7 @@ ADD https://github.com/apple/foundationdb/releases/download/$FOUNDATIONDB_VERSIO
 RUN dpkg -i $KR_HOME/$FOUNDATIONDB_CLIENTS_DEB
 
 # Cleanup
-RUN rm $KR_HOME/foundationdb-clients_7.3.26-1_amd64.deb
+RUN rm $KR_HOME/foundationdb-clients_7.3.64-1_amd64.deb
 RUN apt-get clean
 
 COPY *.jar $KR_HOME/
