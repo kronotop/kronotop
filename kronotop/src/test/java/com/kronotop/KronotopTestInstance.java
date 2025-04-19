@@ -173,8 +173,7 @@ public class KronotopTestInstance extends KronotopInstance {
             ByteBuf buf = Unpooled.buffer();
             cmd.auth("devuser", "devpass").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = BaseTest.runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -184,9 +183,8 @@ public class KronotopTestInstance extends KronotopInstance {
     private boolean initializeCluster(KrAdminCommandBuilder<String, String> cmd) {
         ByteBuf buf = Unpooled.buffer();
         cmd.initializeCluster().encode(buf);
-        channel.writeInbound(buf);
 
-        Object raw = channel.readOutbound();
+        Object raw = BaseTest.runCommand(channel, buf);
         if (raw instanceof SimpleStringRedisMessage message) {
             assertEquals(Response.OK, message.content());
         } else if (raw instanceof ErrorRedisMessage message) {
@@ -203,9 +201,8 @@ public class KronotopTestInstance extends KronotopInstance {
     private void setPrimaryOwnersOfShards(KrAdminCommandBuilder<String, String> cmd, ShardKind shardKind) {
         ByteBuf buf = Unpooled.buffer();
         cmd.route("SET", RouteKind.PRIMARY.name(), shardKind.name(), context.getMember().getId()).encode(buf);
-        channel.writeInbound(buf);
 
-        Object raw = channel.readOutbound();
+        Object raw = BaseTest.runCommand(channel, buf);
         if (raw instanceof SimpleStringRedisMessage message) {
             assertEquals(Response.OK, message.content());
         } else if (raw instanceof ErrorRedisMessage message) {
@@ -216,9 +213,8 @@ public class KronotopTestInstance extends KronotopInstance {
     private void setShardsReadWrite(KrAdminCommandBuilder<String, String> cmd, ShardKind shardKind) {
         ByteBuf buf = Unpooled.buffer();
         cmd.setShardStatus(shardKind.name(), "READWRITE").encode(buf);
-        channel.writeInbound(buf);
 
-        Object raw = channel.readOutbound();
+        Object raw = BaseTest.runCommand(channel, buf);
         if (raw instanceof SimpleStringRedisMessage message) {
             assertEquals(Response.OK, message.content());
         } else if (raw instanceof ErrorRedisMessage message) {
@@ -343,8 +339,9 @@ public class KronotopTestInstance extends KronotopInstance {
             executor.awaitTermination(15, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
+        } finally {
+            channel.finishAndReleaseAll();
         }
-        channel.finishAndReleaseAll();
     }
 
     @Override

@@ -38,7 +38,7 @@ public class EntryMetadataIdGenerator {
      * utilizing the XXHash algorithm with a predefined seed value.
      *
      * @param segmentId the unique identifier of the segment
-     * @param position the position within the segment
+     * @param position  the position within the segment
      * @return a hash value representing the unique identifier for the given segment ID and position
      */
     public static int generate(long segmentId, long position) {

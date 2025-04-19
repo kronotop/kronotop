@@ -41,7 +41,7 @@ import io.netty.util.ReferenceCountUtil;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 
 @Command(ZGetRangeMessage.COMMAND)
 @MinimumParameterCount(ZGetRangeMessage.MINIMUM_PARAMETER_COUNT)
@@ -65,58 +65,63 @@ public class ZGetRangeHandler extends BaseFoundationDBHandler implements Handler
     }
 
     @Override
-    public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        ZGetRangeMessage message = request.attr(MessageTypes.ZGETRANGE).get();
+    public void execute(Request request, Response response) {
+        CompletableFuture.supplyAsync(() -> {
+            ZGetRangeMessage message = request.attr(MessageTypes.ZGETRANGE).get();
 
-        Session session = request.getSession();
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            Session session = request.getSession();
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
-        byte[] begin;
-        byte[] end;
-        if (Arrays.equals(message.getBegin(), ZGetRangeMessage.ASTERISK)) {
-            begin = namespace.getZMap().pack();
-            end = ByteArrayUtil.strinc(namespace.getZMap().pack());
-        } else {
-            begin = namespace.getZMap().pack(message.getBegin());
-            if (Arrays.equals(message.getEnd(), ZGetRangeMessage.ASTERISK)) {
+            byte[] begin;
+            byte[] end;
+            if (Arrays.equals(message.getBegin(), ZGetRangeMessage.ASTERISK)) {
+                begin = namespace.getZMap().pack();
                 end = ByteArrayUtil.strinc(namespace.getZMap().pack());
             } else {
-                end = namespace.getZMap().pack(message.getEnd());
-            }
-        }
-
-        KeySelector beginKeySelector = RangeKeySelector.getKeySelector(message.getBeginKeySelector(), begin);
-        KeySelector endKeySelector = RangeKeySelector.getKeySelector(message.getEndKeySelector(), end);
-
-        AsyncIterable<KeyValue> asyncIterable = getRange(
-                tr, beginKeySelector, endKeySelector, message.getLimit(),
-                message.getReverse(), TransactionUtils.isSnapshotRead(session));
-
-        List<RedisMessage> upperList = new ArrayList<>();
-        for (KeyValue keyValue : asyncIterable) {
-            ByteBuf keyBuf = response.getCtx().alloc().buffer();
-            ByteBuf valueBuf = response.getCtx().alloc().buffer();
-
-            try {
-                List<RedisMessage> pair = new ArrayList<>();
-                keyBuf.writeBytes(namespace.getZMap().unpack(keyValue.getKey()).getBytes(0));
-                pair.add(new FullBulkStringRedisMessage(keyBuf));
-
-                valueBuf.writeBytes(keyValue.getValue());
-                pair.add(new FullBulkStringRedisMessage(valueBuf));
-
-                upperList.add(new ArrayRedisMessage(pair));
-            } catch (Exception e) {
-                if (keyBuf.refCnt() > 0) {
-                    ReferenceCountUtil.release(keyBuf);
+                begin = namespace.getZMap().pack(message.getBegin());
+                if (Arrays.equals(message.getEnd(), ZGetRangeMessage.ASTERISK)) {
+                    end = ByteArrayUtil.strinc(namespace.getZMap().pack());
+                } else {
+                    end = namespace.getZMap().pack(message.getEnd());
                 }
-                if (valueBuf.refCnt() > 0) {
-                    ReferenceCountUtil.release(valueBuf);
-                }
-                throw e;
             }
-        }
-        response.writeArray(upperList);
+
+            KeySelector beginKeySelector = RangeKeySelector.getKeySelector(message.getBeginKeySelector(), begin);
+            KeySelector endKeySelector = RangeKeySelector.getKeySelector(message.getEndKeySelector(), end);
+
+            AsyncIterable<KeyValue> asyncIterable = getRange(
+                    tr, beginKeySelector, endKeySelector, message.getLimit(),
+                    message.getReverse(), TransactionUtils.isSnapshotRead(session));
+
+            List<RedisMessage> upperList = new ArrayList<>();
+            for (KeyValue keyValue : asyncIterable) {
+                ByteBuf keyBuf = response.getCtx().alloc().buffer();
+                ByteBuf valueBuf = response.getCtx().alloc().buffer();
+
+                try {
+                    List<RedisMessage> pair = new ArrayList<>();
+                    keyBuf.writeBytes(namespace.getZMap().unpack(keyValue.getKey()).getBytes(0));
+                    pair.add(new FullBulkStringRedisMessage(keyBuf));
+
+                    valueBuf.writeBytes(keyValue.getValue());
+                    pair.add(new FullBulkStringRedisMessage(valueBuf));
+
+                    upperList.add(new ArrayRedisMessage(pair));
+                } catch (Exception e) {
+                    if (keyBuf.refCnt() > 0) {
+                        ReferenceCountUtil.release(keyBuf);
+                    }
+                    if (valueBuf.refCnt() > 0) {
+                        ReferenceCountUtil.release(valueBuf);
+                    }
+                    throw e;
+                }
+            }
+            return upperList;
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((response::writeArray), response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

@@ -35,19 +35,18 @@ import java.nio.ByteOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZMutateHandlerTest extends BaseHandlerTest {
+class ZMutateHandlerTest extends BaseHandlerTest {
 
     @Test
-    public void test_ZMUTATE() {
+    void test_ZMUTATE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zset("my-key", "my-value").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -56,9 +55,8 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zmutate("my-key", "my-value", ZMutateArgs.Builder.compareAndClear()).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -67,8 +65,8 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zget("my-key").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, response);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
@@ -84,9 +82,8 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zset("my-key".getBytes(), delta).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -95,9 +92,8 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zmutate("my-key".getBytes(), delta, ZMutateArgs.Builder.add()).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -106,8 +102,8 @@ public class ZMutateHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zget("my-key".getBytes()).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, response);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
             byte[] rawItem = new byte[actualMessage.content().readableBytes()];

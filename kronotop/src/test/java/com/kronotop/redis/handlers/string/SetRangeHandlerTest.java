@@ -41,8 +41,7 @@ public class SetRangeHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.setrange("mykey", 6, "Kronotop").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(14, actualMessage.value());
@@ -52,8 +51,7 @@ public class SetRangeHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("mykey").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals("\u0000\u0000\u0000\u0000\u0000\u0000Kronotop", actualMessage.content().toString(CharsetUtil.US_ASCII));
@@ -67,8 +65,7 @@ public class SetRangeHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("mykey", "Hello World").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -78,8 +75,7 @@ public class SetRangeHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.setrange("mykey", 6, "Kronotop").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(14, actualMessage.value());
@@ -89,8 +85,7 @@ public class SetRangeHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("mykey").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals("Hello Kronotop", actualMessage.content().toString(CharsetUtil.US_ASCII));

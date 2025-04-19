@@ -33,7 +33,7 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 
 @Command(ZDelMessage.COMMAND)
 @MinimumParameterCount(ZDelMessage.MINIMUM_PARAMETER_COUNT)
@@ -59,15 +59,18 @@ public class ZDelHandler extends BaseFoundationDBHandler implements Handler {
     }
 
     @Override
-    public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        ZDelMessage message = request.attr(MessageTypes.ZDEL).get();
+    public void execute(Request request, Response response) {
+        CompletableFuture.runAsync(() -> {
+            ZDelMessage message = request.attr(MessageTypes.ZDEL).get();
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), request.getSession(), tr);
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+            Namespace namespace = NamespaceUtils.open(service.getContext(), request.getSession(), tr);
 
-        tr.clear(namespace.getZMap().pack(message.getKey()));
-        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
-
-        response.writeOK();
+            tr.clear(namespace.getZMap().pack(message.getKey()));
+            TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

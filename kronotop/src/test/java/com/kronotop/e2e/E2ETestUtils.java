@@ -16,6 +16,7 @@
 
 package com.kronotop.e2e;
 
+import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -62,8 +63,7 @@ class E2ETestUtils {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("key-" + i, "value-" + i).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = BaseTest.runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -76,9 +76,8 @@ class E2ETestUtils {
 
         ByteBuf buf = Unpooled.buffer();
         cmd.replications().encode(buf);
-        channel.writeInbound(buf);
 
-        Object msg = channel.readOutbound();
+        Object msg = BaseTest.runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
 
@@ -92,8 +91,7 @@ class E2ETestUtils {
         ByteBuf buf = Unpooled.buffer();
         krAdmin.setShardStatus(shardKind.name(), shardId, status.name()).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = BaseTest.runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
@@ -104,8 +102,7 @@ class E2ETestUtils {
         ByteBuf buf = Unpooled.buffer();
         volumeAdmin.list().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = BaseTest.runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
 
@@ -123,8 +120,7 @@ class E2ETestUtils {
             ByteBuf buf = Unpooled.buffer();
             volumeAdmin.setStatus(volumeName, status.name()).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = BaseTest.runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -136,8 +132,7 @@ class E2ETestUtils {
         ByteBuf buf = Unpooled.buffer();
         krAdmin.route(operationKind, routeKind.name(), shardKind.name(), shardId, instance.getMember().getId()).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = BaseTest.runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
@@ -149,8 +144,7 @@ class E2ETestUtils {
         cmd.replications().encode(buf);
 
         EmbeddedChannel channel = instance.getChannel();
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = BaseTest.runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
 

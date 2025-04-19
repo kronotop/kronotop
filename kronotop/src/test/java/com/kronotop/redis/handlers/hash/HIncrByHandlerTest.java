@@ -33,13 +33,11 @@ public class HIncrByHandlerTest extends BaseRedisHandlerTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hincrby("mykey", "field", 10).encode(buf);
-        channel.writeInbound(buf);
-        channel.readOutbound();
+        runCommand(channel, buf);
 
         buf = Unpooled.buffer();
         cmd.hincrby("mykey", "field", 11).encode(buf);
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
 
         assertInstanceOf(IntegerRedisMessage.class, msg);
         IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;

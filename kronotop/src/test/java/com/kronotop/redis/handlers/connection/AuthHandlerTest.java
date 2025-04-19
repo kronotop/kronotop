@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.connection;
 
+import com.kronotop.BaseTest;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.server.Response;
@@ -44,8 +45,8 @@ public class AuthHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.ping().encode(buf);
 
-        noauthChannel.writeInbound(buf);
-        Object msg = noauthChannel.readOutbound();
+
+        Object msg = BaseTest.runCommand(noauthChannel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("NOAUTH Authentication required.", actualMessage.content());
@@ -57,8 +58,7 @@ public class AuthHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.auth("devuser", "devpass").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
@@ -70,8 +70,7 @@ public class AuthHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.auth("foobar", "barfoo").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("WRONGPASS invalid username-password pair or user is disabled.", actualMessage.content());
@@ -84,8 +83,7 @@ public class AuthHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.auth("devuser", "devpass").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -95,8 +93,7 @@ public class AuthHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.ping().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("PONG", actualMessage.content());

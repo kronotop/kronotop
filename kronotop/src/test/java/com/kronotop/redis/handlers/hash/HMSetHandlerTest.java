@@ -42,8 +42,7 @@ public class HMSetHandlerTest extends BaseRedisHandlerTest {
         }
         cmd.hmset("mykey", map).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(IntegerRedisMessage.class, msg);
         IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
         assertEquals(10L, actualMessage.value());

@@ -31,17 +31,17 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZGetHandlerTest extends BaseHandlerTest {
+class ZGetHandlerTest extends BaseHandlerTest {
     @Test
-    public void test_ZGET() {
+    void test_ZGET() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -50,8 +50,8 @@ public class ZGetHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zset("key", "value").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -60,8 +60,8 @@ public class ZGetHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.commit().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -70,8 +70,8 @@ public class ZGetHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -80,8 +80,8 @@ public class ZGetHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zget("key").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, response);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
             assertEquals("value", actualMessage.content().toString(CharsetUtil.US_ASCII));
@@ -89,15 +89,14 @@ public class ZGetHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_ZGET_Nil() {
+    void test_ZGET_Nil() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
-
         ByteBuf buf = Unpooled.buffer();
         cmd.zget("key").encode(buf);
-        channel.writeInbound(buf);
-        Object response = channel.readOutbound();
+
+        Object response = runCommand(channel, buf);
         assertInstanceOf(FullBulkStringRedisMessage.class, response);
         FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
         assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);

@@ -58,7 +58,7 @@ class LogicalPlannerTest {
         LogicalNode node = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_STRING_TYPE_AND_GTE);
         assertInstanceOf(LogicalFullScan.class, node);
 
-        LogicalFullScan fullBucketScan = (LogicalFullScan)node;
+        LogicalFullScan fullBucketScan = (LogicalFullScan) node;
 
         assertEquals(1, fullBucketScan.getChildren().size());
 
@@ -78,7 +78,7 @@ class LogicalPlannerTest {
         LogicalNode node = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_IN32_TYPE_AND_EQ);
         assertInstanceOf(LogicalFullScan.class, node);
 
-        LogicalFullScan fullBucketScan = (LogicalFullScan)node;
+        LogicalFullScan fullBucketScan = (LogicalFullScan) node;
 
         assertEquals(1, fullBucketScan.getChildren().size());
 
@@ -99,7 +99,7 @@ class LogicalPlannerTest {
 
         assertInstanceOf(LogicalFullScan.class, node);
 
-        LogicalFullScan fullBucketScan = (LogicalFullScan)node;
+        LogicalFullScan fullBucketScan = (LogicalFullScan) node;
 
         assertEquals(2, fullBucketScan.getChildren().size());
 

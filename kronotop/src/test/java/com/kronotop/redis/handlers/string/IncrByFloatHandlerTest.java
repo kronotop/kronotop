@@ -40,8 +40,7 @@ public class IncrByFloatHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.incrbyfloat("mykey", 10).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(FullBulkStringRedisMessage.class, msg);
         FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
         String content = actualMessage.content().toString(StandardCharsets.US_ASCII);
@@ -55,8 +54,7 @@ public class IncrByFloatHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("mykey", "10").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -66,8 +64,7 @@ public class IncrByFloatHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.incrbyfloat("mykey", 0.1).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             String content = actualMessage.content().toString(StandardCharsets.US_ASCII);
@@ -82,8 +79,7 @@ public class IncrByFloatHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("mykey", "myvalue").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -93,8 +89,7 @@ public class IncrByFloatHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.incrbyfloat("mykey", 10).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("ERR value is not a valid float", actualMessage.content());

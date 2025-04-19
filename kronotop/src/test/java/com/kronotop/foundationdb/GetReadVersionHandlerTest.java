@@ -29,18 +29,18 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class GetReadVersionHandlerTest extends BaseHandlerTest {
+class GetReadVersionHandlerTest extends BaseHandlerTest {
+
     @Test
-    public void test_GETREADVERSION() {
+    void test_GETREADVERSION() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -49,9 +49,8 @@ public class GetReadVersionHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.getreadversion().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertTrue(Long.parseLong(actualMessage.content()) > 0);
@@ -59,15 +58,14 @@ public class GetReadVersionHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_GETREADVERSION_NoTransactionInProgress() {
+    void test_GETREADVERSION_NoTransactionInProgress() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
         ByteBuf buf = Unpooled.buffer();
         cmd.getreadversion().encode(buf);
-        channel.writeInbound(buf);
-        Object response = channel.readOutbound();
 
+        Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
         assertEquals("TRANSACTION there is no transaction in progress.", actualMessage.content());

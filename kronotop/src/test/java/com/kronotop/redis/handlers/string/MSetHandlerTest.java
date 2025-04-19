@@ -50,8 +50,7 @@ public class MSetHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.mset(getPairs()).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
@@ -66,8 +65,7 @@ public class MSetHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.mset(getPairs()).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -78,8 +76,7 @@ public class MSetHandlerTest extends BaseRedisHandlerTest {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.get(key).encode(buf);
 
-                channel.writeInbound(buf);
-                Object msg = channel.readOutbound();
+                Object msg = runCommand(channel, buf);
                 assertInstanceOf(FullBulkStringRedisMessage.class, msg);
                 FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
                 assertEquals(pairs.get(key), actualMessage.content().toString(CharsetUtil.US_ASCII));

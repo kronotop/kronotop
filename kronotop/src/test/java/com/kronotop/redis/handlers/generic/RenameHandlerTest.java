@@ -40,8 +40,7 @@ public class RenameHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("{0}mykey", "myvalue").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -51,8 +50,7 @@ public class RenameHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.rename("{0}mykey", "{0}newkey").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -62,8 +60,7 @@ public class RenameHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("{0}newkey").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals("myvalue", actualMessage.content().toString(CharsetUtil.US_ASCII));
@@ -73,8 +70,7 @@ public class RenameHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("{0}mykey").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);

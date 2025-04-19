@@ -35,10 +35,10 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZGetRangeHandlerTest extends BaseHandlerTest {
+class ZGetRangeHandlerTest extends BaseHandlerTest {
 
     @Test
-    public void test_ZGETRANGE() {
+    void test_ZGETRANGE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
@@ -47,8 +47,8 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
-                channel.writeInbound(buf);
-                Object response = channel.readOutbound();
+
+                Object response = runCommand(channel, buf);
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
                 assertEquals(Response.OK, actualMessage.content());
@@ -60,8 +60,8 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             ZGetRangeArgs args = ZGetRangeArgs.Builder.begin("key-0".getBytes()).end("key-5".getBytes());
             cmd.zgetrange(args).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, response);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
 
@@ -92,8 +92,8 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
                     end("key-5".getBytes()).
                     limit(expectedLimit);
             cmd.zgetrange(args).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, response);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
 
@@ -126,8 +126,8 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
                     limit(expectedLimit).
                     reverse();
             cmd.zgetrange(args).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, response);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
 
@@ -156,8 +156,8 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
                     begin("*".getBytes()).
                     end("*".getBytes());
             cmd.zgetrange(args).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, response);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
 
@@ -187,8 +187,8 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
                     begin("key-2".getBytes()).
                     end("*".getBytes());
             cmd.zgetrange(args).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, response);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
 
@@ -219,8 +219,8 @@ public class ZGetRangeHandlerTest extends BaseHandlerTest {
                     end("*".getBytes()).
                     beginKeySelector("first_greater_than");
             cmd.zgetrange(args).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, response);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
 

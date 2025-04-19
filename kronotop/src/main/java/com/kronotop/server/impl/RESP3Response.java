@@ -16,6 +16,7 @@
 
 package com.kronotop.server.impl;
 
+import com.kronotop.KronotopException;
 import com.kronotop.server.RESPError;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
@@ -27,6 +28,7 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 
 /**
  * The RespResponse class is an implementation of the Response interface.
@@ -267,12 +269,33 @@ public class RESP3Response implements Response {
     }
 
     /**
-     * Writes an error message to the client.
+     * Writes an error message to the client based on the provided {@link Throwable}.
+     * If the Throwable is a {@link CompletionException} and contains a cause of type
+     * {@link KronotopException}, it writes the error with a prefix and message from
+     * the cause; otherwise, it writes the message of the cause or the Throwable itself.
      *
-     * @param prefix  the prefix of the error message
-     * @param content the content of the error message
+     * @param throwable the Throwable representing the error to be written to the client
+     *                  (e.g., an exception or error that occurred during processing)
+     * @throws NullPointerException if the throwable is null
+     */
+    @Override
+    public void writeError(Throwable throwable) {
+        if (throwable instanceof CompletionException completionException) {
+            if (completionException.getCause() instanceof KronotopException kr) {
+                writeError(kr.getPrefix(), completionException.getCause().getMessage());
+            } else {
+                writeError(completionException.getCause().getMessage());
+            }
+        } else {
+            writeError(throwable.getMessage());
+        }
+    }
+
+    /**
+     * Writes an error message to the client with a given prefix and content.
+     *
      * @param <T>     the type of the prefix
-     * @param prefix  the content to be written before the error message
+     * @param prefix  the prefix to be added to the error message
      * @param content the content of the error message
      * @throws NullPointerException if the prefix or content is null
      */

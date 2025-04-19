@@ -18,6 +18,7 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.protocol.CommitMessage;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtils;
@@ -49,74 +50,84 @@ class CommitHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        // Validates the request
-        CommitMessage message = request.attr(MessageTypes.COMMIT).get();
+        CompletableFuture.supplyAsync(() -> {
+            // Validates the request
+            CommitMessage message = request.attr(MessageTypes.COMMIT).get();
 
-        Session session = request.getSession();
-        Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
-        if (!Boolean.TRUE.equals(beginAttr.get())) {
-            response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
-            return;
-        }
+            Session session = request.getSession();
+            Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
+            if (!Boolean.TRUE.equals(beginAttr.get())) {
+                throw new KronotopException(RESPError.TRANSACTION, "there is no transaction in progress.");
+            }
 
-        Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);
-        Transaction tr = transactionAttr.get();
+            Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);
+            Transaction tr = transactionAttr.get();
 
-        CompletableFuture<byte[]> versionstamp;
-        if (message.getReturning().contains(CommitMessage.Parameter.VERSIONSTAMP)) {
-            versionstamp = tr.getVersionstamp();
-        } else if (message.getReturning().contains(CommitMessage.Parameter.FUTURES)) {
-            versionstamp = tr.getVersionstamp();
-        } else {
-            // Effectively final
-            versionstamp = null;
-        }
-
-        try {
-            tr.commit().join();
-
-            TransactionUtils.runPostCommitHooks(session);
-
-            if (message.getReturning().isEmpty()) {
-                response.writeOK();
-                return;
+            CompletableFuture<byte[]> versionstamp;
+            if (message.getReturning().contains(CommitMessage.Parameter.VERSIONSTAMP)) {
+                versionstamp = tr.getVersionstamp();
+            } else if (message.getReturning().contains(CommitMessage.Parameter.FUTURES)) {
+                versionstamp = tr.getVersionstamp();
+            } else {
+                // Effectively final
+                versionstamp = null;
             }
 
             List<RedisMessage> children = new ArrayList<>();
-            message.getReturning().forEach(parameter -> {
-                switch (parameter) {
-                    case COMMITTED_VERSION -> {
-                        Long committedVersion = tr.getCommittedVersion();
-                        children.add(new IntegerRedisMessage(committedVersion));
-                    }
-                    case VERSIONSTAMP -> {
-                        assert versionstamp != null;
-                        byte[] versionBytes = versionstamp.join();
-                        String encoded = VersionstampUtils.base32HexEncode(Versionstamp.complete(versionBytes));
-                        ByteBuf buf = response.getCtx().alloc().buffer();
-                        buf.writeBytes(encoded.getBytes());
-                        children.add(new FullBulkStringRedisMessage(buf));
-                    }
-                    case FUTURES -> {
-                        assert versionstamp != null;
-                        byte[] versionBytes = versionstamp.join();
-                        Map<RedisMessage, RedisMessage> futures = new HashMap<>();
-                        List<Integer> asyncReturning = request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get();
-                        if (asyncReturning != null) {
-                            for (Integer userVersion : asyncReturning) {
-                                Versionstamp completed = Versionstamp.complete(versionBytes, userVersion);
-                                String id = VersionstampUtils.base32HexEncode(completed);
-                                futures.put(new IntegerRedisMessage(userVersion), new SimpleStringRedisMessage(id));
-                            }
-                        }
-                        children.add(new MapRedisMessage(futures));
-                    }
-                    default -> throw new UnknownSubcommandException(parameter.getValue());
+            try {
+                tr.commit().join();
+
+                TransactionUtils.runPostCommitHooks(session);
+
+                if (message.getReturning().isEmpty()) {
+                    return children;
                 }
+
+                message.getReturning().forEach(parameter -> {
+                    switch (parameter) {
+                        case COMMITTED_VERSION -> {
+                            Long committedVersion = tr.getCommittedVersion();
+                            children.add(new IntegerRedisMessage(committedVersion));
+                        }
+                        case VERSIONSTAMP -> {
+                            assert versionstamp != null;
+                            byte[] versionBytes = versionstamp.join();
+                            String encoded = VersionstampUtils.base32HexEncode(Versionstamp.complete(versionBytes));
+                            ByteBuf buf = response.getCtx().alloc().buffer();
+                            buf.writeBytes(encoded.getBytes());
+                            children.add(new FullBulkStringRedisMessage(buf));
+                        }
+                        case FUTURES -> {
+                            assert versionstamp != null;
+                            byte[] versionBytes = versionstamp.join();
+                            Map<RedisMessage, RedisMessage> futures = new HashMap<>();
+                            List<Integer> asyncReturning = request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get();
+                            if (asyncReturning != null) {
+                                for (Integer userVersion : asyncReturning) {
+                                    Versionstamp completed = Versionstamp.complete(versionBytes, userVersion);
+                                    String id = VersionstampUtils.base32HexEncode(completed);
+                                    futures.put(new IntegerRedisMessage(userVersion), new SimpleStringRedisMessage(id));
+                                }
+                            }
+                            children.add(new MapRedisMessage(futures));
+                        }
+                        default -> throw new UnknownSubcommandException(parameter.getValue());
+                    }
+                });
+            } finally {
+                session.unsetTransaction();
+            }
+
+            return children;
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((children) -> {
+            if (children.isEmpty()) {
+                response.writeOK();
+            } else {
                 response.writeArray(children);
-            });
-        } finally {
-            session.unsetTransaction();
-        }
+            }
+        }, response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

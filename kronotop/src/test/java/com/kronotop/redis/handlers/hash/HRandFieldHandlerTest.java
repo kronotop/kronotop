@@ -43,15 +43,13 @@ public class HRandFieldHandlerTest extends BaseRedisHandlerTest {
                 map.put(String.format("field-%d", i), String.format("value-%d", i));
             }
             cmd.hmset("mykey", map).encode(buf);
-            channel.writeInbound(buf);
-            channel.readOutbound();
+            runCommand(channel, buf);
         }
 
         ByteBuf buf = Unpooled.buffer();
         cmd.hrandfield("mykey").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
 
         assertInstanceOf(FullBulkStringRedisMessage.class, msg);
         FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;

@@ -40,8 +40,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.initializeCluster().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR cluster has already been initialized", actualMessage.content());
@@ -53,8 +52,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.listMembers().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
+
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
         assertEquals(1, mapRedisMessage.children().size()); // only one member
@@ -113,8 +112,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.describeMember().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
         ((MapRedisMessage) msg).children().forEach((keyMessage, valueMessage) -> {
@@ -164,13 +162,12 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_findMember() {
+    void test_findMember() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.findMember(kronotopInstance.getMember().getId()).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
         ((MapRedisMessage) msg).children().forEach((keyMessage, valueMessage) -> {
@@ -220,8 +217,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.setMemberStatus(kronotopInstance.getMember().getId(), "STOPPED").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
@@ -233,8 +229,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.setMemberStatus(kronotopInstance.getMember().getId(), "some-status").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR Invalid member status some-status", actualMessage.content());
@@ -248,8 +243,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String memberId = MemberIdGenerator.generateId();
         cmd.setMemberStatus(memberId, "RUNNING").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals(String.format("ERR Member: %s not registered", memberId), actualMessage.content());
@@ -264,15 +258,14 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.setMemberStatus(secondInstance.getMember().getId(), "STOPPED").encode(buf);
 
-            channel.writeInbound(buf);
-            channel.readOutbound(); // consume the response
+            runCommand(channel, buf); // consume the response
         }
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.removeMember(secondInstance.getMember().getId()).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -285,8 +278,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.listSilentMembers().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertEquals(0, actualMessage.children().size());
@@ -300,8 +292,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         ByteBuf buf = Unpooled.buffer();
         cmd.removeMember(secondInstance.getMember().getId()).encode(buf);
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR Member in RUNNING status cannot be removed", actualMessage.content());
@@ -313,8 +305,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.setShardStatus("redis", 1, "READONLY").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
@@ -326,8 +317,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.setShardStatus("redis", "READONLY").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
@@ -339,8 +329,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.setShardStatus("redis", -1, "READONLY").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR invalid shard id", actualMessage.content());
@@ -352,8 +341,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.setShardStatus("redis", 1231253, "READONLY").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR invalid shard id", actualMessage.content());
@@ -366,8 +354,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.describeShard("REDIS", 1).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
         actualMessage.children().forEach((messageKey, messageValue) -> {
@@ -398,8 +385,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     private void checkSyncStandbys(KrAdminCommandBuilder<String, String> cmd, String standbyMemberId, int shardId) {
         ByteBuf buf = Unpooled.buffer();
         cmd.describeShard("redis", 1).encode(buf);
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
         actualMessage.children().forEach((messageKey, messageValue) -> {
@@ -425,8 +412,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.route("set", "standby", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -436,8 +423,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -456,8 +443,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.route("set", "standby", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -467,8 +454,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -478,8 +465,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.syncStandby("unset", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -489,8 +476,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.describeShard("redis", 1).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage actualMessage = (MapRedisMessage) msg;
             actualMessage.children().forEach((messageKey, messageValue) -> {
@@ -510,8 +497,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         String memberId = MemberIdGenerator.generateId();
         ByteBuf buf = Unpooled.buffer();
         cmd.syncStandby("set", "redis", 1, memberId).encode(buf);
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals(String.format("ERR Member: %s not registered", memberId), actualMessage.content());
@@ -528,8 +515,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("ERR member is not a standby", actualMessage.content());
@@ -545,8 +532,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.route("set", "standby", "redis", secondInstance.getMember().getId()).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -556,8 +543,8 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.syncStandby("set", "redis", secondInstance.getMember().getId()).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());

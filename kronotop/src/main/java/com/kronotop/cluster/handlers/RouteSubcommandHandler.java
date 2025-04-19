@@ -39,6 +39,7 @@ import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
     public RouteSubcommandHandler(RoutingService routing) {
@@ -158,26 +159,30 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     @Override
     public void execute(Request request, Response response) {
         RouteParameters parameters = new RouteParameters(request.getParams());
-        if (parameters.operationKind.equals(OperationKind.SET)) {
-            try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
-                if (!membership.isMemberRegistered(parameters.memberId)) {
-                    throw new KronotopException("member not found");
-                }
-                if (parameters.allShards) {
-                    int numberOfShards = getNumberOfShards(parameters.shardKind);
-                    for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                        setRouteForShard(tr, parameters, shardId);
+        CompletableFuture.runAsync(() -> {
+            if (parameters.operationKind.equals(OperationKind.SET)) {
+                try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
+                    if (!membership.isMemberRegistered(parameters.memberId)) {
+                        throw new KronotopException("member not found");
                     }
-                } else {
-                    setRouteForShard(tr, parameters, parameters.shardId);
+                    if (parameters.allShards) {
+                        int numberOfShards = getNumberOfShards(parameters.shardKind);
+                        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+                            setRouteForShard(tr, parameters, shardId);
+                        }
+                    } else {
+                        setRouteForShard(tr, parameters, parameters.shardId);
+                    }
+                    membership.triggerClusterTopologyWatcher(tr);
+                    tr.commit().join();
                 }
-                membership.triggerClusterTopologyWatcher(tr);
-                tr.commit().join();
+            } else {
+                throw new KronotopException("Unknown operation kind: " + parameters.operationKind);
             }
-        } else {
-            throw new KronotopException("Unknown operation kind: " + parameters.operationKind);
-        }
-        response.writeOK();
+        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 
     enum OperationKind {

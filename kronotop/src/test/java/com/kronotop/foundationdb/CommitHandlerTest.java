@@ -31,10 +31,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class CommitHandlerTest extends BaseHandlerTest {
+class CommitHandlerTest extends BaseHandlerTest {
 
     @Test
-    public void test_COMMIT() {
+    void test_COMMIT() {
         TestTransaction tt = new TestTransaction(channel);
         tt.begin();
         tt.commit();
@@ -46,7 +46,7 @@ public class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_COMMIT_NoTransactionInProgress() {
+    void test_COMMIT_NoTransactionInProgress() {
         TestTransaction tt = new TestTransaction(channel);
 
         // Start a new transaction
@@ -59,16 +59,15 @@ public class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_COMMIT_VERSIONSTAMP() {
+    void test_COMMIT_VERSIONSTAMP() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -77,9 +76,8 @@ public class CommitHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zset("my-key", "my-value").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -88,9 +86,8 @@ public class CommitHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.commit(CommitArgs.Builder.returning(CommitKeyword.VERSIONSTAMP)).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             AssertArrayResponse<FullBulkStringRedisMessage> assertResponse = new AssertArrayResponse<>();
             FullBulkStringRedisMessage message = assertResponse.getMessage(response, 0, 1);
             assertNotNull(message.content());
@@ -98,16 +95,15 @@ public class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_COMMIT_COMMITTED_VERSION() {
+    void test_COMMIT_COMMITTED_VERSION() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -116,9 +112,8 @@ public class CommitHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.commit(CommitArgs.Builder.returning(CommitKeyword.COMMITTED_VERSION)).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             // Read-only transactions do not modify the database when committed and will have a committed version of -1.
             // Keep in mind that a transaction which reads keys and then sets them to their current values may be optimized
             // to a read-only transaction.
@@ -129,16 +124,15 @@ public class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_COMMIT_RETURNING_FUTURES_when_no_async_row() {
+    void test_COMMIT_RETURNING_FUTURES_when_no_async_row() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -147,9 +141,8 @@ public class CommitHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zset("my-key", "my-value").encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -158,9 +151,8 @@ public class CommitHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.commit(CommitArgs.Builder.returning(CommitKeyword.FUTURES)).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             AssertArrayResponse<MapRedisMessage> assertResponse = new AssertArrayResponse<>();
             MapRedisMessage message = assertResponse.getMessage(response, 0, 1);
             assertNotNull(message);

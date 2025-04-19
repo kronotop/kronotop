@@ -37,8 +37,7 @@ public class SelectHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.select(0).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());
@@ -50,8 +49,7 @@ public class SelectHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.select(1).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR SELECT is not allowed in cluster mode", actualMessage.content());

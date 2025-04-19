@@ -27,6 +27,7 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
@@ -37,25 +38,28 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
-        NamespaceMessage.MoveMessage moveMessage = message.getMoveMessage();
+        CompletableFuture.runAsync(() -> {
+            NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
+            NamespaceMessage.MoveMessage moveMessage = message.getMoveMessage();
 
-        List<String> oldPath = getNamespaceSubpath(moveMessage.getOldPath());
-        List<String> newPath = getNamespaceSubpath(moveMessage.getNewPath());
+            List<String> oldPath = getNamespaceSubpath(moveMessage.getOldPath());
+            List<String> newPath = getNamespaceSubpath(moveMessage.getNewPath());
 
-        // Move namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
-        Transaction tr = context.getFoundationDB().createTransaction();
-        try {
-            directoryLayer.move(tr, oldPath, newPath).join();
-            tr.commit().join();
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new NoSuchNamespaceException(String.join(".", moveMessage.getOldPath()));
-            } else if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                throw new NamespaceAlreadyExistsException(String.join(".", moveMessage.getNewPath()));
+            // Move namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                directoryLayer.move(tr, oldPath, newPath).join();
+                tr.commit().join();
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof NoSuchDirectoryException) {
+                    throw new NoSuchNamespaceException(String.join(".", moveMessage.getOldPath()));
+                } else if (e.getCause() instanceof DirectoryAlreadyExistsException) {
+                    throw new NamespaceAlreadyExistsException(String.join(".", moveMessage.getNewPath()));
+                }
+                throw new KronotopException(e.getCause());
             }
-            throw new KronotopException(e.getCause());
-        }
-        response.writeOK();
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

@@ -22,11 +22,10 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
-import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -37,10 +36,14 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
     @Override
     public void execute(Request request, Response response) {
         DescribeShardParameters parameters = new DescribeShardParameters(request.getParams());
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<RedisMessage, RedisMessage> shard = describeShard(tr, parameters.kind, parameters.shardId);
-            response.writeMap(shard);
-        }
+        CompletableFuture.supplyAsync(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                return describeShard(tr, parameters.kind, parameters.shardId);
+            }
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeMap, response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 
     private class DescribeShardParameters {

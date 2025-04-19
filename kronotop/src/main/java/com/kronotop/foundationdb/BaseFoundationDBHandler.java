@@ -16,13 +16,16 @@
 
 package com.kronotop.foundationdb;
 
+import com.kronotop.Context;
 import com.kronotop.server.Handler;
 
 public abstract class BaseFoundationDBHandler implements Handler {
     protected FoundationDBService service;
+    protected Context context;
 
     public BaseFoundationDBHandler(FoundationDBService service) {
         this.service = service;
+        this.context = service.getContext();
     }
 
     @Override

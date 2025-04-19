@@ -58,33 +58,40 @@ public class ZGetKeyHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        ZGetKeyMessage message = request.attr(MessageTypes.ZGETKEY).get();
+        CompletableFuture.supplyAsync(() -> {
+            ZGetKeyMessage message = request.attr(MessageTypes.ZGETKEY).get();
 
-        Session session = request.getSession();
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            Session session = request.getSession();
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
-        KeySelector keySelector = RangeKeySelector.getKeySelector(
-                message.getKeySelector(),
-                namespace.getZMap().pack(message.getKey())
-        );
+            KeySelector keySelector = RangeKeySelector.getKeySelector(
+                    message.getKeySelector(),
+                    namespace.getZMap().pack(message.getKey())
+            );
 
-        CompletableFuture<byte[]> future = getKey(tr, keySelector, TransactionUtils.isSnapshotRead(session));
-        byte[] result = future.get();
-        if (result == null) {
-            response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
-            return;
-        }
-
-        ByteBuf buf = response.getCtx().alloc().buffer();
-        try {
-            buf.writeBytes(namespace.getZMap().unpack(result).getBytes(0));
-            response.write(buf);
-        } catch (Exception e) {
-            if (buf.refCnt() > 0) {
-                ReferenceCountUtil.release(buf);
+            CompletableFuture<byte[]> future = getKey(tr, keySelector, TransactionUtils.isSnapshotRead(session));
+            return new Result(namespace, future.join());
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((result) -> {
+            if (result.value() == null) {
+                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                return;
             }
-            throw e;
-        }
+
+            ByteBuf buf = response.getCtx().alloc().buffer();
+            try {
+                buf.writeBytes(result.namespace().getZMap().unpack(result.value()).getBytes(0));
+                response.write(buf);
+            } catch (Exception e) {
+                ReferenceCountUtil.release(buf);
+                throw e;
+            }
+        }, response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
+    }
+
+    record Result(Namespace namespace, byte[] value) {
     }
 }

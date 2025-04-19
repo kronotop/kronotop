@@ -38,8 +38,7 @@ public class HSetHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.hset("mykey", "field", "value").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(IntegerRedisMessage.class, msg);
         IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
         assertEquals(1L, actualMessage.value());
@@ -56,8 +55,7 @@ public class HSetHandlerTest extends BaseRedisHandlerTest {
         }
         cmd.hset("mykey", map).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(IntegerRedisMessage.class, msg);
         IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
         assertEquals(10L, actualMessage.value());

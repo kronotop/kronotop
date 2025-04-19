@@ -37,8 +37,7 @@ public class StrlenHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.strlen("mykey").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(IntegerRedisMessage.class, msg);
         IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
         assertEquals(0, actualMessage.value());
@@ -51,8 +50,7 @@ public class StrlenHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("mykey", "Hello world").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -62,8 +60,7 @@ public class StrlenHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.strlen("mykey").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(11, actualMessage.value());

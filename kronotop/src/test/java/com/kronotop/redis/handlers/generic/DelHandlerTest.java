@@ -41,8 +41,7 @@ public class DelHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.del("key-1{nodeA}", "key-2{nodeA}").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(IntegerRedisMessage.class, msg);
         IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
         assertEquals(0, actualMessage.value());
@@ -56,8 +55,7 @@ public class DelHandlerTest extends BaseRedisHandlerTest {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.set(String.format("key-%d{nodeA}", i), String.format("value-%d", i)).encode(buf);
 
-                channel.writeInbound(buf);
-                Object msg = channel.readOutbound();
+                Object msg = runCommand(channel, buf);
                 assertInstanceOf(SimpleStringRedisMessage.class, msg);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
                 assertEquals(Response.OK, actualMessage.content());
@@ -72,8 +70,7 @@ public class DelHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.del(keys).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(10, actualMessage.value());

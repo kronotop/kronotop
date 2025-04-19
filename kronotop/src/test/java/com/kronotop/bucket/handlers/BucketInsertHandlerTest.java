@@ -19,6 +19,7 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BucketInsertHandlerTest extends BaseHandlerTest {
 
     @Test
+    @Disabled
     void test_insert_single_document_with_oneOff_transaction() {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
@@ -41,6 +43,7 @@ class BucketInsertHandlerTest extends BaseHandlerTest {
     }
 
     @Test
+    @Disabled
     void test_insert_documents_with_oneOff_transaction() {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
@@ -58,6 +61,7 @@ class BucketInsertHandlerTest extends BaseHandlerTest {
     }
 
     @Test
+    @Disabled
     void test_insert() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         {

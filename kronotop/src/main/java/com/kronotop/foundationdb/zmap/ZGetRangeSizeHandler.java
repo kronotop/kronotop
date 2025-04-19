@@ -53,16 +53,20 @@ public class ZGetRangeSizeHandler extends BaseFoundationDBHandler implements Han
 
     @Override
     public void execute(Request request, Response response) {
-        ZGetRangeSizeMessage message = request.attr(MessageTypes.ZGETRANGESIZE).get();
+        CompletableFuture.supplyAsync(() -> {
+            ZGetRangeSizeMessage message = request.attr(MessageTypes.ZGETRANGESIZE).get();
 
-        Session session = request.getSession();
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            Session session = request.getSession();
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
-        byte[] begin = namespace.getZMap().pack(message.getBegin());
-        byte[] end = namespace.getZMap().pack(message.getEnd());
-        Range range = new Range(begin, end);
-        Long size = getEstimatedRangeSizeBytes(tr, range, TransactionUtils.isSnapshotRead(session)).join();
-        response.writeInteger(size);
+            byte[] begin = namespace.getZMap().pack(message.getBegin());
+            byte[] end = namespace.getZMap().pack(message.getEnd());
+            Range range = new Range(begin, end);
+            return getEstimatedRangeSizeBytes(tr, range, TransactionUtils.isSnapshotRead(session)).join();
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeInteger, response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

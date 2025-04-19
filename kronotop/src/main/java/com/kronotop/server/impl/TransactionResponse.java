@@ -16,6 +16,7 @@
 
 package com.kronotop.server.impl;
 
+import com.kronotop.KronotopException;
 import com.kronotop.server.RESPError;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 
 /**
  * The TransactionResponse class represents a response message for a Redis transaction.
@@ -219,6 +221,24 @@ public class TransactionResponse implements Response {
     @Override
     public void writeError(String content) {
         this.writeError(RESPError.ERR, content);
+    }
+
+    /**
+     * Writes an error message to the client based on the provided throwable.
+     *
+     * @param throwable the {@link Throwable} instance containing the error details
+     */
+    @Override
+    public void writeError(Throwable throwable) {
+        if (throwable instanceof CompletionException completionException) {
+            if (completionException.getCause() instanceof KronotopException kr) {
+                writeError(kr.getPrefix(), completionException.getCause().getMessage());
+            } else {
+                writeError(completionException.getCause().getMessage());
+            }
+        } else {
+            writeError(throwable.getMessage());
+        }
     }
 
     /**

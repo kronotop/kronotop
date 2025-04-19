@@ -38,42 +38,34 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
     }
 
     public void execute(Request request, Response response) {
-        NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
+        CompletableFuture.runAsync(() -> {
+            NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
 
-        // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
-        Transaction tr = context.getFoundationDB().createTransaction();
-        CompletableFuture<DirectorySubspace> createFuture;
-        List<String> subpath = getNamespaceSubpath(message.getCreateMessage().getSubpath());
-        if (message.getCreateMessage().hasLayer() && message.getCreateMessage().hasPrefix()) {
-            createFuture = directoryLayer.create(
-                    tr,
-                    subpath,
-                    message.getCreateMessage().getLayer().getBytes(),
-                    message.getCreateMessage().getPrefix().getBytes()
-            );
-        } else if (message.getCreateMessage().hasLayer()) {
-            createFuture = directoryLayer.create(
-                    tr,
-                    subpath,
-                    message.getCreateMessage().getLayer().getBytes()
-            );
-        } else {
-            createFuture = directoryLayer.create(
-                    tr,
-                    subpath
-            );
-        }
+            // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                CompletableFuture<DirectorySubspace> createFuture;
+                List<String> subpath = getNamespaceSubpath(message.getCreateMessage().getSubpath());
+                if (message.getCreateMessage().hasLayer() && message.getCreateMessage().hasPrefix()) {
+                    createFuture = directoryLayer.create(tr, subpath, message.getCreateMessage().getLayer().getBytes(), message.getCreateMessage().getPrefix().getBytes());
+                } else if (message.getCreateMessage().hasLayer()) {
+                    createFuture = directoryLayer.create(tr, subpath, message.getCreateMessage().getLayer().getBytes());
+                } else {
+                    createFuture = directoryLayer.create(tr, subpath);
+                }
 
-        try {
-            createFuture.join();
-            tr.commit().join();
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                throw new NamespaceAlreadyExistsException(dottedNamespace(message.getCreateMessage().getSubpath()));
+                try {
+                    createFuture.join();
+                    tr.commit().join();
+                } catch (CompletionException e) {
+                    if (e.getCause() instanceof DirectoryAlreadyExistsException) {
+                        throw new NamespaceAlreadyExistsException(dottedNamespace(message.getCreateMessage().getSubpath()));
+                    }
+                    throw new KronotopException(e.getCause());
+                }
             }
-            throw new KronotopException(e.getCause());
-        }
-
-        response.writeOK();
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

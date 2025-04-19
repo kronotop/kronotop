@@ -41,8 +41,7 @@ public class RenameNXHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("mykey-{0}", "myvalue").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -52,8 +51,7 @@ public class RenameNXHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.renamenx("mykey-{0}", "newkey-{0}").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(1, actualMessage.value());
@@ -63,8 +61,7 @@ public class RenameNXHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("newkey-{0}").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals("myvalue", actualMessage.content().toString(CharsetUtil.US_ASCII));
@@ -74,8 +71,7 @@ public class RenameNXHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("mykey-{0}").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
@@ -89,8 +85,7 @@ public class RenameNXHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("mykey-{0}", "myvalue").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -100,8 +95,7 @@ public class RenameNXHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("newkey-{0}", "newvalue").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -111,8 +105,7 @@ public class RenameNXHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.renamenx("mykey-{0}", "newkey-{0}").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(0, actualMessage.value());
@@ -122,8 +115,7 @@ public class RenameNXHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("newkey-{0}").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals("newvalue", actualMessage.content().toString(CharsetUtil.US_ASCII));
@@ -133,8 +125,7 @@ public class RenameNXHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("mykey-{0}").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals("myvalue", actualMessage.content().toString(CharsetUtil.US_ASCII));

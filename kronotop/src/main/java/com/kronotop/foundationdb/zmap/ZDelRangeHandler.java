@@ -31,6 +31,7 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 
 @Command(ZDelRangeMessage.COMMAND)
 @MinimumParameterCount(ZDelRangeMessage.MINIMUM_PARAMETER_COUNT)
@@ -52,30 +53,33 @@ public class ZDelRangeHandler extends BaseFoundationDBHandler implements Handler
 
     @Override
     public void execute(Request request, Response response) {
-        ZDelRangeMessage message = request.attr(MessageTypes.ZDELRANGE).get();
+        CompletableFuture.runAsync(() -> {
+            ZDelRangeMessage message = request.attr(MessageTypes.ZDELRANGE).get();
 
-        Session session = request.getSession();
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            Session session = request.getSession();
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
+            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
-        byte[] begin;
-        byte[] end;
-        if (Arrays.equals(message.getBegin(), ZDelRangeMessage.ASTERISK)) {
-            begin = namespace.getZMap().pack();
-        } else {
-            begin = namespace.getZMap().pack(message.getBegin());
-        }
+            byte[] begin;
+            byte[] end;
+            if (Arrays.equals(message.getBegin(), ZDelRangeMessage.ASTERISK)) {
+                begin = namespace.getZMap().pack();
+            } else {
+                begin = namespace.getZMap().pack(message.getBegin());
+            }
 
-        if (Arrays.equals(message.getEnd(), ZDelRangeMessage.ASTERISK)) {
-            end = ByteArrayUtil.strinc(namespace.getZMap().pack());
-        } else {
-            end = namespace.getZMap().pack(message.getEnd());
-        }
+            if (Arrays.equals(message.getEnd(), ZDelRangeMessage.ASTERISK)) {
+                end = ByteArrayUtil.strinc(namespace.getZMap().pack());
+            } else {
+                end = namespace.getZMap().pack(message.getEnd());
+            }
 
-        Range range = new Range(begin, end);
-        tr.clear(range);
-        TransactionUtils.commitIfAutoCommitEnabled(tr, session);
-
-        response.writeOK();
+            Range range = new Range(begin, end);
+            tr.clear(range);
+            TransactionUtils.commitIfAutoCommitEnabled(tr, session);
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

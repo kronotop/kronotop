@@ -30,6 +30,7 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Command(ZSetMessage.COMMAND)
 @MinimumParameterCount(ZSetMessage.MINIMUM_PARAMETER_COUNT)
@@ -56,15 +57,18 @@ public class ZSetHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        ZSetMessage message = request.attr(MessageTypes.ZSET).get();
+        CompletableFuture.runAsync(() -> {
+            ZSetMessage message = request.attr(MessageTypes.ZSET).get();
 
-        Session session = request.getSession();
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            Session session = request.getSession();
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
-        tr.set(namespace.getZMap().pack(message.getKey()), message.getValue());
-        TransactionUtils.commitIfAutoCommitEnabled(tr, session);
-
-        response.writeOK();
+            tr.set(namespace.getZMap().pack(message.getKey()), message.getValue());
+            TransactionUtils.commitIfAutoCommitEnabled(tr, session);
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

@@ -81,6 +81,7 @@ public class KrAdminHandler implements Handler {
             throw new UnknownSubcommandException(message.getSubcommand().toString());
         }
 
+        // TODO: Async-netty refactor
         if (subcommandsRequireInitializedCluster.contains(message.getSubcommand())) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 DirectorySubspace clusterMetadataSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);

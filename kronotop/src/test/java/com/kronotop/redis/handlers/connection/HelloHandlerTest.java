@@ -39,8 +39,7 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(2, null, null, "foobar").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage response = (ArrayRedisMessage) msg;
         for (int index = 0; index < response.children().size(); index++) {
@@ -89,8 +88,7 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(3, null, null, "foobar").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage response = (MapRedisMessage) msg;
         for (RedisMessage redisMessage : response.children().keySet()) {
@@ -134,8 +132,7 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(4, null, null, null).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("NOPROTO unsupported protocol version", actualMessage.content());
@@ -147,8 +144,7 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(2, null, null, "test").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         Attribute<Long> clientID = channel.attr(SessionAttributes.CLIENT_ID);

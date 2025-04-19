@@ -29,17 +29,16 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZSetHandlerTest extends BaseHandlerTest {
+class ZSetHandlerTest extends BaseHandlerTest {
     @Test
-    public void test_ZSET() {
+    void test_ZSET() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
         ByteBuf buf = Unpooled.buffer();
         cmd.zset("my-key", "my-value").encode(buf);
-        channel.writeInbound(buf);
-        Object response = channel.readOutbound();
 
+        Object response = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
         assertEquals(Response.OK, actualMessage.content());

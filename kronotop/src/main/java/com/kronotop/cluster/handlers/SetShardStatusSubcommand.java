@@ -28,6 +28,7 @@ import com.kronotop.server.Response;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 
 
 class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
@@ -40,19 +41,23 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
     public void execute(Request request, Response response) {
         SetShardStatusParameters parameters = new SetShardStatusParameters(request.getParams());
 
-        try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
-            if (parameters.allShards) {
-                int numberOfShards = getNumberOfShards(parameters.shardKind);
-                for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                    ShardUtils.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, shardId);
+        CompletableFuture.runAsync(() -> {
+            try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
+                if (parameters.allShards) {
+                    int numberOfShards = getNumberOfShards(parameters.shardKind);
+                    for (int shardId = 0; shardId < numberOfShards; shardId++) {
+                        ShardUtils.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, shardId);
+                    }
+                } else {
+                    ShardUtils.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, parameters.shardId);
                 }
-            } else {
-                ShardUtils.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, parameters.shardId);
+                membership.triggerClusterTopologyWatcher(tr);
+                tr.commit().join();
             }
-            membership.triggerClusterTopologyWatcher(tr);
-            tr.commit().join();
-        }
-        response.writeOK();
+        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 
     private class SetShardStatusParameters {

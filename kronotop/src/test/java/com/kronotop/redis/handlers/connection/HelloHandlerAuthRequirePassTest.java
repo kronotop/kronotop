@@ -41,9 +41,8 @@ public class HelloHandlerAuthRequirePassTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         char[] password = {'d', 'e', 'v', 'p', 'a', 's', 's'};
         cmd.hello(2, "default", password, null).encode(buf);
-        channel.writeInbound(buf);
 
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
     }
 
@@ -53,9 +52,8 @@ public class HelloHandlerAuthRequirePassTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         char[] password = {'f'};
         cmd.hello(2, "default", password, null).encode(buf);
-        channel.writeInbound(buf);
 
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("WRONGPASS invalid username-password pair or user is disabled.", actualMessage.content());
     }

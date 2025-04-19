@@ -31,6 +31,8 @@ import javax.annotation.Nonnull;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * The ContextImpl class represents the implementation of the Context interface in the Kronotop system.
@@ -39,6 +41,7 @@ public class ContextImpl implements Context {
     private final Config config;
     private final Member member;
     private final Database database;
+    private final ExecutorService virtualThreadPerTaskExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private final DirectorySubspaceCache directorySubspaceCache;
     private final EnumMap<ServerKind, CommandHandlerRegistry> handlers = new EnumMap<>(ServerKind.class);
     private final LinkedHashMap<String, KronotopService> services = new LinkedHashMap<>();
@@ -78,6 +81,11 @@ public class ContextImpl implements Context {
         for (ServerKind kind : ServerKind.values()) {
             this.handlers.put(kind, new CommandHandlerRegistry());
         }
+    }
+
+    @Override
+    public ExecutorService getVirtualThreadPerTaskExecutor() {
+        return virtualThreadPerTaskExecutor;
     }
 
     @Override

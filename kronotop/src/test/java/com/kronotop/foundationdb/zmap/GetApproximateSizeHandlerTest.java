@@ -29,18 +29,17 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class GetApproximateSizeHandlerTest extends BaseHandlerTest {
+class GetApproximateSizeHandlerTest extends BaseHandlerTest {
     @Test
-    public void test_GETAPPROXIMATESIZE() {
+    void test_GETAPPROXIMATESIZE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
         {
             // Create a new transaction
             ByteBuf buf = Unpooled.buffer();
             cmd.begin().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -51,8 +50,8 @@ public class GetApproximateSizeHandlerTest extends BaseHandlerTest {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
-                channel.writeInbound(buf);
-                Object response = channel.readOutbound();
+
+                Object response = runCommand(channel, buf);
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
                 assertEquals(Response.OK, actualMessage.content());
@@ -63,8 +62,8 @@ public class GetApproximateSizeHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.getApproximateSize().encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, response);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) response;
             assertTrue(actualMessage.value() > 0);

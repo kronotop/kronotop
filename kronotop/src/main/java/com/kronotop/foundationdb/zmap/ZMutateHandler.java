@@ -30,6 +30,7 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Command(ZMutateMessage.COMMAND)
 @MinimumParameterCount(ZMutateMessage.MINIMUM_PARAMETER_COUNT)
@@ -56,15 +57,18 @@ public class ZMutateHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        ZMutateMessage message = request.attr(MessageTypes.ZMUTATE).get();
+        CompletableFuture.runAsync(() -> {
+            ZMutateMessage message = request.attr(MessageTypes.ZMUTATE).get();
 
-        Session session = request.getSession();
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            Session session = request.getSession();
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
-        tr.mutate(message.getMutationType(), namespace.getZMap().pack(message.getKey()), message.getParam());
-        TransactionUtils.commitIfAutoCommitEnabled(tr, session);
-
-        response.writeOK();
+            tr.mutate(message.getMutationType(), namespace.getZMap().pack(message.getKey()), message.getParam());
+            TransactionUtils.commitIfAutoCommitEnabled(tr, session);
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

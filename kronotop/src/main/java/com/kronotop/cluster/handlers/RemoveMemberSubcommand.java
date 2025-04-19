@@ -25,6 +25,7 @@ import com.kronotop.server.Response;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 
 class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -35,11 +36,16 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
     @Override
     public void execute(Request request, Response response) {
         RemoveMemberParameters parameters = new RemoveMemberParameters(request.getParams());
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            membership.removeMember(tr, parameters.memberId);
-            membership.triggerClusterTopologyWatcher(tr);
-        }
-        response.writeOK();
+
+        CompletableFuture.runAsync(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                membership.removeMember(tr, parameters.memberId);
+                membership.triggerClusterTopologyWatcher(tr);
+            }
+        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 
     private class RemoveMemberParameters {

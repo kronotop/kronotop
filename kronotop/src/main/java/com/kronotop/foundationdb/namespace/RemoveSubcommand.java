@@ -33,6 +33,7 @@ import com.kronotop.volume.Prefix;
 import com.kronotop.volume.PrefixUtils;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 class RemoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
@@ -84,14 +85,18 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
-        NamespaceMessage.RemoveMessage removeMessage = message.getRemoveMessage();
+        CompletableFuture.runAsync(() -> {
+            NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
+            NamespaceMessage.RemoveMessage removeMessage = message.getRemoveMessage();
 
-        String name = String.join(".", removeMessage.getSubpath());
-        if (context.getConfig().getString("default_namespace").equals(name)) {
-            throw new KronotopException("Cannot remove the default namespace: '" + name + "'");
-        }
-        remove(name, removeMessage);
-        response.writeOK();
+            String name = String.join(".", removeMessage.getSubpath());
+            if (context.getConfig().getString("default_namespace").equals(name)) {
+                throw new KronotopException("Cannot remove the default namespace: '" + name + "'");
+            }
+            remove(name, removeMessage);
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

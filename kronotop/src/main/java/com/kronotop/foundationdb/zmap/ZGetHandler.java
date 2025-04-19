@@ -55,27 +55,32 @@ public class ZGetHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        ZGetMessage message = request.attr(MessageTypes.ZGET).get();
+        CompletableFuture.supplyAsync(() -> {
+            ZGetMessage message = request.attr(MessageTypes.ZGET).get();
+            Session session = request.getSession();
 
-        Session session = request.getSession();
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-        Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
+            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
 
-        CompletableFuture<byte[]> future = get(tr, namespace.getZMap().pack(message.getKey()), TransactionUtils.isSnapshotRead(session));
-        byte[] result = future.join();
-        if (result == null) {
-            response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
-            return;
-        }
-        ByteBuf buf = response.getCtx().alloc().buffer();
-        try {
-            buf.writeBytes(result);
-            response.write(buf);
-        } catch (Exception e) {
-            if (buf.refCnt() > 0) {
-                ReferenceCountUtil.release(buf);
+            CompletableFuture<byte[]> future = get(tr, namespace.getZMap().pack(message.getKey()), TransactionUtils.isSnapshotRead(session));
+            return future.join();
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((value) -> {
+            if (value == null) {
+                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                return;
             }
-            throw e;
-        }
+            ByteBuf buf = response.getCtx().alloc().buffer();
+            try {
+                buf.writeBytes(value);
+                FullBulkStringRedisMessage result = new FullBulkStringRedisMessage(buf);
+                response.writeFullBulkString(result);
+            } catch (Exception e) {
+                ReferenceCountUtil.release(buf);
+                throw e;
+            }
+        }, response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

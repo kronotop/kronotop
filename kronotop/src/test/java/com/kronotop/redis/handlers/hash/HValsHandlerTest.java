@@ -48,13 +48,11 @@ public class HValsHandlerTest extends BaseRedisHandlerTest {
             }
             cmd.hmset("mykey", map).encode(buf);
 
-            channel.writeInbound(buf);
-            channel.readOutbound();
+            runCommand(channel, buf);
         }
         ByteBuf buf = Unpooled.buffer();
         cmd.hvals("mykey").encode(buf);
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertEquals(10, actualMessage.children().size());

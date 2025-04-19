@@ -357,8 +357,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.route("SET", "PRIMARY", "REDIS", 1, standby.getMember().getId()).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("ERR Shard status must not be READWRITE", actualMessage.content());
@@ -386,8 +385,7 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
             volumeAdmin.replications().encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
             MapRedisMessage actualMessage = (MapRedisMessage) msg;

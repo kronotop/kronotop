@@ -29,6 +29,7 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -38,18 +39,23 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
 
     @Override
     public void execute(Request request, Response response) {
-        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-        try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
-            for (ShardKind kind : ShardKind.values()) {
-                Map<RedisMessage, RedisMessage> shardsByKind = new LinkedHashMap<>();
-                int numberOfShards = getNumberOfShards(kind);
-                for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                    Map<RedisMessage, RedisMessage> shard = describeShard(tr, kind, shardId);
-                    shardsByKind.put(new IntegerRedisMessage(shardId), new MapRedisMessage(shard));
+        CompletableFuture.supplyAsync(() -> {
+            Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
+            try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
+                for (ShardKind kind : ShardKind.values()) {
+                    Map<RedisMessage, RedisMessage> shardsByKind = new LinkedHashMap<>();
+                    int numberOfShards = getNumberOfShards(kind);
+                    for (int shardId = 0; shardId < numberOfShards; shardId++) {
+                        Map<RedisMessage, RedisMessage> shard = describeShard(tr, kind, shardId);
+                        shardsByKind.put(new IntegerRedisMessage(shardId), new MapRedisMessage(shard));
+                    }
+                    result.put(new SimpleStringRedisMessage(kind.toString().toLowerCase()), new MapRedisMessage(shardsByKind));
                 }
-                result.put(new SimpleStringRedisMessage(kind.toString().toLowerCase()), new MapRedisMessage(shardsByKind));
             }
-        }
-        response.writeMap(result);
+            return result;
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeMap, response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

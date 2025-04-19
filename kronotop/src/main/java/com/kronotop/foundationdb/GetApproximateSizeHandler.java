@@ -17,11 +17,11 @@
 package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.protocol.GetApproximateSizeMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
-import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
 import java.util.concurrent.CompletableFuture;
@@ -41,18 +41,20 @@ class GetApproximateSizeHandler extends BaseFoundationDBHandler implements Handl
 
     @Override
     public void execute(Request request, Response response) {
-        Channel channel = response.getCtx().channel();
-        Attribute<Boolean> beginAttr = channel.attr(SessionAttributes.BEGIN);
-        if (!Boolean.TRUE.equals(beginAttr.get())) {
-            response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
-            return;
-        }
+        CompletableFuture.supplyAsync(() -> {
+            Attribute<Boolean> beginAttr = request.getSession().attr(SessionAttributes.BEGIN);
+            if (!Boolean.TRUE.equals(beginAttr.get())) {
+                throw new KronotopException(RESPError.TRANSACTION, "there is no transaction in progress.");
+            }
 
-        Attribute<Transaction> transactionAttr = channel.attr(SessionAttributes.TRANSACTION);
-        Transaction tr = transactionAttr.get();
-        CompletableFuture<Long> future = tr.getApproximateSize();
-        Long size = future.join();
-        response.writeInteger(size);
+            Attribute<Transaction> transactionAttr = request.getSession().attr(SessionAttributes.TRANSACTION);
+            Transaction tr = transactionAttr.get();
+            CompletableFuture<Long> future = tr.getApproximateSize();
+            return future.join();
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeInteger, response.getCtx().executor()).exceptionally((ex -> {
+            response.writeError(ex);
+            return null;
+        }));
     }
 }
 

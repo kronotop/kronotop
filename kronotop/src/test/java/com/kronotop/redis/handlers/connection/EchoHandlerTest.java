@@ -35,8 +35,7 @@ class EchoHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.echo("test-message").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(FullBulkStringRedisMessage.class, msg);
         FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
         assertEquals("test-message", actualMessage.content().toString(CharsetUtil.UTF_8));

@@ -28,6 +28,7 @@ import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -40,35 +41,37 @@ class ListSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
-        NamespaceMessage.ListMessage listMessage = message.getListMessage();
+        CompletableFuture.supplyAsync(() -> {
+            NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
+            NamespaceMessage.ListMessage listMessage = message.getListMessage();
 
-        Transaction tr = context.getFoundationDB().createTransaction();
-        List<String> subpath = getNamespaceSubpath(listMessage.getSubpath());
-        CompletableFuture<List<String>> future;
-        if (subpath.isEmpty()) {
-            future = directoryLayer.list(tr);
-        } else {
-            future = directoryLayer.list(tr, subpath);
-        }
-
-        try {
-            List<String> result = future.join();
-            List<RedisMessage> children = new ArrayList<>();
-            for (String namespace : result) {
-                children.add(new SimpleStringRedisMessage(namespace));
-            }
-            response.writeArray(children);
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NoSuchDirectoryException) {
-                if (listMessage.getSubpath().isEmpty()) {
-                    // No namespaces directory, the cluster has not been initialized yet
-                    response.writeArray(List.of());
-                    return;
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                List<String> subpath = getNamespaceSubpath(listMessage.getSubpath());
+                CompletableFuture<List<String>> future;
+                if (subpath.isEmpty()) {
+                    future = directoryLayer.list(tr);
+                } else {
+                    future = directoryLayer.list(tr, subpath);
                 }
-                throw new NoSuchNamespaceException(String.join(".", listMessage.getSubpath()));
+                List<String> result = future.join();
+                List<RedisMessage> children = new ArrayList<>();
+                for (String namespace : result) {
+                    children.add(new SimpleStringRedisMessage(namespace));
+                }
+                return children;
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof NoSuchDirectoryException) {
+                    if (listMessage.getSubpath().isEmpty()) {
+                        // No namespaces directory, the cluster has not been initialized yet
+                        return new LinkedList<RedisMessage>();
+                    }
+                    throw new NoSuchNamespaceException(String.join(".", listMessage.getSubpath()));
+                }
+                throw new KronotopException(e.getCause());
             }
-            throw new KronotopException(e.getCause());
-        }
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeArray, response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

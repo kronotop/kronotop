@@ -31,18 +31,17 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class SnapshotReadHandlerTest extends BaseHandlerTest {
+class SnapshotReadHandlerTest extends BaseHandlerTest {
     @Test
-    public void test_SNAPSHOTREAD_ON() {
+    void test_SNAPSHOTREAD_ON() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.snapshotRead(SnapshotReadArgs.Builder.on()).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -53,16 +52,15 @@ public class SnapshotReadHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_SNAPSHOTREAD_OFF() {
+    void test_SNAPSHOTREAD_OFF() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.snapshotRead(SnapshotReadArgs.Builder.on()).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -74,9 +72,8 @@ public class SnapshotReadHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.snapshotRead(SnapshotReadArgs.Builder.off()).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());

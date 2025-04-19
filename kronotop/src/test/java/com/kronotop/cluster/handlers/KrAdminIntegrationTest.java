@@ -37,8 +37,8 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.initializeCluster().encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -52,8 +52,8 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
         ByteBuf buf = Unpooled.buffer();
         // it can be any command that requires an initialized cluster.
         cmd.route("SET", "STANDBY", "REDIS", 1, MemberIdGenerator.generateId()).encode(buf);
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR cluster has not been initialized yet", actualMessage.content());
@@ -66,8 +66,8 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
 
         ByteBuf buf = Unpooled.buffer();
         cmd.route("SET", "STANDBY", "REDIS", 1, kronotopInstance.getMember().getId()).encode(buf);
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR no primary member assigned yet", actualMessage.content());
@@ -81,8 +81,8 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
         for (RouteKind routeKind : RouteKind.values()) {
             ByteBuf buf = Unpooled.buffer();
             cmd.route("SET", routeKind.name(), "REDIS", 1, MemberIdGenerator.generateId()).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("ERR member not found", actualMessage.content());

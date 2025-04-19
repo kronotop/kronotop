@@ -27,7 +27,7 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 
 @Command(ZDelPrefixMessage.COMMAND)
 @MinimumParameterCount(ZDelPrefixMessage.MINIMUM_PARAMETER_COUNT)
@@ -48,18 +48,21 @@ public class ZDelPrefixHandler extends BaseFoundationDBHandler implements Handle
     }
 
     @Override
-    public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        ZDelPrefixMessage message = request.attr(MessageTypes.ZDELPREFIX).get();
+    public void execute(Request request, Response response) {
+        CompletableFuture.runAsync(() -> {
+            ZDelPrefixMessage message = request.attr(MessageTypes.ZDELPREFIX).get();
 
-        Session session = request.getSession();
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-        // TODO: How this endpoints works with namespaces?
-        //Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
+            Session session = request.getSession();
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
+            // TODO: How this endpoints works with namespaces?
+            //Namespace namespace = NamespaceUtils.open(service.getContext(), request.getChannelContext(), tr);
 
-        Range range = Range.startsWith(message.getPrefix());
-        tr.clear(range);
-        TransactionUtils.commitIfAutoCommitEnabled(tr, session);
-
-        response.writeOK();
+            Range range = Range.startsWith(message.getPrefix());
+            tr.clear(range);
+            TransactionUtils.commitIfAutoCommitEnabled(tr, session);
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

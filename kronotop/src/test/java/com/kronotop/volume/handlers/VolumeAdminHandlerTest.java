@@ -60,8 +60,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.list().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
 
@@ -77,8 +76,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.describe("redis-shard-1").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
         actualMessage.children().forEach((k, v) -> {
@@ -135,8 +133,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.setStatus("redis-shard-1", "READONLY").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -146,8 +143,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.describe("redis-shard-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage actualMessage = (MapRedisMessage) msg;
             actualMessage.children().forEach((k, v) -> {
@@ -168,8 +164,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             volumeAdmin.vacuum(volumeName, 10.0).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -206,8 +201,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             volumeAdmin.vacuum(volumeName, 10.0).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -217,8 +211,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             volumeAdmin.stopVacuum(volumeName).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -238,8 +231,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         volumeAdmin.stopVacuum(volumeName).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR Vacuum task not found on redis-shard-1", actualMessage.content());
@@ -252,8 +244,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         volumeAdmin.vacuum("volume-name", 10.0).encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR Volume: 'volume-name' is not open", actualMessage.content());
@@ -276,8 +267,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.replications().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
         actualMessage.children().forEach((rawSlotId, slot) -> {
@@ -334,8 +324,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.cleanupOrphanFiles("redis-shard-1").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
 
@@ -353,8 +342,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.markStalePrefixes("START").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
 
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
@@ -391,8 +379,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.markStalePrefixes("START").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
 
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
@@ -402,8 +389,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.markStalePrefixes("START").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
@@ -417,8 +403,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.markStalePrefixes("STOP").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
@@ -452,8 +437,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.markStalePrefixes("START").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
 
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
@@ -466,8 +450,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.markStalePrefixes("STOP").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -483,8 +466,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.markStalePrefixes("START").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
 
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
@@ -495,8 +477,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.markStalePrefixes("REMOVE").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
 
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
@@ -513,8 +494,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.markStalePrefixes("REMOVE").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
 
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;

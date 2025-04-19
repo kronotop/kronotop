@@ -38,12 +38,12 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.set(key, value).encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.del(key).encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
         await().atMost(5, TimeUnit.SECONDS).until(() -> !volumeContainsStringKey(key));
     }
@@ -54,12 +54,12 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("{0}key", value).encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.rename("{0}key", "{0}newkey").encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume("{0}newkey", keyEntry -> {
@@ -82,12 +82,12 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("{0}key", value).encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.renamenx("{0}key", "{0}newkey").encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume("{0}newkey", keyEntry -> {

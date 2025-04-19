@@ -49,8 +49,7 @@ public class HMGetHandlerTest extends BaseRedisHandlerTest {
             }
             cmd.hset("mykey", map).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(10L, actualMessage.value());
@@ -65,8 +64,7 @@ public class HMGetHandlerTest extends BaseRedisHandlerTest {
             }
             cmd.hmget("mykey", fields).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
             assertEquals(10, actualMessage.children().size());

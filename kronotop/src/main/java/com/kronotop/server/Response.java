@@ -96,6 +96,13 @@ public interface Response {
     void writeError(String content);
 
     /**
+     * Writes an error message to the client based on the given throwable.
+     *
+     * @param throwable the throwable object representing the error to be written
+     */
+    void writeError(Throwable throwable);
+
+    /**
      * Writes an error message to the client.
      *
      * @param prefix  the prefix of the error message

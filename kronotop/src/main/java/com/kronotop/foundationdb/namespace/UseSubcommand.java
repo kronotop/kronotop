@@ -40,7 +40,7 @@ class UseSubcommand extends BaseSubcommand implements SubcommandExecutor {
             throw new NoSuchNamespaceException(namespace);
         }
 
-        response.getCtx().channel().attr(SessionAttributes.CURRENT_NAMESPACE).set(namespace);
+        request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).set(namespace);
         response.writeOK();
     }
 }

@@ -16,13 +16,14 @@
 
 package com.kronotop.foundationdb;
 
+import com.kronotop.BaseTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 
-public class TestTransaction {
+public class TestTransaction extends BaseTest {
     private final EmbeddedChannel channel;
     private Object response;
 
@@ -35,8 +36,7 @@ public class TestTransaction {
         ByteBuf buf = Unpooled.buffer();
         cmd.begin().encode(buf);
 
-        channel.writeInbound(buf);
-        response = channel.readOutbound();
+        response = runCommand(channel, buf);
     }
 
     void cancel() {
@@ -44,8 +44,7 @@ public class TestTransaction {
         ByteBuf buf = Unpooled.buffer();
         cmd.rollback().encode(buf);
 
-        channel.writeInbound(buf);
-        response = channel.readOutbound();
+        response = runCommand(channel, buf);
     }
 
     void commit() {
@@ -53,8 +52,7 @@ public class TestTransaction {
         ByteBuf buf = Unpooled.buffer();
         cmd.commit().encode(buf);
 
-        channel.writeInbound(buf);
-        response = channel.readOutbound();
+        response = runCommand(channel, buf);
     }
 
     Object getResponse() {

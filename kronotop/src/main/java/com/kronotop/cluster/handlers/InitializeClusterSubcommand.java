@@ -34,6 +34,7 @@ import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
@@ -101,19 +102,23 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
 
     @Override
     public void execute(Request request, Response response) {
-        try {
-            initializeCluster();
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof FDBException ex) {
-                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
-                if (ex.getCode() == 1020) {
-                    // retry
-                    initializeCluster();
-                    return;
+        CompletableFuture.runAsync(() -> {
+            try {
+                initializeCluster();
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof FDBException ex) {
+                    // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                    if (ex.getCode() == 1020) {
+                        // retry
+                        initializeCluster();
+                        return;
+                    }
                 }
+                throw new KronotopException(e);
             }
-            throw new KronotopException(e);
-        }
-        response.writeOK();
+        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

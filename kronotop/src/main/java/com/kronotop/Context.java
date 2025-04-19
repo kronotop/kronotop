@@ -30,11 +30,21 @@ import javax.annotation.Nonnull;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  * The Context interface represents the context of a Kronotop instance.
  */
 public interface Context {
+
+    /**
+     * Creates and retrieves an ExecutorService where each submitted task is executed
+     * in a new virtual thread. The virtual threads provide lightweight concurrency
+     * suitable for handling many short-lived tasks efficiently.
+     *
+     * @return an ExecutorService configured to execute each task in a separate virtual thread.
+     */
+    ExecutorService getVirtualThreadPerTaskExecutor();
 
     /**
      * Retrieves the default namespace associated with the context.

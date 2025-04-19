@@ -31,10 +31,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZDelPrefixHandlerTest extends BaseHandlerTest {
+class ZDelPrefixHandlerTest extends BaseHandlerTest {
 
     @Test
-    public void test_ZDELPREFIX() {
+    void test_ZDELPREFIX() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
         String prefix = "my-prefix";
@@ -43,9 +43,8 @@ public class ZDelPrefixHandlerTest extends BaseHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             NamespaceArgs args = NamespaceArgs.Builder.layer("layer".getBytes()).prefix(prefix.getBytes());
             cmd.namespaceCreate(namespace, args).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -54,9 +53,8 @@ public class ZDelPrefixHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.namespaceUse(namespace).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
 
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -67,8 +65,8 @@ public class ZDelPrefixHandlerTest extends BaseHandlerTest {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
-                channel.writeInbound(buf);
-                Object response = channel.readOutbound();
+
+                Object response = runCommand(channel, buf);
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
                 assertEquals(Response.OK, actualMessage.content());
@@ -79,8 +77,8 @@ public class ZDelPrefixHandlerTest extends BaseHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.zdelprefix(prefix.getBytes()).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
@@ -91,8 +89,8 @@ public class ZDelPrefixHandlerTest extends BaseHandlerTest {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.zget(String.format("key-%d", i)).encode(buf);
-                channel.writeInbound(buf);
-                Object response = channel.readOutbound();
+
+                Object response = runCommand(channel, buf);
                 assertInstanceOf(FullBulkStringRedisMessage.class, response);
                 FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
                 assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);

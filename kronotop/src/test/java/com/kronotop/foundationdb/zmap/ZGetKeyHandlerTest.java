@@ -32,9 +32,9 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZGetKeyHandlerTest extends BaseHandlerTest {
+class ZGetKeyHandlerTest extends BaseHandlerTest {
     @Test
-    public void test_ZGETKEY() {
+    void test_ZGETKEY() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
@@ -43,8 +43,8 @@ public class ZGetKeyHandlerTest extends BaseHandlerTest {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
-                channel.writeInbound(buf);
-                Object response = channel.readOutbound();
+
+                Object response = runCommand(channel, buf);
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
                 assertEquals(Response.OK, actualMessage.content());
@@ -56,8 +56,8 @@ public class ZGetKeyHandlerTest extends BaseHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             ZGetKeyArgs args = ZGetKeyArgs.Builder.key("key-0".getBytes());
             cmd.zgetkey(args).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, response);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
             assertEquals("key-0", actualMessage.content().toString(CharsetUtil.US_ASCII));
@@ -70,8 +70,8 @@ public class ZGetKeyHandlerTest extends BaseHandlerTest {
                     key("key-0".getBytes()).
                     keySelector("first_greater_than");
             cmd.zgetkey(args).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, response);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
             assertEquals("key-1", actualMessage.content().toString(CharsetUtil.US_ASCII));

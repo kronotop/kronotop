@@ -24,9 +24,9 @@ package com.kronotop.volume;
  * The class consists of:
  * - An `index` indicating the order or position of the appended entry.
  * - A `userVersion` representing the user-defined version of the entry, typically used for
- *   tracking or versioning purposes.
+ * tracking or versioning purposes.
  * - An `EntryMetadata` object encapsulating detailed information such as segment name, prefix,
- *   position, and length of the entry in the storage.
+ * position, and length of the entry in the storage.
  * <p>
  * This design ensures immutability and is suitable for applications requiring thread safety
  * and reliable encapsulation of entry data.

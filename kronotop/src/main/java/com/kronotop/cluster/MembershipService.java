@@ -323,7 +323,8 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             }
             clusterEventsConsumer.complete(tr);
             tr.commit().join();
-        };
+        }
+        ;
     }
 
     private class ClusterEventsJournalWatcher implements Runnable {

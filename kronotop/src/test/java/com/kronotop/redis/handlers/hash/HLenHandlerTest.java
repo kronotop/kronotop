@@ -36,16 +36,14 @@ public class HLenHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.hset("mykey", "field", "value").encode(buf);
 
-            channel.writeInbound(buf);
-            channel.readOutbound();
+            runCommand(channel, buf);
         }
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.hlen("mykey").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(1, actualMessage.value());

@@ -36,16 +36,14 @@ public class HDelHandlerTest extends BaseRedisHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.hset("mykey", "field", "value").encode(buf);
-            channel.writeInbound(buf);
-            channel.readOutbound();
+            runCommand(channel, buf);
         }
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.hdel("mykey", "field").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(1L, actualMessage.value());
@@ -55,8 +53,7 @@ public class HDelHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.hget("mykey", "field").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
@@ -70,8 +67,7 @@ public class HDelHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.hdel("mykey", "field").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(0L, actualMessage.value());

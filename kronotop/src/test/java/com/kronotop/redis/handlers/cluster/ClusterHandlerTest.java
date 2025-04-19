@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.cluster;
 
+import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
@@ -74,8 +75,7 @@ class ClusterHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.clusterNodes().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = BaseTest.runCommand(channel, buf);
         assertInstanceOf(FullBulkStringRedisMessage.class, msg);
         FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
         String response = actualMessage.content().toString(CharsetUtil.US_ASCII);
@@ -101,9 +101,7 @@ class ClusterHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.clusterSlots().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
-
+        Object msg = BaseTest.runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertFalse(actualMessage.children().isEmpty());
@@ -124,8 +122,7 @@ class ClusterHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.clusterMyId().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = BaseTest.runCommand(channel, buf);
         assertInstanceOf(FullBulkStringRedisMessage.class, msg);
         FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
         assertEquals(instance.getContext().getMember().getId(), actualMessage.content().toString(CharsetUtil.US_ASCII));
@@ -138,8 +135,7 @@ class ClusterHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.clusterKeyslot("somekey").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = BaseTest.runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(11058, actualMessage.value());
@@ -149,8 +145,7 @@ class ClusterHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.clusterKeyslot("foo{hash_tag}").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = BaseTest.runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(2515, actualMessage.value());

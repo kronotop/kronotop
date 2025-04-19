@@ -31,10 +31,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class ZGetRangeSizeHandlerTest extends BaseHandlerTest {
+class ZGetRangeSizeHandlerTest extends BaseHandlerTest {
 
     @Test
-    public void test_ZGETRANGESIZE() {
+    void test_ZGETRANGESIZE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
@@ -43,8 +43,8 @@ public class ZGetRangeSizeHandlerTest extends BaseHandlerTest {
             for (int i = 0; i < 10; i++) {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.zset(String.format("key-%d", i), String.format("value-%d", i)).encode(buf);
-                channel.writeInbound(buf);
-                Object response = channel.readOutbound();
+
+                Object response = runCommand(channel, buf);
                 assertInstanceOf(SimpleStringRedisMessage.class, response);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
                 assertEquals(Response.OK, actualMessage.content());
@@ -56,8 +56,8 @@ public class ZGetRangeSizeHandlerTest extends BaseHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             ZGetRangeSizeArgs args = ZGetRangeSizeArgs.Builder.begin("key-0".getBytes()).end("key-9".getBytes());
             cmd.zgetrangesize(args).encode(buf);
-            channel.writeInbound(buf);
-            Object response = channel.readOutbound();
+
+            Object response = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, response);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) response;
             assertEquals(0, actualMessage.value());

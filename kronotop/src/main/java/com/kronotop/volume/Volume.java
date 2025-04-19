@@ -238,7 +238,7 @@ public class Volume {
      * then stores them in a segment container protected by the `segmentsLock`.
      *
      * @param segmentId the unique identifier for the segment to be opened
-     * @param position the initial position within the segment
+     * @param position  the initial position within the segment
      * @return the initialized Segment instance
      * @throws IOException if an I/O error occurs during segment initialization
      */

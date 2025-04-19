@@ -21,8 +21,9 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import io.netty.channel.Channel;
 import io.netty.util.Attribute;
+
+import java.util.concurrent.CompletableFuture;
 
 @Command(SnapshotReadMessage.COMMAND)
 @MaximumParameterCount(SnapshotReadMessage.MAXIMUM_PARAMETER_COUNT)
@@ -40,15 +41,17 @@ class SnapshotReadHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        SnapshotReadMessage message = request.attr(MessageTypes.SNAPSHOTREAD).get();
-        Channel channel = response.getCtx().channel();
-        Attribute<Boolean> snapshotReadAttr = channel.attr(SessionAttributes.SNAPSHOT_READ);
-        if (message.getOption().equals(SnapshotReadMessage.ON_KEYWORD)) {
-            snapshotReadAttr.set(true);
-        } else {
-            snapshotReadAttr.set(null);
-        }
-
-        response.writeOK();
+        CompletableFuture.runAsync(() -> {
+            SnapshotReadMessage message = request.attr(MessageTypes.SNAPSHOTREAD).get();
+            Attribute<Boolean> snapshotReadAttr = request.getSession().attr(SessionAttributes.SNAPSHOT_READ);
+            if (message.getOption().equals(SnapshotReadMessage.ON_KEYWORD)) {
+                snapshotReadAttr.set(true);
+            } else {
+                snapshotReadAttr.set(null);
+            }
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

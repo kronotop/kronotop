@@ -49,8 +49,7 @@ public class ScanHandlerTest extends BaseRedisHandlerTest {
             expectedResult.add(key);
             cmd.set(key, String.format("value-{%d}", i)).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -63,8 +62,7 @@ public class ScanHandlerTest extends BaseRedisHandlerTest {
         while (true) {
             ByteBuf buf = Unpooled.buffer();
             cmd.scan(cursor).encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
 

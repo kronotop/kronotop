@@ -44,7 +44,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.set(key, value).encode(buf);
-        channel.writeInbound(buf);
+        runCommand(channel, buf);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, keyEntry -> {
             try {
@@ -67,12 +67,12 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
             {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.append(key, "one").encode(buf);
-                channel.writeInbound(buf);
+                runCommand(channel, buf);
             }
             {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.append(key, "two").encode(buf);
-                channel.writeInbound(buf);
+                runCommand(channel, buf);
             }
         }
 
@@ -95,7 +95,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.decrby(key, 10).encode(buf);
-        channel.writeInbound(buf);
+        runCommand(channel, buf);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, keyEntry -> {
             try {
@@ -117,7 +117,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.decr(key).encode(buf);
-        channel.writeInbound(buf);
+        runCommand(channel, buf);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, keyEntry -> {
             try {
@@ -139,7 +139,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.incrby(key, 10).encode(buf);
-        channel.writeInbound(buf);
+        runCommand(channel, buf);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, keyEntry -> {
             try {
@@ -161,7 +161,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.incr(key).encode(buf);
-        channel.writeInbound(buf);
+        runCommand(channel, buf);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, keyEntry -> {
             try {
@@ -183,7 +183,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.incrbyfloat(key, 1.1).encode(buf);
-        channel.writeInbound(buf);
+        runCommand(channel, buf);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, keyEntry -> {
             try {
@@ -205,13 +205,13 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.set(key, value);
-            channel.writeInbound(buf);
+            cmd.set(key, value).encode(buf);
+            runCommand(channel, buf);
         }
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.getdel(key).encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> !volumeContainsStringKey(key));
@@ -223,13 +223,13 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.set(key, value).encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.getset(key, "value-after-getset").encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, keyEntry -> {
@@ -253,7 +253,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
 
         HashMap<String, String> pairs = getKeyValuePairs();
         cmd.mset(pairs).encode(buf);
-        channel.writeInbound(buf);
+        runCommand(channel, buf);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             RedisService service = instance.getContext().getService(RedisService.NAME);
@@ -280,7 +280,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
 
         HashMap<String, String> pairs = getKeyValuePairs();
         cmd.msetnx(pairs).encode(buf);
-        channel.writeInbound(buf);
+        runCommand(channel, buf);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             RedisService service = instance.getContext().getService(RedisService.NAME);
@@ -307,7 +307,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         ByteBuf buf = Unpooled.buffer();
 
         cmd.setnx(key, value).encode(buf);
-        channel.writeInbound(buf);
+        runCommand(channel, buf);
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, keyEntry -> {
             try {
@@ -329,13 +329,13 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.set(key, "Hello World!").encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.setrange(key, 6, "Kronotop").encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
         }
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> checkOnVolume(key, keyEntry -> {
@@ -358,7 +358,7 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
             ByteBuf buf = Unpooled.buffer();
             latestValue = String.format("value-%d", i);
             cmd.set(key, latestValue).encode(buf);
-            channel.writeInbound(buf);
+            runCommand(channel, buf);
             Thread.sleep(100);
             channel.readOutbound(); // consume the response
         }

@@ -17,11 +17,14 @@
 package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.protocol.RollbackMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import io.netty.util.Attribute;
+
+import java.util.concurrent.CompletableFuture;
 
 @Command(RollbackMessage.COMMAND)
 @MaximumParameterCount(RollbackMessage.MAXIMUM_PARAMETER_COUNT)
@@ -38,21 +41,22 @@ class RollbackHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Session session = request.getSession();
-        Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
-        if (!Boolean.TRUE.equals(beginAttr.get())) {
-            response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
-            return;
-        }
+        CompletableFuture.runAsync(() -> {
+            Attribute<Boolean> beginAttr = request.getSession().attr(SessionAttributes.BEGIN);
+            if (!Boolean.TRUE.equals(beginAttr.get())) {
+                throw new KronotopException(RESPError.TRANSACTION, "there is no transaction in progress.");
+            }
 
-        Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);
-        Transaction tr = transactionAttr.get();
-        try {
-            tr.cancel();
-        } finally {
-            session.unsetTransaction();
-        }
-
-        response.writeOK();
+            Attribute<Transaction> transactionAttr = request.getSession().attr(SessionAttributes.TRANSACTION);
+            Transaction tr = transactionAttr.get();
+            try {
+                tr.cancel();
+            } finally {
+                request.getSession().unsetTransaction();
+            }
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

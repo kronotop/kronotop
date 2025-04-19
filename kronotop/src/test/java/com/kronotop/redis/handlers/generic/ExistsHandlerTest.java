@@ -40,8 +40,7 @@ public class ExistsHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.exists("key-1{nodeA}", "key-2{nodeA}").encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(IntegerRedisMessage.class, msg);
         IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
         assertEquals(0, actualMessage.value());
@@ -55,8 +54,7 @@ public class ExistsHandlerTest extends BaseRedisHandlerTest {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.set(String.format("key-%d{nodeA}", i), String.format("value-%d", i)).encode(buf);
 
-                channel.writeInbound(buf);
-                Object msg = channel.readOutbound();
+                Object msg = runCommand(channel, buf);
                 assertInstanceOf(SimpleStringRedisMessage.class, msg);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
                 assertEquals(Response.OK, actualMessage.content());
@@ -72,8 +70,7 @@ public class ExistsHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.exists(keys).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(10, actualMessage.value());
@@ -87,8 +84,7 @@ public class ExistsHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("key-1", "value-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -102,8 +98,7 @@ public class ExistsHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.exists(keys).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(IntegerRedisMessage.class, msg);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
             assertEquals(2, actualMessage.value());

@@ -23,6 +23,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
+import java.util.concurrent.CompletableFuture;
+
 class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
     ExistsSubcommand(Context context) {
         super(context);
@@ -30,15 +32,19 @@ class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
-        NamespaceMessage.ExistsMessage existsMessage = message.getExistsMessage();
-
-        boolean exists = NamespaceUtils.exists(context, existsMessage.getPath());
-        if (exists) {
-            response.writeInteger(1);
-            return;
-        }
-
-        response.writeInteger(0);
+        CompletableFuture.supplyAsync(() -> {
+            NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
+            NamespaceMessage.ExistsMessage existsMessage = message.getExistsMessage();
+            return NamespaceUtils.exists(context, existsMessage.getPath());
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((exists) -> {
+            if (exists) {
+                response.writeInteger(1);
+                return;
+            }
+            response.writeInteger(0);
+        }, response.getCtx().executor()).exceptionally((ex) -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

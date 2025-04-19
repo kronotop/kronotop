@@ -16,6 +16,7 @@
 
 package com.kronotop.e2e;
 
+import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RouteKind;
@@ -102,8 +103,7 @@ class ReplicationTest extends BaseE2ETest {
             ByteBuf buf = Unpooled.buffer();
             krAdmin.describeShard(ShardKind.REDIS.name(), shardId).encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage actualMessage = (MapRedisMessage) msg;
             for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
@@ -157,8 +157,8 @@ class ReplicationTest extends BaseE2ETest {
             VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
             volumeAdmin.replications().encode(buf);
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+
+            Object msg = BaseTest.runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage actualMessage = (MapRedisMessage) msg;
             for (RedisMessage value : actualMessage.children().values()) {

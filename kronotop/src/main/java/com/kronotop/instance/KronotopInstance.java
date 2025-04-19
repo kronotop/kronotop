@@ -365,6 +365,9 @@ public class KronotopInstance {
             return;
         }
 
+        // Previously submitted tasks are executed, but no new tasks will be accepted.
+        context.getVirtualThreadPerTaskExecutor().shutdown();
+
         try {
             for (KronotopService service : context.getServices().reversed()) {
                 try {

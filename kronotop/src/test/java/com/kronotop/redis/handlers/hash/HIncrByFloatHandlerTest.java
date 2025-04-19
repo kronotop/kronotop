@@ -35,13 +35,11 @@ public class HIncrByFloatHandlerTest extends BaseRedisHandlerTest {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hincrbyfloat("mykey", "field", 10.50).encode(buf);
-        channel.writeInbound(buf);
-        channel.readOutbound();
+        runCommand(channel, buf);
 
         buf = Unpooled.buffer();
         cmd.hincrbyfloat("mykey", "field", 0.1).encode(buf);
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
 
         assertInstanceOf(FullBulkStringRedisMessage.class, msg);
         FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;

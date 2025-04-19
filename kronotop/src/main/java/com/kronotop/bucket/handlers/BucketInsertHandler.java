@@ -30,10 +30,13 @@ import com.kronotop.volume.Prefix;
 import com.kronotop.volume.VolumeSession;
 import org.bson.Document;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Command(BucketInsertMessage.COMMAND)
 @MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)
@@ -50,64 +53,69 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
+        CompletableFuture.supplyAsync(() -> {
+            BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
 
-        // TODO: Distribute the requests among shards in a round robin fashion.
-        int shardId = 1;
+            // TODO: Distribute the requests among shards in a round robin fashion.
+            int shardId = 1;
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-        BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+            BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
 
-        Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, subspace, message.getBucket());
+            Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, subspace, message.getBucket());
 
-        List<RedisMessage> userVersions = new LinkedList<>();
-        boolean autoCommitEnabled = TransactionUtils.getAutoCommit(request.getSession());
+            List<RedisMessage> userVersions = new LinkedList<>();
+            boolean autoCommitEnabled = TransactionUtils.getAutoCommit(request.getSession());
 
-        Document[] documents = new Document[message.getDocuments().size()];
-        ByteBuffer[] entries = new ByteBuffer[message.getDocuments().size()];
-        for (int index = 0; index < message.getDocuments().size(); index++) {
-            byte[] data = message.getDocuments().get(index);
-            Document document = Document.parse(new String(data));
-            entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
-            documents[index] = document;
-        }
-
-        VolumeSession volumeSession = new VolumeSession(tr, prefix);
-        BucketShard shard = service.getShard(shardId);
-        AppendResult appendResult = shard.volume().append(volumeSession, entries);
-        // Set indexes
-        for (AppendedEntry appendedEntry : appendResult.getAppendedEntries()) {
-            // Set the default ID index
-            IndexBuilder.setIndex(
-                    tr,
-                    subspace,
-                    shardId,
-                    prefix,
-                    appendedEntry.userVersion(),
-                    DefaultIndex.ID,
-                    appendedEntry.encodedMetadata()
-            );
-            if (!autoCommitEnabled) {
-                userVersions.add(new IntegerRedisMessage(appendedEntry.userVersion()));
-                request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get().add(appendedEntry.userVersion());
+            Document[] documents = new Document[message.getDocuments().size()];
+            ByteBuffer[] entries = new ByteBuffer[message.getDocuments().size()];
+            for (int index = 0; index < message.getDocuments().size(); index++) {
+                byte[] data = message.getDocuments().get(index);
+                Document document = Document.parse(new String(data));
+                entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
+                documents[index] = document;
             }
-        }
 
-        PostCommitHook postCommitHook = new PostCommitHook(appendResult);
-        TransactionUtils.addPostCommitHook(postCommitHook, request.getSession());
-        TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
-
-        if (autoCommitEnabled) {
-            Versionstamp[] versionstamps = postCommitHook.getVersionstamps();
-            List<RedisMessage> children = new ArrayList<>();
-            for (Versionstamp versionstamp : versionstamps) {
-                children.add(new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(versionstamp)));
+            VolumeSession volumeSession = new VolumeSession(tr, prefix);
+            BucketShard shard = service.getShard(shardId);
+            AppendResult appendResult;
+            try {
+                appendResult = shard.volume().append(volumeSession, entries);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
-            response.writeArray(children);
-        } else {
-            // Return userVersions to track the versionstamps in the COMMIT response
-            response.writeArray(userVersions);
-        }
+            // Set indexes
+            for (AppendedEntry appendedEntry : appendResult.getAppendedEntries()) {
+                // Set the default ID index
+                IndexBuilder.setIndex(tr, subspace, shardId, prefix, appendedEntry.userVersion(), DefaultIndex.ID, appendedEntry.encodedMetadata());
+                if (!autoCommitEnabled) {
+                    userVersions.add(new IntegerRedisMessage(appendedEntry.userVersion()));
+                    request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get().add(appendedEntry.userVersion());
+                }
+            }
+
+            PostCommitHook postCommitHook = new PostCommitHook(appendResult);
+            //TransactionUtils.addPostCommitHook(postCommitHook, request.getSession());
+            TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
+
+            if (autoCommitEnabled) {
+                postCommitHook.run();
+                Versionstamp[] versionstamps = postCommitHook.getVersionstamps();
+                List<RedisMessage> children = new ArrayList<>();
+                for (Versionstamp versionstamp : versionstamps) {
+                    children.add(new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(versionstamp)));
+                }
+                tr.close();
+                return children;
+            } else {
+                tr.close();
+                // Return userVersions to track the versionstamps in the COMMIT response
+                return userVersions;
+            }
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeArray, response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 
     private static class PostCommitHook implements CommitHook {

@@ -38,8 +38,7 @@ public class RandomKeyHandlerTest extends BaseRedisHandlerTest {
                 ByteBuf buf = Unpooled.buffer();
                 cmd.set(String.format("mykey-%d", i), String.format("myvalue-%s", i)).encode(buf);
 
-                channel.writeInbound(buf);
-                Object msg = channel.readOutbound();
+                Object msg = runCommand(channel, buf);
                 assertInstanceOf(SimpleStringRedisMessage.class, msg);
                 SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
                 assertEquals(Response.OK, actualMessage.content());
@@ -50,8 +49,7 @@ public class RandomKeyHandlerTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.randomkey().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertNotEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
@@ -64,8 +62,7 @@ public class RandomKeyHandlerTest extends BaseRedisHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.randomkey().encode(buf);
 
-        channel.writeInbound(buf);
-        Object msg = channel.readOutbound();
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(FullBulkStringRedisMessage.class, msg);
         FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
         assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);

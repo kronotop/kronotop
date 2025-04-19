@@ -41,8 +41,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.multi().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -52,8 +51,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("key-1", "value-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("QUEUED", actualMessage.content());
@@ -63,8 +61,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("key-2", "value-2").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("QUEUED", actualMessage.content());
@@ -74,8 +71,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("key-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("QUEUED", actualMessage.content());
@@ -85,8 +81,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("key-2").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("QUEUED", actualMessage.content());
@@ -96,8 +91,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.exec().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
 
@@ -131,8 +125,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.multi().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -142,8 +135,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("key-1", "value-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("QUEUED", actualMessage.content());
@@ -153,8 +145,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.discard().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -170,8 +161,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("key-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
@@ -185,8 +175,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.multi().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -196,8 +185,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.multi().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("ERR MULTI calls can not be nested", actualMessage.content());
@@ -211,8 +199,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.discard().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("ERR DISCARD without MULTI", actualMessage.content());
@@ -226,8 +213,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.exec().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("ERR EXEC without MULTI", actualMessage.content());
@@ -241,8 +227,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.watch("key-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -252,8 +237,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.multi().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -263,8 +247,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("key-1", "value-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("QUEUED", actualMessage.content());
@@ -274,8 +257,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("key-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("QUEUED", actualMessage.content());
@@ -285,8 +267,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.exec().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
 
@@ -309,8 +290,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.watch("key-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -320,8 +300,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.multi().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -331,8 +310,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("key-1", "value-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("QUEUED", actualMessage.content());
@@ -342,8 +320,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.get("key-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("QUEUED", actualMessage.content());
@@ -355,8 +332,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             cmd.set("key-1", "value-1").encode(buf);
 
             EmbeddedChannel secondChannel = newChannel();
-            secondChannel.writeInbound(buf);
-            Object msg = secondChannel.readOutbound();
+            Object msg = runCommand(secondChannel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -366,8 +342,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.exec().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(FullBulkStringRedisMessage.class, msg);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             // Aborted
@@ -382,8 +357,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.multi().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -393,8 +367,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.watch("key-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("ERR WATCH inside MULTI is not allowed", actualMessage.content());
@@ -408,8 +381,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.multi().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals(Response.OK, actualMessage.content());
@@ -419,8 +391,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.set("key-1", "value-1").encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertEquals("QUEUED", actualMessage.content());
@@ -430,8 +401,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             channel.writeInbound(new SimpleStringRedisMessage("foobar"));
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("ERR unknown command 'FOOBAR'", actualMessage.content());
@@ -441,8 +411,7 @@ public class RedisTransactionTest extends BaseRedisHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.exec().encode(buf);
 
-            channel.writeInbound(buf);
-            Object msg = channel.readOutbound();
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertEquals("EXECABORT Transaction discarded because of previous errors.", actualMessage.content());

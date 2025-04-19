@@ -17,12 +17,14 @@
 package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.protocol.GetReadVersionMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.netty.util.Attribute;
+
+import java.util.concurrent.CompletableFuture;
 
 @Command(GetReadVersionMessage.COMMAND)
 @MaximumParameterCount(GetReadVersionMessage.MAXIMUM_PARAMETER_COUNT)
@@ -39,16 +41,18 @@ class GetReadVersionHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        Session session = request.getSession();
-        Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
-        if (!Boolean.TRUE.equals(beginAttr.get())) {
-            response.writeError(RESPError.TRANSACTION, "there is no transaction in progress.");
-            return;
-        }
+        CompletableFuture.supplyAsync(() -> {
+            Attribute<Boolean> beginAttr = request.getSession().attr(SessionAttributes.BEGIN);
+            if (!Boolean.TRUE.equals(beginAttr.get())) {
+                throw new KronotopException(RESPError.TRANSACTION, "there is no transaction in progress.");
+            }
 
-        Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);
-        Transaction tr = transactionAttr.get();
-        Long readVersion = tr.getReadVersion().join();
-        response.writeRedisMessage(new SimpleStringRedisMessage(readVersion.toString()));
+            Attribute<Transaction> transactionAttr = request.getSession().attr(SessionAttributes.TRANSACTION);
+            Transaction tr = transactionAttr.get();
+            return tr.getReadVersion().join();
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((readVersion) -> response.writeSimpleString(readVersion.toString()), response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }

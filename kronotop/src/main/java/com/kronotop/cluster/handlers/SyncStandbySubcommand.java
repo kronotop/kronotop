@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -73,25 +74,28 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
     public void execute(Request request, Response response) {
         // kr.admin sync-standby set/unset <shard-kind> <shard-id> <member-id>
         SyncStandbyParameters parameters = new SyncStandbyParameters(request.getParams());
+        CompletableFuture.runAsync(() -> {
+            // Throws an error if no member found with the given member id
+            membership.findMember(parameters.memberId);
 
-        // Throws an error if no member found with the given member id
-        membership.findMember(parameters.memberId);
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            if (parameters.allShards) {
-                int numberOfShards = getNumberOfShards(parameters.shardKind);
-                for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                    DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, shardId);
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                if (parameters.allShards) {
+                    int numberOfShards = getNumberOfShards(parameters.shardKind);
+                    for (int shardId = 0; shardId < numberOfShards; shardId++) {
+                        DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, shardId);
+                        syncStandbyForShard(tr, parameters, shardSubspace);
+                    }
+                } else {
+                    DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, parameters.shardId);
                     syncStandbyForShard(tr, parameters, shardSubspace);
                 }
-            } else {
-                DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(parameters.shardKind, parameters.shardId);
-                syncStandbyForShard(tr, parameters, shardSubspace);
+                membership.triggerClusterTopologyWatcher(tr);
+                tr.commit().join();
             }
-            membership.triggerClusterTopologyWatcher(tr);
-            tr.commit().join();
-        }
-        response.writeOK();
+        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 
     enum OperationKind {

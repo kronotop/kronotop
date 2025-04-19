@@ -28,6 +28,7 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
 
 class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -37,15 +38,19 @@ class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements Subc
 
     @Override
     public void execute(Request request, Response response) {
-        TreeSet<Member> sortedMembers = membership.listMembers();
-        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
+        CompletableFuture.supplyAsync(() -> {
+            TreeSet<Member> sortedMembers = membership.listMembers();
+            Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
 
-        for (Member member : sortedMembers) {
-            Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
-            memberToRedisMessage(member, current);
-            result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));
-        }
-
-        response.writeMap(result);
+            for (Member member : sortedMembers) {
+                Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
+                memberToRedisMessage(member, current);
+                result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));
+            }
+            return result;
+        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeMap, response.getCtx().executor()).exceptionally(ex -> {
+            response.writeError(ex);
+            return null;
+        });
     }
 }
