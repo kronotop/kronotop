@@ -17,6 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
@@ -28,7 +29,6 @@ import com.kronotop.server.Response;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
-import java.util.concurrent.CompletableFuture;
 
 class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -39,7 +39,7 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
     @Override
     public void execute(Request request, Response response) {
         SetMemberStatusParameters parameters = new SetMemberStatusParameters(request.getParams());
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Member member = membership.findMember(tr, parameters.memberId);
                 member.setStatus(parameters.memberStatus);
@@ -47,10 +47,7 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
                 membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 
     private class SetMemberStatusParameters {

@@ -19,6 +19,7 @@ package com.kronotop.foundationdb.zmap;
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
@@ -31,7 +32,6 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.Arrays;
-import java.util.concurrent.CompletableFuture;
 
 @Command(ZDelRangeMessage.COMMAND)
 @MinimumParameterCount(ZDelRangeMessage.MINIMUM_PARAMETER_COUNT)
@@ -53,7 +53,7 @@ public class ZDelRangeHandler extends BaseFoundationDBHandler implements Handler
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             ZDelRangeMessage message = request.attr(MessageTypes.ZDELRANGE).get();
 
             Session session = request.getSession();
@@ -77,9 +77,6 @@ public class ZDelRangeHandler extends BaseFoundationDBHandler implements Handler
             Range range = new Range(begin, end);
             tr.clear(range);
             TransactionUtils.commitIfAutoCommitEnabled(tr, session);
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally((ex) -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 }

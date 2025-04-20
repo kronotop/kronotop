@@ -146,14 +146,6 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         super.channelUnregistered(ctx);
     }
 
-    // TODO: NETTY-ASYNC-REFACTOR
-    /*@Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        Session session = Session.extractSessionFromChannel(ctx.channel());
-        session.channelReadComplete();
-        super.channelReadComplete(ctx);
-    }*/
-
     private void exceptionToRespError(Request request, Response response, Exception exception) {
         if (exception instanceof KronotopException exp) {
             if (exp.getCause() != null) {

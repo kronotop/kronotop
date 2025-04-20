@@ -21,6 +21,7 @@ import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
@@ -41,7 +42,6 @@ import io.netty.util.ReferenceCountUtil;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Command(ZGetRangeMessage.COMMAND)
 @MinimumParameterCount(ZGetRangeMessage.MINIMUM_PARAMETER_COUNT)
@@ -66,7 +66,7 @@ public class ZGetRangeHandler extends BaseFoundationDBHandler implements Handler
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             ZGetRangeMessage message = request.attr(MessageTypes.ZGETRANGE).get();
 
             Session session = request.getSession();
@@ -119,9 +119,6 @@ public class ZGetRangeHandler extends BaseFoundationDBHandler implements Handler
                 }
             }
             return upperList;
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((response::writeArray), response.getCtx().executor()).exceptionally((ex) -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeArray);
     }
 }

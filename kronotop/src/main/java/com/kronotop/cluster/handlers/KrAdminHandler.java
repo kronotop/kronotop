@@ -36,13 +36,15 @@ import java.util.Set;
 @Command(KrAdminMessage.COMMAND)
 @MinimumParameterCount(KrAdminMessage.MINIMUM_PARAMETER_COUNT)
 public class KrAdminHandler implements Handler {
-    private final Context context;
 
     private final EnumMap<KrAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(KrAdminSubcommand.class);
     private final Set<KrAdminSubcommand> subcommandsRequireInitializedCluster = new HashSet<>();
+    private final Context context;
+    private volatile boolean clusterInitialized;
 
     public KrAdminHandler(RoutingService service) {
         this.context = service.getContext();
+
         handlers.put(KrAdminSubcommand.LIST_MEMBERS, new ListMembersSubcommand(service));
         handlers.put(KrAdminSubcommand.INITIALIZE_CLUSTER, new InitializeClusterSubcommand(service));
         handlers.put(KrAdminSubcommand.DESCRIBE_CLUSTER, new DescribeClusterSubcommand(service));
@@ -73,6 +75,16 @@ public class KrAdminHandler implements Handler {
         request.attr(MessageTypes.KRADMIN).set(new KrAdminMessage(request));
     }
 
+    private boolean isClusterInitialized() {
+        if (!clusterInitialized) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                DirectorySubspace clusterMetadataSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
+                clusterInitialized = MembershipUtils.isClusterInitialized(tr, clusterMetadataSubspace);
+            }
+        }
+        return clusterInitialized;
+    }
+
     @Override
     public void execute(Request request, Response response) throws Exception {
         KrAdminMessage message = request.attr(MessageTypes.KRADMIN).get();
@@ -81,13 +93,9 @@ public class KrAdminHandler implements Handler {
             throw new UnknownSubcommandException(message.getSubcommand().toString());
         }
 
-        // TODO: Async-netty refactor
         if (subcommandsRequireInitializedCluster.contains(message.getSubcommand())) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                DirectorySubspace clusterMetadataSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-                if (!MembershipUtils.isClusterInitialized(tr, clusterMetadataSubspace)) {
-                    throw new ClusterNotInitializedException();
-                }
+            if (!isClusterInitialized()) {
+                throw new ClusterNotInitializedException();
             }
         }
         executor.execute(request, response);

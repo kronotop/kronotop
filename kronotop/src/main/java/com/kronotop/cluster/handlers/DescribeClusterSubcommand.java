@@ -17,6 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -29,7 +30,6 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -39,7 +39,7 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
             try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
                 for (ShardKind kind : ShardKind.values()) {
@@ -53,9 +53,6 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
                 }
             }
             return result;
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeMap, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeMap);
     }
 }

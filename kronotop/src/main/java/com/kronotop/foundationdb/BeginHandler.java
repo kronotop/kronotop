@@ -17,13 +17,12 @@
 package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.protocol.BeginMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import io.netty.util.Attribute;
-
-import java.util.concurrent.CompletableFuture;
 
 @Command(BeginMessage.COMMAND)
 @MaximumParameterCount(BeginMessage.MAXIMUM_PARAMETER_COUNT)
@@ -40,7 +39,7 @@ class BeginHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             Session session = request.getSession();
             Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
             if (Boolean.TRUE.equals(beginAttr.get())) {
@@ -49,9 +48,6 @@ class BeginHandler extends BaseFoundationDBHandler implements Handler {
             }
             Transaction tr = service.getContext().getFoundationDB().createTransaction();
             session.setTransaction(tr);
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally((ex) -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 }

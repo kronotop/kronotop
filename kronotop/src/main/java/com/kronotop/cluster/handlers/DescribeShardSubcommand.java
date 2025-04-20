@@ -17,6 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -25,7 +26,6 @@ import com.kronotop.server.Response;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
-import java.util.concurrent.CompletableFuture;
 
 class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -36,14 +36,11 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
     @Override
     public void execute(Request request, Response response) {
         DescribeShardParameters parameters = new DescribeShardParameters(request.getParams());
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 return describeShard(tr, parameters.kind, parameters.shardId);
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeMap, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeMap);
     }
 
     private class DescribeShardParameters {

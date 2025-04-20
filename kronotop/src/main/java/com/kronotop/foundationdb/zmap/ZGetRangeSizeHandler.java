@@ -18,6 +18,7 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
@@ -53,7 +54,7 @@ public class ZGetRangeSizeHandler extends BaseFoundationDBHandler implements Han
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             ZGetRangeSizeMessage message = request.attr(MessageTypes.ZGETRANGESIZE).get();
 
             Session session = request.getSession();
@@ -64,9 +65,6 @@ public class ZGetRangeSizeHandler extends BaseFoundationDBHandler implements Han
             byte[] end = namespace.getZMap().pack(message.getEnd());
             Range range = new Range(begin, end);
             return getEstimatedRangeSizeBytes(tr, range, TransactionUtils.isSnapshotRead(session)).join();
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeInteger, response.getCtx().executor()).exceptionally((ex) -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeInteger);
     }
 }

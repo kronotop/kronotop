@@ -30,7 +30,7 @@ class CurrentSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        String namespace = response.getCtx().channel().attr(SessionAttributes.CURRENT_NAMESPACE).get();
+        String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
         if (namespace == null || namespace.isBlank()) {
             response.writeError("current namespace is empty, blank or null");
             return;

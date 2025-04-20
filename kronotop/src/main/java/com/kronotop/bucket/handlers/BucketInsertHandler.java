@@ -36,7 +36,8 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketInsertMessage.COMMAND)
 @MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)
@@ -53,7 +54,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        CompletableFuture.supplyAsync(() -> {
+        supplyAsync(context, response, () -> {
             BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
 
             // TODO: Distribute the requests among shards in a round robin fashion.
@@ -95,11 +96,10 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             }
 
             PostCommitHook postCommitHook = new PostCommitHook(appendResult);
-            //TransactionUtils.addPostCommitHook(postCommitHook, request.getSession());
+            TransactionUtils.addPostCommitHook(postCommitHook, request.getSession());
             TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
 
             if (autoCommitEnabled) {
-                postCommitHook.run();
                 Versionstamp[] versionstamps = postCommitHook.getVersionstamps();
                 List<RedisMessage> children = new ArrayList<>();
                 for (Versionstamp versionstamp : versionstamps) {
@@ -112,10 +112,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                 // Return userVersions to track the versionstamps in the COMMIT response
                 return userVersions;
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeArray, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeArray);
     }
 
     private static class PostCommitHook implements CommitHook {

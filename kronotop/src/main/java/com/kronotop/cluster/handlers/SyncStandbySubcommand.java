@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.RoutingService;
@@ -30,7 +31,6 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -74,7 +74,7 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
     public void execute(Request request, Response response) {
         // kr.admin sync-standby set/unset <shard-kind> <shard-id> <member-id>
         SyncStandbyParameters parameters = new SyncStandbyParameters(request.getParams());
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             // Throws an error if no member found with the given member id
             membership.findMember(parameters.memberId);
 
@@ -92,10 +92,7 @@ public class SyncStandbySubcommand extends BaseKrAdminSubcommandHandler implemen
                 membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 
     enum OperationKind {

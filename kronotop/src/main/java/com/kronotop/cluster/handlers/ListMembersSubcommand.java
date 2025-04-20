@@ -16,6 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -28,7 +29,6 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeSet;
-import java.util.concurrent.CompletableFuture;
 
 class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -38,7 +38,7 @@ class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements Subc
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             TreeSet<Member> sortedMembers = membership.listMembers();
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
 
@@ -48,9 +48,6 @@ class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements Subc
                 result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));
             }
             return result;
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeMap, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeMap);
     }
 }

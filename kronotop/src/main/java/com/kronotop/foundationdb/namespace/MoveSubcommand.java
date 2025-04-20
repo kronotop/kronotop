@@ -19,6 +19,7 @@ package com.kronotop.foundationdb.namespace;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
@@ -27,7 +28,6 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
@@ -38,7 +38,7 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
             NamespaceMessage.MoveMessage moveMessage = message.getMoveMessage();
 
@@ -57,9 +57,6 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
                 }
                 throw new KronotopException(e.getCause());
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 }

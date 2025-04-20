@@ -16,6 +16,7 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.RoutingService;
@@ -29,7 +30,6 @@ import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -40,16 +40,12 @@ class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements Subco
     @Override
     public void execute(Request request, Response response) {
         FindMemberParameters parameters = new FindMemberParameters(request.getParams());
-
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Member member = membership.findMember(parameters.memberId);
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
             memberToRedisMessage(member, result);
             return result;
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeMap, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeMap);
     }
 
     private class FindMemberParameters {

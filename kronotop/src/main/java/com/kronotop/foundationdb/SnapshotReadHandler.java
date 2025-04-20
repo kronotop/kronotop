@@ -16,14 +16,13 @@
 
 package com.kronotop.foundationdb;
 
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.protocol.SnapshotReadMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import io.netty.util.Attribute;
-
-import java.util.concurrent.CompletableFuture;
 
 @Command(SnapshotReadMessage.COMMAND)
 @MaximumParameterCount(SnapshotReadMessage.MAXIMUM_PARAMETER_COUNT)
@@ -41,7 +40,7 @@ class SnapshotReadHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             SnapshotReadMessage message = request.attr(MessageTypes.SNAPSHOTREAD).get();
             Attribute<Boolean> snapshotReadAttr = request.getSession().attr(SessionAttributes.SNAPSHOT_READ);
             if (message.getOption().equals(SnapshotReadMessage.ON_KEYWORD)) {
@@ -49,9 +48,6 @@ class SnapshotReadHandler extends BaseFoundationDBHandler implements Handler {
             } else {
                 snapshotReadAttr.set(null);
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 }

@@ -18,6 +18,7 @@ package com.kronotop.foundationdb.namespace;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
@@ -41,7 +42,7 @@ class ListSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
             NamespaceMessage.ListMessage listMessage = message.getListMessage();
 
@@ -69,9 +70,6 @@ class ListSubcommand extends BaseSubcommand implements SubcommandExecutor {
                 }
                 throw new KronotopException(e.getCause());
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeArray, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeArray);
     }
 }

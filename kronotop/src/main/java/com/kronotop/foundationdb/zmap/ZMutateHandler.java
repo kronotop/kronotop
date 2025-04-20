@@ -17,6 +17,7 @@
 package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
@@ -30,7 +31,6 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Command(ZMutateMessage.COMMAND)
 @MinimumParameterCount(ZMutateMessage.MINIMUM_PARAMETER_COUNT)
@@ -57,7 +57,7 @@ public class ZMutateHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             ZMutateMessage message = request.attr(MessageTypes.ZMUTATE).get();
 
             Session session = request.getSession();
@@ -66,9 +66,6 @@ public class ZMutateHandler extends BaseFoundationDBHandler implements Handler {
 
             tr.mutate(message.getMutationType(), namespace.getZMap().pack(message.getKey()), message.getParam());
             TransactionUtils.commitIfAutoCommitEnabled(tr, session);
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally((ex) -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 }

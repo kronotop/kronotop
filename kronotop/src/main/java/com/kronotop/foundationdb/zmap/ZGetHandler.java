@@ -17,6 +17,7 @@
 package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
@@ -55,7 +56,7 @@ public class ZGetHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             ZGetMessage message = request.attr(MessageTypes.ZGET).get();
             Session session = request.getSession();
 
@@ -64,7 +65,7 @@ public class ZGetHandler extends BaseFoundationDBHandler implements Handler {
 
             CompletableFuture<byte[]> future = get(tr, namespace.getZMap().pack(message.getKey()), TransactionUtils.isSnapshotRead(session));
             return future.join();
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((value) -> {
+        }, (value) -> {
             if (value == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;
@@ -78,9 +79,6 @@ public class ZGetHandler extends BaseFoundationDBHandler implements Handler {
                 ReferenceCountUtil.release(buf);
                 throw e;
             }
-        }, response.getCtx().executor()).exceptionally((ex) -> {
-            response.writeError(ex);
-            return null;
         });
     }
 }

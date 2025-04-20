@@ -21,6 +21,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.ClusterConstants;
 import com.kronotop.cluster.MembershipUtils;
@@ -34,7 +35,6 @@ import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
@@ -102,7 +102,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             try {
                 initializeCluster();
             } catch (CompletionException e) {
@@ -116,9 +116,6 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
                 }
                 throw new KronotopException(e);
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 }

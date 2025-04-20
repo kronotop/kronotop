@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class ZGetHandlerTest extends BaseHandlerTest {
+
     @Test
     void test_ZGET() {
         EmbeddedChannel channel = getChannel();

@@ -17,6 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.internal.ByteBufUtils;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -25,7 +26,6 @@ import com.kronotop.server.Response;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
-import java.util.concurrent.CompletableFuture;
 
 class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -36,16 +36,12 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
     @Override
     public void execute(Request request, Response response) {
         RemoveMemberParameters parameters = new RemoveMemberParameters(request.getParams());
-
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 membership.removeMember(tr, parameters.memberId);
                 membership.triggerClusterTopologyWatcher(tr);
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 
     private class RemoveMemberParameters {

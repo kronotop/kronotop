@@ -19,6 +19,7 @@ package com.kronotop.foundationdb.namespace;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
@@ -38,7 +39,7 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
     }
 
     public void execute(Request request, Response response) {
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
 
             // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
@@ -63,9 +64,6 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
                     throw new KronotopException(e.getCause());
                 }
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((v) -> response.writeOK(), response.getCtx().executor()).exceptionally((ex) -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 }

@@ -17,6 +17,7 @@
 package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtils;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -28,8 +29,6 @@ import com.kronotop.server.Response;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
-import java.util.concurrent.CompletableFuture;
-
 
 class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -41,7 +40,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
     public void execute(Request request, Response response) {
         SetShardStatusParameters parameters = new SetShardStatusParameters(request.getParams());
 
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
                 if (parameters.allShards) {
                     int numberOfShards = getNumberOfShards(parameters.shardKind);
@@ -54,10 +53,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
                 membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 
     private class SetShardStatusParameters {

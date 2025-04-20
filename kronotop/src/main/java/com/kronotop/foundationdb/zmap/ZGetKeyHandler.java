@@ -18,6 +18,7 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.namespace.Namespace;
@@ -58,7 +59,7 @@ public class ZGetKeyHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             ZGetKeyMessage message = request.attr(MessageTypes.ZGETKEY).get();
 
             Session session = request.getSession();
@@ -72,7 +73,7 @@ public class ZGetKeyHandler extends BaseFoundationDBHandler implements Handler {
 
             CompletableFuture<byte[]> future = getKey(tr, keySelector, TransactionUtils.isSnapshotRead(session));
             return new Result(namespace, future.join());
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((result) -> {
+        }, (result) -> {
             if (result.value() == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;
@@ -86,9 +87,6 @@ public class ZGetKeyHandler extends BaseFoundationDBHandler implements Handler {
                 ReferenceCountUtil.release(buf);
                 throw e;
             }
-        }, response.getCtx().executor()).exceptionally((ex) -> {
-            response.writeError(ex);
-            return null;
         });
     }
 

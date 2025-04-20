@@ -17,6 +17,7 @@
 package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.protocol.GetApproximateSizeMessage;
 import com.kronotop.server.*;
@@ -41,7 +42,7 @@ class GetApproximateSizeHandler extends BaseFoundationDBHandler implements Handl
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Attribute<Boolean> beginAttr = request.getSession().attr(SessionAttributes.BEGIN);
             if (!Boolean.TRUE.equals(beginAttr.get())) {
                 throw new KronotopException(RESPError.TRANSACTION, "there is no transaction in progress.");
@@ -51,10 +52,7 @@ class GetApproximateSizeHandler extends BaseFoundationDBHandler implements Handl
             Transaction tr = transactionAttr.get();
             CompletableFuture<Long> future = tr.getApproximateSize();
             return future.join();
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(response::writeInteger, response.getCtx().executor()).exceptionally((ex -> {
-            response.writeError(ex);
-            return null;
-        }));
+        }, response::writeInteger);
     }
 }
 

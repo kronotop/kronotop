@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -39,7 +40,6 @@ import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
     public RouteSubcommandHandler(RoutingService routing) {
@@ -159,7 +159,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     @Override
     public void execute(Request request, Response response) {
         RouteParameters parameters = new RouteParameters(request.getParams());
-        CompletableFuture.runAsync(() -> {
+        AsyncCommandExecutor.runAsync(context, response, () -> {
             if (parameters.operationKind.equals(OperationKind.SET)) {
                 try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
                     if (!membership.isMemberRegistered(parameters.memberId)) {
@@ -179,10 +179,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
             } else {
                 throw new KronotopException("Unknown operation kind: " + parameters.operationKind);
             }
-        }, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(response::writeOK, response.getCtx().executor()).exceptionally(ex -> {
-            response.writeError(ex);
-            return null;
-        });
+        }, response::writeOK);
     }
 
     enum OperationKind {

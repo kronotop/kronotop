@@ -12,6 +12,7 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -19,7 +20,6 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,13 +27,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class BucketInsertHandlerTest extends BaseHandlerTest {
 
     @Test
-    @Disabled
     void test_insert_single_document_with_oneOff_transaction() {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
         cmd.insert("test-bucket", "{\"one\": \"two\"}").encode(buf);
-        instance.getChannel().writeInbound(buf);
-        Object msg = instance.getChannel().readOutbound();
+
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
 
@@ -43,13 +42,12 @@ class BucketInsertHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    @Disabled
     void test_insert_documents_with_oneOff_transaction() {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
         cmd.insert("test-bucket", "{\"one\": \"two\"}", "{\"three\": \"four\"}").encode(buf);
-        instance.getChannel().writeInbound(buf);
-        Object msg = instance.getChannel().readOutbound();
+
+        Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
 
@@ -61,15 +59,17 @@ class BucketInsertHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    @Disabled
     void test_insert() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
             // Create a new transaction
             cmd.begin().encode(buf);
-            instance.getChannel().writeInbound(buf);
-            instance.getChannel().readOutbound(); // Returns OK
+
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
         }
 
         // BUCKET.INSERT <bucket-name> <document> <document>
@@ -77,8 +77,8 @@ class BucketInsertHandlerTest extends BaseHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             BucketCommandBuilder<String, String> bucketCommandBuilder = new BucketCommandBuilder<>(StringCodec.UTF8);
             bucketCommandBuilder.insert("test-bucket", "{\"one\": \"two\"}", "{\"three\": \"four\"}").encode(buf);
-            instance.getChannel().writeInbound(buf);
-            Object msg = instance.getChannel().readOutbound();
+
+            Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
 
             ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
@@ -94,8 +94,12 @@ class BucketInsertHandlerTest extends BaseHandlerTest {
             // Commit the changes
             ByteBuf buf = Unpooled.buffer();
             cmd.commit().encode(buf);
-            instance.getChannel().writeInbound(buf);
-            instance.getChannel().readOutbound(); // Returns OK
+
+            // TODO: Enable this block after revisiting Transaction lifecycle improvements.
+            //Object msg = runCommand(channel, buf);
+            //assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            //SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            //assertEquals(Response.OK, actualMessage.content());
         }
     }
 }

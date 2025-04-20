@@ -16,14 +16,13 @@
 
 package com.kronotop.foundationdb.namespace;
 
+import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-
-import java.util.concurrent.CompletableFuture;
 
 class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
     ExistsSubcommand(Context context) {
@@ -32,19 +31,16 @@ class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
-        CompletableFuture.supplyAsync(() -> {
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
             NamespaceMessage.ExistsMessage existsMessage = message.getExistsMessage();
             return NamespaceUtils.exists(context, existsMessage.getPath());
-        }, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync((exists) -> {
+        }, (exists) -> {
             if (exists) {
                 response.writeInteger(1);
                 return;
             }
             response.writeInteger(0);
-        }, response.getCtx().executor()).exceptionally((ex) -> {
-            response.writeError(ex);
-            return null;
         });
     }
 }

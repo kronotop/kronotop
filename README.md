@@ -1,11 +1,19 @@
 # Kronotop
 
-Kronotop is a distributed and transactional document database backed by [FoundationDB](https://www.foundationdb.org/).
+Kronotop is a distributed and transactional document database providing
+an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/). It utilizes
+FoundationDB for its core transactional engine, storing document metadata and indexes within FDB to
+ensure [ACID](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics) properties and reliable
+replication for these critical components.
 
-Kronotop project aims to build a document database that supports [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/), [ACID transactions](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics)
-and on-disk storage engine with a primary-standby replication model.
+The actual document bodies are managed separately and stored directly in the local filesystem of Kronotop nodes. This
+hybrid approach allows leveraging FDB's strengths for transactional metadata and index operations while enabling
+potentially
+different storage optimizations or replication strategies for the bulk document body data handled by the Kronotop nodes
+themselves.
 
-Kronotop is still in its early stages of development. The API is unstable and might be changed in the future releases.
+**Warning**: Kronotop is in its early stages of development. The API is unstable and likely to change in future
+releases.
 
 See [Getting started](#getting-started) section.
 
@@ -13,10 +21,12 @@ Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
 
 ## At a glance
 
-* Uses [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) as the wire protocol, so it is compatible with all Redis clients,
+* Uses [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) as the wire protocol, so it is compatible
+  with all Redis clients,
 * Horizontally scalable and sharded by default,
 * Supports *single* or *multi-master* cluster topologies for different deployment strategies and use cases,
-* Partly supports [Redis cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/),
+* Partly
+  supports [Redis cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/),
 * Uses FoundationDB as the metadata store for cluster management and data structures,
 * Implemented in Java and requires JDK 21+,
 
@@ -69,9 +79,11 @@ Kronotop is still in its early stages, but we have the following features with a
         * [NAMESPACE LIST](#namespace-list)
         * [NAMESPACE MOVE](#namespace-move)
 * [Storage Engine](#storage-engine)
-    * [Design](#design)
+    * [Design Philosophy and Architecture](#design-philosophy-and-architecture)
+        * [Segments](#segments)
+        * [Document Append Workflow](#document-append-workflow)
     * [Replication](#replication)
-    * [Vacuuming](#vacuuming)
+    * [Vacuuming (Sapce Reclamation)](#vacuuming-space-reclamation)
 
 ## Getting started
 
@@ -731,56 +743,89 @@ Let's check the result:
 
 ## Storage Engine
 
-### Design
+Kronotop uses a custom-built storage engine named **Volume**. As the core persistence layer for this distributed,
+transactional document store, *Volume* is responsible for reliably storing all document data on local disks and managing
+data replication between cluster members.
 
-Kronotop has a storage engine implementation named **Volume**. It's responsible for storing all data on the disks and
-replicate it from the primary members to the standbys.
+### Design Philosophy and Architecture
 
-Volume has a simple yet elegant design philosophy. It stores all metadata information on the FoundationDB cluster. The
-data itself has
-stored on the disk and organized as **segments**.
+*Volume*'s architecture strategically separates metadata management from the storage of the actual document content,
+leveraging the strengths of different systems:
 
-A segment is just a pre-allocated file on the disk and is seen as a huge byte array. When you want to append some
-entries to the volume,
-all data has been appended to the latest segment and then flushed. If the flush call succeeds, the metadata has been
-committed to the
-FoundationDB cluster in a single transaction. This process could be depicted as the following for easy digestion:
+1. **Metadata Management (*FoundationDB*):** All metadata associated with the stored documents (referred to as entries)
+   —such as
+   their location within storage segments, versioning information, and replication status—is managed within a
+   **FoundationDB** cluster. Leveraging *FoundationDB* provides Kronotop with strong `ACID` transactional guarantees for
+   all metadata operations, crucial for maintaining consistency in a distributed environment.
+2. **Document Content Storage (Local Disk):** The actual content of the documents/entries is stored efficiently on the
+   local disk of each Kronotop node. This data is organized into large, pre-allocated files called **segments**.
 
-- An outer layer of Kronotop tries to append some data to the volume,
-- Volume receives the request and finds the latest segment to append the data,
-- If there is no open segment, a new segment will be created,
-- If the latest segment doesn't have enough free space, a new segment will be created and the previous segment marked as
-  readonly,
-- Segment implementation will find a location for the given amount of data and append it to the underling pre-allocated
-  file,
-- The modified segment will be flushed to ensure all buffered changes are written to disk.
-- Volume implementation will commit metadata changes in a single transaction and will return IDs in FoundationDBs
-  version stamp format.
+#### Segments
+
+Segments are the fundamental units for storing document data on disk:
+
+* **Pre-allocation:** When needed, *Volume* creates segment files of a predetermined size on the filesystem.
+* **Sequential Appends:** Document data is typically written sequentially into the latest active segment file.
+  Internally, a segment can be viewed as a large byte array where new entry data is appended.
+
+#### Document Append Workflow
+
+When a new document or entry is saved via Kronotop, the *Volume* engine follows these precise steps to ensure atomicity
+and durability:
+
+1. **Request Handling:** *Volume* receives the request to store a new entry.
+2. **Segment Selection:** It identifies the current active segment file designated for new data writes.
+3. **Segment Lifecycle Management:**
+    * If no segment is currently active (e.g., on node startup), *Volume* creates and pre-allocates a new segment file.
+    * If the current active segment doesn't have enough contiguous space for the new entry, it's typically sealed (
+      marked as read-only), and a new segment is created to become the active target.
+4. **Data Persistence:** The segment component writes the entry's data into the appropriate location within the active
+   segment file.
+5. **Disk Synchronization (Flush):** A *flush* operation is executed against the modified segment file. This requests
+   the operating system to write any buffered data to the physical storage, ensuring the entry's content is persistent
+   on disk before proceeding.
+6. **Transactional Metadata Commit:** Crucially, only *after* the disk *flush* confirms successful persistence of the
+   entry's data does *Volume* commit the associated metadata (e.g., the entry's location within the segment) to the
+   *FoundationDB* cluster. This commit happens within a single, atomic *FoundationDB* transaction.
+7. **Identifier Return:** Upon a successful metadata commit, *Volume* returns unique identifiers for the stored entries,
+   often based on *FoundationDB*'s versionstamps, providing a consistent system-wide order.
+
+This two-phase process guarantees that the metadata stored transactionally in *FoundationDB* only ever points to
+document data that has been safely persisted to disk.
 
 ### Replication
 
-The **asynchronous** replication process is also handled by the volume itself. When a new entry has been added to the
-volume, an entry will be added to the
-data structure named *SegmentLog* and standbys will be triggered to fetch the changes from the primary. Volume uses
-the [watch mechanism](https://apple.github.io/foundationdb/developer-guide.html#watches)
-to implement this feature.
+*Volume* includes an integrated system for **asynchronous replication** to maintain copies of the data on standby nodes,
+enhancing fault tolerance and availability.
 
-The standby member copies all data from the primary, this happens in two stages:
+* **Change Log (*SegmentLog*):** When an entry is successfully stored on the primary node, *Volume* records this event
+  by adding metadata to a specific data structure in *FoundationDB* called *SegmentLog*. This acts as an ordered log of
+  data modifications.
+* **Notification via Watches:** Standby nodes monitor for changes by using *FoundationDB*'
+  s [watch mechanism](https://apple.github.io/foundationdb/developer-guide.html#watches). They set watches on keys
+  related to *SegmentLog*. When the primary updates this log, the watches trigger on the standbys, signaling that new
+  data is available.
+* **Data Synchronization:** Upon being triggered, a standby node fetches the actual document data from the primary
+  node's segments corresponding to the new *SegmentLog* entries. This synchronization involves two phases:
+    1. **Snapshot Phase:** Initially, or if significantly behind, the standby reads the *FoundationDB* history and
+       systematically copies the required document data from the primary's segments until it reaches a reasonably
+       current state. Data is often transferred in chunks.
+    2. **Streaming Phase:** After the initial catch-up, the standby enters a streaming mode. It continuously watches for
+       new *SegmentLog* entries and promptly fetches only the latest changes from the primary, maintaining low
+       replication lag.
 
-* Snapshot
-* Streaming
+Kronotop also offers synchronous replication, but this functionality is provided through a distinct component, the
+**Redis Volume Syncer**, which coordinates with *Volume*.
 
-In *snapshot* stage, the standby volume reads the `SegmentLog` data structure and copies all data chunk by chunk.
-When the snapshot stage has completed, the *streaming* stage has started and a `watch` monitors a key constantly to
-fetch the
-latest changes from the primary.
+### Vacuuming (Space Reclamation)
 
-Volume also supports synchronous replication, but it's a part of Redis Volume Syncer mechanism.
+Since segments are primarily append-based, space occupied by deleted or updated documents isn't immediately reclaimed.
+*Volume* provides a **vacuuming** mechanism to manage disk usage.
 
-### Vacuuming
-
-Volume supports manual vacuuming. A system administrator can start a vacuum process, and it has been processed in the
-background.
-Vacuum process scans the Volume metadata and evicts the entries from a segment if the garbage ratio of the segment
-exceeds a certain number.
+* **Manual Initiation:** A system administrator can trigger the vacuuming process.
+* **Background Operation:** Vacuuming runs as a background task to minimize the impact on live operations.
+* **Process:** It involves scanning the *Volume* metadata within *FoundationDB* to identify segments containing a high
+  proportion of "garbage" (space used by entries that are no longer valid or visible). If a segment's garbage ratio
+  surpasses a defined threshold, the vacuuming process reorganizes the data, typically by copying the valid, live
+  entries into new segments and then safely removing the old segment(s), thus reclaiming disk space.
 
