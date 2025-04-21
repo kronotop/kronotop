@@ -53,6 +53,7 @@ Kronotop is still in its early stages, but we have the following features with a
 * [Getting started](#getting-started)
     * [Initializing a Kronotop cluster](#initializing-a-kronotop-cluster)
 * [Redis compatibility](#redis-compatibility)
+* [Support](#support)
 * [Features](#features)
     * [Transaction management](#transaction-management)
         * [BEGIN](#begin)
