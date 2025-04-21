@@ -84,6 +84,7 @@ Kronotop is still in its early stages, but we have the following features with a
         * [Document Append Workflow](#document-append-workflow)
     * [Replication](#replication)
     * [Vacuuming (Sapce Reclamation)](#vacuuming-space-reclamation)
+* [License](#license)
 
 ## Getting started
 
@@ -178,6 +179,12 @@ implementing
 the most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String*
 and *Hash*
 data structures.
+
+## Support
+
+Please join [Discord channel](https://discord.gg/Nyy4Afpr) for instant chat or create an Issue or Discussion on GitHub.
+
+For invoiced sponsoring/support contracts, please reach out to me via *burak {dot} sezer {at} kronotop {dot} com*.
 
 ## Features
 
@@ -829,3 +836,12 @@ Since segments are primarily append-based, space occupied by deleted or updated 
   surpasses a defined threshold, the vacuuming process reorganizes the data, typically by copying the valid, live
   entries into new segments and then safely removing the old segment(s), thus reclaiming disk space.
 
+## License
+
+Source code in this repository is covered by one of two licenses:
+
+* [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+* [Business Source License 1,1](https://mariadb.com/bsl11/)
+
+The default license throughout the repository is Apache License 2.0 unless the
+header specifies another license.
