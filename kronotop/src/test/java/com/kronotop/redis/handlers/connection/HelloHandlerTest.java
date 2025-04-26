@@ -17,6 +17,7 @@
 package com.kronotop.redis.handlers.connection;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
+import com.kronotop.instance.KronotopInstance;
 import com.kronotop.network.clients.Client;
 import com.kronotop.network.clients.Clients;
 import com.kronotop.redis.handlers.BaseRedisHandlerTest;
@@ -31,10 +32,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class HelloHandlerTest extends BaseRedisHandlerTest {
+class HelloHandlerTest extends BaseRedisHandlerTest {
 
     @Test
-    public void testHELLO_protover_2() {
+    void testHELLO_protover_2() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(2, null, null, "foobar").encode(buf);
@@ -51,7 +52,7 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
                 switch (keyMessage.content()) {
                     case "server":
                         SimpleStringRedisMessage serverName = (SimpleStringRedisMessage) response.children().get(valueIndex);
-                        assertEquals("kronotop", serverName.content());
+                        assertEquals(KronotopInstance.KING_OF_THE_DATABASES, serverName.content());
                         continue;
                     case "version":
                         SimpleStringRedisMessage serverVersion = (SimpleStringRedisMessage) response.children().get(valueIndex);
@@ -83,7 +84,7 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
     }
 
     @Test
-    public void testHELLO_protover_3() {
+    void testHELLO_protover_3() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(3, null, null, "foobar").encode(buf);
@@ -92,14 +93,14 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage response = (MapRedisMessage) msg;
         for (RedisMessage redisMessage : response.children().keySet()) {
-            SimpleStringRedisMessage key = (SimpleStringRedisMessage) redisMessage;
-            switch (key.content()) {
+            FullBulkStringRedisMessage key = (FullBulkStringRedisMessage) redisMessage;
+            switch (key.content().toString()) {
                 case "server":
-                    SimpleStringRedisMessage serverName = (SimpleStringRedisMessage) response.children().get(redisMessage);
-                    assertEquals("kronotop", serverName.content());
+                    FullBulkStringRedisMessage serverName = (FullBulkStringRedisMessage) response.children().get(redisMessage);
+                    assertEquals(KronotopInstance.KING_OF_THE_DATABASES, serverName.content().toString());
                     continue;
                 case "version":
-                    SimpleStringRedisMessage serverVersion = (SimpleStringRedisMessage) response.children().get(redisMessage);
+                    FullBulkStringRedisMessage serverVersion = (FullBulkStringRedisMessage) response.children().get(redisMessage);
                     assertNotNull(serverVersion);
                     continue;
                 case "proto":
@@ -112,12 +113,12 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
                     assertEquals(expectedClientId.get(), Long.valueOf(clientId.value()));
                     continue;
                 case "mode":
-                    SimpleStringRedisMessage mode = (SimpleStringRedisMessage) response.children().get(redisMessage);
-                    assertEquals("cluster", mode.content());
+                    FullBulkStringRedisMessage mode = (FullBulkStringRedisMessage) response.children().get(redisMessage);
+                    assertEquals("cluster", mode.content().toString());
                     continue;
                 case "role":
-                    SimpleStringRedisMessage role = (SimpleStringRedisMessage) response.children().get(redisMessage);
-                    assertEquals("master", role.content());
+                    FullBulkStringRedisMessage role = (FullBulkStringRedisMessage) response.children().get(redisMessage);
+                    assertEquals("master", role.content().toString());
                     continue;
                 case "modules":
                     ArrayRedisMessage modules = (ArrayRedisMessage) response.children().get(redisMessage);
@@ -127,7 +128,7 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
     }
 
     @Test
-    public void testHELLO_NOPROTO() {
+    void testHELLO_NOPROTO() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(4, null, null, null).encode(buf);
@@ -139,7 +140,7 @@ public class HelloHandlerTest extends BaseRedisHandlerTest {
     }
 
     @Test
-    public void testHELLO_SETNAME() {
+    void testHELLO_SETNAME() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(2, null, null, "test").encode(buf);

@@ -79,6 +79,7 @@ Often quoted as ‘Everything should be made as simple as possible, but not simp
  * The KronotopInstance class represents a running instance of Kronotop.
  */
 public class KronotopInstance {
+    public static final String KING_OF_THE_DATABASES = "Kronotop";
     private static final Logger LOGGER = LoggerFactory.getLogger(KronotopInstance.class);
     protected final Config config;
     private final Database database;
