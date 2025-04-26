@@ -79,6 +79,8 @@ Kronotop is still in its early stages, but we have the following features with a
         * [NAMESPACE EXISTS](#namespace-exists)
         * [NAMESPACE LIST](#namespace-list)
         * [NAMESPACE MOVE](#namespace-move)
+    * [Management](#management)
+        * [Session](#session) 
 * [Storage Engine](#storage-engine)
     * [Design Philosophy and Architecture](#design-philosophy-and-architecture)
         * [Segments](#segments)
@@ -747,6 +749,52 @@ Let's check the result:
 (empty array)
 127.0.0.1:5484> NAMESPACE LIST staging
 1) users
+```
+
+## Management
+
+This section defines commands to manage a Kronotop cluster and database sessions.
+
+### Session
+
+Kronotop provides a bunch of commands to manage database sessions. The following attributes are set by default:
+
+|attribute    | type    | description                              | default | available values |
+--------------|---------|------------------------------------------|---------|------------------|
+|`reply_type` | enum    | Data interchange format for the replies  | BSON    | BSON, JSON       |
+|`input_type` | enum    | Data interchange format for the inputs   | BSON    | BSON, JSON       |
+
+#### SESSION.ATTRIBUTE LIST
+
+`SESSION.ATTRIBUTE LIST` lists all attributes with their current values used by the session. 
+
+```
+127.0.0.1:5484> SESSION.ATTRIBUTE LIST
+1# reply-type => bson
+2# input-type => bson
+```
+
+#### SESSION.ATTRIBUTE SET
+
+`SESSION.ATTRIBUTE SET` sets a value to an attribute.
+
+```
+127.0.0.1:5484> SESSION.ATTRIBUTE SET reply-type JSON
+OK
+```
+
+A random value cannot be set to an attribute, if its type is `enum`.
+
+```
+127.0.0.1:5484> SESSION.ATTRIBUTE SET reply-type some-value
+(error) ERR Invalid reply type: some-value
+```
+
+It's not possible to set an attribute if it's not defined by Kronotop:
+
+```
+127.0.0.1:5484> SESSION.ATTRIBUTE set an-attribute a-value
+(error) ERR Invalid session attribute: 'an-attribute'
 ```
 
 ## Storage Engine

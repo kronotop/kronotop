@@ -51,14 +51,14 @@ public class SessionAttributeHandler implements Handler {
         // REPLY_TYPE
         Attribute<ReplyType> replyTypeAttr = request.getSession().attr(SessionAttributes.REPLY_TYPE);
         children.put(
-                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.REPLY_TYPE.name().toLowerCase()),
+                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.REPLY_TYPE.getValue().toLowerCase()),
                 new SimpleStringRedisMessage(replyTypeAttr.get().name().toLowerCase())
         );
 
         // INPUT_TYPE
         Attribute<InputType> inputTypeAttr = request.getSession().attr(SessionAttributes.INPUT_TYPE);
         children.put(
-                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.INPUT_TYPE.name().toLowerCase()),
+                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.INPUT_TYPE.getValue().toLowerCase()),
                 new SimpleStringRedisMessage(inputTypeAttr.get().name().toLowerCase())
         );
 

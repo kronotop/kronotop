@@ -32,7 +32,7 @@ public class SessionAttributeParameters {
     private InputType inputType;
 
     public SessionAttributeParameters(ArrayList<ByteBuf> params) {
-        String rawSubcommand = ByteBufUtils.readAsString(params.get(0));
+        String rawSubcommand = ByteBufUtils.readAsString(params.getFirst());
         try {
             subcommand = SessionAttributeSubcommand.valueOf(rawSubcommand.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -45,12 +45,6 @@ public class SessionAttributeParameters {
 
         if (subcommand.equals(SessionAttributeSubcommand.SET)) {
             if (params.size() != 3) {
-                throw new InvalidNumberOfParametersException();
-            }
-        }
-
-        if (subcommand.equals(SessionAttributeSubcommand.UNSET)) {
-            if (params.size() != 2) {
                 throw new InvalidNumberOfParametersException();
             }
         }
@@ -98,7 +92,6 @@ public class SessionAttributeParameters {
 
     public enum SessionAttributeSubcommand {
         SET,
-        UNSET,
         LIST
     }
 
