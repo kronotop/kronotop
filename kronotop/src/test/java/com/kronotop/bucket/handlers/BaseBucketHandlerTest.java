@@ -29,15 +29,20 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
     protected final String BUCKET_NAME = "test-bucket";
     protected final byte[] DOCUMENT = BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}");
 
+    protected byte[][] makeDocumentsArray(List<byte[]> documents) {
+        byte[][] result = new byte[documents.size()][];
+        for (int i = 0; i < documents.size(); i++) {
+            byte[] document = documents.get(i);
+            result[i] = document;
+        }
+        documents.toArray(result);
+        return result;
+    }
+
     protected Map<String, byte[]> insertDocuments(List<byte[]> documents) {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        byte[][] docs = new byte[documents.size()][];
-        for (int i = 0; i < documents.size(); i++) {
-            byte[] document = documents.get(i);
-            docs[i] = document;
-        }
-        documents.toArray(docs);
+        byte[][] docs = makeDocumentsArray(documents);
         cmd.insert(BUCKET_NAME, docs).encode(buf);
 
         Object msg = runCommand(channel, buf);
