@@ -19,7 +19,8 @@ package com.kronotop.server.handlers.protocol;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.internal.ByteBufUtils;
-import com.kronotop.server.ReplyContentType;
+import com.kronotop.server.InputType;
+import com.kronotop.server.ReplyType;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -27,7 +28,8 @@ import java.util.ArrayList;
 public class SessionAttributeParameters {
     private final SessionAttributeSubcommand subcommand;
     private SessionAttribute attribute;
-    private ReplyContentType replyContentType;
+    private ReplyType replyType;
+    private InputType inputType;
 
     public SessionAttributeParameters(ArrayList<ByteBuf> params) {
         String rawSubcommand = ByteBufUtils.readAsString(params.get(0));
@@ -54,22 +56,27 @@ public class SessionAttributeParameters {
         }
 
         String rawSessionAttribute = ByteBufUtils.readAsString(params.get(1));
-        try {
-            attribute = SessionAttribute.valueOf(rawSessionAttribute.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new KronotopException("Invalid session attribute: " + rawSessionAttribute);
-        }
+        attribute = SessionAttribute.findByValue(rawSessionAttribute);
 
         switch (attribute) {
-            case REPLY_CONTENT_TYPE:
-                String value = ByteBufUtils.readAsString(params.get(2));
+            case INPUT_TYPE -> {
+                String rawInputType = ByteBufUtils.readAsString(params.get(2));
+
                 try {
-                    replyContentType = ReplyContentType.valueOf(value.toUpperCase());
+                    inputType = InputType.valueOf(rawInputType.toUpperCase());
                 } catch (IllegalArgumentException e) {
-                    throw new KronotopException("Invalid reply content type: " + value);
+                    throw new KronotopException("Invalid input type: " + rawInputType);
                 }
-            default:
-                throw new KronotopException("Unknown session attribute: " + rawSessionAttribute);
+            }
+            case REPLY_TYPE -> {
+                String rawReplyType = ByteBufUtils.readAsString(params.get(2));
+                try {
+                    replyType = ReplyType.valueOf(rawReplyType.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    throw new KronotopException("Invalid reply type: " + rawReplyType);
+                }
+            }
+            default -> throw new KronotopException("Unknown session attribute: " + rawSessionAttribute);
         }
     }
 
@@ -81,8 +88,12 @@ public class SessionAttributeParameters {
         return attribute;
     }
 
-    public ReplyContentType replyContentType() {
-        return replyContentType;
+    public ReplyType replyType() {
+        return replyType;
+    }
+
+    public InputType inputType() {
+        return inputType;
     }
 
     public enum SessionAttributeSubcommand {
@@ -92,12 +103,25 @@ public class SessionAttributeParameters {
     }
 
     public enum SessionAttribute {
-        REPLY_CONTENT_TYPE("reply-content-type");
+        REPLY_TYPE("reply-type"),
+        INPUT_TYPE("input-type");
 
         final String value;
 
         SessionAttribute(String value) {
             this.value = value;
+        }
+
+        public static SessionAttribute findByValue(String v) {
+            if (v.toLowerCase().equals(REPLY_TYPE.getValue())) {
+                return REPLY_TYPE;
+            } else if (v.toLowerCase().equals(INPUT_TYPE.getValue())) {
+                return INPUT_TYPE;
+            } else {
+                throw new IllegalArgumentException(
+                        String.format("Invalid session attribute: '%s'", v)
+                );
+            }
         }
 
         public String getValue() {

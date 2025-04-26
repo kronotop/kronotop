@@ -71,5 +71,7 @@ public class SessionAttributes {
 
     public static final AttributeKey<AtomicInteger> USER_VERSION_COUNTER = AttributeKey.valueOf("user_version_counter");
 
-    public static final AttributeKey<ReplyContentType> REPLY_CONTENT_TYPE = AttributeKey.valueOf("reply_content_type");
+    public static final AttributeKey<InputType> INPUT_TYPE = AttributeKey.valueOf("input_type");
+
+    public static final AttributeKey<ReplyType> REPLY_TYPE = AttributeKey.valueOf("reply_type");
 }

@@ -651,6 +651,20 @@ public class Volume {
     }
 
     /**
+     * Retrieves a ByteBuffer associated with the specified prefix, versionstamp, and metadata.
+     *
+     * @param prefix the non-null prefix identifying the entry.
+     * @param key the non-null versionstamp key associated with the entry.
+     * @param metadata the non-null metadata descriptor for the entry.
+     * @return a ByteBuffer containing the data associated with the specified inputs.
+     * @throws IOException if an I/O error occurs during the retrieval operation.
+     */
+    public ByteBuffer get(@Nonnull Prefix prefix, @Nonnull Versionstamp key, @Nonnull EntryMetadata metadata) throws IOException {
+        // This method is tested by PlanExecutor indirectly.
+        return getByEntryMetadata(prefix, key, metadata);
+    }
+
+    /**
      * Retrieves an array of ByteBuffers from the specified segment based on the given segment ranges.
      *
      * @param segmentName   the name of the segment from which to retrieve the ByteBuffers

@@ -13,6 +13,7 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
+import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.IndexBuilder;
@@ -52,6 +53,16 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         request.attr(MessageTypes.BUCKETINSERT).set(new BucketInsertMessage(request));
     }
 
+    private Document readDocument(InputType inputType, byte[] data) {
+        if (inputType.equals(InputType.JSON)) {
+            return BSONUtils.fromJson(data);
+        } else if (inputType.equals(InputType.BSON)) {
+            return BSONUtils.fromBson(data);
+        } else {
+            throw new KronotopException("Invalid input type: " + inputType);
+        }
+    }
+
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
@@ -60,23 +71,27 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             // TODO: Distribute the requests among shards in a round robin fashion.
             int shardId = 1;
 
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
-
-            Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, subspace, message.getBucket());
-
-            List<RedisMessage> userVersions = new LinkedList<>();
-            boolean autoCommitEnabled = TransactionUtils.getAutoCommit(request.getSession());
-
+            InputType inputType = getInputType(request);
             Document[] documents = new Document[message.getDocuments().size()];
             ByteBuffer[] entries = new ByteBuffer[message.getDocuments().size()];
             for (int index = 0; index < message.getDocuments().size(); index++) {
                 byte[] data = message.getDocuments().get(index);
-                Document document = Document.parse(new String(data));
-                entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
+
+                // Parsing incoming data into to a BSON document required to calculate and create indexes.
+                Document document = readDocument(inputType, data);
+                if (inputType.equals(InputType.BSON)) {
+                    entries[index] = ByteBuffer.wrap(data);
+                } else {
+                    // The input type should be JSON.
+                    entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
+                }
                 documents[index] = document;
             }
 
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+            BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
+
+            Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, subspace, message.getBucket());
             VolumeSession volumeSession = new VolumeSession(tr, prefix);
             BucketShard shard = service.getShard(shardId);
             AppendResult appendResult;
@@ -85,10 +100,13 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
+
+            List<RedisMessage> userVersions = new LinkedList<>();
+            boolean autoCommitEnabled = TransactionUtils.getAutoCommit(request.getSession());
             // Set indexes
             for (AppendedEntry appendedEntry : appendResult.getAppendedEntries()) {
                 // Set the default ID index
-                IndexBuilder.setIndex(tr, subspace, shardId, prefix, appendedEntry.userVersion(), DefaultIndex.ID, appendedEntry.encodedMetadata());
+                IndexBuilder.packIndex(tr, subspace, shardId, prefix, appendedEntry.userVersion(), DefaultIndex.ID, appendedEntry.encodedMetadata());
                 if (!autoCommitEnabled) {
                     userVersions.add(new IntegerRedisMessage(appendedEntry.userVersion()));
                     request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get().add(appendedEntry.userVersion());

@@ -14,6 +14,9 @@ package com.kronotop.bucket.handlers;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.server.Handler;
+import com.kronotop.server.InputType;
+import com.kronotop.server.ReplyType;
+import com.kronotop.server.Request;
 
 public abstract class BaseBucketHandler implements Handler {
     protected final BucketService service;
@@ -27,5 +30,25 @@ public abstract class BaseBucketHandler implements Handler {
     @Override
     public boolean isRedisCompatible() {
         return false;
+    }
+
+    /**
+     * Retrieves the input type associated with the given request's session.
+     *
+     * @param request the request object containing the session from which the input type is retrieved
+     * @return the input type associated with the session, typically either JSON or BSON
+     */
+    public InputType getInputType(Request request) {
+        return request.getSession().attr(com.kronotop.server.SessionAttributes.INPUT_TYPE).get();
+    }
+
+    /**
+     * Retrieves the reply type associated with the given request's session.
+     *
+     * @param request the request object containing the session from which the reply type is retrieved
+     * @return the reply type associated with the session, typically either JSON or BSON
+     */
+    public ReplyType getReplyType(Request request) {
+        return request.getSession().attr(com.kronotop.server.SessionAttributes.REPLY_TYPE).get();
     }
 }

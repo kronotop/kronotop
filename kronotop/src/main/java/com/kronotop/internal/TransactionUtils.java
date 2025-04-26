@@ -48,7 +48,8 @@ public class TransactionUtils {
             // There is no ongoing transaction in this Session, create a new one and
             // set AUTO_COMMIT to true.
             // This will be a one-off transaction.
-            Transaction tr = context.getFoundationDB().createTransaction();
+            // WARNING: Using "virtualThreadPerTaskExecutor" can be dangerous here.
+            Transaction tr = context.getFoundationDB().createTransaction(context.getVirtualThreadPerTaskExecutor());
             session.setTransaction(tr);
             session.attr(SessionAttributes.AUTO_COMMIT).set(true);
             return tr;

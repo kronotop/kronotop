@@ -10,14 +10,7 @@
 
 package com.kronotop.bucket.index;
 
-import org.bson.BsonType;
+import com.apple.foundationdb.tuple.Versionstamp;
 
-import javax.annotation.Nonnull;
-
-public record Index(String name, String path, BsonType type) {
-    @Override
-    @Nonnull
-    public String toString() {
-        return "Index { name=" + name + ", path=" + path + " type=" + type + " }";
-    }
+public record UnpackedIndex(Versionstamp versionstamp, Index index) {
 }

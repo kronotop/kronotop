@@ -11,28 +11,34 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.bucket.BucketPrefix;
-import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.BucketSubspace;
-import com.kronotop.bucket.BucketSubspaceUtils;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.AsyncCommandExecutor;
+import com.kronotop.KronotopException;
+import com.kronotop.bucket.*;
+import com.kronotop.bucket.executor.ExecutorContext;
 import com.kronotop.bucket.executor.PlanExecutor;
 import com.kronotop.bucket.handlers.protocol.BucketFindMessage;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.internal.TransactionUtils;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.volume.Prefix;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
+import org.bson.Document;
 
-import java.util.LinkedList;
-import java.util.List;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Command(BucketFindMessage.COMMAND)
 @MaximumParameterCount(BucketFindMessage.MAXIMUM_PARAMETER_COUNT)
@@ -50,27 +56,46 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        BucketFindMessage message = request.attr(MessageTypes.BUCKETFIND).get();
+        AsyncCommandExecutor.supplyAsync(context, response, () -> {
+            BucketFindMessage message = request.attr(MessageTypes.BUCKETFIND).get();
 
-        Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-        BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+            BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
+            PhysicalNode plan = service.getPlanner().plan(message.getBucket(), message.getQuery());
 
-        Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, subspace, message.getBucket());
-
-        PhysicalNode plan = service.getPlanner().plan(message.getBucket(), message.getQuery());
-        PlanExecutor executor = new PlanExecutor(context, plan);
-
-        List<byte[]> entries = executor.execute();
-        if (entries == null || entries.isEmpty()) {
-            response.writeArray(List.of());
-            return;
-        }
-        List<RedisMessage> children = new LinkedList<>();
-        for (byte[] entry : entries) {
-            ByteBuf buf = response.getCtx().alloc().buffer();
-            buf.writeBytes(entry);
-            children.add(new FullBulkStringRedisMessage(buf));
-        }
-        response.writeArray(children);
+            BucketShard shard = service.getShard(1);
+            ExecutorContext executorContext = new ExecutorContext(shard, plan, message.getBucket(), subspace);
+            PlanExecutor executor = new PlanExecutor(context, executorContext);
+            try {
+                return executor.execute(tr);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }, (entries) -> {
+            if (entries == null || entries.isEmpty()) {
+                response.writeMap(MapRedisMessage.EMPTY_INSTANCE.children());
+                return;
+            }
+            Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
+            for (Map.Entry<Versionstamp, ByteBuffer> entry : entries.entrySet()) {
+                ByteBuf value;
+                ReplyType replyType = getReplyType(request);
+                if (replyType.equals(ReplyType.BSON)) {
+                    value = PooledByteBufAllocator.DEFAULT.buffer().alloc().
+                            buffer(entry.getValue().remaining()).writeBytes(entry.getValue());
+                } else if (replyType.equals(ReplyType.JSON)) {
+                    Document document = BSONUtils.toDocument(entry.getValue().array());
+                    byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
+                    value = PooledByteBufAllocator.DEFAULT.buffer().alloc().buffer(data.length).writeBytes(data);
+                } else {
+                    throw new KronotopException("Invalid reply type: " + replyType);
+                }
+                result.put(
+                        new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(entry.getKey())),
+                        new FullBulkStringRedisMessage(value)
+                );
+            }
+            response.writeMap(result);
+        });
     }
 }

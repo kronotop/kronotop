@@ -18,7 +18,11 @@ import org.bson.codecs.DecoderContext;
 import org.bson.codecs.DocumentCodec;
 import org.bson.codecs.EncoderContext;
 import org.bson.io.BasicOutputBuffer;
+import org.bson.json.JsonReader;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.ByteBuffer;
 
 /**
@@ -56,5 +60,40 @@ public class BSONUtils {
         try (BsonBinaryReader reader = new BsonBinaryReader(ByteBuffer.wrap(bytes))) {
             return DOCUMENT_CODEC.decode(reader, DecoderContext.builder().build());
         }
+    }
+
+    /**
+     * Converts a JSON-encoded byte array into a BSON {@code Document}.
+     *
+     * @param bytes the JSON-encoded byte array to be converted into a {@code Document}
+     * @return the BSON {@code Document} decoded from the provided byte array
+     */
+    public static Document fromJson(byte[] bytes) {
+        Reader targetReader = new InputStreamReader(new ByteArrayInputStream(bytes));
+        try (JsonReader reader = new JsonReader(targetReader)) {
+            return DOCUMENT_CODEC.decode(reader, DecoderContext.builder().build());
+        }
+    }
+
+    /**
+     * Deserializes a byte array containing BSON data into a {@code Document}.
+     *
+     * @param bytes the byte array containing the serialized BSON data
+     * @return the deserialized {@code Document} object
+     */
+    public static Document fromBson(byte[] bytes) {
+        try (BsonBinaryReader reader = new BsonBinaryReader(ByteBuffer.wrap(bytes))) {
+            return DOCUMENT_CODEC.decode(reader, DecoderContext.builder().build());
+        }
+    }
+
+    /**
+     * Converts a JSON string into a BSON {@code Document} and then serializes it to a byte array.
+     *
+     * @param data the JSON string to be parsed and converted into a BSON {@code Document}
+     * @return a byte array representing the serialized BSON document
+     */
+    public static byte[] jsonToDocumentThenBytes(String data) {
+        return BSONUtils.toBytes(Document.parse(data));
     }
 }

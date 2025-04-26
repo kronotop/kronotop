@@ -26,7 +26,7 @@ import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.netty.util.Attribute;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Command(SessionAttributeMessage.COMMAND)
@@ -44,14 +44,22 @@ public class SessionAttributeHandler implements Handler {
     }
 
     private void listSubcommand(Request request, Response response) {
-        Map<RedisMessage, RedisMessage> children = new HashMap<>();
+        Map<RedisMessage, RedisMessage> children = new LinkedHashMap<>();
 
-        // List the attributes have default value
-        // REPLY_CONTENT_TYPE
-        Attribute<ReplyContentType> replyContentTypeAttr = request.getSession().attr(SessionAttributes.REPLY_CONTENT_TYPE);
+        // List the attributes have a default value
+
+        // REPLY_TYPE
+        Attribute<ReplyType> replyTypeAttr = request.getSession().attr(SessionAttributes.REPLY_TYPE);
         children.put(
-                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.REPLY_CONTENT_TYPE.name().toLowerCase()),
-                new SimpleStringRedisMessage(replyContentTypeAttr.get().name().toLowerCase())
+                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.REPLY_TYPE.name().toLowerCase()),
+                new SimpleStringRedisMessage(replyTypeAttr.get().name().toLowerCase())
+        );
+
+        // INPUT_TYPE
+        Attribute<InputType> inputTypeAttr = request.getSession().attr(SessionAttributes.INPUT_TYPE);
+        children.put(
+                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.INPUT_TYPE.name().toLowerCase()),
+                new SimpleStringRedisMessage(inputTypeAttr.get().name().toLowerCase())
         );
 
         response.writeMap(children);
@@ -59,9 +67,10 @@ public class SessionAttributeHandler implements Handler {
 
     private void setSubcommand(Request request, Response response, SessionAttributeParameters parameters) {
         switch (parameters.getAttribute()) {
-            case REPLY_CONTENT_TYPE -> {
-                request.getSession().attr(SessionAttributes.REPLY_CONTENT_TYPE).set(parameters.replyContentType());
-            }
+            case REPLY_TYPE ->
+                    request.getSession().attr(SessionAttributes.REPLY_TYPE).set(parameters.replyType());
+            case INPUT_TYPE ->
+                    request.getSession().attr(SessionAttributes.INPUT_TYPE).set(parameters.inputType());
         }
         response.writeOK();
     }

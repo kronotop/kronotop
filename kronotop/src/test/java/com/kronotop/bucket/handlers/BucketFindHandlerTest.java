@@ -10,28 +10,45 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.kronotop.BaseHandlerTest;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import java.util.List;
+import java.util.Map;
 
-class BucketFindHandlerTest extends BaseHandlerTest {
+import static org.junit.jupiter.api.Assertions.*;
+
+class BucketFindHandlerTest extends BaseBucketHandlerTest {
 
     @Test
-    void test_bucket_find_handler() {
+    void shouldDoPhysicalFullScanWithoutOperator() {
+        Map<String, byte[]> expectedDocument = insertDocuments(List.of(DOCUMENT));
+
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
-        cmd.find("test-bucket", "{}").encode(buf);
-        instance.getChannel().writeInbound(buf);
-        Object msg = instance.getChannel().readOutbound();
-        assertInstanceOf(ArrayRedisMessage.class, msg);
+        cmd.find(BUCKET_NAME, "{}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
 
-        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
-        System.out.println(actualMessage.children());
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
+            // Check key
+            SimpleStringRedisMessage keyMessage = (SimpleStringRedisMessage) entry.getKey();
+            String id = keyMessage.content();
+            assertNotNull(id);
+            assertNotNull(expectedDocument.get(id));
+
+            // Check value
+            FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) entry.getValue();
+            assertArrayEquals(expectedDocument.get(id), ByteBufUtil.getBytes(value.content()));
+        }
     }
 }

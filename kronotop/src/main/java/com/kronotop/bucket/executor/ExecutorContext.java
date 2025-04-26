@@ -8,16 +8,11 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket.executor;
 
-import org.bson.BsonType;
+import com.kronotop.bucket.BucketShard;
+import com.kronotop.bucket.BucketSubspace;
+import com.kronotop.bucket.planner.physical.PhysicalNode;
 
-import javax.annotation.Nonnull;
-
-public record Index(String name, String path, BsonType type) {
-    @Override
-    @Nonnull
-    public String toString() {
-        return "Index { name=" + name + ", path=" + path + " type=" + type + " }";
-    }
+public record ExecutorContext(BucketShard shard, PhysicalNode plan, String bucket, BucketSubspace subspace) {
 }

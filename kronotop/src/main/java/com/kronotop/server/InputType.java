@@ -16,7 +16,7 @@
 
 package com.kronotop.server;
 
-public enum ReplyContentType {
+public enum InputType {
     JSON,
     BSON
 }

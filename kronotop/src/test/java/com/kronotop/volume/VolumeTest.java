@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeTest extends BaseVolumeIntegrationTest {
+
     @Test
     void test_append() throws IOException {
         ByteBuffer[] entries = getEntries(2);
@@ -51,7 +52,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_append_IllegalArgumentException() throws IOException {
+    void test_append_IllegalArgumentException() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertThrows(IllegalArgumentException.class, () -> volume.append(session));
