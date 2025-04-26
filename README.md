@@ -759,10 +759,10 @@ This section defines commands to manage a Kronotop cluster and database sessions
 
 Kronotop provides a bunch of commands to manage database sessions. The following attributes are set by default:
 
-|attribute    | type    | description                              | default | available values |
---------------|---------|------------------------------------------|---------|------------------|
-|`reply_type` | enum    | Data interchange format for the replies  | BSON    | BSON, JSON       |
-|`input_type` | enum    | Data interchange format for the inputs   | BSON    | BSON, JSON       |
+| attribute  | type | scope  | description                             | default | available values |
+|------------|------|--------|-----------------------------------------|---------|------------------|
+| reply_type | enum | Bucket | Data interchange format for the replies | BSON    | BSON, JSON       |
+| input_type | enum | Bucket | Data interchange format for the inputs  | BSON    | BSON, JSON       |
 
 #### SESSION.ATTRIBUTE LIST
 
@@ -793,8 +793,8 @@ A random value cannot be set to an attribute, if its type is `enum`.
 It's not possible to set an attribute if it's not defined by Kronotop:
 
 ```
-127.0.0.1:5484> SESSION.ATTRIBUTE set an-attribute a-value
-(error) ERR Invalid session attribute: 'an-attribute'
+127.0.0.1:5484> SESSION.ATTRIBUTE set some-attribute value
+(error) ERR Invalid session attribute: 'some-attribute'
 ```
 
 ## Storage Engine
