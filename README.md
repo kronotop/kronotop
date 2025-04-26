@@ -1,16 +1,20 @@
 # Kronotop
 
-Kronotop is a distributed and transactional document database providing
-an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/). It utilizes
-FoundationDB for its core transactional engine, storing document metadata and indexes within FDB to
-ensure [ACID](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics) properties and reliable
-replication for these critical components.
+**The Distributed Document Database with ACID Integrity**
 
-The actual document bodies are managed separately and stored directly in the local filesystem of Kronotop nodes. This
-hybrid approach allows leveraging FDB's strengths for transactional metadata and index operations while enabling
-potentially
-different storage optimizations or replication strategies for the bulk document body data handled by the Kronotop nodes
-themselves.
+Kronotop is a distributed, transactional document database designed for horizontal scalability. It provides a robust 
+foundation for applications needing to manage large volumes of documents while ensuring strong consistency guarantees 
+for critical metadata operations. By leveraging FoundationDB as its transactional backend for metadata and indexes, 
+Kronotop delivers [ACID](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics) integrity, offering reliability often sought in demanding environments.
+
+Kronotop features an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and uses the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) wire protocol, ensuring broad compatibility with 
+the Redis client ecosystem. It implements core Redis data structures like Strings and Hashes, alongside its own specialized 
+structures: ZMap (an ordered key-value store acting as a RESP proxy for FoundationDB) and Bucket (designed for storing 
+JSON-like documents). While document bodies are stored directly on local filesystems, Kronotop uses BSON as the default 
+data interchange format within Buckets, with JSON also available.
+
+Kronotop is built for developers seeking the flexibility of a document model combined with the transactional safety and 
+scalability powered by FoundationDB.
 
 **Warning**: Kronotop is in its early stages of development. The API is unstable and likely to change in future
 releases.
