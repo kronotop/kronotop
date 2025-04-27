@@ -12,10 +12,7 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.RESPVersion;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -52,6 +49,38 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
             // Check value
             FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) entry.getValue();
             assertArrayEquals(expectedDocument.get(id), ByteBufUtil.getBytes(value.content()));
+        }
+    }
+
+    @Test
+    void shouldDoPhysicalFullScanWithoutOperator_RESP2() {
+        Map<String, byte[]> expectedDocument = insertDocuments(List.of(DOCUMENT));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP2);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.find(BUCKET_NAME, "{}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        int index = 0;
+        String latestId = "";
+        for (RedisMessage entry : actualMessage.children()) {
+            if (index % 2 == 0) {
+                // Check key
+                SimpleStringRedisMessage keyMessage = (SimpleStringRedisMessage) entry;
+                String id = keyMessage.content();
+                assertNotNull(id);
+                assertNotNull(expectedDocument.get(id));
+                latestId = id;
+            } else {
+                // Check value
+                FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) entry;
+                assertArrayEquals(expectedDocument.get(latestId), ByteBufUtil.getBytes(value.content()));
+            }
+            index++;
         }
     }
 }

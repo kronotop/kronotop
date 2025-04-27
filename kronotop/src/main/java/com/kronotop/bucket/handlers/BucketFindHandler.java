@@ -38,6 +38,7 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -82,6 +83,31 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
         response.writeMap(result);
     }
 
+    private void resp2Response(Request request, Response response, Map<Versionstamp, ByteBuffer> entries) {
+        if (entries == null || entries.isEmpty()) {
+            response.writeArray(List.of());
+            return;
+        }
+        List<RedisMessage> result = new LinkedList<>();
+        for (Map.Entry<Versionstamp, ByteBuffer> entry : entries.entrySet()) {
+            ByteBuf value;
+            ReplyType replyType = getReplyType(request);
+            if (replyType.equals(ReplyType.BSON)) {
+                value = PooledByteBufAllocator.DEFAULT.buffer().alloc().
+                        buffer(entry.getValue().remaining()).writeBytes(entry.getValue());
+            } else if (replyType.equals(ReplyType.JSON)) {
+                Document document = BSONUtils.toDocument(entry.getValue().array());
+                byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
+                value = PooledByteBufAllocator.DEFAULT.buffer().alloc().buffer(data.length).writeBytes(data);
+            } else {
+                throw new KronotopException("Invalid reply type: " + replyType);
+            }
+            result.add(new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(entry.getKey())));
+            result.add(new FullBulkStringRedisMessage(value));
+        }
+        response.writeArray(result);
+    }
+
     @Override
     public void execute(Request request, Response response) throws Exception {
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
@@ -104,7 +130,9 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
             if (protoVer.equals(RESPVersion.RESP3)) {
                 resp3Response(request, response, entries);
             } else if (protoVer.equals(RESPVersion.RESP2)) {
-                response.writeArray(List.of());
+                resp2Response(request, response, entries);
+            } else {
+                throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }
         });
     }
