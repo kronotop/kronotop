@@ -13,6 +13,7 @@ package com.kronotop.bucket.handlers;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BSONUtils;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -28,6 +29,12 @@ import static org.junit.jupiter.api.Assertions.*;
 public class BaseBucketHandlerTest extends BaseHandlerTest {
     protected final String BUCKET_NAME = "test-bucket";
     protected final byte[] DOCUMENT = BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}");
+
+    protected void switchProtocol(BucketCommandBuilder<?, ?> cmd, RESPVersion version) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.hello(version.getValue()).encode(buf);
+        runCommand(channel, buf); // consume the response
+    }
 
     protected byte[][] makeDocumentsArray(List<byte[]> documents) {
         byte[][] result = new byte[documents.size()][];

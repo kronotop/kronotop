@@ -11,6 +11,7 @@
 package com.kronotop.bucket.handlers;
 
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -33,6 +34,8 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
         Map<String, byte[]> expectedDocument = insertDocuments(List.of(DOCUMENT));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
         ByteBuf buf = Unpooled.buffer();
         cmd.find(BUCKET_NAME, "{}").encode(buf);
         Object msg = runCommand(channel, buf);

@@ -11,6 +11,8 @@
 package com.kronotop.commandbuilder.kronotop;
 
 import io.lettuce.core.codec.RedisCodec;
+import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.output.GenericMapOutput;
 import io.lettuce.core.output.StringListOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
@@ -18,6 +20,11 @@ import io.lettuce.core.protocol.ProtocolKeyword;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+
+import static io.lettuce.core.protocol.CommandKeyword.SETNAME;
+import static io.lettuce.core.protocol.CommandType.AUTH;
+import static io.lettuce.core.protocol.CommandType.HELLO;
 
 public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
     public BucketCommandBuilder(RedisCodec<K, V> codec) {
@@ -33,6 +40,11 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     public final Command<K, V, List<String>> find(String bucket, String query) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
         return createCommand(CommandType.BUCKET_FIND, new StringListOutput<>(codec), args);
+    }
+
+    public Command<String, String, Map<String, Object>> hello(int protocolVersion) {
+        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII).add(protocolVersion);
+        return new Command<>(HELLO, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
     enum CommandType implements ProtocolKeyword {
