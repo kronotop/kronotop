@@ -56,6 +56,43 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
         request.attr(MessageTypes.BUCKETFIND).set(new BucketFindMessage(request));
     }
 
+    /**
+     * Prepares a {@code ByteBuf} value based on the reply type derived from the given request.
+     * The method generates either a BSON or JSON formatted {@code ByteBuf} depending on the reply type
+     * of the session associated with the request. In case of an unsupported reply type, an exception is thrown.
+     *
+     * @param request the {@code Request} object containing the session information and other relevant data
+     * @param entry a {@code Map.Entry} containing a {@code Versionstamp} as the key and a {@code ByteBuffer} as the value,
+     *              where the value represents the data to be transformed into the {@code ByteBuf}
+     * @return a {@code ByteBuf} object containing the serialized data in the format specified by the reply type
+     * @throws KronotopException if the reply type is invalid or not supported
+     */
+    private ByteBuf prepareValue(Request request, Map.Entry<Versionstamp, ByteBuffer> entry) {
+        ByteBuf value;
+        ReplyType replyType = getReplyType(request);
+        if (replyType.equals(ReplyType.BSON)) {
+            value = PooledByteBufAllocator.DEFAULT.buffer().alloc().
+                    buffer(entry.getValue().remaining()).writeBytes(entry.getValue());
+        } else if (replyType.equals(ReplyType.JSON)) {
+            Document document = BSONUtils.toDocument(entry.getValue().array());
+            byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
+            value = PooledByteBufAllocator.DEFAULT.buffer().alloc().buffer(data.length).writeBytes(data);
+        } else {
+            throw new KronotopException("Invalid reply type: " + replyType);
+        }
+        return value;
+    }
+
+    /**
+     * Processes and writes a RESP3-compliant response to the client based on the provided entries.
+     * Converts the provided map of {@code Versionstamp} to {@code ByteBuffer} into a Redis-compatible
+     * map format and writes the resulting data to the client.
+     *
+     * @param request the {@code Request} object containing the session and command information
+     * @param response the {@code Response} object used to send the result back to the client
+     * @param entries a map where the keys are {@code Versionstamp} objects and the values are
+     *                {@code ByteBuffer} objects representing the data to be converted and sent
+     */
     private void resp3Response(Request request, Response response, Map<Versionstamp, ByteBuffer> entries) {
         if (entries == null || entries.isEmpty()) {
             response.writeMap(MapRedisMessage.EMPTY_INSTANCE.children());
@@ -63,18 +100,7 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
         }
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
         for (Map.Entry<Versionstamp, ByteBuffer> entry : entries.entrySet()) {
-            ByteBuf value;
-            ReplyType replyType = getReplyType(request);
-            if (replyType.equals(ReplyType.BSON)) {
-                value = PooledByteBufAllocator.DEFAULT.buffer().alloc().
-                        buffer(entry.getValue().remaining()).writeBytes(entry.getValue());
-            } else if (replyType.equals(ReplyType.JSON)) {
-                Document document = BSONUtils.toDocument(entry.getValue().array());
-                byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
-                value = PooledByteBufAllocator.DEFAULT.buffer().alloc().buffer(data.length).writeBytes(data);
-            } else {
-                throw new KronotopException("Invalid reply type: " + replyType);
-            }
+            ByteBuf value = prepareValue(request, entry);
             result.put(
                     new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(entry.getKey())),
                     new FullBulkStringRedisMessage(value)
@@ -83,6 +109,17 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
         response.writeMap(result);
     }
 
+    /**
+     * Processes and writes a RESP2-compliant response to the client based on the provided entries.
+     * Converts the provided map of {@code Versionstamp} to {@code ByteBuffer} into a Redis-compatible
+     * list format by iterating through the map entries, preparing their values, and sending the
+     * resulting data to the client.
+     *
+     * @param request the {@code Request} object containing the session and command information
+     * @param response the {@code Response} object used to send the result back to the client
+     * @param entries a map where the keys are {@code Versionstamp} objects and the values are
+     *                {@code ByteBuffer} objects representing the data to be converted and sent
+     */
     private void resp2Response(Request request, Response response, Map<Versionstamp, ByteBuffer> entries) {
         if (entries == null || entries.isEmpty()) {
             response.writeArray(List.of());
@@ -90,18 +127,7 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
         }
         List<RedisMessage> result = new LinkedList<>();
         for (Map.Entry<Versionstamp, ByteBuffer> entry : entries.entrySet()) {
-            ByteBuf value;
-            ReplyType replyType = getReplyType(request);
-            if (replyType.equals(ReplyType.BSON)) {
-                value = PooledByteBufAllocator.DEFAULT.buffer().alloc().
-                        buffer(entry.getValue().remaining()).writeBytes(entry.getValue());
-            } else if (replyType.equals(ReplyType.JSON)) {
-                Document document = BSONUtils.toDocument(entry.getValue().array());
-                byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
-                value = PooledByteBufAllocator.DEFAULT.buffer().alloc().buffer(data.length).writeBytes(data);
-            } else {
-                throw new KronotopException("Invalid reply type: " + replyType);
-            }
+            ByteBuf value = prepareValue(request, entry);
             result.add(new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(entry.getKey())));
             result.add(new FullBulkStringRedisMessage(value));
         }
