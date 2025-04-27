@@ -16,6 +16,7 @@
 
 package com.kronotop.server.handlers;
 
+import com.kronotop.KronotopException;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -26,7 +27,9 @@ import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.netty.util.Attribute;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Command(SessionAttributeMessage.COMMAND)
@@ -62,7 +65,19 @@ public class SessionAttributeHandler implements Handler {
                 new SimpleStringRedisMessage(inputTypeAttr.get().name().toLowerCase())
         );
 
-        response.writeMap(children);
+        RESPVersion protoVer = request.getSession().protocolVersion();
+        if (protoVer.equals(RESPVersion.RESP3)) {
+            response.writeMap(children);
+        } else if (protoVer.equals(RESPVersion.RESP2)) {
+            List<RedisMessage> list = new ArrayList<>();
+            for (Map.Entry<RedisMessage, RedisMessage> entry : children.entrySet()) {
+                list.add(entry.getKey());
+                list.add(entry.getValue());
+            }
+            response.writeArray(list);
+        } else {
+            throw new KronotopException("Unknown protocol version " + protoVer.getValue());
+        }
     }
 
     private void setSubcommand(Request request, Response response, SessionAttributeParameters parameters) {
