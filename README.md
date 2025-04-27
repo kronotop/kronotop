@@ -765,8 +765,8 @@ Kronotop provides a bunch of commands to manage database sessions. The following
 
 | attribute  | type | scope  | description                             | default | available values |
 |------------|------|--------|-----------------------------------------|---------|------------------|
-| reply_type | enum | Bucket | Data interchange format for the replies | BSON    | BSON, JSON       |
-| input_type | enum | Bucket | Data interchange format for the inputs  | BSON    | BSON, JSON       |
+| reply-type | enum | Bucket | Data interchange format for the replies | BSON    | BSON, JSON       |
+| input-type | enum | Bucket | Data interchange format for the inputs  | BSON    | BSON, JSON       |
 
 #### SESSION.ATTRIBUTE LIST
 
