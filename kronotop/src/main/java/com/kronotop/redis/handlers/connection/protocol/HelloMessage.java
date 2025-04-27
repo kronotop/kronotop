@@ -17,10 +17,8 @@
 package com.kronotop.redis.handlers.connection.protocol;
 
 import com.kronotop.KronotopException;
-import com.kronotop.server.NoProtoException;
-import com.kronotop.server.ProtocolMessage;
-import com.kronotop.server.RESPError;
-import com.kronotop.server.Request;
+import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.server.*;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
@@ -28,8 +26,6 @@ import java.util.List;
 
 public class HelloMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "HELLO";
-    public static final int RESP_VERSION_TWO = 2;
-    public static final int RESP_VERSION_THREE = 3;
     private final Request request;
     private Integer protover;
     private String username;
@@ -43,15 +39,9 @@ public class HelloMessage implements ProtocolMessage<Void> {
         parse();
     }
 
-    private String readFromByteBuf(ByteBuf buf) {
-        byte[] rawItem = new byte[buf.readableBytes()];
-        buf.readBytes(rawItem);
-        return new String(rawItem);
-    }
-
     private void parse() {
         if (request.getParams().isEmpty()) {
-            protover = RESP_VERSION_THREE;
+            protover = RESPVersion.RESP3.getValue();
             return;
         }
 
@@ -62,13 +52,13 @@ public class HelloMessage implements ProtocolMessage<Void> {
             throw new KronotopException(RESPError.PROTOCOL_VERSION_FORMAT_ERROR);
         }
 
-        if (protover != RESP_VERSION_TWO && protover != RESP_VERSION_THREE) {
+        if (protover != RESPVersion.RESP2.getValue() && protover != RESPVersion.RESP3.getValue()) {
             throw new NoProtoException();
         }
 
         for (int i = 1; i < request.getParams().size(); i++) {
             ByteBuf buf = request.getParams().get(i);
-            String parameter = readFromByteBuf(buf);
+            String parameter = ByteBufUtils.readAsString(buf);
             if (parameter.equalsIgnoreCase("AUTH")) {
                 // HELLO $protover AUTH $username $password
                 if (request.getParams().size() - i < 2) {

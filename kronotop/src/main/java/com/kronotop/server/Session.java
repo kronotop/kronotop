@@ -43,6 +43,7 @@ public class Session {
     private final ChannelHandlerContext ctx;
     private final Channel channel;
     private final Context context;
+    private volatile RESPVersion protocolVersion;
 
     private Session(Context context, ChannelHandlerContext ctx) {
         this.context = context;
@@ -86,6 +87,7 @@ public class Session {
     }
 
     private void initialize() {
+        setProtocolVersion(RESPVersion.RESP2);
         Long clientId = ClientIDGenerator.getAndIncrement();
         channel.attr(SessionAttributes.CLIENT_ID).set(clientId);
         channel.attr(SessionAttributes.OPEN_NAMESPACES).set(new HashMap<>());
@@ -200,5 +202,25 @@ public class Session {
         attr(SessionAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
         attr(SessionAttributes.ASYNC_RETURNING).set(new LinkedList<>());
         attr(SessionAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
+    }
+
+    /**
+     * Sets the protocol version for the session.
+     *
+     * @param version the {@link RESPVersion} to be set for the session. This determines the
+     *                version of the Redis Serialization Protocol (RESP) that the session will use.
+     */
+    public void setProtocolVersion(RESPVersion version) {
+        protocolVersion = version;
+    }
+
+    /**
+     * Retrieves the protocol version being used by the session.
+     *
+     * @return the {@link RESPVersion} representing the version of the Redis Serialization Protocol (RESP)
+     *         currently set for the session.
+     */
+    public RESPVersion protocolVersion() {
+        return protocolVersion;
     }
 }

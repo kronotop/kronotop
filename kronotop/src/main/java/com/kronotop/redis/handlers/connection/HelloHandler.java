@@ -100,10 +100,12 @@ public class HelloHandler extends BaseHandler implements Handler {
             Clients.setClient(clientID.get(), client);
         }
 
-        if (msg.getProtover().equals(HelloMessage.RESP_VERSION_TWO)) {
+        if (msg.getProtover().equals(RESPVersion.RESP2.getValue())) {
             resp2Response(response);
-        } else if (msg.getProtover().equals(HelloMessage.RESP_VERSION_THREE)) {
+            request.getSession().setProtocolVersion(RESPVersion.RESP2);
+        } else if (msg.getProtover().equals(RESPVersion.RESP3.getValue())) {
             resp3Response(response);
+            request.getSession().setProtocolVersion(RESPVersion.RESP3);
         } else {
             // Actually, this case was already handled by the message parser but safety is a good thing.
             throw new NoProtoException();
@@ -129,7 +131,7 @@ public class HelloHandler extends BaseHandler implements Handler {
         Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
         map.put(makeFullBulkString("server"), makeFullBulkString(KronotopInstance.KING_OF_THE_DATABASES));
         map.put(makeFullBulkString("version"), getVersion3());
-        map.put(makeFullBulkString("proto"), new IntegerRedisMessage(HelloMessage.RESP_VERSION_THREE));
+        map.put(makeFullBulkString("proto"), new IntegerRedisMessage(RESPVersion.RESP3.getValue()));
 
         Attribute<Long> clientID = response.getCtx().channel().attr(SessionAttributes.CLIENT_ID);
         map.put(makeFullBulkString("id"), new IntegerRedisMessage(clientID.get()));
@@ -148,7 +150,7 @@ public class HelloHandler extends BaseHandler implements Handler {
         result.add(getVersion2());
 
         result.add(new SimpleStringRedisMessage("proto"));
-        result.add(new IntegerRedisMessage(HelloMessage.RESP_VERSION_TWO));
+        result.add(new IntegerRedisMessage(RESPVersion.RESP2.getValue()));
         result.add(new SimpleStringRedisMessage("id"));
 
         Attribute<Long> clientID = response.getCtx().channel().attr(SessionAttributes.CLIENT_ID);

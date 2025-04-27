@@ -21,7 +21,7 @@ import com.kronotop.instance.KronotopInstance;
 import com.kronotop.network.clients.Client;
 import com.kronotop.network.clients.Clients;
 import com.kronotop.redis.handlers.BaseRedisHandlerTest;
-import com.kronotop.redis.handlers.connection.protocol.HelloMessage;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
@@ -60,7 +60,7 @@ class HelloHandlerTest extends BaseRedisHandlerTest {
                         continue;
                     case "proto":
                         IntegerRedisMessage protover = (IntegerRedisMessage) response.children().get(valueIndex);
-                        assertEquals(Long.valueOf(HelloMessage.RESP_VERSION_TWO), protover.value());
+                        assertEquals(Long.valueOf(RESPVersion.RESP2.getValue()), protover.value());
                         continue;
                     case "id":
                         Attribute<Long> expectedClientId = channel.attr(SessionAttributes.CLIENT_ID);
@@ -105,7 +105,7 @@ class HelloHandlerTest extends BaseRedisHandlerTest {
                     continue;
                 case "proto":
                     IntegerRedisMessage protover = (IntegerRedisMessage) response.children().get(redisMessage);
-                    assertEquals(Long.valueOf(HelloMessage.RESP_VERSION_THREE), protover.value());
+                    assertEquals(Long.valueOf(RESPVersion.RESP3.getValue()), protover.value());
                     continue;
                 case "id":
                     Attribute<Long> expectedClientId = channel.attr(SessionAttributes.CLIENT_ID);
