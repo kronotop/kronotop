@@ -98,8 +98,12 @@ public class Session {
         channel.attr(SessionAttributes.QUEUED_COMMANDS).set(new LinkedList<>());
         channel.attr(SessionAttributes.MULTI).set(false);
         channel.attr(SessionAttributes.MULTI_DISCARDED).set(false);
-        channel.attr(SessionAttributes.REPLY_TYPE).set(ReplyType.BSON);
-        channel.attr(SessionAttributes.INPUT_TYPE).set(InputType.BSON);
+
+        String replyType = context.getConfig().getString("session_attributes.reply_type");
+        channel.attr(SessionAttributes.REPLY_TYPE).set(ReplyType.valueOf(replyType.toUpperCase()));
+
+        String inputType = context.getConfig().getString("session_attributes.input_type");
+        channel.attr(SessionAttributes.INPUT_TYPE).set(InputType.valueOf(inputType.toUpperCase()));
     }
 
     /**
