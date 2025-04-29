@@ -334,7 +334,7 @@ see Using [snapshot reads](https://apple.github.io/foundationdb/developer-guide.
 OK
 ```
 
-### 🧩 ZMap – Ordered Key-Value Store Backed by FoundationDB
+### ZMap – Ordered Key-Value Store Backed by FoundationDB
 
 Kronotop introduces a novel data structure called **ZMap**, which serves as a Redis-compatible proxy over **FoundationDB’s 
 transactional key-value API**.
