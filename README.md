@@ -23,26 +23,59 @@ See [Getting started](#getting-started) section.
 
 Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
 
-## At a glance
+## At a Glance
 
-* Uses [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) as the wire protocol, so it is compatible
-  with all Redis clients,
-* Horizontally scalable and sharded by default,
-* Supports *single* or *multi-master* cluster topologies for different deployment strategies and use cases,
-* Partly
-  supports [Redis cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/),
-* Uses FoundationDB as the metadata store for cluster management and data structures,
-* Implemented in Java and requires JDK 21+,
+- **RESP3 Wire Protocol Compatibility:**  
+  Kronotop communicates over the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) protocol, ensuring seamless interoperability with the vast ecosystem of Redis clients across different programming languages.
 
-## What we have
+- **Built for Horizontal Scalability:**  
+  The system is natively designed for sharding and horizontal scaling, making it ideal for growing workloads without compromising performance or reliability.
 
-Kronotop is still in its early stages, but we have the following features with a strong foundation.
+- **Flexible Deployment Topologies:**  
+  Supports both **single-master** and **multi-master** cluster configurations, enabling diverse deployment strategies to suit varying consistency and availability needs.
 
-* ZMap, an ordered key-value store. Simply, Redis protocol proxy for FoundationDB API,
-* Namespaces for isolating ZMaps and Buckets, basically it's a thin layer around FoundationDB's directory layer,
-* Volume, storage engine implementation with a primary-standby replication model,
-* Clustering with single or multi-master deployment scenarios,
-* Partial support for some Redis data structures: String and Hash.
+- **Partial Redis Cluster Specification Support:**  
+  Implements key aspects of the Redis Cluster protocol, providing familiarity for teams migrating from Redis or building distributed applications.
+
+- **ACID Transactions:**  
+  Relies on **FoundationDB** as a transactional metadata and indexing store, offering ACID guarantees critical for consistency in cluster operations and data structures.
+
+- **Native Document-Oriented Storage:**  
+  Introduces **Bucket** — a specialized structure for storing JSON-like documents, backed by FoundationDB's transactional core.
+
+- **Efficient Binary Data Handling:**  
+  Uses **BSON** as the default storage format for structured documents, with optional JSON support for broader interoperability.
+
+- **In-Memory and Durable Data Structures:**  
+  Combines Redis-like in-memory structures (Strings, Hashes) with persistent, FoundationDB-backed storage layers like ZMap and Buckets.
+
+- **Implemented in Java (JDK 21+ Required):**  
+  Written in modern Java, leveraging Virtual Threads and Project Loom features for high concurrency and low-overhead task management.
+
+- **Developer-Focused Design:**  
+  Built for developers who need the flexibility of a document model combined with strong transactional integrity, high performance, and operational simplicity.
+
+## What We Have
+
+Kronotop is in its early development stage, but it already provides a robust foundation with several essential features:
+
+- **ZMap – FoundationDB-Powered Ordered Key-Value Store:**  
+  A high-performance, ordered key-value store built on top of FoundationDB.  
+  ZMap acts as a Redis protocol proxy, bridging the RESP interface with FoundationDB’s transactional API.
+
+- **Namespaces – Logical Isolation for ZMaps and Buckets:**  
+  Namespaces enable multi-tenancy and logical separation across data structures.  
+  Internally, it's a lightweight abstraction over FoundationDB’s Directory Layer.
+
+- **Volume – Storage Engine with Replication:**  
+  A storage engine designed to support **primary-standby replication**, allowing for durability and high availability of persistent components like Buckets.
+
+- **Clustering – Flexible Deployment Topologies:**  
+  Native support for clustering in both **single-master** and **multi-master** modes, making Kronotop suitable for a range of distributed system architectures.
+
+- **Partial Redis Data Structure Compatibility:**  
+  Initial support for Redis-style in-memory data structures, currently including **String** and **Hash** types, with RESP2/RESP3 compatibility.
+
 
 ## Plans for the foreseeable future
 
@@ -301,15 +334,20 @@ see Using [snapshot reads](https://apple.github.io/foundationdb/developer-guide.
 OK
 ```
 
-### ZMap
+### 🧩 ZMap – Ordered Key-Value Store Backed by FoundationDB
 
-Kronotop also provides a new data structure called ZMap. ZMap is simply a RESP proxy for FoundationDB API.
+Kronotop introduces a novel data structure called **ZMap**, which serves as a Redis-compatible proxy over **FoundationDB’s 
+transactional key-value API**.
 
-FoundationDB’s core data model is an ordered key-value store. Also known as an ordered associative array, map, or
-dictionary,
-this is a common data structure composed of a collection of key-value pairs in which all keys are unique. Starting with
-this simple model,
-an application can create higher-level data models by mapping their elements to individual keys and values.
+Under the hood, ZMap leverages **FoundationDB’s core data model** — a highly reliable, ordered key-value store.  
+Also referred to as an **ordered associative array** or dictionary, this structure is composed of unique keys arranged in 
+lexicographical order, each mapped to a corresponding value.
+
+By exposing this powerful model through the familiar **RESP protocol**, ZMap allows developers to interact with FoundationDB 
+in a simple, efficient, and idiomatic way — without requiring deep knowledge of FoundationDB's lower-level API.
+
+ZMap forms the foundation for building richer abstractions and serves as a building block for higher-level features 
+like **namespaces**, **Buckets**, and transactional queries through **MQL**.
 
 See the [Data Modeling](https://apple.github.io/foundationdb/data-modeling.html) section on FoundationDB documents.
 
