@@ -99,7 +99,7 @@ Kronotop is in its early development stage, but it already provides a robust fou
         * [GETAPPROXIMATESIZE](#getapproximatesize)
         * [GETREADVERSION](#getreadversion)
         * [SNAPSHOTREAD](#snapshotread)
-    * [ZMap](#zmap)
+    * [ZMap](#zmap--ordered-key-value-store-backed-by-foundationdb)
         * [ZSET](#zset)
         * [ZGET](#zget)
         * [ZGETKEY](#zgetkey)
