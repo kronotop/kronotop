@@ -18,6 +18,16 @@ package com.kronotop.protocol;
 
 import io.lettuce.core.protocol.CommandArgs;
 
+/**
+ * Represents the arguments for namespace-related operations.
+ * This class allows configuration of specific namespace parameters such as layer and prefix.
+ * The configured arguments can be used to modify namespace behaviors or properties
+ * in commands interacting with the Kronotop system.
+ * <p>
+ * The arguments are constructed using method chaining, enabling customization
+ * based on `layer` or `prefix` settings, or both. These settings are applied
+ * when building command arguments through the `build` method.
+ */
 public class NamespaceArgs {
     private byte[] layer;
     private byte[] prefix;

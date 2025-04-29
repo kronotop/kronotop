@@ -14,26 +14,19 @@
  * limitations under the License.
  */
 
-package com.kronotop.protocol;
+package com.kronotop.protocol.zmap;
 
-import io.lettuce.core.protocol.ProtocolKeyword;
-
-import java.nio.charset.StandardCharsets;
-
-public enum ZGetRangeKeywords implements ProtocolKeyword {
-    LIMIT,
-    REVERSE,
-    BEGIN_KEY_SELECTOR,
-    END_KEY_SELECTOR;
-
-    public final byte[] bytes;
-
-    ZGetRangeKeywords() {
-        bytes = name().getBytes(StandardCharsets.US_ASCII);
-    }
-
-    @Override
-    public byte[] getBytes() {
-        return bytes;
-    }
+public enum ZMutationType {
+    ADD,
+    BIT_AND,
+    BIT_OR,
+    BIT_XOR,
+    APPEND_IF_FITS,
+    MAX,
+    MIN,
+    SET_VERSIONSTAMPED_KEY,
+    SET_VERSIONSTAMPED_VALUE,
+    BYTE_MIN,
+    BYTE_MAX,
+    COMPARE_AND_CLEAR;
 }

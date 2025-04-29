@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.protocol;
+package com.kronotop.protocol.zmap;
 
 import io.lettuce.core.protocol.CommandArgs;
 

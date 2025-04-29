@@ -20,6 +20,24 @@ import io.lettuce.core.protocol.ProtocolKeyword;
 
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Defines a set of keywords for namespace-related commands in the Kronotop system.
+ * These keywords are used for operations such as creating, using, and managing namespaces.
+ *
+ * Each keyword is represented as a protocol keyword and backed by its name, converted
+ * to a byte array using ASCII encoding for efficient usage in command processing.
+ *
+ * Enum Constants:
+ * - CREATE: Represents the "CREATE" operation for namespaces.
+ * - USE: Represents the "USE" operation to switch to a specific namespace.
+ * - CURRENT: Represents the "CURRENT" operation to retrieve the current namespace.
+ * - LIST: Represents the "LIST" operation to list available namespaces.
+ * - MOVE: Represents the "MOVE" operation to rename or relocate a namespace.
+ * - REMOVE: Represents the "REMOVE" operation to delete a namespace.
+ * - EXISTS: Represents the "EXISTS" operation to check the existence of a namespace.
+ * - LAYER: Represents the "LAYER" keyword for namespace configuration.
+ * - PREFIX: Represents the "PREFIX" keyword for namespace configuration.
+ */
 public enum NamespaceKeywords implements ProtocolKeyword {
     CREATE,
     USE,

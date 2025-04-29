@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.protocol;
+package com.kronotop.protocol.zmap;
 
+import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.protocol.RESPCommandBuilder;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

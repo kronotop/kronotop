@@ -18,6 +18,13 @@ package com.kronotop.protocol;
 
 import io.lettuce.core.protocol.CommandArgs;
 
+/**
+ * Represents the arguments for snapshot read operations.
+ * <p>
+ * The class provides methods for configuring whether the snapshot read should be enabled or disabled.
+ * It uses an internal state to represent the ON or OFF state, which can be applied to command arguments
+ * during the execution of a corresponding operation.
+ */
 public class SnapshotReadArgs {
     private String parameter;
 

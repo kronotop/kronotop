@@ -18,7 +18,7 @@ package com.kronotop.foundationdb.zmap;
 
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.protocol.KronotopCommandBuilder;
-import com.kronotop.protocol.ZDelRangeArgs;
+import com.kronotop.protocol.zmap.ZDelRangeArgs;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;

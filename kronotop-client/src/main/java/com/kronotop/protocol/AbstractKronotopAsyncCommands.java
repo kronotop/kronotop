@@ -16,6 +16,7 @@
 
 package com.kronotop.protocol;
 
+import com.kronotop.protocol.zmap.*;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.codec.RedisCodec;

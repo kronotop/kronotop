@@ -16,6 +16,8 @@
 
 package com.kronotop.protocol;
 
+import com.kronotop.protocol.zmap.*;
+
 import java.util.List;
 
 public interface KronotopCommands<K, V> {
