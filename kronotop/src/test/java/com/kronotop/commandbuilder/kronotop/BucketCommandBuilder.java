@@ -22,8 +22,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-import static io.lettuce.core.protocol.CommandKeyword.SETNAME;
-import static io.lettuce.core.protocol.CommandType.AUTH;
 import static io.lettuce.core.protocol.CommandType.HELLO;
 
 public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {

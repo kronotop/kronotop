@@ -9,7 +9,8 @@
     <version>0.8-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Kronotop Root</name>
-    <description>Kronotop is a distributed, transactional document database designed for horizontal scalability</description>
+    <description>Kronotop is a distributed, transactional document database designed for horizontal scalability
+    </description>
     <url>https://kronotop.com</url>
 
     <modules>

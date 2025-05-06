@@ -10,9 +10,9 @@
 
 package com.kronotop.bucket.bql.operators.array;
 
-import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.bql.values.Int32Val;
 
 public class BqlSizeOperator extends BqlOperator {
     public static final String NAME = "$SIZE";
@@ -23,8 +23,8 @@ public class BqlSizeOperator extends BqlOperator {
 
     @SuppressWarnings("unchecked")
     public int getSize() {
-        BqlValue<Integer> bqlValue = (BqlValue<Integer>) getValues().getFirst();
-        return bqlValue.getValue();
+        Int32Val int32Val = (Int32Val) getValues().getFirst();
+        return int32Val.value();
     }
 
     @Override

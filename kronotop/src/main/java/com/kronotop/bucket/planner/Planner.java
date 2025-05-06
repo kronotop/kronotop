@@ -11,10 +11,13 @@
 package com.kronotop.bucket.planner;
 
 import com.kronotop.Context;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.bucket.planner.physical.PhysicalPlanner;
+
+import java.util.Map;
 
 public class Planner {
     private final Context context;
@@ -23,10 +26,10 @@ public class Planner {
         this.context = context;
     }
 
-    public PhysicalNode plan(String bucket, String query) {
+    public PhysicalNode plan(Map<String, Index> indexes, String query) {
         LogicalPlanner logicalPlanner = new LogicalPlanner(query);
         LogicalNode logicalPlan = logicalPlanner.plan();
-        PhysicalPlanner planner = new PhysicalPlanner(new PlannerContext(), logicalPlan);
+        PhysicalPlanner planner = new PhysicalPlanner(new PlannerContext(indexes), logicalPlan);
         return planner.plan();
     }
 }

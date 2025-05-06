@@ -8,19 +8,19 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.planner.physical;
+package com.kronotop.bucket.bql.values;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
+import org.bson.BsonType;
 
-import java.util.List;
-
-public class PhysicalUnionOperator extends PhysicalFilter {
-    public PhysicalUnionOperator(List<PhysicalNode> children) {
-        super(OperatorType.OR, children);
+public record Int32Val(Integer value) implements BqlValue<Integer> {
+    @Override
+    public BsonType bsonType() {
+        return BsonType.INT32;
     }
 
     @Override
-    public String toString() {
-        return "PhysicalUnionOperator {children=" + children + "}";
+    public CustomType customType() {
+        return null;
     }
 }
+

@@ -82,10 +82,8 @@ public class SessionAttributeHandler implements Handler {
 
     private void setSubcommand(Request request, Response response, SessionAttributeParameters parameters) {
         switch (parameters.getAttribute()) {
-            case REPLY_TYPE ->
-                    request.getSession().attr(SessionAttributes.REPLY_TYPE).set(parameters.replyType());
-            case INPUT_TYPE ->
-                    request.getSession().attr(SessionAttributes.INPUT_TYPE).set(parameters.inputType());
+            case REPLY_TYPE -> request.getSession().attr(SessionAttributes.REPLY_TYPE).set(parameters.replyType());
+            case INPUT_TYPE -> request.getSession().attr(SessionAttributes.INPUT_TYPE).set(parameters.inputType());
         }
         response.writeOK();
     }

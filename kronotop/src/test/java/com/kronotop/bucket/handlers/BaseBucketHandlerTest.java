@@ -20,6 +20,7 @@ import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,16 @@ import static org.junit.jupiter.api.Assertions.*;
 public class BaseBucketHandlerTest extends BaseHandlerTest {
     protected final String BUCKET_NAME = "test-bucket";
     protected final byte[] DOCUMENT = BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}");
+
+    protected List<byte[]> makeDummyDocument(int number) {
+        List<byte[]> result = new ArrayList<>();
+        for (int i = 0; i < number; i++) {
+            String document = String.format("{\"key\": \"value-%s\"}", i);
+            result.add(BSONUtils.jsonToDocumentThenBytes(document));
+        }
+        return result;
+    }
+
 
     protected void switchProtocol(BucketCommandBuilder<?, ?> cmd, RESPVersion version) {
         ByteBuf buf = Unpooled.buffer();

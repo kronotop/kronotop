@@ -43,8 +43,8 @@ public class BaseKronotopCommandBuilder<K, V> {
      * Creates a new command for the specified protocol keyword and command output.
      * This is a simplified command creation that does not include any additional arguments.
      *
-     * @param <T> the type of the result returned by the command
-     * @param type the protocol keyword that defines the type of command to create
+     * @param <T>    the type of the result returned by the command
+     * @param type   the protocol keyword that defines the type of command to create
      * @param output the output handler for processing the result of the command
      * @return a newly created command instance with the specified parameters
      */

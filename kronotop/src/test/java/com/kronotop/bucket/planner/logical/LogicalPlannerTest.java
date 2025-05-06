@@ -10,8 +10,9 @@
 
 package com.kronotop.bucket.planner.logical;
 
-import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.bql.values.Int32Val;
+import com.kronotop.bucket.bql.values.StringVal;
 import com.kronotop.bucket.planner.TestQuery;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -40,7 +41,7 @@ class LogicalPlannerTest {
             LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
             assertThat(logicalComparisonFilter.getOperatorType()).isEqualTo(OperatorType.EQ);
             assertThat(logicalComparisonFilter.getField()).isEqualTo("status");
-            assertThat(logicalComparisonFilter.getValue().getValue()).isEqualTo("A");
+            assertThat(logicalComparisonFilter.bqlValue().value()).isEqualTo("A");
         }
 
         {
@@ -49,7 +50,7 @@ class LogicalPlannerTest {
             LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
             assertThat(logicalComparisonFilter.getOperatorType()).isEqualTo(OperatorType.LT);
             assertThat(logicalComparisonFilter.getField()).isEqualTo("qty");
-            assertThat(logicalComparisonFilter.getValue().getValue()).isEqualTo(30);
+            assertThat(logicalComparisonFilter.bqlValue().value()).isEqualTo(30);
         }
     }
 
@@ -69,8 +70,8 @@ class LogicalPlannerTest {
 
         LogicalComparisonFilter comparisonFilter = (LogicalComparisonFilter) eqFilter;
         assertEquals("a", comparisonFilter.getField());
-        assertEquals(BsonType.STRING, comparisonFilter.getValue().getBsonType());
-        assertEquals("string-value", comparisonFilter.getValue().getValue());
+        assertEquals(BsonType.STRING, comparisonFilter.bqlValue().bsonType());
+        assertEquals("string-value", comparisonFilter.bqlValue().value());
     }
 
     @Test
@@ -89,8 +90,8 @@ class LogicalPlannerTest {
 
         LogicalComparisonFilter comparisonFilter = (LogicalComparisonFilter) eqFilter;
         assertEquals("a", comparisonFilter.getField());
-        assertEquals(BsonType.INT32, comparisonFilter.getValue().getBsonType());
-        assertEquals(20, comparisonFilter.getValue().getValue());
+        assertEquals(BsonType.INT32, comparisonFilter.bqlValue().bsonType());
+        assertEquals(20, comparisonFilter.bqlValue().value());
     }
 
     @Test
@@ -111,8 +112,8 @@ class LogicalPlannerTest {
 
             LogicalComparisonFilter comparisonFilter = (LogicalComparisonFilter) eqFilter;
             assertEquals("status", comparisonFilter.getField());
-            assertEquals(BsonType.STRING, comparisonFilter.getValue().getBsonType());
-            assertEquals("ALIVE", comparisonFilter.getValue().getValue());
+            assertEquals(BsonType.STRING, comparisonFilter.bqlValue().bsonType());
+            assertEquals("ALIVE", comparisonFilter.bqlValue().value());
         }
 
         {
@@ -123,8 +124,8 @@ class LogicalPlannerTest {
 
             LogicalComparisonFilter comparisonFilter = (LogicalComparisonFilter) eqFilter;
             assertEquals("username", comparisonFilter.getField());
-            assertEquals(BsonType.STRING, comparisonFilter.getValue().getBsonType());
-            assertEquals("kronotop-admin", comparisonFilter.getValue().getValue());
+            assertEquals(BsonType.STRING, comparisonFilter.bqlValue().bsonType());
+            assertEquals("kronotop-admin", comparisonFilter.bqlValue().value());
         }
     }
 
@@ -150,9 +151,8 @@ class LogicalPlannerTest {
 
         LogicalComparisonFilter expected = new LogicalComparisonFilter(OperatorType.EQ);
         expected.setField("status");
-        BqlValue<String> bqlValue = new BqlValue<>(BsonType.STRING);
-        bqlValue.setValue("ALIVE");
-        expected.addValue(bqlValue);
+        StringVal stringVal = new StringVal("ALIVE");
+        expected.addBqlValue(stringVal);
 
         assertThat(logicalComparisonFilter).usingRecursiveComparison().isEqualTo(expected);
     }
@@ -171,9 +171,8 @@ class LogicalPlannerTest {
 
         LogicalComparisonFilter expected = new LogicalComparisonFilter(OperatorType.EQ);
         expected.setField("status");
-        BqlValue<String> bqlValue = new BqlValue<>(BsonType.STRING);
-        bqlValue.setValue("ALIVE");
-        expected.addValue(bqlValue);
+        StringVal stringVal = new StringVal("ALIVE");
+        expected.addBqlValue(stringVal);
 
         assertThat(logicalComparisonFilter).usingRecursiveComparison().isEqualTo(expected);
     }
@@ -193,9 +192,8 @@ class LogicalPlannerTest {
 
             LogicalComparisonFilter eqFilter_status = new LogicalComparisonFilter(OperatorType.EQ);
             eqFilter_status.setField("status");
-            BqlValue<String> bqlValue = new BqlValue<>(BsonType.STRING);
-            bqlValue.setValue("ALIVE");
-            eqFilter_status.addValue(bqlValue);
+            StringVal stringVal = new StringVal("ALIVE");
+            eqFilter_status.addBqlValue(stringVal);
 
             assertThat(logicalComparisonFilter).usingRecursiveComparison().isEqualTo(eqFilter_status);
         }
@@ -207,9 +205,8 @@ class LogicalPlannerTest {
 
             LogicalComparisonFilter eqFilter_status = new LogicalComparisonFilter(OperatorType.LT);
             eqFilter_status.setField("qty");
-            BqlValue<Integer> bqlValue = new BqlValue<>(BsonType.INT32);
-            bqlValue.setValue(30);
-            eqFilter_status.addValue(bqlValue);
+            Int32Val int32Val = new Int32Val(30);
+            eqFilter_status.addBqlValue(int32Val);
 
             assertThat(logicalComparisonFilter).usingRecursiveComparison().isEqualTo(eqFilter_status);
         }
@@ -232,7 +229,7 @@ class LogicalPlannerTest {
             LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
             assertEquals(OperatorType.EQ, logicalComparisonFilter.getOperatorType());
             assertEquals("status", logicalComparisonFilter.getField());
-            assertEquals("A", logicalComparisonFilter.getValue().getValue());
+            assertEquals("A", logicalComparisonFilter.bqlValue().value());
         }
 
         {
@@ -241,7 +238,7 @@ class LogicalPlannerTest {
             LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) logicalNode;
             assertEquals(OperatorType.LT, logicalComparisonFilter.getOperatorType());
             assertEquals("qty", logicalComparisonFilter.getField());
-            assertEquals(30, logicalComparisonFilter.getValue().getValue());
+            assertEquals(30, logicalComparisonFilter.bqlValue().value());
         }
     }
 
@@ -267,8 +264,8 @@ class LogicalPlannerTest {
                 LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) first;
                 assertEquals(OperatorType.LT, logicalComparisonFilter.getOperatorType());
                 assertEquals("qty", logicalComparisonFilter.getField());
-                assertEquals(BsonType.INT32, logicalComparisonFilter.getValue().getBsonType());
-                assertEquals(10, logicalComparisonFilter.getValue().getValue());
+                assertEquals(BsonType.INT32, logicalComparisonFilter.bqlValue().bsonType());
+                assertEquals(10, logicalComparisonFilter.bqlValue().value());
             }
 
             {
@@ -277,8 +274,8 @@ class LogicalPlannerTest {
                 LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) first;
                 assertEquals(OperatorType.GT, logicalComparisonFilter.getOperatorType());
                 assertEquals("qty", logicalComparisonFilter.getField());
-                assertEquals(BsonType.INT32, logicalComparisonFilter.getValue().getBsonType());
-                assertEquals(50, logicalComparisonFilter.getValue().getValue());
+                assertEquals(BsonType.INT32, logicalComparisonFilter.bqlValue().bsonType());
+                assertEquals(50, logicalComparisonFilter.bqlValue().value());
             }
         }
 
@@ -294,8 +291,8 @@ class LogicalPlannerTest {
                 LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) first;
                 assertEquals(OperatorType.EQ, logicalComparisonFilter.getOperatorType());
                 assertEquals("sale", logicalComparisonFilter.getField());
-                assertEquals(BsonType.BOOLEAN, logicalComparisonFilter.getValue().getBsonType());
-                assertEquals(true, logicalComparisonFilter.getValue().getValue());
+                assertEquals(BsonType.BOOLEAN, logicalComparisonFilter.bqlValue().bsonType());
+                assertEquals(true, logicalComparisonFilter.bqlValue().value());
             }
 
             {
@@ -304,8 +301,8 @@ class LogicalPlannerTest {
                 LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) first;
                 assertEquals(OperatorType.LT, logicalComparisonFilter.getOperatorType());
                 assertEquals("price", logicalComparisonFilter.getField());
-                assertEquals(BsonType.INT32, logicalComparisonFilter.getValue().getBsonType());
-                assertEquals(5, logicalComparisonFilter.getValue().getValue());
+                assertEquals(BsonType.INT32, logicalComparisonFilter.bqlValue().bsonType());
+                assertEquals(5, logicalComparisonFilter.bqlValue().value());
             }
         }
     }
@@ -323,7 +320,7 @@ class LogicalPlannerTest {
             LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) childNode;
             assertEquals(OperatorType.NE, logicalComparisonFilter.getOperatorType());
             assertEquals("price", logicalComparisonFilter.getField());
-            assertEquals(1.99, logicalComparisonFilter.getValue().getValue());
+            assertEquals(1.99, logicalComparisonFilter.bqlValue().value());
         }
 
         {
@@ -332,7 +329,7 @@ class LogicalPlannerTest {
             LogicalExistsFilter logicalExistsFilter = (LogicalExistsFilter) childNode;
             assertEquals(OperatorType.EXISTS, logicalExistsFilter.getOperatorType());
             assertEquals("price", logicalExistsFilter.getField());
-            assertTrue(logicalExistsFilter.getValue());
+            assertTrue(logicalExistsFilter.value());
         }
     }
 
@@ -348,7 +345,7 @@ class LogicalPlannerTest {
         LogicalExistsFilter logicalExistsFilter = (LogicalExistsFilter) childNode;
         assertEquals(OperatorType.EXISTS, logicalExistsFilter.getOperatorType());
         assertEquals("price", logicalExistsFilter.getField());
-        assertTrue(logicalExistsFilter.getValue());
+        assertTrue(logicalExistsFilter.value());
     }
 
     @Test
@@ -362,7 +359,7 @@ class LogicalPlannerTest {
         LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) childNode;
         assertEquals(OperatorType.NE, logicalComparisonFilter.getOperatorType());
         assertEquals("status", logicalComparisonFilter.getField());
-        assertEquals("A", logicalComparisonFilter.getValue().getValue());
+        assertEquals("A", logicalComparisonFilter.bqlValue().value());
     }
 
     @Test
@@ -377,6 +374,6 @@ class LogicalPlannerTest {
         LogicalComparisonFilter logicalComparisonFilter = (LogicalComparisonFilter) childNode;
         assertEquals(OperatorType.EQ, logicalComparisonFilter.getOperatorType());
         assertEquals("status", logicalComparisonFilter.getField());
-        assertEquals("A", logicalComparisonFilter.getValue().getValue());
+        assertEquals("A", logicalComparisonFilter.bqlValue().value());
     }
 }

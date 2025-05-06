@@ -39,6 +39,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(MapRedisMessage.class, msg);
 
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        assertEquals(expectedDocument.size(), actualMessage.children().size());
         for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
             // Check key
             SimpleStringRedisMessage keyMessage = (SimpleStringRedisMessage) entry.getKey();
@@ -83,4 +84,177 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
             index++;
         }
     }
+
+    @Test
+    void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_EQ() {
+        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(3));
+
+        // Find the document in the middle
+        String[] keys = expectedDocument.keySet().toArray(new String[0]);
+        String expectedKey = keys[1];
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.find(BUCKET_NAME, String.format("{_id: {$eq: \"%s\"}}", expectedKey)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        assertEquals(1, actualMessage.children().size());
+        for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
+            assertInstanceOf(SimpleStringRedisMessage.class, entry.getKey());
+            assertInstanceOf(FullBulkStringRedisMessage.class, entry.getValue());
+
+            SimpleStringRedisMessage resultKey = (SimpleStringRedisMessage) entry.getKey();
+            assertEquals(expectedKey, resultKey.content());
+
+            FullBulkStringRedisMessage resultMessageValue = (FullBulkStringRedisMessage) entry.getValue();
+            byte[] resultValue = ByteBufUtil.getBytes(resultMessageValue.content());
+            assertArrayEquals(expectedDocument.get(expectedKey), resultValue);
+        }
+    }
+
+    @Test
+    void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_GTE() {
+        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(3));
+
+        // Find the document in the middle
+        String[] keys = expectedDocument.keySet().toArray(new String[0]);
+        String key = keys[1];
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.find(BUCKET_NAME, String.format("{_id: {$gte: \"%s\"}}", key)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        assertEquals(2, actualMessage.children().size());
+        int index = 1;
+        for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
+            assertInstanceOf(SimpleStringRedisMessage.class, entry.getKey());
+            assertInstanceOf(FullBulkStringRedisMessage.class, entry.getValue());
+
+            SimpleStringRedisMessage resultKey = (SimpleStringRedisMessage) entry.getKey();
+            assertEquals(keys[index], resultKey.content());
+            assertNotEquals(keys[0], resultKey.content()); // the first document is excluded
+
+            FullBulkStringRedisMessage resultMessageValue = (FullBulkStringRedisMessage) entry.getValue();
+            byte[] resultValue = ByteBufUtil.getBytes(resultMessageValue.content());
+            assertArrayEquals(expectedDocument.get(resultKey.content()), resultValue);
+            index++;
+        }
+    }
+
+    @Test
+    void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_GT() {
+        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(3));
+
+        String[] keys = expectedDocument.keySet().toArray(new String[0]);
+        String excludedKey = keys[0];
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.find(BUCKET_NAME, String.format("{_id: {$gt: \"%s\"}}", excludedKey)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        assertEquals(2, actualMessage.children().size());
+        int index = 1;
+        for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
+            assertInstanceOf(SimpleStringRedisMessage.class, entry.getKey());
+            assertInstanceOf(FullBulkStringRedisMessage.class, entry.getValue());
+
+            SimpleStringRedisMessage resultKey = (SimpleStringRedisMessage) entry.getKey();
+            assertEquals(keys[index], resultKey.content());
+            assertNotEquals(excludedKey, resultKey.content()); // the first document is excluded
+
+            FullBulkStringRedisMessage resultMessageValue = (FullBulkStringRedisMessage) entry.getValue();
+            byte[] resultValue = ByteBufUtil.getBytes(resultMessageValue.content());
+            assertArrayEquals(expectedDocument.get(resultKey.content()), resultValue);
+            index++;
+        }
+    }
+
+    @Test
+    void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_LT() {
+        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(3));
+
+        // Find the document in the middle
+        String[] keys = expectedDocument.keySet().toArray(new String[0]);
+        String excludedKey = keys[2];
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        // Query should retrieve the first two documents we inserted
+        cmd.find(BUCKET_NAME, String.format("{_id: {$lt: \"%s\"}}", excludedKey)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+
+        assertEquals(2, actualMessage.children().size());
+
+        int index = 0;
+        // The first two documents, the last one is excluded by the query.
+        for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
+            assertInstanceOf(SimpleStringRedisMessage.class, entry.getKey());
+            assertInstanceOf(FullBulkStringRedisMessage.class, entry.getValue());
+
+            SimpleStringRedisMessage resultKey = (SimpleStringRedisMessage) entry.getKey();
+            assertEquals(keys[index], resultKey.content());
+            assertNotEquals(excludedKey, resultKey.content()); // the last document is excluded
+
+            FullBulkStringRedisMessage resultMessageValue = (FullBulkStringRedisMessage) entry.getValue();
+            byte[] resultValue = ByteBufUtil.getBytes(resultMessageValue.content());
+            assertArrayEquals(expectedDocument.get(resultKey.content()), resultValue);
+            index++;
+        }
+    }
+
+    @Test
+    void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_LTE() {
+        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(3));
+
+        // Find the document in the middle
+        String[] keys = expectedDocument.keySet().toArray(new String[0]);
+        String key = keys[2];
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        // Query should retrieve the first two documents we inserted
+        cmd.find(BUCKET_NAME, String.format("{_id: {$lte: \"%s\"}}", key)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+
+        // Query should hit all inserted documents.
+        assertEquals(3, actualMessage.children().size());
+        int index = 0;
+        for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
+            assertInstanceOf(SimpleStringRedisMessage.class, entry.getKey());
+            assertInstanceOf(FullBulkStringRedisMessage.class, entry.getValue());
+
+            SimpleStringRedisMessage resultKey = (SimpleStringRedisMessage) entry.getKey();
+            assertEquals(keys[index], resultKey.content());
+
+            FullBulkStringRedisMessage resultMessageValue = (FullBulkStringRedisMessage) entry.getValue();
+            byte[] resultValue = ByteBufUtil.getBytes(resultMessageValue.content());
+            assertArrayEquals(expectedDocument.get(resultKey.content()), resultValue);
+            index++;
+        }
+    }
+
 }

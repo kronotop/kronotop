@@ -10,7 +10,7 @@
 
 package com.kronotop.bucket.bql.operators;
 
-import com.kronotop.bucket.bql.BqlValue;
+import com.kronotop.bucket.bql.values.BqlValue;
 
 import java.util.LinkedList;
 import java.util.List;

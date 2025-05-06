@@ -2,18 +2,22 @@
 
 **The Distributed Document Database with ACID Integrity**
 
-Kronotop is a distributed, transactional document database designed for horizontal scalability. It provides a robust 
-foundation for applications needing to manage large volumes of documents while ensuring strong consistency guarantees 
-for critical metadata operations. By leveraging FoundationDB as its transactional backend for metadata and indexes, 
-Kronotop delivers [ACID](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics) integrity, offering reliability often sought in demanding environments.
+Kronotop is a distributed, transactional document database designed for horizontal scalability. It provides a robust
+foundation for applications needing to manage large volumes of documents while ensuring strong consistency guarantees
+for critical metadata operations. By leveraging FoundationDB as its transactional backend for metadata and indexes,
+Kronotop delivers [ACID](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics) integrity,
+offering reliability often sought in demanding environments.
 
-Kronotop features an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and uses the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) wire protocol, ensuring broad compatibility with 
-the Redis client ecosystem. It implements core Redis in-memoru data structures like Strings and Hashes, alongside its own specialized 
-structures: ZMap (an ordered key-value store acting as a RESP proxy for FoundationDB) and Bucket (designed for storing 
-JSON-like documents). While document bodies are stored directly on local filesystems, Kronotop uses BSON as the default 
+Kronotop features an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and uses
+the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) wire protocol, ensuring broad compatibility
+with
+the Redis client ecosystem. It implements core Redis in-memoru data structures like Strings and Hashes, alongside its
+own specialized
+structures: ZMap (an ordered key-value store acting as a RESP proxy for FoundationDB) and Bucket (designed for storing
+JSON-like documents). While document bodies are stored directly on local filesystems, Kronotop uses BSON as the default
 data format to organize and store within Buckets, with JSON also available.
 
-*Kronotop is built for developers seeking the flexibility of a document model combined with the transactional safety and 
+*Kronotop is built for developers seeking the flexibility of a document model combined with the transactional safety and
 scalability powered by FoundationDB.*
 
 **Warning**: Kronotop is in its early stages of development. The API is unstable and likely to change in future
@@ -26,34 +30,44 @@ Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
 ## At a Glance
 
 - **RESP3 Wire Protocol Compatibility:**  
-  Kronotop communicates over the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) protocol, ensuring seamless interoperability with the vast ecosystem of Redis clients across different programming languages.
+  Kronotop communicates over the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) protocol,
+  ensuring seamless interoperability with the vast ecosystem of Redis clients across different programming languages.
 
 - **Built for Horizontal Scalability:**  
-  The system is natively designed for sharding and horizontal scaling, making it ideal for growing workloads without compromising performance or reliability.
+  The system is natively designed for sharding and horizontal scaling, making it ideal for growing workloads without
+  compromising performance or reliability.
 
 - **Flexible Deployment Topologies:**  
-  Supports both **single-master** and **multi-master** cluster configurations, enabling diverse deployment strategies to suit varying consistency and availability needs.
+  Supports both **single-master** and **multi-master** cluster configurations, enabling diverse deployment strategies to
+  suit varying consistency and availability needs.
 
 - **Partial Redis Cluster Specification Support:**  
-  Implements key aspects of the Redis Cluster protocol, providing familiarity for teams migrating from Redis or building distributed applications.
+  Implements key aspects of the Redis Cluster protocol, providing familiarity for teams migrating from Redis or building
+  distributed applications.
 
 - **ACID Transactions:**  
-  Relies on **FoundationDB** as a transactional metadata and indexing store, offering ACID guarantees critical for consistency in cluster operations and data structures.
+  Relies on **FoundationDB** as a transactional metadata and indexing store, offering ACID guarantees critical for
+  consistency in cluster operations and data structures.
 
 - **Native Document-Oriented Storage:**  
-  Introduces **Bucket** — a specialized structure for storing JSON-like documents, backed by FoundationDB's transactional core.
+  Introduces **Bucket** — a specialized structure for storing JSON-like documents, backed by FoundationDB's
+  transactional core.
 
 - **Efficient Binary Data Handling:**  
-  Uses **BSON** as the default storage format for structured documents, with optional JSON support for broader interoperability.
+  Uses **BSON** as the default storage format for structured documents, with optional JSON support for broader
+  interoperability.
 
 - **In-Memory and Durable Data Structures:**  
-  Combines Redis-like in-memory structures (Strings, Hashes) with persistent, FoundationDB-backed storage layers like ZMap and Buckets.
+  Combines Redis-like in-memory structures (Strings, Hashes) with persistent, FoundationDB-backed storage layers like
+  ZMap and Buckets.
 
 - **Implemented in Java (JDK 21+ Required):**  
-  Written in modern Java, leveraging Virtual Threads and Project Loom features for high concurrency and low-overhead task management.
+  Written in modern Java, leveraging Virtual Threads and Project Loom features for high concurrency and low-overhead
+  task management.
 
 - **Developer-Focused Design:**  
-  Built for developers who need the flexibility of a document model combined with strong transactional integrity, high performance, and operational simplicity.
+  Built for developers who need the flexibility of a document model combined with strong transactional integrity, high
+  performance, and operational simplicity.
 
 ## What We Have
 
@@ -68,14 +82,16 @@ Kronotop is in its early development stage, but it already provides a robust fou
   Internally, it's a lightweight abstraction over FoundationDB’s Directory Layer.
 
 - **Volume – Storage Engine with Replication:**  
-  A storage engine designed to support **primary-standby replication**, allowing for durability and high availability of persistent components like Buckets.
+  A storage engine designed to support **primary-standby replication**, allowing for durability and high availability of
+  persistent components like Buckets.
 
 - **Clustering – Flexible Deployment Topologies:**  
-  Native support for clustering in both **single-master** and **multi-master** modes, making Kronotop suitable for a range of distributed system architectures.
+  Native support for clustering in both **single-master** and **multi-master** modes, making Kronotop suitable for a
+  range of distributed system architectures.
 
 - **Partial Redis Data Structure Compatibility:**  
-  Initial support for Redis-style in-memory data structures, currently including **String** and **Hash** types, with RESP2/RESP3 compatibility.
-
+  Initial support for Redis-style in-memory data structures, currently including **String** and **Hash** types, with
+  RESP2/RESP3 compatibility.
 
 ## Plans for the foreseeable future
 
@@ -117,13 +133,14 @@ Kronotop is in its early development stage, but it already provides a robust fou
         * [NAMESPACE LIST](#namespace-list)
         * [NAMESPACE MOVE](#namespace-move)
     * [Management](#management)
-        * [Session](#session) 
+        * [Session](#session)
 * [Storage Engine](#storage-engine)
     * [Design Philosophy and Architecture](#design-philosophy-and-architecture)
         * [Segments](#segments)
         * [Document Append Workflow](#document-append-workflow)
     * [Replication](#replication)
     * [Vacuuming (Sapce Reclamation)](#vacuuming-space-reclamation)
+* [Why Kronotop Runs on the Java Platform](#why-kronotop-runs-on-the-java-platform)
 * [License](#license)
 
 ## Getting started
@@ -224,7 +241,7 @@ data structures.
 
 Please join [Discord channel](https://discord.gg/Nyy4Afpr) for instant chat or create an Issue or Discussion on GitHub.
 
-For invoiced sponsoring/support contracts, please reach out to me via *burak {dot} sezer {at} kronotop {dot} com*.
+For invoiced sponsoring/support contracts, please contact us at *burak {dot} sezer {at} kronotop {dot} com*.
 
 ## Features
 
@@ -336,17 +353,20 @@ OK
 
 ### ZMap – Ordered Key-Value Store Backed by FoundationDB
 
-Kronotop introduces a novel data structure called **ZMap**, which serves as a Redis-compatible proxy over **FoundationDB’s 
+Kronotop introduces a novel data structure called **ZMap**, which serves as a Redis-compatible proxy over *
+*FoundationDB’s
 transactional key-value API**.
 
 Under the hood, ZMap leverages **FoundationDB’s core data model** — a highly reliable, ordered key-value store.  
-Also referred to as an **ordered associative array** or dictionary, this structure is composed of unique keys arranged in 
+Also referred to as an **ordered associative array** or dictionary, this structure is composed of unique keys arranged
+in
 lexicographical order, each mapped to a corresponding value.
 
-By exposing this powerful model through the familiar **RESP protocol**, ZMap allows developers to interact with FoundationDB 
+By exposing this powerful model through the familiar **RESP protocol**, ZMap allows developers to interact with
+FoundationDB
 in a simple, efficient, and idiomatic way — without requiring deep knowledge of FoundationDB's lower-level API.
 
-ZMap forms the foundation for building richer abstractions and serves as a building block for higher-level features 
+ZMap forms the foundation for building richer abstractions and serves as a building block for higher-level features
 like **namespaces**, **Buckets**, and transactional queries through **MQL**.
 
 See the [Data Modeling](https://apple.github.io/foundationdb/data-modeling.html) section on FoundationDB documents.
@@ -808,7 +828,7 @@ Kronotop provides a bunch of commands to manage database sessions. The following
 
 #### SESSION.ATTRIBUTE LIST
 
-`SESSION.ATTRIBUTE LIST` lists all attributes with their current values used by the session. 
+`SESSION.ATTRIBUTE LIST` lists all attributes with their current values used by the session.
 
 ```
 127.0.0.1:5484> SESSION.ATTRIBUTE LIST
@@ -927,12 +947,79 @@ Since segments are primarily append-based, space occupied by deleted or updated 
   surpasses a defined threshold, the vacuuming process reorganizes the data, typically by copying the valid, live
   entries into new segments and then safely removing the old segment(s), thus reclaiming disk space.
 
+## Why Kronotop Runs on the **Java Platform**
+
+Kronotop is an **I/O‑bound** distributed database: each client request fans out into multiple disk reads from FoundationDB 
+and network hops between cluster nodes. While the CPU spends most of its time waiting for these operations, throughput hinges
+on how many outstanding requests we can keep in flight at any given moment.
+
+Conventional kernel threads become prohibitively expensive when their count climbs into the hundreds of thousands, and 
+event‑loop frameworks reduce per‑task overhead only by pushing complexity onto the application. The Java platform offers 
+a third path —virtual threads— that delivers massive concurrency while preserving the clarity of straightforward, blocking code. 
+This capability, combined with mature tooling and a vast ecosystem, makes Java the natural fit for Kronotop.
+
+### Scalable Concurrency Through Virtual Threads
+
+*Virtual threads* are lightweight, user‑mode constructs that map one logical task—such as a client connection, a replication 
+RPC, or a background checkpoint—to its own thread. When that task performs a blocking disk read or waits on a network response, 
+the virtual thread parks and the underlying carrier thread is immediately returned to the scheduler. This arrangement lets 
+Kronotop manage hundreds of thousands of simultaneous I/O waits—flushing segments, streaming change‑feeds, or performing 
+multi‑shard fan‑outs—without exhausting memory or triggering scheduler contention.
+
+### A Battle‑Hardened Runtime
+
+The Java Virtual Machine has evolved over decades in mission‑critical environments. Its garbage collectors (G1, ZGC, Shenandoah, and others)
+offer predictable pause times, while the JIT compiler optimizes hot paths without compromising source readability. Production observability
+is first‑class: Java Flight Recorder, async‑profiler, and eBPF integrations expose low‑level behavior without intrusive instrumentation.
+
+
+### Comprehensive and Stable Ecosystem
+
+The platform’s extensive standard library and third‑party ecosystem eliminate the need to reinvent security, serialization,
+network, or build tooling. Mature dependency‑management systems (Maven and Gradle), high‑quality static‑analysis tools, and
+seamless CI/CD integration ensure that engineering velocity scales with team growth. Container‑ready base images and snapshotting
+technology (such as CRaC) minimize operational friction.
+
+
+### Enterprise Acceptance and Long‑Term Support
+
+Java enjoys broad acceptance across regulated industries; security teams, legal departments, and procurement officers are
+familiar with its deployment and licensing models. The six‑month release cadence provides rapid access to new features, while
+long‑term‑support (LTS) versions give downstream users multi‑year stability. Backwards‑compatibility guarantees to protect existing
+deployments as the language and runtime evolve.
+
+### Native and Polyglot Interoperability
+
+The **Java Native Interface (JNI)** provides a stable bridge between managed Java code and native libraries, facilitating direct
+use of highly optimized cryptography, compression, or SIMD routines when required. In addition, the emerging **Foreign Function & Memory API**
+extends this capability with safer, more ergonomic access patterns.
+
+### Summary
+
+Kronotop demands a runtime that excels at handling vast numbers of concurrent I/O operations, provides mature operational tooling,
+and is acceptable to risk‑averse enterprise stakeholders. The contemporary Java platform, _enhanced by virtual threads_, offers 
+exactly this balance, enabling Kronotop to deliver high throughput, maintainable code, and predictable production behavior 
+without _exotic technology_ choices.
+
 ## License
 
-Source code in this repository is covered by one of two licenses:
+Kronotop is mostly licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), which is a 
+permissive and OSI-approved open source license.
 
-* [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
-* [Business Source License 1,1](https://mariadb.com/bsl11/)
+However, one of Kronotop’s core components — the **Bucket** module — is licensed under the [Business Source License 1.1](kronotop/src/main/java/com/kronotop/bucket/LICENSE.txt).
+This license allows full access to the source code and free usage for development and testing. After a **five-year change date**, 
+the Bucket module will automatically be re-licensed under Apache 2.0.
 
-The default license throughout the repository is Apache License 2.0 unless the
-header specifies another license.
+### Why BSL?
+
+We love open source, and we want Kronotop to be widely used and improved by the community. But we also want to ensure 
+that **cloud providers and hosting platforms can't repackage Kronotop as a managed database service without contributing back**.
+
+To protect the long-term sustainability of the project, the Bucket component includes a restriction:  
+➡️ **It cannot be used to offer a Database-as-a-Service (DBaaS) or similar hosted product** without a separate commercial agreement.
+
+This restriction only applies to **offering Kronotop itself as a database service to third parties**.  
+You are free to use Kronotop (including the Bucket module) in your own apps, internal systems, and commercial products.
+
+For more details, see our [additional use grant](kronotop/src/main/java/com/kronotop/bucket/LICENSE.txt) or contact us at
+*burak {dot} sezer {at} kronotop {dot} com* if you have questions or commercial use cases in mind.

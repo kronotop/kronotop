@@ -18,6 +18,7 @@ import com.kronotop.bucket.*;
 import com.kronotop.bucket.executor.ExecutorContext;
 import com.kronotop.bucket.executor.PlanExecutor;
 import com.kronotop.bucket.handlers.protocol.BucketFindMessage;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtils;
@@ -62,8 +63,8 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
      * of the session associated with the request. In case of an unsupported reply type, an exception is thrown.
      *
      * @param request the {@code Request} object containing the session information and other relevant data
-     * @param entry a {@code Map.Entry} containing a {@code Versionstamp} as the key and a {@code ByteBuffer} as the value,
-     *              where the value represents the data to be transformed into the {@code ByteBuf}
+     * @param entry   a {@code Map.Entry} containing a {@code Versionstamp} as the key and a {@code ByteBuffer} as the value,
+     *                where the value represents the data to be transformed into the {@code ByteBuf}
      * @return a {@code ByteBuf} object containing the serialized data in the format specified by the reply type
      * @throws KronotopException if the reply type is invalid or not supported
      */
@@ -88,10 +89,10 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
      * Converts the provided map of {@code Versionstamp} to {@code ByteBuffer} into a Redis-compatible
      * map format and writes the resulting data to the client.
      *
-     * @param request the {@code Request} object containing the session and command information
+     * @param request  the {@code Request} object containing the session and command information
      * @param response the {@code Response} object used to send the result back to the client
-     * @param entries a map where the keys are {@code Versionstamp} objects and the values are
-     *                {@code ByteBuffer} objects representing the data to be converted and sent
+     * @param entries  a map where the keys are {@code Versionstamp} objects and the values are
+     *                 {@code ByteBuffer} objects representing the data to be converted and sent
      */
     private void resp3Response(Request request, Response response, Map<Versionstamp, ByteBuffer> entries) {
         if (entries == null || entries.isEmpty()) {
@@ -115,10 +116,10 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
      * list format by iterating through the map entries, preparing their values, and sending the
      * resulting data to the client.
      *
-     * @param request the {@code Request} object containing the session and command information
+     * @param request  the {@code Request} object containing the session and command information
      * @param response the {@code Response} object used to send the result back to the client
-     * @param entries a map where the keys are {@code Versionstamp} objects and the values are
-     *                {@code ByteBuffer} objects representing the data to be converted and sent
+     * @param entries  a map where the keys are {@code Versionstamp} objects and the values are
+     *                 {@code ByteBuffer} objects representing the data to be converted and sent
      */
     private void resp2Response(Request request, Response response, Map<Versionstamp, ByteBuffer> entries) {
         if (entries == null || entries.isEmpty()) {
@@ -141,10 +142,15 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
 
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
             BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
-            PhysicalNode plan = service.getPlanner().plan(message.getBucket(), message.getQuery());
+
+            // ID is the default index
+            Map<String, Index> indexes = Map.of(
+                    DefaultIndex.ID.path(), DefaultIndex.ID
+            );
+            PhysicalNode plan = service.getPlanner().plan(indexes, message.getQuery());
 
             BucketShard shard = service.getShard(1);
-            ExecutorContext executorContext = new ExecutorContext(shard, plan, message.getBucket(), subspace);
+            ExecutorContext executorContext = new ExecutorContext(shard, plan, message.getBucket(), subspace, indexes);
             PlanExecutor executor = new PlanExecutor(context, executorContext);
             try {
                 return executor.execute(tr);

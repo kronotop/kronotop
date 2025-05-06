@@ -653,8 +653,8 @@ public class Volume {
     /**
      * Retrieves a ByteBuffer associated with the specified prefix, versionstamp, and metadata.
      *
-     * @param prefix the non-null prefix identifying the entry.
-     * @param key the non-null versionstamp key associated with the entry.
+     * @param prefix   the non-null prefix identifying the entry.
+     * @param key      the non-null versionstamp key associated with the entry.
      * @param metadata the non-null metadata descriptor for the entry.
      * @return a ByteBuffer containing the data associated with the specified inputs.
      * @throws IOException if an I/O error occurs during the retrieval operation.

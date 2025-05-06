@@ -31,19 +31,20 @@ public class PhysicalPlanner {
         children.forEach(child -> {
             switch (child) {
                 case LogicalComparisonFilter logicalFilter -> {
+                    // TODO: This assumes the field hierarchy only has a single leaf and it eques to index's path
                     Index index = context.indexes().get(logicalFilter.getField());
                     if (index != null) {
                         PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(
-                                index.name(),
+                                index,
                                 logicalFilter.getOperatorType()
                         );
                         physicalIndexScan.setField(logicalFilter.getField());
-                        physicalIndexScan.addValue(logicalFilter.getValue());
+                        physicalIndexScan.addBqlValue(logicalFilter.bqlValue());
                         nodes.add(physicalIndexScan);
                     } else {
                         PhysicalFullScan physicalFullScan = new PhysicalFullScan(logicalFilter.getOperatorType());
                         physicalFullScan.setField(logicalFilter.getField());
-                        physicalFullScan.addValue(logicalFilter.getValue());
+                        physicalFullScan.addBqlValue(logicalFilter.bqlValue());
                         nodes.add(physicalFullScan);
                     }
                 }

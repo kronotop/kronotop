@@ -11,7 +11,7 @@ public class LogicalExistsFilter extends LogicalFilter {
         this.value = value;
     }
 
-    public boolean getValue() {
+    public boolean value() {
         return value;
     }
 
@@ -27,7 +27,7 @@ public class LogicalExistsFilter extends LogicalFilter {
     public String toString() {
         return "LogicalExistsFilter {" +
                 "operatorType=" + getOperatorType() + ", " +
-                "value=" + getValue() + ", " +
+                "value=" + value() + ", " +
                 "field=" + getField() + "}";
     }
 }

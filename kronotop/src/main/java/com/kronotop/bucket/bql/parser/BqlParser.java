@@ -10,7 +10,6 @@
 
 package com.kronotop.bucket.bql.parser;
 
-import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.array.BqlAllOperator;
 import com.kronotop.bucket.bql.operators.array.BqlElemMatchOperator;
@@ -21,6 +20,7 @@ import com.kronotop.bucket.bql.operators.logical.BqlAndOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNorOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlNotOperator;
 import com.kronotop.bucket.bql.operators.logical.BqlOrOperator;
+import com.kronotop.bucket.bql.values.*;
 import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.bson.Document;
@@ -46,23 +46,19 @@ public class BqlParser {
     private void traverse(BsonReader reader, BqlOperator operator) {
         switch (reader.getCurrentBsonType()) {
             case STRING:
-                BqlValue<String> stringValue = new BqlValue<>(BsonType.STRING);
-                stringValue.setValue(reader.readString());
+                BqlValue<String> stringValue = new StringVal(reader.readString());
                 operator.addValue(stringValue);
                 break;
             case INT32:
-                BqlValue<Integer> int32Value = new BqlValue<>(BsonType.INT32);
-                int32Value.setValue(reader.readInt32());
+                BqlValue<Integer> int32Value = new Int32Val(reader.readInt32());
                 operator.addValue(int32Value);
                 break;
             case DOUBLE:
-                BqlValue<Double> doubleValue = new BqlValue<>(BsonType.DOUBLE);
-                doubleValue.setValue(reader.readDouble());
+                BqlValue<Double> doubleValue = new DoubleVal(reader.readDouble());
                 operator.addValue(doubleValue);
                 break;
             case BOOLEAN:
-                BqlValue<Boolean> booleanValue = new BqlValue<>(BsonType.BOOLEAN);
-                booleanValue.setValue(reader.readBoolean());
+                BqlValue<Boolean> booleanValue = new BooleanVal(reader.readBoolean());
                 operator.addValue(booleanValue);
                 break;
             case ARRAY:

@@ -50,7 +50,18 @@ public class IndexBuilder {
      * @return a {@code Tuple} containing the index name, path, BSON type value, and the incomplete versionstamp
      */
     private static Tuple indexTemplate(Index index, int userVersion) {
-        return Tuple.from(index.name(), index.path(), index.type().getValue(), Versionstamp.incomplete(userVersion));
+        return IndexBuilder.beginningOfIndexRange(index).add(Versionstamp.incomplete(userVersion));
+    }
+
+    /**
+     * Constructs a {@code Tuple} to represent the beginning of an index range.
+     * The tuple is created using the name, path, and BSON type value of the given {@code Index}.
+     *
+     * @param index the {@code Index} object containing details such as name, path, and BSON type
+     * @return a {@code Tuple} containing the name, path, and type value of the index
+     */
+    public static Tuple beginningOfIndexRange(Index index) {
+        return Tuple.from(index.name(), index.path(), index.type().getValue());
     }
 
     /**
@@ -61,7 +72,7 @@ public class IndexBuilder {
      * @param indexSubspace the {@code Subspace} object representing the index subspace
      * @param data          the byte array containing the packed index data
      * @return an {@code UnpackedIndex} object that contains the extracted index details
-     *         and versionstamp
+     * and versionstamp
      * @throws IllegalStateException if the unpacked data does not contain exactly four elements
      */
     public static UnpackedIndex unpackIndex(Subspace indexSubspace, byte[] data) {
@@ -72,7 +83,7 @@ public class IndexBuilder {
         String name = (String) unpacked.get(0);
         String path = (String) unpacked.get(1);
         long type = (long) unpacked.get(2);
-        BsonType bsonType = BsonType.findByValue((int)type);
+        BsonType bsonType = BsonType.findByValue((int) type);
 
         Index index = new Index(name, path, bsonType);
         Versionstamp versionstamp = (Versionstamp) unpacked.get(3);

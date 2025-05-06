@@ -10,8 +10,8 @@
 
 package com.kronotop.bucket.planner.logical;
 
-import com.kronotop.bucket.bql.BqlValue;
 import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.bql.values.BqlValue;
 
 public class LogicalComparisonFilter extends LogicalFilter {
     private BqlValue<?> value;
@@ -29,11 +29,11 @@ public class LogicalComparisonFilter extends LogicalFilter {
         this.field = field;
     }
 
-    void addValue(BqlValue<?> value) {
+    void addBqlValue(BqlValue<?> value) {
         this.value = value;
     }
 
-    public BqlValue<?> getValue() {
+    public BqlValue<?> bqlValue() {
         return value;
     }
 
@@ -42,6 +42,6 @@ public class LogicalComparisonFilter extends LogicalFilter {
         return "LogicalComparisonFilter {" +
                 "operatorType=" + getOperatorType() + ", " +
                 "field=" + getField() + ", " +
-                "value=" + getValue() + "}";
+                "value=" + bqlValue() + "}";
     }
 }

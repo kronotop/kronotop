@@ -23,10 +23,10 @@ import java.nio.charset.StandardCharsets;
 /**
  * Defines a set of keywords for namespace-related commands in the Kronotop system.
  * These keywords are used for operations such as creating, using, and managing namespaces.
- *
+ * <p>
  * Each keyword is represented as a protocol keyword and backed by its name, converted
  * to a byte array using ASCII encoding for efficient usage in command processing.
- *
+ * <p>
  * Enum Constants:
  * - CREATE: Represents the "CREATE" operation for namespaces.
  * - USE: Represents the "USE" operation to switch to a specific namespace.

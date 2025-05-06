@@ -8,15 +8,19 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.executor;
-
-import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.BucketSubspace;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.planner.physical.PhysicalNode;
+package com.kronotop.bucket.bql.values;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-public record ExecutorContext(BucketShard shard, PhysicalNode plan, String bucket, BucketSubspace subspace,
-                              Map<String, Index> indexes) {
+public final class CustomTypes {
+    private static final Map<Byte, CustomType> BY_CODE = new ConcurrentHashMap<>();
+
+    public static void register(CustomType t) {
+        BY_CODE.put(t.code(), t);
+    }
+
+    public static CustomType from(byte code) {
+        return BY_CODE.get(code);
+    }
 }

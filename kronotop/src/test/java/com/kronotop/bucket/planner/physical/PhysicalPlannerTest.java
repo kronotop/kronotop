@@ -39,7 +39,7 @@ class PhysicalPlannerTest {
         assertInstanceOf(PhysicalFullScan.class, physicalNode);
         PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalNode;
         assertNull(physicalFullScan.getOperatorType());
-        assertNull(physicalFullScan.getValue());
+        assertNull(physicalFullScan.bqlValue());
         assertNull(physicalFullScan.getField());
     }
 
@@ -56,10 +56,10 @@ class PhysicalPlannerTest {
         assertInstanceOf(PhysicalIndexScan.class, physicalNode);
 
         PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalNode;
-        assertEquals("a_idx", physicalIndexScan.getIndex());
+        assertEquals("a_idx", physicalIndexScan.getIndex().name());
         assertEquals(OperatorType.GTE, physicalIndexScan.getOperatorType());
-        assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
-        assertEquals("string-value", physicalIndexScan.getValue().getValue());
+        assertEquals(BsonType.STRING, physicalIndexScan.bqlValue().bsonType());
+        assertEquals("string-value", physicalIndexScan.bqlValue().value());
     }
 
     @Test
@@ -73,8 +73,8 @@ class PhysicalPlannerTest {
 
         PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalNode;
         assertEquals(OperatorType.EQ, physicalFullScan.getOperatorType());
-        assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
-        assertEquals(20, physicalFullScan.getValue().getValue());
+        assertEquals(BsonType.INT32, physicalFullScan.bqlValue().bsonType());
+        assertEquals(20, physicalFullScan.bqlValue().value());
     }
 
     @Test
@@ -90,17 +90,17 @@ class PhysicalPlannerTest {
         PhysicalIntersectionOperator physicalIntersectionOperator = (PhysicalIntersectionOperator) physicalNode;
 
         {
-            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalIntersectionOperator.getChildren().get(0);
+            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalIntersectionOperator.getChildren().getFirst();
             assertEquals(OperatorType.GTE, physicalIndexScan.getOperatorType());
-            assertEquals(BsonType.INT32, physicalIndexScan.getValue().getBsonType());
-            assertEquals(20, physicalIndexScan.getValue().getValue());
+            assertEquals(BsonType.INT32, physicalIndexScan.bqlValue().bsonType());
+            assertEquals(20, physicalIndexScan.bqlValue().value());
         }
 
         {
             PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalIntersectionOperator.getChildren().get(1);
             assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
-            assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
-            assertEquals("string-value", physicalIndexScan.getValue().getValue());
+            assertEquals(BsonType.STRING, physicalIndexScan.bqlValue().bsonType());
+            assertEquals("string-value", physicalIndexScan.bqlValue().value());
         }
     }
 
@@ -120,17 +120,17 @@ class PhysicalPlannerTest {
         PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalNode;
 
         {
-            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(0);
+            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().getFirst();
             assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
-            assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
-            assertEquals("A", physicalIndexScan.getValue().getValue());
+            assertEquals(BsonType.STRING, physicalIndexScan.bqlValue().bsonType());
+            assertEquals("A", physicalIndexScan.bqlValue().value());
         }
 
         {
             PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(1);
             assertEquals(OperatorType.LT, physicalIndexScan.getOperatorType());
-            assertEquals(BsonType.INT32, physicalIndexScan.getValue().getBsonType());
-            assertEquals(30, physicalIndexScan.getValue().getValue());
+            assertEquals(BsonType.INT32, physicalIndexScan.bqlValue().bsonType());
+            assertEquals(30, physicalIndexScan.bqlValue().value());
         }
     }
 
@@ -145,17 +145,17 @@ class PhysicalPlannerTest {
         PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalNode;
 
         {
-            PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(0);
+            PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().getFirst();
             assertEquals(OperatorType.EQ, physicalFullScan.getOperatorType());
-            assertEquals(BsonType.STRING, physicalFullScan.getValue().getBsonType());
-            assertEquals("A", physicalFullScan.getValue().getValue());
+            assertEquals(BsonType.STRING, physicalFullScan.bqlValue().bsonType());
+            assertEquals("A", physicalFullScan.bqlValue().value());
         }
 
         {
             PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
             assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
-            assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
-            assertEquals(30, physicalFullScan.getValue().getValue());
+            assertEquals(BsonType.INT32, physicalFullScan.bqlValue().bsonType());
+            assertEquals(30, physicalFullScan.bqlValue().value());
         }
     }
 
@@ -173,17 +173,17 @@ class PhysicalPlannerTest {
         PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalNode;
 
         {
-            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(0);
+            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().getFirst();
             assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
-            assertEquals(BsonType.STRING, physicalIndexScan.getValue().getBsonType());
-            assertEquals("A", physicalIndexScan.getValue().getValue());
+            assertEquals(BsonType.STRING, physicalIndexScan.bqlValue().bsonType());
+            assertEquals("A", physicalIndexScan.bqlValue().value());
         }
 
         {
             PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
             assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
-            assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
-            assertEquals(30, physicalFullScan.getValue().getValue());
+            assertEquals(BsonType.INT32, physicalFullScan.bqlValue().bsonType());
+            assertEquals(30, physicalFullScan.bqlValue().value());
         }
     }
 
@@ -198,16 +198,16 @@ class PhysicalPlannerTest {
         assertEquals(2, physicalIntersectionOperator.getChildren().size());
 
         {
-            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().get(0));
-            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().get(0);
+            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().getFirst());
+            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().getFirst();
             assertEquals(2, physicalUnionOperator.getChildren().size());
             {
-                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().get(0));
-                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(0);
+                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().getFirst());
+                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().getFirst();
                 assertEquals("qty", physicalFullScan.getField());
                 assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
-                assertEquals(10, physicalFullScan.getValue().getValue());
+                assertEquals(BsonType.INT32, physicalFullScan.bqlValue().bsonType());
+                assertEquals(10, physicalFullScan.bqlValue().value());
             }
 
             {
@@ -215,8 +215,8 @@ class PhysicalPlannerTest {
                 PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
                 assertEquals("qty", physicalFullScan.getField());
                 assertEquals(OperatorType.GT, physicalFullScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
-                assertEquals(50, physicalFullScan.getValue().getValue());
+                assertEquals(BsonType.INT32, physicalFullScan.bqlValue().bsonType());
+                assertEquals(50, physicalFullScan.bqlValue().value());
             }
         }
 
@@ -225,12 +225,12 @@ class PhysicalPlannerTest {
             PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().get(1);
             assertEquals(2, physicalUnionOperator.getChildren().size());
             {
-                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().get(0));
-                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(0);
+                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().getFirst());
+                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().getFirst();
                 assertEquals("sale", physicalFullScan.getField());
                 assertEquals(OperatorType.EQ, physicalFullScan.getOperatorType());
-                assertEquals(BsonType.BOOLEAN, physicalFullScan.getValue().getBsonType());
-                assertTrue((Boolean) physicalFullScan.getValue().getValue());
+                assertEquals(BsonType.BOOLEAN, physicalFullScan.bqlValue().bsonType());
+                assertTrue((Boolean) physicalFullScan.bqlValue().value());
             }
 
             {
@@ -238,8 +238,8 @@ class PhysicalPlannerTest {
                 PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
                 assertEquals("price", physicalFullScan.getField());
                 assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalFullScan.getValue().getBsonType());
-                assertEquals(5, physicalFullScan.getValue().getValue());
+                assertEquals(BsonType.INT32, physicalFullScan.bqlValue().bsonType());
+                assertEquals(5, physicalFullScan.bqlValue().value());
             }
         }
     }
@@ -260,27 +260,27 @@ class PhysicalPlannerTest {
         assertEquals(2, physicalIntersectionOperator.getChildren().size());
 
         {
-            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().get(0));
-            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().get(0);
+            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().getFirst());
+            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().getFirst();
             assertEquals(2, physicalUnionOperator.getChildren().size());
             {
-                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().get(0));
-                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(0);
+                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().getFirst());
+                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().getFirst();
                 assertEquals("qty", physicalIndexScan.getField());
-                assertEquals("qty_idx", physicalIndexScan.getIndex());
+                assertEquals("qty_idx", physicalIndexScan.getIndex().name());
                 assertEquals(OperatorType.LT, physicalIndexScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalIndexScan.getValue().getBsonType());
-                assertEquals(10, physicalIndexScan.getValue().getValue());
+                assertEquals(BsonType.INT32, physicalIndexScan.bqlValue().bsonType());
+                assertEquals(10, physicalIndexScan.bqlValue().value());
             }
 
             {
                 assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().get(1));
                 PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(1);
                 assertEquals("qty", physicalIndexScan.getField());
-                assertEquals("qty_idx", physicalIndexScan.getIndex());
+                assertEquals("qty_idx", physicalIndexScan.getIndex().name());
                 assertEquals(OperatorType.GT, physicalIndexScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalIndexScan.getValue().getBsonType());
-                assertEquals(50, physicalIndexScan.getValue().getValue());
+                assertEquals(BsonType.INT32, physicalIndexScan.bqlValue().bsonType());
+                assertEquals(50, physicalIndexScan.bqlValue().value());
             }
         }
 
@@ -289,23 +289,23 @@ class PhysicalPlannerTest {
             PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().get(1);
             assertEquals(2, physicalUnionOperator.getChildren().size());
             {
-                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().get(0));
-                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(0);
+                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().getFirst());
+                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().getFirst();
                 assertEquals("sale", physicalIndexScan.getField());
-                assertEquals("sale_idx", physicalIndexScan.getIndex());
+                assertEquals("sale_idx", physicalIndexScan.getIndex().name());
                 assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
-                assertEquals(BsonType.BOOLEAN, physicalIndexScan.getValue().getBsonType());
-                assertTrue((Boolean) physicalIndexScan.getValue().getValue());
+                assertEquals(BsonType.BOOLEAN, physicalIndexScan.bqlValue().bsonType());
+                assertTrue((Boolean) physicalIndexScan.bqlValue().value());
             }
 
             {
                 assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().get(1));
                 PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(1);
                 assertEquals("price", physicalIndexScan.getField());
-                assertEquals("price_idx", physicalIndexScan.getIndex());
+                assertEquals("price_idx", physicalIndexScan.getIndex().name());
                 assertEquals(OperatorType.LT, physicalIndexScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalIndexScan.getValue().getBsonType());
-                assertEquals(5, physicalIndexScan.getValue().getValue());
+                assertEquals(BsonType.INT32, physicalIndexScan.bqlValue().bsonType());
+                assertEquals(5, physicalIndexScan.bqlValue().value());
             }
         }
     }

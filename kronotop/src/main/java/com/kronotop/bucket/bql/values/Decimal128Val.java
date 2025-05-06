@@ -8,19 +8,20 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.planner.physical;
+package com.kronotop.bucket.bql.values;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
+import org.bson.BsonType;
 
-import java.util.List;
+import java.math.BigDecimal;
 
-public class PhysicalUnionOperator extends PhysicalFilter {
-    public PhysicalUnionOperator(List<PhysicalNode> children) {
-        super(OperatorType.OR, children);
+public record Decimal128Val(BigDecimal value) implements BqlValue<BigDecimal> {
+    @Override
+    public BsonType bsonType() {
+        return BsonType.DECIMAL128;
     }
 
     @Override
-    public String toString() {
-        return "PhysicalUnionOperator {children=" + children + "}";
+    public CustomType customType() {
+        return null;
     }
 }

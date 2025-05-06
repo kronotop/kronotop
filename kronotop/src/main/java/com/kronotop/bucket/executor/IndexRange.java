@@ -8,15 +8,11 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
+
 package com.kronotop.bucket.executor;
 
-import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.BucketSubspace;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.planner.physical.PhysicalNode;
 
-import java.util.Map;
+import com.apple.foundationdb.KeySelector;
 
-public record ExecutorContext(BucketShard shard, PhysicalNode plan, String bucket, BucketSubspace subspace,
-                              Map<String, Index> indexes) {
+public record IndexRange(KeySelector begin, KeySelector end) {
 }

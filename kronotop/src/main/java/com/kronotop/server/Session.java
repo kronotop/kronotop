@@ -222,7 +222,7 @@ public class Session {
      * Retrieves the protocol version being used by the session.
      *
      * @return the {@link RESPVersion} representing the version of the Redis Serialization Protocol (RESP)
-     *         currently set for the session.
+     * currently set for the session.
      */
     public RESPVersion protocolVersion() {
         return protocolVersion;

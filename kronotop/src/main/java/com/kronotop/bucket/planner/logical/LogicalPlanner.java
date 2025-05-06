@@ -10,10 +10,12 @@
 
 package com.kronotop.bucket.planner.logical;
 
+import com.kronotop.bucket.bql.normalizer.BqlNormalizer;
 import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
 import com.kronotop.bucket.bql.parser.BqlParser;
+import com.kronotop.bucket.bql.validator.BqlValidator;
 
 import java.util.List;
 
@@ -38,11 +40,11 @@ public class LogicalPlanner {
                     }
                     LogicalComparisonFilter filter = new LogicalComparisonFilter(bqlOperator.getOperatorType());
                     filter.setField(operator.getField());
-                    bqlOperator.getValues().forEach(filter::addValue);
+                    bqlOperator.getValues().forEach(filter::addBqlValue);
                     root.addFilter(filter);
                     break;
                 case EXISTS:
-                    boolean value = (boolean) bqlOperator.getValues().getFirst().getValue();
+                    boolean value = (boolean) bqlOperator.getValues().getFirst().value();
                     LogicalExistsFilter existsFilter = new LogicalExistsFilter(value);
                     existsFilter.setField(operator.getField());
                     root.addFilter(existsFilter);
@@ -52,7 +54,7 @@ public class LogicalPlanner {
                     bqlOperator.getValues().forEach(bqlValue -> {
                         LogicalComparisonFilter eqFilter = new LogicalComparisonFilter(OperatorType.EQ);
                         eqFilter.setField(operator.getField());
-                        eqFilter.addValue(bqlValue);
+                        eqFilter.addBqlValue(bqlValue);
                         andOperator.addFilter(eqFilter);
                     });
                     root.addFilter(andOperator);
@@ -86,7 +88,7 @@ public class LogicalPlanner {
                 } else {
                     LogicalComparisonFilter comparisonFilter = new LogicalComparisonFilter(OperatorType.EQ);
                     comparisonFilter.setField(eq.getField());
-                    eq.getValues().forEach(comparisonFilter::addValue);
+                    eq.getValues().forEach(comparisonFilter::addBqlValue);
                     root.addFilter(comparisonFilter);
                 }
                 break;
@@ -109,6 +111,12 @@ public class LogicalPlanner {
 
     public LogicalNode plan() {
         bqlOperators = BqlParser.parse(query);
+
+        // Validate the parsed BQL query
+        BqlValidator.validate(bqlOperators);
+
+        // Run the normalizer to prune unnecessary operators and to apply custom rules.
+        BqlNormalizer.normalize(bqlOperators);
 
         LogicalFullScan logicalScan = new LogicalFullScan();
         int idx = 0;
