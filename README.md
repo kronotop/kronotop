@@ -11,7 +11,7 @@ offering reliability often sought in demanding environments.
 Kronotop features an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and uses
 the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) wire protocol, ensuring broad compatibility
 with
-the Redis client ecosystem. It implements core Redis in-memoru data structures like Strings and Hashes, alongside its
+the Redis client ecosystem. It implements core Redis in-memory data structures like Strings and Hashes, alongside its
 own specialized
 structures: ZMap (an ordered key-value store acting as a RESP proxy for FoundationDB) and Bucket (designed for storing
 JSON-like documents). While document bodies are stored directly on local filesystems, Kronotop uses BSON as the default
