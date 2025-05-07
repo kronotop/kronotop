@@ -34,7 +34,7 @@ public class LogicalPlanner {
                 return i;
             }
             switch (bqlOperator.getOperatorType()) {
-                case EQ, LT, GT, GTE, NE:
+                case EQ, LT, GT, GTE, NE, LTE:
                     if (bqlOperator.getValues() == null) {
                         return traverse(root, operator, i + 1);
                     }

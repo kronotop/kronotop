@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class BqlParserTest {
     @Test
@@ -318,5 +319,13 @@ class BqlParserTest {
                 existsOperator
         );
         assertThat(operators).usingRecursiveComparison().isEqualTo(expectedOperators);
+    }
+
+    @Test
+    public void test_BqlParserException_unknown_Operator() {
+        BqlExistsOperator existsOperator = new BqlExistsOperator(2);
+        BooleanVal bqlValue = new BooleanVal(true);
+        existsOperator.addValue(bqlValue);
+        assertThrows(BqlParserException.class, () -> BqlParser.parse("{ field: { $invalid: 'xyz' } }"));
     }
 }

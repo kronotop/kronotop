@@ -30,7 +30,7 @@ docker push ghcr.io/kronotop/kronotop:latest
 
 # How to run Kronotop with Docker Compose
 
-It's simple as the following:
+It's as simple as the following:
 
 ```
 docker compose up

@@ -1015,8 +1015,8 @@ the Bucket module will automatically be re-licensed under Apache 2.0.
 We love open source, and we want Kronotop to be widely used and improved by the community. But we also want to ensure 
 that **cloud providers and hosting platforms can't repackage Kronotop as a managed database service without contributing back**.
 
-To protect the long-term sustainability of the project, the Bucket component includes a restriction:  
-➡️ **It cannot be used to offer a Database-as-a-Service (DBaaS) or similar hosted product** without a separate commercial agreement.
+To protect the long-term sustainability of the project, the Bucket component includes a restriction: **It cannot be used to offer a 
+Database-as-a-Service (DBaaS) or similar hosted product** without a separate commercial agreement.
 
 This restriction only applies to **offering Kronotop itself as a database service to third parties**.  
 You are free to use Kronotop (including the Bucket module) in your own apps, internal systems, and commercial products.

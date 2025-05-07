@@ -14,6 +14,7 @@ import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
 
@@ -23,6 +24,10 @@ import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
  * key-based ranges with specific boundaries determined from the given parameters.
  */
 class IndexRangeGenerator {
+
+    private static byte[] beginningOfIndexRange(Subspace indexSubspace, Index index) {
+        return indexSubspace.pack(IndexBuilder.beginningOfIndexRange(index));
+    }
 
     /**
      * Creates an {@code IndexRange} that begins with the first key greater than or equal to the specified value
@@ -36,7 +41,7 @@ class IndexRangeGenerator {
     protected static IndexRange greaterThanOrEqual(PhysicalIndexScan physicalIndexScan, Object value, Subspace indexSubspace) {
         Tuple tuple = IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()).addObject(value);
         KeySelector begin = KeySelector.firstGreaterOrEqual(indexSubspace.pack(tuple));
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(indexSubspace.pack(IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()))));
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(beginningOfIndexRange(indexSubspace, physicalIndexScan.getIndex())));
         return new IndexRange(begin, end);
     }
 
@@ -70,7 +75,7 @@ class IndexRangeGenerator {
         Tuple tuple = IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()).addObject(value);
         byte[] key = indexSubspace.pack(tuple);
         KeySelector begin = KeySelector.firstGreaterThan(key);
-        KeySelector end = KeySelector.firstGreaterThan(ByteArrayUtil.strinc(indexSubspace.pack()));
+        KeySelector end = KeySelector.firstGreaterThan(ByteArrayUtil.strinc(beginningOfIndexRange(indexSubspace, physicalIndexScan.getIndex())));
         return new IndexRange(begin, end);
     }
 
@@ -87,7 +92,7 @@ class IndexRangeGenerator {
     protected static IndexRange lessThan(PhysicalIndexScan physicalIndexScan, Object value, Subspace indexSubspace) {
         Tuple tuple = IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()).addObject(value);
         byte[] key = indexSubspace.pack(tuple);
-        KeySelector begin = KeySelector.firstGreaterOrEqual(indexSubspace.pack());
+        KeySelector begin = KeySelector.firstGreaterOrEqual(beginningOfIndexRange(indexSubspace, physicalIndexScan.getIndex()));
         KeySelector end = KeySelector.lastLessOrEqual(key);
         return new IndexRange(begin, end);
     }
@@ -105,9 +110,8 @@ class IndexRangeGenerator {
     protected static IndexRange lessThanOrEqual(PhysicalIndexScan physicalIndexScan, Object value, Subspace indexSubspace) {
         Tuple tuple = IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()).addObject(value);
         byte[] key = indexSubspace.pack(tuple);
-        KeySelector begin = KeySelector.firstGreaterOrEqual(indexSubspace.pack());
-        KeySelector end = KeySelector.lastLessThan(key);
+        KeySelector begin = KeySelector.firstGreaterOrEqual(beginningOfIndexRange(indexSubspace, physicalIndexScan.getIndex()));
+        KeySelector end = KeySelector.firstGreaterThan(key);
         return new IndexRange(begin, end);
     }
-
 }

@@ -17,6 +17,7 @@
 package com.kronotop;
 
 import com.kronotop.server.Response;
+import com.kronotop.server.Session;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -43,10 +44,16 @@ public class AsyncCommandExecutor {
     public static <U> void supplyAsync(Context context, Response response, Supplier<U> supplier, Consumer<? super U> action) {
         // Use virtual threads to ensure efficient concurrency
         // Write response back to Netty's thread that handled the request
-        CompletableFuture.supplyAsync(supplier, context.getVirtualThreadPerTaskExecutor()).thenAcceptAsync(action, response.getCtx().executor()).exceptionallyAsync(ex -> {
-            response.writeError(ex);
-            return null;
-        }, response.getCtx().executor());
+        CompletableFuture.supplyAsync(supplier, context.getVirtualThreadPerTaskExecutor()).
+                thenAcceptAsync(action, response.getCtx().executor()).
+                thenRun(() -> {
+                    Session session = Session.extractSessionFromChannel(response.getCtx().channel());
+                    session.cleanupIfAutoCommitEnabled();
+                }).
+                exceptionallyAsync(ex -> {
+                    response.writeError(ex);
+                    return null;
+                }, response.getCtx().executor());
     }
 
     /**
@@ -63,9 +70,15 @@ public class AsyncCommandExecutor {
     public static void runAsync(Context context, Response response, Runnable runnable, Runnable action) {
         // Use virtual threads to ensure efficient concurrency
         // Write response back to Netty's thread that handled the request
-        CompletableFuture.runAsync(runnable, context.getVirtualThreadPerTaskExecutor()).thenRunAsync(action, response.getCtx().executor()).exceptionallyAsync(ex -> {
-            response.writeError(ex);
-            return null;
-        }, response.getCtx().executor());
+        CompletableFuture.runAsync(runnable, context.getVirtualThreadPerTaskExecutor()).
+                thenRunAsync(action, response.getCtx().executor()).
+                thenRun(() -> {
+                    Session session = Session.extractSessionFromChannel(response.getCtx().channel());
+                    session.cleanupIfAutoCommitEnabled();
+                }).
+                exceptionallyAsync(ex -> {
+                    response.writeError(ex);
+                    return null;
+                }, response.getCtx().executor());
     }
 }

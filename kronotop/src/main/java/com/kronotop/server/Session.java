@@ -170,7 +170,17 @@ public class Session {
         }
     }
 
-    protected void channelReadComplete() {
+    /**
+     * Cleans up the session's transactional state if auto-commit mode is enabled.
+     * <p>
+     * This method checks the {@code SessionAttributes.AUTO_COMMIT} attribute associated with the session.
+     * If auto-commit mode is enabled (attribute value is {@code true}), it calls {@code unsetTransaction()}
+     * to reset the session's transactional state and release any associated resources.
+     * <p>
+     * It ensures that sessions operating in auto-commit mode do not retain any leftover transaction state
+     * that could interfere with subsequent operations.
+     */
+    public void cleanupIfAutoCommitEnabled() {
         Attribute<Boolean> autoCommitAttr = attr(SessionAttributes.AUTO_COMMIT);
         if (Boolean.TRUE.equals(autoCommitAttr.get())) {
             unsetTransaction();

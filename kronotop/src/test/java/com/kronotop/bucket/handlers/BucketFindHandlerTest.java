@@ -19,8 +19,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -118,11 +117,12 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_GTE() {
-        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(3));
+        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(10));
 
         // Find the document in the middle
         String[] keys = expectedDocument.keySet().toArray(new String[0]);
-        String key = keys[1];
+        String key = keys[4];
+        Set<String> excludedKeys = new HashSet<>(Arrays.asList(keys).subList(0, 4));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
@@ -133,15 +133,15 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(MapRedisMessage.class, msg);
 
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
-        assertEquals(2, actualMessage.children().size());
-        int index = 1;
+        assertEquals(6, actualMessage.children().size());
+        int index = 4;
         for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
             assertInstanceOf(SimpleStringRedisMessage.class, entry.getKey());
             assertInstanceOf(FullBulkStringRedisMessage.class, entry.getValue());
 
             SimpleStringRedisMessage resultKey = (SimpleStringRedisMessage) entry.getKey();
             assertEquals(keys[index], resultKey.content());
-            assertNotEquals(keys[0], resultKey.content()); // the first document is excluded
+            assertFalse(excludedKeys.contains(resultKey.content()));
 
             FullBulkStringRedisMessage resultMessageValue = (FullBulkStringRedisMessage) entry.getValue();
             byte[] resultValue = ByteBufUtil.getBytes(resultMessageValue.content());
@@ -152,29 +152,30 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_GT() {
-        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(3));
+        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(10));
 
         String[] keys = expectedDocument.keySet().toArray(new String[0]);
-        String excludedKey = keys[0];
+        String key = keys[4];
+        Set<String> excludedKeys = new HashSet<>(Arrays.asList(keys).subList(0, 5));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.find(BUCKET_NAME, String.format("{_id: {$gt: \"%s\"}}", excludedKey)).encode(buf);
+        cmd.find(BUCKET_NAME, String.format("{_id: {$gt: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
-        assertEquals(2, actualMessage.children().size());
-        int index = 1;
+        assertEquals(5, actualMessage.children().size());
+        int index = 5;
         for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
             assertInstanceOf(SimpleStringRedisMessage.class, entry.getKey());
             assertInstanceOf(FullBulkStringRedisMessage.class, entry.getValue());
 
             SimpleStringRedisMessage resultKey = (SimpleStringRedisMessage) entry.getKey();
             assertEquals(keys[index], resultKey.content());
-            assertNotEquals(excludedKey, resultKey.content()); // the first document is excluded
+            assertFalse(excludedKeys.contains(resultKey.content()));
 
             FullBulkStringRedisMessage resultMessageValue = (FullBulkStringRedisMessage) entry.getValue();
             byte[] resultValue = ByteBufUtil.getBytes(resultMessageValue.content());
@@ -185,24 +186,25 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_LT() {
-        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(3));
+        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(10));
 
         // Find the document in the middle
         String[] keys = expectedDocument.keySet().toArray(new String[0]);
-        String excludedKey = keys[2];
+        String key = keys[4];
+        Set<String> excludedKeys = new HashSet<>(Arrays.asList(keys).subList(4, 9));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
         // Query should retrieve the first two documents we inserted
-        cmd.find(BUCKET_NAME, String.format("{_id: {$lt: \"%s\"}}", excludedKey)).encode(buf);
+        cmd.find(BUCKET_NAME, String.format("{_id: {$lt: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
 
-        assertEquals(2, actualMessage.children().size());
+        assertEquals(4, actualMessage.children().size());
 
         int index = 0;
         // The first two documents, the last one is excluded by the query.
@@ -212,7 +214,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
 
             SimpleStringRedisMessage resultKey = (SimpleStringRedisMessage) entry.getKey();
             assertEquals(keys[index], resultKey.content());
-            assertNotEquals(excludedKey, resultKey.content()); // the last document is excluded
+            assertFalse(excludedKeys.contains(resultKey.content()));
 
             FullBulkStringRedisMessage resultMessageValue = (FullBulkStringRedisMessage) entry.getValue();
             byte[] resultValue = ByteBufUtil.getBytes(resultMessageValue.content());
@@ -223,11 +225,12 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_LTE() {
-        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(3));
+        Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(10));
 
         // Find the document in the middle
         String[] keys = expectedDocument.keySet().toArray(new String[0]);
-        String key = keys[2];
+        String key = keys[4];
+        Set<String> excludedKeys = new HashSet<>(Arrays.asList(keys).subList(5, 9));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
@@ -240,8 +243,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
 
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
 
-        // Query should hit all inserted documents.
-        assertEquals(3, actualMessage.children().size());
+        assertEquals(5, actualMessage.children().size());
         int index = 0;
         for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
             assertInstanceOf(SimpleStringRedisMessage.class, entry.getKey());
@@ -249,6 +251,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
 
             SimpleStringRedisMessage resultKey = (SimpleStringRedisMessage) entry.getKey();
             assertEquals(keys[index], resultKey.content());
+            assertFalse(excludedKeys.contains(resultKey.content()));
 
             FullBulkStringRedisMessage resultMessageValue = (FullBulkStringRedisMessage) entry.getValue();
             byte[] resultValue = ByteBufUtil.getBytes(resultMessageValue.content());

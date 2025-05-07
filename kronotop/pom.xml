@@ -12,7 +12,7 @@
     <parent>
         <groupId>com.kronotop</groupId>
         <artifactId>kronotop-root</artifactId>
-        <version>0.9-SNAPSHOT</version>
+        <version>0.10-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -59,7 +59,7 @@
         <dependency>
             <groupId>com.kronotop</groupId>
             <artifactId>kronotop-client</artifactId>
-            <version>0.9-SNAPSHOT</version>
+            <version>0.10-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
 

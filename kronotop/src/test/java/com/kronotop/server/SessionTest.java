@@ -25,14 +25,15 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SessionTest extends BaseHandlerTest {
+
     @Test
-    public void test_session_registered() {
+    void test_session_registered() {
         Session session = Session.extractSessionFromChannel(channel);
         assertNotNull(session);
     }
 
     @Test
-    public void test_setTransaction() {
+    void test_setTransaction() {
         Session session = Session.extractSessionFromChannel(channel);
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             assertDoesNotThrow(() -> session.setTransaction(tr));
@@ -47,7 +48,7 @@ class SessionTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_setTransaction_many_times() {
+    void test_setTransaction_many_times() {
         Session session = Session.extractSessionFromChannel(channel);
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
@@ -56,7 +57,7 @@ class SessionTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_unsetTransaction() {
+    void test_unsetTransaction() {
         Session session = Session.extractSessionFromChannel(channel);
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
@@ -72,7 +73,7 @@ class SessionTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_channelUnregistered() {
+    void test_channelUnregistered() {
         Session session = Session.extractSessionFromChannel(channel);
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
@@ -82,7 +83,7 @@ class SessionTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_closeTransactionIfAny() {
+    void test_closeTransactionIfAny() {
         Session session = Session.extractSessionFromChannel(channel);
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
@@ -92,12 +93,12 @@ class SessionTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_channelReadComplete() {
+    void test_cleanupIfAutoCommitEnabled() {
         Session session = Session.extractSessionFromChannel(channel);
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
             session.attr(SessionAttributes.AUTO_COMMIT).set(true);
-            session.channelReadComplete();
+            session.cleanupIfAutoCommitEnabled();
 
             assertEquals(false, session.attr(SessionAttributes.BEGIN).get());
             assertEquals(false, session.attr(SessionAttributes.AUTO_COMMIT).get());
@@ -109,7 +110,7 @@ class SessionTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_getClientId() {
+    void test_getClientId() {
         Session first = Session.extractSessionFromChannel(channel);
         assertTrue(first.getClientId() >= 0);
     }
