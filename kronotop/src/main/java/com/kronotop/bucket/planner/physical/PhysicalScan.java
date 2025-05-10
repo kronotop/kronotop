@@ -23,6 +23,10 @@ public class PhysicalScan extends PhysicalFilter {
         super(operatorType);
     }
 
+    public void setBounds(Bounds bounds) {
+        this.bounds = bounds;
+    }
+    
     public Bounds getBounds() {
         return bounds;
     }
