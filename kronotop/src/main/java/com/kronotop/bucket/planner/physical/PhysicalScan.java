@@ -12,13 +12,19 @@ package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.bql.values.BqlValue;
+import com.kronotop.bucket.planner.Bounds;
 
 public class PhysicalScan extends PhysicalFilter {
     private BqlValue<?> value;
+    private Bounds bounds;
     private String field;
 
     public PhysicalScan(OperatorType operatorType) {
         super(operatorType);
+    }
+
+    public Bounds getBounds() {
+        return bounds;
     }
 
     public String getField() {
