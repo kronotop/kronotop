@@ -11,7 +11,6 @@
 package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.bql.operators.OperatorType;
-import com.kronotop.bucket.bql.values.BqlValue;
 import com.kronotop.bucket.planner.Bounds;
 
 public class PhysicalScan extends PhysicalFilter {
