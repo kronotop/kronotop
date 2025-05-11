@@ -23,6 +23,7 @@ import com.kronotop.bucket.BucketPrefix;
 import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.bucket.DefaultIndex;
 import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.bucket.index.UnpackedIndex;
 import com.kronotop.bucket.planner.Bound;
@@ -40,8 +41,6 @@ import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-
-import static com.kronotop.bucket.executor.IndexRangeGenerator.beginningOfIndexRange;
 
 /**
  * The {@code PlanExecutor} class is responsible for executing physical query plans and retrieving
@@ -140,6 +139,10 @@ public class PlanExecutor {
         return result;
     }
 
+    private byte[] beginningOfIndexRange(Subspace indexSubspace, Index index) {
+        return indexSubspace.pack(IndexBuilder.beginningOfIndexRange(index));
+    }
+
     /**
      * Constructs an {@link IndexRange} object defining the start and end key selectors
      * for an index scan operation based on the provided bounds and index metadata.
@@ -176,7 +179,7 @@ public class PlanExecutor {
             Tuple tuple = IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()).addObject(upper.bqlValue().value());
             byte[] key = indexSubspace.pack(tuple);
             if (upper.type().equals(OperatorType.LT)) {
-                end = KeySelector.lastLessOrEqual(key);
+                end = KeySelector.firstGreaterOrEqual(key);
             } else if (upper.type().equals(OperatorType.LTE)) {
                 end = KeySelector.firstGreaterThan(key);
             } else if (upper.type().equals(OperatorType.EQ)) {
