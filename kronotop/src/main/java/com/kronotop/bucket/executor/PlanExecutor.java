@@ -146,7 +146,7 @@ public class PlanExecutor {
      * @throws IllegalStateException if the operator type of the {@code PhysicalIndexScan} is unrecognized
      */
     private IndexRange getIndexRange(PhysicalIndexScan physicalIndexScan, Subspace indexSubspace) {
-        Object value = physicalIndexScan.bqlValue().value();
+        /*Object value = physicalIndexScan.bqlValue().value();
         return switch (physicalIndexScan.getOperatorType()) {
             case GT-> IndexRangeGenerator.greaterThan(physicalIndexScan, value, indexSubspace);
             case GTE -> IndexRangeGenerator.greaterThanOrEqual(physicalIndexScan, value, indexSubspace);
@@ -154,7 +154,8 @@ public class PlanExecutor {
             case LT -> IndexRangeGenerator.lessThan(physicalIndexScan, value, indexSubspace);
             case LTE -> IndexRangeGenerator.lessThanOrEqual(physicalIndexScan, value, indexSubspace);
             default -> throw new IllegalStateException("Unexpected value: " + physicalIndexScan.getOperatorType());
-        };
+        };*/
+        return null;
     }
 
     /**

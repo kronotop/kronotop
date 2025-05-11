@@ -27,6 +27,6 @@ public class PhysicalFullScan extends PhysicalScan {
         return "PhysicalFullScan {" +
                 "operatorType=" + getOperatorType() + ", " +
                 "field=" + getField() + ", " +
-                "value=" + bqlValue() + "}";
+                "bounds=" + getBounds() + "}";
     }
 }

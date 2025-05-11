@@ -15,7 +15,6 @@ import com.kronotop.bucket.bql.values.BqlValue;
 import com.kronotop.bucket.planner.Bounds;
 
 public class PhysicalScan extends PhysicalFilter {
-    private BqlValue<?> value;
     private Bounds bounds;
     private String field;
 
@@ -26,7 +25,7 @@ public class PhysicalScan extends PhysicalFilter {
     public void setBounds(Bounds bounds) {
         this.bounds = bounds;
     }
-    
+
     public Bounds getBounds() {
         return bounds;
     }
@@ -37,13 +36,5 @@ public class PhysicalScan extends PhysicalFilter {
 
     void setField(String field) {
         this.field = field;
-    }
-
-    void addBqlValue(BqlValue<?> value) {
-        this.value = value;
-    }
-
-    public BqlValue<?> bqlValue() {
-        return value;
     }
 }

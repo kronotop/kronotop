@@ -31,7 +31,6 @@ public class PhysicalIndexScan extends PhysicalScan {
                 "index=" + index + ", " +
                 "operatorType=" + getOperatorType() + ", " +
                 "field=" + getField() + ", " +
-                "value=" + bqlValue() +
                 "bounds=" + getBounds() + "}";
     }
 }

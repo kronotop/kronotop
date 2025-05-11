@@ -10,7 +10,10 @@
 
 package com.kronotop.bucket.planner.physical;
 
+import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.bql.values.BqlValue;
 import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.planner.Bounds;
 import com.kronotop.bucket.planner.PlannerContext;
 import com.kronotop.bucket.planner.logical.*;
 
@@ -26,6 +29,22 @@ public class PhysicalPlanner {
         this.root = root;
     }
 
+    /**
+     * Computes the bounds of the provided logical comparison filter based on its operator type.
+     *
+     * @param filter the logical comparison filter whose bounds are to be determined
+     * @return a Bounds object representing the lower and upper bounds derived from the filter's operator type
+     * @throws IllegalStateException if the filter has an unexpected or unsupported operator type
+     */
+    private Bounds getBounds(LogicalComparisonFilter filter) {
+        return switch (filter.getOperatorType()) {
+            case EQ -> new Bounds(filter.bqlValue(), filter.bqlValue());
+            case GT, GTE -> new Bounds(filter.bqlValue(), null);
+            case LT, LTE -> new Bounds(null, filter.bqlValue());
+            default -> throw new IllegalStateException("Unexpected value: " + filter.getOperatorType());
+        };
+    }
+
     private List<PhysicalNode> traverse(List<LogicalNode> children) {
         List<PhysicalNode> nodes = new ArrayList<>();
         children.forEach(child -> {
@@ -39,12 +58,12 @@ public class PhysicalPlanner {
                                 logicalFilter.getOperatorType()
                         );
                         physicalIndexScan.setField(logicalFilter.getField());
-                        physicalIndexScan.addBqlValue(logicalFilter.bqlValue());
+                        physicalIndexScan.setBounds(getBounds(logicalFilter));
                         nodes.add(physicalIndexScan);
                     } else {
                         PhysicalFullScan physicalFullScan = new PhysicalFullScan(logicalFilter.getOperatorType());
                         physicalFullScan.setField(logicalFilter.getField());
-                        physicalFullScan.addBqlValue(logicalFilter.bqlValue());
+                        physicalFullScan.setBounds(getBounds(logicalFilter));
                         nodes.add(physicalFullScan);
                     }
                 }
