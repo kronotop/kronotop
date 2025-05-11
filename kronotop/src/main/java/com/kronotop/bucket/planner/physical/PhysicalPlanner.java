@@ -10,9 +10,8 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
-import com.kronotop.bucket.bql.values.BqlValue;
 import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.planner.Bound;
 import com.kronotop.bucket.planner.Bounds;
 import com.kronotop.bucket.planner.PlannerContext;
 import com.kronotop.bucket.planner.logical.*;
@@ -38,9 +37,12 @@ public class PhysicalPlanner {
      */
     private Bounds getBounds(LogicalComparisonFilter filter) {
         return switch (filter.getOperatorType()) {
-            case EQ -> new Bounds(filter.bqlValue(), filter.bqlValue());
-            case GT, GTE -> new Bounds(filter.bqlValue(), null);
-            case LT, LTE -> new Bounds(null, filter.bqlValue());
+            case EQ -> new Bounds(
+                    new Bound(filter.getOperatorType(), filter.bqlValue()),
+                    new Bound(filter.getOperatorType(), filter.bqlValue())
+            );
+            case GT, GTE -> new Bounds(new Bound(filter.getOperatorType(), filter.bqlValue()), null);
+            case LT, LTE -> new Bounds(null, new Bound(filter.getOperatorType(), filter.bqlValue()));
             default -> throw new IllegalStateException("Unexpected value: " + filter.getOperatorType());
         };
     }

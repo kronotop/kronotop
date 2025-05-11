@@ -10,5 +10,8 @@
 
 package com.kronotop.bucket.planner;
 
-public record Bounds(Bound lower, Bound upper) {
+import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.bql.values.BqlValue;
+
+public record Bound(OperatorType type, BqlValue<?> value) {
 }

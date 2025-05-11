@@ -58,8 +58,8 @@ class PhysicalPlannerTest {
         PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalNode;
         assertEquals("a_idx", physicalIndexScan.getIndex().name());
         assertEquals(OperatorType.GTE, physicalIndexScan.getOperatorType());
-        assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().bsonType());
-        assertEquals("string-value", physicalIndexScan.getBounds().lower().value());
+        assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().value().bsonType());
+        assertEquals("string-value", physicalIndexScan.getBounds().lower().value().value());
     }
 
     @Test
@@ -75,12 +75,12 @@ class PhysicalPlannerTest {
         assertEquals(OperatorType.EQ, physicalFullScan.getOperatorType());
 
         // lower bound
-        assertEquals(BsonType.INT32, physicalFullScan.getBounds().lower().bsonType());
-        assertEquals(20, physicalFullScan.getBounds().lower().value());
+        assertEquals(BsonType.INT32, physicalFullScan.getBounds().lower().value().bsonType());
+        assertEquals(20, physicalFullScan.getBounds().lower().value().value());
 
         // upper bound
-        assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().bsonType());
-        assertEquals(20, physicalFullScan.getBounds().upper().value());
+        assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().value().bsonType());
+        assertEquals(20, physicalFullScan.getBounds().upper().value().value());
     }
 
     @Test
@@ -98,8 +98,8 @@ class PhysicalPlannerTest {
         {
             PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalIntersectionOperator.getChildren().getFirst();
             assertEquals(OperatorType.GTE, physicalIndexScan.getOperatorType());
-            assertEquals(BsonType.INT32, physicalIndexScan.getBounds().lower().bsonType());
-            assertEquals(20, physicalIndexScan.getBounds().lower().value());
+            assertEquals(BsonType.INT32, physicalIndexScan.getBounds().lower().value().bsonType());
+            assertEquals(20, physicalIndexScan.getBounds().lower().value().value());
         }
 
         {
@@ -107,12 +107,12 @@ class PhysicalPlannerTest {
             assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
 
             // Lower bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().bsonType());
-            assertEquals("string-value", physicalIndexScan.getBounds().lower().value());
+            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().value().bsonType());
+            assertEquals("string-value", physicalIndexScan.getBounds().lower().value().value());
 
             // Upper bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().upper().bsonType());
-            assertEquals("string-value", physicalIndexScan.getBounds().upper().value());
+            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().upper().value().bsonType());
+            assertEquals("string-value", physicalIndexScan.getBounds().upper().value().value());
         }
     }
 
@@ -136,19 +136,19 @@ class PhysicalPlannerTest {
             assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
 
             // lower bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().bsonType());
-            assertEquals("A", physicalIndexScan.getBounds().lower().value());
+            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().value().bsonType());
+            assertEquals("A", physicalIndexScan.getBounds().lower().value().value());
 
             // Upper bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().upper().bsonType());
-            assertEquals("A", physicalIndexScan.getBounds().upper().value());
+            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().upper().value().bsonType());
+            assertEquals("A", physicalIndexScan.getBounds().upper().value().value());
         }
 
         {
             PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(1);
             assertEquals(OperatorType.LT, physicalIndexScan.getOperatorType());
-            assertEquals(BsonType.INT32, physicalIndexScan.getBounds().upper().bsonType());
-            assertEquals(30, physicalIndexScan.getBounds().upper().value());
+            assertEquals(BsonType.INT32, physicalIndexScan.getBounds().upper().value().bsonType());
+            assertEquals(30, physicalIndexScan.getBounds().upper().value().value());
         }
     }
 
@@ -167,19 +167,19 @@ class PhysicalPlannerTest {
             assertEquals(OperatorType.EQ, physicalFullScan.getOperatorType());
 
             // Lower bound
-            assertEquals(BsonType.STRING, physicalFullScan.getBounds().lower().bsonType());
-            assertEquals("A", physicalFullScan.getBounds().lower().value());
+            assertEquals(BsonType.STRING, physicalFullScan.getBounds().lower().value().bsonType());
+            assertEquals("A", physicalFullScan.getBounds().lower().value().value());
 
             // Upper bound
-            assertEquals(BsonType.STRING, physicalFullScan.getBounds().upper().bsonType());
-            assertEquals("A", physicalFullScan.getBounds().upper().value());
+            assertEquals(BsonType.STRING, physicalFullScan.getBounds().upper().value().bsonType());
+            assertEquals("A", physicalFullScan.getBounds().upper().value().value());
         }
 
         {
             PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
             assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
-            assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().bsonType());
-            assertEquals(30, physicalFullScan.getBounds().upper().value());
+            assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().value().bsonType());
+            assertEquals(30, physicalFullScan.getBounds().upper().value().value());
         }
     }
 
@@ -201,19 +201,19 @@ class PhysicalPlannerTest {
             assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
 
             // lower bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().bsonType());
-            assertEquals("A", physicalIndexScan.getBounds().lower().value());
+            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().value().bsonType());
+            assertEquals("A", physicalIndexScan.getBounds().lower().value().value());
 
             // upper bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().upper().bsonType());
-            assertEquals("A", physicalIndexScan.getBounds().upper().value());
+            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().upper().value().bsonType());
+            assertEquals("A", physicalIndexScan.getBounds().upper().value().value());
         }
 
         {
             PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
             assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
-            assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().bsonType());
-            assertEquals(30, physicalFullScan.getBounds().upper().value());
+            assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().value().bsonType());
+            assertEquals(30, physicalFullScan.getBounds().upper().value().value());
         }
     }
 
@@ -236,8 +236,8 @@ class PhysicalPlannerTest {
                 PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().getFirst();
                 assertEquals("qty", physicalFullScan.getField());
                 assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().bsonType());
-                assertEquals(10, physicalFullScan.getBounds().upper().value());
+                assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().value().bsonType());
+                assertEquals(10, physicalFullScan.getBounds().upper().value().value());
             }
 
             {
@@ -245,8 +245,8 @@ class PhysicalPlannerTest {
                 PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
                 assertEquals("qty", physicalFullScan.getField());
                 assertEquals(OperatorType.GT, physicalFullScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalFullScan.getBounds().lower().bsonType());
-                assertEquals(50, physicalFullScan.getBounds().lower().value());
+                assertEquals(BsonType.INT32, physicalFullScan.getBounds().lower().value().bsonType());
+                assertEquals(50, physicalFullScan.getBounds().lower().value().value());
             }
         }
 
@@ -260,11 +260,11 @@ class PhysicalPlannerTest {
                 assertEquals("sale", physicalFullScan.getField());
                 assertEquals(OperatorType.EQ, physicalFullScan.getOperatorType());
 
-                assertEquals(BsonType.BOOLEAN, physicalFullScan.getBounds().lower().bsonType());
-                assertTrue((Boolean) physicalFullScan.getBounds().lower().value());
+                assertEquals(BsonType.BOOLEAN, physicalFullScan.getBounds().lower().value().bsonType());
+                assertTrue((Boolean) physicalFullScan.getBounds().lower().value().value());
 
-                assertEquals(BsonType.BOOLEAN, physicalFullScan.getBounds().upper().bsonType());
-                assertTrue((Boolean) physicalFullScan.getBounds().upper().value());
+                assertEquals(BsonType.BOOLEAN, physicalFullScan.getBounds().upper().value().bsonType());
+                assertTrue((Boolean) physicalFullScan.getBounds().upper().value().value());
             }
 
             {
@@ -272,8 +272,8 @@ class PhysicalPlannerTest {
                 PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
                 assertEquals("price", physicalFullScan.getField());
                 assertEquals(OperatorType.LT, physicalFullScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().bsonType());
-                assertEquals(5, physicalFullScan.getBounds().upper().value());
+                assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().value().bsonType());
+                assertEquals(5, physicalFullScan.getBounds().upper().value().value());
             }
         }
     }
@@ -303,8 +303,8 @@ class PhysicalPlannerTest {
                 assertEquals("qty", physicalIndexScan.getField());
                 assertEquals("qty_idx", physicalIndexScan.getIndex().name());
                 assertEquals(OperatorType.LT, physicalIndexScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalIndexScan.getBounds().upper().bsonType());
-                assertEquals(10, physicalIndexScan.getBounds().upper().value());
+                assertEquals(BsonType.INT32, physicalIndexScan.getBounds().upper().value().bsonType());
+                assertEquals(10, physicalIndexScan.getBounds().upper().value().value());
             }
 
             {
@@ -313,8 +313,8 @@ class PhysicalPlannerTest {
                 assertEquals("qty", physicalIndexScan.getField());
                 assertEquals("qty_idx", physicalIndexScan.getIndex().name());
                 assertEquals(OperatorType.GT, physicalIndexScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalIndexScan.getBounds().lower().bsonType());
-                assertEquals(50, physicalIndexScan.getBounds().lower().value());
+                assertEquals(BsonType.INT32, physicalIndexScan.getBounds().lower().value().bsonType());
+                assertEquals(50, physicalIndexScan.getBounds().lower().value().value());
             }
         }
 
@@ -329,11 +329,11 @@ class PhysicalPlannerTest {
                 assertEquals("sale_idx", physicalIndexScan.getIndex().name());
                 assertEquals(OperatorType.EQ, physicalIndexScan.getOperatorType());
 
-                assertEquals(BsonType.BOOLEAN, physicalIndexScan.getBounds().lower().bsonType());
-                assertTrue((Boolean) physicalIndexScan.getBounds().lower().value());
+                assertEquals(BsonType.BOOLEAN, physicalIndexScan.getBounds().lower().value().bsonType());
+                assertTrue((Boolean) physicalIndexScan.getBounds().lower().value().value());
 
-                assertEquals(BsonType.BOOLEAN, physicalIndexScan.getBounds().upper().bsonType());
-                assertTrue((Boolean) physicalIndexScan.getBounds().upper().value());
+                assertEquals(BsonType.BOOLEAN, physicalIndexScan.getBounds().upper().value().bsonType());
+                assertTrue((Boolean) physicalIndexScan.getBounds().upper().value().value());
             }
 
             {
@@ -342,8 +342,8 @@ class PhysicalPlannerTest {
                 assertEquals("price", physicalIndexScan.getField());
                 assertEquals("price_idx", physicalIndexScan.getIndex().name());
                 assertEquals(OperatorType.LT, physicalIndexScan.getOperatorType());
-                assertEquals(BsonType.INT32, physicalIndexScan.getBounds().upper().bsonType());
-                assertEquals(5, physicalIndexScan.getBounds().upper().value());
+                assertEquals(BsonType.INT32, physicalIndexScan.getBounds().upper().value().bsonType());
+                assertEquals(5, physicalIndexScan.getBounds().upper().value().value());
             }
         }
     }
