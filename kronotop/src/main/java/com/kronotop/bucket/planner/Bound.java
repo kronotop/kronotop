@@ -13,5 +13,5 @@ package com.kronotop.bucket.planner;
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.bql.values.BqlValue;
 
-public record Bound(OperatorType type, BqlValue<?> value) {
+public record Bound(OperatorType type, BqlValue<?> bqlValue) {
 }
