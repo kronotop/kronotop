@@ -25,7 +25,7 @@ import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
  */
 class IndexRangeGenerator {
 
-    private static byte[] beginningOfIndexRange(Subspace indexSubspace, Index index) {
+    public static byte[] beginningOfIndexRange(Subspace indexSubspace, Index index) {
         return indexSubspace.pack(IndexBuilder.beginningOfIndexRange(index));
     }
 

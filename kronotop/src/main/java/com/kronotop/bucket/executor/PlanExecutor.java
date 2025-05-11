@@ -15,14 +15,17 @@ import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketPrefix;
 import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.bucket.DefaultIndex;
+import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.bucket.index.UnpackedIndex;
+import com.kronotop.bucket.planner.Bound;
 import com.kronotop.bucket.planner.physical.PhysicalFullScan;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
@@ -37,6 +40,8 @@ import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import static com.kronotop.bucket.executor.IndexRangeGenerator.beginningOfIndexRange;
 
 /**
  * The {@code PlanExecutor} class is responsible for executing physical query plans and retrieving
@@ -136,26 +141,49 @@ public class PlanExecutor {
     }
 
     /**
-     * Determines an {@code IndexRange} for the specified {@code PhysicalIndexScan} and subspace.
-     * The range is calculated based on the operator type of the {@code PhysicalIndexScan}.
+     * Constructs an {@link IndexRange} object defining the start and end key selectors
+     * for an index scan operation based on the provided bounds and index metadata.
      *
-     * @param physicalIndexScan the {@code PhysicalIndexScan} object containing details about the index scan,
-     *                          including operator type and value
-     * @param indexSubspace     the {@code Subspace} representing the index subspace in which the range is defined
-     * @return an {@code IndexRange} defining the beginning and end key selectors for the index scan range
-     * @throws IllegalStateException if the operator type of the {@code PhysicalIndexScan} is unrecognized
+     * @param physicalIndexScan the physical index scan object containing index metadata
+     *                          and operator types for determining the range
+     * @param indexSubspace     the subspace representing the specific index structure
+     *                          and containing the key-value pairs to be scanned
+     * @return an {@link IndexRange} containing the begin and end key selectors for the
+     *         index scan operation
      */
     private IndexRange getIndexRange(PhysicalIndexScan physicalIndexScan, Subspace indexSubspace) {
-        /*Object value = physicalIndexScan.bqlValue().value();
-        return switch (physicalIndexScan.getOperatorType()) {
-            case GT-> IndexRangeGenerator.greaterThan(physicalIndexScan, value, indexSubspace);
-            case GTE -> IndexRangeGenerator.greaterThanOrEqual(physicalIndexScan, value, indexSubspace);
-            case EQ -> IndexRangeGenerator.equal(physicalIndexScan, value, indexSubspace);
-            case LT -> IndexRangeGenerator.lessThan(physicalIndexScan, value, indexSubspace);
-            case LTE -> IndexRangeGenerator.lessThanOrEqual(physicalIndexScan, value, indexSubspace);
-            default -> throw new IllegalStateException("Unexpected value: " + physicalIndexScan.getOperatorType());
-        };*/
-        return null;
+        KeySelector begin = null;
+        Bound lower = physicalIndexScan.getBounds().lower();
+        if (lower != null) {
+            Tuple tuple = IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()).addObject(lower.bqlValue().value());
+            byte[] key = indexSubspace.pack(tuple);
+            if (lower.type().equals(OperatorType.GT)) {
+                begin = KeySelector.firstGreaterThan(key);
+            } else if (lower.type().equals(OperatorType.GTE)) {
+                begin = KeySelector.firstGreaterOrEqual(key);
+            }  else if (lower.type().equals(OperatorType.EQ)) {
+                begin = KeySelector.firstGreaterOrEqual(key);
+            }
+        } else {
+            begin = KeySelector.firstGreaterOrEqual(beginningOfIndexRange(indexSubspace, physicalIndexScan.getIndex()));
+        }
+
+        KeySelector end = null;
+        Bound upper = physicalIndexScan.getBounds().upper();
+        if (upper == null) {
+            end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(beginningOfIndexRange(indexSubspace, physicalIndexScan.getIndex())));
+        } else {
+            Tuple tuple = IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()).addObject(upper.bqlValue().value());
+            byte[] key = indexSubspace.pack(tuple);
+            if (upper.type().equals(OperatorType.LT)) {
+                end = KeySelector.lastLessOrEqual(key);
+            } else if (upper.type().equals(OperatorType.LTE)) {
+                end = KeySelector.firstGreaterThan(key);
+            } else if (upper.type().equals(OperatorType.EQ)) {
+                end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(key));
+            }
+        }
+        return new IndexRange(begin, end);
     }
 
     /**
