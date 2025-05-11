@@ -35,7 +35,7 @@ public class PhysicalPlanner {
      * @return a Bounds object representing the lower and upper bounds derived from the filter's operator type
      * @throws IllegalStateException if the filter has an unexpected or unsupported operator type
      */
-    private Bounds getBounds(LogicalComparisonFilter filter) {
+    private Bounds prepareBounds(LogicalComparisonFilter filter) {
         return switch (filter.getOperatorType()) {
             case EQ -> new Bounds(
                     new Bound(filter.getOperatorType(), filter.bqlValue()),
@@ -60,12 +60,12 @@ public class PhysicalPlanner {
                                 logicalFilter.getOperatorType()
                         );
                         physicalIndexScan.setField(logicalFilter.getField());
-                        physicalIndexScan.setBounds(getBounds(logicalFilter));
+                        physicalIndexScan.setBounds(prepareBounds(logicalFilter));
                         nodes.add(physicalIndexScan);
                     } else {
                         PhysicalFullScan physicalFullScan = new PhysicalFullScan(logicalFilter.getOperatorType());
                         physicalFullScan.setField(logicalFilter.getField());
-                        physicalFullScan.setBounds(getBounds(logicalFilter));
+                        physicalFullScan.setBounds(prepareBounds(logicalFilter));
                         nodes.add(physicalFullScan);
                     }
                 }
