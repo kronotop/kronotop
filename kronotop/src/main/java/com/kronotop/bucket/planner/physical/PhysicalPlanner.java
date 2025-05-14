@@ -18,6 +18,7 @@ import com.kronotop.bucket.planner.logical.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class PhysicalPlanner {
     private final PlannerContext context;
@@ -86,17 +87,15 @@ public class PhysicalPlanner {
     }
 
     public PhysicalNode plan() {
-        switch (root) {
-            case LogicalFullScan node -> {
-                List<PhysicalNode> result = traverse(node.getChildren());
-                if (result.isEmpty()) {
-                    return new PhysicalFullScan();
-                } else if (result.size() == 1) {
-                    return result.getFirst();
-                }
-                return new PhysicalIntersectionOperator(result);
+        if (Objects.requireNonNull(root) instanceof LogicalFullScan node) {
+            List<PhysicalNode> result = traverse(node.getChildren());
+            if (result.isEmpty()) {
+                return new PhysicalFullScan();
+            } else if (result.size() == 1) {
+                return result.getFirst();
             }
-            default -> throw new IllegalStateException("Unexpected value: " + root);
+            return new PhysicalIntersectionOperator(result);
         }
+        throw new IllegalStateException("Unexpected value: " + root);
     }
 }
