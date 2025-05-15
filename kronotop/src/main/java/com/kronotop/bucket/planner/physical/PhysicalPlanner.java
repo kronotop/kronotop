@@ -21,12 +21,18 @@ import java.util.List;
 import java.util.Objects;
 
 public class PhysicalPlanner {
+    private final List<PhysicalOptimizationStage> stages;
     private final PlannerContext context;
     private final LogicalNode root;
 
-    public PhysicalPlanner(PlannerContext context, LogicalNode root) {
+    public PhysicalPlanner(PlannerContext context, LogicalNode root, List<PhysicalOptimizationStage> stages) {
         this.context = context;
         this.root = root;
+        this.stages = stages;
+    }
+
+    public PhysicalPlanner(PlannerContext context, LogicalNode root) {
+        this(context, root, List.of());
     }
 
     /**
@@ -86,7 +92,7 @@ public class PhysicalPlanner {
         return nodes;
     }
 
-    public PhysicalNode plan() {
+    private PhysicalNode convertLogicalPlan() {
         if (Objects.requireNonNull(root) instanceof LogicalFullScan node) {
             List<PhysicalNode> result = traverse(node.getChildren());
             if (result.isEmpty()) {
@@ -97,5 +103,13 @@ public class PhysicalPlanner {
             return new PhysicalIntersectionOperator(result);
         }
         throw new IllegalStateException("Unexpected value: " + root);
+    }
+
+    public PhysicalNode plan() {
+        PhysicalNode node = convertLogicalPlan();
+        for (PhysicalOptimizationStage stage : stages) {
+            node = stage.optimize(node);
+        }
+        return node;
     }
 }

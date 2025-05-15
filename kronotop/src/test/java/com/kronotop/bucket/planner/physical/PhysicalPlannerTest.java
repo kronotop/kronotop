@@ -19,6 +19,8 @@ import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -347,4 +349,19 @@ class PhysicalPlannerTest {
             }
         }
     }
+
+    @Test
+    void when_foo() {
+        // 20 <= age <= 30
+        LogicalNode logicalNode = getLogicalPlan("{ $and: [ { age: {$gte: 20 } }, { age: { $lte: 30 } } ] }");
+
+        List<PhysicalOptimizationStage> stages = new ArrayList<>(List.of(new MergeOverlappingPhysicalIndexes()));
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode, stages);
+        PhysicalNode physicalNode = physical.plan();
+
+        assertInstanceOf(PhysicalIntersectionOperator.class, physicalNode);
+        PhysicalIntersectionOperator physicalIntersectionOperator = (PhysicalIntersectionOperator) physicalNode;
+        System.out.println(physicalIntersectionOperator);
+    }
+
 }
