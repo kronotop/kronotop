@@ -10,23 +10,28 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.planner.Bounds;
+
+import java.util.List;
 
 public class PhysicalScan extends PhysicalFilter {
     private Bounds bounds;
     private String field;
 
-    public PhysicalScan(OperatorType operatorType) {
-        super(operatorType);
+    public PhysicalScan() {
+        super();
     }
-
-    public void setBounds(Bounds bounds) {
-        this.bounds = bounds;
+    
+    public PhysicalScan(List<PhysicalNode> children) {
+        super(children);
     }
 
     public Bounds getBounds() {
         return bounds;
+    }
+
+    public void setBounds(Bounds bounds) {
+        this.bounds = bounds;
     }
 
     public String getField() {

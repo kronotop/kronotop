@@ -10,23 +10,14 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
-
 import java.util.List;
 
 public class PhysicalFilter extends PhysicalNode {
-    private final OperatorType operatorType;
-
-    public PhysicalFilter(OperatorType operatorType) {
-        this.operatorType = operatorType;
+    public PhysicalFilter() {
+        super();
     }
 
-    public PhysicalFilter(OperatorType operatorType, List<PhysicalNode> children) {
+    public PhysicalFilter(List<PhysicalNode> children) {
         super(children);
-        this.operatorType = operatorType;
-    }
-
-    public OperatorType getOperatorType() {
-        return operatorType;
     }
 }

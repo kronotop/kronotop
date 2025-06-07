@@ -10,22 +10,21 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
+import java.util.List;
 
 public class PhysicalFullScan extends PhysicalScan {
 
     public PhysicalFullScan() {
-        super(null);
+        super();
     }
 
-    public PhysicalFullScan(OperatorType operatorType) {
-        super(operatorType);
+    public PhysicalFullScan(List<PhysicalNode> children) {
+        super(children);
     }
 
     @Override
     public String toString() {
         return "PhysicalFullScan {" +
-                "operatorType=" + getOperatorType() + ", " +
                 "field=" + getField() + ", " +
                 "bounds=" + getBounds() + "}";
     }

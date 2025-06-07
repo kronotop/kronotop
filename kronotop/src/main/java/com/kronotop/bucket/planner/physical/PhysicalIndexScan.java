@@ -10,14 +10,12 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.index.Index;
 
 public class PhysicalIndexScan extends PhysicalScan {
     private final Index index;
 
-    public PhysicalIndexScan(Index index, OperatorType operatorType) {
-        super(operatorType);
+    public PhysicalIndexScan(Index index) {
         this.index = index;
     }
 
@@ -29,7 +27,6 @@ public class PhysicalIndexScan extends PhysicalScan {
     public String toString() {
         return "PhysicalIndexScan {" +
                 "index=" + index + ", " +
-                "operatorType=" + getOperatorType() + ", " +
                 "field=" + getField() + ", " +
                 "bounds=" + getBounds() + "}";
     }

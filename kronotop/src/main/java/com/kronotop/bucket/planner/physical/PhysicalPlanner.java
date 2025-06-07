@@ -62,15 +62,12 @@ public class PhysicalPlanner {
                     // TODO: This assumes the field hierarchy only has a single leaf and it eques to index's path
                     Index index = context.indexes().get(logicalFilter.getField());
                     if (index != null) {
-                        PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(
-                                index,
-                                logicalFilter.getOperatorType()
-                        );
+                        PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(index);
                         physicalIndexScan.setField(logicalFilter.getField());
                         physicalIndexScan.setBounds(prepareBounds(logicalFilter));
                         nodes.add(physicalIndexScan);
                     } else {
-                        PhysicalFullScan physicalFullScan = new PhysicalFullScan(logicalFilter.getOperatorType());
+                        PhysicalFullScan physicalFullScan = new PhysicalFullScan();
                         physicalFullScan.setField(logicalFilter.getField());
                         physicalFullScan.setBounds(prepareBounds(logicalFilter));
                         nodes.add(physicalFullScan);
@@ -96,7 +93,7 @@ public class PhysicalPlanner {
         if (Objects.requireNonNull(root) instanceof LogicalFullScan node) {
             List<PhysicalNode> result = traverse(node.getChildren());
             if (result.isEmpty()) {
-                return new PhysicalFullScan();
+                return new PhysicalFullScan(List.of());
             } else if (result.size() == 1) {
                 return result.getFirst();
             }

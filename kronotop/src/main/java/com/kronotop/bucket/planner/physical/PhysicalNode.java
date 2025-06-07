@@ -24,16 +24,16 @@ public class PhysicalNode {
         this.children = children;
     }
 
-    void setChildren(List<PhysicalNode> children) {
-        this.children.clear();
-        this.children.addAll(children);
-    }
-
     void addChild(PhysicalNode child) {
         children.add(child);
     }
 
     public List<PhysicalNode> getChildren() {
         return children;
+    }
+
+    void setChildren(List<PhysicalNode> children) {
+        this.children.clear();
+        this.children.addAll(children);
     }
 }

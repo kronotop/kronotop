@@ -13,17 +13,7 @@ package com.kronotop.bucket.planner.physical;
 public class MergeOverlappingBoundaries implements PhysicalOptimizationStage {
     @Override
     public PhysicalNode optimize(PhysicalNode node) {
-        // group by field
-        switch (node) {
-            case PhysicalIntersectionOperator intersection:
-                // has more than one child
-                for (PhysicalNode pnode : intersection.getChildren()) {
-
-                }
-                break;
-            default:
-                throw new IllegalStateException("Unexpected value: " + node);
-        }
+        System.out.println(node);
         return node;
     }
 }
@@ -31,8 +21,8 @@ public class MergeOverlappingBoundaries implements PhysicalOptimizationStage {
 /*
 PhysicalIntersectionOperator {
     children=[
-        PhysicalFullScan {operatorType=GTE, field=age, bounds=Bounds[lower=Bound[type=GTE, bqlValue=Int32Val[value=20]], upper=null]},
-        PhysicalFullScan {operatorType=LTE, field=age, bounds=Bounds[lower=null, upper=Bound[type=LTE, bqlValue=Int32Val[value=30]]]}
+        PhysicalFullScan {field=age, bounds=Bounds[lower=Bound[type=GTE, bqlValue=Int32Val[value=20]], upper=null]},
+        PhysicalFullScan {field=age, bounds=Bounds[lower=null, upper=Bound[type=LTE, bqlValue=Int32Val[value=30]]]}
     ]
 }
  */

@@ -40,7 +40,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * The {@code PlanExecutor} class is responsible for executing physical query plans and retrieving
@@ -106,17 +105,13 @@ public class PlanExecutor {
      * @throws IOException if an I/O error occurs during the scan process
      */
     private Map<Versionstamp, ByteBuffer> doPhysicalFullScan(Transaction tr, BucketSubspace subspace, Prefix prefix, PhysicalFullScan physicalFullScan) throws IOException {
-        Map<Versionstamp, ByteBuffer> result = new LinkedHashMap<>();
-        if (Objects.isNull(physicalFullScan.getOperatorType())) {
-            Subspace indexSubspace = subspace.getBucketIndexSubspace(executorContext.shard().id(), prefix);
-            KeySelector begin = KeySelector.firstGreaterOrEqual(indexSubspace.pack(IndexBuilder.beginningOfIndexRange(DefaultIndex.ID)));
-            KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(indexSubspace.pack(IndexBuilder.beginningOfIndexRange(DefaultIndex.ID))));
-            IndexRange range = new IndexRange(begin, end);
-            Map<Integer, IndexEntry> entries = getEntriesFromIndex(tr, indexSubspace, range);
-            return readEntriesFromVolume(prefix, entries);
-        }
-        // TODO: Add more case
-        return result;
+        // TODO: Review this
+        Subspace indexSubspace = subspace.getBucketIndexSubspace(executorContext.shard().id(), prefix);
+        KeySelector begin = KeySelector.firstGreaterOrEqual(indexSubspace.pack(IndexBuilder.beginningOfIndexRange(DefaultIndex.ID)));
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(indexSubspace.pack(IndexBuilder.beginningOfIndexRange(DefaultIndex.ID))));
+        IndexRange range = new IndexRange(begin, end);
+        Map<Integer, IndexEntry> entries = getEntriesFromIndex(tr, indexSubspace, range);
+        return readEntriesFromVolume(prefix, entries);
     }
 
     /**
@@ -152,7 +147,7 @@ public class PlanExecutor {
      * @param indexSubspace     the subspace representing the specific index structure
      *                          and containing the key-value pairs to be scanned
      * @return an {@link IndexRange} containing the begin and end key selectors for the
-     *         index scan operation
+     * index scan operation
      */
     private IndexRange getIndexRange(PhysicalIndexScan physicalIndexScan, Subspace indexSubspace) {
         KeySelector begin = null;
@@ -164,7 +159,7 @@ public class PlanExecutor {
                 begin = KeySelector.firstGreaterThan(key);
             } else if (lower.type().equals(OperatorType.GTE)) {
                 begin = KeySelector.firstGreaterOrEqual(key);
-            }  else if (lower.type().equals(OperatorType.EQ)) {
+            } else if (lower.type().equals(OperatorType.EQ)) {
                 begin = KeySelector.firstGreaterOrEqual(key);
             }
         } else {

@@ -10,13 +10,11 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
-
 import java.util.List;
 
 public class PhysicalIntersectionOperator extends PhysicalFilter {
     public PhysicalIntersectionOperator(List<PhysicalNode> children) {
-        super(OperatorType.AND, children);
+        super(children);
     }
 
     @Override
