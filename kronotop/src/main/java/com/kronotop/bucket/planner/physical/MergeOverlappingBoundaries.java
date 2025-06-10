@@ -10,11 +10,25 @@
 
 package com.kronotop.bucket.planner.physical;
 
+import com.kronotop.bucket.planner.PlannerException;
+
 public class MergeOverlappingBoundaries implements PhysicalOptimizationStage {
+
+    private PhysicalNode processIntersectionOperator(PhysicalIntersectionOperator operator) {
+        for (PhysicalNode node : operator.getChildren()) {
+            System.out.println(node);
+        }
+        return operator;
+    }
+
     @Override
     public PhysicalNode optimize(PhysicalNode node) {
-        System.out.println(node);
-        return node;
+        switch (node) {
+            case PhysicalIntersectionOperator operator:
+                return processIntersectionOperator(operator);
+            default:
+                throw new PlannerException("Invalid operator: " + node.getClass().getName());
+        }
     }
 }
 
