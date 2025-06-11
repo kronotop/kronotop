@@ -414,8 +414,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
             try {
                 Handler handler = commands.get(request.getCommand());
                 if (handler.requiresClusterInitialization()) {
-                    response.writeError("Cluster not initialized yet");
-                    return;
+                    throw new ClusterNotInitializedException();
                 }
             } catch (Exception e) {
                 exceptionToRespError(request, response, e);
