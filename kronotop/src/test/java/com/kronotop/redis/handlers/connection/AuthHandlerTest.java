@@ -77,7 +77,7 @@ public class AuthHandlerTest extends BaseRedisHandlerTest {
     }
 
     @Test
-    public void testAuth() {
+    public void test_AUTH() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();

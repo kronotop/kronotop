@@ -23,6 +23,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
+import com.kronotop.MemberAttributes;
 import com.kronotop.cluster.ClusterConstants;
 import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.RoutingService;
@@ -98,6 +99,8 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
             }
             throw e;
         }
+
+        context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(true);
     }
 
     @Override

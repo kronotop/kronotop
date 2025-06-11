@@ -58,6 +58,11 @@ public class AuthHandler implements Handler {
     }
 
     @Override
+    public boolean requiresClusterInitialization() {
+        return false;
+    }
+
+    @Override
     public void execute(Request request, Response response) {
         AuthMessage msg = request.attr(MessageTypes.AUTH).get();
 

@@ -59,6 +59,11 @@ public class HelloHandler extends BaseHandler implements Handler {
     }
 
     @Override
+    public boolean requiresClusterInitialization() {
+        return false;
+    }
+
+    @Override
     public void execute(Request request, Response response) throws Exception {
         HelloMessage msg = request.attr(MessageTypes.HELLO).get();
 
