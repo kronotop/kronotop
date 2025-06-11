@@ -16,15 +16,10 @@
 
 package com.kronotop.cluster.handlers;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.MemberAttributes;
-import com.kronotop.server.ClusterNotInitializedException;
-import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
-import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -32,8 +27,6 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import io.netty.util.Attribute;
 
 import java.util.EnumMap;
-import java.util.HashSet;
-import java.util.Set;
 
 @Command(KrAdminMessage.COMMAND)
 @MinimumParameterCount(KrAdminMessage.MINIMUM_PARAMETER_COUNT)
@@ -41,7 +34,6 @@ public class KrAdminHandler implements Handler {
 
     private final EnumMap<KrAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(KrAdminSubcommand.class);
     private final Context context;
-    private volatile boolean clusterInitialized;
 
     public KrAdminHandler(RoutingService service) {
         this.context = service.getContext();
@@ -73,16 +65,6 @@ public class KrAdminHandler implements Handler {
     @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.KRADMIN).set(new KrAdminMessage(request));
-    }
-
-    private boolean isClusterInitialized() {
-        if (!clusterInitialized) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                DirectorySubspace clusterMetadataSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-                clusterInitialized = MembershipUtils.isClusterInitialized(tr, clusterMetadataSubspace);
-            }
-        }
-        return clusterInitialized;
     }
 
     @Override

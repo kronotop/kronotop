@@ -21,10 +21,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.BaseKronotopService;
-import com.kronotop.Context;
-import com.kronotop.KronotopException;
-import com.kronotop.KronotopService;
+import com.kronotop.*;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.JSONUtils;
@@ -133,6 +130,9 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         scheduler.execute(eventsJournalWatcher);
         eventsJournalWatcher.waitUntilStarted();
 
+        if (!checkClusterInitialized()) {
+            scheduler.execute(new ClusterInitializationCheck());
+        }
         scheduler.execute(new HeartbeatTask());
         scheduler.execute(new FailureDetectionTask());
     }
@@ -384,6 +384,41 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             } finally {
                 if (!isShutdown) {
                     scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if the cluster has been initialized by verifying the cluster metadata subspace.
+     * Updates the cluster initialization attribute in the member's context if the cluster is already initialized.
+     *
+     * @return true if the cluster is initialized, false otherwise
+     */
+    private boolean checkClusterInitialized() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace clusterMetadataSubspace = context.
+                    getDirectorySubspaceCache().
+                    get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
+            boolean initialized = MembershipUtils.isClusterInitialized(tr, clusterMetadataSubspace);
+            if (initialized) {
+                context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(initialized);
+            }
+            return initialized;
+        }
+    }
+
+    private class ClusterInitializationCheck implements Runnable {
+        @Override
+        public void run() {
+            boolean initialized = false;
+            try {
+                initialized = checkClusterInitialized();
+            } catch (Exception e) {
+                LOGGER.error("Error while checking cluster initialization", e);
+            } finally {
+                if (!isShutdown && !initialized) {
+                    scheduler.schedule(this, 1, TimeUnit.SECONDS);
                 }
             }
         }
