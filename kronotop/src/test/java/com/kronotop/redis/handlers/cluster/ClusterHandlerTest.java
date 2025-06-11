@@ -18,6 +18,7 @@ package com.kronotop.redis.handlers.cluster;
 
 import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.MemberAttributes;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseRedisHandlerTest;
@@ -29,6 +30,7 @@ import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.Attribute;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,19 +59,13 @@ class ClusterHandlerTest extends BaseRedisHandlerTest {
         secondInstance.start();
     }
 
-    private boolean isJoinCompleted(int numMembers) {
-        // TODO: CLUSTER-REFACTOR
-        RoutingService service = instance.getContext().getService(RoutingService.NAME);
-        return service.isClusterInitialized();
-    }
-
     @Test
     public void test_CLUSTER_NODES() {
-        Map<Integer, KronotopTestInstance> instances = new HashMap<>();
-        instances.put(0, instance);
-        instances.put(1, secondInstance);
-
-        await().atMost(5, TimeUnit.SECONDS).until(() -> isJoinCompleted(instances.size()));
+        // TODO: Check this test and improve
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
+            return clusterInitialized.get() != null && clusterInitialized.get();
+        });
 
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
@@ -91,11 +87,11 @@ class ClusterHandlerTest extends BaseRedisHandlerTest {
 
     @Test
     public void test_CLUSTER_SLOTS() {
-        Map<Integer, KronotopTestInstance> instances = new HashMap<>();
-        instances.put(0, instance);
-        instances.put(1, secondInstance);
-
-        await().atMost(5, TimeUnit.SECONDS).until(() -> isJoinCompleted(instances.size()));
+        // TODO: Check this test and improve
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
+            return clusterInitialized.get() != null && clusterInitialized.get();
+        });
 
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();

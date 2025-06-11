@@ -19,16 +19,14 @@ package com.kronotop.cluster;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.CommandHandlerService;
-import com.kronotop.Context;
-import com.kronotop.KronotopException;
-import com.kronotop.KronotopService;
+import com.kronotop.*;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.server.ServerKind;
+import io.netty.util.Attribute;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,10 +45,8 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final MembershipService membership;
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>(new RoutingTable());
-
     private final ConcurrentHashMap<RoutingEventKind, List<RoutingEventHook>> hooksByKind = new ConcurrentHashMap<>();
 
-    private volatile boolean clusterInitialized;
     private volatile boolean isShutdown;
 
     public RoutingService(Context context) {
@@ -75,12 +71,13 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     }
 
     public void start() {
-        clusterInitialized = isClusterInitialized_internal();
-        if (clusterInitialized) {
+        Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
+        clusterInitialized.set(isClusterInitialized_internal());
+        if (!clusterInitialized.get()) {
+            scheduler.execute(new ClusterInitializationWatcher());
+        } else {
             loadRoutingTableFromFoundationDB(true);
             scheduler.execute(new RoutingEventsWatcher());
-        } else {
-            scheduler.execute(new ClusterInitializationWatcher());
         }
     }
 
@@ -96,15 +93,6 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         } catch (InterruptedException e) {
             throw new KronotopException(e);
         }
-    }
-
-    /**
-     * Checks if the cluster has been initialized.
-     *
-     * @return true if the cluster is initialized, otherwise false.
-     */
-    public boolean isClusterInitialized() {
-        return clusterInitialized;
     }
 
     /**
@@ -216,7 +204,8 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
      * @throws KronotopException if an unknown shard kind is encountered
      */
     private void loadRoutingTableFromFoundationDB(boolean firstRun) {
-        if (!clusterInitialized) {
+        Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
+        if (clusterInitialized.get() == null || !clusterInitialized.get()) {
             return;
         }
         RoutingTable table = new RoutingTable();
@@ -337,6 +326,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 return;
             }
 
+            boolean clusterInitialized = false;
             DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
             byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
 
@@ -345,6 +335,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 tr.commit().join();
                 try {
                     clusterInitialized = isClusterInitialized_internal();
+                    context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(clusterInitialized);
                     if (clusterInitialized) {
                         keyWatcher.unwatch(key);
                         return;
@@ -355,6 +346,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                     return;
                 }
                 clusterInitialized = isClusterInitialized_internal();
+                context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(clusterInitialized);
             } catch (Exception e) {
                 LOGGER.error("Error while waiting for cluster initialization", e);
             } finally {

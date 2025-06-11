@@ -130,9 +130,6 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         scheduler.execute(eventsJournalWatcher);
         eventsJournalWatcher.waitUntilStarted();
 
-        if (!checkClusterInitialized()) {
-            scheduler.execute(new ClusterInitializationCheck());
-        }
         scheduler.execute(new HeartbeatTask());
         scheduler.execute(new FailureDetectionTask());
     }
@@ -384,52 +381,6 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             } finally {
                 if (!isShutdown) {
                     scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);
-                }
-            }
-        }
-    }
-
-    /**
-     * Checks if the cluster has been initialized by verifying the cluster metadata subspace.
-     * Updates the cluster initialization attribute in the member's context if the cluster is already initialized.
-     *
-     * @return true if the cluster is initialized, false otherwise
-     */
-    private boolean checkClusterInitialized() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace clusterMetadataSubspace = context.
-                    getDirectorySubspaceCache().
-                    get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-            boolean initialized = MembershipUtils.isClusterInitialized(tr, clusterMetadataSubspace);
-            if (initialized) {
-                context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(initialized);
-            }
-            return initialized;
-        }
-    }
-
-    /**
-     * A private class that implements a periodic check to verify whether the cluster has been initialized.
-     * If the cluster is not initialized and the system is not in shutdown mode, it schedules itself
-     * to execute again after a delay.
-     * <p>
-     * The class is designed to handle potential exceptions during the check operation by logging errors
-     * and ensuring the continuation of the scheduled checks until the cluster is successfully initialized
-     * or the system is shut down.
-     * <p>
-     * This class uses a scheduler to reschedule the check task when needed.
-     */
-    private class ClusterInitializationCheck implements Runnable {
-        @Override
-        public void run() {
-            boolean initialized = false;
-            try {
-                initialized = checkClusterInitialized();
-            } catch (Exception e) {
-                LOGGER.error("Error while checking cluster initialization", e);
-            } finally {
-                if (!isShutdown && !initialized) {
-                    scheduler.schedule(this, 1, TimeUnit.SECONDS);
                 }
             }
         }

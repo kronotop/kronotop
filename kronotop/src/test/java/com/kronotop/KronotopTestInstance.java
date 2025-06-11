@@ -45,6 +45,7 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.util.Attribute;
 
 import java.net.UnknownHostException;
 import java.util.HashSet;
@@ -233,8 +234,10 @@ public class KronotopTestInstance extends KronotopInstance {
             return;
         }
 
-        RoutingService routing = context.getService(RoutingService.NAME);
-        await().atMost(5000, TimeUnit.MILLISECONDS).until(routing::isClusterInitialized);
+        await().atMost(5000, TimeUnit.MILLISECONDS).until(() -> {
+            Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
+            return clusterInitialized.get() != null && clusterInitialized.get();
+        });
 
         // TODO: BUCKET-IMPLEMENTATION review this part when you start working on Buckets again
         setPrimaryOwnersOfShards(cmd, ShardKind.REDIS);

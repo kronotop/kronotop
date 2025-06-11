@@ -396,7 +396,8 @@ public class RedisService extends CommandHandlerService implements KronotopServi
      * @throws KronotopException              if the shard ID is not owned by any member yet
      */
     private Route findRoute(int shardId) {
-        if (!routing.isClusterInitialized()) {
+        Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
+        if (clusterInitialized.get() == null || !clusterInitialized.get()) {
             throw new ClusterNotInitializedException();
         }
 
