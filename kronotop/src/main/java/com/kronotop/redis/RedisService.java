@@ -502,6 +502,9 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             if (currentShardId != null && shardId != currentShardId) {
                 currentRange.setEnd(hashSlot - 1);
                 Route route = routing.findRoute(ShardKind.REDIS, currentShardId);
+                if (route == null) {
+                    throw new KronotopException(String.format("shard id: %d not owned by any member yet", currentShardId));
+                }
                 currentRange.setPrimary(route.primary());
                 currentRange.setStandbys(route.standbys());
                 currentRange.setShardId(currentShardId);

@@ -408,6 +408,17 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         }
     }
 
+    /**
+     * A private class that implements a periodic check to verify whether the cluster has been initialized.
+     * If the cluster is not initialized and the system is not in shutdown mode, it schedules itself
+     * to execute again after a delay.
+     * <p>
+     * The class is designed to handle potential exceptions during the check operation by logging errors
+     * and ensuring the continuation of the scheduled checks until the cluster is successfully initialized
+     * or the system is shut down.
+     * <p>
+     * This class uses a scheduler to reschedule the check task when needed.
+     */
     private class ClusterInitializationCheck implements Runnable {
         @Override
         public void run() {
