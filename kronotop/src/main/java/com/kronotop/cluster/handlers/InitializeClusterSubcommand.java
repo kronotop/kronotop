@@ -101,6 +101,11 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
     }
 
     @Override
+    public boolean requiresClusterInitialization() {
+        return false;
+    }
+
+    @Override
     public void execute(Request request, Response response) {
         AsyncCommandExecutor.runAsync(context, response, () -> {
             try {

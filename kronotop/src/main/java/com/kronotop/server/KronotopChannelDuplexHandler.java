@@ -19,6 +19,7 @@ package com.kronotop.server;
 import com.apple.foundationdb.FDBException;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
+import com.kronotop.MemberAttributes;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.transactions.protocol.DiscardMessage;
 import com.kronotop.redis.handlers.transactions.protocol.ExecMessage;
@@ -297,7 +298,15 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         }
     }
 
-    private void logCommandForDebugging(Request request) {
+    /**
+     * Reads the command and its parameters from the given {@link Request} object
+     * and converts them into a single string representation, where the command
+     * and its parameters are separated by spaces.
+     *
+     * @param request the {@link Request} object containing the command and its parameters
+     * @return a single string representing the command and its parameters
+     */
+    private String readCommandAsString(Request request) {
         List<String> command = new ArrayList<>(List.of(request.getCommand()));
         for (ByteBuf buf : request.getParams()) {
             byte[] parameter = new byte[buf.readableBytes()];
@@ -305,7 +314,11 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
             buf.resetReaderIndex();
             command.add(new String(parameter));
         }
-        LOGGER.debug("Received command: {}", String.join(" ", command));
+        return String.join(" ", command);
+    }
+
+    private void logCommandForDebugging(Request request) {
+
     }
 
     /**
@@ -392,7 +405,22 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         Response response = new RESP3Response(ctx);
 
         if (logCommandForDebugging) {
-            logCommandForDebugging(request);
+            String command = readCommandAsString(request);
+            LOGGER.debug("Received command: {}", command);
+        }
+
+        Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
+        if (clusterInitialized.get() == null || !clusterInitialized.get()) {
+            try {
+                Handler handler = commands.get(request.getCommand());
+                if (handler.requiresClusterInitialization()) {
+                    response.writeError("Cluster not initialized yet");
+                    return;
+                }
+            } catch (Exception e) {
+                exceptionToRespError(request, response, e);
+                return;
+            }
         }
 
         Attribute<Boolean> multiAttr = session.attr(SessionAttributes.MULTI);

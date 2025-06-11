@@ -25,6 +25,7 @@ import com.kronotop.journal.Journal;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
 import com.typesafe.config.Config;
+import io.netty.util.AttributeMap;
 
 import javax.annotation.Nonnull;
 import java.nio.file.Path;
@@ -36,6 +37,13 @@ import java.util.concurrent.ExecutorService;
  * The Context interface represents the context of a Kronotop instance.
  */
 public interface Context {
+
+    /**
+     * Retrieves the attributes associated with the current member.
+     *
+     * @return an AttributeMap containing the attributes of the current member.
+     */
+    AttributeMap getMemberAttributes();
 
     /**
      * Creates and retrieves an ExecutorService where each submitted task is executed

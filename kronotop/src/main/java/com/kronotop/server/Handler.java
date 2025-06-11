@@ -20,9 +20,21 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The Handler interface represents a handler for processing Redis requests.
+ * Represents a generic handler interface for processing Redis-like commands.
+ * A Handler defines the methods to be implemented for executing commands and
+ * optional operations such as preprocessing or managing keys.
  */
 public interface Handler {
+
+    /**
+     * Indicates whether the handler requires cluster initialization.
+     *
+     * @return true if the handler requires cluster initialization, false otherwise
+     */
+    default boolean requiresClusterInitialization() {
+        return true;
+    }
+
     /**
      * Checks if the handler is watchable.
      *

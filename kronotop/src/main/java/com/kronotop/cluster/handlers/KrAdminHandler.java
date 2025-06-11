@@ -66,6 +66,11 @@ public class KrAdminHandler implements Handler {
     }
 
     @Override
+    public boolean requiresClusterInitialization() {
+        return false;
+    }
+
+    @Override
     public boolean isRedisCompatible() {
         return false;
     }
@@ -93,7 +98,7 @@ public class KrAdminHandler implements Handler {
             throw new UnknownSubcommandException(message.getSubcommand().toString());
         }
 
-        if (subcommandsRequireInitializedCluster.contains(message.getSubcommand())) {
+        if (executor.requiresClusterInitialization()) {
             if (!isClusterInitialized()) {
                 throw new ClusterNotInitializedException();
             }

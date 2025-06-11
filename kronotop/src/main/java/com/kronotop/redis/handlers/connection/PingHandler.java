@@ -34,6 +34,11 @@ public class PingHandler implements Handler {
     final String DEFAULT_PING_RESPONSE = "PONG";
 
     @Override
+    public boolean requiresClusterInitialization() {
+        return false;
+    }
+
+    @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.PING).set(new PingMessage(request));
     }

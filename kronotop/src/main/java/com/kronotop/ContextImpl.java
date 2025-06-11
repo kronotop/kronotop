@@ -26,6 +26,8 @@ import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
 import com.typesafe.config.Config;
 import io.lettuce.core.codec.ByteArrayCodec;
+import io.netty.util.AttributeMap;
+import io.netty.util.DefaultAttributeMap;
 
 import javax.annotation.Nonnull;
 import java.nio.file.Path;
@@ -53,6 +55,7 @@ public class ContextImpl implements Context {
     private final Path dataDir;
     private final InternalConnectionPool<byte[], byte[]> internalConnectionPool;
     private final String defaultNamespace;
+    private final AttributeMap memberAttributes = new DefaultAttributeMap();
 
     public ContextImpl(Config config, Member member, Database database) {
         if (config.hasPath("default_namespace")) {
@@ -81,6 +84,11 @@ public class ContextImpl implements Context {
         for (ServerKind kind : ServerKind.values()) {
             this.handlers.put(kind, new CommandHandlerRegistry());
         }
+    }
+
+    @Override
+    public AttributeMap getMemberAttributes() {
+        return memberAttributes;
     }
 
     @Override
