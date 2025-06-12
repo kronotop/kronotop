@@ -82,6 +82,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         handlerMethod(ServerKind.EXTERNAL, new AuthHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new InfoHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new SetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new SetEXHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new GetHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new SelectHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new DelHandler(this));

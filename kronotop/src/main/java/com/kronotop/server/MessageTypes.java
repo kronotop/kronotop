@@ -47,6 +47,7 @@ import io.netty.util.AttributeKey;
 public class MessageTypes {
     // External commands
     public static final AttributeKey<SetMessage> SET = AttributeKey.valueOf(SetMessage.COMMAND);
+    public static final AttributeKey<SetEXMessage> SETEX = AttributeKey.valueOf(SetEXMessage.COMMAND);
     public static final AttributeKey<SetNXMessage> SETNX = AttributeKey.valueOf(SetNXMessage.COMMAND);
     public static final AttributeKey<GetMessage> GET = AttributeKey.valueOf(GetMessage.COMMAND);
     public static final AttributeKey<AppendMessage> APPEND = AttributeKey.valueOf(AppendMessage.COMMAND);
