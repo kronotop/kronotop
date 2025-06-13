@@ -62,7 +62,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final MembershipService membership;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
-            Thread.ofVirtual().name("kr.redis-service", 0L).factory()
+            Thread.ofVirtual().name("kr.redis-service-", 0L).factory()
     );
     private final int numberOfShards;
     private final List<VolumeSyncWorker> volumeSyncWorkers = new ArrayList<>();
@@ -209,6 +209,9 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             loadRedisShardFromDisk(shardId);
         }
+
+        scheduledExecutorService.scheduleAtFixedRate(new ExpireWorker(), 0,1, TimeUnit.SECONDS);
+
         initializeVolumeSyncerWorkers();
     }
 
