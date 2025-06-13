@@ -56,7 +56,7 @@ public class ByteBufUtils {
         try {
             return Double.parseDouble(raw);
         } catch (NumberFormatException e) {
-            throw new KronotopException("Error parsing double value: " + raw);
+            throw new KronotopException("value is not a double or out of range");
         }
     }
 
@@ -74,7 +74,7 @@ public class ByteBufUtils {
         try {
             return Long.parseLong(raw);
         } catch (NumberFormatException e) {
-            throw new KronotopException("Error parsing long value: " + raw);
+            throw new KronotopException("value is not a long or out of range");
         }
     }
 

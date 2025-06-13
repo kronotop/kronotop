@@ -16,6 +16,7 @@
 
 package com.kronotop.redis.handlers.string.protocol;
 
+import com.kronotop.internal.ByteBufUtils;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -34,9 +35,7 @@ public class GetMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawkey = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawkey);
-        key = new String(rawkey);
+        key = ByteBufUtils.readAsString(request.getParams().getFirst());
     }
 
     @Override

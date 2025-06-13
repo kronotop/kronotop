@@ -1,5 +1,6 @@
 package com.kronotop.redis.handlers.string.protocol;
 
+import com.kronotop.KronotopException;
 import com.kronotop.internal.ByteBufUtils;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
@@ -23,6 +24,9 @@ public class SetEXMessage implements ProtocolMessage<String> {
     private void parse() {
         key = ByteBufUtils.readAsString(request.getParams().getFirst());
         seconds = ByteBufUtils.readAsLong(request.getParams().get(1));
+        if (seconds < 0) {
+            throw new KronotopException("invalid expire time in 'setex' command");
+        }
         value = new byte[request.getParams().get(2).readableBytes()];
         request.getParams().get(2).readBytes(value);
     }
