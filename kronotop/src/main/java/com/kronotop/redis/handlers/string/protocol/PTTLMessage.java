@@ -18,12 +18,10 @@ package com.kronotop.redis.handlers.string.protocol;
 
 import com.kronotop.server.Request;
 
-public class TTLMessage extends GetMessage {
-    public static final String COMMAND = "TTL";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+public class PTTLMessage extends TTLMessage {
+    public static final String COMMAND = "PTTL";
 
-    public TTLMessage(Request request) {
+    public PTTLMessage(Request request) {
         super(request);
     }
 }

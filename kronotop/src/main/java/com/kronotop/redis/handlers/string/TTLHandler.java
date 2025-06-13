@@ -45,33 +45,45 @@ public class TTLHandler extends BaseStringHandler implements Handler {
         request.attr(MessageTypes.TTL).set(new TTLMessage(request));
     }
 
+    /**
+     * Executes the TTL command to retrieve the time-to-live for the specified key.
+     *
+     * @param key the Redis key for which the TTL is being queried
+     * @return the TTL in seconds for the specified key; returns:
+     *         -2 if the key does not exist,
+     *         -1 if the key exists but has no associated expiration,
+     *         or the TTL value if the key has an expiration set.
+     */
+    protected long executeCommon(String key) {
+        RedisShard shard = service.findShard(key, ShardStatus.READONLY);
+        ReadWriteLock lock = shard.striped().get(key);
+        try {
+            lock.readLock().lock();
+            RedisValueContainer container = shard.storage().get(key);
+            if (container == null) {
+                // The command returns -2 if the key does not exist.
+                return -2;
+            }
+            if (!container.kind().equals(RedisValueKind.STRING)) {
+                // Only STRING supports the TTLs in Kronotop.
+                return -1;
+            }
+            if (container.string().ttl() == 0) {
+                // The command returns -1 if the key exists but has no associated expire.
+                return -1;
+            }
+            // in seconds
+            return container.string().ttl();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     @Override
     public void execute(Request request, Response response) throws Exception {
         TTLMessage ttlMessage = request.attr(MessageTypes.TTL).get();
 
-        RedisShard shard = service.findShard(ttlMessage.getKey(), ShardStatus.READONLY);
-        ReadWriteLock lock = shard.striped().get(ttlMessage.getKey());
-        try {
-            lock.readLock().lock();
-            RedisValueContainer container = shard.storage().get(ttlMessage.getKey());
-            if (container == null) {
-                // The command returns -2 if the key does not exist.
-                response.writeInteger(-2);
-                return;
-            }
-            if (!container.kind().equals(RedisValueKind.STRING)) {
-                // Only STRING supports the TTLs in Kronotop.
-                response.writeInteger(-1);
-                return;
-            }
-            if (container.string().ttl() == 0) {
-                // The command returns -1 if the key exists but has no associated expire.
-                response.writeInteger(-1);
-                return;
-            }
-            response.writeInteger(container.string().ttl());
-        } finally {
-            lock.readLock().unlock();
-        }
+        long ttl = executeCommon(ttlMessage.getKey());
+        response.writeInteger(ttl);
     }
 }
