@@ -16,14 +16,55 @@
 
 package com.kronotop.redis.handlers.string;
 
+import com.kronotop.Context;
+import com.kronotop.ServiceContext;
+import com.kronotop.redis.RedisService;
+import com.kronotop.redis.storage.RedisShard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+
+/*
+Periodically Redis tests a few keys at random among keys with an expire set. All the keys that are already expired are deleted from the keyspace.
+
+Specifically this is what Redis does 10 times per second:
+
+Test 20 random keys from the set of keys with an associated expire.
+Delete all the keys found expired.
+If more than 25% of keys were expired, start again from step 1.
+This is a trivial probabilistic algorithm, basically the assumption is that our sample is representative of the whole key space, and we continue to expire until the percentage of keys that are likely to be expired is under 25%
+ */
+
+
 public class ExpireWorker implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExpireWorker.class);
+    private final Context context;
+    private final ServiceContext<RedisShard> serviceContext;
+    private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
+
+    public ExpireWorker(Context context) {
+        this.context = context;
+        this.serviceContext = context.getServiceContext(RedisService.NAME);
+    }
 
     @Override
     public void run() {
-        LOGGER.info("Starting expire worker...");
+        Semaphore semaphore = new Semaphore(Runtime.getRuntime().availableProcessors());
+        for (RedisShard shard : serviceContext.shards().values()) {
+            executorService.submit(() -> {
+                try {
+                    semaphore.acquire();
+                    shard.storage().
+                    System.out.println(shard.id());
+                } catch (InterruptedException e) {
+                    LOGGER.error("Error while cleanup", e);
+                } finally {
+                    semaphore.release();
+                }
+            });
+        }
     }
 }
