@@ -75,7 +75,7 @@ public class EvictionWorker implements Runnable {
                 for (int i = 0; i < 20; i++) {
                     //System.out.println(i);
                     String key = shard.index().random();
-                    //System.out.println(key);
+                    System.out.println(key);
                     /*ReadWriteLock lock = shard.striped().get(key);
                     lock.readLock().lock();
                     try {
