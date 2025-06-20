@@ -14,18 +14,15 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.handlers.string;
+package com.kronotop.redis;
 
 import com.kronotop.Context;
 import com.kronotop.ServiceContext;
-import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.Phaser;
 
 /*
 Periodically Redis tests a few keys at random among keys with an expire set. All the keys that are already expired are deleted from the keyspace.
@@ -39,32 +36,43 @@ This is a trivial probabilistic algorithm, basically the assumption is that our 
  */
 
 
-public class ExpireWorker implements Runnable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ExpireWorker.class);
-    private final Context context;
+public class EvictionWorker implements Runnable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(EvictionWorker.class);
     private final ServiceContext<RedisShard> serviceContext;
-    private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
 
-    public ExpireWorker(Context context) {
-        this.context = context;
+    public EvictionWorker(Context context) {
         this.serviceContext = context.getServiceContext(RedisService.NAME);
     }
 
     @Override
     public void run() {
-        Semaphore semaphore = new Semaphore(Runtime.getRuntime().availableProcessors());
+        Phaser phaser = new Phaser(1);
         for (RedisShard shard : serviceContext.shards().values()) {
-            executorService.submit(() -> {
-                try {
-                    semaphore.acquire();
-                    shard.storage().
-                    System.out.println(shard.id());
-                } catch (InterruptedException e) {
-                    LOGGER.error("Error while cleanup", e);
-                } finally {
-                    semaphore.release();
-                }
-            });
+            ShardEvictionWorker worker = new ShardEvictionWorker(shard, phaser);
+            phaser.register();
+            serviceContext.root().getVirtualThreadPerTaskExecutor().submit(worker);
+        }
+
+        phaser.arriveAndAwaitAdvance();
+        LOGGER.debug("EvictionWorker finished");
+    }
+
+    static class ShardEvictionWorker implements Runnable {
+        private final RedisShard shard;
+        private final Phaser phaser;
+
+        public ShardEvictionWorker(RedisShard shard, Phaser phaser) {
+            this.shard = shard;
+            this.phaser = phaser;
+        }
+
+        @Override
+        public void run() {
+            try {
+                LOGGER.debug("EvictionWorker started for shard {}", shard.id());
+            } finally {
+                phaser.arriveAndDeregister();
+            }
         }
     }
 }

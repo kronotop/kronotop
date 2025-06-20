@@ -210,7 +210,7 @@ public class RedisService extends CommandHandlerService implements KronotopServi
             loadRedisShardFromDisk(shardId);
         }
 
-        scheduledExecutorService.scheduleAtFixedRate(new ExpireWorker(context), 0,1, TimeUnit.SECONDS);
+        scheduledExecutorService.scheduleAtFixedRate(new EvictionWorker(context), 0,1, TimeUnit.SECONDS);
 
         initializeVolumeSyncerWorkers();
     }
