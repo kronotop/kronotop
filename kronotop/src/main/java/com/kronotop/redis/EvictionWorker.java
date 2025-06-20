@@ -22,6 +22,7 @@ import com.kronotop.redis.storage.RedisShard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.NoSuchElementException;
 import java.util.concurrent.Phaser;
 
 /*
@@ -38,26 +39,28 @@ This is a trivial probabilistic algorithm, basically the assumption is that our 
 
 public class EvictionWorker implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EvictionWorker.class);
+    private final Context context;
     private final ServiceContext<RedisShard> serviceContext;
+    private final Phaser phaser = new Phaser(1);
 
     public EvictionWorker(Context context) {
+        this.context = context;
         this.serviceContext = context.getServiceContext(RedisService.NAME);
     }
 
     @Override
     public void run() {
-        Phaser phaser = new Phaser(1);
         for (RedisShard shard : serviceContext.shards().values()) {
             ShardEvictionWorker worker = new ShardEvictionWorker(shard, phaser);
             phaser.register();
-            serviceContext.root().getVirtualThreadPerTaskExecutor().submit(worker);
+            context.getVirtualThreadPerTaskExecutor().submit(worker);
         }
 
         phaser.arriveAndAwaitAdvance();
-        LOGGER.debug("EvictionWorker finished");
+        //LOGGER.debug("EvictionWorker finished");
     }
 
-    static class ShardEvictionWorker implements Runnable {
+    class ShardEvictionWorker implements Runnable {
         private final RedisShard shard;
         private final Phaser phaser;
 
@@ -69,7 +72,27 @@ public class EvictionWorker implements Runnable {
         @Override
         public void run() {
             try {
-                LOGGER.debug("EvictionWorker started for shard {}", shard.id());
+                for (int i = 0; i < 20; i++) {
+                    //System.out.println(i);
+                    String key = shard.index().random();
+                    //System.out.println(key);
+                    /*ReadWriteLock lock = shard.striped().get(key);
+                    lock.readLock().lock();
+                    try {
+                        RedisValueContainer container = shard.storage().get(key);
+                        System.out.println(container);
+                        if (container == null) {
+                            continue;
+                        }
+                        if (container.kind().equals(RedisValueKind.STRING)) {
+                            System.out.println(container.string().ttl());
+                        }
+                    } finally {
+                        lock.readLock().unlock();
+                    }*/
+                }
+            } catch (NoSuchElementException e) {
+                // Ignore
             } finally {
                 phaser.arriveAndDeregister();
             }
