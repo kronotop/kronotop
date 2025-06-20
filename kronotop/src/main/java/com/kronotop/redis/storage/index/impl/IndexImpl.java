@@ -107,8 +107,7 @@ public class IndexImpl implements Index {
     public String random() {
         try {
             if (index.size() == 1) {
-                Map.Entry<Long, String> entry = index.ceilingEntry(index.firstKey());
-                return entry.getValue();
+                return index.get(index.firstKey());
             }
             Long max = index.lastKey();
             Long min = index.firstKey();
