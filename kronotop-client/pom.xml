@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.kronotop</groupId>
         <artifactId>kronotop-root</artifactId>
-        <version>0.10-SNAPSHOT</version>
+        <version>0.11-SNAPSHOT</version>
     </parent>
     <name>Kronotop Client</name>
     <description>Kronotop Client based on Lettuce</description>
