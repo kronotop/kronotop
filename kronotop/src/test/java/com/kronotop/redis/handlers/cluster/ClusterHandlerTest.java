@@ -19,7 +19,6 @@ package com.kronotop.redis.handlers.cluster;
 import com.kronotop.BaseTest;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.MemberAttributes;
-import com.kronotop.cluster.RoutingService;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -37,8 +36,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;

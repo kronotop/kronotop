@@ -14,61 +14,73 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.handlers.string;
+package com.kronotop.redis.handlers.generic;
 
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.redis.RedisService;
-import com.kronotop.redis.handlers.string.protocol.GetMessage;
+import com.kronotop.redis.handlers.generic.protocol.PersistMessage;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.storage.RedisValueKind;
-import com.kronotop.server.*;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import io.netty.buffer.ByteBuf;
 
 import java.util.concurrent.locks.ReadWriteLock;
 
-@Command(GetMessage.COMMAND)
-@MaximumParameterCount(GetMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(GetMessage.MINIMUM_PARAMETER_COUNT)
-public class GetHandler extends BaseStringHandler implements Handler {
-    public GetHandler(RedisService service) {
+@Command(PersistMessage.COMMAND)
+@MaximumParameterCount(PersistMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(PersistMessage.MINIMUM_PARAMETER_COUNT)
+public class PersistHandler extends BaseGenericHandler implements Handler {
+    public PersistHandler(RedisService service) {
         super(service);
     }
 
     @Override
-    public void beforeExecute(Request request) {
-        request.attr(MessageTypes.GET).set(new GetMessage(request));
+    public boolean isWatchable() {
+        return true;
     }
 
     @Override
-    public void execute(Request request, Response response) {
-        GetMessage message = request.attr(MessageTypes.GET).get();
+    public void beforeExecute(Request request) {
+        request.attr(MessageTypes.PERSIST).set(new PersistMessage(request));
+    }
+
+    @Override
+    public void execute(Request request, Response response) throws Exception {
+        PersistMessage message = request.attr(MessageTypes.PERSIST).get();
 
         RedisShard shard = service.findShard(message.getKey(), ShardStatus.READONLY);
         ReadWriteLock lock = shard.striped().get(message.getKey());
-        lock.readLock().lock();
         try {
+            lock.writeLock().lock();
             RedisValueContainer container = shard.storage().get(message.getKey());
             if (container == null) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                // Integer reply: 0 if key does not exist or does not have an associated timeout.
+                response.writeInteger(0);
                 return;
             }
+
             if (!container.kind().equals(RedisValueKind.STRING)) {
-                throw new WrongTypeException();
-            }
-            if (evictStringIfNeeded(container, shard, message.getKey())) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                // Currently, only STRING supports the TTLs in Kronotop.
+                response.writeInteger(0);
                 return;
             }
-            ByteBuf buf = response.getCtx().alloc().buffer();
-            buf.writeBytes(container.string().value());
-            response.write(buf);
+
+            if (container.string().ttl() == 0) {
+                // Integer reply: 0 if key does not exist or does not have an associated timeout.
+                response.writeInteger(0);
+            }
+            container.string().setTTL(0);
+            RedisValueContainer previous = shard.storage().put(message.getKey(), container);
+            syncStringOnVolume(shard, message.getKey(), previous);
+            response.writeInteger(1);
         } finally {
-            lock.readLock().unlock();
+            lock.writeLock().unlock();
         }
     }
 }

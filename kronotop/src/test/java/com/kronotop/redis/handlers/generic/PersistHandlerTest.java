@@ -14,41 +14,72 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.handlers.string;
-
+package com.kronotop.redis.handlers.generic;
 
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.TimeUnit;
-
-import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-class GetHandlerTest extends BaseRedisHandlerTest {
-    @Test
-    public void test_GET_NULL_INSTANCE() {
-        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
-        ByteBuf buf = Unpooled.buffer();
-        cmd.get("mykey").encode(buf);
+class PersistHandlerTest extends BaseRedisHandlerTest {
 
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(FullBulkStringRedisMessage.class, msg);
-        FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
-        assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
+    @Test
+    void test_PERSIST() {
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.setex("mykey", 100, "myvalue").encode(buf);
+
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.persist("mykey").encode(buf);
+
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(IntegerRedisMessage.class, msg);
+            IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
+            assertEquals(1, actualMessage.value());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.ttl("mykey").encode(buf);
+
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(IntegerRedisMessage.class, msg);
+            IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
+            assertEquals(-1, actualMessage.value());
+        }
     }
 
     @Test
-    void test_SET_GET() {
+    void test_PERSIST_KeyNotExists() {
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.persist("mykey").encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(IntegerRedisMessage.class, msg);
+        IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
+        assertEquals(0, actualMessage.value());
+    }
+
+    @Test
+    void test_PERSIST_KeyNotAssociatedWithExpire() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -62,37 +93,12 @@ class GetHandlerTest extends BaseRedisHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.get("mykey").encode(buf);
+            cmd.persist("mykey").encode(buf);
 
             Object msg = runCommand(channel, buf);
-            assertInstanceOf(FullBulkStringRedisMessage.class, msg);
-            FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
-            assertEquals("myvalue", actualMessage.content().toString(CharsetUtil.US_ASCII));
+            assertInstanceOf(IntegerRedisMessage.class, msg);
+            IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
+            assertEquals(0, actualMessage.value());
         }
-    }
-
-    @Test
-    void test_GET_EXPIRED_KEY() {
-        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.setex("mykey", 1, "myvalue").encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-
-        await().atMost(5, TimeUnit.SECONDS).until(() -> {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.get("mykey").encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(FullBulkStringRedisMessage.class, msg);
-            FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
-            return FullBulkStringRedisMessage.NULL_INSTANCE.equals(actualMessage);
-        });
     }
 }

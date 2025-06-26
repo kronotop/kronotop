@@ -56,7 +56,25 @@ public class ByteBufUtils {
         try {
             return Double.parseDouble(raw);
         } catch (NumberFormatException e) {
-            throw new KronotopException("Error parsing double value: " + raw);
+            throw new KronotopException("value is not a double or out of range");
+        }
+    }
+
+    /**
+     * Reads the content of the provided ByteBuf and interprets it as a long value.
+     * The method first retrieves the content as a string and then attempts
+     * to parse it into a long type. If the parsing fails, it throws a KronotopException.
+     *
+     * @param buf the ByteBuf containing the raw bytes to be interpreted as a long value
+     * @return the parsed long value from the content of the provided ByteBuf
+     * @throws KronotopException if the content cannot be parsed into a long
+     */
+    public static long readAsLong(ByteBuf buf) {
+        String raw = readAsString(buf);
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException e) {
+            throw new KronotopException("value is not a long or out of range");
         }
     }
 

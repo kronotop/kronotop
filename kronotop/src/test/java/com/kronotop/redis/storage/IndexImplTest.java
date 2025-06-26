@@ -30,7 +30,7 @@ public class IndexImplTest {
 
     private void checkProjection(Index index) {
         Projection first = index.getProjection(0, 10);
-        assertEquals(first.getKeys().size(), 10);
+        assertEquals(10, first.getKeys().size());
 
         for (int i = 0; i < 10; i++) {
             String key = String.format("key-{%d}", i);
@@ -97,6 +97,14 @@ public class IndexImplTest {
             index.add(String.format("key-{%d}", i));
         }
         assertTrue(index.head() > 0);
+    }
+
+    @Test
+    public void testHead_random() {
+        Index index = new IndexImpl(100);
+        index.add("key");
+        index.flush();
+        assertEquals("key", index.random());
     }
 
     @Test

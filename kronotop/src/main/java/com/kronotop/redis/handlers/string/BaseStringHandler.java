@@ -54,4 +54,34 @@ public class BaseStringHandler extends BaseHandler {
             }
         }
     }
+
+    /**
+     * Evicts a string from the Redis shard if its time-to-live (TTL) has expired.
+     * <p>
+     * This method checks whether the TTL of the given string has expired by comparing it
+     * against the current system time. If the TTL has expired, the string is removed
+     * from the shard's storage and index. Additionally, if the removed string has an
+     * associated versionstamp, a deletion job is added to the shard's volume sync queue for synchronization.
+     *
+     * @param container the RedisValueContainer holding the string value that is subject to eviction
+     * @param shard     the RedisShard from which the string value may be evicted
+     * @param key       the key to identifying the Redis entry to potentially evict
+     * @return true if the string was evicted due to an expired TTL, false otherwise
+     */
+    protected boolean evictStringIfNeeded(RedisValueContainer container, RedisShard shard, String key) {
+        if (container.string().ttl() == 0) {
+            // no associated TTL
+            return false;
+        }
+
+        if (container.string().ttl() <= service.getCachedTime().currentTimeInMilliseconds()) {
+            RedisValueContainer previous = shard.storage().remove(key);
+            shard.index().remove(key);
+            if (previous.baseRedisValue().versionstamp() != null) {
+                shard.volumeSyncQueue().add(new DeleteByVersionstampJob(previous.baseRedisValue().versionstamp()));
+            }
+            return true;
+        }
+        return false;
+    }
 }

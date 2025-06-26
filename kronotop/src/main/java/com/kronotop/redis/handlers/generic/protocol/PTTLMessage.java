@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.redis.handlers.generic.protocol;
 
-import com.kronotop.instance.KronotopInstanceStatus;
-import io.netty.util.AttributeKey;
+import com.kronotop.server.Request;
 
-public class MemberAttributes {
-    public static final AttributeKey<Boolean> CLUSTER_INITIALIZED = AttributeKey.valueOf("cluster-initialized");
-    public static final AttributeKey<KronotopInstanceStatus> INSTANCE_STATUS = AttributeKey.valueOf("instance-status");
+public class PTTLMessage extends TTLMessage {
+    public static final String COMMAND = "PTTL";
+
+    public PTTLMessage(Request request) {
+        super(request);
+    }
 }

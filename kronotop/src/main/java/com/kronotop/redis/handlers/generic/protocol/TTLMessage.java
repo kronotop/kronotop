@@ -14,39 +14,17 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.handlers.string.protocol;
+package com.kronotop.redis.handlers.generic.protocol;
 
-import com.kronotop.internal.ByteBufUtils;
-import com.kronotop.server.ProtocolMessage;
+import com.kronotop.redis.handlers.string.protocol.GetMessage;
 import com.kronotop.server.Request;
 
-import java.util.List;
-
-public class GetMessage implements ProtocolMessage<String> {
-    public static final String COMMAND = "GET";
+public class TTLMessage extends GetMessage {
+    public static final String COMMAND = "TTL";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     public static final int MAXIMUM_PARAMETER_COUNT = 1;
-    private final Request request;
-    private String key;
 
-    public GetMessage(Request request) {
-        this.request = request;
-        parse();
+    public TTLMessage(Request request) {
+        super(request);
     }
-
-    private void parse() {
-        key = ByteBufUtils.readAsString(request.getParams().getFirst());
-    }
-
-    @Override
-    public String getKey() {
-        return key;
-    }
-
-    @Override
-    public List<String> getKeys() {
-        return null;
-    }
-
-
 }

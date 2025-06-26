@@ -62,10 +62,11 @@ public class RedisService extends CommandHandlerService implements KronotopServi
     private final MembershipService membership;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
-            Thread.ofVirtual().name("kr.redis-service", 0L).factory()
+            Thread.ofVirtual().name("kr.redis-service-", 0L).factory()
     );
     private final int numberOfShards;
     private final List<VolumeSyncWorker> volumeSyncWorkers = new ArrayList<>();
+    private final CachedTime cachedTime = new CachedTime();
 
     public RedisService(Context context) throws CommandAlreadyRegisteredException {
         super(context, NAME);
@@ -82,6 +83,14 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         handlerMethod(ServerKind.EXTERNAL, new AuthHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new InfoHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new SetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new SetEXHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ExpireHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new PExpireHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ExpireAtHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new PExpireAtHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new TTLHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new PersistHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new PTTLHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new GetHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new SelectHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new DelHandler(this));
@@ -166,6 +175,10 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         }
     }
 
+    public CachedTime getCachedTime() {
+        return cachedTime;
+    }
+
     private void initializeVolumeSyncerWorkers() {
         int numVolumeSyncWorkers = context.getConfig().getInt("redis.volume_syncer.workers");
         int period = context.getConfig().getInt("redis.volume_syncer.period");
@@ -206,7 +219,11 @@ public class RedisService extends CommandHandlerService implements KronotopServi
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             loadRedisShardFromDisk(shardId);
         }
+
         initializeVolumeSyncerWorkers();
+
+        scheduledExecutorService.scheduleAtFixedRate(cachedTime, 0, 1, TimeUnit.MILLISECONDS);
+        scheduledExecutorService.scheduleAtFixedRate(new EvictionWorker(context), 0, 100, TimeUnit.MILLISECONDS);
     }
 
     /**

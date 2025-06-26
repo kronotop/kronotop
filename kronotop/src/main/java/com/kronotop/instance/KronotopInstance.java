@@ -21,10 +21,7 @@ import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.Context;
-import com.kronotop.ContextImpl;
-import com.kronotop.KronotopException;
-import com.kronotop.KronotopService;
+import com.kronotop.*;
 import com.kronotop.bucket.BucketContext;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.cluster.Member;
@@ -49,6 +46,7 @@ import com.kronotop.volume.replication.ReplicationService;
 import com.kronotop.watcher.Watcher;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import io.netty.util.Attribute;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +83,6 @@ public class KronotopInstance {
     private final Database database;
     protected Context context;
     protected Member member;
-    private volatile KronotopInstanceStatus status = KronotopInstanceStatus.INITIALIZING;
     private ScheduledFuture<?> journalCleanupTaskFuture;
 
     public KronotopInstance() {
@@ -190,6 +187,12 @@ public class KronotopInstance {
     private void initializeContext() {
         context = new ContextImpl(config, member, database);
 
+        Attribute<KronotopInstanceStatus> status = context.getMemberAttributes().attr(MemberAttributes.INSTANCE_STATUS);
+        if (status.get() != null && status.get().equals(KronotopInstanceStatus.RUNNING)) {
+            throw new IllegalStateException("Kronotop instance is already running");
+        }
+        status.set(KronotopInstanceStatus.INITIALIZING);
+
         // Register child contexts here.
 
         // RedisContext
@@ -292,9 +295,6 @@ public class KronotopInstance {
      * @throws KronotopException    if an error occurs during the startup process
      */
     public void start() throws UnknownHostException, InterruptedException {
-        if (getStatus().equals(KronotopInstanceStatus.RUNNING)) {
-            throw new IllegalStateException("Kronotop instance is already running");
-        }
         LOGGER.info("Initializing a new Kronotop instance");
 
         Path dataDir = prepareOnDiskDataDirectoryLayout();
@@ -355,36 +355,35 @@ public class KronotopInstance {
      * </p>
      */
     public synchronized void shutdown() {
-        if (status.equals(KronotopInstanceStatus.STOPPED)) {
-            // Kronotop instance is already stopped
-            return;
-        }
-        LOGGER.info("Shutting down Kronotop");
         if (context == null) {
             // Even context has not been set. Quit now. There is nothing to do. Possible error:
             // com.apple.foundationdb.FDBException: No cluster file found in current directory or default location
             return;
         }
 
+        LOGGER.info("Shutting down Kronotop");
+        KronotopInstanceStatus status = getStatus();
+        if (status.equals(KronotopInstanceStatus.STOPPED)) {
+            // Kronotop instance is already stopped
+            return;
+        }
+        setStatus(KronotopInstanceStatus.STOPPED);
+
         // Previously submitted tasks are executed, but no new tasks will be accepted.
         context.getVirtualThreadPerTaskExecutor().shutdown();
 
-        try {
-            for (KronotopService service : context.getServices().reversed()) {
-                try {
-                    LOGGER.debug("{} service has been shutting down", service.getName());
-                    service.shutdown();
-                } catch (Exception e) {
-                    LOGGER.error("{} service cannot be closed due to errors", service.getName(), e);
-                    continue;
-                }
+        for (KronotopService service : context.getServices().reversed()) {
+            try {
+                LOGGER.debug("{} service has been shutting down", service.getName());
+                service.shutdown();
+            } catch (Exception e) {
+                LOGGER.error("{} service cannot be closed due to errors", service.getName(), e);
+                continue;
             }
+        }
 
-            if (journalCleanupTaskFuture != null) {
-                journalCleanupTaskFuture.cancel(true);
-            }
-        } finally {
-            setStatus(KronotopInstanceStatus.STOPPED);
+        if (journalCleanupTaskFuture != null) {
+            journalCleanupTaskFuture.cancel(true);
         }
     }
 
@@ -394,11 +393,15 @@ public class KronotopInstance {
      * @return the status of the Kronotop instance.
      */
     public KronotopInstanceStatus getStatus() {
-        return status;
+        Attribute<KronotopInstanceStatus> status = context.getMemberAttributes().attr(MemberAttributes.INSTANCE_STATUS);
+        if (status.get() == null) {
+            throw new IllegalStateException("Kronotop instance status is not set");
+        }
+        return status.get();
     }
 
-    private void setStatus(final KronotopInstanceStatus instanceStatus) {
-        this.status = instanceStatus;
+    private void setStatus(final KronotopInstanceStatus status) {
+        context.getMemberAttributes().attr(MemberAttributes.INSTANCE_STATUS).set(status);
         LOGGER.info("Setting instance status to {}", status);
     }
 

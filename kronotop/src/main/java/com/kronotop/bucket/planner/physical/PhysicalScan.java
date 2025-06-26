@@ -21,7 +21,7 @@ public class PhysicalScan extends PhysicalFilter {
     public PhysicalScan() {
         super();
     }
-    
+
     public PhysicalScan(List<PhysicalNode> children) {
         super(children);
     }

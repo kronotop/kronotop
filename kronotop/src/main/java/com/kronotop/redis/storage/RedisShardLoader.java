@@ -64,6 +64,7 @@ public final class RedisShardLoader {
             RedisValueContainer container = new RedisValueContainer(pack.stringValue());
             container.string().setVersionstamp(entry.key());
             shard.storage().put(pack.key(), container);
+            shard.index().add(pack.key());
         } finally {
             lock.writeLock().unlock();
         }

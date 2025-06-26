@@ -29,13 +29,12 @@ import com.google.common.io.BaseEncoding;
  * with Extended Hex Alphabet. There is no corresponding encoding in RFC 3548.
  */
 public class VersionstampUtils {
-    public static int EncodedVersionstampSize = 24;
-
     /**
      * A BaseEncoding instance configured for Base32Hex encoding with a custom padding character ('x').
      * Used for encoding and decoding Versionstamp objects in a Base32Hex format.
      */
     private static final BaseEncoding BASE32_HEX = BaseEncoding.base32Hex().withPadChar('x');
+    public static int EncodedVersionstampSize = 24;
 
     /**
      * Encodes a Versionstamp object into a Base32Hex encoded string.

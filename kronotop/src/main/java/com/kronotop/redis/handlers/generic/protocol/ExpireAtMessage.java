@@ -14,12 +14,19 @@
  * limitations under the License.
  */
 
-package com.kronotop;
 
-import com.kronotop.instance.KronotopInstanceStatus;
-import io.netty.util.AttributeKey;
+package com.kronotop.redis.handlers.generic.protocol;
 
-public class MemberAttributes {
-    public static final AttributeKey<Boolean> CLUSTER_INITIALIZED = AttributeKey.valueOf("cluster-initialized");
-    public static final AttributeKey<KronotopInstanceStatus> INSTANCE_STATUS = AttributeKey.valueOf("instance-status");
+import com.kronotop.server.Request;
+
+public class ExpireAtMessage extends ExpireMessageCommon {
+    public static final String COMMAND = "EXPIREAT";
+
+    public ExpireAtMessage(Request request) {
+        super(request);
+    }
+
+    public long getUnixTimestamp() {
+        return getNumberValue();
+    }
 }

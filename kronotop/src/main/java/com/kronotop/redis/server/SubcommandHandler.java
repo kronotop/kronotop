@@ -40,7 +40,7 @@ public interface SubcommandHandler {
      * This method processes the input command and parameters from the request
      * and writes the appropriate response back to the client.
      *
-     * @param request the request object containing the command, parameters, and session details
+     * @param request  the request object containing the command, parameters, and session details
      * @param response the response object used to send responses back to the client
      */
     void execute(Request request, Response response);

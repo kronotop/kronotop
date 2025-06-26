@@ -10,7 +10,6 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.PlannerContext;
 import com.kronotop.bucket.planner.TestQuery;

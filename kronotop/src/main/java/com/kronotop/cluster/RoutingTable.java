@@ -16,7 +16,6 @@
 
 package com.kronotop.cluster;
 
-import com.kronotop.KronotopException;
 import com.kronotop.cluster.sharding.ShardKind;
 
 import java.util.EnumMap;

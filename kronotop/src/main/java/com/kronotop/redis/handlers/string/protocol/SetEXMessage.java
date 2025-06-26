@@ -14,40 +14,54 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis.handlers.generic.protocol;
+package com.kronotop.redis.handlers.string.protocol;
 
+import com.kronotop.KronotopException;
 import com.kronotop.internal.ByteBufUtils;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
-import io.netty.buffer.ByteBuf;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class DelMessage implements ProtocolMessage<String> {
-    public static final String COMMAND = "DEL";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+public class SetEXMessage implements ProtocolMessage<String> {
+    public static final String COMMAND = "SETEX";
+    public static final int MINIMUM_PARAMETER_COUNT = 3;
+    public static final int MAXIMUM_PARAMETER_COUNT = 3;
     private final Request request;
-    private final List<String> keys = new ArrayList<>();
+    private String key;
+    private long seconds;
+    private byte[] value;
 
-    public DelMessage(Request request) {
+    public SetEXMessage(Request request) {
         this.request = request;
         parse();
     }
 
     private void parse() {
-        for (ByteBuf buf : request.getParams()) {
-            keys.add(ByteBufUtils.readAsString(buf));
+        key = ByteBufUtils.readAsString(request.getParams().getFirst());
+        seconds = ByteBufUtils.readAsLong(request.getParams().get(1));
+        if (seconds <= 0) {
+            throw new KronotopException("invalid expire time in 'setex' command");
         }
+        value = new byte[request.getParams().get(2).readableBytes()];
+        request.getParams().get(2).readBytes(value);
     }
 
     @Override
     public String getKey() {
-        return null;
+        return key;
     }
 
     @Override
     public List<String> getKeys() {
-        return keys;
+        return null;
+    }
+
+    public byte[] getValue() {
+        return value;
+    }
+
+    public long getSeconds() {
+        return seconds;
     }
 }

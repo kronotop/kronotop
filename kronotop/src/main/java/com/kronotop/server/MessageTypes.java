@@ -47,7 +47,15 @@ import io.netty.util.AttributeKey;
 public class MessageTypes {
     // External commands
     public static final AttributeKey<SetMessage> SET = AttributeKey.valueOf(SetMessage.COMMAND);
+    public static final AttributeKey<SetEXMessage> SETEX = AttributeKey.valueOf(SetEXMessage.COMMAND);
+    public static final AttributeKey<ExpireMessage> EXPIRE = AttributeKey.valueOf(ExpireMessage.COMMAND);
     public static final AttributeKey<SetNXMessage> SETNX = AttributeKey.valueOf(SetNXMessage.COMMAND);
+    public static final AttributeKey<PTTLMessage> PTTL = AttributeKey.valueOf(PTTLMessage.COMMAND);
+    public static final AttributeKey<PExpireMessage> PEXPIRE = AttributeKey.valueOf(PExpireMessage.COMMAND);
+    public static final AttributeKey<ExpireAtMessage> EXPIREAT = AttributeKey.valueOf(ExpireAtMessage.COMMAND);
+    public static final AttributeKey<PExpireAtMessage> PEXPIREAT = AttributeKey.valueOf(PExpireAtMessage.COMMAND);
+    public static final AttributeKey<TTLMessage> TTL = AttributeKey.valueOf(TTLMessage.COMMAND);
+    public static final AttributeKey<PersistMessage> PERSIST = AttributeKey.valueOf(PersistMessage.COMMAND);
     public static final AttributeKey<GetMessage> GET = AttributeKey.valueOf(GetMessage.COMMAND);
     public static final AttributeKey<AppendMessage> APPEND = AttributeKey.valueOf(AppendMessage.COMMAND);
     public static final AttributeKey<DecrByMessage> DECRBY = AttributeKey.valueOf(DecrByMessage.COMMAND);

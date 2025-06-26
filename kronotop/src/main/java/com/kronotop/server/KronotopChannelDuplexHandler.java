@@ -317,10 +317,6 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         return String.join(" ", command);
     }
 
-    private void logCommandForDebugging(Request request) {
-
-    }
-
     /**
      * Executes a Redis-compatible command within the context of a transaction.
      * Depending on the command, the method performs actions such as queuing the command,
