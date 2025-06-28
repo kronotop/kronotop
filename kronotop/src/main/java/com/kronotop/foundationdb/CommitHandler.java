@@ -18,7 +18,6 @@ package com.kronotop.foundationdb;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.protocol.CommitMessage;
 import com.kronotop.internal.TransactionUtils;
@@ -36,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+
 
 @Command(CommitMessage.COMMAND)
 @MaximumParameterCount(CommitMessage.MAXIMUM_PARAMETER_COUNT)
@@ -52,7 +53,7 @@ class CommitHandler extends BaseFoundationDBHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
-        AsyncCommandExecutor.supplyAsync(context, response, () -> {
+        supplyAsync(context, response, () -> {
             // Validates the request
             CommitMessage message = request.attr(MessageTypes.COMMIT).get();
 

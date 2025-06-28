@@ -10,14 +10,15 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtils;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.protocol.CommitArgs;
+import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.IntegerRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -25,6 +26,7 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,8 +36,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     void test_insert_single_document_with_oneOff_transaction() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        byte[][] docs = makeDocumentsArray(List.of(DOCUMENT));
-        cmd.insert(BUCKET_NAME, docs).encode(buf);
+        cmd.insert(BUCKET_NAME, DOCUMENT).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -44,6 +45,9 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
         SimpleStringRedisMessage message = (SimpleStringRedisMessage) actualMessage.children().getFirst();
         assertNotNull(message.content());
+
+        Versionstamp versionstamp = assertDoesNotThrow(() -> VersionstampUtils.base32HexDecode(message.content()));
+        assertEquals(0, versionstamp.getUserVersion());
     }
 
     @Test
@@ -69,8 +73,9 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_insert() {
+    void test_insert_within_transaction() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        // BEGIN
         {
             ByteBuf buf = Unpooled.buffer();
             // Create a new transaction
@@ -105,16 +110,82 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             }
         }
 
+        // COMMIT
         {
             // Commit the changes
             ByteBuf buf = Unpooled.buffer();
             cmd.commit().encode(buf);
 
-            // TODO: Enable this block after revisiting Transaction lifecycle improvements.
-            //Object msg = runCommand(channel, buf);
-            //assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            //SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            //assertEquals(Response.OK, actualMessage.content());
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+    }
+
+    @Test
+    void test_insert_commit_with_futures() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        // BEGIN
+        {
+            ByteBuf buf = Unpooled.buffer();
+            // Create a new transaction
+            cmd.begin().encode(buf);
+
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // BUCKET.INSERT <bucket-name> <document> <document>
+        {
+            ByteBuf buf = Unpooled.buffer();
+            BucketCommandBuilder<byte[], byte[]> bucketCommandBuilder = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+            byte[][] docs = makeDocumentsArray(
+                    List.of(
+                            BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
+                            BSONUtils.jsonToDocumentThenBytes("{\"three\": \"four\"}")
+                    ));
+            bucketCommandBuilder.insert(BUCKET_NAME, docs).encode(buf);
+
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(ArrayRedisMessage.class, msg);
+
+            ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+            assertEquals(2, actualMessage.children().size());
+
+            // User versions have returned
+            for (RedisMessage redisMessage : actualMessage.children()) {
+                assertInstanceOf(IntegerRedisMessage.class, redisMessage);
+            }
+        }
+
+        // COMMIT
+        {
+            // Commit the changes
+            ByteBuf buf = Unpooled.buffer();
+            cmd.commit(CommitArgs.Builder.returning(CommitKeyword.FUTURES)).encode(buf);
+
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(ArrayRedisMessage.class, msg);
+
+            ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+            assertEquals(1, actualMessage.children().size());
+            RedisMessage result = actualMessage.children().getFirst();
+            assertInstanceOf(MapRedisMessage.class, result);
+            MapRedisMessage mapRedisMessage = (MapRedisMessage) result;
+
+            for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
+                assertInstanceOf(IntegerRedisMessage.class, entry.getKey());
+                IntegerRedisMessage userVersion = (IntegerRedisMessage) entry.getKey();
+
+                assertInstanceOf(SimpleStringRedisMessage.class, entry.getValue());
+                SimpleStringRedisMessage id = (SimpleStringRedisMessage) entry.getValue();
+
+                Versionstamp decodedId = VersionstampUtils.base32HexDecode(id.content());
+                assertEquals(decodedId.getUserVersion(), userVersion.value());
+            }
         }
     }
 }

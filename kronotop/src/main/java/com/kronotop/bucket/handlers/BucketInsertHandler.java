@@ -53,7 +53,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         request.attr(MessageTypes.BUCKETINSERT).set(new BucketInsertMessage(request));
     }
 
-    private Document readDocument(InputType inputType, byte[] data) {
+    private Document parseDocument(InputType inputType, byte[] data) {
         if (inputType.equals(InputType.JSON)) {
             return BSONUtils.fromJson(data);
         } else if (inputType.equals(InputType.BSON)) {
@@ -61,6 +61,35 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
         } else {
             throw new KronotopException("Invalid input type: " + inputType);
         }
+    }
+
+    /**
+     * Prepares entries for insertion into a bucket. This method processes and validates
+     * the documents contained in the {@code BucketInsertMessage}, converting them
+     * into the appropriate format and wrapping them in an {@code EntriesPack}.
+     *
+     * @param request the request object containing session information and parameters
+     * @param message the bucket insert a message containing the documents to be prepared
+     * @return an {@code EntriesPack} containing the serialized entries and parsed document objects
+     */
+    private EntriesPack prepareEntries(Request request, BucketInsertMessage message) {
+        InputType inputType = getInputType(request);
+        Document[] documents = new Document[message.getDocuments().size()];
+        ByteBuffer[] entries = new ByteBuffer[message.getDocuments().size()];
+        for (int index = 0; index < message.getDocuments().size(); index++) {
+            byte[] data = message.getDocuments().get(index);
+
+            // Parsing also validates the document
+            Document document = parseDocument(inputType, data);
+            documents[index] = document;
+
+            if (inputType.equals(InputType.BSON)) {
+                entries[index] = ByteBuffer.wrap(data);
+            } else {
+                entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
+            }
+        }
+        return new EntriesPack(entries, documents);
     }
 
     @Override
@@ -71,22 +100,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             // TODO: Distribute the requests among shards in a round robin fashion.
             int shardId = 1;
 
-            InputType inputType = getInputType(request);
-            Document[] documents = new Document[message.getDocuments().size()];
-            ByteBuffer[] entries = new ByteBuffer[message.getDocuments().size()];
-            for (int index = 0; index < message.getDocuments().size(); index++) {
-                byte[] data = message.getDocuments().get(index);
-
-                // Parsing incoming data into to a BSON document required to calculate and create indexes.
-                Document document = readDocument(inputType, data);
-                if (inputType.equals(InputType.BSON)) {
-                    entries[index] = ByteBuffer.wrap(data);
-                } else {
-                    // The input type should be JSON.
-                    entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
-                }
-                documents[index] = document;
-            }
+            EntriesPack pack = prepareEntries(request, message);
 
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
             BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
@@ -96,28 +110,22 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             BucketShard shard = service.getShard(shardId);
             AppendResult appendResult;
             try {
-                appendResult = shard.volume().append(volumeSession, entries);
+                appendResult = shard.volume().append(volumeSession, pack.entries());
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
 
-            List<RedisMessage> userVersions = new LinkedList<>();
-            boolean autoCommitEnabled = TransactionUtils.getAutoCommit(request.getSession());
-            // Set indexes
+            // Set the default ID index
             for (AppendedEntry appendedEntry : appendResult.getAppendedEntries()) {
-                // Set the default ID index
                 IndexBuilder.packIndex(tr, subspace, shardId, prefix, appendedEntry.userVersion(), DefaultIndex.ID, appendedEntry.encodedMetadata());
-                if (!autoCommitEnabled) {
-                    userVersions.add(new IntegerRedisMessage(appendedEntry.userVersion()));
-                    request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get().add(appendedEntry.userVersion());
-                }
             }
 
+            boolean autoCommit = TransactionUtils.getAutoCommit(request.getSession());
             PostCommitHook postCommitHook = new PostCommitHook(appendResult);
             TransactionUtils.addPostCommitHook(postCommitHook, request.getSession());
             TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
 
-            if (autoCommitEnabled) {
+            if (autoCommit) {
                 Versionstamp[] versionstamps = postCommitHook.getVersionstamps();
                 List<RedisMessage> children = new ArrayList<>();
                 for (Versionstamp versionstamp : versionstamps) {
@@ -126,11 +134,18 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                 tr.close();
                 return children;
             } else {
-                tr.close();
+                List<RedisMessage> userVersions = new LinkedList<>();
+                for (AppendedEntry appendedEntry : appendResult.getAppendedEntries()) {
+                    userVersions.add(new IntegerRedisMessage(appendedEntry.userVersion()));
+                    request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get().add(appendedEntry.userVersion());
+                }
                 // Return userVersions to track the versionstamps in the COMMIT response
                 return userVersions;
             }
         }, response::writeArray);
+    }
+
+    record EntriesPack(ByteBuffer[] entries, Document[] documents) {
     }
 
     private static class PostCommitHook implements CommitHook {

@@ -35,6 +35,11 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
     }
 
+    public final Command<K, V, List<String>> insert(String bucket, V document) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).addValue(document);
+        return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
+    }
+
     public final Command<K, V, List<String>> find(String bucket, String query) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
         return createCommand(CommandType.BUCKET_FIND, new StringListOutput<>(codec), args);
