@@ -42,7 +42,7 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
 
     public final Command<K, V, List<String>> query(String bucket, String query) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
-        return createCommand(CommandType.BUCKET_QUERY, new StringListOutput<>(codec), args);
+        return createCommand(CommandType.QUERY, new StringListOutput<>(codec), args);
     }
 
     public Command<String, String, Map<String, Object>> hello(int protocolVersion) {
@@ -52,7 +52,8 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
 
     enum CommandType implements ProtocolKeyword {
         BUCKET_INSERT("BUCKET.INSERT"),
-        BUCKET_QUERY("BUCKET.QUERY");
+        BUCKET_QUERY("BUCKET.QUERY"),
+        QUERY("QUERY");
 
         public final byte[] bytes;
 
