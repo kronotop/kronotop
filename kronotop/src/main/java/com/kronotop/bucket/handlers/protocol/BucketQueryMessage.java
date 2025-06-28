@@ -15,15 +15,15 @@ import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class BucketFindMessage implements ProtocolMessage<Void> {
-    public static final String COMMAND = "BUCKET.FIND";
+public class BucketQueryMessage implements ProtocolMessage<Void> {
+    public static final String COMMAND = "BUCKET.QUERY";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     public static final int MAXIMUM_PARAMETER_COUNT = 2;
     private final Request request;
     private String query;
     private String bucket;
 
-    public BucketFindMessage(Request request) {
+    public BucketQueryMessage(Request request) {
         this.request = request;
         parse();
     }
