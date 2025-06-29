@@ -17,6 +17,53 @@ import com.kronotop.bucket.planner.physical.PhysicalNode;
 
 import java.util.Map;
 
-public record ExecutorContext(BucketShard shard, PhysicalNode plan, String bucket, BucketSubspace subspace,
-                              Map<String, Index> indexes) {
+/**
+ * ExecutorContext represents the execution context for a specific operation
+ * within a distributed storage system. It holds references to the bucket shard,
+ * physical execution plan, bucket identifier, bucket subspace, and associated indexes.
+ * <p>
+ * This class is immutable, with all fields set during construction.
+ */
+public class ExecutorContext {
+    private final BucketShard shard;
+    private final PhysicalNode plan;
+    private final String bucket;
+    private final BucketSubspace subspace;
+    private final Map<String, Index> indexes;
+
+    // Add mutable fields here
+
+    public ExecutorContext(
+            BucketShard shard,
+            PhysicalNode plan,
+            String bucket,
+            BucketSubspace subspace,
+            Map<String, Index> indexes
+    ) {
+        this.shard = shard;
+        this.plan = plan;
+        this.bucket = bucket;
+        this.subspace = subspace;
+        this.indexes = indexes;
+    }
+
+    public BucketShard shard() {
+        return shard;
+    }
+
+    public PhysicalNode plan() {
+        return plan;
+    }
+
+    public String bucket() {
+        return bucket;
+    }
+
+    public BucketSubspace subspace() {
+        return subspace;
+    }
+
+    public Map<String, Index> indexes() {
+        return indexes;
+    }
 }

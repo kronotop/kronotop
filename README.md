@@ -821,10 +821,11 @@ This section defines commands to manage a Kronotop cluster and database sessions
 
 Kronotop provides a bunch of commands to manage database sessions. The following attributes are set by default:
 
-| attribute  | type | scope  | description                             | default | available values |
-|------------|------|--------|-----------------------------------------|---------|------------------|
-| reply-type | enum | Bucket | Data interchange format for the replies | BSON    | BSON, JSON       |
-| input-type | enum | Bucket | Data interchange format for the inputs  | BSON    | BSON, JSON       |
+| attribute         | type    | scope  | description                                 | default | available values |
+|-------------------|---------|--------|---------------------------------------------|---------|------------------|
+| reply-type        | enum    | Bucket | Data interchange format for the replies     | BSON    | BSON, JSON       |
+| input-type        | enum    | Bucket | Data interchange format for the inputs      | BSON    | BSON, JSON       |
+| bucket_batch_size | integer | Bucket | Maximum entries returned per query response | 100     |                  |
 
 #### SESSION.ATTRIBUTE LIST
 
@@ -834,6 +835,7 @@ Kronotop provides a bunch of commands to manage database sessions. The following
 127.0.0.1:5484> SESSION.ATTRIBUTE LIST
 1# reply-type => bson
 2# input-type => bson
+3# bucket_batch_size => (integer) 10
 ```
 
 #### SESSION.ATTRIBUTE SET

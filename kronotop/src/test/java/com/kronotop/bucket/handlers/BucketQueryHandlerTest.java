@@ -23,7 +23,7 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class BucketFindHandlerTest extends BaseBucketHandlerTest {
+class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldDoPhysicalFullScanWithoutOperator() {
@@ -33,7 +33,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.find(BUCKET_NAME, "{}").encode(buf);
+        cmd.query(BUCKET_NAME, "{}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -60,7 +60,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP2);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.find(BUCKET_NAME, "{}").encode(buf);
+        cmd.query(BUCKET_NAME, "{}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
@@ -96,7 +96,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.find(BUCKET_NAME, String.format("{_id: {$eq: \"%s\"}}", expectedKey)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$eq: \"%s\"}}", expectedKey)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -128,7 +128,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.find(BUCKET_NAME, String.format("{_id: {$gte: \"%s\"}}", key)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$gte: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -162,7 +162,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.find(BUCKET_NAME, String.format("{_id: {$gt: \"%s\"}}", key)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$gt: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -198,7 +198,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Query should retrieve the first two documents we inserted
-        cmd.find(BUCKET_NAME, String.format("{_id: {$lt: \"%s\"}}", key)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$lt: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -237,7 +237,7 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Query should retrieve the first two documents we inserted
-        cmd.find(BUCKET_NAME, String.format("{_id: {$lte: \"%s\"}}", key)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$lte: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -259,5 +259,4 @@ class BucketFindHandlerTest extends BaseBucketHandlerTest {
             index++;
         }
     }
-
 }

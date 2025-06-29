@@ -12,12 +12,11 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.executor.ExecutorContext;
 import com.kronotop.bucket.executor.PlanExecutor;
-import com.kronotop.bucket.handlers.protocol.BucketFindMessage;
+import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.internal.TransactionUtils;
@@ -43,18 +42,20 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-@Command(BucketFindMessage.COMMAND)
-@MaximumParameterCount(BucketFindMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(BucketFindMessage.MINIMUM_PARAMETER_COUNT)
-public class BucketFindHandler extends BaseBucketHandler implements Handler {
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
-    public BucketFindHandler(BucketService service) {
+@Command(BucketQueryMessage.COMMAND)
+@MaximumParameterCount(BucketQueryMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(BucketQueryMessage.MINIMUM_PARAMETER_COUNT)
+public class BucketQueryHandler extends BaseBucketHandler implements Handler {
+
+    public BucketQueryHandler(BucketService service) {
         super(service);
     }
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.BUCKETFIND).set(new BucketFindMessage(request));
+        request.attr(MessageTypes.BUCKETQUERY).set(new BucketQueryMessage(request));
     }
 
     /**
@@ -137,8 +138,8 @@ public class BucketFindHandler extends BaseBucketHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        AsyncCommandExecutor.supplyAsync(context, response, () -> {
-            BucketFindMessage message = request.attr(MessageTypes.BUCKETFIND).get();
+        supplyAsync(context, response, () -> {
+            BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
 
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
             BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);

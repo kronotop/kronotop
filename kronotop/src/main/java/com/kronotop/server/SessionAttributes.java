@@ -74,4 +74,6 @@ public class SessionAttributes {
     public static final AttributeKey<InputType> INPUT_TYPE = AttributeKey.valueOf("input_type");
 
     public static final AttributeKey<ReplyType> REPLY_TYPE = AttributeKey.valueOf("reply_type");
+
+    public static final AttributeKey<Integer> BUCKET_BATCH_SIZE = AttributeKey.valueOf("bucket_batch_size");
 }
