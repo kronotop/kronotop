@@ -30,6 +30,7 @@ public class SessionAttributeParameters {
     private SessionAttribute attribute;
     private ReplyType replyType;
     private InputType inputType;
+    private int bucketBatchSize;
 
     public SessionAttributeParameters(ArrayList<ByteBuf> params) {
         String rawSubcommand = ByteBufUtils.readAsString(params.getFirst());
@@ -55,7 +56,6 @@ public class SessionAttributeParameters {
         switch (attribute) {
             case INPUT_TYPE -> {
                 String rawInputType = ByteBufUtils.readAsString(params.get(2));
-
                 try {
                     inputType = InputType.valueOf(rawInputType.toUpperCase());
                 } catch (IllegalArgumentException e) {
@@ -69,6 +69,9 @@ public class SessionAttributeParameters {
                 } catch (IllegalArgumentException e) {
                     throw new KronotopException("Invalid reply type: " + rawReplyType);
                 }
+            }
+            case BUCKET_BATCH_SIZE -> {
+                bucketBatchSize = ByteBufUtils.readAsInteger(params.get(2));
             }
             default -> throw new KronotopException("Unknown session attribute: " + rawSessionAttribute);
         }
@@ -90,6 +93,10 @@ public class SessionAttributeParameters {
         return inputType;
     }
 
+    public int bucketBatchSize() {
+        return bucketBatchSize;
+    }
+
     public enum SessionAttributeSubcommand {
         SET,
         LIST
@@ -97,7 +104,8 @@ public class SessionAttributeParameters {
 
     public enum SessionAttribute {
         REPLY_TYPE("reply-type"),
-        INPUT_TYPE("input-type");
+        INPUT_TYPE("input-type"),
+        BUCKET_BATCH_SIZE("bucket_batch_size");
 
         final String value;
 
@@ -110,6 +118,8 @@ public class SessionAttributeParameters {
                 return REPLY_TYPE;
             } else if (v.toLowerCase().equals(INPUT_TYPE.getValue())) {
                 return INPUT_TYPE;
+            } else if (v.toLowerCase().equals(BUCKET_BATCH_SIZE.getValue())) {
+                return BUCKET_BATCH_SIZE;
             } else {
                 throw new IllegalArgumentException(
                         String.format("Invalid session attribute: '%s'", v)

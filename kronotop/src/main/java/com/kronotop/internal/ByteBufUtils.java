@@ -78,6 +78,23 @@ public class ByteBufUtils {
         }
     }
 
+    /**
+     * Reads the content of the provided ByteBuf and interprets it as an integer value.
+     * The method first retrieves the content as a string and then attempts
+     * to parse it into an integer. If the parsing fails, it throws a KronotopException.
+     *
+     * @param buf the ByteBuf containing the raw bytes to be interpreted as an integer
+     * @return the parsed integer value from the content of the provided ByteBuf
+     * @throws KronotopException if the content cannot be parsed into an integer or is out of range
+     */
+    public static int readAsInteger(ByteBuf buf) {
+        String raw = readAsString(buf);
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            throw new KronotopException("value is not a int or out of range");
+        }
+    }
 
     /**
      * Reads a boolean value from the provided ByteBuf. The content of the ByteBuf is interpreted

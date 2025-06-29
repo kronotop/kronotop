@@ -104,6 +104,9 @@ public class Session {
 
         String inputType = context.getConfig().getString("session_attributes.input_type");
         channel.attr(SessionAttributes.INPUT_TYPE).set(InputType.valueOf(inputType.toUpperCase()));
+
+        Integer bucketBatchSize = context.getConfig().getInt("session_attributes.bucket_batch_size");
+        channel.attr(SessionAttributes.BUCKET_BATCH_SIZE).set(bucketBatchSize);
     }
 
     /**
