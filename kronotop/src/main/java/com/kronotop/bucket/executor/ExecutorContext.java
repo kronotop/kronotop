@@ -17,6 +17,13 @@ import com.kronotop.bucket.planner.physical.PhysicalNode;
 
 import java.util.Map;
 
+/**
+ * ExecutorContext represents the execution context for a specific operation
+ * within a distributed storage system. It holds references to the bucket shard,
+ * physical execution plan, bucket identifier, bucket subspace, and associated indexes.
+ * <p>
+ * This class is immutable, with all fields set during construction.
+ */
 public class ExecutorContext {
     private final BucketShard shard;
     private final PhysicalNode plan;
