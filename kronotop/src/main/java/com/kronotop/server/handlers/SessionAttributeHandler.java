@@ -96,7 +96,7 @@ public class SessionAttributeHandler implements Handler {
             case BUCKET_BATCH_SIZE -> {
                 int bucketBatchSize = parameters.bucketBatchSize();
                 if (bucketBatchSize < 1) {
-                    throw new KronotopException("Bucket batch size must be greater than 0");
+                    throw new KronotopException("'bucket_batch_size' must be greater than 0");
                 }
                 request.getSession().attr(SessionAttributes.BUCKET_BATCH_SIZE).set(bucketBatchSize);
             }
