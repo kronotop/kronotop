@@ -93,8 +93,13 @@ public class SessionAttributeHandler implements Handler {
         switch (parameters.getAttribute()) {
             case REPLY_TYPE -> request.getSession().attr(SessionAttributes.REPLY_TYPE).set(parameters.replyType());
             case INPUT_TYPE -> request.getSession().attr(SessionAttributes.INPUT_TYPE).set(parameters.inputType());
-            case BUCKET_BATCH_SIZE ->
-                    request.getSession().attr(SessionAttributes.BUCKET_BATCH_SIZE).set(parameters.bucketBatchSize());
+            case BUCKET_BATCH_SIZE -> {
+                int bucketBatchSize = parameters.bucketBatchSize();
+                if (bucketBatchSize < 1) {
+                    throw new KronotopException("Bucket batch size must be greater than 0");
+                }
+                request.getSession().attr(SessionAttributes.BUCKET_BATCH_SIZE).set(bucketBatchSize);
+            }
         }
         response.writeOK();
     }
