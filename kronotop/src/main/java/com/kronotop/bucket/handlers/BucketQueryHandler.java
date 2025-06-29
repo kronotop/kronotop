@@ -43,6 +43,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+
 @Command(BucketQueryMessage.COMMAND)
 @MaximumParameterCount(BucketQueryMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(BucketQueryMessage.MINIMUM_PARAMETER_COUNT)
@@ -137,7 +139,7 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        AsyncCommandExecutor.supplyAsync(context, response, () -> {
+        supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
 
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());

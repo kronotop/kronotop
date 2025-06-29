@@ -259,5 +259,4 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             index++;
         }
     }
-
 }
