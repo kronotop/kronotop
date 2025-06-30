@@ -141,9 +141,10 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
+            Session session = request.getSession();
 
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
+            BucketSubspace subspace = BucketSubspaceUtils.open(context, session, tr);
 
             // ID is the default index
             Map<String, Index> indexes = Map.of(
@@ -156,8 +157,11 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             PlanExecutorEnvironment environment = new PlanExecutorEnvironment(message.getBucket() ,subspace, shard, plan);
             PlanExecutorConfig config = new PlanExecutorConfig(environment);
 
-            int bucketBatchSize = request.getSession().attr(SessionAttributes.BUCKET_BATCH_SIZE).get();
+            int bucketBatchSize = session.attr(SessionAttributes.BUCKET_BATCH_SIZE).get();
             config.setBucketBatchSize(bucketBatchSize);
+
+            // Now we have a validated and sanitized plan executor config.
+            session.attr(SessionAttributes.PLAN_EXECUTOR_CONFIG).set(config);
 
             PlanExecutor executor = new PlanExecutor(context, config);
             try {
