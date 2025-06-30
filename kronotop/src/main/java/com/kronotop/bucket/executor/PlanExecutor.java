@@ -54,11 +54,13 @@ import java.util.Map;
 public class PlanExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlanExecutor.class);
     private final Context context;
-    private final PlanExecutorEnvironment executorContext;
+    private final PlanExecutorConfig config;
+    private final PlanExecutorEnvironment environment;
 
-    public PlanExecutor(Context context, PlanExecutorEnvironment executorContext) {
+    public PlanExecutor(Context context, PlanExecutorConfig config) {
         this.context = context;
-        this.executorContext = executorContext;
+        this.config = config;
+        this.environment = config.environment();
     }
 
     /**
@@ -79,11 +81,11 @@ public class PlanExecutor {
         Map<Versionstamp, ByteBuffer> result = new LinkedHashMap<>();
         for (Map.Entry<Integer, IndexEntry> entry : entries.entrySet()) {
             IndexEntry indexEntry = entry.getValue();
-            ByteBuffer buffer = executorContext.shard().volume().get(prefix, indexEntry.index().versionstamp(), indexEntry.metadata());
+            ByteBuffer buffer = environment.shard().volume().get(prefix, indexEntry.index().versionstamp(), indexEntry.metadata());
             if (buffer == null) {
                 // Kill the query, something went seriously wrong.
                 throw new KronotopException(String.format("Indexed entry could not be found in volume: '%s', Versionstamp: '%s'",
-                        executorContext.shard().volume().getConfig().name(),
+                        environment.shard().volume().getConfig().name(),
                         VersionstampUtils.base32HexEncode(indexEntry.index().versionstamp())
                 ));
             }
@@ -106,7 +108,7 @@ public class PlanExecutor {
      */
     private Map<Versionstamp, ByteBuffer> doPhysicalFullScan(Transaction tr, BucketSubspace subspace, Prefix prefix, PhysicalFullScan physicalFullScan) throws IOException {
         // TODO: Review this
-        Subspace indexSubspace = subspace.getBucketIndexSubspace(executorContext.shard().id(), prefix);
+        Subspace indexSubspace = subspace.getBucketIndexSubspace(environment.shard().id(), prefix);
         KeySelector begin = KeySelector.firstGreaterOrEqual(indexSubspace.pack(IndexBuilder.beginningOfIndexRange(DefaultIndex.ID)));
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(indexSubspace.pack(IndexBuilder.beginningOfIndexRange(DefaultIndex.ID))));
         IndexRange range = new IndexRange(begin, end);
@@ -197,7 +199,7 @@ public class PlanExecutor {
      * @throws IOException if an I/O error occurs during processing
      */
     private Map<Versionstamp, ByteBuffer> doPhysicalIndexScan(Transaction tr, BucketSubspace subspace, Prefix prefix, PhysicalIndexScan physicalIndexScan) throws IOException {
-        Subspace indexSubspace = subspace.getBucketIndexSubspace(executorContext.shard().id(), prefix);
+        Subspace indexSubspace = subspace.getBucketIndexSubspace(environment.shard().id(), prefix);
         IndexRange range = getIndexRange(physicalIndexScan, indexSubspace);
         Map<Integer, IndexEntry> entries = getEntriesFromIndex(tr, indexSubspace, range);
         return readEntriesFromVolume(prefix, entries);
@@ -214,13 +216,13 @@ public class PlanExecutor {
      * @throws IOException if an I/O error occurs during execution
      */
     public Map<Versionstamp, ByteBuffer> execute(Transaction tr) throws IOException {
-        Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, executorContext.subspace(), executorContext.bucket());
-        PhysicalNode plan = executorContext.plan();
+        Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, environment.subspace(), environment.bucket());
+        PhysicalNode plan = environment.plan();
         return switch (plan) {
             case PhysicalFullScan physicalFullScan ->
-                    doPhysicalFullScan(tr, executorContext.subspace(), prefix, physicalFullScan);
+                    doPhysicalFullScan(tr, environment.subspace(), prefix, physicalFullScan);
             case PhysicalIndexScan physicalIndexScan ->
-                    doPhysicalIndexScan(tr, executorContext.subspace(), prefix, physicalIndexScan);
+                    doPhysicalIndexScan(tr, environment.subspace(), prefix, physicalIndexScan);
             default -> throw new IllegalStateException("Unexpected value: " + plan);
         };
     }

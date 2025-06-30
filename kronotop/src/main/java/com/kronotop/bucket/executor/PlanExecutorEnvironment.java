@@ -14,46 +14,5 @@ import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 
-/**
- * ExecutorContext represents the execution context for a specific operation
- * within a distributed storage system. It holds references to the bucket shard,
- * physical execution plan, bucket identifier, bucket subspace, and associated indexes.
- * <p>
- * This class is immutable, with all fields set during construction.
- */
-public class PlanExecutorEnvironment {
-    private final BucketShard shard;
-    private final PhysicalNode plan;
-    private final String bucket;
-    private final BucketSubspace subspace;
-
-    // Add mutable fields here
-
-    public PlanExecutorEnvironment(
-            BucketShard shard,
-            PhysicalNode plan,
-            String bucket,
-            BucketSubspace subspace,
-    ) {
-        this.shard = shard;
-        this.plan = plan;
-        this.bucket = bucket;
-        this.subspace = subspace;
-    }
-
-    public BucketShard shard() {
-        return shard;
-    }
-
-    public PhysicalNode plan() {
-        return plan;
-    }
-
-    public String bucket() {
-        return bucket;
-    }
-
-    public BucketSubspace subspace() {
-        return subspace;
-    }
+public record PlanExecutorEnvironment(String bucket, BucketSubspace subspace, BucketShard shard, PhysicalNode plan) {
 }
