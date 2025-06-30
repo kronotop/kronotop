@@ -14,7 +14,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
-import com.kronotop.bucket.executor.ExecutorContext;
+import com.kronotop.bucket.executor.PlanExecutorEnvironment;
 import com.kronotop.bucket.executor.PlanExecutor;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
 import com.kronotop.bucket.index.Index;
@@ -151,8 +151,8 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             PhysicalNode plan = service.getPlanner().plan(indexes, message.getQuery());
 
             BucketShard shard = service.getShard(1);
-            ExecutorContext executorContext = new ExecutorContext(shard, plan, message.getBucket(), subspace, indexes);
-            PlanExecutor executor = new PlanExecutor(context, executorContext);
+            PlanExecutorEnvironment executorEnvironment = new PlanExecutorEnvironment(shard, plan, message.getBucket(), subspace);
+            PlanExecutor executor = new PlanExecutor(context, executorEnvironment);
             try {
                 return executor.execute(tr);
             } catch (IOException e) {

@@ -54,9 +54,9 @@ import java.util.Map;
 public class PlanExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlanExecutor.class);
     private final Context context;
-    private final ExecutorContext executorContext;
+    private final PlanExecutorEnvironment executorContext;
 
-    public PlanExecutor(Context context, ExecutorContext executorContext) {
+    public PlanExecutor(Context context, PlanExecutorEnvironment executorContext) {
         this.context = context;
         this.executorContext = executorContext;
     }

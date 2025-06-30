@@ -12,10 +12,7 @@ package com.kronotop.bucket.executor;
 
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.BucketSubspace;
-import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
-
-import java.util.Map;
 
 /**
  * ExecutorContext represents the execution context for a specific operation
@@ -24,27 +21,24 @@ import java.util.Map;
  * <p>
  * This class is immutable, with all fields set during construction.
  */
-public class ExecutorContext {
+public class PlanExecutorEnvironment {
     private final BucketShard shard;
     private final PhysicalNode plan;
     private final String bucket;
     private final BucketSubspace subspace;
-    private final Map<String, Index> indexes;
 
     // Add mutable fields here
 
-    public ExecutorContext(
+    public PlanExecutorEnvironment(
             BucketShard shard,
             PhysicalNode plan,
             String bucket,
             BucketSubspace subspace,
-            Map<String, Index> indexes
     ) {
         this.shard = shard;
         this.plan = plan;
         this.bucket = bucket;
         this.subspace = subspace;
-        this.indexes = indexes;
     }
 
     public BucketShard shard() {
@@ -61,9 +55,5 @@ public class ExecutorContext {
 
     public BucketSubspace subspace() {
         return subspace;
-    }
-
-    public Map<String, Index> indexes() {
-        return indexes;
     }
 }
