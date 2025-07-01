@@ -837,7 +837,7 @@ Kronotop provides a bunch of commands to manage database sessions. The following
 1# reply_type => bson
 2# input_type => bson
 3# bucket_batch_size => (integer) 100
-4# pin_read_version => (false)
+4# pin_read_version => (true)
 ```
 
 #### SESSION.ATTRIBUTE SET
