@@ -10,8 +10,8 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.KronotopException;
 import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.server.IllegalCommandParameterException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -30,6 +30,14 @@ public class BucketQueryMessage implements ProtocolMessage<Void> {
         parse();
     }
 
+    private BucketQueryParameter valueOfParameter(String raw) {
+        try {
+            return BucketQueryParameter.valueOf(raw.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalCommandParameterException(String.format("Unknown '%s' parameter: %s", COMMAND, raw));
+        }
+    }
+
     private void parse() {
         bucket = ByteBufUtils.readAsString(request.getParams().get(0));
         query = ByteBufUtils.readAsString(request.getParams().get(1));
@@ -37,20 +45,18 @@ public class BucketQueryMessage implements ProtocolMessage<Void> {
         if (request.getParams().size() > MINIMUM_PARAMETER_COUNT) {
             for (int i = 2; i < request.getParams().size(); i++) {
                 String raw = ByteBufUtils.readAsString(request.getParams().get(i));
-                try {
-                    BucketQueryParameter parameter = BucketQueryParameter.valueOf(raw.toUpperCase());
-                    switch (parameter) {
-                        case LIMIT -> {
-                            if (request.getParams().size() <= i + 1) {
-                                throw new IllegalArgumentException("LIMIT parameter must be followed by a number");
-                            }
-                            limit = ByteBufUtils.readAsInteger(request.getParams().get(i + 1));
-                            i++;
+                BucketQueryParameter parameter = valueOfParameter(raw);
+                switch (parameter) {
+                    case LIMIT -> {
+                        if (request.getParams().size() <= i + 1) {
+                            throw new IllegalCommandParameterException("LIMIT parameter must be followed by a positive integer");
                         }
-                        default -> throw new IllegalArgumentException("Unknown parameter: " + parameter);
+                        limit = ByteBufUtils.readAsInteger(request.getParams().get(i + 1));
+                        if (limit < 0) {
+                            throw new IllegalCommandParameterException("LIMIT parameter must be a non-negative integer");
+                        }
+                        i++;
                     }
-                } catch (IllegalArgumentException e) {
-                    throw new KronotopException(String.format("Unknown '%s' parameter: %s", COMMAND, raw));
                 }
             }
         }

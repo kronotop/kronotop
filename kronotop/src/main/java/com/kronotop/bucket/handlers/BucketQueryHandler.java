@@ -24,7 +24,6 @@ import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
@@ -157,7 +156,7 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             PlanExecutorConfig config = new PlanExecutorConfig(environment);
 
             int bucketBatchSize = session.attr(SessionAttributes.BUCKET_BATCH_SIZE).get();
-            config.setBucketBatchSize(bucketBatchSize);
+            config.setLimit(bucketBatchSize);
 
             boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();
             config.setPinReadVersion(pinReadVersion);

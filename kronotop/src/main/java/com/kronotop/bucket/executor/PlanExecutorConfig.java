@@ -25,7 +25,7 @@ public class PlanExecutorConfig {
     private final PlanExecutorEnvironment environment;
 
     // Mutable fields
-    private volatile int bucketBatchSize;
+    private volatile int limit;
     private volatile long readVersion;
     private volatile boolean pinReadVersion;
 
@@ -44,23 +44,26 @@ public class PlanExecutorConfig {
     }
 
     /**
-     * Sets the bucket batch size, which determines the number of bucket entries to be processed in batch
-     * operations during the plan execution.
+     * Sets the limit value, which defines the maximum number of bucket entries
+     * that can be processed during plan execution.
      *
-     * @param bucketBatchSize the desired batch size for processing bucket entries
+     * @param limit the maximum number of bucket entries allowed for processing; must be a non-negative integer
      */
-    public void setBucketBatchSize(int bucketBatchSize) {
-        this.bucketBatchSize = bucketBatchSize;
+    public void setLimit(int limit) {
+        if (limit < 0) {
+            throw new IllegalArgumentException("limit must be a non-negative integer");
+        }
+        this.limit = limit;
     }
 
     /**
-     * Retrieves the current bucket batch size configuration, which determines the number
-     * of bucket entries to be processed during batch operations in plan execution.
+     * Retrieves the current limit value, which determines the maximum number of
+     * bucket entries that can be processed during plan execution.
      *
-     * @return the configured bucket batch size
+     * @return the current limit value as an integer; this defines the bucket batch size.
      */
-    public int bucketBatchSize() {
-        return bucketBatchSize;
+    public int limit() {
+        return limit;
     }
 
     public long readVersion() {
