@@ -76,7 +76,7 @@ public class SessionAttributes {
 
     public static final AttributeKey<ReplyType> REPLY_TYPE = AttributeKey.valueOf("reply_type");
 
-    public static final AttributeKey<Integer> BUCKET_DEFAULT_LIMIT = AttributeKey.valueOf("bucket_default_limit");
+    public static final AttributeKey<Integer> LIMIT = AttributeKey.valueOf("limit");
 
     public static final AttributeKey<PlanExecutorConfig> PLAN_EXECUTOR_CONFIG = AttributeKey.valueOf("plan_executor_config");
 

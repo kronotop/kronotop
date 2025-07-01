@@ -105,8 +105,8 @@ public class Session {
         String inputType = context.getConfig().getString("session_attributes.input_type");
         channel.attr(SessionAttributes.INPUT_TYPE).set(InputType.valueOf(inputType.toUpperCase()));
 
-        Integer bucketBatchSize = context.getConfig().getInt("session_attributes.bucket_default_limit");
-        channel.attr(SessionAttributes.BUCKET_DEFAULT_LIMIT).set(bucketBatchSize);
+        Integer bucketBatchSize = context.getConfig().getInt("session_attributes.limit");
+        channel.attr(SessionAttributes.LIMIT).set(bucketBatchSize);
 
         Boolean pinReadVersion = context.getConfig().getBoolean("session_attributes.pin_read_version");
         channel.attr(SessionAttributes.PIN_READ_VERSION).set(pinReadVersion);

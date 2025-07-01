@@ -155,7 +155,7 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             PlanExecutorEnvironment environment = new PlanExecutorEnvironment(message.getBucket() ,subspace, shard, plan);
             PlanExecutorConfig config = new PlanExecutorConfig(environment);
 
-            int bucketBatchSize = session.attr(SessionAttributes.BUCKET_DEFAULT_LIMIT).get();
+            int bucketBatchSize = session.attr(SessionAttributes.LIMIT).get();
             config.setLimit(bucketBatchSize);
 
             boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();

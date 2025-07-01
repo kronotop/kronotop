@@ -67,10 +67,10 @@ public class SessionAttributeHandler implements Handler {
                 new SimpleStringRedisMessage(inputTypeAttr.get().name().toLowerCase())
         );
 
-        // BUCKET_DEFAULT_LIMIT
-        Attribute<Integer> bucketBatchSizeAttr = request.getSession().attr(SessionAttributes.BUCKET_DEFAULT_LIMIT);
+        // LIMIT
+        Attribute<Integer> bucketBatchSizeAttr = request.getSession().attr(SessionAttributes.LIMIT);
         children.put(
-                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.BUCKET_DEFAULT_LIMIT.getValue().toLowerCase()),
+                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.LIMIT.getValue().toLowerCase()),
                 new IntegerRedisMessage(bucketBatchSizeAttr.get())
         );
 
@@ -100,12 +100,12 @@ public class SessionAttributeHandler implements Handler {
         switch (parameters.getAttribute()) {
             case REPLY_TYPE -> request.getSession().attr(SessionAttributes.REPLY_TYPE).set(parameters.replyType());
             case INPUT_TYPE -> request.getSession().attr(SessionAttributes.INPUT_TYPE).set(parameters.inputType());
-            case BUCKET_DEFAULT_LIMIT -> {
+            case LIMIT -> {
                 int bucketBatchSize = parameters.bucketBatchSize();
                 if (bucketBatchSize < 1) {
-                    throw new KronotopException("'bucket_default_limit' must be greater than 0");
+                    throw new KronotopException("'limit' must be greater than 0");
                 }
-                request.getSession().attr(SessionAttributes.BUCKET_DEFAULT_LIMIT).set(bucketBatchSize);
+                request.getSession().attr(SessionAttributes.LIMIT).set(bucketBatchSize);
             }
             case PIN_READ_VERSION ->
                     request.getSession().attr(SessionAttributes.PIN_READ_VERSION).set(parameters.pinReadVersion());

@@ -821,12 +821,12 @@ This section defines commands to manage a Kronotop cluster and database sessions
 
 Kronotop provides a bunch of commands to manage database sessions. The following attributes are set by default:
 
-| attribute         | type    | scope  | description                                                               | default | available values |
-|-------------------|---------|--------|---------------------------------------------------------------------------|---------|------------------|
-| reply_type        | enum    | Bucket | Data interchange format for the replies                                   | BSON    | BSON, JSON       |
-| input_type        | enum    | Bucket | Data interchange format for the inputs                                    | BSON    | BSON, JSON       |
-| bucket_batch_size | integer | Bucket | Maximum entries returned per query response                               | 100     |                  |
-| pin_read_version  | boolean | Bucket | Reuse the initial read version for all subsequent `BUCKET.CONTINUE` calls | true    | true, false      |
+| attribute        | type    | scope  | description                                                               | default | available values |
+|------------------|---------|--------|---------------------------------------------------------------------------|---------|------------------|
+| reply_type       | enum    | Bucket | Data interchange format for the replies                                   | BSON    | BSON, JSON       |
+| input_type       | enum    | Bucket | Data interchange format for the inputs                                    | BSON    | BSON, JSON       |
+| limit            | integer | Bucket | Maximum entries returned per query response                               | 100     |                  |
+| pin_read_version | boolean | Bucket | Reuse the initial read version for all subsequent `BUCKET.CONTINUE` calls | true    | true, false      |
 
 #### SESSION.ATTRIBUTE LIST
 
@@ -836,7 +836,7 @@ Kronotop provides a bunch of commands to manage database sessions. The following
 127.0.0.1:5484> SESSION.ATTRIBUTE LIST
 1# reply_type => bson
 2# input_type => bson
-3# bucket_batch_size => (integer) 100
+3# limit => (integer) 100
 4# pin_read_version => (true)
 ```
 
