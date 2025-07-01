@@ -128,7 +128,7 @@ public class PlanExecutor {
      */
     private Map<Integer, IndexEntry> getEntriesFromIndex(Transaction tr, Subspace indexSubspace, IndexRange range) {
         Map<Integer, IndexEntry> result = new LinkedHashMap<>();
-        for (KeyValue keyValue : tr.getRange(range.begin(), range.end())) {
+        for (KeyValue keyValue : tr.getRange(range.begin(), range.end(), config.limit())) {
             UnpackedIndex unpackedIndex = IndexBuilder.unpackIndex(indexSubspace, keyValue.getKey());
             EntryMetadata metadata = EntryMetadata.decode(ByteBuffer.wrap(keyValue.getValue()));
             result.put(metadata.id(), new IndexEntry(unpackedIndex, metadata));
