@@ -71,7 +71,7 @@ public class SessionAttributeParameters {
                     throw new KronotopException("Invalid reply type: " + rawReplyType);
                 }
             }
-            case BUCKET_BATCH_SIZE -> {
+            case BUCKET_DEFAULT_LIMIT -> {
                 bucketBatchSize = ByteBufUtils.readAsInteger(params.get(2));
             }
             case PIN_READ_VERSION -> {
@@ -113,7 +113,7 @@ public class SessionAttributeParameters {
     public enum SessionAttribute {
         REPLY_TYPE("reply_type"),
         INPUT_TYPE("input_type"),
-        BUCKET_BATCH_SIZE("bucket_batch_size"),
+        BUCKET_DEFAULT_LIMIT("bucket_default_limit"),
         PIN_READ_VERSION("pin_read_version");
 
         final String value;
@@ -127,8 +127,8 @@ public class SessionAttributeParameters {
                 return REPLY_TYPE;
             } else if (v.toLowerCase().equals(INPUT_TYPE.getValue())) {
                 return INPUT_TYPE;
-            } else if (v.toLowerCase().equals(BUCKET_BATCH_SIZE.getValue())) {
-                return BUCKET_BATCH_SIZE;
+            } else if (v.toLowerCase().equals(BUCKET_DEFAULT_LIMIT.getValue())) {
+                return BUCKET_DEFAULT_LIMIT;
             } else if (v.toLowerCase().equals(PIN_READ_VERSION.getValue())) {
                 return PIN_READ_VERSION;
             } else {
