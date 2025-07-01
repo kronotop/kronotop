@@ -111,8 +111,8 @@ public class SessionAttributeParameters {
     }
 
     public enum SessionAttribute {
-        REPLY_TYPE("reply-type"),
-        INPUT_TYPE("input-type"),
+        REPLY_TYPE("reply_type"),
+        INPUT_TYPE("input_type"),
         BUCKET_BATCH_SIZE("bucket_batch_size"),
         PIN_READ_VERSION("pin_read_version");
 
