@@ -821,11 +821,12 @@ This section defines commands to manage a Kronotop cluster and database sessions
 
 Kronotop provides a bunch of commands to manage database sessions. The following attributes are set by default:
 
-| attribute         | type    | scope  | description                                 | default | available values |
-|-------------------|---------|--------|---------------------------------------------|---------|------------------|
-| reply-type        | enum    | Bucket | Data interchange format for the replies     | BSON    | BSON, JSON       |
-| input-type        | enum    | Bucket | Data interchange format for the inputs      | BSON    | BSON, JSON       |
-| bucket_batch_size | integer | Bucket | Maximum entries returned per query response | 100     |                  |
+| attribute         | type    | scope  | description                                                               | default | available values |
+|-------------------|---------|--------|---------------------------------------------------------------------------|---------|------------------|
+| reply-type        | enum    | Bucket | Data interchange format for the replies                                   | BSON    | BSON, JSON       |
+| input-type        | enum    | Bucket | Data interchange format for the inputs                                    | BSON    | BSON, JSON       |
+| bucket_batch_size | integer | Bucket | Maximum entries returned per query response                               | 100     |                  |
+| pin_read_version  | boolean | Bucket | Reuse the initial read version for all subsequent `BUCKET.CONTINUE` calls | true    | true, false      |
 
 #### SESSION.ATTRIBUTE LIST
 
@@ -981,7 +982,6 @@ The platform’s extensive standard library and third‑party ecosystem eliminat
 network, or build tooling. Mature dependency‑management systems (Maven and Gradle), high‑quality static‑analysis tools, and
 seamless CI/CD integration ensure that engineering velocity scales with team growth. Container‑ready base images and snapshotting
 technology (such as CRaC) minimize operational friction.
-
 
 ### Enterprise Acceptance and Long‑Term Support
 

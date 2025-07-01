@@ -10,9 +10,6 @@
 
 package com.kronotop.bucket.executor;
 
-import com.kronotop.server.Session;
-import com.kronotop.server.SessionAttributes;
-
 /**
  * The PlanExecutorConfig class is responsible for storing and managing the configuration
  * of the plan executor, including both immutable and mutable settings.
@@ -30,6 +27,7 @@ public class PlanExecutorConfig {
     // Mutable fields
     private volatile int bucketBatchSize;
     private volatile long readVersion;
+    private volatile boolean pinReadVersion;
 
     public PlanExecutorConfig(PlanExecutorEnvironment environment) {
         this.environment = environment;
@@ -39,7 +37,7 @@ public class PlanExecutorConfig {
      * Retrieves the immutable environment configuration used by the plan executor.
      *
      * @return the {@link PlanExecutorEnvironment} containing static details about the execution environment,
-     *         such as bucket, subspace, shard, and physical node configuration.
+     * such as bucket, subspace, shard, and physical node configuration.
      */
     public PlanExecutorEnvironment environment() {
         return environment;
@@ -71,5 +69,13 @@ public class PlanExecutorConfig {
 
     public void setReadVersion(long readVersion) {
         this.readVersion = readVersion;
+    }
+
+    public void setPinReadVersion(boolean pinReadVersion) {
+        this.pinReadVersion = pinReadVersion;
+    }
+
+    public boolean pinReadVersion() {
+        return pinReadVersion;
     }
 }

@@ -23,6 +23,7 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.handlers.protocol.SessionAttributeMessage;
 import com.kronotop.server.handlers.protocol.SessionAttributeParameters;
+import com.kronotop.server.resp3.BooleanRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -73,6 +74,12 @@ public class SessionAttributeHandler implements Handler {
                 new IntegerRedisMessage(bucketBatchSizeAttr.get())
         );
 
+        // PIN_READ_VERSION
+        Attribute<Boolean> pinReadVersionAttr = request.getSession().attr(SessionAttributes.PIN_READ_VERSION);
+        children.put(
+                new SimpleStringRedisMessage(SessionAttributeParameters.SessionAttribute.PIN_READ_VERSION.getValue().toLowerCase()),
+                pinReadVersionAttr.get() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
+        );
 
         RESPVersion protoVer = request.getSession().protocolVersion();
         if (protoVer.equals(RESPVersion.RESP3)) {
@@ -100,6 +107,8 @@ public class SessionAttributeHandler implements Handler {
                 }
                 request.getSession().attr(SessionAttributes.BUCKET_BATCH_SIZE).set(bucketBatchSize);
             }
+            case PIN_READ_VERSION ->
+                    request.getSession().attr(SessionAttributes.PIN_READ_VERSION).set(parameters.pinReadVersion());
         }
         response.writeOK();
     }

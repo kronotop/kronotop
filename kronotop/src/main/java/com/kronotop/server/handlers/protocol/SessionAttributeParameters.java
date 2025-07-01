@@ -31,6 +31,7 @@ public class SessionAttributeParameters {
     private ReplyType replyType;
     private InputType inputType;
     private int bucketBatchSize;
+    private boolean pinReadVersion;
 
     public SessionAttributeParameters(ArrayList<ByteBuf> params) {
         String rawSubcommand = ByteBufUtils.readAsString(params.getFirst());
@@ -73,6 +74,9 @@ public class SessionAttributeParameters {
             case BUCKET_BATCH_SIZE -> {
                 bucketBatchSize = ByteBufUtils.readAsInteger(params.get(2));
             }
+            case PIN_READ_VERSION -> {
+                pinReadVersion = ByteBufUtils.readBooleanValue(params.get(2));
+            }
             default -> throw new KronotopException("Unknown session attribute: " + rawSessionAttribute);
         }
     }
@@ -97,6 +101,10 @@ public class SessionAttributeParameters {
         return bucketBatchSize;
     }
 
+    public boolean pinReadVersion() {
+        return pinReadVersion;
+    }
+
     public enum SessionAttributeSubcommand {
         SET,
         LIST
@@ -105,7 +113,8 @@ public class SessionAttributeParameters {
     public enum SessionAttribute {
         REPLY_TYPE("reply-type"),
         INPUT_TYPE("input-type"),
-        BUCKET_BATCH_SIZE("bucket_batch_size");
+        BUCKET_BATCH_SIZE("bucket_batch_size"),
+        PIN_READ_VERSION("pin_read_version");
 
         final String value;
 
@@ -120,6 +129,8 @@ public class SessionAttributeParameters {
                 return INPUT_TYPE;
             } else if (v.toLowerCase().equals(BUCKET_BATCH_SIZE.getValue())) {
                 return BUCKET_BATCH_SIZE;
+            } else if (v.toLowerCase().equals(PIN_READ_VERSION.getValue())) {
+                return PIN_READ_VERSION;
             } else {
                 throw new IllegalArgumentException(
                         String.format("Invalid session attribute: '%s'", v)

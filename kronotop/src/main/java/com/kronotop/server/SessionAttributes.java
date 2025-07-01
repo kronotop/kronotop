@@ -79,4 +79,6 @@ public class SessionAttributes {
     public static final AttributeKey<Integer> BUCKET_BATCH_SIZE = AttributeKey.valueOf("bucket_batch_size");
 
     public static final AttributeKey<PlanExecutorConfig> PLAN_EXECUTOR_CONFIG = AttributeKey.valueOf("plan_executor_config");
+
+    public static final AttributeKey<Boolean> PIN_READ_VERSION = AttributeKey.valueOf("pin_read_version");
 }

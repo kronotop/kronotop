@@ -160,6 +160,9 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             int bucketBatchSize = session.attr(SessionAttributes.BUCKET_BATCH_SIZE).get();
             config.setBucketBatchSize(bucketBatchSize);
 
+            boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();
+            config.setPinReadVersion(pinReadVersion);
+
             tr.getReadVersion().thenAccept(config::setReadVersion);
 
             // Now we have a validated and sanitized plan executor config.

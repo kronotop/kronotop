@@ -107,6 +107,9 @@ public class Session {
 
         Integer bucketBatchSize = context.getConfig().getInt("session_attributes.bucket_batch_size");
         channel.attr(SessionAttributes.BUCKET_BATCH_SIZE).set(bucketBatchSize);
+
+        Boolean pinReadVersion = context.getConfig().getBoolean("session_attributes.pin_read_version");
+        channel.attr(SessionAttributes.PIN_READ_VERSION).set(pinReadVersion);
     }
 
     /**
