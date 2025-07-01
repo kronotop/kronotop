@@ -10,6 +10,8 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
+import com.kronotop.KronotopException;
+import com.kronotop.internal.ByteBufUtils;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -18,10 +20,10 @@ import java.util.List;
 public class BucketQueryMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.QUERY";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
     private final Request request;
     private String query;
     private String bucket;
+    private int limit = 0;
 
     public BucketQueryMessage(Request request) {
         this.request = request;
@@ -29,13 +31,33 @@ public class BucketQueryMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        byte[] rawBucket = new byte[request.getParams().getFirst().readableBytes()];
-        request.getParams().getFirst().readBytes(rawBucket);
-        bucket = new String(rawBucket);
+        bucket = ByteBufUtils.readAsString(request.getParams().get(0));
+        query = ByteBufUtils.readAsString(request.getParams().get(1));
 
-        byte[] rawQuery = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(rawQuery);
-        query = new String(rawQuery);
+        if (request.getParams().size() > MINIMUM_PARAMETER_COUNT) {
+            for (int i = 2; i < request.getParams().size(); i++) {
+                String raw = ByteBufUtils.readAsString(request.getParams().get(i));
+                try {
+                    BucketQueryParameter parameter = BucketQueryParameter.valueOf(raw.toUpperCase());
+                    switch (parameter) {
+                        case LIMIT -> {
+                            if (request.getParams().size() <= i + 1) {
+                                throw new IllegalArgumentException("LIMIT parameter must be followed by a number");
+                            }
+                            limit = ByteBufUtils.readAsInteger(request.getParams().get(i + 1));
+                            i++;
+                        }
+                        default -> throw new IllegalArgumentException("Unknown parameter: " + parameter);
+                    }
+                } catch (IllegalArgumentException e) {
+                    throw new KronotopException(String.format("Unknown '%s' parameter: %s", COMMAND, raw));
+                }
+            }
+        }
+    }
+
+    public int getLimit() {
+        return limit;
     }
 
     public String getQuery() {

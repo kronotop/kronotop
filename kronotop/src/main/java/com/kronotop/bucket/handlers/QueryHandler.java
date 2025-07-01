@@ -19,7 +19,6 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 // Alias for BUCKET.QUERY
 
 @Command(QueryMessage.COMMAND)
-@MaximumParameterCount(QueryMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(QueryMessage.MINIMUM_PARAMETER_COUNT)
 public class QueryHandler extends BucketQueryHandler {
     public QueryHandler(BucketService service) {

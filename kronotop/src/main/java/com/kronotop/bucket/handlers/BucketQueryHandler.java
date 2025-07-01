@@ -46,7 +46,6 @@ import java.util.Map;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketQueryMessage.COMMAND)
-@MaximumParameterCount(BucketQueryMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(BucketQueryMessage.MINIMUM_PARAMETER_COUNT)
 public class BucketQueryHandler extends BaseBucketHandler implements Handler {
 
