@@ -14,8 +14,8 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
-import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.executor.PlanExecutor;
+import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.executor.PlanExecutorEnvironment;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
 import com.kronotop.bucket.index.Index;
@@ -152,11 +152,16 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
 
             BucketShard shard = service.getShard(1);
 
-            PlanExecutorEnvironment environment = new PlanExecutorEnvironment(message.getBucket() ,subspace, shard, plan);
+            PlanExecutorEnvironment environment = new PlanExecutorEnvironment(message.getBucket(), subspace, shard, plan);
             PlanExecutorConfig config = new PlanExecutorConfig(environment);
 
-            int bucketBatchSize = session.attr(SessionAttributes.LIMIT).get();
-            config.setLimit(bucketBatchSize);
+            if (message.getParameters().limit() == 0) {
+                config.setLimit(
+                        session.attr(SessionAttributes.LIMIT).get()
+                );
+            } else {
+                config.setLimit(message.getParameters().limit());
+            }
 
             boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();
             config.setPinReadVersion(pinReadVersion);

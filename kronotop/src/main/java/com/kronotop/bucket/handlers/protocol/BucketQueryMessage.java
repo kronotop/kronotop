@@ -23,7 +23,7 @@ public class BucketQueryMessage implements ProtocolMessage<Void> {
     private final Request request;
     private String query;
     private String bucket;
-    private int limit = 0;
+    private Parameters parameters;
 
     public BucketQueryMessage(Request request) {
         this.request = request;
@@ -42,6 +42,7 @@ public class BucketQueryMessage implements ProtocolMessage<Void> {
         bucket = ByteBufUtils.readAsString(request.getParams().get(0));
         query = ByteBufUtils.readAsString(request.getParams().get(1));
 
+        int limit = 0;
         if (request.getParams().size() > MINIMUM_PARAMETER_COUNT) {
             for (int i = 2; i < request.getParams().size(); i++) {
                 String raw = ByteBufUtils.readAsString(request.getParams().get(i));
@@ -60,10 +61,11 @@ public class BucketQueryMessage implements ProtocolMessage<Void> {
                 }
             }
         }
+        parameters = new Parameters(limit);
     }
 
-    public int getLimit() {
-        return limit;
+    public Parameters getParameters() {
+        return parameters;
     }
 
     public String getQuery() {
@@ -82,5 +84,8 @@ public class BucketQueryMessage implements ProtocolMessage<Void> {
     @Override
     public List<Void> getKeys() {
         return List.of();
+    }
+
+    public record Parameters(int limit) {
     }
 }
