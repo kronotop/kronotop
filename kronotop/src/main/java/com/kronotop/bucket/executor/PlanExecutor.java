@@ -36,10 +36,12 @@ import com.kronotop.volume.Prefix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sound.sampled.Line;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.SequencedMap;
 
 /**
  * The {@code PlanExecutor} class is responsible for executing physical query plans and retrieving
@@ -126,8 +128,8 @@ public class PlanExecutor {
      * @return a map where the key is an integer ID from the decoded metadata and the value
      * is an {@code IndexEntry} containing the unpacked index and metadata
      */
-    private Map<Integer, IndexEntry> getEntriesFromIndex(Transaction tr, Subspace indexSubspace, IndexRange range) {
-        Map<Integer, IndexEntry> result = new LinkedHashMap<>();
+    private LinkedHashMap<Integer, IndexEntry> getEntriesFromIndex(Transaction tr, Subspace indexSubspace, IndexRange range) {
+        LinkedHashMap<Integer, IndexEntry> result = new LinkedHashMap<>();
         for (KeyValue keyValue : tr.getRange(range.begin(), range.end(), config.limit())) {
             UnpackedIndex unpackedIndex = IndexBuilder.unpackIndex(indexSubspace, keyValue.getKey());
             EntryMetadata metadata = EntryMetadata.decode(ByteBuffer.wrap(keyValue.getValue()));
@@ -201,7 +203,7 @@ public class PlanExecutor {
     private Map<Versionstamp, ByteBuffer> doPhysicalIndexScan(Transaction tr, BucketSubspace subspace, Prefix prefix, PhysicalIndexScan physicalIndexScan) throws IOException {
         Subspace indexSubspace = subspace.getBucketIndexSubspace(environment.shard().id(), prefix);
         IndexRange range = getIndexRange(physicalIndexScan, indexSubspace);
-        Map<Integer, IndexEntry> entries = getEntriesFromIndex(tr, indexSubspace, range);
+        LinkedHashMap<Integer, IndexEntry> entries = getEntriesFromIndex(tr, indexSubspace, range);
         return readEntriesFromVolume(prefix, entries);
     }
 
