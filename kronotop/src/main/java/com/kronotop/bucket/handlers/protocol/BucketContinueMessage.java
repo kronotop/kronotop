@@ -11,7 +11,7 @@
 package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.internal.ByteBufUtils;
-import com.kronotop.server.IllegalCommandParameterException;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -20,18 +20,18 @@ import java.util.List;
 public class BucketContinueMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.CONTINUE";
     private final Request request;
-    private Parameters parameters;
+    private Arguments arguments;
 
     public BucketContinueMessage(Request request) {
         this.request = request;
         parse();
     }
 
-    private BucketQueryParameter valueOfParameter(String raw) {
+    private BucketQueryArgument valueOfArgument(String raw) {
         try {
-            return BucketQueryParameter.valueOf(raw.toUpperCase());
+            return BucketQueryArgument.valueOf(raw.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalCommandParameterException(String.format("Unknown '%s' parameter: %s", COMMAND, raw));
+            throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument: %s", COMMAND, raw));
         }
     }
 
@@ -39,25 +39,25 @@ public class BucketContinueMessage implements ProtocolMessage<Void> {
         int limit = 0;
         for (int i = 0; i < request.getParams().size(); i++) {
             String raw = ByteBufUtils.readAsString(request.getParams().get(i));
-            BucketQueryParameter parameter = valueOfParameter(raw);
-            switch (parameter) {
+            BucketQueryArgument argument = valueOfArgument(raw);
+            switch (argument) {
                 case LIMIT -> {
                     if (request.getParams().size() <= i + 1) {
-                        throw new IllegalCommandParameterException("LIMIT parameter must be followed by a positive integer");
+                        throw new IllegalCommandArgumentException("LIMIT argument must be followed by a positive integer");
                     }
                     limit = ByteBufUtils.readAsInteger(request.getParams().get(i + 1));
                     if (limit < 0) {
-                        throw new IllegalCommandParameterException("LIMIT parameter must be a non-negative integer");
+                        throw new IllegalCommandArgumentException("LIMIT argument must be a non-negative integer");
                     }
                     i++;
                 }
             }
         }
-        parameters = new Parameters(limit);
+        arguments = new Arguments(limit);
     }
 
-    public Parameters getParameters() {
-        return parameters;
+    public Arguments getArguments() {
+        return arguments;
     }
 
     @Override
@@ -70,6 +70,6 @@ public class BucketContinueMessage implements ProtocolMessage<Void> {
         return List.of();
     }
 
-    public record Parameters(int limit) {
+    public record Arguments(int limit) {
     }
 }

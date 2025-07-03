@@ -11,7 +11,7 @@
 package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.internal.ByteBufUtils;
-import com.kronotop.server.IllegalCommandParameterException;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -30,11 +30,11 @@ public class BucketQueryMessage implements ProtocolMessage<Void> {
         parse();
     }
 
-    private BucketQueryParameter valueOfParameter(String raw) {
+    private BucketQueryArgument valueOfParameter(String raw) {
         try {
-            return BucketQueryParameter.valueOf(raw.toUpperCase());
+            return BucketQueryArgument.valueOf(raw.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalCommandParameterException(String.format("Unknown '%s' parameter: %s", COMMAND, raw));
+            throw new IllegalCommandArgumentException(String.format("Unknown '%s' parameter: %s", COMMAND, raw));
         }
     }
 
@@ -46,15 +46,15 @@ public class BucketQueryMessage implements ProtocolMessage<Void> {
         if (request.getParams().size() > MINIMUM_PARAMETER_COUNT) {
             for (int i = 2; i < request.getParams().size(); i++) {
                 String raw = ByteBufUtils.readAsString(request.getParams().get(i));
-                BucketQueryParameter parameter = valueOfParameter(raw);
+                BucketQueryArgument parameter = valueOfParameter(raw);
                 switch (parameter) {
                     case LIMIT -> {
                         if (request.getParams().size() <= i + 1) {
-                            throw new IllegalCommandParameterException("LIMIT parameter must be followed by a positive integer");
+                            throw new IllegalCommandArgumentException("LIMIT parameter must be followed by a positive integer");
                         }
                         limit = ByteBufUtils.readAsInteger(request.getParams().get(i + 1));
                         if (limit < 0) {
-                            throw new IllegalCommandParameterException("LIMIT parameter must be a non-negative integer");
+                            throw new IllegalCommandArgumentException("LIMIT parameter must be a non-negative integer");
                         }
                         i++;
                     }

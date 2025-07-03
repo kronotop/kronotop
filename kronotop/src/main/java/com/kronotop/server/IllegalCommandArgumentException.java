@@ -19,8 +19,8 @@ package com.kronotop.server;
 
 import com.kronotop.KronotopException;
 
-public class IllegalCommandParameterException extends KronotopException {
-    public IllegalCommandParameterException(String message) {
+public class IllegalCommandArgumentException extends KronotopException {
+    public IllegalCommandArgumentException(String message) {
         super(message);
     }
 }

@@ -10,6 +10,6 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-public enum BucketQueryParameter {
+public enum BucketQueryArgument {
     LIMIT;
 }
