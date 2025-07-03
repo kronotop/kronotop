@@ -10,53 +10,26 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.internal.ByteBufUtils;
-import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class BucketContinueMessage implements ProtocolMessage<Void> {
+public class BucketContinueMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.CONTINUE";
     private final Request request;
-    private Arguments arguments;
+    private BucketQueryArguments arguments;
 
     public BucketContinueMessage(Request request) {
         this.request = request;
         parse();
     }
 
-    private BucketQueryArgument valueOfArgument(String raw) {
-        try {
-            return BucketQueryArgument.valueOf(raw.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument: %s", COMMAND, raw));
-        }
-    }
-
     private void parse() {
-        int limit = 0;
-        for (int i = 0; i < request.getParams().size(); i++) {
-            String raw = ByteBufUtils.readAsString(request.getParams().get(i));
-            BucketQueryArgument argument = valueOfArgument(raw);
-            switch (argument) {
-                case LIMIT -> {
-                    if (request.getParams().size() <= i + 1) {
-                        throw new IllegalCommandArgumentException("LIMIT argument must be followed by a positive integer");
-                    }
-                    limit = ByteBufUtils.readAsInteger(request.getParams().get(i + 1));
-                    if (limit < 0) {
-                        throw new IllegalCommandArgumentException("LIMIT argument must be a non-negative integer");
-                    }
-                    i++;
-                }
-            }
-        }
-        arguments = new Arguments(limit);
+        arguments = parseCommonQueryArguments(request, 0);
     }
 
-    public Arguments getArguments() {
+    public BucketQueryArguments getArguments() {
         return arguments;
     }
 
@@ -68,8 +41,5 @@ public class BucketContinueMessage implements ProtocolMessage<Void> {
     @Override
     public List<Void> getKeys() {
         return List.of();
-    }
-
-    public record Arguments(int limit) {
     }
 }

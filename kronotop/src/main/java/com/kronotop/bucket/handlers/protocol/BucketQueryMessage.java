@@ -11,61 +11,32 @@
 package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.internal.ByteBufUtils;
-import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class BucketQueryMessage implements ProtocolMessage<Void> {
+public class BucketQueryMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.QUERY";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;
     private String query;
     private String bucket;
-    private Parameters parameters;
+    private BucketQueryArguments arguments;
 
     public BucketQueryMessage(Request request) {
         this.request = request;
         parse();
     }
 
-    private BucketQueryArgument valueOfParameter(String raw) {
-        try {
-            return BucketQueryArgument.valueOf(raw.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalCommandArgumentException(String.format("Unknown '%s' parameter: %s", COMMAND, raw));
-        }
-    }
-
     private void parse() {
         bucket = ByteBufUtils.readAsString(request.getParams().get(0));
         query = ByteBufUtils.readAsString(request.getParams().get(1));
-
-        int limit = 0;
-        if (request.getParams().size() > MINIMUM_PARAMETER_COUNT) {
-            for (int i = 2; i < request.getParams().size(); i++) {
-                String raw = ByteBufUtils.readAsString(request.getParams().get(i));
-                BucketQueryArgument parameter = valueOfParameter(raw);
-                switch (parameter) {
-                    case LIMIT -> {
-                        if (request.getParams().size() <= i + 1) {
-                            throw new IllegalCommandArgumentException("LIMIT parameter must be followed by a positive integer");
-                        }
-                        limit = ByteBufUtils.readAsInteger(request.getParams().get(i + 1));
-                        if (limit < 0) {
-                            throw new IllegalCommandArgumentException("LIMIT parameter must be a non-negative integer");
-                        }
-                        i++;
-                    }
-                }
-            }
-        }
-        parameters = new Parameters(limit);
+        arguments = parseCommonQueryArguments(request, 2);
     }
 
-    public Parameters getParameters() {
-        return parameters;
+    public BucketQueryArguments getParameters() {
+        return arguments;
     }
 
     public String getQuery() {
@@ -84,8 +55,5 @@ public class BucketQueryMessage implements ProtocolMessage<Void> {
     @Override
     public List<Void> getKeys() {
         return List.of();
-    }
-
-    public record Parameters(int limit) {
     }
 }
