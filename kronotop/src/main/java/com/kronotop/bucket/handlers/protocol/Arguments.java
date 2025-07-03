@@ -10,5 +10,5 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-public record BucketQueryArguments(int limit) {
+public record Arguments(int limit) {
 }

@@ -22,7 +22,7 @@ public class BucketQueryMessage extends BaseBucketMessage implements ProtocolMes
     private final Request request;
     private String query;
     private String bucket;
-    private BucketQueryArguments arguments;
+    private Arguments arguments;
 
     public BucketQueryMessage(Request request) {
         this.request = request;
@@ -35,7 +35,7 @@ public class BucketQueryMessage extends BaseBucketMessage implements ProtocolMes
         arguments = parseCommonQueryArguments(request, 2);
     }
 
-    public BucketQueryArguments getParameters() {
+    public Arguments getArguments() {
         return arguments;
     }
 

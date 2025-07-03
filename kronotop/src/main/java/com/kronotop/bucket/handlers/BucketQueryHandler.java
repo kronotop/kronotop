@@ -155,12 +155,12 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             PlanExecutorEnvironment environment = new PlanExecutorEnvironment(message.getBucket(), subspace, shard, plan);
             PlanExecutorConfig config = new PlanExecutorConfig(environment);
 
-            if (message.getParameters().limit() == 0) {
+            if (message.getArguments().limit() == 0) {
                 config.setLimit(
                         session.attr(SessionAttributes.LIMIT).get()
                 );
             } else {
-                config.setLimit(message.getParameters().limit());
+                config.setLimit(message.getArguments().limit());
             }
 
             boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();

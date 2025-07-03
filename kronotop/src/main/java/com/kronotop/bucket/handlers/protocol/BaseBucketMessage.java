@@ -17,19 +17,19 @@ import com.kronotop.server.Request;
 
 public class BaseBucketMessage {
 
-    private BucketQueryArgument valueOfArgument(String raw) {
+    private Argument valueOfArgument(String raw) {
         try {
-            return BucketQueryArgument.valueOf(raw.toUpperCase());
+            return Argument.valueOf(raw.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
         }
     }
 
-    protected BucketQueryArguments parseCommonQueryArguments(Request request, int index) {
+    protected Arguments parseCommonQueryArguments(Request request, int index) {
         int limit = 0;
         for (int i = index; i < request.getParams().size(); i++) {
             String raw = ByteBufUtils.readAsString(request.getParams().get(i));
-            BucketQueryArgument argument = valueOfArgument(raw);
+            Argument argument = valueOfArgument(raw);
             switch (argument) {
                 case LIMIT -> {
                     if (request.getParams().size() <= i + 1) {
@@ -43,6 +43,6 @@ public class BaseBucketMessage {
                 }
             }
         }
-        return new BucketQueryArguments(limit);
+        return new Arguments(limit);
     }
 }
