@@ -36,12 +36,10 @@ import com.kronotop.volume.Prefix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.sound.sampled.Line;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.SequencedMap;
 
 /**
  * The {@code PlanExecutor} class is responsible for executing physical query plans and retrieving
@@ -204,6 +202,7 @@ public class PlanExecutor {
         Subspace indexSubspace = subspace.getBucketIndexSubspace(environment.shard().id(), prefix);
         IndexRange range = getIndexRange(physicalIndexScan, indexSubspace);
         LinkedHashMap<Integer, IndexEntry> entries = getEntriesFromIndex(tr, indexSubspace, range);
+        entries.lastEntry();
         return readEntriesFromVolume(prefix, entries);
     }
 

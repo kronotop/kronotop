@@ -28,6 +28,7 @@ public class PlanExecutorConfig {
     private volatile int limit;
     private volatile long readVersion;
     private volatile boolean pinReadVersion;
+    private volatile Cursor cursor;
 
     public PlanExecutorConfig(PlanExecutorEnvironment environment) {
         this.environment = environment;
@@ -80,5 +81,13 @@ public class PlanExecutorConfig {
 
     public boolean pinReadVersion() {
         return pinReadVersion;
+    }
+
+    public Cursor getCursor() {
+        return cursor;
+    }
+
+    public void setCursor(Cursor cursor) {
+        this.cursor = cursor;
     }
 }

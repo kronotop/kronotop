@@ -10,9 +10,5 @@
 
 package com.kronotop.bucket.executor;
 
-public class PlanCursor {
-
-    public record IndexCursor(String index, IndexEntry entry) {
-
-    }
+public class Cursor {
 }
