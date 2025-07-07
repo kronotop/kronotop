@@ -8,16 +8,18 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.handlers.protocol;
+package com.kronotop.bucket.executor;
 
-import com.kronotop.server.Request;
+import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.planner.Bounds;
 
-// Alias for BUCKET.QUERY
+import java.util.HashMap;
+import java.util.Map;
 
-public class QueryMessage extends BucketQueryMessage {
-    public static final String COMMAND = "QUERY";
+public class Cursor {
+    private final Map<Index, Bounds> bounds = new HashMap<>();
 
-    public QueryMessage(Request request) {
-        super(request);
+    public Map<Index, Bounds> bounds() {
+        return bounds;
     }
 }

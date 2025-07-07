@@ -11,42 +11,26 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
-import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.executor.PlanExecutor;
+import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.executor.PlanExecutorEnvironment;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.internal.TransactionUtils;
-import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
-import org.bson.Document;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketQueryMessage.COMMAND)
-@MaximumParameterCount(BucketQueryMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(BucketQueryMessage.MINIMUM_PARAMETER_COUNT)
 public class BucketQueryHandler extends BaseBucketHandler implements Handler {
 
@@ -59,106 +43,53 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
         request.attr(MessageTypes.BUCKETQUERY).set(new BucketQueryMessage(request));
     }
 
-    /**
-     * Prepares a {@code ByteBuf} value based on the reply type derived from the given request.
-     * The method generates either a BSON or JSON formatted {@code ByteBuf} depending on the reply type
-     * of the session associated with the request. In case of an unsupported reply type, an exception is thrown.
-     *
-     * @param request the {@code Request} object containing the session information and other relevant data
-     * @param entry   a {@code Map.Entry} containing a {@code Versionstamp} as the key and a {@code ByteBuffer} as the value,
-     *                where the value represents the data to be transformed into the {@code ByteBuf}
-     * @return a {@code ByteBuf} object containing the serialized data in the format specified by the reply type
-     * @throws KronotopException if the reply type is invalid or not supported
-     */
-    private ByteBuf prepareValue(Request request, Map.Entry<Versionstamp, ByteBuffer> entry) {
-        ByteBuf value;
-        ReplyType replyType = getReplyType(request);
-        if (replyType.equals(ReplyType.BSON)) {
-            value = PooledByteBufAllocator.DEFAULT.buffer().alloc().
-                    buffer(entry.getValue().remaining()).writeBytes(entry.getValue());
-        } else if (replyType.equals(ReplyType.JSON)) {
-            Document document = BSONUtils.toDocument(entry.getValue().array());
-            byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
-            value = PooledByteBufAllocator.DEFAULT.buffer().alloc().buffer(data.length).writeBytes(data);
-        } else {
-            throw new KronotopException("Invalid reply type: " + replyType);
-        }
-        return value;
-    }
+    public PlanExecutorConfig preparePlanExecutorConfig(
+            Transaction tr,
+            Session session,
+            BucketQueryMessage message,
+            BucketSubspace subspace,
+            BucketShard shard,
+            PhysicalNode plan
+    ) {
+        PlanExecutorEnvironment environment = new PlanExecutorEnvironment(message.getBucket(), subspace, shard, plan);
+        PlanExecutorConfig config = new PlanExecutorConfig(environment);
 
-    /**
-     * Processes and writes a RESP3-compliant response to the client based on the provided entries.
-     * Converts the provided map of {@code Versionstamp} to {@code ByteBuffer} into a Redis-compatible
-     * map format and writes the resulting data to the client.
-     *
-     * @param request  the {@code Request} object containing the session and command information
-     * @param response the {@code Response} object used to send the result back to the client
-     * @param entries  a map where the keys are {@code Versionstamp} objects and the values are
-     *                 {@code ByteBuffer} objects representing the data to be converted and sent
-     */
-    private void resp3Response(Request request, Response response, Map<Versionstamp, ByteBuffer> entries) {
-        if (entries == null || entries.isEmpty()) {
-            response.writeMap(MapRedisMessage.EMPTY_INSTANCE.children());
-            return;
-        }
-        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-        for (Map.Entry<Versionstamp, ByteBuffer> entry : entries.entrySet()) {
-            ByteBuf value = prepareValue(request, entry);
-            result.put(
-                    new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(entry.getKey())),
-                    new FullBulkStringRedisMessage(value)
+        if (message.getArguments().limit() == 0) {
+            config.setLimit(
+                    session.attr(SessionAttributes.LIMIT).get()
             );
+        } else {
+            config.setLimit(message.getArguments().limit());
         }
-        response.writeMap(result);
-    }
+        config.setReverse(message.getArguments().reverse());
 
-    /**
-     * Processes and writes a RESP2-compliant response to the client based on the provided entries.
-     * Converts the provided map of {@code Versionstamp} to {@code ByteBuffer} into a Redis-compatible
-     * list format by iterating through the map entries, preparing their values, and sending the
-     * resulting data to the client.
-     *
-     * @param request  the {@code Request} object containing the session and command information
-     * @param response the {@code Response} object used to send the result back to the client
-     * @param entries  a map where the keys are {@code Versionstamp} objects and the values are
-     *                 {@code ByteBuffer} objects representing the data to be converted and sent
-     */
-    private void resp2Response(Request request, Response response, Map<Versionstamp, ByteBuffer> entries) {
-        if (entries == null || entries.isEmpty()) {
-            response.writeArray(List.of());
-            return;
-        }
-        List<RedisMessage> result = new LinkedList<>();
-        for (Map.Entry<Versionstamp, ByteBuffer> entry : entries.entrySet()) {
-            ByteBuf value = prepareValue(request, entry);
-            result.add(new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(entry.getKey())));
-            result.add(new FullBulkStringRedisMessage(value));
-        }
-        response.writeArray(result);
+        boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();
+        config.setPinReadVersion(pinReadVersion);
+
+        tr.getReadVersion().thenAccept(config::setReadVersion);
+
+        // Now we have a validated and sanitized plan executor config.
+        session.attr(SessionAttributes.PLAN_EXECUTOR_CONFIG).set(config);
+        return config;
     }
 
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
+            Session session = request.getSession();
 
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
+            BucketSubspace subspace = BucketSubspaceUtils.open(context, session, tr);
 
             // ID is the default index
             Map<String, Index> indexes = Map.of(
                     DefaultIndex.ID.path(), DefaultIndex.ID
             );
+
             PhysicalNode plan = service.getPlanner().plan(indexes, message.getQuery());
-
             BucketShard shard = service.getShard(1);
-
-            PlanExecutorEnvironment environment = new PlanExecutorEnvironment(message.getBucket() ,subspace, shard, plan);
-            PlanExecutorConfig config = new PlanExecutorConfig(environment);
-
-            int bucketBatchSize = request.getSession().attr(SessionAttributes.BUCKET_BATCH_SIZE).get();
-            config.setBucketBatchSize(bucketBatchSize);
-
+            PlanExecutorConfig config = preparePlanExecutorConfig(tr, session, message, subspace, shard, plan);
             PlanExecutor executor = new PlanExecutor(context, config);
             try {
                 return executor.execute(tr);

@@ -29,10 +29,7 @@ import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Attribute;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
@@ -103,7 +100,8 @@ class CommitHandler extends BaseFoundationDBHandler implements Handler {
                         case FUTURES -> {
                             assert versionstamp != null;
                             byte[] versionBytes = versionstamp.join();
-                            Map<RedisMessage, RedisMessage> futures = new HashMap<>();
+                            // we need to keep the insertion order.
+                            Map<RedisMessage, RedisMessage> futures = new LinkedHashMap<>();
                             List<Integer> asyncReturning = request.getSession().attr(SessionAttributes.ASYNC_RETURNING).get();
                             if (asyncReturning != null) {
                                 for (Integer userVersion : asyncReturning) {

@@ -13,10 +13,17 @@ package com.kronotop.bucket.handlers;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BSONUtils;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.protocol.CommitArgs;
+import com.kronotop.protocol.CommitKeyword;
+import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.RESPVersion;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
+import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -74,5 +81,59 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
             result.put(message.content(), documents.get(index));
         }
         return result;
+    }
+
+    /**
+     * Inserts multiple documents into the specified bucket using a single transaction.
+     * <p>
+     * This method performs the following steps:
+     * 1. Begins a new transaction.
+     * 2. Inserts the provided documents into the bucket.
+     * 3. Commits the transaction and retrieves the resulting document identifiers.
+     *
+     * @param bucket   The name of the bucket where the documents will be inserted.
+     * @param documents A list of documents represented as byte arrays to be inserted into the bucket.
+     * @return A list of document identifiers corresponding to the inserted documents.
+     */
+    protected List<String> insertManyDocumentsWithSingleTransaction(String bucket, List<byte[]> documents) {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.begin().encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            BucketCommandBuilder<byte[], byte[]> bucketCommandBuilder = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+            switchProtocol(bucketCommandBuilder, RESPVersion.RESP3);
+
+            ByteBuf buf = Unpooled.buffer();
+            byte[][] docs = makeDocumentsArray(documents);
+            bucketCommandBuilder.insert(bucket, docs).encode(buf);
+
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(ArrayRedisMessage.class, msg);
+            ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+            assertEquals(documents.size(), actualMessage.children().size());
+        }
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.commit(CommitArgs.Builder.returning(CommitKeyword.FUTURES)).encode(buf);
+
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, response);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
+        assertEquals(1, actualMessage.children().size());
+
+        List<String> ids = new ArrayList<>();
+        MapRedisMessage result = (MapRedisMessage) actualMessage.children().getFirst();
+        for (Map.Entry<RedisMessage, RedisMessage> entry : result.children().entrySet()) {
+            ids.add(((SimpleStringRedisMessage) entry.getValue()).content());
+        }
+        return ids;
     }
 }

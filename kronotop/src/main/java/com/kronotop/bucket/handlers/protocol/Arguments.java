@@ -10,14 +10,5 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.server.Request;
-
-// Alias for BUCKET.QUERY
-
-public class QueryMessage extends BucketQueryMessage {
-    public static final String COMMAND = "QUERY";
-
-    public QueryMessage(Request request) {
-        super(request);
-    }
+public record Arguments(int limit, boolean reverse) {
 }

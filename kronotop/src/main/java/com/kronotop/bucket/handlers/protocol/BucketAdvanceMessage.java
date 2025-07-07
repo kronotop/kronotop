@@ -10,41 +10,27 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.internal.ByteBufUtils;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class BucketQueryMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
-    public static final String COMMAND = "BUCKET.QUERY";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
+public class BucketAdvanceMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
+    public static final String COMMAND = "BUCKET.ADVANCE";
     private final Request request;
-    private String query;
-    private String bucket;
     private Arguments arguments;
 
-    public BucketQueryMessage(Request request) {
+    public BucketAdvanceMessage(Request request) {
         this.request = request;
         parse();
     }
 
     private void parse() {
-        bucket = ByteBufUtils.readAsString(request.getParams().get(0));
-        query = ByteBufUtils.readAsString(request.getParams().get(1));
-        arguments = parseCommonQueryArguments(request, 2);
+        arguments = parseCommonQueryArguments(request, 0);
     }
 
     public Arguments getArguments() {
         return arguments;
-    }
-
-    public String getQuery() {
-        return query;
-    }
-
-    public String getBucket() {
-        return bucket;
     }
 
     @Override

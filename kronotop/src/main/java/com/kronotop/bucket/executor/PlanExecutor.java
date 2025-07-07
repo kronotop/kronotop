@@ -23,10 +23,12 @@ import com.kronotop.bucket.BucketPrefix;
 import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.bucket.DefaultIndex;
 import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.bql.values.VersionstampVal;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.bucket.index.UnpackedIndex;
 import com.kronotop.bucket.planner.Bound;
+import com.kronotop.bucket.planner.Bounds;
 import com.kronotop.bucket.planner.physical.PhysicalFullScan;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
@@ -40,6 +42,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * The {@code PlanExecutor} class is responsible for executing physical query plans and retrieving
@@ -126,9 +129,9 @@ public class PlanExecutor {
      * @return a map where the key is an integer ID from the decoded metadata and the value
      * is an {@code IndexEntry} containing the unpacked index and metadata
      */
-    private Map<Integer, IndexEntry> getEntriesFromIndex(Transaction tr, Subspace indexSubspace, IndexRange range) {
-        Map<Integer, IndexEntry> result = new LinkedHashMap<>();
-        for (KeyValue keyValue : tr.getRange(range.begin(), range.end())) {
+    private LinkedHashMap<Integer, IndexEntry> getEntriesFromIndex(Transaction tr, Subspace indexSubspace, IndexRange range) {
+        LinkedHashMap<Integer, IndexEntry> result = new LinkedHashMap<>();
+        for (KeyValue keyValue : tr.getRange(range.begin(), range.end(), config.limit(), config.reverse())) {
             UnpackedIndex unpackedIndex = IndexBuilder.unpackIndex(indexSubspace, keyValue.getKey());
             EntryMetadata metadata = EntryMetadata.decode(ByteBuffer.wrap(keyValue.getValue()));
             result.put(metadata.id(), new IndexEntry(unpackedIndex, metadata));
@@ -138,6 +141,22 @@ public class PlanExecutor {
 
     private byte[] beginningOfIndexRange(Subspace indexSubspace, Index index) {
         return indexSubspace.pack(IndexBuilder.beginningOfIndexRange(index));
+    }
+
+    private Bound getLowerBound(PhysicalIndexScan node) {
+        Bounds savedBounds = config.cursor().bounds().get(node.getIndex());
+        if (Objects.nonNull(savedBounds) && Objects.nonNull(savedBounds.lower())) {
+            return savedBounds.lower();
+        }
+        return node.getBounds().lower();
+    }
+
+    private Bound getUpperBound(PhysicalIndexScan node) {
+        Bounds savedBounds = config.cursor().bounds().get(node.getIndex());
+        if (Objects.nonNull(savedBounds) && Objects.nonNull(savedBounds.upper())) {
+            return savedBounds.upper();
+        }
+        return node.getBounds().upper();
     }
 
     /**
@@ -153,7 +172,7 @@ public class PlanExecutor {
      */
     private IndexRange getIndexRange(PhysicalIndexScan physicalIndexScan, Subspace indexSubspace) {
         KeySelector begin = null;
-        Bound lower = physicalIndexScan.getBounds().lower();
+        Bound lower = getLowerBound(physicalIndexScan);
         if (lower != null) {
             Tuple tuple = IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()).addObject(lower.bqlValue().value());
             byte[] key = indexSubspace.pack(tuple);
@@ -169,7 +188,7 @@ public class PlanExecutor {
         }
 
         KeySelector end = null;
-        Bound upper = physicalIndexScan.getBounds().upper();
+        Bound upper = getUpperBound(physicalIndexScan);
         if (upper == null) {
             end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(beginningOfIndexRange(indexSubspace, physicalIndexScan.getIndex())));
         } else {
@@ -201,8 +220,30 @@ public class PlanExecutor {
     private Map<Versionstamp, ByteBuffer> doPhysicalIndexScan(Transaction tr, BucketSubspace subspace, Prefix prefix, PhysicalIndexScan physicalIndexScan) throws IOException {
         Subspace indexSubspace = subspace.getBucketIndexSubspace(environment.shard().id(), prefix);
         IndexRange range = getIndexRange(physicalIndexScan, indexSubspace);
-        Map<Integer, IndexEntry> entries = getEntriesFromIndex(tr, indexSubspace, range);
-        return readEntriesFromVolume(prefix, entries);
+        LinkedHashMap<Integer, IndexEntry> entries = getEntriesFromIndex(tr, indexSubspace, range);
+
+        Map<Versionstamp, ByteBuffer> result = readEntriesFromVolume(prefix, entries);
+
+        if (entries.isEmpty()) {
+            return result;
+        }
+        // rearrange index boundaries, only for the lower bound for testing purposes
+        Bound lower = null;
+        if (physicalIndexScan.getBounds().lower() != null) {
+            Bound previousLowerBound = physicalIndexScan.getBounds().lower();
+            OperatorType operatorType = previousLowerBound.type();
+            if (previousLowerBound.type().equals(OperatorType.GTE)) {
+                operatorType = OperatorType.GT;
+            }
+            if (Objects.requireNonNull(previousLowerBound.bqlValue()) instanceof VersionstampVal) {
+                Versionstamp versionstamp = entries.lastEntry().getValue().index().versionstamp();
+                lower = new Bound(operatorType, new VersionstampVal(versionstamp));
+            } else {
+                throw new KronotopException("Unsupported index");
+            }
+        }
+        config.cursor().bounds().put(physicalIndexScan.getIndex(), new Bounds(lower, null));
+        return result;
     }
 
     /**

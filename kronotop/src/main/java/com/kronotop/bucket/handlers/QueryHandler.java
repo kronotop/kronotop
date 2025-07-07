@@ -13,13 +13,11 @@ package com.kronotop.bucket.handlers;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.QueryMessage;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
 // Alias for BUCKET.QUERY
 
 @Command(QueryMessage.COMMAND)
-@MaximumParameterCount(QueryMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(QueryMessage.MINIMUM_PARAMETER_COUNT)
 public class QueryHandler extends BucketQueryHandler {
     public QueryHandler(BucketService service) {

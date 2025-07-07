@@ -821,11 +821,12 @@ This section defines commands to manage a Kronotop cluster and database sessions
 
 Kronotop provides a bunch of commands to manage database sessions. The following attributes are set by default:
 
-| attribute         | type    | scope  | description                                 | default | available values |
-|-------------------|---------|--------|---------------------------------------------|---------|------------------|
-| reply-type        | enum    | Bucket | Data interchange format for the replies     | BSON    | BSON, JSON       |
-| input-type        | enum    | Bucket | Data interchange format for the inputs      | BSON    | BSON, JSON       |
-| bucket_batch_size | integer | Bucket | Maximum entries returned per query response | 100     |                  |
+| attribute        | type    | scope  | description                                                              | default | available values |
+|------------------|---------|--------|--------------------------------------------------------------------------|---------|------------------|
+| reply_type       | enum    | Bucket | Data interchange format for the replies                                  | BSON    | BSON, JSON       |
+| input_type       | enum    | Bucket | Data interchange format for the inputs                                   | BSON    | BSON, JSON       |
+| limit            | integer | Bucket | Maximum entries returned per query response                              | 100     |                  |
+| pin_read_version | boolean | Bucket | Reuse the initial read version for all subsequent `BUCKET.ADVANCE` calls | true    | true, false      |
 
 #### SESSION.ATTRIBUTE LIST
 
@@ -833,9 +834,10 @@ Kronotop provides a bunch of commands to manage database sessions. The following
 
 ```
 127.0.0.1:5484> SESSION.ATTRIBUTE LIST
-1# reply-type => bson
-2# input-type => bson
-3# bucket_batch_size => (integer) 10
+1# reply_type => bson
+2# input_type => bson
+3# limit => (integer) 100
+4# pin_read_version => (true)
 ```
 
 #### SESSION.ATTRIBUTE SET
@@ -843,14 +845,14 @@ Kronotop provides a bunch of commands to manage database sessions. The following
 `SESSION.ATTRIBUTE SET` sets a value to an attribute.
 
 ```
-127.0.0.1:5484> SESSION.ATTRIBUTE SET reply-type JSON
+127.0.0.1:5484> SESSION.ATTRIBUTE SET reply_type JSON
 OK
 ```
 
 A random value cannot be set to an attribute, if its type is `enum`.
 
 ```
-127.0.0.1:5484> SESSION.ATTRIBUTE SET reply-type some-value
+127.0.0.1:5484> SESSION.ATTRIBUTE SET reply_type some-value
 (error) ERR Invalid reply type: some-value
 ```
 
@@ -981,7 +983,6 @@ The platform’s extensive standard library and third‑party ecosystem eliminat
 network, or build tooling. Mature dependency‑management systems (Maven and Gradle), high‑quality static‑analysis tools, and
 seamless CI/CD integration ensure that engineering velocity scales with team growth. Container‑ready base images and snapshotting
 technology (such as CRaC) minimize operational friction.
-
 
 ### Enterprise Acceptance and Long‑Term Support
 

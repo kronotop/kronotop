@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
+
 package com.kronotop.server;
 
 import com.kronotop.KronotopException;
 
-/**
- * Custom exception class for invalid arguments.
- */
-public class InvalidArgument extends KronotopException {
-    public InvalidArgument(String content) {
-        super(content);
+public class IllegalCommandArgumentException extends KronotopException {
+    public IllegalCommandArgumentException(String message) {
+        super(message);
     }
 }
