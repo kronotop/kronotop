@@ -35,6 +35,12 @@ import java.util.TreeSet;
  */
 public class ProtocolMessageUtil {
 
+    public static byte[] readAsByteArray(ByteBuf buf) {
+        byte[] raw = new byte[buf.readableBytes()];
+        buf.readBytes(raw);
+        return raw;
+    }
+
     /**
      * Reads the content of the provided ByteBuf as a string.
      *
