@@ -96,7 +96,6 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
-            System.out.println(message.getArguments().shard());
 
             // TODO: Distribute the requests among shards in a round robin fashion.
             int shardId = 1;

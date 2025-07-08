@@ -13,6 +13,7 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtils;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.protocol.CommitArgs;
 import com.kronotop.protocol.CommitKeyword;
