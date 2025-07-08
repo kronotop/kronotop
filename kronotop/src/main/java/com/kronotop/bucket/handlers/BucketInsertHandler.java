@@ -96,6 +96,9 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
+            if (message.getDocuments().isEmpty()) {
+                throw new KronotopException("No documents provided");
+            }
 
             // TODO: Distribute the requests among shards in a round robin fashion.
             int shardId = 1;
