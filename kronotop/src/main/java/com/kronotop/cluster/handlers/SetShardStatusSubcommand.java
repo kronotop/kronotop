@@ -22,7 +22,7 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.ShardUtils;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -69,7 +69,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
 
             shardKind = readShardKind(params.get(1));
 
-            String rawShardId = ByteBufUtils.readAsString(params.get(2));
+            String rawShardId = ProtocolMessageUtil.readAsString(params.get(2));
             allShards = rawShardId.equals("*");
             if (!allShards) {
                 shardId = readShardId(shardKind, rawShardId);

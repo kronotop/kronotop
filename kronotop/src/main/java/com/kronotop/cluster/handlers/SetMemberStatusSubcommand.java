@@ -22,7 +22,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -58,7 +58,7 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
             if (params.size() != 3) {
                 throw new KronotopException("Invalid number of parameters");
             }
-            memberId = ByteBufUtils.readMemberId(context, params.get(1));
+            memberId = ProtocolMessageUtil.readMemberId(context, params.get(1));
             memberStatus = readMemberStatus(params.get(2));
         }
     }

@@ -18,7 +18,7 @@ package com.kronotop.server.handlers.protocol;
 
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.InputType;
 import com.kronotop.server.ReplyType;
 import io.netty.buffer.ByteBuf;
@@ -34,7 +34,7 @@ public class SessionAttributeParameters {
     private boolean pinReadVersion;
 
     public SessionAttributeParameters(ArrayList<ByteBuf> params) {
-        String rawSubcommand = ByteBufUtils.readAsString(params.getFirst());
+        String rawSubcommand = ProtocolMessageUtil.readAsString(params.getFirst());
         try {
             subcommand = SessionAttributeSubcommand.valueOf(rawSubcommand.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -51,12 +51,12 @@ public class SessionAttributeParameters {
             }
         }
 
-        String rawSessionAttribute = ByteBufUtils.readAsString(params.get(1));
+        String rawSessionAttribute = ProtocolMessageUtil.readAsString(params.get(1));
         attribute = SessionAttribute.findByValue(rawSessionAttribute);
 
         switch (attribute) {
             case INPUT_TYPE -> {
-                String rawInputType = ByteBufUtils.readAsString(params.get(2));
+                String rawInputType = ProtocolMessageUtil.readAsString(params.get(2));
                 try {
                     inputType = InputType.valueOf(rawInputType.toUpperCase());
                 } catch (IllegalArgumentException e) {
@@ -64,7 +64,7 @@ public class SessionAttributeParameters {
                 }
             }
             case REPLY_TYPE -> {
-                String rawReplyType = ByteBufUtils.readAsString(params.get(2));
+                String rawReplyType = ProtocolMessageUtil.readAsString(params.get(2));
                 try {
                     replyType = ReplyType.valueOf(rawReplyType.toUpperCase());
                 } catch (IllegalArgumentException e) {
@@ -72,10 +72,10 @@ public class SessionAttributeParameters {
                 }
             }
             case LIMIT -> {
-                bucketBatchSize = ByteBufUtils.readAsInteger(params.get(2));
+                bucketBatchSize = ProtocolMessageUtil.readAsInteger(params.get(2));
             }
             case PIN_READ_VERSION -> {
-                pinReadVersion = ByteBufUtils.readBooleanValue(params.get(2));
+                pinReadVersion = ProtocolMessageUtil.readBooleanValue(params.get(2));
             }
             default -> throw new KronotopException("Unknown session attribute: " + rawSessionAttribute);
         }

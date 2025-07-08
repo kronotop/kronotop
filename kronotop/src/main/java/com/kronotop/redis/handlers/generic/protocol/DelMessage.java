@@ -16,7 +16,7 @@
 
 package com.kronotop.redis.handlers.generic.protocol;
 
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
@@ -37,7 +37,7 @@ public class DelMessage implements ProtocolMessage<String> {
 
     private void parse() {
         for (ByteBuf buf : request.getParams()) {
-            keys.add(ByteBufUtils.readAsString(buf));
+            keys.add(ProtocolMessageUtil.readAsString(buf));
         }
     }
 

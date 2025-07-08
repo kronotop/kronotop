@@ -11,7 +11,7 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.Request;
 
@@ -29,14 +29,14 @@ public class BaseBucketMessage {
         int limit = 0;
         boolean reverse = false;
         for (int i = index; i < request.getParams().size(); i++) {
-            String raw = ByteBufUtils.readAsString(request.getParams().get(i));
+            String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
             QueryArgumentKey argument = valueOfArgument(raw);
             switch (argument) {
                 case LIMIT -> {
                     if (request.getParams().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("LIMIT argument must be followed by a positive integer");
                     }
-                    limit = ByteBufUtils.readAsInteger(request.getParams().get(i + 1));
+                    limit = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
                     if (limit < 0) {
                         throw new IllegalCommandArgumentException("LIMIT argument must be a non-negative integer");
                     }
