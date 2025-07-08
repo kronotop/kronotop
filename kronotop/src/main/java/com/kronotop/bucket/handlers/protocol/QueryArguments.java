@@ -10,7 +10,5 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-public enum QueryArgument {
-    LIMIT,
-    REVERSE
+public record QueryArguments(int limit, boolean reverse) {
 }
