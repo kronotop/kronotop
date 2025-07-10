@@ -12,5 +12,6 @@ package com.kronotop.bucket.handlers.protocol;
 
 public enum QueryArgumentKey {
     LIMIT,
-    REVERSE
+    REVERSE,
+    SHARD
 }
