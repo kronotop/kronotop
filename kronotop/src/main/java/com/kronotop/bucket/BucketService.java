@@ -37,7 +37,7 @@ public class BucketService extends CommandHandlerService implements KronotopServ
     private final Planner planner;
 
     // The default ShardSelector is RoundRobinShardSelector.
-    private final ShardSelector shardSelector = new RoundRobinShardSelector(context);
+    private ShardSelector shardSelector;
 
     public BucketService(Context context) {
         super(context, NAME);
@@ -110,6 +110,7 @@ public class BucketService extends CommandHandlerService implements KronotopServ
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             initializeBucketShardsIfOwned(shardId);
         }
+        shardSelector = new RoundRobinShardSelector(context);
     }
 
     private class InitializeBucketShardHook implements RoutingEventHook {

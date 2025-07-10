@@ -47,7 +47,6 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         return result;
     }
 
-
     protected void switchProtocol(BucketCommandBuilder<?, ?> cmd, RESPVersion version) {
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(version.getValue()).encode(buf);
