@@ -36,6 +36,9 @@ public class BucketService extends CommandHandlerService implements KronotopServ
     private final RoutingService routing;
     private final Planner planner;
 
+    // The default ShardSelector is RoundRobinShardSelector.
+    private final ShardSelector shardSelector = new RoundRobinShardSelector(context);
+
     public BucketService(Context context) {
         super(context, NAME);
         this.serviceContext = context.getServiceContext(NAME);
@@ -51,14 +54,35 @@ public class BucketService extends CommandHandlerService implements KronotopServ
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
     }
 
+    /**
+     * Retrieves the ShardSelector instance associated with the BucketService.
+     *
+     * @return the ShardSelector instance for managing shard selection logic
+     */
+    public ShardSelector getShardSelector() {
+        return shardSelector;
+    }
+
     public Planner getPlanner() {
         return planner;
     }
 
+    /**
+     * Retrieves the BucketShard instance associated with the specified shard ID.
+     *
+     * @param shardId the unique identifier of the shard to retrieve
+     * @return the BucketShard associated with the provided shard ID,
+     *         or null if no shard is found for the given ID
+     */
     public BucketShard getShard(int shardId) {
         return serviceContext.shards().get(shardId);
     }
 
+    /**
+     * Returns the number of shards managed by the service.
+     *
+     * @return the total number of shards.
+     */
     public int getNumberOfShards() {
         return numberOfShards;
     }

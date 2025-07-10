@@ -37,7 +37,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
@@ -100,11 +99,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             if (message.getDocuments().isEmpty()) {
                 throw new KronotopException("No documents provided");
             }
-
-            validateShardId(message.getArguments().shard());
-
-            // TODO: Distribute the requests among shards in a round robin fashion.
-            int shardId = 1;
+            BucketShard shard = getOrSelectBucketShardId(message.getArguments().shard());
 
             EntriesPack pack = prepareEntries(request, message);
 
@@ -113,7 +108,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
             Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, subspace, message.getBucket());
             VolumeSession volumeSession = new VolumeSession(tr, prefix);
-            BucketShard shard = service.getShard(shardId);
+
             AppendResult appendResult;
             try {
                 appendResult = shard.volume().append(volumeSession, pack.entries());
@@ -123,7 +118,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
             // Set the default ID index
             for (AppendedEntry appendedEntry : appendResult.getAppendedEntries()) {
-                IndexBuilder.packIndex(tr, subspace, shardId, prefix, appendedEntry.userVersion(), DefaultIndex.ID, appendedEntry.encodedMetadata());
+                IndexBuilder.packIndex(tr, subspace, shard.id(), prefix, appendedEntry.userVersion(), DefaultIndex.ID, appendedEntry.encodedMetadata());
             }
 
             boolean autoCommit = TransactionUtils.getAutoCommit(request.getSession());

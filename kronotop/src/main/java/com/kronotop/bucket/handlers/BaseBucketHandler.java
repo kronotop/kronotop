@@ -143,9 +143,19 @@ public abstract class BaseBucketHandler implements Handler {
         response.writeArray(result);
     }
 
-    protected void validateShardId(int shardId) {
+    /**
+     * Retrieves a {@code BucketShard} object based on the specified shard ID.
+     * If the shard ID is negative, the method selects the next available shard using the shard selector.
+     * If the shard ID is out of the valid range or the shard is not owned by the current member,
+     * a {@code KronotopException} is thrown.
+     *
+     * @param shardId the ID of the shard to retrieve. If negative, the next shard is selected automatically.
+     * @return the {@code BucketShard} corresponding to the specified shard ID or the next shard if shard ID is negative.
+     * @throws KronotopException if the shard ID is out of the valid range or the shard is not owned by the member.
+     */
+    protected BucketShard getOrSelectBucketShardId(int shardId) {
         if (shardId < 0) {
-            return;
+            return service.getShardSelector().next();
         }
         if (shardId >= service.getNumberOfShards()) {
             throw new KronotopException("Invalid shard id");
@@ -154,5 +164,6 @@ public abstract class BaseBucketHandler implements Handler {
         if (Objects.isNull(shard)) {
             throw new KronotopException("Shard not owned by this member");
         }
+        return shard;
     }
 }

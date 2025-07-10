@@ -78,7 +78,8 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
         supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
 
-            validateShardId(message.getArguments().shard());
+            // TODO:
+            getOrSelectBucketShardId(message.getArguments().shard());
 
             Session session = request.getSession();
 
