@@ -101,15 +101,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                 throw new KronotopException("No documents provided");
             }
 
-            if (message.getArguments().shard() > -1) {
-                if (message.getArguments().shard() >= service.getNumberOfShards()) {
-                    throw new KronotopException("Invalid shard id");
-                }
-                BucketShard shard = service.getShard(message.getArguments().shard());
-                if (Objects.isNull(shard)) {
-                    throw new KronotopException("Shard not owned by this member");
-                }
-            }
+            validateShardId(message.getArguments().shard());
 
             // TODO: Distribute the requests among shards in a round robin fashion.
             int shardId = 1;
