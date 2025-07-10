@@ -77,6 +77,9 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
+
+            validateShardId(message.getArguments().shard());
+
             Session session = request.getSession();
 
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
