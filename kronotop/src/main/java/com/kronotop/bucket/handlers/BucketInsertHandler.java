@@ -37,6 +37,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
@@ -98,6 +99,16 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
             if (message.getDocuments().isEmpty()) {
                 throw new KronotopException("No documents provided");
+            }
+
+            if (message.getArguments().shard() > -1) {
+                if (message.getArguments().shard() >= service.getNumberOfShards()) {
+                    throw new KronotopException("Invalid shard id");
+                }
+                BucketShard shard = service.getShard(message.getArguments().shard());
+                if (Objects.isNull(shard)) {
+                    throw new KronotopException("Shard not owned by this member");
+                }
             }
 
             // TODO: Distribute the requests among shards in a round robin fashion.

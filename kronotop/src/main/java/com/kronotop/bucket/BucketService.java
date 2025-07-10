@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 public class BucketService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Bucket";
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
+    private final int numberOfShards;
     private final ServiceContext<BucketShard> serviceContext;
     private final RoutingService routing;
     private final Planner planner;
@@ -40,6 +41,7 @@ public class BucketService extends CommandHandlerService implements KronotopServ
         this.serviceContext = context.getServiceContext(NAME);
         this.routing = context.getService(RoutingService.NAME);
         this.planner = new Planner(context);
+        this.numberOfShards = context.getConfig().getInt("bucket.shards");
 
         handlerMethod(ServerKind.EXTERNAL, new BucketInsertHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketQueryHandler(this));
@@ -55,6 +57,10 @@ public class BucketService extends CommandHandlerService implements KronotopServ
 
     public BucketShard getShard(int shardId) {
         return serviceContext.shards().get(shardId);
+    }
+
+    public int getNumberOfShards() {
+        return numberOfShards;
     }
 
     /**
