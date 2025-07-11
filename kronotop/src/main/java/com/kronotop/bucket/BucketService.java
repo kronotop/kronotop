@@ -95,7 +95,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             return;
         }
         if (route.primary().equals(context.getMember()) || route.standbys().contains(context.getMember())) {
-            BucketShard shard = new AbstractBucketShard(context, shardId);
+            BucketShard shard = new BucketShardImpl(context, shardId);
             getServiceContext().shards().put(shardId, shard);
             shard.setOperable(true);
             shardSelector.add(shard);
