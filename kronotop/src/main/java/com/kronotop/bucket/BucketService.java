@@ -33,7 +33,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final Planner planner;
 
     // The default ShardSelector is RoundRobinShardSelector.
-    private ShardSelector shardSelector;
+    private final ShardSelector shardSelector = new RoundRobinShardSelector();
 
     public BucketService(Context context) {
         super(context, NAME);
@@ -98,6 +98,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             BucketShard shard = new AbstractBucketShard(context, shardId);
             getServiceContext().shards().put(shardId, shard);
             shard.setOperable(true);
+            shardSelector.add(shard);
         }
     }
 
@@ -105,7 +106,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             initializeBucketShardsIfOwned(shardId);
         }
-        shardSelector = new RoundRobinShardSelector(context);
     }
 
     private class InitializeBucketShardHook implements RoutingEventHook {
@@ -113,7 +113,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         @Override
         public void run(ShardKind shardKind, int shardId) {
             initializeBucketShardsIfOwned(shardId);
-            shardSelector.add(getShard(shardId));
         }
     }
 }
