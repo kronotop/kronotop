@@ -102,6 +102,7 @@ public class BucketService extends CommandHandlerService implements KronotopServ
         if (route.primary().equals(context.getMember()) || route.standbys().contains(context.getMember())) {
             BucketShard shard = new AbstractBucketShard(context, shardId);
             serviceContext.shards().put(shardId, shard);
+            shard.setOperable(true);
         }
     }
 
@@ -118,6 +119,7 @@ public class BucketService extends CommandHandlerService implements KronotopServ
         @Override
         public void run(ShardKind shardKind, int shardId) {
             initializeBucketShardsIfOwned(shardId);
+            shardSelector.add(getShard(shardId));
         }
     }
 }

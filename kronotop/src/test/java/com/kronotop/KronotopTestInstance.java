@@ -17,6 +17,8 @@
 package com.kronotop;
 
 import com.apple.foundationdb.directory.DirectoryLayer;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.BucketShard;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.RoutingService;
@@ -239,7 +241,6 @@ public class KronotopTestInstance extends KronotopInstance {
             return clusterInitialized.get() != null && clusterInitialized.get();
         });
 
-        // TODO: BUCKET-IMPLEMENTATION review this part when you start working on Buckets again
         setPrimaryOwnersOfShards(cmd, ShardKind.REDIS);
         await().atMost(5, TimeUnit.SECONDS).until(this::areAllOwnedRedisShardsOperable);
 
@@ -250,7 +251,7 @@ public class KronotopTestInstance extends KronotopInstance {
         await().atMost(5, TimeUnit.SECONDS).until(this::areAllRedisShardsWritable);
 
         setShardsReadWrite(cmd, ShardKind.BUCKET);
-        await().atMost(5, TimeUnit.SECONDS).until(this::areAllRedisShardsWritable);
+        await().atMost(5, TimeUnit.SECONDS).until(this::areAllBucketShardsWritable);
     }
 
     private boolean areAllRedisShardsWritable() {
@@ -309,18 +310,24 @@ public class KronotopTestInstance extends KronotopInstance {
 
     private boolean areAllOwnedBucketsShardsOperable() {
         RoutingService routing = context.getService(RoutingService.NAME);
-        //BucketService bucketService = context.getService(BucketService.NAME);
+        BucketService bucketService = context.getService(BucketService.NAME);
         int shards = context.getConfig().getInt("bucket.shards");
         for (int shardId = 0; shardId < shards; shardId++) {
             Route route = routing.findRoute(ShardKind.BUCKET, shardId);
             if (route == null) {
                 return false;
             }
-            /*if (!route.primary().equals(context.getMember())) {
+            if (!route.primary().equals(context.getMember())) {
                 // Not belong to this member
-                 continue;
-            }*/
-            // TODO: BUCKET-IMPLEMENTATION - we need an isOperable method for bucket shards
+                continue;
+            }
+            BucketShard shard = bucketService.getShard(shardId);
+            if (shard == null) {
+                return false;
+            }
+            if (!shard.isOperable()) {
+                return false;
+            }
         }
         return true;
     }
