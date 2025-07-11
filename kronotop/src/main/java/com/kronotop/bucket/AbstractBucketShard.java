@@ -12,7 +12,7 @@ package com.kronotop.bucket;
 
 import com.kronotop.Context;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.cluster.sharding.impl.ShardImpl;
+import com.kronotop.cluster.sharding.impl.AbstractShard;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeAttributes;
 import com.kronotop.volume.VolumeConfig;
@@ -21,7 +21,7 @@ import com.kronotop.volume.VolumeConfigGenerator;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-public class AbstractBucketShard extends ShardImpl implements BucketShard {
+public class AbstractBucketShard extends AbstractShard implements BucketShard {
     private final Volume volume;
 
     public AbstractBucketShard(Context context, int id) {

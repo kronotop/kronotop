@@ -22,4 +22,8 @@ public interface Shard {
     ShardStatus status();
 
     ShardKind kind();
+
+    void setOperable(boolean operable);
+
+    boolean isOperable();
 }

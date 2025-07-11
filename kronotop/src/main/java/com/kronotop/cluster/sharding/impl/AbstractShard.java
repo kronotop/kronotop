@@ -24,14 +24,15 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.volume.VolumeService;
 
-public abstract class ShardImpl implements Shard {
+public abstract class AbstractShard implements Shard {
     protected final Context context;
     protected final int id;
     protected final ShardKind shardKind;
     protected final VolumeService volumeService;
     protected final RoutingService routingService;
+    private volatile boolean operable = true;
 
-    public ShardImpl(Context context, ShardKind shardKind, int id) {
+    public AbstractShard(Context context, ShardKind shardKind, int id) {
         this.context = context;
         this.shardKind = shardKind;
         this.id = id;
@@ -56,5 +57,15 @@ public abstract class ShardImpl implements Shard {
     @Override
     public ShardKind kind() {
         return shardKind;
+    }
+
+    @Override
+    public void setOperable(boolean operable) {
+        this.operable = operable;
+    }
+
+    @Override
+    public boolean isOperable() {
+        return operable;
     }
 }
