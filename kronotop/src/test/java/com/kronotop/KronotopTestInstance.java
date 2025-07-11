@@ -300,7 +300,7 @@ public class KronotopTestInstance extends KronotopInstance {
             if (shard == null) {
                 return false;
             }
-            if (!shard.operable()) {
+            if (!shard.isOperable()) {
                 return false;
             }
         }

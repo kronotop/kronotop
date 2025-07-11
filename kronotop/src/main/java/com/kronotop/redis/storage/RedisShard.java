@@ -73,5 +73,5 @@ public interface RedisShard extends Shard {
 
     void setOperable(boolean operable);
 
-    boolean operable();
+    boolean isOperable();
 }

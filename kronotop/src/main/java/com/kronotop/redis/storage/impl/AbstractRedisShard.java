@@ -106,7 +106,7 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     }
 
     @Override
-    public boolean operable() {
+    public boolean isOperable() {
         return operable;
     }
 }

@@ -90,7 +90,7 @@ public class EvictionWorker implements Runnable {
     @Override
     public void run() {
         for (RedisShard shard : service.getServiceContext().shards().values()) {
-            if (!shard.operable() || !isInstanceRunning()) {
+            if (!shard.isOperable() || !isInstanceRunning()) {
                 break;
             }
             submitShardEvictionWorker(shard);
@@ -147,7 +147,7 @@ public class EvictionWorker implements Runnable {
         public void run() {
             try {
                 for (int i = 0; i < NUMBER_OF_SAMPLES; i++) {
-                    if (!shard.operable() || shard.index().size() == 0) {
+                    if (!shard.isOperable() || shard.index().size() == 0) {
                         break;
                     }
                     String key = shard.index().random();
@@ -166,7 +166,7 @@ public class EvictionWorker implements Runnable {
                         lock.readLock().unlock();
                     }
                 }
-                if (numberOfEvicted >= CONTINUATION_THRESHOLD && isInstanceRunning() && shard.operable()) {
+                if (numberOfEvicted >= CONTINUATION_THRESHOLD && isInstanceRunning() && shard.isOperable()) {
                     submitShardEvictionWorker(shard);
                 }
             } catch (NoSuchElementException e) {
