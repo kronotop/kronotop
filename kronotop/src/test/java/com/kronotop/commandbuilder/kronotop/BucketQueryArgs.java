@@ -15,6 +15,7 @@ import io.lettuce.core.protocol.CommandArgs;
 public class BucketQueryArgs {
     private int limit;
     private boolean reverse;
+    private int shard;
 
     public BucketQueryArgs limit(int limit) {
         this.limit = limit;
@@ -26,6 +27,11 @@ public class BucketQueryArgs {
         return this;
     }
 
+    public BucketQueryArgs shard(int shard) {
+        this.shard = shard;
+        return this;
+    }
+
     public <K, V> void build(CommandArgs<K, V> args) {
         if (limit > 0) {
             args.add("LIMIT");
@@ -34,6 +40,11 @@ public class BucketQueryArgs {
 
         if (reverse) {
             args.add("REVERSE");
+        }
+
+        if (shard > 0) {
+            args.add("SHARD");
+            args.add(shard);
         }
     }
 
@@ -47,6 +58,10 @@ public class BucketQueryArgs {
 
         public static BucketQueryArgs reverse() {
             return new BucketQueryArgs().reverse();
+        }
+
+        public static BucketQueryArgs shard(int shard) {
+            return new BucketQueryArgs().shard(shard);
         }
     }
 }

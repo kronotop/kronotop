@@ -78,8 +78,7 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
         supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
 
-            // TODO:
-            getOrSelectBucketShardId(message.getArguments().shard());
+            BucketShard shard = getOrSelectBucketShardId(message.getArguments().shard());
 
             Session session = request.getSession();
 
@@ -92,7 +91,6 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             );
 
             PhysicalNode plan = service.getPlanner().plan(indexes, message.getQuery());
-            BucketShard shard = service.getShard(1);
             PlanExecutorConfig config = preparePlanExecutorConfig(tr, session, message, subspace, shard, plan);
             PlanExecutor executor = new PlanExecutor(context, config);
             try {

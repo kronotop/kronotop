@@ -31,8 +31,8 @@ public class BucketInsertArgs {
         private Builder() {
         }
 
-        public static BucketInsertArgs shard(int limit) {
-            return new BucketInsertArgs().shard(limit);
+        public static BucketInsertArgs shard(int shard) {
+            return new BucketInsertArgs().shard(shard);
         }
     }
 }
