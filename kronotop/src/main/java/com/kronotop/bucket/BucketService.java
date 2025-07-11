@@ -10,10 +10,7 @@
 
 package com.kronotop.bucket;
 
-import com.kronotop.CommandHandlerService;
-import com.kronotop.Context;
-import com.kronotop.KronotopService;
-import com.kronotop.ServiceContext;
+import com.kronotop.*;
 import com.kronotop.bucket.handlers.BucketAdvanceHandler;
 import com.kronotop.bucket.handlers.BucketInsertHandler;
 import com.kronotop.bucket.handlers.BucketQueryHandler;
@@ -28,11 +25,10 @@ import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BucketService extends CommandHandlerService implements KronotopService {
+public class BucketService extends ShardOwnerService<BucketShard> implements KronotopService {
     public static final String NAME = "Bucket";
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
     private final int numberOfShards;
-    private final ServiceContext<BucketShard> serviceContext;
     private final RoutingService routing;
     private final Planner planner;
 
@@ -41,7 +37,6 @@ public class BucketService extends CommandHandlerService implements KronotopServ
 
     public BucketService(Context context) {
         super(context, NAME);
-        this.serviceContext = context.getServiceContext(NAME);
         this.routing = context.getService(RoutingService.NAME);
         this.planner = new Planner(context);
         this.numberOfShards = context.getConfig().getInt("bucket.shards");
@@ -75,7 +70,7 @@ public class BucketService extends CommandHandlerService implements KronotopServ
      *         or null if no shard is found for the given ID
      */
     public BucketShard getShard(int shardId) {
-        return serviceContext.shards().get(shardId);
+        return getServiceContext().shards().get(shardId);
     }
 
     /**
@@ -101,7 +96,7 @@ public class BucketService extends CommandHandlerService implements KronotopServ
         }
         if (route.primary().equals(context.getMember()) || route.standbys().contains(context.getMember())) {
             BucketShard shard = new AbstractBucketShard(context, shardId);
-            serviceContext.shards().put(shardId, shard);
+            getServiceContext().shards().put(shardId, shard);
             shard.setOperable(true);
         }
     }
