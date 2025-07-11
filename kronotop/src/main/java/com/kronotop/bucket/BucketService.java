@@ -102,7 +102,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     public void start() {
-        int numberOfShards = context.getConfig().getInt("bucket.shards");
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             initializeBucketShardsIfOwned(shardId);
         }
