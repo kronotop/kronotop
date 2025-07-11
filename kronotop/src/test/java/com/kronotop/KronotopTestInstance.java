@@ -22,6 +22,7 @@ import com.kronotop.bucket.BucketShard;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.Shard;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
@@ -242,23 +243,35 @@ public class KronotopTestInstance extends KronotopInstance {
         });
 
         setPrimaryOwnersOfShards(cmd, ShardKind.REDIS);
-        await().atMost(5, TimeUnit.SECONDS).until(this::areAllOwnedRedisShardsOperable);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(RedisService.NAME));
 
         setPrimaryOwnersOfShards(cmd, ShardKind.BUCKET);
-        await().atMost(5, TimeUnit.SECONDS).until(this::areAllOwnedBucketsShardsOperable);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(BucketService.NAME));
 
         setShardsReadWrite(cmd, ShardKind.REDIS);
-        await().atMost(5, TimeUnit.SECONDS).until(this::areAllRedisShardsWritable);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            int shards = context.getConfig().getInt("redis.shards");
+            return areAllShardsWritable(ShardKind.REDIS, shards);
+        });
 
         setShardsReadWrite(cmd, ShardKind.BUCKET);
-        await().atMost(5, TimeUnit.SECONDS).until(this::areAllBucketShardsWritable);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            int shards = context.getConfig().getInt("bucket.shards");
+            return areAllShardsWritable(ShardKind.BUCKET, shards);
+        });
     }
 
-    private boolean areAllRedisShardsWritable() {
+    /**
+     * Determines if all shards of the specified kind are in a writable state.
+     *
+     * @param shardKind the type of shard to check, represented by the {@code ShardKind} enum.
+     * @param shards the total number of shards to examine.
+     * @return {@code true} if all shards are in the writable state; otherwise {@code false}.
+     */
+    private boolean areAllShardsWritable(ShardKind shardKind, int shards) {
         RoutingService routing = context.getService(RoutingService.NAME);
-        int shards = context.getConfig().getInt("redis.shards");
         for (int shardId = 0; shardId < shards; shardId++) {
-            Route route = routing.findRoute(ShardKind.REDIS, shardId);
+            Route route = routing.findRoute(shardKind, shardId);
             if (route == null) {
                 return false;
             }
@@ -269,24 +282,17 @@ public class KronotopTestInstance extends KronotopInstance {
         return true;
     }
 
-    private boolean areAllBucketShardsWritable() {
+    /**
+     * Checks if all shards owned by the current member for a specified service are operable.
+     * A shard is considered operable if it is assigned to the current member and is in a valid operational state.
+     *
+     * @param serviceName the name of the service whose owned shard operability status is to be checked.
+     * @return {@code true} if all owned shards are operable; {@code false} otherwise.
+     */
+    private boolean areAllOwnedShardsOperable(String serviceName) {
         RoutingService routing = context.getService(RoutingService.NAME);
-        int shards = context.getConfig().getInt("bucket.shards");
-        for (int shardId = 0; shardId < shards; shardId++) {
-            Route route = routing.findRoute(ShardKind.BUCKET, shardId);
-            if (route == null) {
-                return false;
-            }
-            if (!route.shardStatus().equals(ShardStatus.READWRITE)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean areAllOwnedRedisShardsOperable() {
-        RoutingService routing = context.getService(RoutingService.NAME);
-        RedisService redis = context.getService(RedisService.NAME);
+        ShardOwnerService<Shard> service = context.getService(serviceName);
+        assert service != null;
         int shards = context.getConfig().getInt("redis.shards");
         for (int shardId = 0; shardId < shards; shardId++) {
             Route route = routing.findRoute(ShardKind.REDIS, shardId);
@@ -297,31 +303,7 @@ public class KronotopTestInstance extends KronotopInstance {
                 // Not belong to this member
                 continue;
             }
-            RedisShard shard = redis.getServiceContext().shards().get(shardId);
-            if (shard == null) {
-                return false;
-            }
-            if (!shard.isOperable()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean areAllOwnedBucketsShardsOperable() {
-        RoutingService routing = context.getService(RoutingService.NAME);
-        BucketService bucketService = context.getService(BucketService.NAME);
-        int shards = context.getConfig().getInt("bucket.shards");
-        for (int shardId = 0; shardId < shards; shardId++) {
-            Route route = routing.findRoute(ShardKind.BUCKET, shardId);
-            if (route == null) {
-                return false;
-            }
-            if (!route.primary().equals(context.getMember())) {
-                // Not belong to this member
-                continue;
-            }
-            BucketShard shard = bucketService.getShard(shardId);
+            Shard shard = service.getServiceContext().shards().get(shardId);
             if (shard == null) {
                 return false;
             }
