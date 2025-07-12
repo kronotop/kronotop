@@ -7,6 +7,7 @@
   * [SET-STATUS](#set-status)
   * [REPLICATIONS](#replications)
   * [VACUUM](#vacuum)
+  * [STOP-VACUUM](#stop-vacuum)
   
 ## Introduction
 
@@ -124,7 +125,7 @@ If an invalid status is provided:
 If the volume does not exist or is not open:
 
 ```
-127.0.0.1:3320> volume.admin set-status bucket-shard-100 READONLY
+127.0.0.1:3320> VOLUME-ADMIN SET-STATUS bucket-shard-100 READONLY
 (error) ERR Volume: 'bucket-shard-100' is not open
 ```
 
@@ -148,7 +149,7 @@ The keys of the root hash are the replication slot ids. Each entry corresponds t
 * `latest_versionstamped_key`: Versionstamped key of the latest data applied.
 
 ```
-127.0.0.1:3320> VOLUME.ADMIN replications
+127.0.0.1:3320> VOLUME.ADMIN REPLICATIONS
 1# 000035QAH1NMI0000000xxxx =>
    1# shard_kind => REDIS
    2# shard_id => (integer) 1
@@ -165,7 +166,7 @@ This command is useful for tracking the progress and health of replication sessi
 
 ### VACUUM
 
-The `VOLUME.ADMIN VACUUM` command initiates a manual vacuum operation on the specified volume (shard). It is used to reclaim 
+`VOLUME.ADMIN VACUUM` command initiates a manual vacuum operation on the specified volume (shard). It is used to reclaim 
 disk space by removing segments with excessive obsolete (garbage) data.
 
 **Syntax:**
@@ -190,11 +191,27 @@ for it to be considered eligible for vacuuming. Segments with lower ratios are i
 **Example**
 
 ```
-127.0.0.1:3320> volume.admin vacuum bucket-shard-1 10
+127.0.0.1:3320> VOLUME.ADMIN VACUUM bucket-shard-1 10
 OK
 ```
 
 This command will vacuum only those segments in *bucket-shard-1* that have a garbage ratio equal to or higher than 10.2%.
+
+**Error Cases**
+
+If the volume does not exist or is not open:
+
+```
+127.0.0.1:3320> VOLUME.ADMIN VACUUM bucket-shard-110 10
+(error) ERR Volume: 'bucket-shard-110' is not open
+```
+
+If `allowed-garbage-ratio` argument is not a double or out of range:
+
+```
+127.0.0.1:3320> VOLUME.ADMIN VACUUM bucket-shard-1 foo
+(error) ERR value is not a double or out of range
+```
 
 **Notes**
 
@@ -203,3 +220,40 @@ Vacuuming is an **explicit, manual** operation in Kronotop. There is **no automa
 It can be safely run while the volume is online and serving read/write traffic.
 
 To assess whether vacuuming is needed, use the [VOLUME.ADMIN DESCRIBE](#describe) command and check `garbage_ratio` values per segment.
+
+### STOP-VACUUM
+
+`VOLUME.ADMIN STOP VACUUM` command stops a running vacuum command on the specified volume.
+
+**Syntax:**
+
+```
+VOLUME.ADMIN VACUUM STOP-VACUUM <volume-name>
+```
+
+**Arguments**
+
+* `volume-name`: Name of the volume to vacuum (e.g., bucket-shard-1).
+
+**Example**
+
+```
+127.0.0.1:3320> VOLUME.ADMIN STOP-VACUUM bucket-shard-1
+OK
+```
+
+**Error Cases**
+
+If there is no vacuum task found on the specified volume:
+
+```
+127.0.0.1:3320> VOLUME.ADMIN STOP-VACUUM bucket-shard-1
+(error) ERR Vacuum task not found on bucket-shard-1
+```
+
+If the specified volume is not open or does not exist:
+
+```
+127.0.0.1:3320> volume.admin stop-vacuum bucket-shard-110
+(error) ERR Volume: 'bucket-shard-110' is not open
+```
