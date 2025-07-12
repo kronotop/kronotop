@@ -46,6 +46,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         handlerMethod(ServerKind.EXTERNAL, new QueryHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketAdvanceHandler(this));
 
+        routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
     }
 
@@ -109,10 +110,21 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     private class InitializeBucketShardHook implements RoutingEventHook {
-
         @Override
         public void run(ShardKind shardKind, int shardId) {
             initializeBucketShardsIfOwned(shardId);
+        }
+    }
+
+    private class HandOverShardOwnershipHook implements RoutingEventHook {
+        @Override
+        public void run(ShardKind shardKind, int shardId) {
+            if (shardKind != ShardKind.BUCKET) {
+                return;
+            }
+            BucketShard shard = getShard(shardId);
+            shard.setOperable(false);
+            shardSelector.remove(shard);
         }
     }
 }
