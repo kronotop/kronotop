@@ -10,14 +10,14 @@
 
 package com.kronotop.bucket;
 
-import com.kronotop.BaseClusterTest;
+import com.kronotop.BaseClusterTestWithTCPServer;
 import com.kronotop.instance.KronotopInstance;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-class BucketServiceTest extends BaseClusterTest {
+class BucketServiceTest extends BaseClusterTestWithTCPServer {
 
     @Test
     void shardSelectorShouldReturnValidShard() {

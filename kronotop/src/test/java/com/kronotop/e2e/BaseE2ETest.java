@@ -34,9 +34,9 @@ class BaseE2ETest extends BaseClusterTestWithTCPServer {
 
         int shards = primary.getContext().getConfig().getInt("redis.shards");
         for (int shardId = 0; shardId < shards; shardId++) {
-            E2ETestUtils.setRoute(primary.getChannel(), "SET", RouteKind.STANDBY, ShardKind.REDIS, shardId, standby);
+            E2ETestUtil.setRoute(primary.getChannel(), "SET", RouteKind.STANDBY, ShardKind.REDIS, shardId, standby);
         }
-        await().atMost(Duration.ofSeconds(5)).until(() -> E2ETestUtils.checkReplicationSlots(standby));
+        await().atMost(Duration.ofSeconds(5)).until(() -> E2ETestUtil.checkReplicationSlots(standby));
 
         return new Cluster(primary, List.of(standby));
     }
