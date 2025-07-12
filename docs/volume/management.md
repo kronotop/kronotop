@@ -9,6 +9,7 @@
   * [VACUUM](#vacuum)
   * [STOP-VACUUM](#stop-vacuum)
   * [CLEANUP-ORPHAN-FILES](#cleanup-orphan-files)
+  * [MARK-STALE-PREFIXES](#mark-stale-prefixes)
   
 ## Introduction
 
@@ -304,3 +305,42 @@ If the specified volume is not open or does not exist:
 * Safe to execute while the volume is online and serving traffic. However, it’s recommended to monitor logs for any anomalies before and after cleanup.
 * This operation does not touch valid segments, even if they appear unused—only unreferenced files are deleted.
 * Use in conjunction with `VOLUME.ADMIN DESCRIBE` and `ls -l` on the data directory to verify disk state before/after cleanup if needed.
+
+### MARK-STALE-PREFIXES
+
+`VOLUME.ADMIN MARK-STALE-PREFIXES` command starts a background task that scans the metadata of all volumes to identify and 
+mark stale key prefixes.
+
+In Kronotop, a prefix is the logical grouping for keys stored in a volume. Over time, some of these prefixes may become obsolete due to deletions. 
+These stale prefixes must be explicitly marked before a vacuum operation can safely remove related data from the disk.
+
+This marking process ensures that:
+
+* Segments containing only stale keys are eligible for garbage collection.
+* Prefix-level tracking remains consistent with the actual key state.
+
+**Behavior**
+
+* Scans all metadata entries across all volumes.
+* Detects prefixes that are no longer active or referenced.
+* Marks them internally as **stale**, making associated data eligible for cleanup.
+* Runs asynchronously in the background and may take time depending on dataset size.
+
+**Syntax:**
+
+```
+VOLUME.ADMIN CLEANUP-ORPHAN-FILES <START|STOP|REMOVE> 
+```
+
+**Arguments**
+
+* `START`: Initiates the background scanning task. Required before running VACUUM.
+* `STOP`: Gracefully stops the ongoing stale prefix scan, if any.
+* `REMOVE`: Removes a stopped task completely.
+
+**NOTES**
+
+* Marking stale prefixes is a required prerequisite for a successful `VOLUME.ADMIN VACUUM` operation.
+* Running this command does not remove any data by itself—it only flags candidates for future cleanup.
+* For environments with frequent data churn, it is recommended to periodically mark stale prefixes before initiating vacuum cycles.
+* Only one instance of the scan can run at a time.
