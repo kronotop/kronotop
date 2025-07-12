@@ -139,7 +139,7 @@ Kronotop is in its early development stage, but it already provides a robust fou
         * [Segments](#segments)
         * [Document Append Workflow](#document-append-workflow)
     * [Replication](#replication)
-    * [Vacuuming (Sapce Reclamation)](#vacuuming-space-reclamation)
+    * [Vacuuming (Space Reclamation)](#vacuuming-space-reclamation)
 * [Why Kronotop Runs on the Java Platform](#why-kronotop-runs-on-the-java-platform)
 * [License](#license)
 
