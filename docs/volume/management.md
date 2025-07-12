@@ -6,6 +6,7 @@
   * [DESCRIBE](#describe)
   * [SET-STATUS](#set-status)
   * [REPLICATIONS](#replications)
+  * [VACUUM](#vacuum)
   
 ## Introduction
 
