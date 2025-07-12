@@ -8,6 +8,7 @@
   * [REPLICATIONS](#replications)
   * [VACUUM](#vacuum)
   * [STOP-VACUUM](#stop-vacuum)
+  * [CLEANUP-ORPHAN-FILES](#cleanup-orphan-files)
   
 ## Introduction
 
@@ -257,3 +258,49 @@ If the specified volume is not open or does not exist:
 127.0.0.1:3320> volume.admin stop-vacuum bucket-shard-110
 (error) ERR Volume: 'bucket-shard-110' is not open
 ```
+
+### CLEANUP-ORPHAN-FILES
+
+The `VOLUME.ADMIN CLEANUP-ORPHAN-FILES` command performs a manual cleanup of orphaned files on the specified volume (shard). 
+Orphan files are leftover segment or metadata files that are no longer tracked by the volume's internal state—typically 
+resulting from crashes, interrupted operations, or failed vacuum cycles.
+
+**Syntax:**
+
+```
+VOLUME.ADMIN CLEANUP-ORPHAN-FILES <volume-name>
+```
+
+**Arguments**
+
+* `volume-name`: Name of the volume to scan and clean (e.g., bucket-shard-1).
+
+**Example**
+
+```
+127.0.0.1:3320> VOLUME.ADMIN CLEANUP-ORPHAN-FILES bucket-shard-1
+  1) kronotop-data/development/99f14bd9e6f9e95953c2f0740846b08508eb97b4/bucket/shards/1/segments/0000000000000000037
+  2) kronotop-data/development/99f14bd9e6f9e95953c2f0740846b08508eb97b4/bucket/shards/1/segments/0000000000000000038
+```
+
+**Behavior**
+
+* Scans the volume’s data directory on disk.
+* Compares actual files on the filesystem with the volume's metadata on FoundationDB.
+* Deletes these orphaned files permanently to reclaim disk space and maintain storage hygiene.
+
+**Error Cases**
+
+If the specified volume is not open or does not exist:
+
+```
+127.0.0.1:3320> volume.admin cleanup-orphan-files bucket-shard-10
+(error) ERR Volume: 'bucket-shard-10' is not open
+```
+
+**Notes**
+
+* This is a **manual** operation; Kronotop does not automatically detect or delete orphaned files.
+* Safe to execute while the volume is online and serving traffic. However, it’s recommended to monitor logs for any anomalies before and after cleanup.
+* This operation does not touch valid segments, even if they appear unused—only unreferenced files are deleted.
+* Use in conjunction with `VOLUME.ADMIN DESCRIBE` and `ls -l` on the data directory to verify disk state before/after cleanup if needed.
