@@ -103,3 +103,37 @@ If the volume does not exist or is not open:
 (error) ERR Volume: 'bucket-shard-100' is not open
 ```
 
+### REPLICATIONS
+
+`VOLUME.ADMIN REPLICATIONS` command returns detailed metadata for all active or historical replication sessions 
+involving the current node. It is primarily used for debugging and monitoring the state of replication pipelines.
+
+**Output Fields**
+
+The keys of the root hash are the replication slot ids. Each entry corresponds to a replication context and includes the following fields:
+
+* `shard_kind`: The type of shard being replicated (e.g., REDIS, BUCKET, etc.).
+* `shard_id`: Unique integer ID of the shard.
+* `active`: Indicates whether the replication session is currently active (true or false).
+* `stale`: If true, the replication session is outdated and should be discarded.
+* `replication_stage`: Current stage of the replication process (SNAPSHOT, STREAMING, etc.).
+* `completed_stages`: List of stages that have already been completed.
+* `latest_segment_id`: ID of the most recent segment received.
+* `received_versionstamped_key`: Versionstamped key of the latest data received.
+* `latest_versionstamped_key`: Versionstamped key of the latest data applied.
+
+```
+127.0.0.1:3320> VOLUME.ADMIN replications
+1# 000035QAH1NMI0000000xxxx =>
+   1# shard_kind => REDIS
+   2# shard_id => (integer) 1
+   3# active => (true)
+   4# stale => (false)
+   5# replication_stage => STREAMING
+   6# completed_stages => 1) SNAPSHOT
+   7# latest_segment_id => (integer) 0
+   8# received_versionstamped_key =>
+   9# latest_versionstamped_key =>
+```
+
+This command is useful for tracking the progress and health of replication sessions across distributed nodes.
