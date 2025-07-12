@@ -161,3 +161,44 @@ The keys of the root hash are the replication slot ids. Each entry corresponds t
 ```
 
 This command is useful for tracking the progress and health of replication sessions across distributed nodes.
+
+### VACUUM
+
+The `VOLUME.ADMIN VACUUM` command initiates a manual vacuum operation on the specified volume (shard). It is used to reclaim 
+disk space by removing segments with excessive obsolete (garbage) data.
+
+**Syntax:**
+
+```
+VOLUME.ADMIN VACUUM <volume-name> <allowed-garbage-ratio>
+```
+
+**Arguments**
+
+* `volume-name`: Name of the volume to vacuum (e.g., bucket-shard-1).
+* `allowed-garbage-ratio`: A floating-point value (e.g., 10.2) representing the minimum percentage of garbage in a segment required 
+for it to be considered eligible for vacuuming. Segments with lower ratios are ignored.
+
+**Behavior**
+
+* Scans all segments of the given volume.
+* Selects segments where `garbage_ratio >= allowed-garbage-ratio`.
+* Migrates live data to new segments and deletes the old ones.
+* Frees up disk space and improves overall segment efficiency.
+
+**Example**
+
+```
+127.0.0.1:3320> volume.admin vacuum bucket-shard-1 10
+OK
+```
+
+This command will vacuum only those segments in *bucket-shard-1* that have a garbage ratio equal to or higher than 10.2%.
+
+**Notes**
+
+Vacuuming is an **explicit, manual** operation in Kronotop. There is **no automatic vacuuming** at this time.
+
+It can be safely run while the volume is online and serving read/write traffic.
+
+To assess whether vacuuming is needed, use the [VOLUME.ADMIN DESCRIBE](#describe) command and check `garbage_ratio` values per segment.
