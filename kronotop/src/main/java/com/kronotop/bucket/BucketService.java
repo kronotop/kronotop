@@ -124,6 +124,9 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private class InitializeBucketShardHook implements RoutingEventHook {
         @Override
         public void run(ShardKind shardKind, int shardId) {
+            if (shardKind != ShardKind.BUCKET) {
+                return;
+            }
             initializeBucketShardsIfOwned(shardId);
         }
     }
