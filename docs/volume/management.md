@@ -44,7 +44,24 @@ Volume admin commands are designed as a subcommand of `volume.admin` command
 
 ### DESCRIBE
 
-`VOLUME.ADMIN DESCRIBE` command returns all metadata information of the specified volume.
+`VOLUME.ADMIN DESCRIBE` command provides detailed information about the internal state and layout of a specific volume (shard). 
+This includes storage path, status, segment size, and statistics per segment.
+
+***Output Fields*** 
+
+* `name`: Name of the volume (e.g., bucket-shard-1).
+* `status`: Current status of the volume. Possible values:
+    - `READONLY`
+    - `READWRITE`
+    - `INOPERABLE`
+* `data_dir`: Path to the directory where this shard's data is stored on disk.
+* `segment_size`: Size (in bytes) of each storage segment. This determines the maximum data a single segment can contain.
+* `segments`: A list of segment entries, keyed by segment ID (e.g., 0000000000000000005). Each segment includes:
+  * `size`: Total size (in bytes) of the segment. Should match `segment_size`.
+  * `free_bytes`: Number of unused bytes in the segment.
+  * `used_bytes`: Number of bytes currently used to store data.
+  * `garbage_ratio`: The ratio of reclaimable (deleted or overwritten) bytes to total segment size. A high ratio may indicate the need for vacuum.
+  * `cardinality`: Number of unique keys stored in the segment.
 
 ```
 127.0.0.1:3320> VOLUME.ADMIN DESCRIBE bucket-shard-1
