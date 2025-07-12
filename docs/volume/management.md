@@ -1,5 +1,12 @@
 # Volume management
 
+* [Introduction](#introduction)
+* [Commands](#commands)
+  * [LIST](#list)
+  * [DESCRIBE](#describe)
+  * [SET-STATUS](#set-status)
+  * [REPLICATIONS](#replications)
+  
 ## Introduction
 
 Kronotop uses a custom-built storage engine named Volume. As the core persistence layer for this distributed, transactional 
