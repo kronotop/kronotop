@@ -10,5 +10,5 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-public record Arguments(int limit, boolean reverse) {
+public record InsertArguments(int shard) {
 }

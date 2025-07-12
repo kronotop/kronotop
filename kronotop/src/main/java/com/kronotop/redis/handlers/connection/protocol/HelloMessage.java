@@ -17,7 +17,7 @@
 package com.kronotop.redis.handlers.connection.protocol;
 
 import com.kronotop.KronotopException;
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.*;
 import io.netty.buffer.ByteBuf;
 
@@ -58,7 +58,7 @@ public class HelloMessage implements ProtocolMessage<Void> {
 
         for (int i = 1; i < request.getParams().size(); i++) {
             ByteBuf buf = request.getParams().get(i);
-            String parameter = ByteBufUtils.readAsString(buf);
+            String parameter = ProtocolMessageUtil.readAsString(buf);
             if (parameter.equalsIgnoreCase("AUTH")) {
                 // HELLO $protover AUTH $username $password
                 if (request.getParams().size() - i < 2) {

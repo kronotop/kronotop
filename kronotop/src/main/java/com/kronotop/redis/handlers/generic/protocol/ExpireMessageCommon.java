@@ -17,7 +17,7 @@
 package com.kronotop.redis.handlers.generic.protocol;
 
 import com.kronotop.KronotopException;
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -37,14 +37,14 @@ public class ExpireMessageCommon implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        key = ByteBufUtils.readAsString(request.getParams().getFirst());
-        numberValue = ByteBufUtils.readAsLong(request.getParams().get(1));
+        key = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        numberValue = ProtocolMessageUtil.readAsLong(request.getParams().get(1));
         // TODO:
         if (numberValue <= 0) {
             throw new KronotopException("invalid expire time in 'expire' command");
         }
         if (request.getParams().size() == 3) {
-            String stringOption = ByteBufUtils.readAsString(request.getParams().get(2)).toUpperCase();
+            String stringOption = ProtocolMessageUtil.readAsString(request.getParams().get(2)).toUpperCase();
             try {
                 option = Option.valueOf(stringOption);
             } catch (IllegalArgumentException e) {

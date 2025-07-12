@@ -17,7 +17,7 @@
 package com.kronotop.volume.handlers;
 
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -76,7 +76,7 @@ class DescribeSubcommand extends BaseSubcommandHandler implements SubcommandHand
                 throw new InvalidNumberOfParametersException();
             }
 
-            name = ByteBufUtils.readAsString(params.get(1));
+            name = ProtocolMessageUtil.readAsString(params.get(1));
         }
     }
 }

@@ -96,9 +96,10 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
-
-            // TODO: Distribute the requests among shards in a round robin fashion.
-            int shardId = 1;
+            if (message.getDocuments().isEmpty()) {
+                throw new KronotopException("No documents provided");
+            }
+            BucketShard shard = getOrSelectBucketShardId(message.getArguments().shard());
 
             EntriesPack pack = prepareEntries(request, message);
 
@@ -107,7 +108,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
             Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, subspace, message.getBucket());
             VolumeSession volumeSession = new VolumeSession(tr, prefix);
-            BucketShard shard = service.getShard(shardId);
+
             AppendResult appendResult;
             try {
                 appendResult = shard.volume().append(volumeSession, pack.entries());
@@ -117,7 +118,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
             // Set the default ID index
             for (AppendedEntry appendedEntry : appendResult.getAppendedEntries()) {
-                IndexBuilder.packIndex(tr, subspace, shardId, prefix, appendedEntry.userVersion(), DefaultIndex.ID, appendedEntry.encodedMetadata());
+                IndexBuilder.packIndex(tr, subspace, shard.id(), prefix, appendedEntry.userVersion(), DefaultIndex.ID, appendedEntry.encodedMetadata());
             }
 
             boolean autoCommit = TransactionUtils.getAutoCommit(request.getSession());

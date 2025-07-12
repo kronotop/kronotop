@@ -13,6 +13,7 @@ package com.kronotop.bucket.handlers;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BSONUtils;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.protocol.CommitArgs;
 import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.protocol.KronotopCommandBuilder;
@@ -36,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class BaseBucketHandlerTest extends BaseHandlerTest {
     protected final String BUCKET_NAME = "test-bucket";
+    protected final int SHARD_ID = 1;
     protected final byte[] DOCUMENT = BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}");
 
     protected List<byte[]> makeDummyDocument(int number) {
@@ -46,7 +48,6 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         }
         return result;
     }
-
 
     protected void switchProtocol(BucketCommandBuilder<?, ?> cmd, RESPVersion version) {
         ByteBuf buf = Unpooled.buffer();
@@ -68,7 +69,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[][] docs = makeDocumentsArray(documents);
-        cmd.insert(BUCKET_NAME, docs).encode(buf);
+        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -113,7 +114,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
 
             ByteBuf buf = Unpooled.buffer();
             byte[][] docs = makeDocumentsArray(documents);
-            bucketCommandBuilder.insert(bucket, docs).encode(buf);
+            bucketCommandBuilder.insert(bucket, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);

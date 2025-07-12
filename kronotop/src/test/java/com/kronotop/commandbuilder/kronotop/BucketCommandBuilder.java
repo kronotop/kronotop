@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
+import static com.kronotop.bucket.handlers.protocol.InsertArgumentKey.DOCS;
 import static io.lettuce.core.protocol.CommandType.HELLO;
 
 public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
@@ -31,12 +32,31 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
 
     @SafeVarargs
     public final Command<K, V, List<String>> insert(String bucket, V... documents) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).addValues(documents);
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(DOCS.toString()).addValues(documents);
+        return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
+    }
+
+    @SafeVarargs
+    public final Command<K, V, List<String>> insert(String bucket, BucketInsertArgs bucketInsertArgs, V... documents) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket);
+        if (bucketInsertArgs != null) {
+            bucketInsertArgs.build(args);
+        }
+        args.add(DOCS.toString()).addValues(documents);
         return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
     }
 
     public final Command<K, V, List<String>> insert(String bucket, V document) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).addValue(document);
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(DOCS.toString()).addValue(document);
+        return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
+    }
+
+    public final Command<K, V, List<String>> insert(String bucket, BucketInsertArgs bucketInsertArgs, V document) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket);
+        if (bucketInsertArgs != null) {
+            bucketInsertArgs.build(args);
+        }
+        args.add("DOCS").addValue(document);
         return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
     }
 

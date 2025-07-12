@@ -55,7 +55,7 @@ public class BucketAdvanceTest extends BaseBucketHandlerTest {
         List<String> result = new ArrayList<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, String.format("{_id: {$gte: \"%s\"}}", id), BucketQueryArgs.Builder.limit(2)).encode(buf);
+            cmd.query(BUCKET_NAME, String.format("{_id: {$gte: \"%s\"}}", id), BucketQueryArgs.Builder.limit(2).shard(SHARD_ID)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;

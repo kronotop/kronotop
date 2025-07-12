@@ -11,34 +11,45 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.Request;
 
 public class BaseBucketMessage {
 
-    private QueryArgument valueOfArgument(String raw) {
+    private QueryArgumentKey valueOfArgument(String raw) {
         try {
-            return QueryArgument.valueOf(raw.toUpperCase());
+            return QueryArgumentKey.valueOf(raw.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
         }
     }
 
-    protected Arguments parseCommonQueryArguments(Request request, int index) {
+    protected QueryArguments parseCommonQueryArguments(Request request, int index) {
         int limit = 0;
+        int shard = -1;
         boolean reverse = false;
         for (int i = index; i < request.getParams().size(); i++) {
-            String raw = ByteBufUtils.readAsString(request.getParams().get(i));
-            QueryArgument argument = valueOfArgument(raw);
+            String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
+            QueryArgumentKey argument = valueOfArgument(raw);
             switch (argument) {
                 case LIMIT -> {
                     if (request.getParams().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("LIMIT argument must be followed by a positive integer");
                     }
-                    limit = ByteBufUtils.readAsInteger(request.getParams().get(i + 1));
+                    limit = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
                     if (limit < 0) {
                         throw new IllegalCommandArgumentException("LIMIT argument must be a non-negative integer");
+                    }
+                    i++;
+                }
+                case SHARD -> {
+                    if (request.getParams().size() <= i + 1) {
+                        throw new IllegalCommandArgumentException("SHARD argument must be followed by a positive integer");
+                    }
+                    shard = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
+                    if (shard < 0) {
+                        throw new IllegalCommandArgumentException("SHARD argument must be a non-negative integer");
                     }
                     i++;
                 }
@@ -47,6 +58,6 @@ public class BaseBucketMessage {
                 }
             }
         }
-        return new Arguments(limit, reverse);
+        return new QueryArguments(shard, limit, reverse);
     }
 }

@@ -23,7 +23,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
@@ -159,7 +159,7 @@ public class BaseKrAdminSubcommandHandler {
      * @throws KronotopException if the shard kind is invalid
      */
     protected ShardKind readShardKind(ByteBuf shardKindBuf) {
-        String rawKind = ByteBufUtils.readAsString(shardKindBuf);
+        String rawKind = ProtocolMessageUtil.readAsString(shardKindBuf);
         try {
             return ShardKind.valueOf(rawKind.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -176,7 +176,7 @@ public class BaseKrAdminSubcommandHandler {
      * @throws InvalidShardIdException if the shard ID is not a valid integer or is out of bounds for the specified shard kind.
      */
     protected int readShardId(ShardKind shardKind, ByteBuf shardIdBuf) {
-        String rawShardId = ByteBufUtils.readAsString(shardIdBuf);
+        String rawShardId = ProtocolMessageUtil.readAsString(shardIdBuf);
         return readShardId(shardKind, rawShardId);
     }
 

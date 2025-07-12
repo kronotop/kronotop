@@ -13,6 +13,7 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtils;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.protocol.CommitArgs;
 import com.kronotop.protocol.CommitKeyword;
@@ -36,7 +37,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     void test_insert_single_document_with_oneOff_transaction() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.insert(BUCKET_NAME, DOCUMENT).encode(buf);
+        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -59,7 +60,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                         BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
                         BSONUtils.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                 ));
-        cmd.insert(BUCKET_NAME, docs).encode(buf);
+        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -96,7 +97,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                             BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
                             BSONUtils.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                     ));
-            bucketCommandBuilder.insert(BUCKET_NAME, docs).encode(buf);
+            bucketCommandBuilder.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -147,7 +148,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                             BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
                             BSONUtils.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                     ));
-            bucketCommandBuilder.insert(BUCKET_NAME, docs).encode(buf);
+            bucketCommandBuilder.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);

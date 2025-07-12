@@ -20,7 +20,7 @@ package com.kronotop.redis.storage.impl;
 import com.google.common.util.concurrent.Striped;
 import com.kronotop.Context;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.cluster.sharding.impl.ShardImpl;
+import com.kronotop.cluster.sharding.impl.AbstractShard;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.RedisValueContainer;
 import com.kronotop.redis.storage.index.Index;
@@ -39,13 +39,12 @@ import java.util.concurrent.locks.ReadWriteLock;
  * This abstract class represents a Redis shard implementation that extends the ShardImpl class and implements the RedisShard interface.
  * It provides functionality for creating or opening a volume, managing storage, and controlling shard properties.
  */
-public abstract class AbstractRedisShard extends ShardImpl implements RedisShard {
+public abstract class AbstractRedisShard extends AbstractShard implements RedisShard {
     private final Index index;
     private final VolumeSyncQueue volumeSyncQueue;
     private final Striped<ReadWriteLock> striped = Striped.lazyWeakReadWriteLock(271);
     private final ConcurrentMap<String, RedisValueContainer> storage;
     private final Volume volume;
-    private volatile boolean operable;
 
     protected AbstractRedisShard(Context context, Integer id) {
         super(context, ShardKind.REDIS, id);
@@ -98,15 +97,5 @@ public abstract class AbstractRedisShard extends ShardImpl implements RedisShard
     @Override
     public void close() {
         volume.close();
-    }
-
-    @Override
-    public void setOperable(boolean operable) {
-        this.operable = operable;
-    }
-
-    @Override
-    public boolean operable() {
-        return operable;
     }
 }

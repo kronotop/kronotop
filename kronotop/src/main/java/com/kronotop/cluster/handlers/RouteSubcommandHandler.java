@@ -25,7 +25,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.JSONUtils;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
@@ -202,14 +202,14 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
                 throw new InvalidNumberOfParametersException();
             }
 
-            String rawOperationKind = ByteBufUtils.readAsString(params.get(1));
+            String rawOperationKind = ProtocolMessageUtil.readAsString(params.get(1));
             try {
                 operationKind = OperationKind.valueOf(rawOperationKind.toUpperCase());
             } catch (IllegalArgumentException e) {
                 throw new KronotopException("Invalid operation kind: " + rawOperationKind);
             }
 
-            String rawRouteKind = ByteBufUtils.readAsString(params.get(2));
+            String rawRouteKind = ProtocolMessageUtil.readAsString(params.get(2));
             try {
                 routeKind = RouteKind.valueOf(rawRouteKind.toUpperCase());
             } catch (IllegalArgumentException e) {
@@ -218,7 +218,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
 
             shardKind = readShardKind(params.get(3));
 
-            String rawShardId = ByteBufUtils.readAsString(params.get(4));
+            String rawShardId = ProtocolMessageUtil.readAsString(params.get(4));
             allShards = rawShardId.equals("*");
             if (!allShards) {
                 shardId = readShardId(shardKind, rawShardId);
@@ -226,7 +226,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
                 shardId = -1; // dummy assignment due to final declaration
             }
 
-            memberId = ByteBufUtils.readMemberId(context, params.get(5));
+            memberId = ProtocolMessageUtil.readMemberId(context, params.get(5));
         }
     }
 }

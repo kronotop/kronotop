@@ -10,7 +10,7 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -22,7 +22,7 @@ public class BucketQueryMessage extends BaseBucketMessage implements ProtocolMes
     private final Request request;
     private String query;
     private String bucket;
-    private Arguments arguments;
+    private QueryArguments arguments;
 
     public BucketQueryMessage(Request request) {
         this.request = request;
@@ -30,12 +30,12 @@ public class BucketQueryMessage extends BaseBucketMessage implements ProtocolMes
     }
 
     private void parse() {
-        bucket = ByteBufUtils.readAsString(request.getParams().get(0));
-        query = ByteBufUtils.readAsString(request.getParams().get(1));
+        bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
+        query = ProtocolMessageUtil.readAsString(request.getParams().get(1));
         arguments = parseCommonQueryArguments(request, 2);
     }
 
-    public Arguments getArguments() {
+    public QueryArguments getArguments() {
         return arguments;
     }
 

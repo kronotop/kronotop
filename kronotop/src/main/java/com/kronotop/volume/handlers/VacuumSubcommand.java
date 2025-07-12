@@ -19,7 +19,7 @@ package com.kronotop.volume.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -74,8 +74,8 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
                 throw new InvalidNumberOfParametersException();
             }
 
-            volumeName = ByteBufUtils.readAsString(params.get(1));
-            allowedGarbageRatio = ByteBufUtils.readAsDouble(params.get(2));
+            volumeName = ProtocolMessageUtil.readAsString(params.get(1));
+            allowedGarbageRatio = ProtocolMessageUtil.readAsDouble(params.get(2));
         }
     }
 }

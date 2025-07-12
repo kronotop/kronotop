@@ -16,6 +16,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BSONUtils;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.BucketShard;
 import com.kronotop.internal.VersionstampUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
@@ -28,10 +29,7 @@ import org.bson.Document;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public abstract class BaseBucketHandler implements Handler {
     protected final BucketService service;
@@ -143,5 +141,29 @@ public abstract class BaseBucketHandler implements Handler {
             result.add(new FullBulkStringRedisMessage(value));
         }
         response.writeArray(result);
+    }
+
+    /**
+     * Retrieves a {@code BucketShard} object based on the specified shard ID.
+     * If the shard ID is negative, the method selects the next available shard using the shard selector.
+     * If the shard ID is out of the valid range or the shard is not owned by the current member,
+     * a {@code KronotopException} is thrown.
+     *
+     * @param shardId the ID of the shard to retrieve. If negative, the next shard is selected automatically.
+     * @return the {@code BucketShard} corresponding to the specified shard ID or the next shard if shard ID is negative.
+     * @throws KronotopException if the shard ID is out of the valid range or the shard is not owned by the member.
+     */
+    protected BucketShard getOrSelectBucketShardId(int shardId) {
+        if (shardId < 0) {
+            return service.getShardSelector().next();
+        }
+        if (shardId >= service.getNumberOfShards()) {
+            throw new KronotopException("Invalid shard id");
+        }
+        BucketShard shard = service.getShard(shardId);
+        if (Objects.isNull(shard)) {
+            throw new KronotopException("Shard not owned by this member");
+        }
+        return shard;
     }
 }

@@ -70,8 +70,4 @@ public interface RedisShard extends Shard {
      * Closes the shard and frees allocated resources.
      */
     void close();
-
-    void setOperable(boolean operable);
-
-    boolean operable();
 }

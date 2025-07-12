@@ -10,10 +10,7 @@
 
 package com.kronotop.bucket;
 
-import com.kronotop.CommandHandlerService;
-import com.kronotop.Context;
-import com.kronotop.KronotopService;
-import com.kronotop.ServiceContext;
+import com.kronotop.*;
 import com.kronotop.bucket.handlers.BucketAdvanceHandler;
 import com.kronotop.bucket.handlers.BucketInsertHandler;
 import com.kronotop.bucket.handlers.BucketQueryHandler;
@@ -28,18 +25,21 @@ import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BucketService extends CommandHandlerService implements KronotopService {
+public class BucketService extends ShardOwnerService<BucketShard> implements KronotopService {
     public static final String NAME = "Bucket";
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
-    private final ServiceContext<BucketShard> serviceContext;
+    private final int numberOfShards;
     private final RoutingService routing;
     private final Planner planner;
 
+    // The default ShardSelector is RoundRobinShardSelector.
+    private final ShardSelector shardSelector = new RoundRobinShardSelector();
+
     public BucketService(Context context) {
         super(context, NAME);
-        this.serviceContext = context.getServiceContext(NAME);
         this.routing = context.getService(RoutingService.NAME);
         this.planner = new Planner(context);
+        this.numberOfShards = context.getConfig().getInt("bucket.shards");
 
         handlerMethod(ServerKind.EXTERNAL, new BucketInsertHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketQueryHandler(this));
@@ -49,12 +49,37 @@ public class BucketService extends CommandHandlerService implements KronotopServ
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
     }
 
+    /**
+     * Retrieves the ShardSelector instance associated with the BucketService.
+     *
+     * @return the ShardSelector instance for managing shard selection logic
+     */
+    public ShardSelector getShardSelector() {
+        return shardSelector;
+    }
+
     public Planner getPlanner() {
         return planner;
     }
 
+    /**
+     * Retrieves the BucketShard instance associated with the specified shard ID.
+     *
+     * @param shardId the unique identifier of the shard to retrieve
+     * @return the BucketShard associated with the provided shard ID,
+     *         or null if no shard is found for the given ID
+     */
     public BucketShard getShard(int shardId) {
-        return serviceContext.shards().get(shardId);
+        return getServiceContext().shards().get(shardId);
+    }
+
+    /**
+     * Returns the number of shards managed by the service.
+     *
+     * @return the total number of shards.
+     */
+    public int getNumberOfShards() {
+        return numberOfShards;
     }
 
     /**
@@ -70,13 +95,14 @@ public class BucketService extends CommandHandlerService implements KronotopServ
             return;
         }
         if (route.primary().equals(context.getMember()) || route.standbys().contains(context.getMember())) {
-            BucketShard shard = new AbstractBucketShard(context, shardId);
-            serviceContext.shards().put(shardId, shard);
+            BucketShard shard = new BucketShardImpl(context, shardId);
+            getServiceContext().shards().put(shardId, shard);
+            shard.setOperable(true);
+            shardSelector.add(shard);
         }
     }
 
     public void start() {
-        int numberOfShards = context.getConfig().getInt("bucket.shards");
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             initializeBucketShardsIfOwned(shardId);
         }

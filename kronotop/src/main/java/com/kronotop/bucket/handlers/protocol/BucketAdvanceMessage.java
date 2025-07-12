@@ -18,7 +18,7 @@ import java.util.List;
 public class BucketAdvanceMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.ADVANCE";
     private final Request request;
-    private Arguments arguments;
+    private QueryArguments arguments;
 
     public BucketAdvanceMessage(Request request) {
         this.request = request;
@@ -29,7 +29,7 @@ public class BucketAdvanceMessage extends BaseBucketMessage implements ProtocolM
         arguments = parseCommonQueryArguments(request, 0);
     }
 
-    public Arguments getArguments() {
+    public QueryArguments getArguments() {
         return arguments;
     }
 

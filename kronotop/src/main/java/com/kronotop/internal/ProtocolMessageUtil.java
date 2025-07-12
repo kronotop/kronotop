@@ -28,7 +28,18 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
-public class ByteBufUtils {
+/**
+ * Utility class for reading and interpreting protocol messages from {@code ByteBuf}
+ * objects. This class provides methods to parse different data types, such as strings,
+ * integers, doubles, booleans, and member IDs, from raw byte buffers.
+ */
+public class ProtocolMessageUtil {
+
+    public static byte[] readAsByteArray(ByteBuf buf) {
+        byte[] raw = new byte[buf.readableBytes()];
+        buf.readBytes(raw);
+        return raw;
+    }
 
     /**
      * Reads the content of the provided ByteBuf as a string.
@@ -106,7 +117,7 @@ public class ByteBufUtils {
      * @throws KronotopException if the content does not represent a valid boolean value
      */
     public static Boolean readBooleanValue(ByteBuf buf) {
-        String value = ByteBufUtils.readAsString(buf);
+        String value = ProtocolMessageUtil.readAsString(buf);
         try {
             BooleanValue booleanValue = BooleanValue.valueOf(value.toUpperCase());
             return switch (booleanValue) {

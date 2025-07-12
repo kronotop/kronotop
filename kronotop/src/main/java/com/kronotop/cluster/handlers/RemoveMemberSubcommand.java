@@ -19,7 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.internal.ByteBufUtils;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -48,7 +48,7 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
         private final String memberId;
 
         RemoveMemberParameters(ArrayList<ByteBuf> params) {
-            memberId = ByteBufUtils.readMemberId(context, params.get(1));
+            memberId = ProtocolMessageUtil.readMemberId(context, params.get(1));
         }
     }
 }
