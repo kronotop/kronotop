@@ -81,6 +81,12 @@ See the [Namespaces](namespaces.md) section for further information.
 
 `ZSET` sets the value for a given key. This will not affect the database until `COMMIT` is called.
 
+**Syntax**
+
+```
+ZSET key value
+```
+
 **Example:**
 
 ```
@@ -91,6 +97,12 @@ OK
 ### ZGET
 
 `ZGET` gets a value from the database. The call will return `nil` if the key is not present in the database.
+
+**Syntax**
+
+```
+ZGET key
+```
 
 **Example:**
 
@@ -103,7 +115,13 @@ OK
 
 `ZGETKEY` returns the key referenced by the specified `KeySelector`.
 
-The default key selector is `FIRST_GREATER_OR_EQUAL`, `KEY_SELECTOR` portion of the command is optional.
+The default key selector is `FIRST_GREATER_OR_EQUAL`. `KEY_SELECTOR` portion of the command is optional.
+
+**Syntax**
+
+```
+ZGETKEY key value [KEY_SELECTOR selector]
+```
 
 Available key selectors:
 
@@ -132,15 +150,21 @@ OK
 `ZGETRANGE` gets an ordered range of keys and values from the database. The *begin* and *end* keys can be specified by
 key selectors, with the begin `BEGIN_KEY_SELECTOR` inclusive and the end `END_KEY_SELECTOR` exclusive.
 
+**Syntax**
+
+```
+ZGETRANGE key [key ...] [BEGIN_KEY_SELECTOR selector] [END_KEY_SELECTOR selector] [LIMIT limit] [REVERSE]
+```
+
 The default `BEGIN_KEY_SELECTOR` is `FIRST_GREATER_OR_EQUAL`.
 The default `END_KEY_SELECTOR` is `FIRST_GREATER_THAN`.
 
 Available key selectors:
 
-* FIRST_GREATER_OR_EQUAL,
-* FIRST_GREATER_THAN,
-* LAST_LESS_THAN,
-* LAST_LESS_OR_EQUAL
+* `FIRST_GREATER_OR_EQUAL`,
+* `FIRST_GREATER_THAN`,
+* `LAST_LESS_THAN`,
+* `LAST_LESS_OR_EQUAL`
 
 The key selector section of this command is optional.
 
@@ -156,7 +180,7 @@ The key selector section of this command is optional.
    2) "value-2"
 ```
 
-With `LIMIT` parameter:
+With the optional `LIMIT` argument:
 
 ```
 127.0.0.1:5484> ZGETRANGE key-0 key-5 LIMIT 3
@@ -168,7 +192,7 @@ With `LIMIT` parameter:
    2) "value-2"
 ```
 
-With `LIMIT` and `REVERSE` parameters:
+With `LIMIT` and `REVERSE` arguments:
 
 ```
 127.0.0.1:5484> ZGETRANGE key-0 key-5 LIMIT 3 REVERSE
@@ -179,6 +203,8 @@ With `LIMIT` and `REVERSE` parameters:
 3) 1) "key-2"
    2) "value-2"
 ```
+
+The `REVERSE` argument is also optional.
 
 Range from beginning to end, get an ordered set or key/value pairs:
 
@@ -214,6 +240,14 @@ Explicitly using key selectors, please note that you can use the key selectors i
 
 `ZGETRANGESIZE` gets an estimate for the number of bytes stored in the given range.
 
+**Syntax**
+
+```
+ZGETRANGESIZE begin-key end-key
+```
+
+**Example**
+
 ```
 127.0.0.1:5484> zgetrangesize key-0 key-9
 (integer) 0
@@ -232,7 +266,13 @@ _FoundationDB says:_
 
 `ZMUTATE` runs an atomic operation on the given key.
 
-Available mutation types:
+**Syntax**
+
+```
+ZMUTATE key value mutation-type
+```
+
+**Valid Mutation Types**
 
 * `ADD`: Performs an addition of little-endian integers.
 * `APPEND_IF_FITS`: Appends param to the end of the existing value already in the database at the given key (or creates
@@ -267,6 +307,12 @@ OK
 
 `ZDEL` clears a given key from the database. This will not affect the database until `COMMIT` is called.
 
+**Syntax**
+
+```
+ZDEL key
+```
+
 **Example:**
 
 ```
@@ -277,6 +323,12 @@ OK
 ### ZDELRANGE
 
 `ZDELRANGE` clears the keys in the given range. The *begin* is inclusive, *end* is exclusive.
+
+**Syntax**
+
+```
+ZDELRANGE begin-key end-key
+```
 
 **Example:**
 
