@@ -135,7 +135,6 @@ Kronotop is in its early development stage, but it already provides a robust fou
     * [Management](#management)
         * [Session](#session)
 * [Documentation](#documentation)
-* [Why Kronotop Runs on the Java Platform](#why-kronotop-runs-on-the-java-platform)
 * [License](#license)
 
 ## Getting started
