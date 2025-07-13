@@ -868,7 +868,7 @@ It's not possible to set an attribute if it's not defined by Kronotop:
 Kronotop is mostly licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), which is a 
 permissive and OSI-approved open source license.
 
-However, one of Kronotop’s core components — the **Bucket** module — is licensed under the [Business Source License 1.1](kronotop/src/main/java/com/kronotop/bucket/LICENSE.txt).
+However, one of Kronotop’s core components — the **Bucket** package — is licensed under the [Business Source License 1.1](kronotop/src/main/java/com/kronotop/bucket/LICENSE.txt).
 This license allows full access to the source code and free usage for development and testing. After a **five-year change date**, 
 the Bucket module will automatically be re-licensed under Apache 2.0.
 
@@ -877,7 +877,7 @@ the Bucket module will automatically be re-licensed under Apache 2.0.
 We love open source, and we want Kronotop to be widely used and improved by the community. But we also want to ensure 
 that **cloud providers and hosting platforms can't repackage Kronotop as a managed database service without contributing back**.
 
-To protect the long-term sustainability of the project, the Bucket component includes a restriction: **It cannot be used to offer a 
+To protect the long-term sustainability of the project, the Bucket package includes a restriction: **It cannot be used to offer a 
 Database-as-a-Service (DBaaS) or similar hosted product** without a separate commercial agreement.
 
 This restriction only applies to **offering Kronotop itself as a database service to third parties**.  
