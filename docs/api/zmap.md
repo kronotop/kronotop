@@ -1,6 +1,8 @@
 ### ZMap
 
 * [Ordered Key-Value Store Backed by FoundationDB](#ordered-key-value-store-backed-by-foundationdb)
+* [One-Off Transactions](#one-off-transactions)
+* [ZMap and Namespaces](#zmap-and-namespaces)
 * [Commands](#commands)
   * [ZSET](#zset)
   * [ZGET](#zget)
