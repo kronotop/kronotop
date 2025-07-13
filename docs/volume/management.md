@@ -41,6 +41,12 @@ Volume admin commands are designed as a subcommand of `VOLUME.ADMIN` command
 This provides a snapshot of the local volume state, which is useful for inspecting active shards, verifying deployments, 
 or diagnosing issues related to volume allocation.
 
+**Syntax**
+
+```
+VOLUME.ADMIN LIST
+```
+
 **Example**
 
 ```
@@ -65,6 +71,12 @@ or diagnosing issues related to volume allocation.
 
 `VOLUME.ADMIN DESCRIBE` command provides detailed information about the internal state and layout of a specific volume (shard). 
 This includes storage path, status, segment size, and statistics per segment.
+
+**Syntax**
+
+```
+VOLUME.ADMIN DESCRIBE
+```
 
 ***Output Fields*** 
 
@@ -113,6 +125,12 @@ It returns an error if there is no volume given name or the name is invalid:
 
 `VOLUME-ADMIN SET-STATUS` command changes the status of the specified volume.
 
+**Syntax**
+
+```
+VOLUME.ADMIN SET-STATUS <bucket-name> <valid-status-value>
+```
+
 **Valid Status Values**
 
 * `READONLY`: The volume is set to read-only. Write operations will be rejected.
@@ -146,6 +164,12 @@ If the volume does not exist or is not open:
 
 `VOLUME.ADMIN REPLICATIONS` command returns detailed metadata for all active or historical replication sessions 
 involving the current node. It is primarily used for debugging and monitoring the state of replication pipelines.
+
+**Syntax**
+
+```
+VOLUME.ADMIN REPLICATIONS
+```
 
 **Output Fields**
 
@@ -206,7 +230,7 @@ for it to be considered eligible for vacuuming. Segments with lower ratios are i
 **Example**
 
 ```
-127.0.0.1:3320> VOLUME.ADMIN VACUUM bucket-shard-1 10
+127.0.0.1:3320> VOLUME.ADMIN VACUUM bucket-shard-1 10.2
 OK
 ```
 
@@ -217,7 +241,7 @@ This command will vacuum only those segments in *bucket-shard-1* that have a gar
 If the volume does not exist or is not open:
 
 ```
-127.0.0.1:3320> VOLUME.ADMIN VACUUM bucket-shard-110 10
+127.0.0.1:3320> VOLUME.ADMIN VACUUM bucket-shard-110 10.2
 (error) ERR Volume: 'bucket-shard-110' is not open
 ```
 
@@ -324,8 +348,9 @@ If the specified volume is not open or does not exist:
 `VOLUME.ADMIN MARK-STALE-PREFIXES` command starts a background task that scans the metadata of all volumes to identify and 
 mark stale key prefixes.
 
-In Kronotop, a prefix is the logical grouping for keys stored in a volume. Over time, some of these prefixes may become obsolete due to deletions. 
-These stale prefixes must be explicitly marked before a vacuum operation can safely remove related data from the disk.
+In Kronotop, a prefix is the logical grouping for keys stored in a volume. Over time, some of these prefixes may become 
+obsolete due to deletions. These stale prefixes must be explicitly marked before a vacuum operation can safely remove 
+related data from the disk.
 
 This marking process ensures that:
 
@@ -342,14 +367,7 @@ This marking process ensures that:
 **Syntax:**
 
 ```
-VOLUME.ADMIN MARK-STALE-PREFIXES <START|STOP|REMOVE> 
-```
-
-**Example**
-
-```
-127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES START
-OK
+VOLUME.ADMIN MARK-STALE-PREFIXES <argument> 
 ```
 
 **Arguments**
@@ -357,6 +375,14 @@ OK
 * `START`: Initiates the background scanning task. Required before running VACUUM.
 * `STOP`: Gracefully stops the ongoing stale prefix scan, if any.
 * `REMOVE`: Removes a stopped task completely.
+
+
+**Example**
+
+```
+127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES START
+OK
+```
 
 **NOTES**
 
