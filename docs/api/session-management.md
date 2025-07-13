@@ -3,6 +3,7 @@
 Kronotop provides a bunch of commands to manage database sessions.
 
 * [Attributes](#attributes)
+* [Configuration](#configuration)
 * [Commands](#commands)
   * [SESSION.ATTRIBUTE LIST](#sessionattribute-list)
   * [SESSION.ATTRIBUTE SET](#sessionattribute-set)
@@ -18,6 +19,20 @@ The following attributes are set by default:
 | limit            | integer | Bucket | Maximum entries returned per query response                              | 100     |                  |
 | pin_read_version | boolean | Bucket | Reuse the initial read version for all subsequent `BUCKET.ADVANCE` calls | true    | true, false      |
 
+## Configuration
+
+You can override the default values by specifying new settings in the configuration file. Configuration options related to 
+session behavior are grouped under the `session_attributes` object.
+
+```hocon
+  session_attributes {
+    input_type = "bson"
+    reply_type = "bson"
+    limit = 100
+    pin_read_version = true
+  }
+
+```
 ## Commands
 
 Session management commands have been implemented as subcommands of `SESSION.ATTRIBUTE` command.

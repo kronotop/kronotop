@@ -125,8 +125,6 @@ Kronotop is in its early development stage, but it already provides a robust fou
         * [NAMESPACE EXISTS](#namespace-exists)
         * [NAMESPACE LIST](#namespace-list)
         * [NAMESPACE MOVE](#namespace-move)
-    * [Management](#management)
-        * [Session](#session)
 * [Documentation](#documentation)
 * [License](#license)
 
