@@ -6,6 +6,7 @@
   * [Document Append Workflow](#document-append-workflow)
 * [Replication](#replication)
 * [Vacuuming (Space Reclamation)](#vacuuming-space-reclamation)
+* [Volume Management](management.md)
   
 ## Storage Engine
 
