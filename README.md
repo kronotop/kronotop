@@ -5,16 +5,12 @@
 Kronotop is a distributed, transactional document database designed for horizontal scalability. It provides a robust
 foundation for applications needing to manage large volumes of documents while ensuring strong consistency guarantees
 for critical metadata operations. By leveraging FoundationDB as its transactional backend for metadata and indexes,
-Kronotop delivers [ACID](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics) integrity,
-offering reliability often sought in demanding environments.
+Kronotop delivers [ACID](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics) integrity, offering reliability often sought in demanding environments.
 
-Kronotop features an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and uses
-the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) wire protocol, ensuring broad compatibility
-with
-the Redis client ecosystem. It implements core Redis in-memory data structures like Strings and Hashes, alongside its
-own specialized
-structures: ZMap (an ordered key-value store acting as a RESP proxy for FoundationDB) and Bucket (designed for storing
-JSON-like documents). While document bodies are stored directly on local filesystems, Kronotop uses BSON as the default
+Kronotop features an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and uses the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) wire protocol, ensuring broad compatibility
+with the Redis client ecosystem. It implements core Redis in-memory data structures like Strings and Hashes, alongside its
+own specialized structures: ZMap (an ordered key-value store acting as a RESP proxy for FoundationDB) and Bucket (designed for storing
+JSON-like documents). While document bodies are stored directly on local filesystems, Kronotop uses BSON as the default 
 data format to organize and store within Buckets, with JSON also available.
 
 *Kronotop is built for developers seeking the flexibility of a document model combined with the transactional safety and
@@ -29,8 +25,24 @@ Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
 
 ## At a Glance
 
-- **RESP3 Wire Protocol Compatibility:**  
-  Kronotop communicates over the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) protocol,
+- **Developer-Focused Design:**  
+  Built for developers who need the flexibility of a document model combined with strong transactional integrity, high
+  performance, and operational simplicity.
+
+- **ACID Transactions:**  
+  Relies on **FoundationDB** as a transactional metadata and indexing store, offering ACID guarantees critical for
+  consistency in cluster operations and data structures.
+
+- **Native Document-Oriented Storage:**  
+  Introduces **Bucket** — a specialized structure for storing JSON-like documents, backed by FoundationDB's
+  transactional core.
+
+- **Namespaces – Logical Isolation for ZMaps and Buckets:**  
+  Namespaces enable multi-tenancy and logical separation across data structures.  
+  Internally, it's a lightweight abstraction over FoundationDB’s Directory Layer.
+
+- **RESP3 & RESP2 Wire Protocol Compatibility:**  
+  Kronotop communicates over the [RESP](https://redis.io/docs/latest/develop/reference/protocol-spec/) protocol,
   ensuring seamless interoperability with the vast ecosystem of Redis clients across different programming languages.
 
 - **Built for Horizontal Scalability:**  
@@ -45,13 +57,13 @@ Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
   Implements key aspects of the Redis Cluster protocol, providing familiarity for teams migrating from Redis or building
   distributed applications.
 
-- **ACID Transactions:**  
-  Relies on **FoundationDB** as a transactional metadata and indexing store, offering ACID guarantees critical for
-  consistency in cluster operations and data structures.
+- **ZMap – FoundationDB-Powered Ordered Key-Value Store:**  
+  A high-performance, ordered key-value store built on top of FoundationDB.  
+  ZMap acts as a Redis protocol proxy, bridging the RESP interface with FoundationDB’s transactional API.
 
-- **Native Document-Oriented Storage:**  
-  Introduces **Bucket** — a specialized structure for storing JSON-like documents, backed by FoundationDB's
-  transactional core.
+- **Volume – Storage Engine with Replication:**  
+  A storage engine designed to support **primary-standby replication**, allowing for durability and high availability of
+  persistent components like Buckets.
 
 - **Efficient Binary Data Handling:**  
   Uses **BSON** as the default storage format for structured documents, with optional JSON support for broader
@@ -60,46 +72,6 @@ Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
 - **In-Memory and Durable Data Structures:**  
   Combines Redis-like in-memory structures (Strings, Hashes) with persistent, FoundationDB-backed storage layers like
   ZMap and Buckets.
-
-- **Implemented in Java (JDK 21+ Required):**  
-  Written in modern Java, leveraging Virtual Threads and Project Loom features for high concurrency and low-overhead
-  task management.
-
-- **Developer-Focused Design:**  
-  Built for developers who need the flexibility of a document model combined with strong transactional integrity, high
-  performance, and operational simplicity.
-
-## What We Have
-
-Kronotop is in its early development stage, but it already provides a robust foundation with several essential features:
-
-- **ZMap – FoundationDB-Powered Ordered Key-Value Store:**  
-  A high-performance, ordered key-value store built on top of FoundationDB.  
-  ZMap acts as a Redis protocol proxy, bridging the RESP interface with FoundationDB’s transactional API.
-
-- **Namespaces – Logical Isolation for ZMaps and Buckets:**  
-  Namespaces enable multi-tenancy and logical separation across data structures.  
-  Internally, it's a lightweight abstraction over FoundationDB’s Directory Layer.
-
-- **Volume – Storage Engine with Replication:**  
-  A storage engine designed to support **primary-standby replication**, allowing for durability and high availability of
-  persistent components like Buckets.
-
-- **Clustering – Flexible Deployment Topologies:**  
-  Native support for clustering in both **single-master** and **multi-master** modes, making Kronotop suitable for a
-  range of distributed system architectures.
-
-- **Partial Redis Data Structure Compatibility:**  
-  Initial support for Redis-style in-memory data structures, currently including **String** and **Hash** types, with
-  RESP2/RESP3 compatibility.
-
-## Plans for the foreseeable future
-
-* Design and implement a data structure called **Bucket** to store JSON-like documents,
-* **Bucket** data structure will support
-  an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and transactions backed by
-  FoundationDB,
-* Provide the most common Redis data structures such as String, Hash, Sorted Sets, etc.
 
 ## Table of Contents
 
