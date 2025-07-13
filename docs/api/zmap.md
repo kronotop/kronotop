@@ -1,6 +1,17 @@
 ### ZMap
 
-**Ordered Key-Value Store Backed by FoundationDB**
+* [Ordered Key-Value Store Backed by FoundationDB](#ordered-key-value-store-backed-by-foundationdb)
+* [Commands](#commands)
+  * [ZSET](#zset)
+  * [ZGET](#zget)
+  * [ZGETKEY](#zgetkey)
+  * [ZGETRANGE](#zgetrange)
+  * [ZGETRANGESIZE](#zgetrangesize)
+  * [ZMUTATE](#zmutate)
+  * [ZDEL](#zdel)
+  * [ZDELRANGE](#zdelrange)
+
+## Ordered Key-Value Store Backed by FoundationDB
 
 Kronotop introduces a novel data structure called **ZMap**, which serves as a Redis-compatible proxy over **FoundationDB’s 
 transactional key-value API**.
@@ -306,7 +317,7 @@ OK
    2) "value-5"
 ```
 
-Clear all keys from `key-3` to end of the range:
+Clear all keys from `key-3` to the end of the range:
 
 ```
 127.0.0.1:5484> ZDELRANGE key-3 *
