@@ -694,59 +694,10 @@ Let's check the result:
 1) users
 ```
 
-## Management
-
-This section defines commands to manage a Kronotop cluster and database sessions.
-
-### Session
-
-Kronotop provides a bunch of commands to manage database sessions. The following attributes are set by default:
-
-| attribute        | type    | scope  | description                                                              | default | available values |
-|------------------|---------|--------|--------------------------------------------------------------------------|---------|------------------|
-| reply_type       | enum    | Bucket | Data interchange format for the replies                                  | BSON    | BSON, JSON       |
-| input_type       | enum    | Bucket | Data interchange format for the inputs                                   | BSON    | BSON, JSON       |
-| limit            | integer | Bucket | Maximum entries returned per query response                              | 100     |                  |
-| pin_read_version | boolean | Bucket | Reuse the initial read version for all subsequent `BUCKET.ADVANCE` calls | true    | true, false      |
-
-#### SESSION.ATTRIBUTE LIST
-
-`SESSION.ATTRIBUTE LIST` lists all attributes with their current values used by the session.
-
-```
-127.0.0.1:5484> SESSION.ATTRIBUTE LIST
-1# reply_type => bson
-2# input_type => bson
-3# limit => (integer) 100
-4# pin_read_version => (true)
-```
-
-#### SESSION.ATTRIBUTE SET
-
-`SESSION.ATTRIBUTE SET` sets a value to an attribute.
-
-```
-127.0.0.1:5484> SESSION.ATTRIBUTE SET reply_type JSON
-OK
-```
-
-A random value cannot be set to an attribute, if its type is `enum`.
-
-```
-127.0.0.1:5484> SESSION.ATTRIBUTE SET reply_type some-value
-(error) ERR Invalid reply type: some-value
-```
-
-It's not possible to set an attribute if it's not defined by Kronotop:
-
-```
-127.0.0.1:5484> SESSION.ATTRIBUTE set some-attribute value
-(error) ERR Invalid session attribute: 'some-attribute'
-```
-
 ## Documentation
 * API
   * [Transaction Management](docs/api/transaction-management.md)
+  * [Session Management](docs/api/session-management.md)
 * [Storage Engine](docs/volume/volume.md)
 * [Why Kronotop Runs on the Java Platform](docs/why-java-platform.md)
 
