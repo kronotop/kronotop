@@ -17,7 +17,7 @@ Kronotop uses a custom-built storage engine named Volume. As the core persistenc
 document store, Volume is responsible for reliably storing all document data on local disks and managing data replication 
 between cluster members.
 
-See the [design](design.md) document in for details of the volume design and implementation.
+See the [volume](volume.md) documentation for details of the storage engine design and implementation.
 
 ## Commands
 
