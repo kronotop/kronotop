@@ -119,8 +119,7 @@ A cluster member serves from two ports:
 ### Initializing a Kronotop cluster
 
 Before using Kronotop in your project, you first need to initialize the cluster. `KR.ADMIN INITIALIZE-CLUSTER` command
-creates
-the cluster's layout on the FoundationDB and initializes the cluster:
+creates the cluster's layout on the FoundationDB and initializes the cluster:
 
 ```
 127.0.0.1:3320> KR.ADMIN INITIALIZE-CLUSTER
@@ -168,20 +167,17 @@ OK
 "Hello"
 ```
 
-All in-memory data will be persisted and replicated by the storage engine. See [Storage Engine](#storage-engine) section
+All in-memory data will be persisted and replicated by the storage engine. See [Storage Engine](docs/volume/volume.md) section
 for the details.
 
 ## Redis compatibility
 
 Kronotop uses RESP3 as the client protocol. The reasoning behind this is simple: there are many high-quality Redis
-client implementations
-in all languages, and almost everyone has some experience with Redis.
+client implementations in all languages, and almost everyone has some experience with Redis.
 
 Despite the main focus on building a transactional document database using FoundationDB as a metadata store,
-implementing
-the most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String*
-and *Hash*
-data structures.
+implementing the most common Redis data structures is on the roadmap. Currently, Kronotop already has partial 
+support for *String*and *Hash* data structures.
 
 ## Support
 
