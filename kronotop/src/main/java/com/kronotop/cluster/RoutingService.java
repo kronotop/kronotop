@@ -297,8 +297,12 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
             if (previousRoute != null) {
                 if (!previousRoute.primary().equals(currentRoute.primary())) {
                     // Primary owner has changed
+                    if (previousRoute.primary().equals(context.getMember())) {
+                        runHooks(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, shardKind, shardId);
+                    }
+
+                    // Standbys should connect to the new primary owner
                     if (previousRoute.standbys().contains(context.getMember())) {
-                        // Connect to the new primary owner
                         runHooks(RoutingEventKind.PRIMARY_OWNER_CHANGED, shardKind, shardId);
                     }
                 }

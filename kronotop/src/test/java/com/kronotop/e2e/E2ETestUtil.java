@@ -27,10 +27,7 @@ import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import com.kronotop.volume.VolumeStatus;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -42,12 +39,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.*;
 
-class E2ETestUtils {
+public class E2ETestUtil {
 
-    static boolean areAllKeysSyncedToVolume(KronotopTestInstance instance) {
+    public static boolean areAllKeysSyncedToVolume(KronotopTestInstance instance) {
         RedisService service = instance.getContext().getService(RedisService.NAME);
         for (RedisShard shard : service.getServiceContext().shards().values()) {
             if (!shard.volumeSyncQueue().isEmpty()) {
@@ -57,7 +53,7 @@ class E2ETestUtils {
         return true;
     }
 
-    static void insertKeys(EmbeddedChannel channel, int numberOfKeys) {
+    public static void insertKeys(EmbeddedChannel channel, int numberOfKeys) {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         for (int i = 0; i < numberOfKeys; i++) {
             ByteBuf buf = Unpooled.buffer();
@@ -70,7 +66,7 @@ class E2ETestUtils {
         }
     }
 
-    static boolean checkReplicationSlots(KronotopTestInstance instance) {
+    public static boolean checkReplicationSlots(KronotopTestInstance instance) {
         EmbeddedChannel channel = instance.getChannel();
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
 
@@ -86,18 +82,20 @@ class E2ETestUtils {
         return actualMessage.children().size() == shards;
     }
 
-    static void setShardStatus(EmbeddedChannel channel, ShardKind shardKind, ShardStatus status, int shardId) {
+    public static void setShardStatus(EmbeddedChannel channel, ShardKind shardKind, ShardStatus status, int shardId) {
         KrAdminCommandBuilder<String, String> krAdmin = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         krAdmin.setShardStatus(shardKind.name(), shardId, status.name()).encode(buf);
 
         Object msg = BaseTest.runCommand(channel, buf);
-        assertInstanceOf(SimpleStringRedisMessage.class, msg);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-        assertEquals(Response.OK, actualMessage.content());
+        if (msg instanceof SimpleStringRedisMessage message) {
+            assertEquals(Response.OK, message.content());
+        } else if (msg instanceof ErrorRedisMessage message) {
+            fail(message.content());
+        }
     }
 
-    static List<String> listOpenVolumes(EmbeddedChannel channel) {
+    public static List<String> listOpenVolumes(EmbeddedChannel channel) {
         VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         volumeAdmin.list().encode(buf);
@@ -114,31 +112,35 @@ class E2ETestUtils {
         return volumeNames;
     }
 
-    static void setVolumeStatus(EmbeddedChannel channel, VolumeStatus status, List<String> volumeNames) {
+    public static void setVolumeStatus(EmbeddedChannel channel, VolumeStatus status, List<String> volumeNames) {
         VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         for (String volumeName : volumeNames) {
             ByteBuf buf = Unpooled.buffer();
             volumeAdmin.setStatus(volumeName, status.name()).encode(buf);
 
             Object msg = BaseTest.runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
+            if (msg instanceof SimpleStringRedisMessage message) {
+                assertEquals(Response.OK, message.content());
+            } else if (msg instanceof ErrorRedisMessage message) {
+                fail(message.content());
+            }
         }
     }
 
-    static void setRoute(EmbeddedChannel channel, String operationKind, RouteKind routeKind, ShardKind shardKind, int shardId, KronotopTestInstance instance) {
+    public static void setRoute(EmbeddedChannel channel, String operationKind, RouteKind routeKind, ShardKind shardKind, int shardId, KronotopTestInstance instance) {
         KrAdminCommandBuilder<String, String> krAdmin = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         krAdmin.route(operationKind, routeKind.name(), shardKind.name(), shardId, instance.getMember().getId()).encode(buf);
 
         Object msg = BaseTest.runCommand(channel, buf);
-        assertInstanceOf(SimpleStringRedisMessage.class, msg);
-        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-        assertEquals(Response.OK, actualMessage.content());
+        if (msg instanceof SimpleStringRedisMessage message) {
+            assertEquals(Response.OK, message.content());
+        } else if (msg instanceof ErrorRedisMessage message) {
+            fail(message.content());
+        }
     }
 
-    static boolean areReplicationSlotsUpToDate(KronotopTestInstance instance) {
+    public static boolean areReplicationSlotsUpToDate(KronotopTestInstance instance) {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.replications().encode(buf);

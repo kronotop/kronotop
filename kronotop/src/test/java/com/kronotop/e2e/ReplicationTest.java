@@ -49,13 +49,13 @@ class ReplicationTest extends BaseE2ETest {
         Cluster cluster = setupCluster();
 
         // Insert some keys
-        E2ETestUtils.insertKeys(cluster.primary().getChannel(), 100);
+        E2ETestUtil.insertKeys(cluster.primary().getChannel(), 100);
 
         // Wait for syncing to the volumes
-        await().atMost(Duration.ofSeconds(5)).until(() -> E2ETestUtils.areAllKeysSyncedToVolume(cluster.primary()));
+        await().atMost(Duration.ofSeconds(5)).until(() -> E2ETestUtil.areAllKeysSyncedToVolume(cluster.primary()));
 
         // Wait for replicating all data to the standby node
-        await().atMost(Duration.ofSeconds(5)).until(() -> E2ETestUtils.areReplicationSlotsUpToDate(cluster.primary()));
+        await().atMost(Duration.ofSeconds(5)).until(() -> E2ETestUtil.areReplicationSlotsUpToDate(cluster.primary()));
     }
 
     @Test
@@ -65,29 +65,29 @@ class ReplicationTest extends BaseE2ETest {
 
         EmbeddedChannel channel = cluster.primary().getChannel();
         // Insert some keys
-        E2ETestUtils.insertKeys(channel, 100);
+        E2ETestUtil.insertKeys(channel, 100);
 
         // Wait for syncing to the volumes
-        await().atMost(Duration.ofSeconds(5)).until(() -> E2ETestUtils.areAllKeysSyncedToVolume(cluster.primary()));
+        await().atMost(Duration.ofSeconds(5)).until(() -> E2ETestUtil.areAllKeysSyncedToVolume(cluster.primary()));
 
         // Wait for replicating all data to the standby node
-        await().atMost(Duration.ofSeconds(5)).until(() -> E2ETestUtils.areReplicationSlotsUpToDate(cluster.primary()));
+        await().atMost(Duration.ofSeconds(5)).until(() -> E2ETestUtil.areReplicationSlotsUpToDate(cluster.primary()));
 
         int shards = cluster.primary().getContext().getConfig().getInt("redis.shards");
 
         // Mark all shards READONLY
         for (int shardId = 0; shardId < shards; shardId++) {
-            E2ETestUtils.setShardStatus(channel, ShardKind.REDIS, ShardStatus.READONLY, shardId);
+            E2ETestUtil.setShardStatus(channel, ShardKind.REDIS, ShardStatus.READONLY, shardId);
         }
 
         // Mark all volumes READONLY
-        List<String> volumes = E2ETestUtils.listOpenVolumes(channel);
-        E2ETestUtils.setVolumeStatus(channel, VolumeStatus.READONLY, volumes);
+        List<String> volumes = E2ETestUtil.listOpenVolumes(channel);
+        E2ETestUtil.setVolumeStatus(channel, VolumeStatus.READONLY, volumes);
 
         KronotopTestInstance standby = cluster.standbys().getFirst();
         // Transfer all shard ownership to the standby
         for (int shardId = 0; shardId < shards; shardId++) {
-            E2ETestUtils.setRoute(
+            E2ETestUtil.setRoute(
                     channel,
                     "SET",
                     RouteKind.PRIMARY,

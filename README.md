@@ -134,12 +134,7 @@ Kronotop is in its early development stage, but it already provides a robust fou
         * [NAMESPACE MOVE](#namespace-move)
     * [Management](#management)
         * [Session](#session)
-* [Storage Engine](#storage-engine)
-    * [Design Philosophy and Architecture](#design-philosophy-and-architecture)
-        * [Segments](#segments)
-        * [Document Append Workflow](#document-append-workflow)
-    * [Replication](#replication)
-    * [Vacuuming (Sapce Reclamation)](#vacuuming-space-reclamation)
+* [Documentation](#documentation)
 * [Why Kronotop Runs on the Java Platform](#why-kronotop-runs-on-the-java-platform)
 * [License](#license)
 
@@ -863,153 +858,17 @@ It's not possible to set an attribute if it's not defined by Kronotop:
 (error) ERR Invalid session attribute: 'some-attribute'
 ```
 
-## Storage Engine
+## Documentation
 
-Kronotop uses a custom-built storage engine named **Volume**. As the core persistence layer for this distributed,
-transactional document store, *Volume* is responsible for reliably storing all document data on local disks and managing
-data replication between cluster members.
-
-### Design Philosophy and Architecture
-
-*Volume*'s architecture strategically separates metadata management from the storage of the actual document content,
-leveraging the strengths of different systems:
-
-1. **Metadata Management (*FoundationDB*):** All metadata associated with the stored documents (referred to as entries)
-   —such as
-   their location within storage segments, versioning information, and replication status—is managed within a
-   **FoundationDB** cluster. Leveraging *FoundationDB* provides Kronotop with strong `ACID` transactional guarantees for
-   all metadata operations, crucial for maintaining consistency in a distributed environment.
-2. **Document Content Storage (Local Disk):** The actual content of the documents/entries is stored efficiently on the
-   local disk of each Kronotop node. This data is organized into large, pre-allocated files called **segments**.
-
-#### Segments
-
-Segments are the fundamental units for storing document data on disk:
-
-* **Pre-allocation:** When needed, *Volume* creates segment files of a predetermined size on the filesystem.
-* **Sequential Appends:** Document data is typically written sequentially into the latest active segment file.
-  Internally, a segment can be viewed as a large byte array where new entry data is appended.
-
-#### Document Append Workflow
-
-When a new document or entry is saved via Kronotop, the *Volume* engine follows these precise steps to ensure atomicity
-and durability:
-
-1. **Request Handling:** *Volume* receives the request to store a new entry.
-2. **Segment Selection:** It identifies the current active segment file designated for new data writes.
-3. **Segment Lifecycle Management:**
-    * If no segment is currently active (e.g., on node startup), *Volume* creates and pre-allocates a new segment file.
-    * If the current active segment doesn't have enough contiguous space for the new entry, it's typically sealed (
-      marked as read-only), and a new segment is created to become the active target.
-4. **Data Persistence:** The segment component writes the entry's data into the appropriate location within the active
-   segment file.
-5. **Disk Synchronization (Flush):** A *flush* operation is executed against the modified segment file. This requests
-   the operating system to write any buffered data to the physical storage, ensuring the entry's content is persistent
-   on disk before proceeding.
-6. **Transactional Metadata Commit:** Crucially, only *after* the disk *flush* confirms successful persistence of the
-   entry's data does *Volume* commit the associated metadata (e.g., the entry's location within the segment) to the
-   *FoundationDB* cluster. This commit happens within a single, atomic *FoundationDB* transaction.
-7. **Identifier Return:** Upon a successful metadata commit, *Volume* returns unique identifiers for the stored entries,
-   often based on *FoundationDB*'s versionstamps, providing a consistent system-wide order.
-
-This two-phase process guarantees that the metadata stored transactionally in *FoundationDB* only ever points to
-document data that has been safely persisted to disk.
-
-### Replication
-
-*Volume* includes an integrated system for **asynchronous replication** to maintain copies of the data on standby nodes,
-enhancing fault tolerance and availability.
-
-* **Change Log (*SegmentLog*):** When an entry is successfully stored on the primary node, *Volume* records this event
-  by adding metadata to a specific data structure in *FoundationDB* called *SegmentLog*. This acts as an ordered log of
-  data modifications.
-* **Notification via Watches:** Standby nodes monitor for changes by using *FoundationDB*'
-  s [watch mechanism](https://apple.github.io/foundationdb/developer-guide.html#watches). They set watches on keys
-  related to *SegmentLog*. When the primary updates this log, the watches trigger on the standbys, signaling that new
-  data is available.
-* **Data Synchronization:** Upon being triggered, a standby node fetches the actual document data from the primary
-  node's segments corresponding to the new *SegmentLog* entries. This synchronization involves two phases:
-    1. **Snapshot Phase:** Initially, or if significantly behind, the standby reads the *FoundationDB* history and
-       systematically copies the required document data from the primary's segments until it reaches a reasonably
-       current state. Data is often transferred in chunks.
-    2. **Streaming Phase:** After the initial catch-up, the standby enters a streaming mode. It continuously watches for
-       new *SegmentLog* entries and promptly fetches only the latest changes from the primary, maintaining low
-       replication lag.
-
-Kronotop also offers synchronous replication, but this functionality is provided through a distinct component, the
-**Redis Volume Syncer**, which coordinates with *Volume*.
-
-### Vacuuming (Space Reclamation)
-
-Since segments are primarily append-based, space occupied by deleted or updated documents isn't immediately reclaimed.
-*Volume* provides a **vacuuming** mechanism to manage disk usage.
-
-* **Manual Initiation:** A system administrator can trigger the vacuuming process.
-* **Background Operation:** Vacuuming runs as a background task to minimize the impact on live operations.
-* **Process:** It involves scanning the *Volume* metadata within *FoundationDB* to identify segments containing a high
-  proportion of "garbage" (space used by entries that are no longer valid or visible). If a segment's garbage ratio
-  surpasses a defined threshold, the vacuuming process reorganizes the data, typically by copying the valid, live
-  entries into new segments and then safely removing the old segment(s), thus reclaiming disk space.
-
-## Why Kronotop Runs on the **Java Platform**
-
-Kronotop is an **I/O‑bound** distributed database: each client request fans out into multiple disk reads from FoundationDB 
-and network hops between cluster nodes. While the CPU spends most of its time waiting for these operations, throughput hinges
-on how many outstanding requests we can keep in flight at any given moment.
-
-Conventional kernel threads become prohibitively expensive when their count climbs into the hundreds of thousands, and 
-event‑loop frameworks reduce per‑task overhead only by pushing complexity onto the application. The Java platform offers 
-a third path —virtual threads— that delivers massive concurrency while preserving the clarity of straightforward, blocking code. 
-This capability, combined with mature tooling and a vast ecosystem, makes Java the natural fit for Kronotop.
-
-### Scalable Concurrency Through Virtual Threads
-
-*Virtual threads* are lightweight, user‑mode constructs that map one logical task—such as a client connection, a replication 
-RPC, or a background checkpoint—to its own thread. When that task performs a blocking disk read or waits on a network response, 
-the virtual thread parks and the underlying carrier thread is immediately returned to the scheduler. This arrangement lets 
-Kronotop manage hundreds of thousands of simultaneous I/O waits—flushing segments, streaming change‑feeds, or performing 
-multi‑shard fan‑outs—without exhausting memory or triggering scheduler contention.
-
-### A Battle‑Hardened Runtime
-
-The Java Virtual Machine has evolved over decades in mission‑critical environments. Its garbage collectors (G1, ZGC, Shenandoah, and others)
-offer predictable pause times, while the JIT compiler optimizes hot paths without compromising source readability. Production observability
-is first‑class: Java Flight Recorder, async‑profiler, and eBPF integrations expose low‑level behavior without intrusive instrumentation.
-
-
-### Comprehensive and Stable Ecosystem
-
-The platform’s extensive standard library and third‑party ecosystem eliminate the need to reinvent security, serialization,
-network, or build tooling. Mature dependency‑management systems (Maven and Gradle), high‑quality static‑analysis tools, and
-seamless CI/CD integration ensure that engineering velocity scales with team growth. Container‑ready base images and snapshotting
-technology (such as CRaC) minimize operational friction.
-
-### Enterprise Acceptance and Long‑Term Support
-
-Java enjoys broad acceptance across regulated industries; security teams, legal departments, and procurement officers are
-familiar with its deployment and licensing models. The six‑month release cadence provides rapid access to new features, while
-long‑term‑support (LTS) versions give downstream users multi‑year stability. Backwards‑compatibility guarantees to protect existing
-deployments as the language and runtime evolve.
-
-### Native and Polyglot Interoperability
-
-The **Java Native Interface (JNI)** provides a stable bridge between managed Java code and native libraries, facilitating direct
-use of highly optimized cryptography, compression, or SIMD routines when required. In addition, the emerging **Foreign Function & Memory API**
-extends this capability with safer, more ergonomic access patterns.
-
-### Summary
-
-Kronotop demands a runtime that excels at handling vast numbers of concurrent I/O operations, provides mature operational tooling,
-and is acceptable to risk‑averse enterprise stakeholders. The contemporary Java platform, _enhanced by virtual threads_, offers 
-exactly this balance, enabling Kronotop to deliver high throughput, maintainable code, and predictable production behavior 
-without _exotic technology_ choices.
+* [Storage Engine](docs/volume/volume.md)
+* [Why Kronotop Runs on the Java Platform](docs/why-java-platform.md)
 
 ## License
 
 Kronotop is mostly licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), which is a 
 permissive and OSI-approved open source license.
 
-However, one of Kronotop’s core components — the **Bucket** module — is licensed under the [Business Source License 1.1](kronotop/src/main/java/com/kronotop/bucket/LICENSE.txt).
+However, one of Kronotop’s core components — the **Bucket** package — is licensed under the [Business Source License 1.1](kronotop/src/main/java/com/kronotop/bucket/LICENSE.txt).
 This license allows full access to the source code and free usage for development and testing. After a **five-year change date**, 
 the Bucket module will automatically be re-licensed under Apache 2.0.
 
@@ -1018,7 +877,7 @@ the Bucket module will automatically be re-licensed under Apache 2.0.
 We love open source, and we want Kronotop to be widely used and improved by the community. But we also want to ensure 
 that **cloud providers and hosting platforms can't repackage Kronotop as a managed database service without contributing back**.
 
-To protect the long-term sustainability of the project, the Bucket component includes a restriction: **It cannot be used to offer a 
+To protect the long-term sustainability of the project, the Bucket package includes a restriction: **It cannot be used to offer a 
 Database-as-a-Service (DBaaS) or similar hosted product** without a separate commercial agreement.
 
 This restriction only applies to **offering Kronotop itself as a database service to third parties**.  
