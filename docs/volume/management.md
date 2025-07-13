@@ -21,19 +21,27 @@ See the [design](design.md) document in for details of the volume design and imp
 
 ## Commands
 
-Volume admin commands have been exposed via the management port. The default port for management commands is `3320`.
+Volume administration commands are exposed through the **management interface**, which listens on a dedicated TCP port. 
+By default, this port is `3320`.
 
-Use `redis-cli` command to access the cluster:
+To interact with the cluster using admin commands, you can use the standard `redis-cli` tool:
 
 ```shell
 redis-cli -3 -p 3320
 ```
 
-Volume admin commands are designed as a subcommand of `volume.admin` command
+This connects to the management port with RESP3 support enabled (-3), allowing you to issue volume-level administrative commands directly.
+
+Volume admin commands are designed as a subcommand of `VOLUME.ADMIN` command
 
 ### LIST
 
-`VOLUME.ADMIN LIST` command lists the currently open volumes by the cluster member you connected.
+`VOLUME.ADMIN LIST`  command returns a list of all volumes currently **opened and managed** by the cluster member you are connected to.
+
+This provides a snapshot of the local volume state, which is useful for inspecting active shards, verifying deployments, 
+or diagnosing issues related to volume allocation.
+
+**Example**
 
 ```
 127.0.0.1:3320> VOLUME.ADMIN LIST
@@ -74,6 +82,8 @@ This includes storage path, status, segment size, and statistics per segment.
   * `garbage_ratio`: The ratio of reclaimable (deleted or overwritten) bytes to total segment size. A high ratio may indicate the need for vacuum.
   * `cardinality`: Number of unique keys stored in the segment.
 
+**Example**
+
 ```
 127.0.0.1:3320> VOLUME.ADMIN DESCRIBE bucket-shard-1
 1# name => bucket-shard-1
@@ -103,12 +113,13 @@ It returns an error if there is no volume given name or the name is invalid:
 
 `VOLUME-ADMIN SET-STATUS` command changes the status of the specified volume.
 
-
 **Valid Status Values**
 
 * `READONLY`: The volume is set to read-only. Write operations will be rejected.
 * `READWRITE`: The volume is fully operational. Both read and write operations are allowed.
 * `INOPERABLE`: The volume is marked as non-operational. All operations will be rejected.
+
+**Example**
 
 ```
 127.0.0.1:3320> VOLUME-ADMIN SET-STATUS bucket-shard-1 READONLY
@@ -149,6 +160,8 @@ The keys of the root hash are the replication slot ids. Each entry corresponds t
 * `latest_segment_id`: ID of the most recent segment received.
 * `received_versionstamped_key`: Versionstamped key of the latest data received.
 * `latest_versionstamped_key`: Versionstamped key of the latest data applied.
+
+**Example**
 
 ```
 127.0.0.1:3320> VOLUME.ADMIN REPLICATIONS
@@ -295,7 +308,7 @@ VOLUME.ADMIN CLEANUP-ORPHAN-FILES <volume-name>
 If the specified volume is not open or does not exist:
 
 ```
-127.0.0.1:3320> volume.admin cleanup-orphan-files bucket-shard-10
+127.0.0.1:3320> VOLUME.ADMIN CLEANUP-ORPHAN-FILES bucket-shard-10
 (error) ERR Volume: 'bucket-shard-10' is not open
 ```
 
@@ -329,7 +342,14 @@ This marking process ensures that:
 **Syntax:**
 
 ```
-VOLUME.ADMIN CLEANUP-ORPHAN-FILES <START|STOP|REMOVE> 
+VOLUME.ADMIN MARK-STALE-PREFIXES <START|STOP|REMOVE> 
+```
+
+**Example**
+
+```
+127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES START
+OK
 ```
 
 **Arguments**
