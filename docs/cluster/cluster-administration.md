@@ -178,7 +178,7 @@ KR.ADMIN INITIALIZE-CLUSTER
 OK
 ```
 
-***Error Cases**
+**Error Cases**
 
 If the cluster has already been initialized, attempting to run `KR.ADMIN INITIALIZE-CLUSTER` again will result in an error:
 
@@ -187,6 +187,6 @@ If the cluster has already been initialized, attempting to run `KR.ADMIN INITIAL
 (error) ERR cluster has already been initialized
 ```
 
-***Note**
+**Note**
 
 * Initializing the cluster is required before any operations can be performed.
