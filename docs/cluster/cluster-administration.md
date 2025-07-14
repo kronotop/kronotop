@@ -9,6 +9,7 @@ interface and are primarily intended for operators, infrastructure automation, a
   * [KR.ADMIN FIND-MEMBER](#kradmin-find-member)
   * [KR.ADMIN LIST-MEMBERS](#kradmin-list-members)
   * [KR.ADMIN INITIALIZE-CLUSTER](#kradmin-initialize-cluster)
+  * [KR.ADMIN REMOVE-MEMBER](#kradmin-remove-member)
 
 ## Commands
 
@@ -190,3 +191,55 @@ If the cluster has already been initialized, attempting to run `KR.ADMIN INITIAL
 **Note**
 
 * Initializing the cluster is required before any operations can be performed.
+
+### KR.ADMIN REMOVE-MEMBER
+
+`KR.ADMIN REMOVE-MEMBER` command forcefully removes a member from the cluster by its member-id. This is typically used to 
+clean up metadata for members that have **permanently failed, been decommissioned**, or are otherwise no longer part of the cluster.
+
+**Syntax**
+
+```
+KR.ADMIN REMOVE-MEMBER <member_id>
+```
+
+**Example**
+
+```
+127.0.0.1:3320> KR.ADMIN REMOVE-MEMBER b558c6eec79c646928e6678e06b5c67479809663
+OK
+```
+
+**Error Cases**
+
+If the specified `member_id` is syntactically valid (a valid UUIDv4) but does not correspond to any known or registered member
+in the cluster, the command returns an error indicating that the member is not found.
+
+```
+127.0.0.1:3320> KR.ADMIN REMOVE-MEMBER 89f14bd9e6f9e95953c2f0740846b08508eb97b4
+(error) ERR Member: 89f14bd9e6f9e95953c2f0740846b08508eb97b4 not registered
+```
+
+A member in `RUNNING` status cannot be removed. The member must be in one of the following states to be eligible for removal:
+
+* UNAVAILABLE,
+* STOPPED,
+* UNKNOWN
+
+```
+127.0.0.1:3320> KR.ADMIN REMOVE-MEMBER 99f14bd9e6f9e95953c2f0740846b08508eb97b4
+(error) ERR Member in RUNNING status cannot be removed
+```
+
+**Behavior**
+
+* Deletes the specified member from the internal cluster metadata.
+* Does not attempt to contact or shut down the target node.
+* Safe to use only if the member is known to be permanently offline or irrecoverable.
+* Removed members will no longer appear in `KR.ADMIN LIST-MEMBERS`.
+
+**Notes**
+
+* The command requires a valid `member_id` (UUIDv4).
+* Removing an active or recoverable member may lead to inconsistent state or data loss.
+* Always confirm the member’s status using `KR.ADMIN FIND-MEMBER` or `KR.ADMIN LIST-MEMBERS` before removal.
