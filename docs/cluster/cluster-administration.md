@@ -145,11 +145,11 @@ KR.ADMIN LIST-MEMBERS
 
 Each top-level entry represents a cluster member, keyed by its `member_id`. For each member, the following fields are shown:
 
-`status`: Current runtime status of the member.
-`process_id`: Logical process identifier for the member.
-`external_host` & `external_port`: Network endpoint used by clients to communicate with this member.
-`internal_host` & `internal_port`: Network endpoint used for internode communication and admin commands.
-`latest_heartbeat`: Most recent heartbeat timestamp or tick observed by this node for the given member.
+* `status`: Current runtime status of the member.
+* `process_id`: Logical process identifier for the member.
+* `external_host` & `external_port`: Network endpoint used by clients to communicate with this member.
+* `internal_host` & `internal_port`: Network endpoint used for internode communication and admin commands.
+* `latest_heartbeat`: Most recent heartbeat timestamp or tick observed by this node for the given member.
 
 **Notes**
 
