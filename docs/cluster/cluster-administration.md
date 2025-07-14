@@ -10,6 +10,7 @@ interface and are primarily intended for operators, infrastructure automation, a
   * [KR.ADMIN LIST-MEMBERS](#kradmin-list-members)
   * [KR.ADMIN INITIALIZE-CLUSTER](#kradmin-initialize-cluster)
   * [KR.ADMIN REMOVE-MEMBER](#kradmin-remove-member)
+  * [KR.ADMIN DESCRIBE-CLUSTER](#kradmin-describe-cluster)
 
 ## Commands
 
@@ -243,3 +244,64 @@ A member in `RUNNING` status cannot be removed. The member must be in one of the
 * The command requires a valid `member_id` (UUIDv4).
 * Removing an active or recoverable member may lead to inconsistent state or data loss.
 * Always confirm the member’s status using `KR.ADMIN FIND-MEMBER` or `KR.ADMIN LIST-MEMBERS` before removal.
+
+### KR.ADMIN DESCRIBE-CLUSTER
+
+`KR.ADMIN DESCRIBE-CLUSTER` command returns a complete snapshot of the current cluster topology, including information 
+about all shard groups, their replication layout, and associated volumes. This command is essential for understanding 
+how data is distributed across the cluster, which nodes are acting as primaries or standbys, and the operational status of each shard.
+
+**Syntax**
+
+```
+KR.ADMIN DESCRIBE-CLUSTER
+```
+
+**Example**
+
+```
+127.0.0.1:3320> KR.ADMIN DESCRIBE-CLUSTER
+1# redis =>
+   1# (integer) 0 =>
+      1# primary => 99f14bd9e6f9e95953c2f0740846b08508eb97b4
+      2# standbys => (empty array)
+      3# sync_standbys => (empty array)
+      4# status => READWRITE
+      5# linked_volumes => 1) redis-shard-0
+   2# (integer) 1 =>
+      1# primary => 99f14bd9e6f9e95953c2f0740846b08508eb97b4
+      2# standbys => 1) b558c6eec79c646928e6678e06b5c67479809663
+      3# sync_standbys => (empty array)
+      4# status => READWRITE
+      5# linked_volumes => 1) redis-shard-1
+2# bucket =>
+   1# (integer) 0 =>
+      1# primary => 99f14bd9e6f9e95953c2f0740846b08508eb97b4
+      2# standbys => (empty array)
+      3# sync_standbys => (empty array)
+      4# status => READWRITE
+      5# linked_volumes => 1) bucket-shard-0
+   2# (integer) 1 =>
+      1# primary => 99f14bd9e6f9e95953c2f0740846b08508eb97b4
+      2# standbys => (empty array)
+      3# sync_standbys => (empty array)
+      4# status => READWRITE
+      5# linked_volumes => 1) bucket-shard-1
+```
+
+**Output**
+
+The response is grouped first by shard kind (e.g., REDIS, BUCKET), then by shard ID. Each shard contains the following fields:
+
+* `primary`: The member ID currently acting as the primary for this shard.
+* `standbys`: An array of member IDs acting as asynchronous standbys (replication targets but not in sync).
+* `sync_standbys`: An array of member IDs that are fully synchronized and eligible for synchronous failover.
+* `status`: Operational state of the shard (READWRITE, READONLY, or INOPERABLE).
+* `linked_volumes`: A list of volume names associated with the shard. These represent the physical or logical storage for the shard's data.
+
+**Notes**
+
+* A shard with no standbys is considered *under-replicated*, which may impact fault tolerance.
+* `sync_standbys` are promoted first during failover scenarios.
+* The command reflects the global cluster view as seen by the node handling the request.
+* Useful for debugging replication lag, topology drift, and verifying HA configurations.
