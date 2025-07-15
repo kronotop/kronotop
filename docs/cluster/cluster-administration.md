@@ -372,6 +372,8 @@ KR.ADMIN SYNC-STANDBY operation shard-kind shard-id member-id
 * REDIS
 * BUCKET
 
+*Others*
+
 * `shard-id`: Numeric identifier of the target shard
 * `member-id`: UUIDv4 of the member to promote or demote as sync standby
 
