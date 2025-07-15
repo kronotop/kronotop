@@ -16,6 +16,7 @@ interface and are primarily intended for operators, infrastructure automation, a
   * [KR.ADMIN SET-MEMBER-STATUS](#kradmin-set-member-status)
   * [KR.ADMIN LIST-SILENT-MEMBERS](#kradmin-list-silent-members)
   * [KR.ADMIN SET-SHARD-STATUS](#kradmin-set-shard-status)
+  * [KR.ADMIN ROUTE](#kradmin-route)
 
 ## Commands
 
@@ -509,3 +510,54 @@ OK
   * Maintenance operations
   * Incident response (e.g., isolating a corrupted shard)
   * Load shedding and testing fallback mechanisms
+
+### KR.ADMIN ROUTE
+
+`KR.ADMIN ROUTE` command is used to **manually assign routing roles**—such as `PRIMARY` or `STANDBY`—to specific cluster 
+members for given shards. It enables precise control over shard placement and replication topology. This command is useful 
+in scenarios such as custom rebalancing, controlled failover, or restoring specific members to their roles after recovery.
+
+**Syntax**
+
+```
+KR.ADMIN ROUTE operation route-kind shard-kind shard-id|* member-id
+```
+
+**Parameters**
+* `operation`: The type of routing action. It can be `SET` or `UNSET`.
+* `route-kind`: The role to assign. Valid values:
+  * `PRIMARY`: Assigns the specified member as the primary for the shard.
+  * `STANDBY`: Assigns the member as a standby (replication follower).
+* `shard-kind`: The type of shard group. Valid values: `REDIS`, `BUCKET`.
+* `shard-id`: The target shard ID, or asterisk(`*`) to apply the operation to all shards of the specified kind.
+* `member-id`: UUIDv4 identifier of the member to assign to the specified role.
+
+**Example**
+
+Set a member as primary for all `REDIS` shards:
+
+```
+127.0.0.1:3320> KR.ADMIN ROUTE SET PRIMARY REDIS * a0dc14d811a285834c187ddc20549de7c1c1a381
+OK
+```
+
+Assign a member as primary for a specific `BUCKET` shard:
+
+```
+127.0.0.1:3320> KR.ADMIN ROUTE SET PRIMARY BUCKET 1 a0dc14d811a285834c187ddc20549de7c1c1a381
+OK
+```
+
+Assign a member as a standby for `BUCKET` shard 2:
+
+```
+127.0.0.1:3320> KR.ADMIN ROUTE SET STANDBY BUCKET 2 99f14bd9e6f9e95953c2f0740846b08508eb97b4
+OK
+```
+
+**Notes**
+
+* Manual routing changes take effect immediately and override any automatic placement or failover decisions.
+* The target member must be healthy and already registered in the cluster.
+* Use `KR.ADMIN DESCRIBE-CLUSTER` to verify the resulting topology.
+* This command does **not** automatically synchronize data between members. Make sure replication state is consistent before routing traffic to newly assigned primaries.
