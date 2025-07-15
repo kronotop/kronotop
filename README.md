@@ -5,16 +5,12 @@
 Kronotop is a distributed, transactional document database designed for horizontal scalability. It provides a robust
 foundation for applications needing to manage large volumes of documents while ensuring strong consistency guarantees
 for critical metadata operations. By leveraging FoundationDB as its transactional backend for metadata and indexes,
-Kronotop delivers [ACID](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics) integrity,
-offering reliability often sought in demanding environments.
+Kronotop delivers [ACID](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics) integrity, offering reliability often sought in demanding environments.
 
-Kronotop features an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and uses
-the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) wire protocol, ensuring broad compatibility
-with
-the Redis client ecosystem. It implements core Redis in-memory data structures like Strings and Hashes, alongside its
-own specialized
-structures: ZMap (an ordered key-value store acting as a RESP proxy for FoundationDB) and Bucket (designed for storing
-JSON-like documents). While document bodies are stored directly on local filesystems, Kronotop uses BSON as the default
+Kronotop features an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and uses the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) wire protocol, ensuring broad compatibility
+with the Redis client ecosystem. It implements core Redis in-memory data structures like Strings and Hashes, alongside its
+own specialized structures: ZMap (an ordered key-value store acting as a RESP proxy for FoundationDB) and Bucket (designed for storing
+JSON-like documents). While document bodies are stored directly on local filesystems, Kronotop uses BSON as the default 
 data format to organize and store within Buckets, with JSON also available.
 
 *Kronotop is built for developers seeking the flexibility of a document model combined with the transactional safety and
@@ -23,14 +19,30 @@ scalability powered by FoundationDB.*
 **Warning**: Kronotop is in its early stages of development. The API is unstable and likely to change in future
 releases.
 
-See [Getting started](#getting-started) section.
+See [Getting started](#getting-started) and [Documentation](#documentation) sections.
 
 Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
 
 ## At a Glance
 
-- **RESP3 Wire Protocol Compatibility:**  
-  Kronotop communicates over the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) protocol,
+- **Developer-Focused Design:**  
+  Built for developers who need the flexibility of a document model combined with strong transactional integrity, high
+  performance, and operational simplicity.
+
+- **ACID Transactions:**  
+  Relies on **FoundationDB** as a transactional metadata and indexing store, offering ACID guarantees critical for
+  consistency in cluster operations and data structures.
+
+- **Native Document-Oriented Storage:**  
+  Introduces **Bucket** — a specialized structure for storing JSON-like documents, backed by FoundationDB's
+  transactional core.
+
+- **Namespaces – Logical Isolation for ZMaps and Buckets:**  
+  Namespaces enable multi-tenancy and logical separation across data structures.  
+  Internally, it's a lightweight abstraction over FoundationDB’s Directory Layer.
+
+- **RESP3 & RESP2 Wire Protocol Compatibility:**  
+  Kronotop communicates over the [RESP](https://redis.io/docs/latest/develop/reference/protocol-spec/) protocol,
   ensuring seamless interoperability with the vast ecosystem of Redis clients across different programming languages.
 
 - **Built for Horizontal Scalability:**  
@@ -45,13 +57,13 @@ Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
   Implements key aspects of the Redis Cluster protocol, providing familiarity for teams migrating from Redis or building
   distributed applications.
 
-- **ACID Transactions:**  
-  Relies on **FoundationDB** as a transactional metadata and indexing store, offering ACID guarantees critical for
-  consistency in cluster operations and data structures.
+- **ZMap – FoundationDB-Powered Ordered Key-Value Store:**  
+  A high-performance, ordered key-value store built on top of FoundationDB.  
+  ZMap acts as a Redis protocol proxy, bridging the RESP interface with FoundationDB’s transactional API.
 
-- **Native Document-Oriented Storage:**  
-  Introduces **Bucket** — a specialized structure for storing JSON-like documents, backed by FoundationDB's
-  transactional core.
+- **Volume – Storage Engine with Replication:**  
+  A storage engine designed to support **primary-standby replication**, allowing for durability and high availability of
+  persistent components like Buckets.
 
 - **Efficient Binary Data Handling:**  
   Uses **BSON** as the default storage format for structured documents, with optional JSON support for broader
@@ -61,80 +73,22 @@ Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
   Combines Redis-like in-memory structures (Strings, Hashes) with persistent, FoundationDB-backed storage layers like
   ZMap and Buckets.
 
-- **Implemented in Java (JDK 21+ Required):**  
-  Written in modern Java, leveraging Virtual Threads and Project Loom features for high concurrency and low-overhead
-  task management.
-
-- **Developer-Focused Design:**  
-  Built for developers who need the flexibility of a document model combined with strong transactional integrity, high
-  performance, and operational simplicity.
-
-## What We Have
-
-Kronotop is in its early development stage, but it already provides a robust foundation with several essential features:
-
-- **ZMap – FoundationDB-Powered Ordered Key-Value Store:**  
-  A high-performance, ordered key-value store built on top of FoundationDB.  
-  ZMap acts as a Redis protocol proxy, bridging the RESP interface with FoundationDB’s transactional API.
-
-- **Namespaces – Logical Isolation for ZMaps and Buckets:**  
-  Namespaces enable multi-tenancy and logical separation across data structures.  
-  Internally, it's a lightweight abstraction over FoundationDB’s Directory Layer.
-
-- **Volume – Storage Engine with Replication:**  
-  A storage engine designed to support **primary-standby replication**, allowing for durability and high availability of
-  persistent components like Buckets.
-
-- **Clustering – Flexible Deployment Topologies:**  
-  Native support for clustering in both **single-master** and **multi-master** modes, making Kronotop suitable for a
-  range of distributed system architectures.
-
-- **Partial Redis Data Structure Compatibility:**  
-  Initial support for Redis-style in-memory data structures, currently including **String** and **Hash** types, with
-  RESP2/RESP3 compatibility.
-
-## Plans for the foreseeable future
-
-* Design and implement a data structure called **Bucket** to store JSON-like documents,
-* **Bucket** data structure will support
-  an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and transactions backed by
-  FoundationDB,
-* Provide the most common Redis data structures such as String, Hash, Sorted Sets, etc.
-
 ## Table of Contents
 
 * [Getting started](#getting-started)
     * [Initializing a Kronotop cluster](#initializing-a-kronotop-cluster)
 * [Redis compatibility](#redis-compatibility)
 * [Support](#support)
-* [Features](#features)
-    * [Transaction management](#transaction-management)
-        * [BEGIN](#begin)
-        * [COMMIT](#commit)
-        * [ROLLBACK](#rollback)
-        * [GETAPPROXIMATESIZE](#getapproximatesize)
-        * [GETREADVERSION](#getreadversion)
-        * [SNAPSHOTREAD](#snapshotread)
-    * [ZMap](#zmap--ordered-key-value-store-backed-by-foundationdb)
-        * [ZSET](#zset)
-        * [ZGET](#zget)
-        * [ZGETKEY](#zgetkey)
-        * [ZGETRANGE](#zgetrange)
-        * [ZGETRANGESIZE](#zgetrangesize)
-        * [ZMUTATE](#zmutate)
-        * [ZDEL](#zdel)
-        * [ZDELRANGE](#zdelrange)
-    * [Namespaces](#namespaces)
-        * [NAMESPACE CREATE](#namespace-create)
-        * [NAMESPACE REMOVE](#namespace-remove)
-        * [NAMESPACE CURRENT](#namespace-current)
-        * [NAMESPACE USE](#namespace-use)
-        * [NAMESPACE EXISTS](#namespace-exists)
-        * [NAMESPACE LIST](#namespace-list)
-        * [NAMESPACE MOVE](#namespace-move)
-    * [Management](#management)
-        * [Session](#session)
 * [Documentation](#documentation)
+  * API
+    * [Transaction Management](docs/api/transaction-management.md)
+    * [Session Management](docs/api/session-management.md)
+    * [Namespaces](docs/api/namespaces.md)
+    * [ZMap](docs/api/zmap.md)
+  * [Cluster Administration](docs/cluster/cluster-administration.md)
+  * [Task Management](docs/admin/task-management.md)
+  * [Storage Engine](docs/volume/volume.md)
+  * [Why Kronotop Runs on the Java Platform](docs/why-java-platform.md)
 * [License](#license)
 
 ## Getting started
@@ -167,8 +121,7 @@ A cluster member serves from two ports:
 ### Initializing a Kronotop cluster
 
 Before using Kronotop in your project, you first need to initialize the cluster. `KR.ADMIN INITIALIZE-CLUSTER` command
-creates
-the cluster's layout on the FoundationDB and initializes the cluster:
+creates the cluster's layout on the FoundationDB and initializes the cluster:
 
 ```
 127.0.0.1:3320> KR.ADMIN INITIALIZE-CLUSTER
@@ -216,20 +169,17 @@ OK
 "Hello"
 ```
 
-All in-memory data will be persisted and replicated by the storage engine. See [Storage Engine](#storage-engine) section
+All in-memory data will be persisted and replicated by the storage engine. See [Storage Engine](docs/volume/volume.md) section
 for the details.
 
 ## Redis compatibility
 
 Kronotop uses RESP3 as the client protocol. The reasoning behind this is simple: there are many high-quality Redis
-client implementations
-in all languages, and almost everyone has some experience with Redis.
+client implementations in all languages, and almost everyone has some experience with Redis.
 
 Despite the main focus on building a transactional document database using FoundationDB as a metadata store,
-implementing
-the most common Redis data structures is on the roadmap. Currently, Kronotop has already partial support for *String*
-and *Hash*
-data structures.
+implementing the most common Redis data structures is on the roadmap. Currently, Kronotop already has partial 
+support for *String*and *Hash* data structures.
 
 ## Support
 
@@ -237,635 +187,20 @@ Please join [Discord channel](https://discord.gg/Nyy4Afpr) for instant chat or c
 
 For invoiced sponsoring/support contracts, please contact us at *burak {dot} sezer {at} kronotop {dot} com*.
 
-## Features
-
-### Transaction management
-
-Kronotop exposes the FoundationDB API to Redis clients. This section explains transaction management commands.
-
-*Note that not all parts of the FoundationDB API are implemented yet.*
-
-#### BEGIN
-
-`BEGIN` creates a new transaction and set it to the current session.
-
-**Example:**
-
-```
-127.0.0.1:5484> BEGIN
-OK
-```
-
-If there is another transaction in progress in the current session, it returns a `TRANSACTION` error message.
-
-```
-127.0.0.1:5484> BEGIN
-(error) TRANSACTION there is already a transaction in progress.
-```
-
-#### COMMIT
-
-`COMMIT` commits changes to the database.
-
-**Example:**
-
-```
-127.0.0.1:5484> COMMIT
-OK
-```
-
-FoundationDB currently does not support transactions running for over five seconds. If the transaction is too old,
-it returns `TRANSACTIONOLD` error.
-
-```
-127.0.0.1:5484> COMMIT
-(error) TRANSACTIONOLD transaction is too old to perform reads or be committed
-```
-
-If there is no transaction in progress in the current session, it returns `TRANSACTION` error.
-
-```
-127.0.0.1:5484> COMMIT
-(error) TRANSACTION there is no transaction in progress.
-```
-
-#### ROLLBACK
-
-`ROLLBACK` cancels the current session's in-progress transaction.
-
-**Example:**
-
-```
-127.0.0.1:5484> ROLLBACK
-OK
-```
-
-If no transaction is in progress in the current session, it returns a `TRANSACTION` error message.
-
-```
-127.0.0.1:5484> ROLLBACK
-(error) TRANSACTION there is no transaction in progress.
-```
-
-#### GETAPPROXIMATESIZE
-
-`GETAPPROXIMATESIZE` returns the approximated size of the commit, which is the summation of mutations, read conflict
-ranges,
-and write conflict ranges. This can be called multiple times before a transaction commit.
-
-```
-127.0.0.1:5484> GETAPPROXIMATESIZE
-(integer) 619
-```
-
-#### GETREADVERSION
-
-`GETREADVERSION` returns the version at which the reads for the in-progress transaction will access the database.
-
-```
-127.0.0.1:5484> GETREADVERSION
-16275608010704
-```
-
-#### SNAPSHOTREAD
-
-`SNAPSHOTREAD ON|OFF` enables or disables snapshot reads for the in-progess transaction.
-
-In the FoundationDB context, snapshots a special-purpose, read-only view of the database. Reads done through this
-interface
-are known as "snapshot reads." Snapshot reads selectively relax FoundationDB's isolation property, reducing [Transaction
-conflicts](https://apple.github.io/foundationdb/developer-guide.html#conflict-ranges) but making reasoning about
-concurrency harder. For more information about how to use snapshot reads correctly,
-see Using [snapshot reads](https://apple.github.io/foundationdb/developer-guide.html#snapshot-reads).
-
-**Example:**
-
-```
-127.0.0.1:5484> SNAPSHOTREAD ON
-OK
-```
-
-### ZMap – Ordered Key-Value Store Backed by FoundationDB
-
-Kronotop introduces a novel data structure called **ZMap**, which serves as a Redis-compatible proxy over *
-*FoundationDB’s
-transactional key-value API**.
-
-Under the hood, ZMap leverages **FoundationDB’s core data model** — a highly reliable, ordered key-value store.  
-Also referred to as an **ordered associative array** or dictionary, this structure is composed of unique keys arranged
-in
-lexicographical order, each mapped to a corresponding value.
-
-By exposing this powerful model through the familiar **RESP protocol**, ZMap allows developers to interact with
-FoundationDB
-in a simple, efficient, and idiomatic way — without requiring deep knowledge of FoundationDB's lower-level API.
-
-ZMap forms the foundation for building richer abstractions and serves as a building block for higher-level features
-like **namespaces**, **Buckets**, and transactional queries through **MQL**.
-
-See the [Data Modeling](https://apple.github.io/foundationdb/data-modeling.html) section on FoundationDB documents.
-
-**One-Off Transactions**
-
-Kronotop will create a new transaction and automatically commit changes to the database for the ad-hoc commands.
-
-In other terms, you do not need to do this for every command:
-
-```
-127.0.0.1:5484> BEGIN
-OK
-127.0.0.1:5484> ZSET mykey "Hello"
-OK
-127.0.0.1:5484> COMMIT
-OK
-```
-
-One-off transaction feature is especially useful for running commands in CLI.
-
-**ZMap and Namespaces**
-
-A namespace prefixes all data stored in a ZMap. The current namespace can be inspected by running the following command:
-
-```
-127.0.0.1:5484> NAMESPACE CURRENT
-global
-```
-
-`global` is the default namespace. Namespaces create isolation between data structures. This is how it works for ZMap
-
-```
-127.0.0.1:5484> NAMESPACE CURRENT
-global
-127.0.0.1:5484> ZSET mykey "Hello"
-OK
-127.0.0.1:5484> ZGET mykey
-"Hello"
-127.0.0.1:5484> NAMESPACE CREATE global.child-namespace
-OK
-127.0.0.1:5484> NAMESPACE USE global.child-namespace
-OK
-127.0.0.1:5484> ZGET mykey
-(nil)
-```
-
-See [Namespaces](#namespaces) section for further information.
-
-#### ZSET
-
-`ZSET` sets the value for a given key. This will not affect the database until `COMMIT` is called.
-
-**Example:**
-
-```
-127.0.0.1:5484> ZSET mykey "Hello"
-OK
-```
-
-#### ZGET
-
-`ZGET` gets a value from the database. The call will return `nil` if the key is not present in the database.
-
-**Example:**
-
-```
-127.0.0.1:5484> ZGET mykey
-"Hello"
-```
-
-#### ZGETKEY
-
-`ZGETKEY` returns the key referenced by the specified `KeySelector`.
-
-The default key selector is `FIRST_GREATER_OR_EQUAL`, `KEY_SELECTOR` portion of the command is optional.
-
-Available key selectors:
-
-* `FIRST_GREATER_OR_EQUAL`,
-* `FIRST_GREATER_THAN`,
-* `LAST_LESS_THAN`,
-* `LAST_LESS_OR_EQUAL`
-
-**Example:**
-
-```
-127.0.0.1:5484> zset key-0 value-0
-OK
-127.0.0.1:5484> zset key-1 value-1
-OK
-127.0.0.1:5484> zset key-2 value-2
-OK
-127.0.0.1:5484> zset key-3 value-3
-OK
-127.0.0.1:5484> ZGETKEY key-0 KEY_SELECTOR FIRST_GREATER_THAN
-"key-1"
-```
-
-#### ZGETRANGE
-
-`ZGETRANGE` gets an ordered range of keys and values from the database. The *begin* and *end* keys can be specified by
-key selectors, with the begin `BEGIN_KEY_SELECTOR` inclusive and the end `END_KEY_SELECTOR` exclusive.
-
-The default `BEGIN_KEY_SELECTOR` is `FIRST_GREATER_OR_EQUAL`.
-The default `END_KEY_SELECTOR` is `FIRST_GREATER_THAN`.
-
-Available key selectors:
-
-* FIRST_GREATER_OR_EQUAL,
-* FIRST_GREATER_THAN,
-* LAST_LESS_THAN,
-* LAST_LESS_OR_EQUAL
-
-The key selector section of this command is optional.
-
-**Example:***
-
-```
-127.0.0.1:5484> ZGETRANGE key-0 key-3
-1) 1) "key-0"
-   2) "value-0"
-2) 1) "key-1"
-   2) "value-1"
-3) 1) "key-2"
-   2) "value-2"
-```
-
-With `LIMIT` parameter:
-
-```
-127.0.0.1:5484> ZGETRANGE key-0 key-5 LIMIT 3
-1) 1) "key-0"
-   2) "value-0"
-2) 1) "key-1"
-   2) "value-1"
-3) 1) "key-2"
-   2) "value-2"
-```
-
-With `LIMIT` and `REVERSE` parameters:
-
-```
-127.0.0.1:5484> ZGETRANGE key-0 key-5 LIMIT 3 REVERSE
-1) 1) "key-4"
-   2) "value-4"
-2) 1) "key-3"
-   2) "value-3"
-3) 1) "key-2"
-   2) "value-2"
-```
-
-Range from beginning to end, get an ordered set or key/value pairs:
-
-```
-127.0.0.1:5484> ZGETRANGE * *
-1) 1) "key-0"
-   2) "value-0"
-2) 1) "key-1"
-   2) "value-1"
-3) 1) "key-2"
-   2) "value-2"
-4) 1) "key-3"
-   2) "value-3"
-5) 1) "key-4"
-   2) "value-4"
-6) 1) "key-5"
-   2) "value-5"
-7) 1) "key-6"
-   2) "value-6"
-```
-
-Explicitly using key selectors, please note that you can use the key selectors individually.
-
-```
-127.0.0.1:5484> ZGETRANGE key-2 key-5 BEGIN_KEY_SELECTOR FIRST_GREATER_THAN
-1) 1) "key-3"
-   2) "value-3"
-2) 1) "key-4"
-   2) "value-4"
-```
-
-#### ZGETRANGESIZE
-
-`ZGETRANGESIZE` gets an estimate for the number of bytes stored in the given range.
-
-```
-127.0.0.1:5484> zgetrangesize key-0 key-9
-(integer) 0
-```
-
-_FoundationDB says:_
-
-> Note: the estimated size is calculated based on the sampling done by FDB server. The sampling algorithm works roughly
-> in
-> this way: the larger the key-value pair is, the more likely it would be sampled and the more accurate its sampled size
-> would be.
-> And due to that reason, it is recommended to use this API to query against large ranges for accuracy considerations.
-> For a rough reference, if the returned size is larger than 3MB, one can consider the size to be accurate.
-
-#### ZMUTATE
-
-`ZMUTATE` runs an atomic operation on the given key.
-
-Available mutation types:
-
-* `ADD`: Performs an addition of little-endian integers.
-* `APPEND_IF_FITS`: Appends param to the end of the existing value already in the database at the given key (or creates
-  the key and sets the value to param if the key is empty).
-* `BIT_AND`: Performs a bitwise and operation.
-* `BIT_OR`: Performs a bitwise or operation.
-* `BIT_XOR`: Performs a bitwise xor operation.
-* `BYTE_MAX`: Performs lexicographic comparison of byte strings.
-* `BYTE_MIN`: Performs lexicographic comparison of byte strings.
-* `COMPARE_AND_CLEAR`: Performs an atomic compare and clear operation.
-* `MAX`: Performs a little-endian comparison of byte strings.
-* `MIN`: Performs a little-endian comparison of byte strings.
-* `SET_VERSIONSTAMPED_KEY`: Transforms key using a versionstamp for the transaction.
-* `SET_VERSIONSTAMPED_VALUE`: Transforms param using a versionstamp for the transaction.
-
-**Example:**
-
-```
-127.0.0.1:5484> ZSET key-0 value-0
-OK
-127.0.0.1:5484> ZMUTATE key-0 value COMPARE_AND_CLEAR
-OK
-127.0.0.1:5484> ZGET key-0
-"value-0"
-127.0.0.1:5484> ZMUTATE key-0 value-0 COMPARE_AND_CLEAR
-OK
-127.0.0.1:5484> ZGET key-0
-(nil)
-```
-
-#### ZDEL
-
-`ZDEL` clears a given key from the database. This will not affect the database until `COMMIT` is called.
-
-**Example:**
-
-```
-127.0.0.1:5484> ZDEL mykey
-OK
-```
-
-#### ZDELRANGE
-
-`ZDELRANGE` clears the keys in the given range. The *begin* is inclusive, *end* is exclusive.
-
-**Example:**
-
-```
-127.0.0.1:5484> ZDELRANGE key-1 key-4
-OK
-127.0.0.1:5484> ZGETRANGE * *
-1) 1) "key-0"
-   2) "value-0"
-2) 1) "key-4"
-   2) "value-4"
-3) 1) "key-5"
-   2) "value-5"
-4) 1) "key-6"
-   2) "value-6"
-```
-
-Using `*` asterisk character to set a boundary:
-
-Wipe out all keys in the current namespace:
-
-```
-127.0.0.1:5484> ZDELRANGE * *
-OK
-127.0.0.1:5484> ZGETRANGE * *
-(empty array)
-```
-
-Clear all keys from the beginning to `key-3`:
-
-```
-127.0.0.1:5484> ZDELRANGE * key-3
-OK
-127.0.0.1:5484> ZGETRANGE * *
-1) 1) "key-3"
-   2) "value-3"
-2) 1) "key-4"
-   2) "value-4"
-3) 1) "key-5"
-   2) "value-5"
-```
-
-Clear all keys from `key-3` to end of the range:
-
-```
-127.0.0.1:5484> ZDELRANGE key-3 *
-OK
-127.0.0.1:5484> ZGETRANGE * *
-1) 1) "key-0"
-   2) "value-0"
-2) 1) "key-1"
-   2) "value-1"
-3) 1) "key-2"
-   2) "value-2"
-```
-
-### Namespaces
-
-Namespace is a thin layer around FoundationDB's
-powerful [directory](https://apple.github.io/foundationdb/developer-guide.html#directories) concept. Namespaces are a
-recommended approach for administering applications.
-Each application should create or open at least one directory to manage its subspaces. Namespaces are identified by
-hierarchical paths analogous to the paths in a Unix-like file system.
-
-The hierarchy between directories is denoted by joining them with dot character. Let's assume that you have different
-microservices and want to isolate their databases. You can create a namespace for each microservice under the
-`production` namespace.
-
-If you have three microservices named `users`, `orders` and `products`, your namespace hierarchy might look like the
-following:
-
-* `production.users`
-* `production.orders`
-* `production.products`
-
-All data structures used by these namespaces will be isolated.
-
-**Note:** Redis data structures are not stored under namespaces. Currently, namespaces cover only ZMap data structure.
-
-#### NAMESPACE CREATE
-
-`NAMESPACE CREATE` creates a new namespace with the given hierarchy.
-
-**Example:**
-
-```
-127.0.0.1:5484> NAMESPACE CREATE global.users 
-```
-
-#### NAMESPACE REMOVE
-
-`NAMESPACE REMOVE` removes the given namespace hierarchy. It's the equivalent of `DROP DATABASE` command in other
-databases.
-So you should be careful when start typing this command. The result is irreversible.
-
-**Example:**
-
-```
-127.0.0.1:5484> NAMESPACE REMOVE global.users
-OK 
-```
-
-You cannot remove the default namespace:
-
-```
-127.0.0.1:5484> NAMESPACE REMOVE global
-(error) ERR Cannot remove the default namespace: 'global'
-```
-
-#### NAMESPACE CURRENT
-
-`NAMESPACE CURRENT` command returns the current namespace in use for the session. The default namespace is in use if the
-client doesn't set a different namespace by calling `NAMESPACE USE` command.
-
-**Example:**
-
-```
-127.0.0.1:5484> NAMESPACE CURRENT
-global 
-```
-
-#### NAMESPACE USE
-
-`NAMESPACE USE` sets an existing namespace to be used by the session.
-
-**Example:**
-
-```
-127.0.0.1:5484> NAMESPACE USE global.users
-OK 
-```
-
-It returns `NOSUCHNAMESPACE` error if the namespace doesn't exist:
-
-```
-127.0.0.1:5484> namespace use global.clients
-(error) NOSUCHNAMESPACE No such namespace: global.clients
-```
-
-#### NAMESPACE EXISTS
-
-`NAMESPACE EXISTS` checks a namespace whether exists or not.
-
-**Example:**
-
-```
-127.0.0.1:5484> NAMESPACE EXISTS global.users
-(integer) 1
-```
-
-It returns `1` for existing namespaces and `0` for non-existing ones.
-
-#### NAMESPACE LIST
-
-`NAMESPACE LIST` lists the namespaces under the given hierarchy.
-
-**Example:**
-
-```
-127.0.0.1:5484> NAMESPACE LIST
-1) global
-```
-
-It can take an optional parameter of namespace hierarchy.
-
-```
-127.0.0.1:5484> NAMESPACE LIST global
-1) users
-```
-
-It returns `NOSUCHNAMESPACE` error if the given hierarchy is invalid:
-
-```
-127.0.0.1:5484> NAMESPACE LIST global.clients
-(error) NOSUCHNAMESPACE No such namespace: global.clients
-```
-
-#### NAMESPACE MOVE
-
-`NAMESPACE MOVE` moves the rightmost namespace to another location in the given hierarchy.
-
-**Example:**
-
-```
-127.0.0.1:5484> NAMESPACE MOVE global.users staging.users
-OK
-```
-
-Let's check the result:
-
-```
-127.0.0.1:5484> NAMESPACE LIST global
-(empty array)
-127.0.0.1:5484> NAMESPACE LIST staging
-1) users
-```
-
-## Management
-
-This section defines commands to manage a Kronotop cluster and database sessions.
-
-### Session
-
-Kronotop provides a bunch of commands to manage database sessions. The following attributes are set by default:
-
-| attribute        | type    | scope  | description                                                              | default | available values |
-|------------------|---------|--------|--------------------------------------------------------------------------|---------|------------------|
-| reply_type       | enum    | Bucket | Data interchange format for the replies                                  | BSON    | BSON, JSON       |
-| input_type       | enum    | Bucket | Data interchange format for the inputs                                   | BSON    | BSON, JSON       |
-| limit            | integer | Bucket | Maximum entries returned per query response                              | 100     |                  |
-| pin_read_version | boolean | Bucket | Reuse the initial read version for all subsequent `BUCKET.ADVANCE` calls | true    | true, false      |
-
-#### SESSION.ATTRIBUTE LIST
-
-`SESSION.ATTRIBUTE LIST` lists all attributes with their current values used by the session.
-
-```
-127.0.0.1:5484> SESSION.ATTRIBUTE LIST
-1# reply_type => bson
-2# input_type => bson
-3# limit => (integer) 100
-4# pin_read_version => (true)
-```
-
-#### SESSION.ATTRIBUTE SET
-
-`SESSION.ATTRIBUTE SET` sets a value to an attribute.
-
-```
-127.0.0.1:5484> SESSION.ATTRIBUTE SET reply_type JSON
-OK
-```
-
-A random value cannot be set to an attribute, if its type is `enum`.
-
-```
-127.0.0.1:5484> SESSION.ATTRIBUTE SET reply_type some-value
-(error) ERR Invalid reply type: some-value
-```
-
-It's not possible to set an attribute if it's not defined by Kronotop:
-
-```
-127.0.0.1:5484> SESSION.ATTRIBUTE set some-attribute value
-(error) ERR Invalid session attribute: 'some-attribute'
-```
-
 ## Documentation
-
+* API
+  * [Transaction Management](docs/api/transaction-management.md)
+  * [Session Management](docs/api/session-management.md)
+  * [Namespaces](docs/api/namespaces.md)
+  * [ZMap](docs/api/zmap.md)
+* [Cluster Administration](docs/cluster/cluster-administration.md)
+* [Task Management](docs/admin/task-management.md)
 * [Storage Engine](docs/volume/volume.md)
 * [Why Kronotop Runs on the Java Platform](docs/why-java-platform.md)
 
 ## License
 
-Kronotop is mostly licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), which is a 
-permissive and OSI-approved open source license.
+Kronotop is mostly licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), which is a permissive and OSI-approved open source license.
 
 However, one of Kronotop’s core components — the **Bucket** package — is licensed under the [Business Source License 1.1](kronotop/src/main/java/com/kronotop/bucket/LICENSE.txt).
 This license allows full access to the source code and free usage for development and testing. After a **five-year change date**, 
