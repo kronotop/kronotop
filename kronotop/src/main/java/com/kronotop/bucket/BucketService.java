@@ -11,10 +11,7 @@
 package com.kronotop.bucket;
 
 import com.kronotop.*;
-import com.kronotop.bucket.handlers.BucketAdvanceHandler;
-import com.kronotop.bucket.handlers.BucketInsertHandler;
-import com.kronotop.bucket.handlers.BucketQueryHandler;
-import com.kronotop.bucket.handlers.QueryHandler;
+import com.kronotop.bucket.handlers.*;
 import com.kronotop.bucket.planner.Planner;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
@@ -45,6 +42,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         handlerMethod(ServerKind.EXTERNAL, new BucketQueryHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new QueryHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketAdvanceHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketCreateIndexHandler(this));
 
         routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
