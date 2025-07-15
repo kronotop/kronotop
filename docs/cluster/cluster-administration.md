@@ -487,12 +487,14 @@ KR.ADMIN SET-SHARD-STATUS shard-kind shard-id|* shard-status
   
 **Example**
 
+Set status for all `REDIS` shards:
+
 ```
 127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS REDIS * READWRITE
 OK
 ```
 
-Set status for all `BUCKET` shards:
+Set status for shard id 1 for `BUCKET` shard kind:
 
 ```
 127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS BUCKET 1 READWRITE
