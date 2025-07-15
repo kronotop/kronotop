@@ -86,6 +86,7 @@ Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
     * [Namespaces](docs/api/namespaces.md)
     * [ZMap](docs/api/zmap.md)
   * [Cluster Administration](docs/cluster/cluster-administration.md)
+  * [Task Management](docs/admin/task-management.md)
   * [Storage Engine](docs/volume/volume.md)
   * [Why Kronotop Runs on the Java Platform](docs/why-java-platform.md)
 * [License](#license)
@@ -193,6 +194,7 @@ For invoiced sponsoring/support contracts, please contact us at *burak {dot} sez
   * [Namespaces](docs/api/namespaces.md)
   * [ZMap](docs/api/zmap.md)
 * [Cluster Administration](docs/cluster/cluster-administration.md)
+* [Task Management](docs/admin/task-management.md)
 * [Storage Engine](docs/volume/volume.md)
 * [Why Kronotop Runs on the Java Platform](docs/why-java-platform.md)
 
