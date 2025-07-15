@@ -13,6 +13,7 @@ interface and are primarily intended for operators, infrastructure automation, a
   * [KR.ADMIN DESCRIBE-CLUSTER](#kradmin-describe-cluster)
   * [KR.ADMIN DESCRIBE-SHARD](#kradmin-describe-shard)
   * [KR.ADMIN SYNC-STANDBY](#kradmin-sync-standby)
+  * [KR.ADMIN SET-MEMBER-STATUS](#kradmin-set-member-status)
 
 ## Commands
 
@@ -390,3 +391,42 @@ OK
 * Removing a sync standby using `UNSET` will immediately downgrade its replication role.
 * This operation takes effect at runtime and may impact replication acknowledgements and failover behavior.
 * To verify the current sync standby set, use `KR.ADMIN DESCRIBE-SHARD` or `KR.ADMIN DESCRIBE-CLUSTER`.
+
+### KR.ADMIN SET-MEMBER-STATUS
+
+`KR.ADMIN SET-MEMBER-STATUS` command manually overrides the status of a specific cluster member.
+
+
+**Syntax**
+
+```
+KR.ADMIN SET-MEMBER-STATUS member-id member-status
+```
+
+**Arguments**
+
+* `member-id`: The UUIDv4 identifier of the member whose status should be updated.
+* `member-status`: The desired status value. Valid options:
+  * RUNNING
+  * UNAVAILABLE
+  * STOPPED
+  * UNKNOWN
+
+**Example**
+
+```
+127.0.0.1:3320> KR.ADMIN SET-MEMBER-STATUS 99f14bd9e6f9e95953c2f0740846b08508eb97b4 RUNNING
+OK
+```
+
+**Use Cases**
+
+* Force removal eligibility by marking a member UNAVAILABLE or STOPPED,
+* Reset inconsistent state during manual recovery,
+* System administration and maintenance tasks.
+
+**Notes**
+
+* This command does not validate the actual health of the target process.
+* Use with caution in production environments, as incorrect status settings can disrupt replication and routing logic.
+* To view a member’s current status, use `KR.ADMIN FIND-MEMBER` or `KR.ADMIN LIST-MEMBERS`.
