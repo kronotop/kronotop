@@ -19,7 +19,7 @@ scalability powered by FoundationDB.*
 **Warning**: Kronotop is in its early stages of development. The API is unstable and likely to change in future
 releases.
 
-See [Getting started](#getting-started) section.
+See [Getting started](#getting-started) and [Documentation](#documentation) sections.
 
 Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
 
