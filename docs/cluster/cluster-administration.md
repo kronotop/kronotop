@@ -14,6 +14,7 @@ interface and are primarily intended for operators, infrastructure automation, a
   * [KR.ADMIN DESCRIBE-SHARD](#kradmin-describe-shard)
   * [KR.ADMIN SYNC-STANDBY](#kradmin-sync-standby)
   * [KR.ADMIN SET-MEMBER-STATUS](#kradmin-set-member-status)
+  * [KR.ADMIN LIST-SILENT-MEMBERS](#kradmin-list-silent-members)
 
 ## Commands
 
@@ -430,3 +431,35 @@ OK
 * This command does not validate the actual health of the target process.
 * Use with caution in production environments, as incorrect status settings can disrupt replication and routing logic.
 * To view a member’s current status, use `KR.ADMIN FIND-MEMBER` or `KR.ADMIN LIST-MEMBERS`.
+
+### KR.ADMIN LIST-SILENT-MEMBERS
+
+`KR.ADMIN LIST-SILENT-MEMBERS` command returns a list of silent cluster members—nodes that are **expected to send heartbeats 
+but have not been heard from** within a configured timeout window. 
+
+These members may be offline, crashed, misconfigured, or experiencing network partitioning. This command is useful for 
+identifying potentially failed or unreachable nodes in the cluster.
+
+**Syntax**
+
+```
+KR.ADMIN LIST-SILENT-MEMBERS
+```
+
+**Example**
+
+```
+127.0.0.1:3320> KR.ADMIN LIST-SILENT-MEMBERS
+1) 99f14bd9e6f9e95953c2f0740846b08508eb97b4
+```
+
+**Output**
+
+* A flat list of member-ids (UUIDv4) representing silent nodes.
+* If no members are considered silent, the result is an empty array.
+
+**Notes**
+
+* Silent members are not automatically removed from the cluster. Use `KR.ADMIN REMOVE-MEMBER` if manual cleanup is required.
+* This status is determined based on heartbeat intervals tracked internally by each node.
+* You can use `KR.ADMIN FIND-MEMBER` to inspect the last known state of each silent member.
