@@ -12,6 +12,7 @@ interface and are primarily intended for operators, infrastructure automation, a
   * [KR.ADMIN REMOVE-MEMBER](#kradmin-remove-member)
   * [KR.ADMIN DESCRIBE-CLUSTER](#kradmin-describe-cluster)
   * [KR.ADMIN DESCRIBE-SHARD](#kradmin-describe-shard)
+  * [KR.ADMIN SYNC-STANDBY](#kradmin-sync-standby)
 
 ## Commands
 
@@ -344,3 +345,46 @@ KR.ADMIN DESCRIBE-SHARD
 
 * This command only inspects a single shard. To view the full cluster layout, use `KR.ADMIN DESCRIBE-CLUSTER`.
 * Use `VOLUME.ADMIN REPLICATIONS` command when diagnosing replication lag, unresponsive primaries, or verifying volume assignments at the shard level.
+
+### KR.ADMIN SYNC-STANDBY
+
+`KR.ADMIN SYNC-STANDBY` command manages the **synchronous standby configuration** for a specific shard. A synchronous standby 
+is a member that must remain in sync with the primary before commit acknowledgements can be issued, ensuring stronger consistency 
+and durability guarantees.
+
+This command allows you to explicitly **set** or **unset** a member as a synchronous standby for a given shard.
+
+**Syntax**
+
+```
+KR.ADMIN SYNC-STANDBY operation shard-kind shard-id member-id
+```
+
+**Arguments**
+
+*Operation*
+
+* SET
+* UNSET
+
+*Shard Kind*
+
+* REDIS
+* BUCKET
+
+* `shard-id`: Numeric identifier of the target shard
+* `member-id`: UUIDv4 of the member to promote or demote as sync standby
+
+**Example**
+
+```
+127.0.0.1:3320> KR.ADMIN SYNC-STANDBY SET BUCKET 1 99f14bd9e6f9e95953c2f0740846b08508eb97b4
+OK
+```
+
+**Notes**
+
+* The member must already be a valid standby for the shard before it can be promoted to sync standby.
+* Removing a sync standby using `UNSET` will immediately downgrade its replication role.
+* This operation takes effect at runtime and may impact replication acknowledgements and failover behavior.
+* To verify the current sync standby set, use `KR.ADMIN DESCRIBE-SHARD` or `KR.ADMIN DESCRIBE-CLUSTER`.
