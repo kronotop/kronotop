@@ -198,8 +198,7 @@ For invoiced sponsoring/support contracts, please contact us at *burak {dot} sez
 
 ## License
 
-Kronotop is mostly licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), which is a 
-permissive and OSI-approved open source license.
+Kronotop is mostly licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), which is a permissive and OSI-approved open source license.
 
 However, one of Kronotop’s core components — the **Bucket** package — is licensed under the [Business Source License 1.1](kronotop/src/main/java/com/kronotop/bucket/LICENSE.txt).
 This license allows full access to the source code and free usage for development and testing. After a **five-year change date**, 

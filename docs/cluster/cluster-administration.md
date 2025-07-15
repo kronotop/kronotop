@@ -11,6 +11,7 @@ interface and are primarily intended for operators, infrastructure automation, a
   * [KR.ADMIN INITIALIZE-CLUSTER](#kradmin-initialize-cluster)
   * [KR.ADMIN REMOVE-MEMBER](#kradmin-remove-member)
   * [KR.ADMIN DESCRIBE-CLUSTER](#kradmin-describe-cluster)
+  * [KR.ADMIN DESCRIBE-SHARD](#kradmin-describe-shard)
 
 ## Commands
 
@@ -305,3 +306,41 @@ The response is grouped first by shard kind (e.g., REDIS, BUCKET), then by shard
 * `sync_standbys` are promoted first during failover scenarios.
 * The command reflects the global cluster view as seen by the node handling the request.
 * Useful for debugging replication lag, topology drift, and verifying HA configurations.
+
+### KR.ADMIN DESCRIBE-SHARD
+
+`KR.ADMIN DESCRIBE-SHARD` command returns detailed metadata for a specific shard within the cluster. It provides information 
+about the primary and standby members, current replication state, and associated volumes.
+
+This command is useful for inspecting the health and role assignments of an individual shard, particularly in debugging failovers, 
+replication consistency, and shard placement.
+
+**Syntax**
+
+```
+KR.ADMIN DESCRIBE-SHARD
+```
+
+**Example**
+
+```
+127.0.0.1:3320> KR.ADMIN DESCRIBE-SHARD BUCKET 1
+1# primary => 99f14bd9e6f9e95953c2f0740846b08508eb97b4
+2# standbys => (empty array)
+3# sync_standbys => (empty array)
+4# status => READWRITE
+5# linked_volumes => 1) bucket-shard-1
+```
+
+**Output**
+
+* `primary`: The member currently acting as the primary node for the shard.
+* `standbys`: A list of asynchronous standby members.
+* `sync_standbys`: Members that are fully synchronized and eligible for synchronous failover.
+* `status`: Current operational state of the shard (READWRITE, READONLY, INOPERABLE).
+* `linked_volumes`: Names of volumes physically associated with the shard.
+
+**Notes**
+
+* This command only inspects a single shard. To view the full cluster layout, use `KR.ADMIN DESCRIBE-CLUSTER`.
+* Use `VOLUME.ADMIN REPLICATIONS` command when diagnosing replication lag, unresponsive primaries, or verifying volume assignments at the shard level.
