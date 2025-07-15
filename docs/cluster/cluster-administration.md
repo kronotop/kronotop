@@ -15,6 +15,7 @@ interface and are primarily intended for operators, infrastructure automation, a
   * [KR.ADMIN SYNC-STANDBY](#kradmin-sync-standby)
   * [KR.ADMIN SET-MEMBER-STATUS](#kradmin-set-member-status)
   * [KR.ADMIN LIST-SILENT-MEMBERS](#kradmin-list-silent-members)
+  * [KR.ADMIN SET-SHARD-STATUS](#kradmin-set-shard-status)
 
 ## Commands
 
@@ -463,3 +464,46 @@ KR.ADMIN LIST-SILENT-MEMBERS
 * Silent members are not automatically removed from the cluster. Use `KR.ADMIN REMOVE-MEMBER` if manual cleanup is required.
 * This status is determined based on heartbeat intervals tracked internally by each node.
 * You can use `KR.ADMIN FIND-MEMBER` to inspect the last known state of each silent member.
+
+### KR.ADMIN SET-SHARD-STATUS
+
+`KR.ADMIN SET-SHARD-STATUS` command manually updates the **operational status** of a specific shard—or all shards—within a given shard kind. 
+This is primarily used to control read/write availability, disable problematic shards, or temporarily enforce read-only access.
+
+**Syntax**
+
+```
+KR.ADMIN SET-SHARD-STATUS shard-kind shard-id|* shard-status
+```
+
+**Arguments**
+
+* `shard-kind`: The type of shard group. Valid values: `REDIS`, `BUCKET`.
+* `shard-id`: The numeric ID of the target shard. You can use `*` (asterisk) to apply the status to all shards of the specified kind.
+* `shard-status`: Desired operational status. Valid values:
+  * `READWRITE`: Shard accepts both reads and writes.
+  * `READONLY`: Shard accepts reads but rejects writes. 
+  * `INOPERABLE`: Shard is considered unavailable; all access is rejected.
+  
+**Example**
+
+```
+127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS REDIS * READWRITE
+OK
+```
+
+Set status for all `BUCKET` shards:
+
+```
+127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS BUCKET 1 READWRITE
+OK
+```
+
+**Notes**
+
+* This command only affects the **logical access control** layer. It does *not* alter replication roles or volume state.
+* Setting a shard to `INOPERABLE` disables it entirely, even for internal use.
+* Useful for:
+  * Maintenance operations
+  * Incident response (e.g., isolating a corrupted shard)
+  * Load shedding and testing fallback mechanisms
