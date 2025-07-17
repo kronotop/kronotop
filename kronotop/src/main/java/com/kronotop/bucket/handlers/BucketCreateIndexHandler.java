@@ -12,7 +12,6 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketCreateIndexMessage;
-import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -36,7 +35,7 @@ public class BucketCreateIndexHandler extends BaseBucketHandler implements Handl
     @Override
     public void execute(Request request, Response response) throws Exception {
         BucketCreateIndexMessage message = request.attr(MessageTypes.BUCKETCREATEINDEX).get();
-        System.out.println(message.getIndex());
+        System.out.println(message.getFields());
         response.writeOK();
     }
 }

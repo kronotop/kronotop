@@ -20,7 +20,7 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
     public static final String COMMAND = "BUCKET.CREATE-INDEX";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;
-    private String index;
+    private String fields;
     private String bucket;
 
     public BucketCreateIndexMessage(Request request) {
@@ -30,11 +30,11 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
 
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
-        index = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+        fields = ProtocolMessageUtil.readAsString(request.getParams().get(1));
     }
 
-    public String getIndex() {
-        return index;
+    public String getFields() {
+        return fields;
     }
 
     public String getBucket() {
