@@ -18,7 +18,7 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.volume.handlers.PackedEntry;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
@@ -1060,7 +1060,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                     Versionstamp[] keys = result.getVersionstampedKeys();
                     for (int i = 0; i < keys.length; i++) {
                         Versionstamp key = keys[i];
-                        expected.put(VersionstampUtils.base32HexEncode(key), values.get(i));
+                        expected.put(VersionstampUtil.base32HexEncode(key), values.get(i));
                     }
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
@@ -1080,7 +1080,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (String key : expected.keySet()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-                ByteBuffer buffer = volume.get(session, VersionstampUtils.base32HexDecode(key));
+                ByteBuffer buffer = volume.get(session, VersionstampUtil.base32HexDecode(key));
                 assertNotNull(buffer);
                 result.put(key, new String(buffer.array()));
             }

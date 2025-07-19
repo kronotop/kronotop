@@ -19,6 +19,8 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
+import java.util.Map;
+
 
 @Command(BucketCreateIndexMessage.COMMAND)
 @MinimumParameterCount(BucketCreateIndexMessage.MINIMUM_PARAMETER_COUNT)
@@ -35,7 +37,11 @@ public class BucketCreateIndexHandler extends BaseBucketHandler implements Handl
     @Override
     public void execute(Request request, Response response) throws Exception {
         BucketCreateIndexMessage message = request.attr(MessageTypes.BUCKETCREATEINDEX).get();
-        System.out.println(message.getFields());
+        System.out.println(message.getDefinitions());
+        for (Map.Entry<String, BucketCreateIndexMessage.IndexDefinition> entry : message.getDefinitions().entrySet()) {
+            System.out.println(entry.getValue().getType());
+            System.out.println(entry.getValue().getSortOrder());
+        }
         response.writeOK();
     }
 }

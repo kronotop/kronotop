@@ -31,7 +31,7 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.internal.JSONUtils;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.journal.*;
 import com.kronotop.server.CommandAlreadyRegisteredException;
@@ -311,7 +311,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     private void processDisusePrefix(Transaction tr, Event event) {
-        byte[] data = JSONUtils.readValue(event.value(), byte[].class);
+        byte[] data = JSONUtil.readValue(event.value(), byte[].class);
         Prefix prefix = Prefix.fromBytes(data);
         VolumeSession session = new VolumeSession(tr, prefix);
 

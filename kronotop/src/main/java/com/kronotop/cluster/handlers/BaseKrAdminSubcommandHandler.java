@@ -24,7 +24,7 @@ import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -211,7 +211,7 @@ public class BaseKrAdminSubcommandHandler {
     protected void memberToRedisMessage(Member member, Map<RedisMessage, RedisMessage> current) {
         current.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(member.getStatus().toString()));
 
-        String processId = VersionstampUtils.base32HexEncode(member.getProcessId());
+        String processId = VersionstampUtil.base32HexEncode(member.getProcessId());
         current.put(new SimpleStringRedisMessage("process_id"), new SimpleStringRedisMessage(processId));
 
         current.put(new SimpleStringRedisMessage("external_host"), new SimpleStringRedisMessage(member.getExternalAddress().getHost()));

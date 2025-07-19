@@ -10,18 +10,31 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.kronotop.KronotopException;
+import com.kronotop.bucket.index.SortOrder;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
+import org.bson.BsonType;
 
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class BucketCreateIndexMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.CREATE-INDEX";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;
-    private String fields;
     private String bucket;
+    private HashMap<String, IndexDefinition> definitions;
 
     public BucketCreateIndexMessage(Request request) {
         this.request = request;
@@ -30,11 +43,23 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
 
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
-        fields = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+        try {
+            definitions = JSONUtil.readValue(
+                    ProtocolMessageUtil.readAsByteArray(request.getParams().get(1)),
+                    IndexDefinitions.class
+            );
+        }catch (KronotopException e) {
+            if (e.getCause() instanceof JsonMappingException jsonException) {
+                if (jsonException.getCause() instanceof IllegalArgumentException illegalArgumentException) {
+                    throw new KronotopException(illegalArgumentException);
+                }
+            }
+            throw e;
+        }
     }
 
-    public String getFields() {
-        return fields;
+    public Map<String, IndexDefinition> getDefinitions() {
+        return definitions;
     }
 
     public String getBucket() {
@@ -49,5 +74,73 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
     @Override
     public List<Void> getKeys() {
         return List.of();
+    }
+
+    public static class IndexDefinitions extends HashMap<String, IndexDefinition> {
+
+    }
+
+    public static class IndexDefinition {
+        @JsonDeserialize(using = BsonTypeDeserializer.class)
+        private BsonType type;
+
+        @JsonProperty("sort_order")
+        @JsonDeserialize(using = SortOrderDeserializer.class)
+        private SortOrder sortOrder;
+
+        public IndexDefinition() {
+        }
+
+        public IndexDefinition(BsonType type, SortOrder sortOrder) {
+            this.type = type;
+            this.sortOrder = sortOrder;
+        }
+
+        public SortOrder getSortOrder() {
+            return sortOrder;
+        }
+
+        public void setSortOrder(SortOrder sortOrder) {
+            this.sortOrder = sortOrder;
+        }
+
+        public BsonType getType() {
+            return type;
+        }
+
+        public void setType(BsonType type) {
+            this.type = type;
+        }
+    }
+
+    private static class BsonTypeDeserializer extends JsonDeserializer<BsonType> {
+        @Override
+        public BsonType deserialize(JsonParser p, DeserializationContext ignored) throws IOException {
+            String type = p.getValueAsString().toLowerCase();
+            return switch (type) {
+                case "double" -> BsonType.DOUBLE;
+                case "string" -> BsonType.STRING;
+                case "binary" -> BsonType.BINARY;
+                case "boolean" -> BsonType.BOOLEAN;
+                case "datetime" -> BsonType.DATE_TIME;
+                case "int32" -> BsonType.INT32;
+                case "timestamp" -> BsonType.TIMESTAMP;
+                case "int64" -> BsonType.INT64;
+                case "decimal128" -> BsonType.DECIMAL128;
+                default -> throw new IllegalArgumentException("Unknown BSON type: " + type);
+            };
+        }
+    }
+
+    private static class SortOrderDeserializer extends JsonDeserializer<SortOrder> {
+        @Override
+        public SortOrder deserialize(JsonParser p, DeserializationContext ignored) throws IOException {
+            String sortOrder = p.getValueAsString().toLowerCase();
+            return switch (sortOrder) {
+                case "asc", "ascending" -> SortOrder.ASCENDING;
+                case "desc", "descending" -> SortOrder.DESCENDING;
+                default -> throw new IllegalArgumentException("Unknown SortOrder: " + sortOrder);
+            };
+        }
     }
 }

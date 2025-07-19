@@ -19,7 +19,7 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.internal.JSONUtils;
+import com.kronotop.internal.JSONUtil;
 
 public class VacuumMetadata {
     private String taskName;
@@ -55,7 +55,7 @@ public class VacuumMetadata {
         byte[] metadataKey = getMetadataKey(volumeSubspace);
         byte[] value = tr.get(metadataKey).join();
         if (value == null) return null;
-        return JSONUtils.readValue(value, VacuumMetadata.class);
+        return JSONUtil.readValue(value, VacuumMetadata.class);
     }
 
     public String getTaskName() {
@@ -68,6 +68,6 @@ public class VacuumMetadata {
 
     public void save(Transaction tr, DirectorySubspace volumeSubspace) {
         byte[] metadataKey = getMetadataKey(volumeSubspace);
-        tr.set(metadataKey, JSONUtils.writeValueAsBytes(this));
+        tr.set(metadataKey, JSONUtil.writeValueAsBytes(this));
     }
 }

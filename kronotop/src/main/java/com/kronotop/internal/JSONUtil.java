@@ -19,24 +19,20 @@ package com.kronotop.internal;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.KronotopException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 /**
  * The JSONUtils class provides utility methods for reading and writing JSON data using the Jackson ObjectMapper.
  */
-public class JSONUtils {
+public class JSONUtil {
     public static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final Logger LOGGER = LoggerFactory.getLogger(JSONUtils.class);
 
     public static <T> T readValue(byte[] content, Class<T> valueType) {
         try {
             return objectMapper.readValue(content, valueType);
         } catch (IOException e) {
-            LOGGER.error("Failed to deserialize JSON content from given resource into given Java type. ", e);
-            throw new KronotopException("JSON deserialization failed");
+            throw new KronotopException("JSON deserialization failed", e);
         }
     }
 
@@ -44,8 +40,7 @@ public class JSONUtils {
         try {
             return objectMapper.writeValueAsBytes(value);
         } catch (JsonProcessingException e) {
-            LOGGER.error("Failed to serialize Java object to byte array. ", e);
-            throw new KronotopException("JSON serialization failed");
+            throw new KronotopException("JSON serialization failed", e);
         }
     }
 }

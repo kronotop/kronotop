@@ -32,7 +32,7 @@ import com.kronotop.bucket.planner.Bounds;
 import com.kronotop.bucket.planner.physical.PhysicalFullScan;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.Prefix;
 import org.slf4j.Logger;
@@ -89,7 +89,7 @@ public class PlanExecutor {
                 // Kill the query, something went seriously wrong.
                 throw new KronotopException(String.format("Indexed entry could not be found in volume: '%s', Versionstamp: '%s'",
                         environment.shard().volume().getConfig().name(),
-                        VersionstampUtils.base32HexEncode(indexEntry.index().versionstamp())
+                        VersionstampUtil.base32HexEncode(indexEntry.index().versionstamp())
                 ));
             }
             result.put(indexEntry.index().versionstamp(), buffer);

@@ -26,7 +26,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.KronotopException;
-import com.kronotop.internal.JSONUtils;
+import com.kronotop.internal.JSONUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +72,7 @@ public class Publisher {
             Subspace subspace = journalMetadata.eventsSubspace();
             Tuple tuple = Tuple.from(Versionstamp.incomplete(userVersion));
 
-            Entry entry = new Entry(JSONUtils.writeValueAsBytes(event), Instant.now().toEpochMilli());
+            Entry entry = new Entry(JSONUtil.writeValueAsBytes(event), Instant.now().toEpochMilli());
 
             tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspace.packWithVersionstamp(tuple), entry.encode());
             tr.mutate(MutationType.ADD, journalMetadata.trigger(), TRIGGER_DELTA);

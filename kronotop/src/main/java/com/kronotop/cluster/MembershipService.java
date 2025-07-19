@@ -27,7 +27,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
-import com.kronotop.internal.JSONUtils;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.journal.Consumer;
 import com.kronotop.journal.ConsumerConfig;
@@ -271,7 +271,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     }
 
     private void processMemberJoinEvent(byte[] data) {
-        MemberJoinEvent event = JSONUtils.readValue(data, MemberJoinEvent.class);
+        MemberJoinEvent event = JSONUtil.readValue(data, MemberJoinEvent.class);
         Member member = registry.findMember(event.memberId());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -286,7 +286,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     }
 
     private void processMemberLeftEvent(byte[] data) {
-        MemberLeftEvent event = JSONUtils.readValue(data, MemberLeftEvent.class);
+        MemberLeftEvent event = JSONUtil.readValue(data, MemberLeftEvent.class);
         Member member = registry.findMember(event.memberId());
         subspaces.remove(member);
         others.remove(member);
@@ -296,7 +296,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     }
 
     private void processClusterEvent(Event event) {
-        BaseBroadcastEvent baseBroadcastEvent = JSONUtils.readValue(event.value(), BaseBroadcastEvent.class);
+        BaseBroadcastEvent baseBroadcastEvent = JSONUtil.readValue(event.value(), BaseBroadcastEvent.class);
         LOGGER.debug("Received broadcast event: {}", baseBroadcastEvent.kind());
         switch (baseBroadcastEvent.kind()) {
             case MEMBER_JOIN -> processMemberJoinEvent(event.value());

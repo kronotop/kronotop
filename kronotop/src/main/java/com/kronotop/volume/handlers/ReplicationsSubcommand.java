@@ -24,8 +24,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.internal.JSONUtils;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.JSONUtil;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -101,7 +101,7 @@ public class ReplicationsSubcommand extends BaseSubcommandHandler implements Sub
 
         String receivedVersionstampedKey = "";
         if (slot.getReceivedVersionstampedKey() != null) {
-            receivedVersionstampedKey = VersionstampUtils.base32HexEncode(
+            receivedVersionstampedKey = VersionstampUtil.base32HexEncode(
                     Versionstamp.fromBytes(slot.getReceivedVersionstampedKey())
             );
         }
@@ -115,7 +115,7 @@ public class ReplicationsSubcommand extends BaseSubcommandHandler implements Sub
         Versionstamp latestVersionstampedKey = ReplicationMetadata.findLatestVersionstampedKey(context, volumeSubspace);
         String latestVersionstampedKeyStr = "";
         if (latestVersionstampedKey != null) {
-            latestVersionstampedKeyStr = VersionstampUtils.base32HexEncode(latestVersionstampedKey);
+            latestVersionstampedKeyStr = VersionstampUtil.base32HexEncode(latestVersionstampedKey);
         }
         current.put(
                 new SimpleStringRedisMessage("latest_versionstamped_key"),
@@ -144,10 +144,10 @@ public class ReplicationsSubcommand extends BaseSubcommandHandler implements Sub
             for (KeyValue keyValue : iterable) {
                 Tuple unpackedKey = volumeSubspace.unpack(keyValue.getKey());
                 Versionstamp slotId = (Versionstamp) unpackedKey.get(3);
-                ReplicationSlot slot = JSONUtils.readValue(keyValue.getValue(), ReplicationSlot.class);
+                ReplicationSlot slot = JSONUtil.readValue(keyValue.getValue(), ReplicationSlot.class);
                 Map<RedisMessage, RedisMessage> current = replicationSlotToMap(shardKind, shardId, slot);
                 result.put(
-                        new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(slotId)),
+                        new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(slotId)),
                         new MapRedisMessage(current)
                 );
             }

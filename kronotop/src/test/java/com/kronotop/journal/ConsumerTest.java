@@ -18,7 +18,7 @@ package com.kronotop.journal;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.internal.JSONUtils;
+import com.kronotop.internal.JSONUtil;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedList;
@@ -44,7 +44,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         for (String event : EVENTS) {
             publisher.publish(JOURNAL_NAME, event).complete();
             // publisher encodes the event into JSON.
-            expectedEvents.add(new String(JSONUtils.writeValueAsBytes(event)));
+            expectedEvents.add(new String(JSONUtil.writeValueAsBytes(event)));
         }
 
         ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.EARLIEST);
@@ -98,7 +98,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         for (String event : EVENTS) {
             publisher.publish(JOURNAL_NAME, event).complete();
             // publisher encodes the event into JSON.
-            expectedEvents.add(new String(JSONUtils.writeValueAsBytes(event)));
+            expectedEvents.add(new String(JSONUtil.writeValueAsBytes(event)));
         }
 
         List<String> consumedEvents = new LinkedList<>();
@@ -145,7 +145,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         secondConsumer.start();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Event event = secondConsumer.consume(tr);
-            assertEquals(secondEvent, JSONUtils.readValue(event.value(), String.class));
+            assertEquals(secondEvent, JSONUtil.readValue(event.value(), String.class));
         }
     }
 
@@ -164,14 +164,14 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         // Consume the first event
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Event event = firstConsumer.consume(tr);
-            assertEquals(firstEvent, JSONUtils.readValue(event.value(), String.class));
+            assertEquals(firstEvent, JSONUtil.readValue(event.value(), String.class));
         }
 
         Consumer secondConsumer = new Consumer(context, config);
         secondConsumer.start();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Event event = secondConsumer.consume(tr);
-            assertEquals(firstEvent, JSONUtils.readValue(event.value(), String.class));
+            assertEquals(firstEvent, JSONUtil.readValue(event.value(), String.class));
         }
     }
 

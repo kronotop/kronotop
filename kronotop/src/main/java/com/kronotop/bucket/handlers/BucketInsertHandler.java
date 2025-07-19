@@ -18,7 +18,7 @@ import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.internal.TransactionUtils;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -55,9 +55,9 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
     private Document parseDocument(InputType inputType, byte[] data) {
         if (inputType.equals(InputType.JSON)) {
-            return BSONUtils.fromJson(data);
+            return BSONUtil.fromJson(data);
         } else if (inputType.equals(InputType.BSON)) {
-            return BSONUtils.fromBson(data);
+            return BSONUtil.fromBson(data);
         } else {
             throw new KronotopException("Invalid input type: " + inputType);
         }
@@ -86,7 +86,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             if (inputType.equals(InputType.BSON)) {
                 entries[index] = ByteBuffer.wrap(data);
             } else {
-                entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
+                entries[index] = ByteBuffer.wrap(BSONUtil.toBytes(document));
             }
         }
         return new EntriesPack(entries, documents);
@@ -130,7 +130,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                 Versionstamp[] versionstamps = postCommitHook.getVersionstamps();
                 List<RedisMessage> children = new ArrayList<>();
                 for (Versionstamp versionstamp : versionstamps) {
-                    children.add(new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(versionstamp)));
+                    children.add(new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(versionstamp)));
                 }
                 tr.close();
                 return children;

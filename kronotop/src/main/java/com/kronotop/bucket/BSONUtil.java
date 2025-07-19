@@ -32,7 +32,7 @@ import java.nio.ByteBuffer;
  * This class uses a static {@code DocumentCodec} instance to encode and decode BSON {@code Document} objects.
  * It operates with the BSON binary serialization format for efficient storage and transmission.
  */
-public class BSONUtils {
+public class BSONUtil {
 
     private static final Codec<Document> DOCUMENT_CODEC = new DocumentCodec();
 
@@ -94,6 +94,6 @@ public class BSONUtils {
      * @return a byte array representing the serialized BSON document
      */
     public static byte[] jsonToDocumentThenBytes(String data) {
-        return BSONUtils.toBytes(Document.parse(data));
+        return BSONUtil.toBytes(Document.parse(data));
     }
 }
