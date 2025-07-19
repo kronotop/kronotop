@@ -13,6 +13,7 @@ package com.kronotop.commandbuilder.kronotop;
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.output.GenericMapOutput;
+import io.lettuce.core.output.StatusOutput;
 import io.lettuce.core.output.StringListOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
@@ -82,11 +83,17 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return new Command<>(HELLO, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
+    public final Command<K, V, String> createIndex(String bucket, String definitions) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(definitions);
+        return createCommand(CommandType.BUCKET_CREATE_INDEX, new StatusOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         BUCKET_INSERT("BUCKET.INSERT"),
         BUCKET_QUERY("BUCKET.QUERY"),
         QUERY("QUERY"),
-        BUCKET_ADVANCE("BUCKET.ADVANCE");
+        BUCKET_ADVANCE("BUCKET.ADVANCE"),
+        BUCKET_CREATE_INDEX("BUCKET.CREATE-INDEX");
 
         public final byte[] bytes;
 
