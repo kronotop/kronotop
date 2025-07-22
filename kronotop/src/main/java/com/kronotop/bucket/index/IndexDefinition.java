@@ -18,6 +18,6 @@ public record IndexDefinition(String name, String field, SortOrder sortOrder, Bs
     @Override
     @Nonnull
     public String toString() {
-        return "IndexDefinition { name=" + name + ", field=" + field + ", type=" + bsonType + ", sortOrder=" + sortOrder + " }";
+        return "IndexDefinition { name=" + name + ", field=" + field + ", bsonType=" + bsonType + ", sortOrder=" + sortOrder + " }";
     }
 }
