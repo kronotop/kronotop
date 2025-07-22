@@ -12,6 +12,8 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketCreateIndexMessage;
+import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexNameGenerator;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -38,8 +40,13 @@ public class BucketCreateIndexHandler extends BaseBucketHandler implements Handl
     public void execute(Request request, Response response) throws Exception {
         BucketCreateIndexMessage message = request.attr(MessageTypes.BUCKETCREATEINDEX).get();
         for (Map.Entry<String, BucketCreateIndexMessage.IndexDefinition> entry : message.getDefinitions().entrySet()) {
-            System.out.println(entry.getValue().getType());
-            System.out.println(entry.getValue().getSortOrder());
+            BucketCreateIndexMessage.IndexDefinition definition = entry.getValue();
+            String name = definition.getName();
+            if (name == null) {
+                name = IndexNameGenerator.generate(entry.getKey(), definition);
+            }
+            IndexDefinition indexDefinition = new IndexDefinition(name, entry.getKey(), definition.getSortOrder(), definition.getType());
+            System.out.println(indexDefinition);
         }
         response.writeOK();
     }
