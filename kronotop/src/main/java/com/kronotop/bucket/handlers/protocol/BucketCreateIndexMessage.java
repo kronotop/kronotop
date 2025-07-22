@@ -90,12 +90,7 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
 
         public IndexDefinition() {
         }
-
-        public IndexDefinition(BsonType type, SortOrder sortOrder) {
-            this.type = type;
-            this.sortOrder = sortOrder;
-        }
-
+        
         public SortOrder getSortOrder() {
             return sortOrder;
         }
