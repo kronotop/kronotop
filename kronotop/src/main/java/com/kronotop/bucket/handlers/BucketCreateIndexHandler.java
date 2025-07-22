@@ -37,7 +37,6 @@ public class BucketCreateIndexHandler extends BaseBucketHandler implements Handl
     @Override
     public void execute(Request request, Response response) throws Exception {
         BucketCreateIndexMessage message = request.attr(MessageTypes.BUCKETCREATEINDEX).get();
-        System.out.println(message.getDefinitions());
         for (Map.Entry<String, BucketCreateIndexMessage.IndexDefinition> entry : message.getDefinitions().entrySet()) {
             System.out.println(entry.getValue().getType());
             System.out.println(entry.getValue().getSortOrder());
