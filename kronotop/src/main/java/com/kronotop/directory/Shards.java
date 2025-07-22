@@ -18,8 +18,16 @@ package com.kronotop.directory;
 
 import java.util.List;
 
+/**
+ * Represents the Shards directory node in the Kronotop directory structure.
+ * This class provides access to Redis and Bucket directory nodes under the "shards"
+ * path of the directory layout.
+ * <p>
+ * The class extends KronotopDirectoryNode, inheriting basic operations such as
+ * extending the directory path and converting the layout to an immutable list.
+ * Upon instantiation, this class appends the "shards" identifier to the directory layout.
+ */
 public class Shards extends KronotopDirectoryNode {
-
     public Shards(List<String> layout) {
         super(layout);
         layout.add("shards");
@@ -31,35 +39,5 @@ public class Shards extends KronotopDirectoryNode {
 
     public Bucket bucket() {
         return new Bucket(layout);
-    }
-
-    public static class Redis extends Common {
-        public Redis(List<String> layout) {
-            super(layout, "redis");
-        }
-    }
-
-    public static class Bucket extends Common {
-        public Bucket(List<String> layout) {
-            super(layout, "bucket");
-        }
-    }
-
-    static class Common extends KronotopDirectoryNode {
-        public Common(List<String> layout, String name) {
-            super(layout);
-            layout.add(name);
-        }
-
-        public Shard shard(int shardId) {
-            return new Shard(layout, shardId);
-        }
-
-        public static class Shard extends KronotopDirectoryNode {
-            public Shard(List<String> layout, int shardId) {
-                super(layout);
-                layout.add(Integer.toString(shardId));
-            }
-        }
     }
 }
