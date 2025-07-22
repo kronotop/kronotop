@@ -14,6 +14,6 @@ import com.kronotop.bucket.handlers.protocol.BucketCreateIndexMessage;
 
 public class IndexNameGenerator {
     public static String generate(String field, BucketCreateIndexMessage.IndexDefinition definition) {
-        return String.format("field:%s.bsonType:%s.sortOrder:%s", field, definition.getType(), definition.getSortOrder());
+        return String.format("field:%s.bsonType:%s.sortOrder:%s", field, definition.getBsonType(), definition.getSortOrder());
     }
 }

@@ -45,7 +45,7 @@ public class BucketCreateIndexHandler extends BaseBucketHandler implements Handl
             if (name == null) {
                 name = IndexNameGenerator.generate(entry.getKey(), definition);
             }
-            IndexDefinition indexDefinition = new IndexDefinition(name, entry.getKey(), definition.getSortOrder(), definition.getType());
+            IndexDefinition indexDefinition = new IndexDefinition(name, entry.getKey(), definition.getSortOrder(), definition.getBsonType());
             System.out.println(indexDefinition);
         }
         response.writeOK();

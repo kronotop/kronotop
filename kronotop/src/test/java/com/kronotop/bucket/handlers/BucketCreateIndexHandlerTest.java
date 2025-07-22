@@ -29,7 +29,7 @@ class BucketCreateIndexHandlerTest extends BaseBucketHandlerTest {
     void shouldCreateIndexWithMultipleFields() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"field\": {\"type\": \"int32\", \"sort_order\": \"asc\"}, \"username\": {\"type\": \"string\", \"sort_order\": \"desc\"}}").encode(buf);
+        cmd.createIndex(BUCKET_NAME, "{\"field\": {\"bson_type\": \"int32\", \"sort_order\": \"asc\"}, \"username\": {\"bson_type\": \"string\", \"sort_order\": \"desc\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -40,7 +40,7 @@ class BucketCreateIndexHandlerTest extends BaseBucketHandlerTest {
     void invalidTypeShouldReturnError() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"field\": {\"type\": \"int322\", \"sort_order\": \"asc\"}}").encode(buf);
+        cmd.createIndex(BUCKET_NAME, "{\"field\": {\"bson_type\": \"int322\", \"sort_order\": \"asc\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -51,7 +51,7 @@ class BucketCreateIndexHandlerTest extends BaseBucketHandlerTest {
     void invalidSortOrderShouldReturnError() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"field\": {\"type\": \"int32\", \"sort_order\": \"bsc\"}}").encode(buf);
+        cmd.createIndex(BUCKET_NAME, "{\"field\": {\"bson_type\": \"int32\", \"sort_order\": \"bsc\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -60,7 +60,7 @@ class BucketCreateIndexHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldCreateIndexForValidTypes() {
-        String template = "{\"field\": {\"type\": \"%s\", \"sort_order\": \"asc\"}}";
+        String template = "{\"field\": {\"bson_type\": \"%s\", \"sort_order\": \"asc\"}}";
         List<String> validTypes = List.of("int32", "string", "double", "binary", "boolean", "datetime", "timestamp", "int64", "decimal128");
         for (String validType : validTypes) {
             BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
@@ -79,7 +79,7 @@ class BucketCreateIndexHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldCreateIndexForValidSortOrder() {
-        String template = "{\"field\": {\"type\": \"int32\", \"sort_order\": \"%s\"}}";
+        String template = "{\"field\": {\"bson_type\": \"int32\", \"sort_order\": \"%s\"}}";
         List<String> validSortOrderKinds = List.of("asc", "desc", "ascending", "descending");
         for (String validSortOrderKind : validSortOrderKinds) {
             BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);

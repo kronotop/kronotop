@@ -83,8 +83,9 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
     public static class IndexDefinition {
         private String name;
 
+        @JsonProperty("bson_type")
         @JsonDeserialize(using = BsonTypeDeserializer.class)
-        private BsonType type;
+        private BsonType bsonType;
 
         @JsonProperty("sort_order")
         @JsonDeserialize(using = SortOrderDeserializer.class)
@@ -101,12 +102,12 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
             this.sortOrder = sortOrder;
         }
 
-        public BsonType getType() {
-            return type;
+        public BsonType getBsonType() {
+            return bsonType;
         }
 
-        public void setType(BsonType type) {
-            this.type = type;
+        public void setBsonType(BsonType bsonType) {
+            this.bsonType = bsonType;
         }
 
         public String getName() {
