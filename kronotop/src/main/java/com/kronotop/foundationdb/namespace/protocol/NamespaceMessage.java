@@ -17,6 +17,7 @@
 
 package com.kronotop.foundationdb.namespace.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
@@ -44,29 +45,23 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         parse();
     }
 
-    private String readFromByteBuf(ByteBuf buf) {
-        byte[] rawItem = new byte[buf.readableBytes()];
-        buf.readBytes(rawItem);
-        return new String(rawItem);
-    }
-
     private void parseCreateCommand() {
         createMessage = new CreateMessage();
         ListIterator<ByteBuf> iterator = request.getParams().listIterator(1);
         while (iterator.hasNext()) {
             ByteBuf rawItem = iterator.next();
-            String item = readFromByteBuf(rawItem);
+            String item = ProtocolMessageUtil.readAsString(rawItem);
 
             if (item.equalsIgnoreCase(CreateMessage.LAYER_PARAMETER)) {
                 ByteBuf rawLayer = iterator.next();
-                String layer = readFromByteBuf(rawLayer);
+                String layer = ProtocolMessageUtil.readAsString(rawLayer);
                 createMessage.setLayer(layer);
                 continue;
             }
 
             if (item.equalsIgnoreCase(CreateMessage.PREFIX_PARAMETER)) {
                 ByteBuf rawPrefix = iterator.next();
-                String prefix = readFromByteBuf(rawPrefix);
+                String prefix = ProtocolMessageUtil.readAsString(rawPrefix);
                 createMessage.setPrefix(prefix);
                 continue;
             }
@@ -94,7 +89,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         ListIterator<ByteBuf> iterator = request.getParams().listIterator(1);
         while (iterator.hasNext()) {
             ByteBuf rawItem = iterator.next();
-            String item = readFromByteBuf(rawItem);
+            String item = ProtocolMessageUtil.readAsString(rawItem);
             for (String sb : item.split("\\.")) {
                 listMessage.addToSubpath(sb);
             }
@@ -108,13 +103,13 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
 
         moveMessage = new MoveMessage();
         ByteBuf oldPath = request.getParams().get(1);
-        String oldPathStr = readFromByteBuf(oldPath);
+        String oldPathStr = ProtocolMessageUtil.readAsString(oldPath);
         for (String sb : oldPathStr.split("\\.")) {
             moveMessage.addToOldPath(sb);
         }
 
         ByteBuf newPath = request.getParams().get(2);
-        String newPathStr = readFromByteBuf(newPath);
+        String newPathStr = ProtocolMessageUtil.readAsString(newPath);
         for (String sb : newPathStr.split("\\.")) {
             moveMessage.addToNewPath(sb);
         }
@@ -127,7 +122,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
 
         removeMessage = new RemoveMessage();
         ByteBuf path = request.getParams().get(1);
-        String pathStr = readFromByteBuf(path);
+        String pathStr = ProtocolMessageUtil.readAsString(path);
         for (String sb : pathStr.split("\\.")) {
             removeMessage.addToPath(sb);
         }
@@ -140,7 +135,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
 
         existsMessage = new ExistsMessage();
         ByteBuf path = request.getParams().get(1);
-        String pathStr = readFromByteBuf(path);
+        String pathStr = ProtocolMessageUtil.readAsString(path);
         for (String sb : pathStr.split("\\.")) {
             existsMessage.addToPath(sb);
         }
@@ -153,18 +148,18 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
 
         useMessage = new UseMessage();
         ByteBuf path = request.getParams().get(1);
-        String pathStr = readFromByteBuf(path);
+        String pathStr = ProtocolMessageUtil.readAsString(path);
         for (String sb : pathStr.split("\\.")) {
             useMessage.addToPath(sb);
         }
     }
 
     private void parse() {
-        byte[] rawSubcommand = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawSubcommand);
+        byte[] rawSubcommand = new byte[request.getParams().getFirst().readableBytes()];
+        request.getParams().getFirst().readBytes(rawSubcommand);
 
         String preSubcommand = new String(rawSubcommand).trim().toUpperCase();
-        if (preSubcommand.isEmpty() || preSubcommand.isBlank()) {
+        if (preSubcommand.isBlank()) {
             throw new IllegalArgumentException("invalid subcommand given");
         }
 
