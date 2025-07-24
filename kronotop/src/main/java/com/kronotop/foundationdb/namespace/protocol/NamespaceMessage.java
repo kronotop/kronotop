@@ -51,7 +51,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
     private void validateSubpath(List<String> subpath) {
         for (String item : subpath) {
             if (item.equals(Namespace.INTERNAL_LEAF)) {
-                throw new KronotopException("namespace hierarchy cannot contain '" + Namespace.INTERNAL_LEAF + "'");
+                throw new KronotopException("Namespace '"+ String.join(".", subpath) + "' is reserved for internal use");
             }
         }
     }

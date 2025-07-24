@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BucketPrefix;
 import com.kronotop.bucket.BucketSubspace;
+import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
@@ -35,7 +36,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -53,6 +56,59 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
         assertEquals(Response.OK, actualMessage.content());
+    }
+
+    @Test
+    void internalNamespaceShouldNotBeAccessible() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        String namespace = "name." + Namespace.INTERNAL_LEAF;
+
+        Map<String, ByteBuf> commands = new HashMap<>();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespace, null).encode(buf);
+            commands.put("NAMESPACE CREATE", buf);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceExists(namespace).encode(buf);
+            commands.put("NAMESPACE EXISTS", buf);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceList(namespace).encode(buf);
+            commands.put("NAMESPACE LIST", buf);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceMove(namespace, "new-namespace").encode(buf);
+            commands.put("NAMESPACE LIST - old namespace has __internal__", buf);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceMove("name", namespace).encode(buf);
+            commands.put("NAMESPACE LIST - new namespace has __internal__", buf);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceRemove(namespace).encode(buf);
+            commands.put("NAMESPACE REMOVE", buf);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceUse(namespace).encode(buf);
+            commands.put("NAMESPACE USE", buf);
+        }
+
+        for (Map.Entry<String, ByteBuf> entry : commands.entrySet()) {
+            EmbeddedChannel channel = getChannel();
+            Object response = runCommand(channel, entry.getValue());
+            if (response instanceof ErrorRedisMessage actualMessage) {
+                assertEquals(String.format("ERR Namespace '%s' is reserved for internal use", "name.__internal__"), actualMessage.content());
+            } else {
+                fail(String.format("Unexpected response: %s - %s", entry.getKey(), response));
+            }
+        }
     }
 
     @Test
