@@ -34,7 +34,7 @@ class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
             NamespaceMessage.ExistsMessage existsMessage = message.getExistsMessage();
-            return NamespaceUtils.exists(context, existsMessage.getPath());
+            return NamespaceUtils.exists(context, existsMessage.getSubpath());
         }, (exists) -> {
             if (exists) {
                 response.writeInteger(1);

@@ -17,6 +17,9 @@
 
 package com.kronotop.foundationdb.namespace.protocol;
 
+import com.kronotop.KronotopException;
+import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.foundationdb.namespace.NamespaceHandler;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
@@ -43,6 +46,14 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
     public NamespaceMessage(Request request) {
         this.request = request;
         parse();
+    }
+
+    private void validateSubpath(List<String> subpath) {
+        for (String item : subpath) {
+            if (item.equals(Namespace.INTERNAL_LEAF)) {
+                throw new KronotopException("namespace hierarchy cannot contain '" + Namespace.INTERNAL_LEAF + "'");
+            }
+        }
     }
 
     private void parseCreateCommand() {
@@ -75,6 +86,8 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
             for (String sb : item.split("\\.")) {
                 createMessage.addToSubpath(sb);
             }
+
+            validateSubpath(createMessage.subpath);
         }
 
         if (createMessage.getSubpath().isEmpty()) {
@@ -94,6 +107,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
                 listMessage.addToSubpath(sb);
             }
         }
+        validateSubpath(listMessage.subpath);
     }
 
     private void parseMoveCommand() {
@@ -113,6 +127,8 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         for (String sb : newPathStr.split("\\.")) {
             moveMessage.addToNewPath(sb);
         }
+        validateSubpath(moveMessage.oldPath);
+        validateSubpath(moveMessage.newPath);
     }
 
     private void parseRemoveCommand() {
@@ -126,6 +142,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         for (String sb : pathStr.split("\\.")) {
             removeMessage.addToPath(sb);
         }
+        validateSubpath(removeMessage.subpath);
     }
 
     private void parseExistsCommand() {
@@ -139,6 +156,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         for (String sb : pathStr.split("\\.")) {
             existsMessage.addToPath(sb);
         }
+        validateSubpath(existsMessage.subpath);
     }
 
     private void parseUseCommand() {
@@ -152,6 +170,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         for (String sb : pathStr.split("\\.")) {
             useMessage.addToPath(sb);
         }
+        validateSubpath(useMessage.subpath);
     }
 
     private void parse() {
@@ -233,26 +252,26 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
     }
 
     public static class UseMessage {
-        private final List<String> path = new ArrayList<>();
+        private final List<String> subpath = new ArrayList<>();
 
         private void addToPath(String item) {
-            path.add(item);
+            subpath.add(item);
         }
 
-        public List<String> getPath() {
-            return path;
+        public List<String> getSubpath() {
+            return subpath;
         }
     }
 
     public static class ExistsMessage {
-        private final List<String> path = new ArrayList<>();
+        private final List<String> subpath = new ArrayList<>();
 
         private void addToPath(String item) {
-            path.add(item);
+            subpath.add(item);
         }
 
-        public List<String> getPath() {
-            return path;
+        public List<String> getSubpath() {
+            return subpath;
         }
     }
 

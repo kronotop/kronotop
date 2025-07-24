@@ -28,6 +28,7 @@ import javax.annotation.Nonnull;
  * of related subspaces that can be used for organizing data storage.
  */
 public class Namespace {
+    public static String INTERNAL_LEAF = "__internal__";
     private final String name;
     private final Subspace zmapSubspace;
     private final Subspace bucketSubspace;

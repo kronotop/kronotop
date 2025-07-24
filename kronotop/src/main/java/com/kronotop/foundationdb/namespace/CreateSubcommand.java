@@ -16,19 +16,20 @@
 
 package com.kronotop.foundationdb.namespace;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
+import com.kronotop.DataStructureKind;
 import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 
@@ -38,32 +39,60 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
         super(context);
     }
 
+    private void createNamespace(NamespaceMessage message) {
+        // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<String> namespaceSubpath = getNamespaceSubpath(message.getCreateMessage().getSubpath());
+            try {
+                if (message.getCreateMessage().hasLayer() && message.getCreateMessage().hasPrefix()) {
+                    directoryLayer.create(tr,
+                            namespaceSubpath,
+                            message.getCreateMessage().getLayer().getBytes(),
+                            message.getCreateMessage().getPrefix().getBytes()
+                    ).join();
+                } else if (message.getCreateMessage().hasLayer()) {
+                    directoryLayer.create(tr,
+                            namespaceSubpath,
+                            message.getCreateMessage().getLayer().getBytes()
+                    ).join();
+                } else {
+                    directoryLayer.create(tr, namespaceSubpath).join();
+                }
+
+                for (DataStructureKind kind : DataStructureKind.values()) {
+                    List<String> dataStructureSubpath = new ArrayList<>(namespaceSubpath);
+                    dataStructureSubpath.add(Namespace.INTERNAL_LEAF);
+                    dataStructureSubpath.add(kind.name().toLowerCase());
+                    directoryLayer.create(tr, dataStructureSubpath).join();
+                }
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof DirectoryAlreadyExistsException) {
+                    throw new NamespaceAlreadyExistsException(dottedNamespace(message.getCreateMessage().getSubpath()));
+                }
+                throw new KronotopException(e.getCause());
+            }
+
+            try {
+                tr.commit().join();
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof FDBException ex) {
+                    // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                    if (ex.getCode() == 1020) {
+                        // retry
+                        createNamespace(message);
+                        return;
+                    }
+                }
+                throw new KronotopException(e.getCause());
+            }
+        }
+    }
+
     public void execute(Request request, Response response) {
         AsyncCommandExecutor.runAsync(context, response, () -> {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
-
             // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<DirectorySubspace> createFuture;
-                List<String> subpath = getNamespaceSubpath(message.getCreateMessage().getSubpath());
-                if (message.getCreateMessage().hasLayer() && message.getCreateMessage().hasPrefix()) {
-                    createFuture = directoryLayer.create(tr, subpath, message.getCreateMessage().getLayer().getBytes(), message.getCreateMessage().getPrefix().getBytes());
-                } else if (message.getCreateMessage().hasLayer()) {
-                    createFuture = directoryLayer.create(tr, subpath, message.getCreateMessage().getLayer().getBytes());
-                } else {
-                    createFuture = directoryLayer.create(tr, subpath);
-                }
-
-                try {
-                    createFuture.join();
-                    tr.commit().join();
-                } catch (CompletionException e) {
-                    if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                        throw new NamespaceAlreadyExistsException(dottedNamespace(message.getCreateMessage().getSubpath()));
-                    }
-                    throw new KronotopException(e.getCause());
-                }
-            }
+            createNamespace(message);
         }, response::writeOK);
     }
 }

@@ -35,8 +35,8 @@ class UseSubcommand extends BaseSubcommand implements SubcommandExecutor {
         NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
         NamespaceMessage.UseMessage useMessage = message.getUseMessage();
 
-        String namespace = String.join(".", useMessage.getPath());
-        if (!NamespaceUtils.exists(context, useMessage.getPath())) {
+        String namespace = String.join(".", useMessage.getSubpath());
+        if (!NamespaceUtils.exists(context, useMessage.getSubpath())) {
             throw new NoSuchNamespaceException(namespace);
         }
 

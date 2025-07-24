@@ -57,6 +57,9 @@ class ListSubcommand extends BaseSubcommand implements SubcommandExecutor {
                 List<String> result = future.join();
                 List<RedisMessage> children = new ArrayList<>();
                 for (String namespace : result) {
+                    if (namespace.equals(Namespace.INTERNAL_LEAF)) {
+                        continue;
+                    }
                     children.add(new SimpleStringRedisMessage(namespace));
                 }
                 return children;
