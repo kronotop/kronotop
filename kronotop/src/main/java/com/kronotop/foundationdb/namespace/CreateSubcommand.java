@@ -44,21 +44,7 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             List<String> namespaceSubpath = getNamespaceSubpath(message.getCreateMessage().getSubpath());
             try {
-                if (message.getCreateMessage().hasLayer() && message.getCreateMessage().hasPrefix()) {
-                    directoryLayer.create(tr,
-                            namespaceSubpath,
-                            message.getCreateMessage().getLayer().getBytes(),
-                            message.getCreateMessage().getPrefix().getBytes()
-                    ).join();
-                } else if (message.getCreateMessage().hasLayer()) {
-                    directoryLayer.create(tr,
-                            namespaceSubpath,
-                            message.getCreateMessage().getLayer().getBytes()
-                    ).join();
-                } else {
-                    directoryLayer.create(tr, namespaceSubpath).join();
-                }
-
+                directoryLayer.create(tr, namespaceSubpath).join();
                 for (DataStructureKind kind : DataStructureKind.values()) {
                     List<String> dataStructureSubpath = new ArrayList<>(namespaceSubpath);
                     dataStructureSubpath.add(Namespace.INTERNAL_LEAF);

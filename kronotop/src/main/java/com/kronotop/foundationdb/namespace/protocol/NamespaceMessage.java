@@ -19,7 +19,6 @@ package com.kronotop.foundationdb.namespace.protocol;
 
 import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.namespace.Namespace;
-import com.kronotop.foundationdb.namespace.NamespaceHandler;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
@@ -51,7 +50,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
     private void validateSubpath(List<String> subpath) {
         for (String item : subpath) {
             if (item.equals(Namespace.INTERNAL_LEAF)) {
-                throw new KronotopException("Namespace '"+ String.join(".", subpath) + "' is reserved for internal use");
+                throw new KronotopException("Namespace '" + String.join(".", subpath) + "' is reserved for internal use");
             }
         }
     }
@@ -62,20 +61,6 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         while (iterator.hasNext()) {
             ByteBuf rawItem = iterator.next();
             String item = ProtocolMessageUtil.readAsString(rawItem);
-
-            if (item.equalsIgnoreCase(CreateMessage.LAYER_PARAMETER)) {
-                ByteBuf rawLayer = iterator.next();
-                String layer = ProtocolMessageUtil.readAsString(rawLayer);
-                createMessage.setLayer(layer);
-                continue;
-            }
-
-            if (item.equalsIgnoreCase(CreateMessage.PREFIX_PARAMETER)) {
-                ByteBuf rawPrefix = iterator.next();
-                String prefix = ProtocolMessageUtil.readAsString(rawPrefix);
-                createMessage.setPrefix(prefix);
-                continue;
-            }
 
             if (!createMessage.getSubpath().isEmpty()) {
                 throw new WrongNumberOfArgumentsException(
@@ -323,41 +308,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
     }
 
     public static class CreateMessage {
-        public static final String LAYER_PARAMETER = "LAYER";
-        public static final String PREFIX_PARAMETER = "PREFIX";
         private final List<String> subpath = new ArrayList<>();
-        private String layer;
-        private String prefix;
-
-        public String getLayer() {
-            return layer;
-        }
-
-        private void setLayer(String layer) {
-            this.layer = layer;
-        }
-
-        public boolean hasLayer() {
-            if (layer == null) {
-                return false;
-            }
-            return !layer.isEmpty();
-        }
-
-        public String getPrefix() {
-            return prefix;
-        }
-
-        private void setPrefix(String prefix) {
-            this.prefix = prefix;
-        }
-
-        public boolean hasPrefix() {
-            if (prefix == null) {
-                return false;
-            }
-            return !prefix.isEmpty();
-        }
 
         private void addToSubpath(String item) {
             subpath.add(item);
