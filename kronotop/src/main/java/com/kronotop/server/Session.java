@@ -18,15 +18,19 @@ package com.kronotop.server;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
+import com.kronotop.DataStructureKind;
 import com.kronotop.KronotopException;
+import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.network.ClientIDGenerator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 
+import javax.naming.Name;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**

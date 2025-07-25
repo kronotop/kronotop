@@ -22,6 +22,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.Context;
+import com.kronotop.DataStructureKind;
 import com.kronotop.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.foundationdb.namespace.Namespace;
