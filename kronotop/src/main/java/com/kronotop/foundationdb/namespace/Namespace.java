@@ -32,7 +32,7 @@ import java.util.Optional;
 public class Namespace {
     public static String INTERNAL_LEAF = "__internal__";
     private final String name;
-    private final Subspace bucketSubspace;
+    private Subspace bucketSubspace;
 
     private DirectorySubspace zmap;
     private DirectorySubspace bucket;
@@ -40,7 +40,7 @@ public class Namespace {
     public Namespace(String name, DirectorySubspace root) {
         // TODO: TBD
         this.name = name;
-        this.bucketSubspace = root.subspace(Tuple.from(SubspaceMagic.BUCKET.getValue()));
+        //this.bucketSubspace = root.subspace(Tuple.from(SubspaceMagic.BUCKET.getValue()));
     }
 
     public Optional<DirectorySubspace> get(DataStructureKind kind) {

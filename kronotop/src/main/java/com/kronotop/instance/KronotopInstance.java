@@ -31,7 +31,9 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.foundationdb.FoundationDBService;
+import com.kronotop.foundationdb.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.internal.FoundationDBFactory;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.internal.ProcessIdGenerator;
 import com.kronotop.internal.ProcessIdGeneratorImpl;
 import com.kronotop.journal.CleanupJournalTask;
@@ -262,8 +264,11 @@ public class KronotopInstance {
             DirectoryLayer.getDefault().createOrOpen(tr, prefixes.toList()).join();
 
             String defaultNamespace = context.getConfig().getString("default_namespace");
-            KronotopDirectoryNode node = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(defaultNamespace);
-            DirectoryLayer.getDefault().createOrOpen(tr, node.toList()).join();
+            try {
+                NamespaceUtil.create(context, defaultNamespace);
+            } catch (NamespaceAlreadyExistsException ignore) {
+            }
+
             tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof FDBException ex) {

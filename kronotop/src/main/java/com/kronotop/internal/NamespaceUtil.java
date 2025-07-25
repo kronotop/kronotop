@@ -18,6 +18,7 @@ package com.kronotop.internal;
 
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
@@ -26,6 +27,7 @@ import com.kronotop.DataStructureKind;
 import com.kronotop.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.foundationdb.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.foundationdb.namespace.NoSuchNamespaceException;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
@@ -140,6 +142,7 @@ public class NamespaceUtil {
             return DirectoryLayer.getDefault().open(tr, subpath).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
+                System.out.println("yok " + subpath);
                 throw new NoSuchNamespaceException(name);
             }
             throw new KronotopException(e.getCause());
@@ -260,6 +263,59 @@ public class NamespaceUtil {
                 }
             }
             throw new KronotopException(e);
+        }
+    }
+
+    private static String dottedNamespace(List<String> items) {
+        return String.join(".", items);
+    }
+
+    private static List<String> getNamespaceSubpath(Context context, List<String> subpath) {
+        return KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                namespaces().
+                namespace(subpath).
+                toList();
+    }
+
+    public static void create(Context context, String  namespace) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            create(context, tr, splitNamespaceHierarchy(namespace));
+        }
+    }
+
+    public static void create(Context context, Transaction tr, List<String> subpath) {
+        List<String> namespaceSubpath = getNamespaceSubpath(context, subpath);
+        try {
+            DirectoryLayer.getDefault().create(tr, namespaceSubpath).join();
+            for (DataStructureKind kind : DataStructureKind.values()) {
+                List<String> dataStructureSubpath = new ArrayList<>(namespaceSubpath);
+                dataStructureSubpath.add(Namespace.INTERNAL_LEAF);
+                dataStructureSubpath.add(kind.name().toLowerCase());
+                DirectoryLayer.getDefault().create(tr, dataStructureSubpath).join();
+            }
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof DirectoryAlreadyExistsException) {
+                throw new NamespaceAlreadyExistsException(dottedNamespace(subpath));
+            }
+            throw new KronotopException(e.getCause());
+        }
+
+        try {
+            tr.commit().join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException ex) {
+                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                if (ex.getCode() == 1020) {
+                    // retry
+                    try (Transaction retryTr = context.getFoundationDB().createTransaction()) {
+                        create(context, retryTr, subpath);
+                    }
+                    return;
+                }
+            }
+            throw new KronotopException(e.getCause());
         }
     }
 }

@@ -27,6 +27,7 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.foundationdb.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.network.Address;
@@ -164,7 +165,10 @@ public class KronotopTestInstance extends KronotopInstance {
         }
 
         String namespace = config.getString("default_namespace");
-        NamespaceUtil.createOrOpen(context, namespace);
+        try {
+            NamespaceUtil.create(context, namespace);
+        } catch (NamespaceAlreadyExistsException ignore) {
+        }
     }
 
     private void authenticateIfRequired() {
@@ -263,7 +267,7 @@ public class KronotopTestInstance extends KronotopInstance {
      * Determines if all shards of the specified kind are in a writable state.
      *
      * @param shardKind the type of shard to check, represented by the {@code ShardKind} enum.
-     * @param shards the total number of shards to examine.
+     * @param shards    the total number of shards to examine.
      * @return {@code true} if all shards are in the writable state; otherwise {@code false}.
      */
     private boolean areAllShardsWritable(ShardKind shardKind, int shards) {
