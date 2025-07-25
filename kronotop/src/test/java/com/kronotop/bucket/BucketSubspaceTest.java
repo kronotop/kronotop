@@ -14,7 +14,7 @@ import com.kronotop.BaseClusterTest;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.foundationdb.namespace.Namespace;
-import com.kronotop.internal.NamespaceUtils;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.volume.Prefix;
 import org.junit.jupiter.api.Test;
 
@@ -28,7 +28,7 @@ class BucketSubspaceTest extends BaseClusterTest {
         Context context = instance.getContext();
 
         String name = "one.two.three";
-        Namespace namespace = NamespaceUtils.createOrOpen(context, name);
+        Namespace namespace = NamespaceUtil.createOrOpen(context, name);
         BucketSubspace subspace = new BucketSubspace(namespace);
 
         String bucket = "bucket-name";
@@ -46,7 +46,7 @@ class BucketSubspaceTest extends BaseClusterTest {
         Context context = instance.getContext();
 
         String name = "one.two.three";
-        Namespace namespace = NamespaceUtils.createOrOpen(context, name);
+        Namespace namespace = NamespaceUtil.createOrOpen(context, name);
         BucketSubspace subspace = new BucketSubspace(namespace);
 
         String bucket = "bucket-name";

@@ -14,7 +14,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.foundationdb.namespace.Namespace;
-import com.kronotop.internal.NamespaceUtils;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.volume.Prefix;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +29,7 @@ class BucketPrefixTest extends BaseClusterTest {
 
     private BucketSubspace createOrOpenBucketSubspace(String name) {
         KronotopTestInstance instance = getInstances().getFirst();
-        Namespace namespace = NamespaceUtils.createOrOpen(instance.getContext(), name);
+        Namespace namespace = NamespaceUtil.createOrOpen(instance.getContext(), name);
         return new BucketSubspace(namespace);
     }
 

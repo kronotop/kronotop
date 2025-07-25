@@ -23,7 +23,6 @@ package com.kronotop.foundationdb.namespace;
  * with a unique byte value that acts as an identifier for the corresponding subspace.
  */
 public enum SubspaceMagic {
-    ZMAP((byte) 0x01),
     BUCKET((byte) 0x02),
     BUCKET_PREFIX((byte) 0x03),
     BUCKET_INDEX((byte) 0x04),

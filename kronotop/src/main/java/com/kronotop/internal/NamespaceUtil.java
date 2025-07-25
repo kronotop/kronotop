@@ -33,12 +33,13 @@ import com.kronotop.server.SessionAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionException;
 
 /**
  * The NamespaceUtils class provides utility methods for manipulating and accessing namespaces.
  */
-public class NamespaceUtils {
+public class NamespaceUtil {
 
     private static List<String> splitNamespaceHierarchy(String name) {
         return new ArrayList<>(List.of(name.split("\\.")));
@@ -131,6 +132,50 @@ public class NamespaceUtils {
         namespace = open(tr, context.getClusterName(), name);
         namespaces.put(name, namespace);
         return namespace;
+    }
+
+    private static DirectorySubspace open2(Transaction tr, String clusterName, String name, List<String> names) {
+        List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).namespaces().namespace(names).toList();
+        try {
+            return DirectoryLayer.getDefault().open(tr, subpath).join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof NoSuchDirectoryException) {
+                throw new NoSuchNamespaceException(name);
+            }
+            throw new KronotopException(e.getCause());
+        }
+    }
+
+    public static DirectorySubspace open(Transaction tr, String clusterName, String name, DataStructureKind kind) {
+        List<String> subpath = splitNamespaceHierarchy(name);
+        subpath.add(Namespace.INTERNAL_LEAF);
+        subpath.add(kind.name().toLowerCase());
+        return open2(tr, clusterName, name, subpath);
+    }
+
+    public static DirectorySubspace openDataStructureSubspace(Context context, Session session, Transaction tr, DataStructureKind kind) {
+        String name = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
+        if (name == null) {
+            throw new IllegalArgumentException("namespace not specified");
+        }
+
+        Map<String, Namespace> namespaces = session.attr(SessionAttributes.OPEN_NAMESPACES).get();
+        Namespace namespace = namespaces.get(name);
+        if (namespace == null) {
+            DirectorySubspace subspace = open(tr, context.getClusterName(), name, kind);
+            namespace = new Namespace(null, null);
+            namespace.set(kind, subspace);
+            namespaces.put(name, namespace);
+            return subspace;
+        }
+
+        Optional<DirectorySubspace> dataStructureSubspace = namespace.get(kind);
+        if (dataStructureSubspace.isEmpty()) {
+            DirectorySubspace subspace = open(tr, context.getClusterName(), name, kind);
+            namespace.set(kind, subspace);
+            return subspace;
+        }
+        return dataStructureSubspace.orElseThrow();
     }
 
     /**

@@ -20,8 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BucketPrefix;
 import com.kronotop.bucket.BucketSubspace;
-import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
-import com.kronotop.internal.NamespaceUtils;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -316,7 +315,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         Prefix prefix;
         {
-            Namespace testNamespace = NamespaceUtils.open(instance.getContext(), List.of("one", "two", "three"));
+            Namespace testNamespace = NamespaceUtil.open(instance.getContext(), List.of("one", "two", "three"));
             BucketSubspace subspace = new BucketSubspace(testNamespace);
             try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
                 prefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, subspace, "test-bucket");

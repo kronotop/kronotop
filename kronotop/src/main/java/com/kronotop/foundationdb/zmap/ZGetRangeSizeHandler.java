@@ -18,12 +18,13 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.AsyncCommandExecutor;
+import com.kronotop.DataStructureKind;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
-import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZGetRangeSizeMessage;
-import com.kronotop.internal.NamespaceUtils;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -59,10 +60,10 @@ public class ZGetRangeSizeHandler extends BaseFoundationDBHandler implements Han
 
             Session session = request.getSession();
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(service.getContext(), session, tr, DataStructureKind.ZMAP);
 
-            byte[] begin = namespace.getZMap().pack(message.getBegin());
-            byte[] end = namespace.getZMap().pack(message.getEnd());
+            byte[] begin = subspace.pack(message.getBegin());
+            byte[] end = subspace.pack(message.getEnd());
             Range range = new Range(begin, end);
             return getEstimatedRangeSizeBytes(tr, range, TransactionUtils.isSnapshotRead(session)).join();
         }, response::writeInteger);

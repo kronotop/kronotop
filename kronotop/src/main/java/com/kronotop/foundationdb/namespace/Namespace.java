@@ -22,6 +22,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.DataStructureKind;
 
 import javax.annotation.Nonnull;
+import java.util.Optional;
 
 /**
  * Represents a Namespace in the system, providing access to specific subspaces
@@ -31,13 +32,29 @@ import javax.annotation.Nonnull;
 public class Namespace {
     public static String INTERNAL_LEAF = "__internal__";
     private final String name;
-    private final Subspace zmapSubspace;
     private final Subspace bucketSubspace;
 
-    public Namespace(@Nonnull String name, @Nonnull DirectorySubspace root) {
+    private DirectorySubspace zmap;
+    private DirectorySubspace bucket;
+
+    public Namespace(String name, DirectorySubspace root) {
+        // TODO: TBD
         this.name = name;
-        this.zmapSubspace = root.subspace(Tuple.from(SubspaceMagic.ZMAP.getValue()));
         this.bucketSubspace = root.subspace(Tuple.from(SubspaceMagic.BUCKET.getValue()));
+    }
+
+    public Optional<DirectorySubspace> get(DataStructureKind kind) {
+        return switch (kind) {
+            case ZMAP -> Optional.ofNullable(zmap);
+            case BUCKET -> Optional.ofNullable(bucket);
+        };
+    }
+
+    public void set(DataStructureKind kind, DirectorySubspace subspace) {
+        switch (kind) {
+            case ZMAP -> zmap = subspace;
+            case BUCKET -> bucket = subspace;
+        }
     }
 
     /**
@@ -47,15 +64,6 @@ public class Namespace {
      */
     public String getName() {
         return name;
-    }
-
-    /**
-     * Returns the Zmap subspace associated with the namespace.
-     *
-     * @return The Zmap subspace.
-     */
-    public Subspace getZMap() {
-        return zmapSubspace;
     }
 
     /**

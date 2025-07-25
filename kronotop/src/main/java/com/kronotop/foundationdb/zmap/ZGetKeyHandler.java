@@ -18,13 +18,14 @@ package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.AsyncCommandExecutor;
+import com.kronotop.DataStructureKind;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
-import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.RangeKeySelector;
 import com.kronotop.foundationdb.zmap.protocol.ZGetKeyMessage;
-import com.kronotop.internal.NamespaceUtils;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -64,15 +65,16 @@ public class ZGetKeyHandler extends BaseFoundationDBHandler implements Handler {
 
             Session session = request.getSession();
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            //Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(service.getContext(), session, tr, DataStructureKind.ZMAP);
 
             KeySelector keySelector = RangeKeySelector.getKeySelector(
                     message.getKeySelector(),
-                    namespace.getZMap().pack(message.getKey())
+                    subspace.pack(message.getKey())
             );
 
             CompletableFuture<byte[]> future = getKey(tr, keySelector, TransactionUtils.isSnapshotRead(session));
-            return new Result(namespace, future.join());
+            return new Result(subspace, future.join());
         }, (result) -> {
             if (result.value() == null) {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
@@ -81,7 +83,7 @@ public class ZGetKeyHandler extends BaseFoundationDBHandler implements Handler {
 
             ByteBuf buf = response.getCtx().alloc().buffer();
             try {
-                buf.writeBytes(result.namespace().getZMap().unpack(result.value()).getBytes(0));
+                buf.writeBytes(result.subspace().unpack(result.value()).getBytes(0));
                 response.write(buf);
             } catch (Exception e) {
                 ReferenceCountUtil.release(buf);
@@ -90,6 +92,6 @@ public class ZGetKeyHandler extends BaseFoundationDBHandler implements Handler {
         });
     }
 
-    record Result(Namespace namespace, byte[] value) {
+    record Result(DirectorySubspace subspace, byte[] value) {
     }
 }

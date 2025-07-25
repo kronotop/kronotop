@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.foundationdb.namespace.Namespace;
-import com.kronotop.internal.NamespaceUtils;
+import com.kronotop.internal.NamespaceUtil;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class PrefixUtilsTest extends BaseStandaloneInstanceTest {
 
     private TestBundle prepareTestBundle() {
-        Namespace namespace = NamespaceUtils.createOrOpen(context, "prefix-utils-test");
+        Namespace namespace = NamespaceUtil.createOrOpen(context, "prefix-utils-test");
         BucketSubspace subspace = new BucketSubspace(namespace);
         byte[] prefixPointer = subspace.getBucketKey("test.bucket");
         Prefix prefix = new Prefix("test-prefix");

@@ -18,7 +18,7 @@ package com.kronotop.foundationdb.namespace;
 
 import com.kronotop.Context;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
-import com.kronotop.internal.NamespaceUtils;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -36,7 +36,7 @@ class UseSubcommand extends BaseSubcommand implements SubcommandExecutor {
         NamespaceMessage.UseMessage useMessage = message.getUseMessage();
 
         String namespace = String.join(".", useMessage.getSubpath());
-        if (!NamespaceUtils.exists(context, useMessage.getSubpath())) {
+        if (!NamespaceUtil.exists(context, useMessage.getSubpath())) {
             throw new NoSuchNamespaceException(namespace);
         }
 

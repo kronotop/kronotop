@@ -13,7 +13,7 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import com.kronotop.foundationdb.namespace.Namespace;
-import com.kronotop.internal.NamespaceUtils;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 
@@ -44,7 +44,7 @@ public class BucketSubspaceUtils {
             return bucketSubspace;
         }
 
-        Namespace namespace = NamespaceUtils.open(tr, context.getClusterName(), name);
+        Namespace namespace = NamespaceUtil.open(tr, context.getClusterName(), name);
         bucketSubspace = new BucketSubspace(namespace);
         bucketSubspaces.put(name, bucketSubspace);
         return bucketSubspace;
