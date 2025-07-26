@@ -48,7 +48,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
     void test_CREATE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.namespaceCreate(namespace, null).encode(buf);
+        cmd.namespaceCreate(namespace).encode(buf);
 
         EmbeddedChannel channel = getChannel();
         Object response = runCommand(channel, buf);
@@ -65,7 +65,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         Map<String, ByteBuf> commands = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(namespace, null).encode(buf);
+            cmd.namespaceCreate(namespace).encode(buf);
             commands.put("NAMESPACE CREATE", buf);
         }
         {
@@ -117,7 +117,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         {
             // Create it
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(namespace, null).encode(buf);
+            cmd.namespaceCreate(namespace).encode(buf);
 
             Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -127,7 +127,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(namespace, null).encode(buf);
+            cmd.namespaceCreate(namespace).encode(buf);
 
             Object response = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, response);
@@ -156,7 +156,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         {
             // Create it
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(namespace, null).encode(buf);
+            cmd.namespaceCreate(namespace).encode(buf);
 
             Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -203,7 +203,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         {
             // Create it
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(subnamespace, null).encode(buf);
+            cmd.namespaceCreate(subnamespace).encode(buf);
 
             Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -267,7 +267,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         {
             // Create it
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(namespace, null).encode(buf);
+            cmd.namespaceCreate(namespace).encode(buf);
 
             Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -305,7 +305,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         {
             // Create it
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(name, null).encode(buf);
+            cmd.namespaceCreate(name).encode(buf);
 
             Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -348,7 +348,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         {
             // Create it
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(namespaceOld, null).encode(buf);
+            cmd.namespaceCreate(namespaceOld).encode(buf);
 
             Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
@@ -384,7 +384,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(namespace, null).encode(buf);
+            cmd.namespaceCreate(namespace).encode(buf);
 
             EmbeddedChannel channel = getChannel();
 
@@ -424,7 +424,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         {
             // Create it
             ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(namespace, null).encode(buf);
+            cmd.namespaceCreate(namespace).encode(buf);
 
             Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);

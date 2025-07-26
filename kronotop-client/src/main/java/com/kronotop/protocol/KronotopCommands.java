@@ -37,8 +37,6 @@ public interface KronotopCommands<K, V> {
 
     String namespaceCreate(K namespace);
 
-    String namespaceCreate(K namespace, NamespaceArgs args);
-
     List<String> namespaceList(K namespace);
 
     List<String> namespaceMove(K oldNamespace, K newNamespace);
@@ -56,10 +54,6 @@ public interface KronotopCommands<K, V> {
     V zget(K key);
 
     String zdel(K key);
-
-    String zdelprefix(byte[] key);
-
-    String zdelprefix(String namespace, ZDelRangeArgs args);
 
     List<Object> zgetrange(ZGetRangeArgs args);
 

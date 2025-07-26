@@ -47,15 +47,11 @@ public interface KronotopAsyncCommands<K, V> {
 
     RedisFuture<String> namespaceCurrent();
 
-    RedisFuture<String> namespaceCreate(K namespace, NamespaceArgs args);
-
     RedisFuture<String> zset(K key, V value);
 
     RedisFuture<V> zget(K key);
 
     RedisFuture<String> zdel(K key);
-
-    RedisFuture<String> zdelprefix(byte[] key);
 
     RedisFuture<String> zdelrange(ZDelRangeArgs args);
 

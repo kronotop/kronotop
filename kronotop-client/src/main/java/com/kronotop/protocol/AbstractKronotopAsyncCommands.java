@@ -61,12 +61,7 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
 
     @Override
     public RedisFuture<String> namespaceCreate(K namespace) {
-        return dispatch(commandBuilder.namespaceCreate(namespace, null));
-    }
-
-    @Override
-    public RedisFuture<String> namespaceCreate(K namespace, NamespaceArgs args) {
-        return dispatch(commandBuilder.namespaceCreate(namespace, args));
+        return dispatch(commandBuilder.namespaceCreate(namespace));
     }
 
     @Override
@@ -112,11 +107,6 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     @Override
     public RedisFuture<String> zdel(K key) {
         return dispatch(commandBuilder.zdel(key));
-    }
-
-    @Override
-    public RedisFuture<String> zdelprefix(byte[] key) {
-        return dispatch(commandBuilder.zdelprefix(key));
     }
 
     @Override

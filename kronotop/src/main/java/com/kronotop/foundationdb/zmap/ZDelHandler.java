@@ -65,7 +65,6 @@ public class ZDelHandler extends BaseFoundationDBHandler implements Handler {
             ZDelMessage message = request.attr(MessageTypes.ZDEL).get();
 
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            //Namespace namespace = NamespaceUtils.open(service.getContext(), request.getSession(), tr);
             DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(service.getContext(), request.getSession(), tr, DataStructureKind.ZMAP);
 
             tr.clear(subspace.pack(message.getKey()));

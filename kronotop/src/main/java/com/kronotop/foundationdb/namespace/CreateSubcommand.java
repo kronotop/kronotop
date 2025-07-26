@@ -26,7 +26,6 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
-
 class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
     private final DirectoryLayer directoryLayer = new DirectoryLayer(true);
 
@@ -39,24 +38,7 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
             // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                NamespaceUtil.create(context, tr, message.getCreateMessage().getSubpath(), (subpath) -> {
-                    if (message.getCreateMessage().hasLayer() && message.getCreateMessage().hasPrefix()) {
-                        directoryLayer.create(
-                                tr,
-                                subpath,
-                                message.getCreateMessage().getLayer().getBytes(),
-                                message.getCreateMessage().getPrefix().getBytes()
-                        ).join();
-                    } else if (message.getCreateMessage().hasLayer()) {
-                        directoryLayer.create(
-                                tr,
-                                subpath,
-                                message.getCreateMessage().getLayer().getBytes()
-                        ).join();
-                    } else {
-                        directoryLayer.create(tr, subpath).join();
-                    }
-                });
+                NamespaceUtil.create(context, tr, message.getCreateMessage().getSubpath());
             }
         }, response::writeOK);
     }

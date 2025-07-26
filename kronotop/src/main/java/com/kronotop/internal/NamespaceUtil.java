@@ -32,10 +32,7 @@ import com.kronotop.foundationdb.namespace.NoSuchNamespaceException;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
@@ -145,7 +142,6 @@ public class NamespaceUtil {
             return DirectoryLayer.getDefault().open(tr, subpath).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
-                System.out.println("yok " + subpath);
                 throw new NoSuchNamespaceException(name);
             }
             throw new KronotopException(e.getCause());
@@ -288,10 +284,10 @@ public class NamespaceUtil {
         }
     }
 
-    public static void create(Context context, Transaction tr, List<String> subpath, Consumer<List<String>> consumer) {
+    public static void create(Context context, Transaction tr, List<String> subpath) {
         List<String> namespaceSubpath = getNamespaceSubpath(context, subpath);
         try {
-            consumer.accept(namespaceSubpath);
+            DirectoryLayer.getDefault().create(tr, namespaceSubpath).join();
             for (DataStructureKind kind : DataStructureKind.values()) {
                 List<String> dataStructureSubpath = new ArrayList<>(namespaceSubpath);
                 dataStructureSubpath.add(Namespace.INTERNAL_LEAF);
@@ -315,16 +311,12 @@ public class NamespaceUtil {
                 if (ex.getCode() == 1020) {
                     // retry
                     try (Transaction retryTr = context.getFoundationDB().createTransaction()) {
-                        create(context, retryTr, subpath, consumer);
+                        create(context, retryTr, subpath);
                     }
                     return;
                 }
             }
             throw new KronotopException(e.getCause());
         }
-    }
-
-    public static void create(Context context, Transaction tr, List<String> subpath) {
-        create(context, tr, subpath, (namespaceSubpath) -> DirectoryLayer.getDefault().create(tr, namespaceSubpath).join());
     }
 }

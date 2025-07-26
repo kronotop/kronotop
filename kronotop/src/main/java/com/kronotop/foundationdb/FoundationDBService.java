@@ -45,7 +45,6 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
         handlerMethod(ServerKind.EXTERNAL, new ZGetHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZDelHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZDelRangeHandler(this));
-        handlerMethod(ServerKind.EXTERNAL, new ZDelPrefixHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZGetRangeHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZGetKeyHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZMutateHandler(this));
