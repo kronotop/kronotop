@@ -60,12 +60,12 @@ public abstract class AbstractShard implements Shard {
     }
 
     @Override
-    public void setOperable(boolean operable) {
-        this.operable = operable;
+    public boolean isOperable() {
+        return operable;
     }
 
     @Override
-    public boolean isOperable() {
-        return operable;
+    public void setOperable(boolean operable) {
+        this.operable = operable;
     }
 }

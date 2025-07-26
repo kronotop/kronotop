@@ -16,7 +16,10 @@
 
 package com.kronotop.protocol;
 
-import com.kronotop.protocol.zmap.*;
+import com.kronotop.protocol.zmap.ZGetKeyArgs;
+import com.kronotop.protocol.zmap.ZGetRangeArgs;
+import com.kronotop.protocol.zmap.ZGetRangeSizeArgs;
+import com.kronotop.protocol.zmap.ZMutateArgs;
 
 import java.util.List;
 

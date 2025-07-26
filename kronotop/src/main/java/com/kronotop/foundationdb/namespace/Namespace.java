@@ -18,10 +18,8 @@ package com.kronotop.foundationdb.namespace;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.DataStructureKind;
 
-import javax.annotation.Nonnull;
 import java.util.Optional;
 
 /**

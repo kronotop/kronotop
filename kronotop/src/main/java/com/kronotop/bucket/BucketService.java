@@ -10,7 +10,9 @@
 
 package com.kronotop.bucket;
 
-import com.kronotop.*;
+import com.kronotop.Context;
+import com.kronotop.KronotopService;
+import com.kronotop.ShardOwnerService;
 import com.kronotop.bucket.handlers.*;
 import com.kronotop.bucket.planner.Planner;
 import com.kronotop.cluster.Route;
@@ -66,7 +68,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
      *
      * @param shardId the unique identifier of the shard to retrieve
      * @return the BucketShard associated with the provided shard ID,
-     *         or null if no shard is found for the given ID
+     * or null if no shard is found for the given ID
      */
     public BucketShard getShard(int shardId) {
         return getServiceContext().shards().get(shardId);
@@ -140,7 +142,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
      * <p>The {@code run} method is executed during routing events, where it performs the following steps:
      * 1. Validates that the shard kind matches {@code BUCKET}.
      * 2. Retrieves the {@code BucketShard} instance associated with the given shard ID using
-     *    {@code getShard(int shardId)}.
+     * {@code getShard(int shardId)}.
      * 3. Sets the shard's operable state to {@code false} using {@code shard.setOperable(boolean operable)}.
      * 4. Removes the shard from the shard selector using {@code shardSelector.remove(BucketShard shard)}.
      *

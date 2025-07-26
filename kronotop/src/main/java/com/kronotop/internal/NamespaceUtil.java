@@ -32,11 +32,11 @@ import com.kronotop.foundationdb.namespace.NoSuchNamespaceException;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 
-import java.util.*;
-import java.util.concurrent.Callable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionException;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
 
 /**
  * The NamespaceUtils class provides utility methods for manipulating and accessing namespaces.
@@ -278,7 +278,7 @@ public class NamespaceUtil {
                 toList();
     }
 
-    public static void create(Context context, String  namespace) {
+    public static void create(Context context, String namespace) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             create(context, tr, splitNamespaceHierarchy(namespace));
         }

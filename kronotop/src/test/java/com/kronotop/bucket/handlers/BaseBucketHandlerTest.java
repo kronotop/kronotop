@@ -92,7 +92,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      * 2. Inserts the provided documents into the bucket.
      * 3. Commits the transaction and retrieves the resulting document identifiers.
      *
-     * @param bucket   The name of the bucket where the documents will be inserted.
+     * @param bucket    The name of the bucket where the documents will be inserted.
      * @param documents A list of documents represented as byte arrays to be inserted into the bucket.
      * @return A list of document identifiers corresponding to the inserted documents.
      */

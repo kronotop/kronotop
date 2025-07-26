@@ -18,8 +18,8 @@ package com.kronotop.server;
 
 import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
 import com.kronotop.bucket.handlers.protocol.BucketCreateIndexMessage;
-import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
+import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.foundationdb.protocol.*;

@@ -48,7 +48,7 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
                     ProtocolMessageUtil.readAsByteArray(request.getParams().get(1)),
                     IndexDefinitions.class
             );
-        }catch (KronotopException e) {
+        } catch (KronotopException e) {
             if (e.getCause() instanceof JsonMappingException jsonException) {
                 if (jsonException.getCause() instanceof IllegalArgumentException illegalArgumentException) {
                     throw new KronotopException(illegalArgumentException);

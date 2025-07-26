@@ -18,7 +18,6 @@ package com.kronotop.server;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.CommitHook;
-import com.kronotop.DataStructureKind;
 import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.foundationdb.namespace.Namespace;

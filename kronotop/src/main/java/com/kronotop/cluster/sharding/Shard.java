@@ -23,7 +23,7 @@ public interface Shard {
 
     ShardKind kind();
 
-    void setOperable(boolean operable);
-
     boolean isOperable();
+
+    void setOperable(boolean operable);
 }
