@@ -155,7 +155,18 @@ public class NamespaceUtil {
         return open2(tr, clusterName, name, subpath);
     }
 
-    public static DirectorySubspace openDataStructureSubspace(Context context, Session session, Transaction tr, DataStructureKind kind) {
+    /**
+     * Opens a specific data structure subspace within the current namespace of the session.
+     * If the namespace or data structure subspace does not exist, it is created and added to the session.
+     *
+     * @param context the Context object representing the operational environment.
+     * @param tr the Transaction object used for operations within the FoundationDB environment.
+     * @param session the Session object containing state and attributes for the current execution context.
+     * @param kind the kind of data structure to open or create.
+     * @return the DirectorySubspace object representing the opened or created data structure subspace.
+     * @throws IllegalArgumentException if the namespace is not specified in the session.
+     */
+    public static DirectorySubspace openDataStructureSubspace(Context context, Transaction tr, Session session, DataStructureKind kind) {
         String name = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
         if (name == null) {
             throw new IllegalArgumentException("namespace not specified");
@@ -278,12 +289,36 @@ public class NamespaceUtil {
                 toList();
     }
 
+    /**
+     * Creates a namespace in the Kronotop environment using the provided context and namespace name.
+     * This method uses a FoundationDB transaction to perform the operation, ensuring transactional
+     * consistency. Internally, it delegates the creation process to another method that works with
+     * the split hierarchical namespace format.
+     *
+     * @param context   the Context object representing the operational context of the Kronotop instance.
+     * @param namespace the name of the namespace to be created in the Kronotop environment.
+     * @throws KronotopException if an unexpected error occurs during the operation.
+     * @throws RuntimeException  if an error occurs that is not specifically handled.
+     */
     public static void create(Context context, String namespace) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             create(context, tr, splitNamespaceHierarchy(namespace));
         }
     }
 
+    /**
+     * Creates a namespace in the Kronotop environment by interacting with the FoundationDB directory layer.
+     * This method creates the primary namespace and initializes internal data structure subpaths within it.
+     * If the specified namespace already exists, an exception is thrown.
+     * The operation is performed using a Transaction object with retry logic in case of conflicts.
+     *
+     * @param context the Context object representing the operational environment of the Kronotop instance.
+     * @param tr the Transaction object used to perform operations within the FoundationDB environment.
+     * @param subpath the list of strings representing the hierarchical namespace path to be created.
+     * @throws NamespaceAlreadyExistsException if the namespace already exists.
+     * @throws KronotopException if an unexpected error occurs during the operation.
+     * @throws RuntimeException if an error occurs that is not specifically handled.
+     */
     public static void create(Context context, Transaction tr, List<String> subpath) {
         List<String> namespaceSubpath = getNamespaceSubpath(context, subpath);
         try {

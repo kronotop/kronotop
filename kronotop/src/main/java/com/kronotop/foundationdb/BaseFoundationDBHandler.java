@@ -38,7 +38,14 @@ public abstract class BaseFoundationDBHandler implements Handler {
         return false;
     }
 
+    /**
+     * Opens a ZMap subspace in the FoundationDB database.
+     *
+     * @param tr       the transaction object for performing operations within the current transaction context
+     * @param session  the session object representing the user session and its associated metadata
+     * @return the DirectorySubspace object representing the ZMap subspace in the database
+     */
     protected DirectorySubspace openZMapSubspace(Transaction tr, Session session) {
-        return NamespaceUtil.openDataStructureSubspace(context, session, tr, DataStructureKind.ZMAP);
+        return NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.ZMAP);
     }
 }
