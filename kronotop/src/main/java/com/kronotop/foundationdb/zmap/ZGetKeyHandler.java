@@ -20,12 +20,10 @@ import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.AsyncCommandExecutor;
-import com.kronotop.DataStructureKind;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.RangeKeySelector;
 import com.kronotop.foundationdb.zmap.protocol.ZGetKeyMessage;
-import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -64,9 +62,8 @@ public class ZGetKeyHandler extends BaseFoundationDBHandler implements Handler {
             ZGetKeyMessage message = request.attr(MessageTypes.ZGETKEY).get();
 
             Session session = request.getSession();
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            //Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
-            DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(service.getContext(), session, tr, DataStructureKind.ZMAP);
+            Transaction tr = TransactionUtils.getOrCreateTransaction(context, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session);
 
             KeySelector keySelector = RangeKeySelector.getKeySelector(
                     message.getKeySelector(),

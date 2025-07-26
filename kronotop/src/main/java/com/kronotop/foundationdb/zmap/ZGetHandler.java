@@ -19,11 +19,9 @@ package com.kronotop.foundationdb.zmap;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.AsyncCommandExecutor;
-import com.kronotop.DataStructureKind;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
 import com.kronotop.foundationdb.zmap.protocol.ZGetMessage;
-import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -61,8 +59,8 @@ public class ZGetHandler extends BaseFoundationDBHandler implements Handler {
             ZGetMessage message = request.attr(MessageTypes.ZGET).get();
             Session session = request.getSession();
 
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(service.getContext(), session, tr, DataStructureKind.ZMAP);
+            Transaction tr = TransactionUtils.getOrCreateTransaction(context, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session);
 
             CompletableFuture<byte[]> future = get(tr, subspace.pack(message.getKey()), TransactionUtils.isSnapshotRead(session));
             return future.join();
