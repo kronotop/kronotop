@@ -18,6 +18,7 @@ package com.kronotop.foundationdb.namespace;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
@@ -47,7 +48,7 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
             // Move namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                directoryLayer.move(tr, oldPath, newPath).join();
+                DirectoryLayer.getDefault().move(tr, oldPath, newPath).join();
                 tr.commit().join();
             } catch (CompletionException e) {
                 if (e.getCause() instanceof NoSuchDirectoryException) {

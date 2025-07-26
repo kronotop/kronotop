@@ -17,6 +17,7 @@
 package com.kronotop.foundationdb.namespace;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
@@ -27,6 +28,7 @@ import com.kronotop.server.Response;
 
 
 class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
+    private final DirectoryLayer directoryLayer = new DirectoryLayer(true);
 
     CreateSubcommand(Context context) {
         super(context);
@@ -37,7 +39,24 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
             // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                NamespaceUtil.create(context, tr, message.getCreateMessage().getSubpath());
+                NamespaceUtil.create(context, tr, message.getCreateMessage().getSubpath(), (subpath) -> {
+                    if (message.getCreateMessage().hasLayer() && message.getCreateMessage().hasPrefix()) {
+                        directoryLayer.create(
+                                tr,
+                                subpath,
+                                message.getCreateMessage().getLayer().getBytes(),
+                                message.getCreateMessage().getPrefix().getBytes()
+                        ).join();
+                    } else if (message.getCreateMessage().hasLayer()) {
+                        directoryLayer.create(
+                                tr,
+                                subpath,
+                                message.getCreateMessage().getLayer().getBytes()
+                        ).join();
+                    } else {
+                        directoryLayer.create(tr, subpath).join();
+                    }
+                });
             }
         }, response::writeOK);
     }

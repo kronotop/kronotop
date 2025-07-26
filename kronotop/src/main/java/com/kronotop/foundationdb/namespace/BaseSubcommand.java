@@ -16,16 +16,13 @@
 
 package com.kronotop.foundationdb.namespace;
 
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.Context;
-import com.kronotop.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 
 import java.util.List;
 
 class BaseSubcommand {
     final Context context;
-    final DirectoryLayer directoryLayer = new DirectoryLayer(true);
 
     BaseSubcommand(Context context) {
         this.context = context;
@@ -38,9 +35,5 @@ class BaseSubcommand {
                 namespaces().
                 namespace(subpath).
                 toList();
-    }
-
-    String dottedNamespace(List<String> items) {
-        return String.join(".", items);
     }
 }

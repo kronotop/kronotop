@@ -36,7 +36,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionException;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 /**
  * The NamespaceUtils class provides utility methods for manipulating and accessing namespaces.
@@ -285,10 +288,10 @@ public class NamespaceUtil {
         }
     }
 
-    public static void create(Context context, Transaction tr, List<String> subpath) {
+    public static void create(Context context, Transaction tr, List<String> subpath, Consumer<List<String>> consumer) {
         List<String> namespaceSubpath = getNamespaceSubpath(context, subpath);
         try {
-            DirectoryLayer.getDefault().create(tr, namespaceSubpath).join();
+            consumer.accept(namespaceSubpath);
             for (DataStructureKind kind : DataStructureKind.values()) {
                 List<String> dataStructureSubpath = new ArrayList<>(namespaceSubpath);
                 dataStructureSubpath.add(Namespace.INTERNAL_LEAF);
@@ -300,6 +303,8 @@ public class NamespaceUtil {
                 throw new NamespaceAlreadyExistsException(dottedNamespace(subpath));
             }
             throw new KronotopException(e.getCause());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
         try {
@@ -310,12 +315,16 @@ public class NamespaceUtil {
                 if (ex.getCode() == 1020) {
                     // retry
                     try (Transaction retryTr = context.getFoundationDB().createTransaction()) {
-                        create(context, retryTr, subpath);
+                        create(context, retryTr, subpath, consumer);
                     }
                     return;
                 }
             }
             throw new KronotopException(e.getCause());
         }
+    }
+
+    public static void create(Context context, Transaction tr, List<String> subpath) {
+        create(context, tr, subpath, (namespaceSubpath) -> DirectoryLayer.getDefault().create(tr, namespaceSubpath).join());
     }
 }
