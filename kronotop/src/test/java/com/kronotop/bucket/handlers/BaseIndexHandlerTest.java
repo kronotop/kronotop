@@ -8,11 +8,13 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
+package com.kronotop.bucket.handlers;
 
-package com.kronotop.bucket.executor;
+import org.junit.jupiter.api.BeforeEach;
 
-import com.kronotop.bucket.index.UnpackedIndex;
-import com.kronotop.volume.EntryMetadata;
-
-public record IndexEntry(UnpackedIndex index, EntryMetadata metadata) {
+public class BaseIndexHandlerTest extends BaseBucketHandlerTest {
+    @BeforeEach
+    void beforeEach() {
+        getBucketMetadata(BUCKET_NAME);
+    }
 }

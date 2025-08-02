@@ -13,30 +13,24 @@ package com.kronotop.bucket.executor;
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.subspace.Subspace;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketPrefix;
-import com.kronotop.bucket.BucketSubspace;
-import com.kronotop.bucket.DefaultIndex;
+import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.bql.values.VersionstampVal;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexBuilder;
-import com.kronotop.bucket.index.UnpackedIndex;
+import com.kronotop.bucket.index.IndexEntry;
+import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.planner.Bound;
 import com.kronotop.bucket.planner.Bounds;
 import com.kronotop.bucket.planner.physical.PhysicalFullScan;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.Prefix;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -55,15 +49,12 @@ import java.util.Objects;
  * from the volume.
  */
 public class PlanExecutor {
-    private static final Logger LOGGER = LoggerFactory.getLogger(PlanExecutor.class);
-    private final Context context;
     private final PlanExecutorConfig config;
-    private final PlanExecutorEnvironment environment;
+    private final PlanExecutorEnvironment env;
 
-    public PlanExecutor(Context context, PlanExecutorConfig config) {
-        this.context = context;
+    public PlanExecutor(PlanExecutorConfig config) {
         this.config = config;
-        this.environment = config.environment();
+        this.env = config.environment();
     }
 
     /**
@@ -80,43 +71,32 @@ public class PlanExecutor {
      * @throws IOException       if an I/O error occurs during the retrieval from the volume
      * @throws KronotopException if an indexed entry cannot be found in the volume
      */
-    private Map<Versionstamp, ByteBuffer> readEntriesFromVolume(Prefix prefix, Map<Integer, IndexEntry> entries) throws IOException {
+    private Map<Versionstamp, ByteBuffer> readEntriesFromVolume(Prefix prefix, Map<Integer, EntryCandidate> entries) throws IOException {
         Map<Versionstamp, ByteBuffer> result = new LinkedHashMap<>();
-        for (Map.Entry<Integer, IndexEntry> entry : entries.entrySet()) {
-            IndexEntry indexEntry = entry.getValue();
-            ByteBuffer buffer = environment.shard().volume().get(prefix, indexEntry.index().versionstamp(), indexEntry.metadata());
+        for (Map.Entry<Integer, EntryCandidate> entry : entries.entrySet()) {
+            EntryCandidate indexEntry = entry.getValue();
+            ByteBuffer buffer = env.shard().volume().get(prefix, indexEntry.versionstamp(), indexEntry.metadata());
             if (buffer == null) {
                 // Kill the query, something went seriously wrong.
                 throw new KronotopException(String.format("Indexed entry could not be found in volume: '%s', Versionstamp: '%s'",
-                        environment.shard().volume().getConfig().name(),
-                        VersionstampUtils.base32HexEncode(indexEntry.index().versionstamp())
+                        env.shard().volume().getConfig().name(),
+                        VersionstampUtil.base32HexEncode(indexEntry.versionstamp())
                 ));
             }
-            result.put(indexEntry.index().versionstamp(), buffer);
+            result.put(indexEntry.versionstamp(), buffer);
         }
         return result;
     }
 
-    /**
-     * Performs a physical full scan operation on the provided bucket subspace using the specified transaction
-     * and prefix. This method determines the appropriate scan approach based on the operator type of
-     * the {@code PhysicalFullScan} object and retrieves matching entries from the index or underlying volume.
-     *
-     * @param tr               the transaction context in which the scan is executed
-     * @param subspace         the bucket subspace containing the index and related metadata
-     * @param prefix           the prefix representing the namespace and shard key space for the scan
-     * @param physicalFullScan the object detailing the full scan operation, including operator type and criteria
-     * @return a map of version stamps to ByteBuffer objects containing the results of the scan
-     * @throws IOException if an I/O error occurs during the scan process
-     */
-    private Map<Versionstamp, ByteBuffer> doPhysicalFullScan(Transaction tr, BucketSubspace subspace, Prefix prefix, PhysicalFullScan physicalFullScan) throws IOException {
+    private Map<Versionstamp, ByteBuffer> doPhysicalFullScan(Transaction tr, PhysicalFullScan physicalFullScan) throws IOException {
         // TODO: Review this
-        Subspace indexSubspace = subspace.getBucketIndexSubspace(environment.shard().id(), prefix);
-        KeySelector begin = KeySelector.firstGreaterOrEqual(indexSubspace.pack(IndexBuilder.beginningOfIndexRange(DefaultIndex.ID)));
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(indexSubspace.pack(IndexBuilder.beginningOfIndexRange(DefaultIndex.ID))));
+        DirectorySubspace indexSubspace = env.metadata().indexes().getSubspace(DefaultIndexDefinition.ID);
+        byte[] b = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(b);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(b));
         IndexRange range = new IndexRange(begin, end);
-        Map<Integer, IndexEntry> entries = getEntriesFromIndex(tr, indexSubspace, range);
-        return readEntriesFromVolume(prefix, entries);
+        Map<Integer, EntryCandidate> entries = getEntriesFromIndex(tr, indexSubspace, range);
+        return readEntriesFromVolume(env.metadata().volumePrefix(), entries);
     }
 
     /**
@@ -129,18 +109,19 @@ public class PlanExecutor {
      * @return a map where the key is an integer ID from the decoded metadata and the value
      * is an {@code IndexEntry} containing the unpacked index and metadata
      */
-    private LinkedHashMap<Integer, IndexEntry> getEntriesFromIndex(Transaction tr, Subspace indexSubspace, IndexRange range) {
-        LinkedHashMap<Integer, IndexEntry> result = new LinkedHashMap<>();
+    private LinkedHashMap<Integer, EntryCandidate> getEntriesFromIndex(Transaction tr, DirectorySubspace indexSubspace, IndexRange range) {
+        LinkedHashMap<Integer, EntryCandidate> result = new LinkedHashMap<>();
         for (KeyValue keyValue : tr.getRange(range.begin(), range.end(), config.limit(), config.reverse())) {
-            UnpackedIndex unpackedIndex = IndexBuilder.unpackIndex(indexSubspace, keyValue.getKey());
-            EntryMetadata metadata = EntryMetadata.decode(ByteBuffer.wrap(keyValue.getValue()));
-            result.put(metadata.id(), new IndexEntry(unpackedIndex, metadata));
+            Tuple keyTuple = indexSubspace.unpack(keyValue.getKey());
+
+            // TODO: ShardId ignored for now
+            IndexEntry indexEntry = IndexEntry.decode(keyValue.getValue());
+            EntryMetadata metadata = EntryMetadata.decode(ByteBuffer.wrap(indexEntry.entryMetadata()));
+
+            Versionstamp key = (Versionstamp) keyTuple.get(1);
+            result.put(metadata.id(), new EntryCandidate(key, metadata));
         }
         return result;
-    }
-
-    private byte[] beginningOfIndexRange(Subspace indexSubspace, Index index) {
-        return indexSubspace.pack(IndexBuilder.beginningOfIndexRange(index));
     }
 
     private Bound getLowerBound(PhysicalIndexScan node) {
@@ -170,11 +151,11 @@ public class PlanExecutor {
      * @return an {@link IndexRange} containing the begin and end key selectors for the
      * index scan operation
      */
-    private IndexRange getIndexRange(PhysicalIndexScan physicalIndexScan, Subspace indexSubspace) {
+    private IndexRange getIndexRange(PhysicalIndexScan physicalIndexScan, DirectorySubspace indexSubspace) {
         KeySelector begin = null;
         Bound lower = getLowerBound(physicalIndexScan);
         if (lower != null) {
-            Tuple tuple = IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()).addObject(lower.bqlValue().value());
+            Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), lower.bqlValue().value());
             byte[] key = indexSubspace.pack(tuple);
             if (lower.type().equals(OperatorType.GT)) {
                 begin = KeySelector.firstGreaterThan(key);
@@ -184,15 +165,15 @@ public class PlanExecutor {
                 begin = KeySelector.firstGreaterOrEqual(key);
             }
         } else {
-            begin = KeySelector.firstGreaterOrEqual(beginningOfIndexRange(indexSubspace, physicalIndexScan.getIndex()));
+            begin = KeySelector.firstGreaterOrEqual(indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue())));
         }
 
         KeySelector end = null;
         Bound upper = getUpperBound(physicalIndexScan);
         if (upper == null) {
-            end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(beginningOfIndexRange(indexSubspace, physicalIndexScan.getIndex())));
+            end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()))));
         } else {
-            Tuple tuple = IndexBuilder.beginningOfIndexRange(physicalIndexScan.getIndex()).addObject(upper.bqlValue().value());
+            Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), upper.bqlValue().value());
             byte[] key = indexSubspace.pack(tuple);
             if (upper.type().equals(OperatorType.LT)) {
                 end = KeySelector.firstGreaterOrEqual(key);
@@ -205,24 +186,12 @@ public class PlanExecutor {
         return new IndexRange(begin, end);
     }
 
-    /**
-     * Executes a physical index scan on the specified subspace, retrieving and reading entries
-     * from the index and the associated volume. This operation identifies an index subspace,
-     * determines an index range, retrieves index entries, and reads the corresponding data from the volume.
-     *
-     * @param tr                the transaction context in which the operation is executed
-     * @param subspace          the bucket subspace containing the bucket index and related metadata
-     * @param prefix            the prefix representing the namespace and shard key space for the operation
-     * @param physicalIndexScan the physical index scan operation containing details of the index to be scanned
-     * @return a map of version stamps to ByteBuffer objects representing the results of the index scan
-     * @throws IOException if an I/O error occurs during processing
-     */
-    private Map<Versionstamp, ByteBuffer> doPhysicalIndexScan(Transaction tr, BucketSubspace subspace, Prefix prefix, PhysicalIndexScan physicalIndexScan) throws IOException {
-        Subspace indexSubspace = subspace.getBucketIndexSubspace(environment.shard().id(), prefix);
+    private Map<Versionstamp, ByteBuffer> doPhysicalIndexScan(Transaction tr, PhysicalIndexScan physicalIndexScan) throws IOException {
+        DirectorySubspace indexSubspace = env.metadata().indexes().getSubspace(physicalIndexScan.getIndex());
         IndexRange range = getIndexRange(physicalIndexScan, indexSubspace);
-        LinkedHashMap<Integer, IndexEntry> entries = getEntriesFromIndex(tr, indexSubspace, range);
+        LinkedHashMap<Integer, EntryCandidate> entries = getEntriesFromIndex(tr, indexSubspace, range);
 
-        Map<Versionstamp, ByteBuffer> result = readEntriesFromVolume(prefix, entries);
+        Map<Versionstamp, ByteBuffer> result = readEntriesFromVolume(env.metadata().volumePrefix(), entries);
 
         if (entries.isEmpty()) {
             return result;
@@ -236,7 +205,7 @@ public class PlanExecutor {
                 operatorType = OperatorType.GT;
             }
             if (Objects.requireNonNull(previousLowerBound.bqlValue()) instanceof VersionstampVal) {
-                Versionstamp versionstamp = entries.lastEntry().getValue().index().versionstamp();
+                Versionstamp versionstamp = entries.lastEntry().getValue().versionstamp();
                 lower = new Bound(operatorType, new VersionstampVal(versionstamp));
             } else {
                 throw new KronotopException("Unsupported index");
@@ -257,13 +226,10 @@ public class PlanExecutor {
      * @throws IOException if an I/O error occurs during execution
      */
     public Map<Versionstamp, ByteBuffer> execute(Transaction tr) throws IOException {
-        Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, environment.subspace(), environment.bucket());
-        PhysicalNode plan = environment.plan();
+        PhysicalNode plan = env.plan();
         return switch (plan) {
-            case PhysicalFullScan physicalFullScan ->
-                    doPhysicalFullScan(tr, environment.subspace(), prefix, physicalFullScan);
-            case PhysicalIndexScan physicalIndexScan ->
-                    doPhysicalIndexScan(tr, environment.subspace(), prefix, physicalIndexScan);
+            case PhysicalFullScan physicalFullScan -> doPhysicalFullScan(tr, physicalFullScan);
+            case PhysicalIndexScan physicalIndexScan -> doPhysicalIndexScan(tr, physicalIndexScan);
             default -> throw new IllegalStateException("Unexpected value: " + plan);
         };
     }

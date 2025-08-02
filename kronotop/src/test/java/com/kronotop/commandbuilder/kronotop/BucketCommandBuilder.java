@@ -12,8 +12,7 @@ package com.kronotop.commandbuilder.kronotop;
 
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.output.GenericMapOutput;
-import io.lettuce.core.output.StringListOutput;
+import io.lettuce.core.output.*;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 import io.lettuce.core.protocol.ProtocolKeyword;
@@ -82,11 +81,37 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return new Command<>(HELLO, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
+    public final Command<K, V, String> createIndex(String bucket, String definitions) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(definitions);
+        return createCommand(CommandType.BUCKET_CREATE_INDEX, new StatusOutput<>(codec), args);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Command<K, V, List<Map<String, Object>>> listIndexes(String bucket) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec);
+        args.add(bucket);
+        return new Command(CommandType.BUCKET_LIST_INDEXES, new ListOfGenericMapsOutput<>(StringCodec.ASCII), args);
+    }
+
+    public Command<String, String, Map<String, Object>> describeIndex(String bucket, String index) {
+        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.UTF8).add(bucket).add(index);
+        return new Command<>(CommandType.BUCKET_DESCRIBE_INDEX, new GenericMapOutput<>(StringCodec.ASCII), args);
+    }
+
+    public Command<K, V, String> dropIndex(String bucket, String index) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(index);
+        return createCommand(CommandType.BUCKET_DROP_INDEX, new StatusOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         BUCKET_INSERT("BUCKET.INSERT"),
         BUCKET_QUERY("BUCKET.QUERY"),
         QUERY("QUERY"),
-        BUCKET_ADVANCE("BUCKET.ADVANCE");
+        BUCKET_ADVANCE("BUCKET.ADVANCE"),
+        BUCKET_CREATE_INDEX("BUCKET.CREATE-INDEX"),
+        BUCKET_LIST_INDEXES("BUCKET.LIST-INDEXES"),
+        BUCKET_DESCRIBE_INDEX("BUCKET.DESCRIBE-INDEX"),
+        BUCKET_DROP_INDEX("BUCKET.DROP-INDEX");
 
         public final byte[] bytes;
 

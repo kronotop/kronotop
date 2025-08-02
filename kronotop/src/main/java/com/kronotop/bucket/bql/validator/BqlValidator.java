@@ -18,7 +18,7 @@ import com.kronotop.bucket.bql.operators.BqlOperator;
 import com.kronotop.bucket.bql.operators.OperatorType;
 import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
 import com.kronotop.bucket.bql.values.BqlValue;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import org.bson.BsonType;
 
 import java.util.List;
@@ -82,7 +82,7 @@ public class BqlValidator {
                 ));
             }
             String value = (String) rawValue.value();
-            if (value.length() != VersionstampUtils.EncodedVersionstampSize) {
+            if (value.length() != VersionstampUtil.EncodedVersionstampSize) {
                 throw new IllegalFieldException(String.format(
                         "Size of '%s' field is invalid: %d",
                         ReservedFieldName.ID.getValue(),

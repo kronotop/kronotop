@@ -17,17 +17,13 @@
 package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
-import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZDelMessage;
-import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.internal.TransactionUtils;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -63,10 +59,11 @@ public class ZDelHandler extends BaseFoundationDBHandler implements Handler {
         AsyncCommandExecutor.runAsync(context, response, () -> {
             ZDelMessage message = request.attr(MessageTypes.ZDEL).get();
 
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            Namespace namespace = NamespaceUtils.open(service.getContext(), request.getSession(), tr);
+            Session session = request.getSession();
+            Transaction tr = TransactionUtils.getOrCreateTransaction(context, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session);
 
-            tr.clear(namespace.getZMap().pack(message.getKey()));
+            tr.clear(subspace.pack(message.getKey()));
             TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
         }, response::writeOK);
     }

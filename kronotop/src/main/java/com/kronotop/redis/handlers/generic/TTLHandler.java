@@ -82,9 +82,9 @@ public class TTLHandler extends BaseGenericHandler implements Handler {
             }
             if (convertMsToSec) {
                 // in seconds
-                return Math.round((container.string().ttl() - service.getCachedTime().currentTimeInMilliseconds()) / 1000.0);
+                return Math.round((container.string().ttl() - service.getCurrentTimeInMilliseconds()) / 1000.0);
             }
-            return container.string().ttl() - service.getCachedTime().currentTimeInMilliseconds();
+            return container.string().ttl() - service.getCurrentTimeInMilliseconds();
         } finally {
             lock.readLock().unlock();
         }

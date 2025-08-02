@@ -10,16 +10,16 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.IndexDefinition;
 
 public class PhysicalIndexScan extends PhysicalScan {
-    private final Index index;
+    private final IndexDefinition index;
 
-    public PhysicalIndexScan(Index index) {
+    public PhysicalIndexScan(IndexDefinition index) {
         this.index = index;
     }
 
-    public Index getIndex() {
+    public IndexDefinition getIndex() {
         return index;
     }
 

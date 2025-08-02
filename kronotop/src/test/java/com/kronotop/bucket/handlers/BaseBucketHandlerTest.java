@@ -11,7 +11,7 @@
 package com.kronotop.bucket.handlers;
 
 import com.kronotop.BaseHandlerTest;
-import com.kronotop.bucket.BSONUtils;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.protocol.CommitArgs;
@@ -38,13 +38,13 @@ import static org.junit.jupiter.api.Assertions.*;
 public class BaseBucketHandlerTest extends BaseHandlerTest {
     protected final String BUCKET_NAME = "test-bucket";
     protected final int SHARD_ID = 1;
-    protected final byte[] DOCUMENT = BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}");
+    protected final byte[] DOCUMENT = BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}");
 
     protected List<byte[]> makeDummyDocument(int number) {
         List<byte[]> result = new ArrayList<>();
         for (int i = 0; i < number; i++) {
             String document = String.format("{\"key\": \"value-%s\"}", i);
-            result.add(BSONUtils.jsonToDocumentThenBytes(document));
+            result.add(BSONUtil.jsonToDocumentThenBytes(document));
         }
         return result;
     }
@@ -92,7 +92,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      * 2. Inserts the provided documents into the bucket.
      * 3. Commits the transaction and retrieves the resulting document identifiers.
      *
-     * @param bucket   The name of the bucket where the documents will be inserted.
+     * @param bucket    The name of the bucket where the documents will be inserted.
      * @param documents A list of documents represented as byte arrays to be inserted into the bucket.
      * @return A list of document identifiers corresponding to the inserted documents.
      */

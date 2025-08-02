@@ -65,7 +65,7 @@ public class RedisService extends ShardOwnerService<RedisShard> implements Krono
     );
     private final int numberOfShards;
     private final List<VolumeSyncWorker> volumeSyncWorkers = new ArrayList<>();
-    private final CachedTime cachedTime = new CachedTime();
+    private final CachedTimeService cachedTime;
 
     public RedisService(Context context) throws CommandAlreadyRegisteredException {
         super(context, NAME);
@@ -75,6 +75,7 @@ public class RedisService extends ShardOwnerService<RedisShard> implements Krono
         this.routing = context.getService(RoutingService.NAME);
         this.membership = context.getService(MembershipService.NAME);
         this.hashSlots = distributeHashSlots();
+        this.cachedTime = context.getService(CachedTimeService.NAME);
 
         handlerMethod(ServerKind.EXTERNAL, new PingHandler());
         handlerMethod(ServerKind.EXTERNAL, new EchoHandler());
@@ -173,8 +174,13 @@ public class RedisService extends ShardOwnerService<RedisShard> implements Krono
         }
     }
 
-    public CachedTime getCachedTime() {
-        return cachedTime;
+    /**
+     * Retrieves the current time in milliseconds from the underlying cached time provider.
+     *
+     * @return the current time in milliseconds as provided by the cached time source
+     */
+    public long getCurrentTimeInMilliseconds() {
+        return cachedTime.getCurrentTimeInMilliseconds();
     }
 
     private void initializeVolumeSyncerWorkers() {
@@ -220,7 +226,6 @@ public class RedisService extends ShardOwnerService<RedisShard> implements Krono
 
         initializeVolumeSyncerWorkers();
 
-        scheduledExecutorService.scheduleAtFixedRate(cachedTime, 0, 1, TimeUnit.MILLISECONDS);
         scheduledExecutorService.scheduleAtFixedRate(new EvictionWorker(context), 0, 100, TimeUnit.MILLISECONDS);
     }
 

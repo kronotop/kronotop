@@ -38,14 +38,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 class Vacuum {
     private static final Logger LOGGER = LoggerFactory.getLogger(Vacuum.class);
     private final Context context;
-    private final VolumeService service;
     private final Volume volume;
     private final VacuumMetadata vacuumMetadata;
     private final AtomicBoolean stop = new AtomicBoolean();
 
     protected Vacuum(@Nonnull Context context, @Nonnull Volume volume, @Nonnull VacuumMetadata vacuumMetadata) {
         this.context = context;
-        this.service = context.getService(VolumeService.NAME);
         this.volume = volume;
         this.vacuumMetadata = vacuumMetadata;
     }

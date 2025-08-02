@@ -10,16 +10,16 @@
 
 package com.kronotop.bucket.executor;
 
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.planner.Bounds;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class Cursor {
-    private final Map<Index, Bounds> bounds = new HashMap<>();
+    private final Map<IndexDefinition, Bounds> bounds = new HashMap<>();
 
-    public Map<Index, Bounds> bounds() {
+    public Map<IndexDefinition, Bounds> bounds() {
         return bounds;
     }
 }

@@ -25,7 +25,7 @@ import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeConfigGenerator;
 import org.slf4j.Logger;
@@ -72,7 +72,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     ReplicationSlot slot = ReplicationSlot.load(tr, replicationConfig, slotId);
                     if (slot.isStale()) {
-                        LOGGER.warn("Replication slot: {} is stale for ShardKind: {} ShardId: {}", VersionstampUtils.base32HexEncode(slotId), shardKind, shardId);
+                        LOGGER.warn("Replication slot: {} is stale for ShardKind: {} ShardId: {}", VersionstampUtil.base32HexEncode(slotId), shardKind, shardId);
                         continue;
                     }
                 }

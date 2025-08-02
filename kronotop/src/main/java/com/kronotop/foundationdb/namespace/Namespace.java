@@ -17,51 +17,27 @@
 package com.kronotop.foundationdb.namespace;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.subspace.Subspace;
-import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.DataStructureKind;
 
-import javax.annotation.Nonnull;
+import java.util.Optional;
 
-/**
- * Represents a Namespace in the system, providing access to specific subspaces
- * within a FoundationDB directory structure. A Namespace is a logical grouping
- * of related subspaces that can be used for organizing data storage.
- */
 public class Namespace {
-    private final String name;
-    private final Subspace zmapSubspace;
-    private final Subspace bucketSubspace;
+    public static String INTERNAL_LEAF = "__internal__";
 
-    public Namespace(@Nonnull String name, @Nonnull DirectorySubspace root) {
-        this.name = name;
-        this.zmapSubspace = root.subspace(Tuple.from(SubspaceMagic.ZMAP.getValue()));
-        this.bucketSubspace = root.subspace(Tuple.from(SubspaceMagic.BUCKET.getValue()));
+    private DirectorySubspace zmap;
+    private DirectorySubspace bucket;
+
+    public Optional<DirectorySubspace> get(DataStructureKind kind) {
+        return switch (kind) {
+            case ZMAP -> Optional.ofNullable(zmap);
+            case BUCKET -> Optional.ofNullable(bucket);
+        };
     }
 
-    /**
-     * Returns the name of the Namespace.
-     *
-     * @return The name of the Namespace.
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * Returns the Zmap subspace associated with the namespace.
-     *
-     * @return The Zmap subspace.
-     */
-    public Subspace getZMap() {
-        return zmapSubspace;
-    }
-
-    /**
-     * Retrieves the bucket subspace associated with this namespace.
-     *
-     * @return The Subspace object representing the bucket subspace.
-     */
-    public Subspace getBucket() {
-        return bucketSubspace;
+    public void set(DataStructureKind kind, DirectorySubspace subspace) {
+        switch (kind) {
+            case ZMAP -> zmap = subspace;
+            case BUCKET -> bucket = subspace;
+        }
     }
 }

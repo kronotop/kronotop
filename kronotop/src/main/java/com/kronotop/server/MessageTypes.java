@@ -16,9 +16,7 @@
 
 package com.kronotop.server;
 
-import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
-import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
-import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
+import com.kronotop.bucket.handlers.protocol.*;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
 import com.kronotop.foundationdb.protocol.*;
@@ -105,7 +103,6 @@ public class MessageTypes {
     public static final AttributeKey<RollbackMessage> ROLLBACK = AttributeKey.valueOf(RollbackMessage.COMMAND);
     public static final AttributeKey<SnapshotReadMessage> SNAPSHOTREAD = AttributeKey.valueOf(SnapshotReadMessage.COMMAND);
     public static final AttributeKey<ZDelMessage> ZDEL = AttributeKey.valueOf(ZDelMessage.COMMAND);
-    public static final AttributeKey<ZDelPrefixMessage> ZDELPREFIX = AttributeKey.valueOf(ZDelPrefixMessage.COMMAND);
     public static final AttributeKey<ZDelRangeMessage> ZDELRANGE = AttributeKey.valueOf(ZDelRangeMessage.COMMAND);
     public static final AttributeKey<ZGetMessage> ZGET = AttributeKey.valueOf(ZGetMessage.COMMAND);
     public static final AttributeKey<ZGetKeyMessage> ZGETKEY = AttributeKey.valueOf(ZGetKeyMessage.COMMAND);
@@ -139,6 +136,10 @@ public class MessageTypes {
     public static final AttributeKey<BucketInsertMessage> BUCKETINSERT = AttributeKey.valueOf(BucketInsertMessage.COMMAND);
     public static final AttributeKey<BucketQueryMessage> BUCKETQUERY = AttributeKey.valueOf(BucketQueryMessage.COMMAND);
     public static final AttributeKey<BucketAdvanceMessage> BUCKETADVANCE = AttributeKey.valueOf(BucketAdvanceMessage.COMMAND);
+    public static final AttributeKey<BucketCreateIndexMessage> BUCKETCREATEINDEX = AttributeKey.valueOf(BucketCreateIndexMessage.COMMAND);
+    public static final AttributeKey<BucketListIndexesMessage> BUCKETLISTINDEXES = AttributeKey.valueOf(BucketListIndexesMessage.COMMAND);
+    public static final AttributeKey<BucketDescribeIndexMessage> BUCKETDESCRIBEINDEX = AttributeKey.valueOf(BucketDescribeIndexMessage.COMMAND);
+    public static final AttributeKey<BucketDropIndexMessage> BUCKETDROPINDEX = AttributeKey.valueOf(BucketDropIndexMessage.COMMAND);
 
     // Session management
     public static final AttributeKey<SessionAttributeMessage> SESSIONATTRIBUTE = AttributeKey.valueOf(SessionAttributeMessage.COMMAND);

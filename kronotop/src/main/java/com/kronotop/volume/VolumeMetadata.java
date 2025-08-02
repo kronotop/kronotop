@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.kronotop.internal.JSONUtils;
+import com.kronotop.internal.JSONUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,7 +42,7 @@ public class VolumeMetadata {
         if (value == null) {
             return new VolumeMetadata();
         }
-        return JSONUtils.readValue(value, VolumeMetadata.class);
+        return JSONUtil.readValue(value, VolumeMetadata.class);
     }
 
     public static VolumeMetadata compute(Transaction tr, DirectorySubspace subspace, Consumer<VolumeMetadata> remappingFunction) {
@@ -52,7 +52,7 @@ public class VolumeMetadata {
         if (value == null) {
             volumeMetadata = new VolumeMetadata();
         } else {
-            volumeMetadata = JSONUtils.readValue(value, VolumeMetadata.class);
+            volumeMetadata = JSONUtil.readValue(value, VolumeMetadata.class);
         }
         remappingFunction.accept(volumeMetadata);
         tr.set(key, volumeMetadata.toByte());
@@ -92,6 +92,6 @@ public class VolumeMetadata {
     }
 
     public byte[] toByte() {
-        return JSONUtils.writeValueAsBytes(this);
+        return JSONUtil.writeValueAsBytes(this);
     }
 }

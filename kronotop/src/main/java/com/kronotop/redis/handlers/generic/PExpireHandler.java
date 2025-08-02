@@ -43,7 +43,7 @@ public class PExpireHandler extends ExpireHandler {
     public void execute(Request request, Response response) {
         PExpireMessage message = request.attr(MessageTypes.PEXPIRE).get();
 
-        long ttl = message.getMilliseconds() + service.getCachedTime().currentTimeInMilliseconds();
+        long ttl = message.getMilliseconds() + service.getCurrentTimeInMilliseconds();
         long result = expireCommon(message.getKey(), ttl, message.getOption());
         response.writeInteger(result);
     }

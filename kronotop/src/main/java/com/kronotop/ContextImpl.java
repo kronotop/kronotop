@@ -17,6 +17,7 @@
 package com.kronotop;
 
 import com.apple.foundationdb.Database;
+import com.kronotop.bucket.BucketMetadataCache;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.client.InternalConnectionPool;
 import com.kronotop.commands.CommandMetadata;
@@ -56,6 +57,13 @@ public class ContextImpl implements Context {
     private final InternalConnectionPool<byte[], byte[]> internalConnectionPool;
     private final String defaultNamespace;
     private final AttributeMap memberAttributes = new DefaultAttributeMap();
+
+    // Shortcut to CachedTimeService, it's used in the hot path for Bucket and Redis commands
+    private volatile CachedTimeService cachedTimeService;
+
+    // Direct field access for minimal overhead on the hot path.
+    // Initialized only once to avoid runtime lookup and casting costs.
+    private BucketMetadataCache bucketMetadataCache;
 
     public ContextImpl(Config config, Member member, Database database) {
         if (config.hasPath("default_namespace")) {
@@ -186,5 +194,28 @@ public class ContextImpl implements Context {
     @Override
     public <T> ServiceContext<T> getServiceContext(String name) {
         return (ServiceContext<T>) contexts.get(name);
+    }
+
+    @Override
+    public BucketMetadataCache getBucketMetadataCache() {
+        return bucketMetadataCache;
+    }
+
+    @Override
+    public void setBucketMetadataCache(BucketMetadataCache cache) {
+        synchronized (this) {
+            if (this.bucketMetadataCache != null) {
+                throw new IllegalStateException("BucketMetadataCache has already been set");
+            }
+            this.bucketMetadataCache = cache;
+        }
+    }
+
+    @Override
+    public long now() {
+        if (cachedTimeService == null) {
+            cachedTimeService = getService(CachedTimeService.NAME);
+        }
+        return cachedTimeService.getCurrentTimeInMilliseconds();
     }
 }

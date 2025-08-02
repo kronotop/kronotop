@@ -23,13 +23,12 @@ package com.kronotop.bucket.executor;
 public class PlanExecutorConfig {
     // PlanExecutorEnvironment holds the immutable fields.
     private final PlanExecutorEnvironment environment;
-
+    private final Cursor cursor = new Cursor();
     // Mutable fields
     private volatile boolean reverse;
     private volatile int limit;
     private volatile long readVersion;
     private volatile boolean pinReadVersion;
-    private final Cursor cursor = new Cursor();
 
     public PlanExecutorConfig(PlanExecutorEnvironment environment) {
         this.environment = environment;

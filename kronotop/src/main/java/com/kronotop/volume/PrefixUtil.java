@@ -24,7 +24,7 @@ import com.kronotop.internal.DirectorySubspaceCache;
 
 import java.util.Arrays;
 
-public class PrefixUtils {
+public class PrefixUtil {
 
     /**
      * Registers a prefix in the context's DirectorySubspace, associating it with a given prefix pointer

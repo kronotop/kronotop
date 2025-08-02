@@ -17,7 +17,7 @@ import com.kronotop.bucket.bql.operators.comparison.BqlEqOperator;
 import com.kronotop.bucket.bql.values.BqlValue;
 import com.kronotop.bucket.bql.values.StringVal;
 import com.kronotop.bucket.bql.values.VersionstampVal;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 
 import java.util.List;
 import java.util.Objects;
@@ -55,7 +55,7 @@ public class BqlNormalizer {
                 for (int childIndex = 0; childIndex < idValue.getValues().size(); childIndex++) {
                     BqlValue<?> rawValue = idValue.getValues().get(childIndex);
                     StringVal stringVal = (StringVal) rawValue;
-                    VersionstampVal versionstampVal = new VersionstampVal(VersionstampUtils.base32HexDecode(stringVal.value()));
+                    VersionstampVal versionstampVal = new VersionstampVal(VersionstampUtil.base32HexDecode(stringVal.value()));
                     idValue.getValues().set(childIndex, versionstampVal);
                 }
             }

@@ -17,6 +17,7 @@
 package com.kronotop.foundationdb.namespace;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
@@ -50,13 +51,16 @@ class ListSubcommand extends BaseSubcommand implements SubcommandExecutor {
                 List<String> subpath = getNamespaceSubpath(listMessage.getSubpath());
                 CompletableFuture<List<String>> future;
                 if (subpath.isEmpty()) {
-                    future = directoryLayer.list(tr);
+                    future = DirectoryLayer.getDefault().list(tr);
                 } else {
-                    future = directoryLayer.list(tr, subpath);
+                    future = DirectoryLayer.getDefault().list(tr, subpath);
                 }
                 List<String> result = future.join();
                 List<RedisMessage> children = new ArrayList<>();
                 for (String namespace : result) {
+                    if (namespace.equals(Namespace.INTERNAL_LEAF)) {
+                        continue;
+                    }
                     children.add(new SimpleStringRedisMessage(namespace));
                 }
                 return children;

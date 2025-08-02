@@ -17,12 +17,11 @@
 package com.kronotop.foundationdb.zmap;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
-import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.ZMutateMessage;
-import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -61,10 +60,10 @@ public class ZMutateHandler extends BaseFoundationDBHandler implements Handler {
             ZMutateMessage message = request.attr(MessageTypes.ZMUTATE).get();
 
             Session session = request.getSession();
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            Transaction tr = TransactionUtils.getOrCreateTransaction(context, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session);
 
-            tr.mutate(message.getMutationType(), namespace.getZMap().pack(message.getKey()), message.getParam());
+            tr.mutate(message.getMutationType(), subspace.pack(message.getKey()), message.getParam());
             TransactionUtils.commitIfAutoCommitEnabled(tr, session);
         }, response::writeOK);
     }

@@ -6,13 +6,16 @@
 
 // On the date above, in accordance with the Business Source License,
 // use of this software will be governed by the open source license specified
-// in the LICENSE.TXT file.
+// in the LICENSE.TXT file
 
-package com.kronotop.bucket;
+package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.bucket.index.Index;
-import org.bson.BsonType;
+import com.kronotop.server.Request;
 
-public class DefaultIndex {
-    public static Index ID = new Index("_id_idx", "_id", BsonType.BINARY);
+public class BucketDropIndexMessage extends BucketDescribeIndexMessage {
+    public static final String COMMAND = "BUCKET.DROP-INDEX";
+
+    public BucketDropIndexMessage(Request request) {
+        super(request);
+    }
 }

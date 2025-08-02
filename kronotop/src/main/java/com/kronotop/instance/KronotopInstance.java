@@ -31,7 +31,9 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.foundationdb.FoundationDBService;
+import com.kronotop.foundationdb.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.internal.FoundationDBFactory;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.internal.ProcessIdGenerator;
 import com.kronotop.internal.ProcessIdGeneratorImpl;
 import com.kronotop.journal.CleanupJournalTask;
@@ -126,6 +128,9 @@ public class KronotopInstance {
 
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
+
+        CachedTimeService cachedTimeService = new CachedTimeService(context);
+        context.registerService(CachedTimeService.NAME, cachedTimeService);
 
         SessionService sessionService = new SessionService(context);
         context.registerService(SessionService.NAME, sessionService);
@@ -262,14 +267,19 @@ public class KronotopInstance {
             DirectoryLayer.getDefault().createOrOpen(tr, prefixes.toList()).join();
 
             String defaultNamespace = context.getConfig().getString("default_namespace");
-            KronotopDirectoryNode node = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(defaultNamespace);
-            DirectoryLayer.getDefault().createOrOpen(tr, node.toList()).join();
+            try {
+                NamespaceUtil.create(context, defaultNamespace);
+            } catch (NamespaceAlreadyExistsException ignore) {
+            }
+
             tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof FDBException ex) {
                 // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
                 if (ex.getCode() == 1020) {
-                    // Ignore it.
+                    LOGGER.debug("Failed to initialize directory layout because transaction " +
+                            "not committed due to conflict with another transaction, retrying");
+                    initializeDirectoryLayout();
                     return;
                 }
             }

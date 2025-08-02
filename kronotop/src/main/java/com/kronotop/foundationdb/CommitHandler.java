@@ -21,7 +21,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.foundationdb.protocol.CommitMessage;
 import com.kronotop.internal.TransactionUtils;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
@@ -29,7 +29,10 @@ import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Attribute;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
@@ -92,7 +95,7 @@ class CommitHandler extends BaseFoundationDBHandler implements Handler {
                         case VERSIONSTAMP -> {
                             assert versionstamp != null;
                             byte[] versionBytes = versionstamp.join();
-                            String encoded = VersionstampUtils.base32HexEncode(Versionstamp.complete(versionBytes));
+                            String encoded = VersionstampUtil.base32HexEncode(Versionstamp.complete(versionBytes));
                             ByteBuf buf = response.getCtx().alloc().buffer();
                             buf.writeBytes(encoded.getBytes());
                             children.add(new FullBulkStringRedisMessage(buf));
@@ -106,7 +109,7 @@ class CommitHandler extends BaseFoundationDBHandler implements Handler {
                             if (asyncReturning != null) {
                                 for (Integer userVersion : asyncReturning) {
                                     Versionstamp completed = Versionstamp.complete(versionBytes, userVersion);
-                                    String id = VersionstampUtils.base32HexEncode(completed);
+                                    String id = VersionstampUtil.base32HexEncode(completed);
                                     futures.put(new IntegerRedisMessage(userVersion), new SimpleStringRedisMessage(id));
                                 }
                             }

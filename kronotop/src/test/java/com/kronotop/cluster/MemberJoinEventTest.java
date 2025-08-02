@@ -16,7 +16,7 @@
 
 package com.kronotop.cluster;
 
-import com.kronotop.internal.JSONUtils;
+import com.kronotop.internal.JSONUtil;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,20 +28,20 @@ public class MemberJoinEventTest {
     @Test
     public void test_check_kind() {
         MemberJoinEvent event = new MemberJoinEvent(MemberIdGenerator.generateId());
-        byte[] data = JSONUtils.writeValueAsBytes(event);
+        byte[] data = JSONUtil.writeValueAsBytes(event);
         assertNotNull(data);
 
-        BaseBroadcastEvent base = JSONUtils.readValue(data, BaseBroadcastEvent.class);
+        BaseBroadcastEvent base = JSONUtil.readValue(data, BaseBroadcastEvent.class);
         assertEquals(BroadcastEventKind.MEMBER_JOIN, base.kind());
     }
 
     @Test
     public void test_encode_then_decode() {
         MemberJoinEvent expected = new MemberJoinEvent(MemberIdGenerator.generateId());
-        byte[] data = JSONUtils.writeValueAsBytes(expected);
+        byte[] data = JSONUtil.writeValueAsBytes(expected);
         assertNotNull(data);
 
-        MemberJoinEvent result = JSONUtils.readValue(data, MemberJoinEvent.class);
+        MemberJoinEvent result = JSONUtil.readValue(data, MemberJoinEvent.class);
         assertThat(expected).usingRecursiveComparison().isEqualTo(result);
     }
 }

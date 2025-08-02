@@ -16,7 +16,7 @@ import com.kronotop.bucket.bql.operators.comparison.BqlGteOperator;
 import com.kronotop.bucket.bql.parser.BqlParser;
 import com.kronotop.bucket.bql.values.BqlValue;
 import com.kronotop.bucket.bql.values.VersionstampVal;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -40,7 +40,7 @@ class BqlNormalizerTest {
                 assertNull(value.bsonType());
                 assertEquals(VersionstampVal.TYPE, value.customType());
                 assertEquals(Versionstamp.class, value.value().getClass());
-                assertEquals("00000U44O1LKI000000Gxxxx", VersionstampUtils.base32HexEncode(value.value()));
+                assertEquals("00000U44O1LKI000000Gxxxx", VersionstampUtil.base32HexEncode(value.value()));
             }
         }
     }

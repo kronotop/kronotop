@@ -10,7 +10,7 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.planner.Bound;
 import com.kronotop.bucket.planner.Bounds;
 import com.kronotop.bucket.planner.PlannerContext;
@@ -54,13 +54,22 @@ public class PhysicalPlanner {
         };
     }
 
+    private IndexDefinition findIndex(String field) {
+        for (IndexDefinition definition : context.getBucketMetadata().indexes().getDefinitions()) {
+            if (definition.field().equals(field)) {
+                return definition;
+            }
+        }
+        return null;
+    }
+
     private List<PhysicalNode> traverse(List<LogicalNode> children) {
         List<PhysicalNode> nodes = new ArrayList<>();
         children.forEach(child -> {
             switch (child) {
                 case LogicalComparisonFilter logicalFilter -> {
                     // TODO: This assumes the field hierarchy only has a single leaf and it eques to index's path
-                    Index index = context.indexes().get(logicalFilter.getField());
+                    IndexDefinition index = findIndex(logicalFilter.getField());
                     if (index != null) {
                         PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(index);
                         physicalIndexScan.setField(logicalFilter.getField());

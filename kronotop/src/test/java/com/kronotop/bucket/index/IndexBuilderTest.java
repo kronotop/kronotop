@@ -10,61 +10,83 @@
 
 package com.kronotop.bucket.index;
 
+import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
-import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.subspace.Subspace;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.kronotop.BaseClusterTest;
-import com.kronotop.KronotopTestInstance;
-import com.kronotop.bucket.BucketPrefix;
-import com.kronotop.bucket.BucketSubspace;
-import com.kronotop.bucket.DefaultIndex;
-import com.kronotop.foundationdb.namespace.Namespace;
-import com.kronotop.internal.NamespaceUtils;
-import com.kronotop.volume.Prefix;
+import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.volume.AppendedEntry;
+import com.kronotop.volume.VolumeTestUtil;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class IndexBuilderTest extends BaseClusterTest {
-    final byte[] data = "test-data".getBytes();
+class IndexBuilderTest extends BaseStandaloneInstanceTest {
+    final int SHARD_ID = 1;
+    final String testBucketName = "test-bucket";
 
-    @Test
-    void test_packIndex_default_index_id() {
-        KronotopTestInstance instance = getInstances().getFirst();
-        Namespace namespace = NamespaceUtils.createOrOpen(instance.getContext(), "index-builder-test");
-        BucketSubspace subspace = new BucketSubspace(namespace);
+    byte[] getEncodedEntryMetadata() {
+        return VolumeTestUtil.generateEntryMetadata(1, 0, 1, "test").encode().array();
+    }
 
-        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
-            Prefix prefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, subspace, "test-bucket");
-            assertDoesNotThrow(() -> IndexBuilder.packIndex(tr, subspace, 1, prefix, 1, DefaultIndex.ID, data));
-            tr.commit().join();
+    private AppendedEntry[] getAppendedEntries() {
+        AppendedEntry[] entries = new AppendedEntry[3];
+        byte[] encodedEntryMetadata = getEncodedEntryMetadata();
+        for (int index = 0; index < entries.length; index++) {
+            AppendedEntry entry = new AppendedEntry(index, index, null, encodedEntryMetadata);
+            entries[index] = entry;
         }
+        return entries;
     }
 
     @Test
-    void pack_index_then_unpack() {
-        KronotopTestInstance instance = getInstances().getFirst();
-        Namespace namespace = NamespaceUtils.createOrOpen(instance.getContext(), "index-builder-test");
-        BucketSubspace subspace = new BucketSubspace(namespace);
+    void shouldSetDefaultIDIndex() {
+        AppendedEntry[] entries = getAppendedEntries();
+        assertDoesNotThrow(() -> {
+            BucketMetadata metadata = getBucketMetadata(testBucketName);
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexBuilder.setIDIndex(tr, SHARD_ID, metadata, entries);
+                tr.commit().join();
+            }
+        });
+    }
 
-        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
-            Prefix prefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, subspace, "test-bucket");
-            assertDoesNotThrow(() -> IndexBuilder.packIndex(tr, subspace, 1, prefix, 1, DefaultIndex.ID, data));
+    @Test
+    void shouldReadEntriesFromIdIndex() {
+        AppendedEntry[] entries = getAppendedEntries();
+        BucketMetadata metadata = getBucketMetadata(testBucketName);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.setIDIndex(tr, SHARD_ID, metadata, entries);
             tr.commit().join();
         }
 
-        try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
-            Prefix prefix = BucketPrefix.getOrSetBucketPrefix(instance.getContext(), tr, subspace, "test-bucket");
-            Subspace indexSubspace = subspace.getBucketIndexSubspace(1, prefix);
-            List<KeyValue> items = tr.getRange(new Range(indexSubspace.pack(), ByteArrayUtil.strinc(indexSubspace.pack()))).asList().join();
-            for (KeyValue item : items) {
-                UnpackedIndex unpackedIndex = IndexBuilder.unpackIndex(indexSubspace, item.getKey());
-                assertNotNull(unpackedIndex.versionstamp());
-                assertEquals(DefaultIndex.ID, unpackedIndex.index());
+        DirectorySubspace idIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID);
+        byte[] prefix = idIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        byte[] expectedEntryMetadata = getEncodedEntryMetadata();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexedEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(3, indexedEntries.size());
+
+            for (int i = 0; i < indexedEntries.size(); i++) {
+                KeyValue entry = indexedEntries.get(i);
+
+                Tuple unpackedIndex = idIndexSubspace.unpack(entry.getKey());
+                Versionstamp key = (Versionstamp) unpackedIndex.get(1);
+                assertEquals(i, key.getUserVersion());
+
+                IndexEntry indexEntry = IndexEntry.decode(entry.getValue());
+                assertEquals(SHARD_ID, indexEntry.shardId());
+                assertArrayEquals(expectedEntryMetadata, indexEntry.entryMetadata());
             }
         }
     }

@@ -19,7 +19,7 @@ package com.kronotop.cluster;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.internal.JSONUtils;
+import com.kronotop.internal.JSONUtil;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -71,19 +71,19 @@ public final class MembershipUtils {
             if (value == null) {
                 return new HashSet<String>();
             }
-            List<String> items = Arrays.asList(JSONUtils.readValue(value, String[].class));
+            List<String> items = Arrays.asList(JSONUtil.readValue(value, String[].class));
             return new HashSet<>(items);
         }).join();
     }
 
     public static void setStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace, Set<String> standbyMemberIds) {
         byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_STANDBY_MEMBER_KEY));
-        tr.set(key, JSONUtils.writeValueAsBytes(standbyMemberIds));
+        tr.set(key, JSONUtil.writeValueAsBytes(standbyMemberIds));
     }
 
     public static void setSyncStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace, Set<String> syncStandbyMemberIds) {
         byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_SYNC_STANDBY_MEMBERS));
-        byte[] value = JSONUtils.writeValueAsBytes(syncStandbyMemberIds);
+        byte[] value = JSONUtil.writeValueAsBytes(syncStandbyMemberIds);
         tr.set(key, value);
     }
 
@@ -103,7 +103,7 @@ public final class MembershipUtils {
             if (value == null) {
                 return new HashSet<String>();
             }
-            List<String> items = Arrays.asList(JSONUtils.readValue(value, String[].class));
+            List<String> items = Arrays.asList(JSONUtil.readValue(value, String[].class));
             return new HashSet<>(items);
         }).join();
     }

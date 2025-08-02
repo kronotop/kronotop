@@ -25,8 +25,8 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.internal.JSONUtils;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -140,7 +140,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
 
         standbyMemberIds.add(parameters.memberId);
         byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_STANDBY_MEMBER_KEY));
-        byte[] value = JSONUtils.writeValueAsBytes(standbyMemberIds);
+        byte[] value = JSONUtil.writeValueAsBytes(standbyMemberIds);
         tr.set(key, value);
     }
 

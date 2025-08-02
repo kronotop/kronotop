@@ -17,6 +17,9 @@
 
 package com.kronotop.foundationdb.namespace.protocol;
 
+import com.kronotop.KronotopException;
+import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
@@ -44,10 +47,12 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         parse();
     }
 
-    private String readFromByteBuf(ByteBuf buf) {
-        byte[] rawItem = new byte[buf.readableBytes()];
-        buf.readBytes(rawItem);
-        return new String(rawItem);
+    private void validateSubpath(List<String> subpath) {
+        for (String item : subpath) {
+            if (item.equals(Namespace.INTERNAL_LEAF)) {
+                throw new KronotopException("Namespace '" + String.join(".", subpath) + "' is reserved for internal use");
+            }
+        }
     }
 
     private void parseCreateCommand() {
@@ -55,21 +60,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         ListIterator<ByteBuf> iterator = request.getParams().listIterator(1);
         while (iterator.hasNext()) {
             ByteBuf rawItem = iterator.next();
-            String item = readFromByteBuf(rawItem);
-
-            if (item.equalsIgnoreCase(CreateMessage.LAYER_PARAMETER)) {
-                ByteBuf rawLayer = iterator.next();
-                String layer = readFromByteBuf(rawLayer);
-                createMessage.setLayer(layer);
-                continue;
-            }
-
-            if (item.equalsIgnoreCase(CreateMessage.PREFIX_PARAMETER)) {
-                ByteBuf rawPrefix = iterator.next();
-                String prefix = readFromByteBuf(rawPrefix);
-                createMessage.setPrefix(prefix);
-                continue;
-            }
+            String item = ProtocolMessageUtil.readAsString(rawItem);
 
             if (!createMessage.getSubpath().isEmpty()) {
                 throw new WrongNumberOfArgumentsException(
@@ -80,6 +71,8 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
             for (String sb : item.split("\\.")) {
                 createMessage.addToSubpath(sb);
             }
+
+            validateSubpath(createMessage.subpath);
         }
 
         if (createMessage.getSubpath().isEmpty()) {
@@ -94,11 +87,12 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         ListIterator<ByteBuf> iterator = request.getParams().listIterator(1);
         while (iterator.hasNext()) {
             ByteBuf rawItem = iterator.next();
-            String item = readFromByteBuf(rawItem);
+            String item = ProtocolMessageUtil.readAsString(rawItem);
             for (String sb : item.split("\\.")) {
                 listMessage.addToSubpath(sb);
             }
         }
+        validateSubpath(listMessage.subpath);
     }
 
     private void parseMoveCommand() {
@@ -108,16 +102,18 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
 
         moveMessage = new MoveMessage();
         ByteBuf oldPath = request.getParams().get(1);
-        String oldPathStr = readFromByteBuf(oldPath);
+        String oldPathStr = ProtocolMessageUtil.readAsString(oldPath);
         for (String sb : oldPathStr.split("\\.")) {
             moveMessage.addToOldPath(sb);
         }
 
         ByteBuf newPath = request.getParams().get(2);
-        String newPathStr = readFromByteBuf(newPath);
+        String newPathStr = ProtocolMessageUtil.readAsString(newPath);
         for (String sb : newPathStr.split("\\.")) {
             moveMessage.addToNewPath(sb);
         }
+        validateSubpath(moveMessage.oldPath);
+        validateSubpath(moveMessage.newPath);
     }
 
     private void parseRemoveCommand() {
@@ -127,10 +123,11 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
 
         removeMessage = new RemoveMessage();
         ByteBuf path = request.getParams().get(1);
-        String pathStr = readFromByteBuf(path);
+        String pathStr = ProtocolMessageUtil.readAsString(path);
         for (String sb : pathStr.split("\\.")) {
             removeMessage.addToPath(sb);
         }
+        validateSubpath(removeMessage.subpath);
     }
 
     private void parseExistsCommand() {
@@ -140,10 +137,11 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
 
         existsMessage = new ExistsMessage();
         ByteBuf path = request.getParams().get(1);
-        String pathStr = readFromByteBuf(path);
+        String pathStr = ProtocolMessageUtil.readAsString(path);
         for (String sb : pathStr.split("\\.")) {
             existsMessage.addToPath(sb);
         }
+        validateSubpath(existsMessage.subpath);
     }
 
     private void parseUseCommand() {
@@ -153,18 +151,19 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
 
         useMessage = new UseMessage();
         ByteBuf path = request.getParams().get(1);
-        String pathStr = readFromByteBuf(path);
+        String pathStr = ProtocolMessageUtil.readAsString(path);
         for (String sb : pathStr.split("\\.")) {
             useMessage.addToPath(sb);
         }
+        validateSubpath(useMessage.subpath);
     }
 
     private void parse() {
-        byte[] rawSubcommand = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawSubcommand);
+        byte[] rawSubcommand = new byte[request.getParams().getFirst().readableBytes()];
+        request.getParams().getFirst().readBytes(rawSubcommand);
 
         String preSubcommand = new String(rawSubcommand).trim().toUpperCase();
-        if (preSubcommand.isEmpty() || preSubcommand.isBlank()) {
+        if (preSubcommand.isBlank()) {
             throw new IllegalArgumentException("invalid subcommand given");
         }
 
@@ -238,26 +237,26 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
     }
 
     public static class UseMessage {
-        private final List<String> path = new ArrayList<>();
+        private final List<String> subpath = new ArrayList<>();
 
         private void addToPath(String item) {
-            path.add(item);
+            subpath.add(item);
         }
 
-        public List<String> getPath() {
-            return path;
+        public List<String> getSubpath() {
+            return subpath;
         }
     }
 
     public static class ExistsMessage {
-        private final List<String> path = new ArrayList<>();
+        private final List<String> subpath = new ArrayList<>();
 
         private void addToPath(String item) {
-            path.add(item);
+            subpath.add(item);
         }
 
-        public List<String> getPath() {
-            return path;
+        public List<String> getSubpath() {
+            return subpath;
         }
     }
 
@@ -309,41 +308,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
     }
 
     public static class CreateMessage {
-        public static final String LAYER_PARAMETER = "LAYER";
-        public static final String PREFIX_PARAMETER = "PREFIX";
         private final List<String> subpath = new ArrayList<>();
-        private String layer;
-        private String prefix;
-
-        public String getLayer() {
-            return layer;
-        }
-
-        private void setLayer(String layer) {
-            this.layer = layer;
-        }
-
-        public boolean hasLayer() {
-            if (layer == null) {
-                return false;
-            }
-            return !layer.isEmpty();
-        }
-
-        public String getPrefix() {
-            return prefix;
-        }
-
-        private void setPrefix(String prefix) {
-            this.prefix = prefix;
-        }
-
-        public boolean hasPrefix() {
-            if (prefix == null) {
-                return false;
-            }
-            return !prefix.isEmpty();
-        }
 
         private void addToSubpath(String item) {
             subpath.add(item);

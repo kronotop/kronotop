@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
 
 import javax.annotation.Nonnull;
@@ -113,7 +113,7 @@ public class Member {
                 id,
                 externalAddress,
                 internalAddress,
-                VersionstampUtils.base32HexEncode(processId),
+                VersionstampUtil.base32HexEncode(processId),
                 status
         );
     }

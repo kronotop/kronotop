@@ -20,6 +20,7 @@ import com.apple.foundationdb.FDBException;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.MemberAttributes;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.handlers.transactions.protocol.DiscardMessage;
 import com.kronotop.redis.handlers.transactions.protocol.ExecMessage;
@@ -309,10 +310,9 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private String readCommandAsString(Request request) {
         List<String> command = new ArrayList<>(List.of(request.getCommand()));
         for (ByteBuf buf : request.getParams()) {
-            byte[] parameter = new byte[buf.readableBytes()];
-            buf.readBytes(parameter);
+            String parameter = ProtocolMessageUtil.readAsString(buf);
             buf.resetReaderIndex();
-            command.add(new String(parameter));
+            command.add(parameter);
         }
         return String.join(" ", command);
     }

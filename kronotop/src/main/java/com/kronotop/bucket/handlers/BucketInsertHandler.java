@@ -18,7 +18,7 @@ import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.internal.TransactionUtils;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -27,7 +27,6 @@ import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.AppendedEntry;
-import com.kronotop.volume.Prefix;
 import com.kronotop.volume.VolumeSession;
 import org.bson.Document;
 
@@ -55,9 +54,9 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
     private Document parseDocument(InputType inputType, byte[] data) {
         if (inputType.equals(InputType.JSON)) {
-            return BSONUtils.fromJson(data);
+            return BSONUtil.fromJson(data);
         } else if (inputType.equals(InputType.BSON)) {
-            return BSONUtils.fromBson(data);
+            return BSONUtil.fromBson(data);
         } else {
             throw new KronotopException("Invalid input type: " + inputType);
         }
@@ -86,7 +85,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             if (inputType.equals(InputType.BSON)) {
                 entries[index] = ByteBuffer.wrap(data);
             } else {
-                entries[index] = ByteBuffer.wrap(BSONUtils.toBytes(document));
+                entries[index] = ByteBuffer.wrap(BSONUtil.toBytes(document));
             }
         }
         return new EntriesPack(entries, documents);
@@ -103,11 +102,11 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
             EntriesPack pack = prepareEntries(request, message);
 
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            BucketSubspace subspace = BucketSubspaceUtils.open(context, request.getSession(), tr);
+            Session session = request.getSession();
+            Transaction tr = TransactionUtils.getOrCreateTransaction(context, session);
 
-            Prefix prefix = BucketPrefix.getOrSetBucketPrefix(context, tr, subspace, message.getBucket());
-            VolumeSession volumeSession = new VolumeSession(tr, prefix);
+            BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, message.getBucket());
+            VolumeSession volumeSession = new VolumeSession(tr, metadata.volumePrefix());
 
             AppendResult appendResult;
             try {
@@ -116,10 +115,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                 throw new UncheckedIOException(e);
             }
 
-            // Set the default ID index
-            for (AppendedEntry appendedEntry : appendResult.getAppendedEntries()) {
-                IndexBuilder.packIndex(tr, subspace, shard.id(), prefix, appendedEntry.userVersion(), DefaultIndex.ID, appendedEntry.encodedMetadata());
-            }
+            IndexBuilder.setIDIndex(tr, shard.id(), metadata, appendResult.getAppendedEntries());
 
             boolean autoCommit = TransactionUtils.getAutoCommit(request.getSession());
             PostCommitHook postCommitHook = new PostCommitHook(appendResult);
@@ -130,7 +126,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                 Versionstamp[] versionstamps = postCommitHook.getVersionstamps();
                 List<RedisMessage> children = new ArrayList<>();
                 for (Versionstamp versionstamp : versionstamps) {
-                    children.add(new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(versionstamp)));
+                    children.add(new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(versionstamp)));
                 }
                 tr.close();
                 return children;

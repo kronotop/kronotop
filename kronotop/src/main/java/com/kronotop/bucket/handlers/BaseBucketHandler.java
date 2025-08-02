@@ -14,10 +14,10 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BSONUtils;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
@@ -83,7 +83,7 @@ public abstract class BaseBucketHandler implements Handler {
             value = PooledByteBufAllocator.DEFAULT.buffer().alloc().
                     buffer(entry.getValue().remaining()).writeBytes(entry.getValue());
         } else if (replyType.equals(ReplyType.JSON)) {
-            Document document = BSONUtils.toDocument(entry.getValue().array());
+            Document document = BSONUtil.toDocument(entry.getValue().array());
             byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
             value = PooledByteBufAllocator.DEFAULT.buffer().alloc().buffer(data.length).writeBytes(data);
         } else {
@@ -111,7 +111,7 @@ public abstract class BaseBucketHandler implements Handler {
         for (Map.Entry<Versionstamp, ByteBuffer> entry : entries.entrySet()) {
             ByteBuf value = prepareValue(request, entry);
             result.put(
-                    new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(entry.getKey())),
+                    new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(entry.getKey())),
                     new FullBulkStringRedisMessage(value)
             );
         }
@@ -137,7 +137,7 @@ public abstract class BaseBucketHandler implements Handler {
         List<RedisMessage> result = new LinkedList<>();
         for (Map.Entry<Versionstamp, ByteBuffer> entry : entries.entrySet()) {
             ByteBuf value = prepareValue(request, entry);
-            result.add(new SimpleStringRedisMessage(VersionstampUtils.base32HexEncode(entry.getKey())));
+            result.add(new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(entry.getKey())));
             result.add(new FullBulkStringRedisMessage(value));
         }
         response.writeArray(result);

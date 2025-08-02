@@ -17,6 +17,7 @@
 package com.kronotop;
 
 import com.apple.foundationdb.Database;
+import com.kronotop.bucket.BucketMetadataCache;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.client.InternalConnectionPool;
 import com.kronotop.commands.CommandMetadata;
@@ -186,4 +187,30 @@ public interface Context {
      * @return the service context with the specified name.
      */
     <T> ServiceContext<T> getServiceContext(String name);
+
+    /**
+     * Retrieves the BucketMetadataCache instance associated with the current context.
+     * The BucketMetadataCache is responsible for managing and storing metadata
+     * related to Buckets.
+     *
+     * @return the BucketMetadataCache instance.
+     */
+    BucketMetadataCache getBucketMetadataCache();
+
+    /**
+     * Sets the bucket metadata cache for the context.
+     *
+     * @param cache the {@code BucketMetadataCache} instance to be used for
+     *              managing and storing bucket metadata within the context.
+     */
+    void setBucketMetadataCache(BucketMetadataCache cache);
+
+    /**
+     * Returns the current system time in milliseconds.
+     * This method typically retrieves the time at which the method is called,
+     * providing an accurate measure of the current epoch time.
+     *
+     * @return the current system time in milliseconds.
+     */
+    long now();
 }

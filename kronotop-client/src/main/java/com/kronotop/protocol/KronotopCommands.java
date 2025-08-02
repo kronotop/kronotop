@@ -16,7 +16,10 @@
 
 package com.kronotop.protocol;
 
-import com.kronotop.protocol.zmap.*;
+import com.kronotop.protocol.zmap.ZGetKeyArgs;
+import com.kronotop.protocol.zmap.ZGetRangeArgs;
+import com.kronotop.protocol.zmap.ZGetRangeSizeArgs;
+import com.kronotop.protocol.zmap.ZMutateArgs;
 
 import java.util.List;
 
@@ -37,8 +40,6 @@ public interface KronotopCommands<K, V> {
 
     String namespaceCreate(K namespace);
 
-    String namespaceCreate(K namespace, NamespaceArgs args);
-
     List<String> namespaceList(K namespace);
 
     List<String> namespaceMove(K oldNamespace, K newNamespace);
@@ -56,10 +57,6 @@ public interface KronotopCommands<K, V> {
     V zget(K key);
 
     String zdel(K key);
-
-    String zdelprefix(byte[] key);
-
-    String zdelprefix(String namespace, ZDelRangeArgs args);
 
     List<Object> zgetrange(ZGetRangeArgs args);
 

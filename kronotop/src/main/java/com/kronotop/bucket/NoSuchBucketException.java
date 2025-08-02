@@ -8,16 +8,13 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket;
 
-import org.bson.BsonType;
+import com.kronotop.KronotopException;
+import com.kronotop.server.RESPError;
 
-import javax.annotation.Nonnull;
-
-public record Index(String name, String path, BsonType type) {
-    @Override
-    @Nonnull
-    public String toString() {
-        return "Index { name=" + name + ", path=" + path + " type=" + type + " }";
+public class NoSuchBucketException extends KronotopException {
+    public NoSuchBucketException(String bucket) {
+        super(RESPError.NOSUCHBUCKET, String.format("No such bucket: '%s'", bucket));
     }
 }

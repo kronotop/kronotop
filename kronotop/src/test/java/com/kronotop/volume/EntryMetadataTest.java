@@ -33,7 +33,7 @@ class EntryMetadataTest {
         String segment = Segment.generateName(10);
         long position = 1L;
         long length = 1L;
-        ByteBuffer buffer = ByteBuffer.allocate(EntryMetadata.ENTRY_METADATA_SIZE); // Including space for position and length
+        ByteBuffer buffer = ByteBuffer.allocate(EntryMetadata.SIZE); // Including space for position and length
         buffer.put(segment.getBytes()).put(EntryMetadata.SUBSPACE_SEPARATOR).put(prefix.asBytes()).putLong(position).putLong(length).putInt(10).flip();
 
         // Invoke method on test

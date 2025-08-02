@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.redis;
+package com.kronotop;
 
 /**
  * The CachedTime class provides a mechanism to maintain a frequently updated snapshot
@@ -39,7 +39,7 @@ public class CachedTime implements Runnable {
      *
      * @return the current cached system time in milliseconds.
      */
-    public long currentTimeInMilliseconds() {
+    public long getCurrentTimeInMilliseconds() {
         return currentTimeInMilliseconds;
     }
 

@@ -26,7 +26,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.internal.JSONUtils;
+import com.kronotop.internal.JSONUtil;
 
 import java.util.Comparator;
 import java.util.List;
@@ -105,7 +105,7 @@ class MemberRegistry {
 
             KronotopDirectoryNode directory = getDirectoryNode(member.getId());
             DirectorySubspace subspace = DirectoryLayer.getDefault().create(tr, directory.toList()).join();
-            tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtils.writeValueAsBytes(member));
+            tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtil.writeValueAsBytes(member));
             tr.commit().join();
             return subspace;
         }
@@ -140,7 +140,7 @@ class MemberRegistry {
 
         KronotopDirectoryNode directory = getDirectoryNode(member.getId());
         DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
-        tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtils.writeValueAsBytes(member));
+        tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtil.writeValueAsBytes(member));
     }
 
     /**
@@ -194,7 +194,7 @@ class MemberRegistry {
 
             DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, getDirectoryNode(memberId).toList()).join();
             byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
-            tr.set(key, JSONUtils.writeValueAsBytes(member));
+            tr.set(key, JSONUtil.writeValueAsBytes(member));
             tr.commit().join();
 
             return member;
@@ -223,7 +223,7 @@ class MemberRegistry {
             if (data == null) {
                 throw new KronotopException(String.format("Member: %s not registered properly", memberId));
             }
-            return JSONUtils.readValue(data, Member.class);
+            return JSONUtil.readValue(data, Member.class);
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
                 throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
@@ -275,7 +275,7 @@ class MemberRegistry {
             DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, getDirectoryNode(memberId).toList()).join();
             byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
             byte[] value = tr.get(key).join();
-            Member member = JSONUtils.readValue(value, Member.class);
+            Member member = JSONUtil.readValue(value, Member.class);
             members.add(member);
         }
         return members;

@@ -56,7 +56,7 @@ public class ExpireHandler extends BaseGenericHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         ExpireMessage message = request.attr(MessageTypes.EXPIRE).get();
 
-        long ttl = (message.getSeconds() * 1000) + service.getCachedTime().currentTimeInMilliseconds();
+        long ttl = (message.getSeconds() * 1000) + service.getCurrentTimeInMilliseconds();
         long result = expireCommon(message.getKey(), ttl, message.getOption());
         response.writeInteger(result);
     }

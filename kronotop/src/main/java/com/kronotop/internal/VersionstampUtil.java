@@ -28,7 +28,7 @@ import com.google.common.io.BaseEncoding;
  * href="http://tools.ietf.org/html/rfc4648#section-7">RFC 4648 section 7</a>, Base 32 Encoding
  * with Extended Hex Alphabet. There is no corresponding encoding in RFC 3548.
  */
-public class VersionstampUtils {
+public class VersionstampUtil {
     /**
      * A BaseEncoding instance configured for Base32Hex encoding with a custom padding character ('x').
      * Used for encoding and decoding Versionstamp objects in a Base32Hex format.

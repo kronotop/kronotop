@@ -38,7 +38,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 0; i < 20; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
-                PrefixUtils.register(context, tr, prefixPointer, testPrefix);
+                PrefixUtil.register(context, tr, prefixPointer, testPrefix);
             }
             tr.commit().join();
         }

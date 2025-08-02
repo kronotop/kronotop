@@ -22,18 +22,12 @@ import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketPrefix;
-import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
-import com.kronotop.internal.NamespaceUtils;
-import com.kronotop.journal.JournalName;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.volume.Prefix;
-import com.kronotop.volume.PrefixUtils;
 
-import java.util.Map;
 import java.util.concurrent.CompletionException;
 
 class RemoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
@@ -42,30 +36,10 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
         super(context);
     }
 
-    /**
-     * Unregisters all bucket prefixes associated with a specific {@link Namespace} within a transaction.
-     * This method removes the prefixes linked to the namespace and performs cleanup operations.
-     *
-     * @param tr        the active {@link Transaction} used for database operations
-     * @param namespace the {@link Namespace} for which bucket prefixes will be unregistered
-     */
-    private void unregisterBucketPrefixes(Transaction tr, Namespace namespace) {
-        BucketSubspace subspace = new BucketSubspace(namespace);
-        Map<String, Prefix> prefixes = BucketPrefix.listBucketPrefixes(tr, subspace);
-        for (Map.Entry<String, Prefix> entry : prefixes.entrySet()) {
-            byte[] prefixPointer = subspace.getBucketKey(entry.getKey());
-            Prefix prefix = entry.getValue();
-            PrefixUtils.unregister(context, tr, prefixPointer, prefix);
-            context.getJournal().getPublisher().publish(tr, JournalName.DISUSED_PREFIXES, prefix.asBytes());
-        }
-    }
-
     private void remove(String name, NamespaceMessage.RemoveMessage removeMessage) {
         // Remove namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Namespace namespace = NamespaceUtils.open(tr, context.getClusterName(), name);
-            unregisterBucketPrefixes(tr, namespace);
-            NamespaceUtils.remove(tr, context.getClusterName(), removeMessage.getSubpath());
+            NamespaceUtil.remove(tr, context.getClusterName(), removeMessage.getSubpath());
             tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {

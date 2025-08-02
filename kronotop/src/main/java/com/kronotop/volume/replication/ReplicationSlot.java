@@ -23,7 +23,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.internal.JSONUtils;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.volume.VolumeMetadata;
 import com.kronotop.volume.segment.Segment;
 
@@ -156,7 +156,7 @@ public class ReplicationSlot {
         }
 
         byte[] key = slotKey(config);
-        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtils.writeValueAsBytes(slot));
+        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, JSONUtil.writeValueAsBytes(slot));
     }
 
     /**
@@ -190,7 +190,7 @@ public class ReplicationSlot {
         if (value == null) {
             throw new ReplicationSlotNotFoundException();
         }
-        return JSONUtils.readValue(value, ReplicationSlot.class);
+        return JSONUtil.readValue(value, ReplicationSlot.class);
     }
 
     /**
@@ -214,9 +214,9 @@ public class ReplicationSlot {
         if (value == null) {
             throw new ReplicationSlotNotFoundException();
         }
-        ReplicationSlot replicationSlot = JSONUtils.readValue(value, ReplicationSlot.class);
+        ReplicationSlot replicationSlot = JSONUtil.readValue(value, ReplicationSlot.class);
         remappingFunction.accept(replicationSlot);
-        tr.set(key, JSONUtils.writeValueAsBytes(replicationSlot));
+        tr.set(key, JSONUtil.writeValueAsBytes(replicationSlot));
         return replicationSlot;
     }
 

@@ -22,7 +22,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 
 import java.util.Arrays;
 import java.util.List;
@@ -165,7 +165,7 @@ public class ReplicationMetadata {
      * @return the Base32Hex encoded string representation of the Versionstamp.
      */
     public static String stringifySlotId(Versionstamp slotId) {
-        return VersionstampUtils.base32HexEncode(slotId);
+        return VersionstampUtil.base32HexEncode(slotId);
     }
 
     /**

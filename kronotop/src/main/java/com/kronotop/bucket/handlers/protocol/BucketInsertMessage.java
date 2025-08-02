@@ -46,7 +46,7 @@ public class BucketInsertMessage implements ProtocolMessage<Void> {
             try {
                 InsertArgumentKey argument = InsertArgumentKey.valueOf(raw.toUpperCase());
                 if (argument.equals(InsertArgumentKey.DOCS)) {
-                    readDocuments(i+1);
+                    readDocuments(i + 1);
                     break;
                 }
 

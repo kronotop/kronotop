@@ -20,7 +20,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeConfigGenerator;
 import com.kronotop.volume.VolumeService;
@@ -63,7 +63,7 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
 
         Versionstamp slotId = ReplicationMetadata.newReplication(context, config);
         LOGGER.info("Created replication slot with SlotID: {} for ShardKind: {}, ShardId: {}",
-                VersionstampUtils.base32HexEncode(slotId),
+                VersionstampUtil.base32HexEncode(slotId),
                 shardKind,
                 shardId
         );
@@ -73,7 +73,7 @@ public class CreateReplicationSlotHook implements RoutingEventHook {
         try {
             replication.start();
             LOGGER.info("Replication started with SlotID: {} for ShardKind: {}, ShardId: {}",
-                    VersionstampUtils.base32HexEncode(slotId),
+                    VersionstampUtil.base32HexEncode(slotId),
                     shardKind,
                     shardId
             );

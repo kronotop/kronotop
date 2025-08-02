@@ -10,9 +10,9 @@
 
 package com.kronotop.bucket.executor;
 
+import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.BucketSubspace;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 
-public record PlanExecutorEnvironment(String bucket, BucketSubspace subspace, BucketShard shard, PhysicalNode plan) {
+public record PlanExecutorEnvironment(BucketMetadata metadata, BucketShard shard, PhysicalNode plan) {
 }

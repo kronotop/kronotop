@@ -170,25 +170,9 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
      * containing the result as a string response from the server.
      */
     public Command<K, V, String> namespaceCreate(K namespace) {
-        return namespaceCreate(namespace, null);
-    }
-
-    /**
-     * Constructs and executes a NAMESPACE CREATE command with the specified namespace and optional arguments.
-     * This command is used to create a new namespace with optional configurations such as layer and prefix.
-     *
-     * @param namespace     the name of the namespace to be created; must not be null.
-     * @param namespaceArgs optional arguments to configure the namespace, such as layer and prefix; can be null.
-     * @return a {@link Command} instance representing the executed NAMESPACE CREATE operation,
-     * containing the result as a string response from the server.
-     */
-    public Command<K, V, String> namespaceCreate(K namespace, NamespaceArgs namespaceArgs) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(NamespaceKeywords.CREATE).
                 addKey(namespace);
-        if (namespaceArgs != null) {
-            namespaceArgs.build(args);
-        }
         return createCommand(CommandType.NAMESPACE, new StatusOutput<>(codec), args);
     }
 
@@ -264,20 +248,6 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key);
         return createCommand(CommandType.ZDEL, new StatusOutput<>(codec), args);
-    }
-
-    /**
-     * Constructs and executes a ZDELPREFIX command with the specified key.
-     * This command is used to delete entries in a sorted set whose keys begin with the specified prefix.
-     *
-     * @param key the prefix of the keys to be deleted; must not be null. The provided byte array should represent the key prefix.
-     * @return a {@link Command} instance representing the executed ZDELPREFIX operation,
-     * containing the result as a string response from the server.
-     */
-    public Command<K, V, String> zdelprefix(byte[] key) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).
-                add(key);
-        return createCommand(CommandType.ZDELPREFIX, new StatusOutput<>(codec), args);
     }
 
     /**

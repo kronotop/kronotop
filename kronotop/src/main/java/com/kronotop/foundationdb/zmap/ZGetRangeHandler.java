@@ -20,14 +20,13 @@ import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.foundationdb.BaseFoundationDBHandler;
 import com.kronotop.foundationdb.FoundationDBService;
-import com.kronotop.foundationdb.namespace.Namespace;
 import com.kronotop.foundationdb.zmap.protocol.RangeKeySelector;
 import com.kronotop.foundationdb.zmap.protocol.ZGetRangeMessage;
-import com.kronotop.internal.NamespaceUtils;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -70,20 +69,20 @@ public class ZGetRangeHandler extends BaseFoundationDBHandler implements Handler
             ZGetRangeMessage message = request.attr(MessageTypes.ZGETRANGE).get();
 
             Session session = request.getSession();
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
-            Namespace namespace = NamespaceUtils.open(service.getContext(), session, tr);
+            Transaction tr = TransactionUtils.getOrCreateTransaction(context, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session);
 
             byte[] begin;
             byte[] end;
             if (Arrays.equals(message.getBegin(), ZGetRangeMessage.ASTERISK)) {
-                begin = namespace.getZMap().pack();
-                end = ByteArrayUtil.strinc(namespace.getZMap().pack());
+                begin = subspace.pack();
+                end = ByteArrayUtil.strinc(subspace.pack());
             } else {
-                begin = namespace.getZMap().pack(message.getBegin());
+                begin = subspace.pack(message.getBegin());
                 if (Arrays.equals(message.getEnd(), ZGetRangeMessage.ASTERISK)) {
-                    end = ByteArrayUtil.strinc(namespace.getZMap().pack());
+                    end = ByteArrayUtil.strinc(subspace.pack());
                 } else {
-                    end = namespace.getZMap().pack(message.getEnd());
+                    end = subspace.pack(message.getEnd());
                 }
             }
 
@@ -101,7 +100,7 @@ public class ZGetRangeHandler extends BaseFoundationDBHandler implements Handler
 
                 try {
                     List<RedisMessage> pair = new ArrayList<>();
-                    keyBuf.writeBytes(namespace.getZMap().unpack(keyValue.getKey()).getBytes(0));
+                    keyBuf.writeBytes(subspace.unpack(keyValue.getKey()).getBytes(0));
                     pair.add(new FullBulkStringRedisMessage(keyBuf));
 
                     valueBuf.writeBytes(keyValue.getValue());

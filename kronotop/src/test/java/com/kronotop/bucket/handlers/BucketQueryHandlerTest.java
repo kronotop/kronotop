@@ -34,7 +34,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME,"{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 

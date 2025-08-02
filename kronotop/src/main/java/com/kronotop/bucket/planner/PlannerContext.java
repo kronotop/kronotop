@@ -10,24 +10,16 @@
 
 package com.kronotop.bucket.planner;
 
-import com.kronotop.bucket.index.Index;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import com.kronotop.bucket.BucketMetadata;
 
 public class PlannerContext {
-    private final Map<String, Index> indexes;
+    private final BucketMetadata bucketMetadata;
 
-    public PlannerContext() {
-        this.indexes = Collections.unmodifiableMap(new HashMap<>());
+    public PlannerContext(BucketMetadata metadata) {
+        this.bucketMetadata = metadata;
     }
 
-    public PlannerContext(Map<String, Index> indexes) {
-        this.indexes = Collections.unmodifiableMap(indexes);
-    }
-
-    public Map<String, Index> indexes() {
-        return indexes;
+    public BucketMetadata getBucketMetadata() {
+        return bucketMetadata;
     }
 }

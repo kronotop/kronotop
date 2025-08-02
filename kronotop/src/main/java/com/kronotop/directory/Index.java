@@ -8,9 +8,15 @@
 // use of this software will be governed by the open source license specified
 // in the LICENSE.TXT file.
 
-package com.kronotop.bucket.index;
+package com.kronotop.directory;
 
-import com.apple.foundationdb.tuple.Versionstamp;
+import java.util.List;
 
-public record UnpackedIndex(Versionstamp versionstamp, Index index) {
+public class Index extends KronotopDirectoryNode {
+    Index(List<String> layout, String bucket, String index) {
+        super(layout);
+        layout.add("indexes");
+        layout.add(bucket);
+        layout.add(index);
+    }
 }

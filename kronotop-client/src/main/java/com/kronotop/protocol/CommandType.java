@@ -29,7 +29,6 @@ public enum CommandType implements ProtocolKeyword {
     ZSET,
     ZGET,
     ZDEL,
-    ZDELPREFIX,
     ZDELRANGE,
     ZGETRANGE,
     ZGETKEY,

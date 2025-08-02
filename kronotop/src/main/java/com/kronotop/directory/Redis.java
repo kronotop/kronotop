@@ -14,28 +14,24 @@
  * limitations under the License.
  */
 
+package com.kronotop.directory;
 
-package com.kronotop.foundationdb.namespace;
+import java.util.List;
 
-/**
- * Represents constants used to define specific subspaces or structures
- * within a FoundationDB hierarchy. Each constant in this enum is associated
- * with a unique byte value that acts as an identifier for the corresponding subspace.
- */
-public enum SubspaceMagic {
-    ZMAP((byte) 0x01),
-    BUCKET((byte) 0x02),
-    BUCKET_PREFIX((byte) 0x03),
-    BUCKET_INDEX((byte) 0x04),
-    BUCKET_INDEX_METADATA((byte) (0x05));
-
-    public final byte value;
-
-    SubspaceMagic(byte kind) {
-        value = kind;
+public class Redis extends KronotopDirectoryNode {
+    public Redis(List<String> layout) {
+        super(layout);
+        layout.add("redis");
     }
 
-    public byte getValue() {
-        return value;
+    public Shard shard(int shardId) {
+        return new Shard(layout, shardId);
+    }
+
+    public static class Shard extends KronotopDirectoryNode {
+        public Shard(List<String> layout, int shardId) {
+            super(layout);
+            layout.add(Integer.toString(shardId));
+        }
     }
 }

@@ -74,7 +74,7 @@ public class BaseStringHandler extends BaseHandler {
             return false;
         }
 
-        if (container.string().ttl() <= service.getCachedTime().currentTimeInMilliseconds()) {
+        if (container.string().ttl() <= service.getCurrentTimeInMilliseconds()) {
             RedisValueContainer previous = shard.storage().remove(key);
             shard.index().remove(key);
             if (previous.baseRedisValue().versionstamp() != null) {

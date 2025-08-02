@@ -10,31 +10,45 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.index.Index;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.PlannerContext;
 import com.kronotop.bucket.planner.TestQuery;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
+import com.kronotop.server.MockChannelHandlerContext;
+import com.kronotop.server.Session;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.*;
 
-class PhysicalPlannerTest {
+class PhysicalPlannerTest extends BaseStandaloneInstanceTest {
 
     private LogicalNode getLogicalPlan(String query) {
         LogicalPlanner logical = new LogicalPlanner(query);
         return logical.plan();
     }
 
+    private BucketMetadata getBucketMetadata() {
+        MockChannelHandlerContext ctx = new MockChannelHandlerContext(instance.getChannel());
+        Session.registerSession(context, ctx);
+        Session session = Session.extractSessionFromChannel(ctx.channel());
+        return BucketMetadataUtil.createOrOpen(context, session, "test");
+    }
+
     @Test
     void when_planning_no_child_expression() {
+        BucketMetadata metadata = getBucketMetadata();
+
         LogicalNode logicalNode = getLogicalPlan(TestQuery.NO_CHILD_EXPRESSION);
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
         assertInstanceOf(PhysicalFullScan.class, physicalNode);
@@ -43,13 +57,25 @@ class PhysicalPlannerTest {
         assertNull(physicalFullScan.getField());
     }
 
+    private DirectorySubspace createIndex(BucketMetadata metadata, IndexDefinition definition) {
+        DirectorySubspace subspace;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            subspace = IndexUtil.create(tr, metadata.subspace(), definition);
+            tr.commit().join();
+        }
+        return subspace;
+    }
+
     @Test
     void when_planning_single_field_with_string_type_and_gte() {
+        BucketMetadata metadata = getBucketMetadata();
+
+        IndexDefinition sampleIndex = IndexDefinition.create("a_idx", "a", BsonType.STRING, SortOrder.ASCENDING);
+        DirectorySubspace sampleIndexSubspace = createIndex(metadata, sampleIndex);
+        metadata.indexes().register(sampleIndex, sampleIndexSubspace);
+
         LogicalNode logicalNode = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_STRING_TYPE_AND_GTE);
-        Map<String, Index> indexes = Map.of(
-                "a", new Index("a_idx", "a", BsonType.STRING)
-        );
-        PlannerContext context = new PlannerContext(indexes);
+        PlannerContext context = new PlannerContext(metadata);
         PhysicalPlanner physical = new PhysicalPlanner(context, logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
@@ -63,9 +89,10 @@ class PhysicalPlannerTest {
 
     @Test
     void when_planning_single_field_with_int32_type_and_eq() {
+        BucketMetadata metadata = getBucketMetadata();
         // FULL SCAN
         LogicalNode logicalNode = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_IN32_TYPE_AND_EQ);
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
         assertInstanceOf(PhysicalFullScan.class, physicalNode);
@@ -83,12 +110,19 @@ class PhysicalPlannerTest {
 
     @Test
     void intersection_operator_with_two_indexed_fields() {
+        BucketMetadata metadata = getBucketMetadata();
+
+        IndexDefinition sampleIndexA = IndexDefinition.create("a_idx", "a", BsonType.INT32, SortOrder.ASCENDING);
+        DirectorySubspace sampleIndexASubspace = createIndex(metadata, sampleIndexA);
+        metadata.indexes().register(sampleIndexA, sampleIndexASubspace);
+
+        IndexDefinition sampleIndexB = IndexDefinition.create("b_idx", "b", BsonType.STRING, SortOrder.ASCENDING);
+        DirectorySubspace sampleIndexBSubspace = createIndex(metadata, sampleIndexB);
+        metadata.indexes().register(sampleIndexB, sampleIndexBSubspace);
+
         LogicalNode logicalNode = getLogicalPlan("{ a: { $gte: 20 }, b: { $eq: 'string-value' } }");
-        Map<String, Index> indexes = Map.of(
-                "a", new Index("a_idx", "a", BsonType.INT32),
-                "b", new Index("b_idx", "b", BsonType.STRING)
-        );
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
+
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
         PhysicalIntersectionOperator physicalIntersectionOperator = (PhysicalIntersectionOperator) physicalNode;
@@ -114,13 +148,18 @@ class PhysicalPlannerTest {
 
     @Test
     void or_operator_with_two_indexed_fields() {
-        LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
+        BucketMetadata metadata = getBucketMetadata();
 
-        Map<String, Index> indexes = Map.of(
-                "status", new Index("status_idx", "status", BsonType.STRING),
-                "qty", new Index("qty_idx", "qty", BsonType.INT32)
-        );
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
+        IndexDefinition sampleIndexStatus = IndexDefinition.create("status_idx", "status", BsonType.STRING, SortOrder.ASCENDING);
+        DirectorySubspace sampleIndexStatusSubspace = createIndex(metadata, sampleIndexStatus);
+        metadata.indexes().register(sampleIndexStatus, sampleIndexStatusSubspace);
+
+        IndexDefinition sampleIndexQty = IndexDefinition.create("qty_idx", "qty", BsonType.INT32, SortOrder.ASCENDING);
+        DirectorySubspace sampleIndexQtySubspace = createIndex(metadata, sampleIndexQty);
+        metadata.indexes().register(sampleIndexQty, sampleIndexQtySubspace);
+
+        LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
         assertInstanceOf(PhysicalUnionOperator.class, physicalNode);
@@ -149,7 +188,7 @@ class PhysicalPlannerTest {
     @Test
     void or_operator_with_two_not_indexed_fields() {
         LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(getBucketMetadata()), logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
         assertInstanceOf(PhysicalUnionOperator.class, physicalNode);
@@ -177,11 +216,13 @@ class PhysicalPlannerTest {
 
     @Test
     void or_operator_with_only_one_indexed_field() {
+        BucketMetadata metadata = getBucketMetadata();
+        IndexDefinition sampleIndexStatus = IndexDefinition.create("status_idx", "status", BsonType.STRING, SortOrder.ASCENDING);
+        DirectorySubspace sampleIndexStatusSubspace = createIndex(metadata, sampleIndexStatus);
+        metadata.indexes().register(sampleIndexStatus, sampleIndexStatusSubspace);
+
         LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
-        Map<String, Index> indexes = Map.of(
-                "status", new Index("status_idx", "status", BsonType.STRING)
-        );
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
         assertInstanceOf(PhysicalUnionOperator.class, physicalNode);
@@ -209,8 +250,9 @@ class PhysicalPlannerTest {
 
     @Test
     void when_planning_complex_query_one() {
+        BucketMetadata metadata = getBucketMetadata();
         LogicalNode logicalNode = getLogicalPlan(TestQuery.COMPLEX_QUERY_ONE);
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode);
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
         assertInstanceOf(PhysicalIntersectionOperator.class, physicalNode);
@@ -266,13 +308,22 @@ class PhysicalPlannerTest {
 
     @Test
     void when_planning_complex_query_one_with_indexes() {
-        Map<String, Index> indexes = Map.of(
-                "sale", new Index("sale_idx", "sale", BsonType.BOOLEAN),
-                "price", new Index("price_idx", "price", BsonType.INT32),
-                "qty", new Index("qty_idx", "qty", BsonType.INT32)
-        );
+        BucketMetadata metadata = getBucketMetadata();
+
+        IndexDefinition sampleSaleStatus = IndexDefinition.create("sale_idx", "sale", BsonType.BOOLEAN, SortOrder.ASCENDING);
+        DirectorySubspace sampleSaleSubspace = createIndex(metadata, sampleSaleStatus);
+        metadata.indexes().register(sampleSaleStatus, sampleSaleSubspace);
+
+        IndexDefinition sampleIndexPrice = IndexDefinition.create("price_idx", "price", BsonType.INT32, SortOrder.ASCENDING);
+        DirectorySubspace sampleIndexPriceSubspace = createIndex(metadata, sampleIndexPrice);
+        metadata.indexes().register(sampleIndexPrice, sampleIndexPriceSubspace);
+
+        IndexDefinition sampleIndexQty = IndexDefinition.create("qty_idx", "qty", BsonType.INT32, SortOrder.ASCENDING);
+        DirectorySubspace sampleIndexQtySubspace = createIndex(metadata, sampleIndexQty);
+        metadata.indexes().register(sampleIndexQty, sampleIndexQtySubspace);
+
         LogicalNode logicalNode = getLogicalPlan(TestQuery.COMPLEX_QUERY_ONE);
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(indexes), logicalNode);
+        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
         PhysicalNode physicalNode = physical.plan();
 
         assertInstanceOf(PhysicalIntersectionOperator.class, physicalNode);
@@ -329,17 +380,4 @@ class PhysicalPlannerTest {
             }
         }
     }
-
-    @Test
-    void when_foo() {
-        // 20 <= age <= 30
-        LogicalNode logicalNode = getLogicalPlan("{ $and: [ { age: {$gte: 20 } }, { age: { $lte: 30 } } ] }");
-        //LogicalNode logicalNode = getLogicalPlan("{ $and: [{ $or: [ { qty: { $lt : 10 } }, { qty : { $gt: 50 } } ] },{ $or: [ { sale: true }, { price : { $lt : 5 } } ] }]}");
-
-        List<PhysicalOptimizationStage> stages = new ArrayList<>(List.of(new MergeOverlappingBoundaries()));
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(), logicalNode, stages);
-        PhysicalNode physicalNode = physical.plan();
-
-    }
-
 }

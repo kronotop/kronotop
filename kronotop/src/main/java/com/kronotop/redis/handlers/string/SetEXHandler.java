@@ -67,7 +67,7 @@ public class SetEXHandler extends BaseStringHandler implements Handler {
         lock.writeLock().lock();
         try {
             StringValue stringValue = new StringValue(message.getValue());
-            stringValue.setTTL((message.getSeconds() * 1000) + service.getCachedTime().currentTimeInMilliseconds());
+            stringValue.setTTL((message.getSeconds() * 1000) + service.getCurrentTimeInMilliseconds());
             RedisValueContainer container = new RedisValueContainer(stringValue);
             RedisValueContainer previous = shard.storage().put(message.getKey(), container);
             syncStringOnVolume(shard, message.getKey(), previous);

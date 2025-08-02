@@ -47,7 +47,7 @@ public class BucketAdvanceHandler extends BaseBucketHandler {
             if (Objects.isNull(config)) {
                 throw new KronotopException("No previous query state found in this session");
             }
-            PlanExecutor executor = new PlanExecutor(context, config);
+            PlanExecutor executor = new PlanExecutor(config);
             try {
                 Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
                 return executor.execute(tr);

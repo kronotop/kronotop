@@ -19,7 +19,7 @@ package com.kronotop.foundationdb.namespace;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
-import com.kronotop.internal.NamespaceUtils;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -34,7 +34,7 @@ class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
             NamespaceMessage.ExistsMessage existsMessage = message.getExistsMessage();
-            return NamespaceUtils.exists(context, existsMessage.getPath());
+            return NamespaceUtil.exists(context, existsMessage.getSubpath());
         }, (exists) -> {
             if (exists) {
                 response.writeInteger(1);

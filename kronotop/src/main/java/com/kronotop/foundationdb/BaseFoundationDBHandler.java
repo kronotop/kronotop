@@ -16,8 +16,13 @@
 
 package com.kronotop.foundationdb;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
+import com.kronotop.DataStructureKind;
+import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.server.Handler;
+import com.kronotop.server.Session;
 
 public abstract class BaseFoundationDBHandler implements Handler {
     protected FoundationDBService service;
@@ -31,5 +36,16 @@ public abstract class BaseFoundationDBHandler implements Handler {
     @Override
     public boolean isRedisCompatible() {
         return false;
+    }
+
+    /**
+     * Opens a ZMap subspace in the FoundationDB database.
+     *
+     * @param tr      the transaction object for performing operations within the current transaction context
+     * @param session the session object representing the user session and its associated metadata
+     * @return the DirectorySubspace object representing the ZMap subspace in the database
+     */
+    protected DirectorySubspace openZMapSubspace(Transaction tr, Session session) {
+        return NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.ZMAP);
     }
 }

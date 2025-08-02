@@ -11,10 +11,10 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.bucket.BSONUtils;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.protocol.CommitArgs;
 import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.protocol.KronotopCommandBuilder;
@@ -47,7 +47,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         SimpleStringRedisMessage message = (SimpleStringRedisMessage) actualMessage.children().getFirst();
         assertNotNull(message.content());
 
-        Versionstamp versionstamp = assertDoesNotThrow(() -> VersionstampUtils.base32HexDecode(message.content()));
+        Versionstamp versionstamp = assertDoesNotThrow(() -> VersionstampUtil.base32HexDecode(message.content()));
         assertEquals(0, versionstamp.getUserVersion());
     }
 
@@ -57,8 +57,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         byte[][] docs = makeDocumentsArray(
                 List.of(
-                        BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
-                        BSONUtils.jsonToDocumentThenBytes("{\"three\": \"four\"}")
+                        BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
+                        BSONUtil.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                 ));
         cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
@@ -94,8 +94,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             BucketCommandBuilder<byte[], byte[]> bucketCommandBuilder = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             byte[][] docs = makeDocumentsArray(
                     List.of(
-                            BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
-                            BSONUtils.jsonToDocumentThenBytes("{\"three\": \"four\"}")
+                            BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
+                            BSONUtil.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                     ));
             bucketCommandBuilder.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
@@ -145,8 +145,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             BucketCommandBuilder<byte[], byte[]> bucketCommandBuilder = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             byte[][] docs = makeDocumentsArray(
                     List.of(
-                            BSONUtils.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
-                            BSONUtils.jsonToDocumentThenBytes("{\"three\": \"four\"}")
+                            BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
+                            BSONUtil.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                     ));
             bucketCommandBuilder.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
@@ -184,7 +184,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                 assertInstanceOf(SimpleStringRedisMessage.class, entry.getValue());
                 SimpleStringRedisMessage id = (SimpleStringRedisMessage) entry.getValue();
 
-                Versionstamp decodedId = VersionstampUtils.base32HexDecode(id.content());
+                Versionstamp decodedId = VersionstampUtil.base32HexDecode(id.content());
                 assertEquals(decodedId.getUserVersion(), userVersion.value());
             }
         }

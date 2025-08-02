@@ -132,7 +132,7 @@ public class EvictionWorker implements Runnable {
         }
 
         private void evictStringKeys(String key, RedisValueContainer container) {
-            long current = service.getCachedTime().currentTimeInMilliseconds();
+            long current = service.getCurrentTimeInMilliseconds();
             if (container.string().ttl() != 0 && container.string().ttl() <= current) {
                 RedisValueContainer previous = shard.storage().remove(key);
                 shard.index().remove(key);

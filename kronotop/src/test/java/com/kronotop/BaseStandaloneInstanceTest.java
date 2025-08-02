@@ -19,7 +19,11 @@ package com.kronotop;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.server.MockChannelHandlerContext;
+import com.kronotop.server.Session;
 import com.typesafe.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +49,17 @@ public class BaseStandaloneInstanceTest extends BaseTest {
             tr.commit().join();
             return subspace;
         }
+    }
+
+    protected Session getSession() {
+        MockChannelHandlerContext ctx = new MockChannelHandlerContext(instance.getChannel());
+        Session.registerSession(context, ctx);
+        return Session.extractSessionFromChannel(ctx.channel());
+    }
+
+    protected BucketMetadata getBucketMetadata(String name) {
+        Session session = getSession();
+        return BucketMetadataUtil.createOrOpen(context, session, name);
     }
 
     @BeforeEach

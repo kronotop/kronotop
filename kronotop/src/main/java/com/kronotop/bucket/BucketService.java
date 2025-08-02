@@ -10,11 +10,11 @@
 
 package com.kronotop.bucket;
 
-import com.kronotop.*;
-import com.kronotop.bucket.handlers.BucketAdvanceHandler;
-import com.kronotop.bucket.handlers.BucketInsertHandler;
-import com.kronotop.bucket.handlers.BucketQueryHandler;
-import com.kronotop.bucket.handlers.QueryHandler;
+import com.kronotop.CachedTimeService;
+import com.kronotop.Context;
+import com.kronotop.KronotopService;
+import com.kronotop.ShardOwnerService;
+import com.kronotop.bucket.handlers.*;
 import com.kronotop.bucket.planner.Planner;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
@@ -25,12 +25,26 @@ import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+/*
+We have been given the scientific knowledge, the technical ability and the materials to pursue the exploration of the universe.
+To ignore these great resources would be a corruption of a God-given ability.
+-- Wernher von Braun
+ */
+
 public class BucketService extends ShardOwnerService<BucketShard> implements KronotopService {
     public static final String NAME = "Bucket";
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
     private final int numberOfShards;
     private final RoutingService routing;
     private final Planner planner;
+    private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
+            Runtime.getRuntime().availableProcessors(),
+            Thread.ofVirtual().name("kr.bucket-service-", 0L).factory()
+    );
 
     // The default ShardSelector is RoundRobinShardSelector.
     private final ShardSelector shardSelector = new RoundRobinShardSelector();
@@ -41,10 +55,16 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         this.planner = new Planner(context);
         this.numberOfShards = context.getConfig().getInt("bucket.shards");
 
+        context.setBucketMetadataCache(new BucketMetadataCache(context));
+
         handlerMethod(ServerKind.EXTERNAL, new BucketInsertHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketQueryHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new QueryHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketAdvanceHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketCreateIndexHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketListIndexesHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketDescribeIndexHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketDropIndexHandler(this));
 
         routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
@@ -68,7 +88,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
      *
      * @param shardId the unique identifier of the shard to retrieve
      * @return the BucketShard associated with the provided shard ID,
-     *         or null if no shard is found for the given ID
+     * or null if no shard is found for the given ID
      */
     public BucketShard getShard(int shardId) {
         return getServiceContext().shards().get(shardId);
@@ -107,6 +127,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             initializeBucketShardsIfOwned(shardId);
         }
+
+        CachedTimeService cachedTimeService = context.getService(CachedTimeService.NAME);
+        Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(cachedTimeService, 1000 * 5 * 60);
+        scheduledExecutorService.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
     }
 
     /**
@@ -142,7 +166,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
      * <p>The {@code run} method is executed during routing events, where it performs the following steps:
      * 1. Validates that the shard kind matches {@code BUCKET}.
      * 2. Retrieves the {@code BucketShard} instance associated with the given shard ID using
-     *    {@code getShard(int shardId)}.
+     * {@code getShard(int shardId)}.
      * 3. Sets the shard's operable state to {@code false} using {@code shard.setOperable(boolean operable)}.
      * 4. Removes the shard from the shard selector using {@code shardSelector.remove(BucketShard shard)}.
      *

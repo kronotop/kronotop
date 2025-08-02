@@ -192,27 +192,18 @@ public class KronotopCommandBuilderTest {
     public void testNamespaceCreate() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        NamespaceArgs args = NamespaceArgs.Builder.layer("my-layer".getBytes()).prefix("my-prefix".getBytes());
-        cmd.namespaceCreate("my-namespace", args).encode(buf);
+        cmd.namespaceCreate("my-namespace").encode(buf);
 
         byte[] command = new byte[buf.readableBytes()];
         buf.readBytes(command);
         RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*7").
+                append("*3").
                 append("$9").
                 append("NAMESPACE").
                 append("$6").
                 append("CREATE").
                 append("$12").
-                append("my-namespace").
-                append("$5").
-                append("LAYER").
-                append("$8").
-                append("my-layer").
-                append("$6").
-                append("PREFIX").
-                append("$9").
-                append("my-prefix");
+                append("my-namespace");
         assertEquals(expectedCommand.toString(), new String(command));
     }
 

@@ -21,7 +21,7 @@ import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
-import com.kronotop.internal.VersionstampUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
@@ -74,7 +74,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
                 if (key.content().equals("process_id")) {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) valueMessage;
-                    assertEquals(VersionstampUtils.base32HexDecode(value.content()), context.getMember().getProcessId());
+                    assertEquals(VersionstampUtil.base32HexDecode(value.content()), context.getMember().getProcessId());
                 }
 
                 if (key.content().equals("external_host")) {
@@ -130,7 +130,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
             if (key.content().equals("process_id")) {
                 SimpleStringRedisMessage value = (SimpleStringRedisMessage) valueMessage;
-                assertEquals(VersionstampUtils.base32HexDecode(value.content()), context.getMember().getProcessId());
+                assertEquals(VersionstampUtil.base32HexDecode(value.content()), context.getMember().getProcessId());
             }
 
             if (key.content().equals("external_host")) {
@@ -180,7 +180,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
             if (key.content().equals("process_id")) {
                 SimpleStringRedisMessage value = (SimpleStringRedisMessage) valueMessage;
-                assertEquals(VersionstampUtils.base32HexDecode(value.content()), context.getMember().getProcessId());
+                assertEquals(VersionstampUtil.base32HexDecode(value.content()), context.getMember().getProcessId());
             }
 
             if (key.content().equals("external_host")) {

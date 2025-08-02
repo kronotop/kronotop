@@ -39,7 +39,7 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
     public static int ENTRY_PREFIX_SIZE = 8;
     public static int SUBSPACE_SEPARATOR_SIZE = 1;
     // 20 = position(8 bytes) + length (8 bytes) + id (4 bytes)
-    public static int ENTRY_METADATA_SIZE = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE + 20;
+    public static int SIZE = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE + 20;
     static byte SUBSPACE_SEPARATOR = 0x0;
 
 
@@ -99,7 +99,7 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
             throw new IllegalArgumentException("Invalid prefix length");
         }
         return ByteBuffer.
-                allocate(ENTRY_METADATA_SIZE).
+                allocate(SIZE).
                 put(segment.getBytes()).
                 put(SUBSPACE_SEPARATOR).
                 put(prefix).

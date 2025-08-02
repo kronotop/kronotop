@@ -91,7 +91,6 @@ public class Session {
         Long clientId = ClientIDGenerator.getAndIncrement();
         channel.attr(SessionAttributes.CLIENT_ID).set(clientId);
         channel.attr(SessionAttributes.OPEN_NAMESPACES).set(new HashMap<>());
-        channel.attr(SessionAttributes.OPEN_BUCKET_SUBSPACES).set(new HashMap<>());
         channel.attr(SessionAttributes.CURRENT_NAMESPACE).set(context.getDefaultNamespace());
         channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
         channel.attr(SessionAttributes.READONLY).set(false);

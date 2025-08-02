@@ -18,9 +18,10 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.bucket.BucketSubspace;
-import com.kronotop.foundationdb.namespace.Namespace;
-import com.kronotop.internal.NamespaceUtils;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.server.MockChannelHandlerContext;
+import com.kronotop.server.Session;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,18 +29,20 @@ import static org.junit.jupiter.api.Assertions.*;
 class PrefixUtilsTest extends BaseStandaloneInstanceTest {
 
     private TestBundle prepareTestBundle() {
-        Namespace namespace = NamespaceUtils.createOrOpen(context, "prefix-utils-test");
-        BucketSubspace subspace = new BucketSubspace(namespace);
-        byte[] prefixPointer = subspace.getBucketKey("test.bucket");
-        Prefix prefix = new Prefix("test-prefix");
-        return new TestBundle(subspace, prefix, prefixPointer);
+        MockChannelHandlerContext ctx = new MockChannelHandlerContext(instance.getChannel());
+        Session.registerSession(context, ctx);
+        Session session = Session.extractSessionFromChannel(instance.getChannel());
+
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, "test");
+        byte[] prefixPointer = BucketMetadataUtil.prefixKey(metadata.subspace());
+        return new TestBundle(metadata, prefixPointer);
     }
 
     @Test
     void test_register() {
         TestBundle bundle = prepareTestBundle();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            assertDoesNotThrow(() -> PrefixUtils.register(context, tr, bundle.prefixPointer, bundle.prefix));
+            assertDoesNotThrow(() -> PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.volumePrefix()));
             tr.commit().join();
         }
     }
@@ -48,13 +51,13 @@ class PrefixUtilsTest extends BaseStandaloneInstanceTest {
     void test_isStale() {
         TestBundle bundle = prepareTestBundle();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            PrefixUtils.register(context, tr, bundle.prefixPointer, bundle.prefix);
+            PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.volumePrefix());
             tr.commit().join();
         }
 
         // Not stale, because prefixPointer still exists;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            assertFalse(PrefixUtils.isStale(context, tr, bundle.prefix));
+            assertFalse(PrefixUtil.isStale(context, tr, bundle.metadata.volumePrefix()));
         }
 
         // Make it stale, the prefix pointer somehow removed
@@ -64,7 +67,7 @@ class PrefixUtilsTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            assertTrue(PrefixUtils.isStale(context, tr, bundle.prefix));
+            assertTrue(PrefixUtil.isStale(context, tr, bundle.metadata.volumePrefix()));
         }
     }
 
@@ -72,20 +75,20 @@ class PrefixUtilsTest extends BaseStandaloneInstanceTest {
     void test_unregister() {
         TestBundle bundle = prepareTestBundle();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            PrefixUtils.register(context, tr, bundle.prefixPointer, bundle.prefix);
+            PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.volumePrefix());
             tr.commit().join();
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            assertDoesNotThrow(() -> PrefixUtils.unregister(context, tr, bundle.prefixPointer, bundle.prefix));
+            assertDoesNotThrow(() -> PrefixUtil.unregister(context, tr, bundle.prefixPointer, bundle.metadata.volumePrefix()));
         }
 
         // Not stale, because it's unregistered
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            assertFalse(PrefixUtils.isStale(context, tr, bundle.prefix));
+            assertFalse(PrefixUtil.isStale(context, tr, bundle.metadata.volumePrefix()));
         }
     }
 
-    record TestBundle(BucketSubspace subspace, Prefix prefix, byte[] prefixPointer) {
+    record TestBundle(BucketMetadata metadata, byte[] prefixPointer) {
     }
 }

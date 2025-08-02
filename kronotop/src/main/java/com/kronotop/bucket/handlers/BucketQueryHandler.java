@@ -12,12 +12,14 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.*;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.executor.PlanExecutor;
 import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.executor.PlanExecutorEnvironment;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
-import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
@@ -26,7 +28,6 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
@@ -47,11 +48,11 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             Transaction tr,
             Session session,
             BucketQueryMessage message,
-            BucketSubspace subspace,
+            BucketMetadata metadata,
             BucketShard shard,
             PhysicalNode plan
     ) {
-        PlanExecutorEnvironment environment = new PlanExecutorEnvironment(message.getBucket(), subspace, shard, plan);
+        PlanExecutorEnvironment environment = new PlanExecutorEnvironment(metadata, shard, plan);
         PlanExecutorConfig config = new PlanExecutorConfig(environment);
 
         if (message.getArguments().limit() == 0) {
@@ -83,16 +84,11 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             Session session = request.getSession();
 
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            BucketSubspace subspace = BucketSubspaceUtils.open(context, session, tr);
+            BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, message.getBucket());
 
-            // ID is the default index
-            Map<String, Index> indexes = Map.of(
-                    DefaultIndex.ID.path(), DefaultIndex.ID
-            );
-
-            PhysicalNode plan = service.getPlanner().plan(indexes, message.getQuery());
-            PlanExecutorConfig config = preparePlanExecutorConfig(tr, session, message, subspace, shard, plan);
-            PlanExecutor executor = new PlanExecutor(context, config);
+            PhysicalNode plan = service.getPlanner().plan(metadata, message.getQuery());
+            PlanExecutorConfig config = preparePlanExecutorConfig(tr, session, message, metadata, shard, plan);
+            PlanExecutor executor = new PlanExecutor(config);
             try {
                 return executor.execute(tr);
             } catch (IOException e) {

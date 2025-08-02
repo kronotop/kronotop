@@ -81,23 +81,6 @@ public class ZMapTest {
     }
 
     @Test
-    public void test_ZDELPREFIX() {
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-        ByteBuf buf = Unpooled.buffer();
-        cmd.zdelprefix("prefix".getBytes()).encode(buf);
-
-        byte[] command = new byte[buf.readableBytes()];
-        buf.readBytes(command);
-        RESPCommandBuilder expectedCommand = new RESPCommandBuilder().
-                append("*2").
-                append("$10").
-                append("ZDELPREFIX").
-                append("$6").
-                append("prefix");
-        assertEquals(expectedCommand.toString(), new String(command));
-    }
-
-    @Test
     public void test_ZDELRANGE() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
