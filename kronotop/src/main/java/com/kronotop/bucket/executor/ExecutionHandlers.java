@@ -23,6 +23,8 @@ import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
@@ -2571,7 +2573,8 @@ class ExecutionHandlers {
             if (i == 0) {
                 // Initialize with first child results
                 for (Map.Entry<Versionstamp, ByteBuffer> entry : childResults.entrySet()) {
-                    entryIdToDocument.put(entry.getKey().hashCode(), new VersionstampDocumentPair(entry.getKey(), entry.getValue()));
+                    HashCode hashCode = Hashing.murmur3_128().hashBytes(entry.getKey().getBytes());
+                    entryIdToDocument.put(hashCode.asInt(), new VersionstampDocumentPair(entry.getKey(), entry.getValue()));
                 }
             } else {
                 // Intersect with subsequent children at document level
