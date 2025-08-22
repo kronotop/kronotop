@@ -2580,7 +2580,8 @@ class ExecutionHandlers {
                 // Intersect with subsequent children at document level
                 Map<Integer, VersionstampDocumentPair> intersectedResults = new HashMap<>();
                 for (Map.Entry<Versionstamp, ByteBuffer> entry : childResults.entrySet()) {
-                    int tempId = entry.getKey().hashCode();
+                    HashCode hashCode = Hashing.murmur3_128().hashBytes(entry.getKey().getBytes());
+                    int tempId = hashCode.asInt();
                     if (entryIdToDocument.containsKey(tempId)) {
                         intersectedResults.put(tempId, new VersionstampDocumentPair(entry.getKey(), entry.getValue()));
                     }
