@@ -16,16 +16,11 @@
 
 package com.kronotop.bucket.planner.logical;
 
-import com.kronotop.bucket.bql.operators.OperatorType;
+import com.kronotop.bucket.planner.Operator;
 
-public class LogicalFilter extends LogicalNode {
-    private final OperatorType operatorType;
-
-    public LogicalFilter(OperatorType operatorType) {
-        this.operatorType = operatorType;
-    }
-
-    public OperatorType getOperatorType() {
-        return operatorType;
+public record LogicalFilter(String selector, Operator op, Object operand) implements LogicalNode {
+    @Override
+    public <R> R accept(LogicalPlanVisitor<R> v) {
+        return v.visitFilter(this);
     }
 }

@@ -16,22 +16,25 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import java.util.List;
+import java.util.Objects;
 
-public class PhysicalFullScan extends PhysicalScan {
-
-    public PhysicalFullScan() {
-        super();
-    }
-
-    public PhysicalFullScan(List<PhysicalNode> children) {
-        super(children);
-    }
-
+public record PhysicalFullScan(int id, PhysicalNode node) implements PhysicalNode {
     @Override
-    public String toString() {
-        return "PhysicalFullScan {" +
-                "field=" + getField() + ", " +
-                "bounds=" + getBounds() + "}";
+    public <R> R accept(PhysicalPlanVisitor<R> visitor) {
+        return visitor.visitFullScan(this);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof PhysicalFullScan other)) return false;
+        return Objects.equals(node, other.node);
+        // Note: id is intentionally excluded from comparison
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(node);
+        // Note: id is intentionally excluded from hash
     }
 }

@@ -16,17 +16,6 @@
 
 package com.kronotop.bucket.planner.logical;
 
-import java.util.ArrayList;
-import java.util.List;
-
-public class LogicalNode {
-    protected final List<LogicalNode> children = new ArrayList<>();
-
-    void addFilter(LogicalNode child) {
-        children.add(child);
-    }
-
-    public List<LogicalNode> getChildren() {
-        return children;
-    }
+public sealed interface LogicalNode permits LogicalFilter, LogicalAnd, LogicalOr, LogicalNot, LogicalElemMatch, LogicalTrue, LogicalFalse {
+    <R> R accept(LogicalPlanVisitor<R> visitor);
 }

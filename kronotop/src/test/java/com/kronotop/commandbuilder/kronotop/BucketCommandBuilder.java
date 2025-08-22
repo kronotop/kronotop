@@ -18,7 +18,10 @@ package com.kronotop.commandbuilder.kronotop;
 
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.output.*;
+import io.lettuce.core.output.GenericMapOutput;
+import io.lettuce.core.output.ListOfGenericMapsOutput;
+import io.lettuce.core.output.StatusOutput;
+import io.lettuce.core.output.StringListOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 import io.lettuce.core.protocol.ProtocolKeyword;
@@ -35,20 +38,28 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         super(codec);
     }
 
-    @SafeVarargs
-    public final Command<K, V, List<String>> insert(String bucket, V... documents) {
+    public final Command<K, V, List<String>> insert(String bucket, List<V> documents) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(DOCS.toString()).addValues(documents);
         return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
     }
 
     @SafeVarargs
-    public final Command<K, V, List<String>> insert(String bucket, BucketInsertArgs bucketInsertArgs, V... documents) {
+    public final Command<K, V, List<String>> insert(String bucket, V... documents) {
+        return insert(bucket, List.of(documents));
+    }
+
+    public final Command<K, V, List<String>> insert(String bucket, BucketInsertArgs bucketInsertArgs, List<V> documents) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket);
         if (bucketInsertArgs != null) {
             bucketInsertArgs.build(args);
         }
         args.add(DOCS.toString()).addValues(documents);
         return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
+    }
+
+    @SafeVarargs
+    public final Command<K, V, List<String>> insert(String bucket, BucketInsertArgs bucketInsertArgs, V... documents) {
+        return insert(bucket, bucketInsertArgs, List.of(documents));
     }
 
     public final Command<K, V, List<String>> insert(String bucket, V document) {

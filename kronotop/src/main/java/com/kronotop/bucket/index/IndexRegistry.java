@@ -21,13 +21,17 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.CachedTimeService;
 import com.kronotop.Context;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
+/**
+ * The IndexRegistry class is responsible for managing and organizing index-related operations
+ * within a specific context. It allows the registration and retrieval of indexes and their
+ * associated subspaces, as well as management of index statistics and their refresh timings.
+ */
 public class IndexRegistry {
     private final CachedTimeService cachedTime;
-    private final Map<IndexDefinition, DirectorySubspace> registry = new HashMap<>();
+    private final Map<String, IndexBundle> indexBundleBySelectors = new HashMap<>();
+    private Set<String> selectors = new HashSet<>();
     private volatile Map<Long, IndexStatistics> statistics;
     private volatile long statsLastRefreshedAt;
 
@@ -35,21 +39,35 @@ public class IndexRegistry {
         this.cachedTime = context.getService(CachedTimeService.NAME);
     }
 
-    public void register(IndexDefinition index, DirectorySubspace subspace) {
-        registry.put(index, subspace);
+    public void register(IndexDefinition definition, DirectorySubspace subspace) {
+        IndexBundle bundle = new IndexBundle(definition, subspace);
+        indexBundleBySelectors.put(definition.selector(), bundle);
+        selectors = Collections.unmodifiableSet(indexBundleBySelectors.keySet());
     }
 
-    public DirectorySubspace getSubspace(IndexDefinition index) {
-        return registry.get(index);
+    public DirectorySubspace getSubspace(String selector) {
+        IndexBundle bundle = indexBundleBySelectors.get(selector);
+        if (bundle == null) {
+            return null;
+        }
+        return bundle.subspace;
     }
 
-    public Set<IndexDefinition> getDefinitions() {
-        return registry.keySet();
+    public IndexDefinition getIndexBySelector(String selector) {
+        IndexBundle bundle = indexBundleBySelectors.get(selector);
+        if (bundle == null) {
+            return null;
+        }
+        return bundle.definition;
     }
 
     public void updateStatistics(Map<Long, IndexStatistics> statistics) {
         this.statistics = statistics;
         this.statsLastRefreshedAt = cachedTime.getCurrentTimeInMilliseconds();
+    }
+
+    public Set<String> getSelectors() {
+        return selectors;
     }
 
     public IndexStatistics getStatistics(long id) {
@@ -58,5 +76,8 @@ public class IndexRegistry {
 
     public long getStatsLastRefreshedAt() {
         return statsLastRefreshedAt;
+    }
+
+    record IndexBundle(IndexDefinition definition, DirectorySubspace subspace) {
     }
 }

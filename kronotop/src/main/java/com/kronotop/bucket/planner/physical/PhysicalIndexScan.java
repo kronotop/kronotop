@@ -16,24 +16,25 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import java.util.Objects;
 
-public class PhysicalIndexScan extends PhysicalScan {
-    private final IndexDefinition index;
-
-    public PhysicalIndexScan(IndexDefinition index) {
-        this.index = index;
-    }
-
-    public IndexDefinition getIndex() {
-        return index;
-    }
-
+public record PhysicalIndexScan(int id, PhysicalNode node) implements PhysicalNode {
     @Override
-    public String toString() {
-        return "PhysicalIndexScan {" +
-                "index=" + index + ", " +
-                "field=" + getField() + ", " +
-                "bounds=" + getBounds() + "}";
+    public <R> R accept(PhysicalPlanVisitor<R> visitor) {
+        return visitor.visitIndexScan(this);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof PhysicalIndexScan other)) return false;
+        return Objects.equals(node, other.node);
+        // Note: id is intentionally excluded from comparison
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(node);
+        // Note: id is intentionally excluded from hash
     }
 }

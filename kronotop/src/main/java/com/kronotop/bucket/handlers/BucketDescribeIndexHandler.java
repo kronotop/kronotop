@@ -50,8 +50,8 @@ public class BucketDescribeIndexHandler extends BaseBucketHandler implements Han
     private static Map<RedisMessage, RedisMessage> getRedisMessageRedisMessageMap(IndexDefinition definition, IndexStatistics statistics) {
         Map<RedisMessage, RedisMessage> description = new LinkedHashMap<>();
         description.put(
-                new SimpleStringRedisMessage("field"),
-                new SimpleStringRedisMessage(definition.field())
+                new SimpleStringRedisMessage("selector"),
+                new SimpleStringRedisMessage(definition.selector())
         );
         description.put(
                 new SimpleStringRedisMessage("bson_type"),

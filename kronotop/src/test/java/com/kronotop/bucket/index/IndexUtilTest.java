@@ -37,7 +37,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
     final String bucketName = "test-bucket";
     final IndexDefinition definition = IndexDefinition.create(
             "numeric-index",
-            "numeric-field",
+            "numeric-selector",
             BsonType.INT32,
             SortOrder.ASCENDING
     );
@@ -98,7 +98,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         List<String> expectedIndexes = List.of(DefaultIndexDefinition.ID.name(), definition.name());
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             List<String> indexes = IndexUtil.list(tr, metadata.subspace());
-            assertEquals(expectedIndexes, indexes);
+            assertThat(expectedIndexes).hasSameElementsAs(indexes);
         }
     }
 

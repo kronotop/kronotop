@@ -21,7 +21,6 @@ import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -62,7 +61,7 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
             runCommand(channel, buf);
         }
 
-        String indexName = "field:username.bsonType:STRING.sortOrder:DESCENDING";
+        String indexName = "selector:username.bsonType:STRING.sortOrder:DESCENDING";
 
         ByteBuf buf = Unpooled.buffer();
         cmd.describeIndex(BUCKET_NAME, indexName).encode(buf);
@@ -74,7 +73,7 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
         for (Map.Entry<RedisMessage, RedisMessage> entry : fields.entrySet()) {
             SimpleStringRedisMessage key = (SimpleStringRedisMessage) entry.getKey();
             switch (key.content()) {
-                case "field" -> {
+                case "selector" -> {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();
                     assertEquals("username", value.content());
                 }

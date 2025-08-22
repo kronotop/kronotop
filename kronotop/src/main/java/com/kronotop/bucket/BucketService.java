@@ -21,7 +21,6 @@ import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.ShardOwnerService;
 import com.kronotop.bucket.handlers.*;
-import com.kronotop.bucket.planner.Planner;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingEventKind;
@@ -46,7 +45,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
     private final int numberOfShards;
     private final RoutingService routing;
-    private final Planner planner;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Thread.ofVirtual().name("kr.bucket-service-", 0L).factory()
@@ -58,7 +56,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     public BucketService(Context context) {
         super(context, NAME);
         this.routing = context.getService(RoutingService.NAME);
-        this.planner = new Planner(context);
         this.numberOfShards = context.getConfig().getInt("bucket.shards");
 
         context.setBucketMetadataCache(new BucketMetadataCache(context));
@@ -83,10 +80,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
      */
     public ShardSelector getShardSelector() {
         return shardSelector;
-    }
-
-    public Planner getPlanner() {
-        return planner;
     }
 
     /**

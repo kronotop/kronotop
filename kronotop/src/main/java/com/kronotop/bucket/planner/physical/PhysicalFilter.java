@@ -16,14 +16,28 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import java.util.List;
+import com.kronotop.bucket.planner.Operator;
+import java.util.Objects;
 
-public class PhysicalFilter extends PhysicalNode {
-    public PhysicalFilter() {
-        super();
+public record PhysicalFilter(int id, String selector, Operator op, Object operand) implements PhysicalNode {
+    @Override
+    public <R> R accept(PhysicalPlanVisitor<R> visitor) {
+        return visitor.visitFilter(this);
     }
-
-    public PhysicalFilter(List<PhysicalNode> children) {
-        super(children);
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof PhysicalFilter other)) return false;
+        return Objects.equals(selector, other.selector) && 
+               Objects.equals(op, other.op) && 
+               Objects.equals(operand, other.operand);
+        // Note: id is intentionally excluded from comparison
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(selector, op, operand);
+        // Note: id is intentionally excluded from hash
     }
 }

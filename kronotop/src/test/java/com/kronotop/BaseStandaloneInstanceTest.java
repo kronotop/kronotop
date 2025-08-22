@@ -37,6 +37,8 @@ public class BaseStandaloneInstanceTest extends BaseTest {
     protected Config config;
     protected Context context; // shortcut
 
+    protected String TEST_BUCKET_NAME = "test-bucket";
+
     protected String getConfigFileName() {
         return DEFAULT_CONFIG_FILE_NAME;
     }

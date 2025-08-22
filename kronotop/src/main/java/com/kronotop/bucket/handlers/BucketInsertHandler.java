@@ -23,6 +23,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.IndexBuilder;
+import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
@@ -34,6 +35,9 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeSession;
+import org.bson.BsonBinaryReader;
+import org.bson.BsonReader;
+import org.bson.BsonType;
 import org.bson.Document;
 
 import java.io.IOException;
@@ -65,6 +69,63 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
             return BSONUtil.fromBson(data);
         } else {
             throw new KronotopException("Invalid input type: " + inputType);
+        }
+    }
+
+    /**
+     * Extracts a field value from a BSON document and converts it to the appropriate Java object
+     * for index storage. Returns null if the field is not found or if the BSON type doesn't
+     * match the expected IndexDefinition type.
+     *
+     * @param entry            the ByteBuffer containing the BSON document
+     * @param selector         the field name to extract
+     * @param expectedBsonType the expected BSON type from IndexDefinition
+     * @return the extracted field value as a Java object, or null if not found/type mismatch
+     */
+    private Object extractFieldValueFromBsonDocument(ByteBuffer entry, String selector, BsonType expectedBsonType) {
+        entry.rewind();
+        try (BsonReader reader = new BsonBinaryReader(entry)) {
+            reader.readStartDocument();
+
+            while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                String fieldName = reader.readName();
+
+                if (fieldName.equals(selector)) {
+                    BsonType actualBsonType = reader.getCurrentBsonType();
+
+                    // Check if the actual BSON type matches the expected type from IndexDefinition
+                    if (actualBsonType != expectedBsonType) {
+                        return null; // Type mismatch, ignore this field
+                    }
+
+                    // Extract the value based on the BSON type
+                    return switch (actualBsonType) {
+                        case STRING -> reader.readString();
+                        case INT32 -> (long) reader.readInt32(); // FoundationDB stores as Long
+                        case INT64 -> reader.readInt64();
+                        case DOUBLE -> reader.readDouble();
+                        case BOOLEAN -> reader.readBoolean();
+                        case BINARY -> reader.readBinaryData().getData();
+                        case DATE_TIME -> reader.readDateTime();
+                        case DECIMAL128 -> reader.readDecimal128().toString();
+                        case NULL -> {
+                            reader.readNull();
+                            yield null;
+                        }
+                        default -> {
+                            reader.skipValue(); // Skip unsupported types
+                            yield null;
+                        }
+                    };
+                } else {
+                    reader.skipValue(); // Skip fields that don't match our selector
+                }
+            }
+
+            return null; // Field not found in document
+        } catch (Exception e) {
+            // Log and ignore parsing errors - missing field is OK
+            return null;
         }
     }
 
@@ -121,7 +182,28 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                 throw new UncheckedIOException(e);
             }
 
-            IndexBuilder.setIDIndex(tr, shard.id(), metadata, appendResult.getAppendedEntries());
+            IndexBuilder.setIDIndexEntry(tr, shard.id(), metadata, appendResult.getAppendedEntries());
+
+            // Index creation for all user-defined indexes
+            for (int i = 0; i < appendResult.getAppendedEntries().length; i++) {
+                AppendedEntry appendedEntry = appendResult.getAppendedEntries()[i];
+                ByteBuffer entry = pack.entries[i];
+                entry.rewind();
+
+                for (String selector : metadata.indexes().getSelectors()) {
+                    IndexDefinition definition = metadata.indexes().getIndexBySelector(selector);
+
+                    // Skip the default ID index as it's already handled above
+                    if (definition.equals(DefaultIndexDefinition.ID)) {
+                        continue;
+                    }
+
+                    Object indexValue = extractFieldValueFromBsonDocument(entry, selector, definition.bsonType());
+                    if (indexValue != null) {
+                        IndexBuilder.setIndexEntry(tr, definition, shard.id(), metadata, indexValue, appendedEntry);
+                    }
+                }
+            }
 
             boolean autoCommit = TransactionUtils.getAutoCommit(request.getSession());
             PostCommitHook postCommitHook = new PostCommitHook(appendResult);

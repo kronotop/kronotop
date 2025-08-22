@@ -26,6 +26,8 @@ replay_pid*
 .idea/
 target/
 kronotop-data
+.claude
+CLAUDE.md
 
 dependency-reduced-pom.xml
 *.iml

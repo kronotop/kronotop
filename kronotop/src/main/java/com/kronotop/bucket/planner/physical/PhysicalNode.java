@@ -16,30 +16,7 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import java.util.ArrayList;
-import java.util.List;
-
-public class PhysicalNode {
-    protected final List<PhysicalNode> children;
-
-    public PhysicalNode() {
-        this.children = new ArrayList<>();
-    }
-
-    public PhysicalNode(List<PhysicalNode> children) {
-        this.children = children;
-    }
-
-    void addChild(PhysicalNode child) {
-        children.add(child);
-    }
-
-    public List<PhysicalNode> getChildren() {
-        return children;
-    }
-
-    void setChildren(List<PhysicalNode> children) {
-        this.children.clear();
-        this.children.addAll(children);
-    }
+public sealed interface PhysicalNode permits PhysicalFullScan, PhysicalIndexScan, PhysicalFilter, PhysicalAnd, PhysicalOr, PhysicalNot, PhysicalElemMatch, PhysicalTrue, PhysicalFalse, PhysicalRangeScan, PhysicalIndexIntersection {
+    int id();
+    <R> R accept(PhysicalPlanVisitor<R> visitor);
 }

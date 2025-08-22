@@ -51,7 +51,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         assertEquals(testBucketName, metadata.name());
         assertNotNull(metadata.subspace());
         assertNotNull(metadata.volumePrefix());
-        assertNotNull(metadata.indexes().getSubspace(DefaultIndexDefinition.ID));
+        assertNotNull(metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector()));
         assertTrue(metadata.version() > 0);
     }
 
@@ -141,7 +141,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
         final IndexDefinition numericIndexDefinition = IndexDefinition.create(
                 "numeric-index",
-                "numeric-field",
+                "numeric-selector",
                 BsonType.INT32,
                 SortOrder.ASCENDING
         );

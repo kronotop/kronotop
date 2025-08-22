@@ -16,38 +16,48 @@
 
 package com.kronotop.bucket.executor;
 
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.planner.physical.PhysicalNode;
+import com.kronotop.bucket.planner.physical.PlannerContext;
+
 /**
- * The PlanExecutorConfig class is responsible for storing and managing the configuration
+ * The Config class is responsible for storing and managing the configuration
  * of the plan executor, including both immutable and mutable settings.
- * <p>
- * The immutable configuration is encapsulated in the {@link PlanExecutorEnvironment}, which
- * contains static details about the environment in which the plan is executed.
  * <p>
  * This class provides flexibility by allowing modification of certain parameters, such as
  * the bucket batch size, to adjust the configuration dynamically as needed during execution.
  */
 public class PlanExecutorConfig {
-    // PlanExecutorEnvironment holds the immutable fields.
-    private final PlanExecutorEnvironment environment;
+    private final BucketMetadata metadata;
+    private final PhysicalNode plan;
+    private final PlannerContext plannerContext;
+
     private final Cursor cursor = new Cursor();
+
     // Mutable fields
     private volatile boolean reverse;
     private volatile int limit;
     private volatile long readVersion;
     private volatile boolean pinReadVersion;
+    private volatile String sortByField = DefaultIndexDefinition.ID.selector();
 
-    public PlanExecutorConfig(PlanExecutorEnvironment environment) {
-        this.environment = environment;
+    public PlanExecutorConfig(BucketMetadata metadata, PhysicalNode plan, PlannerContext plannerContext) {
+        this.metadata = metadata;
+        this.plan = plan;
+        this.plannerContext = plannerContext;
     }
 
-    /**
-     * Retrieves the immutable environment configuration used by the plan executor.
-     *
-     * @return the {@link PlanExecutorEnvironment} containing static details about the execution environment,
-     * such as bucket, subspace, shard, and physical node configuration.
-     */
-    public PlanExecutorEnvironment environment() {
-        return environment;
+    public BucketMetadata getMetadata() {
+        return metadata;
+    }
+
+    public PhysicalNode getPlan() {
+        return plan;
+    }
+
+    public PlannerContext getPlannerContext() {
+        return plannerContext;
     }
 
     /**
@@ -93,11 +103,19 @@ public class PlanExecutorConfig {
         return cursor;
     }
 
-    public boolean reverse() {
+    public boolean isReverse() {
         return reverse;
     }
 
     public void setReverse(boolean reverse) {
         this.reverse = reverse;
+    }
+
+    public void setSortByField(String sortByField) {
+        this.sortByField = sortByField;
+    }
+
+    public String getSortByField() {
+        return sortByField;
     }
 }

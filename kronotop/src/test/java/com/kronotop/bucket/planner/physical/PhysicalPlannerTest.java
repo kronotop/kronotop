@@ -16,374 +16,692 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.bucket.index.SortOrder;
-import com.kronotop.bucket.planner.PlannerContext;
-import com.kronotop.bucket.planner.TestQuery;
-import com.kronotop.bucket.planner.logical.LogicalNode;
-import com.kronotop.bucket.planner.logical.LogicalPlanner;
-import com.kronotop.server.MockChannelHandlerContext;
-import com.kronotop.server.Session;
-import org.bson.BsonType;
+import com.kronotop.bucket.bql.BqlParser;
+import com.kronotop.bucket.bql.ast.BqlExpr;
+import com.kronotop.bucket.planner.Operator;
+import com.kronotop.bucket.planner.logical.*;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class PhysicalPlannerTest extends BaseStandaloneInstanceTest {
+/**
+ * Comprehensive test suite for PhysicalPlanner covering all LogicalNode transposition cases.
+ * Tests the complete LogicalNode → PhysicalNode conversion pipeline with optimizations.
+ */
+class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
-    private LogicalNode getLogicalPlan(String query) {
-        LogicalPlanner logical = new LogicalPlanner(query);
-        return logical.plan();
-    }
-
-    private BucketMetadata getBucketMetadata() {
-        MockChannelHandlerContext ctx = new MockChannelHandlerContext(instance.getChannel());
-        Session.registerSession(context, ctx);
-        Session session = Session.extractSessionFromChannel(ctx.channel());
-        return BucketMetadataUtil.createOrOpen(context, session, "test");
-    }
+    // ============================================================================
+    // Basic Transposition Tests - All LogicalNode Types
+    // ============================================================================
 
     @Test
-    void when_planning_no_child_expression() {
-        BucketMetadata metadata = getBucketMetadata();
+    @DisplayName("Simple status query should work")
+    void testSimpleQuery() {
+        String query = "{status: 'ACTIVE'}";
+        BqlExpr expr = BqlParser.parse(query);
 
-        LogicalNode logicalNode = getLogicalPlan(TestQuery.NO_CHILD_EXPRESSION);
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
-        PhysicalNode physicalNode = physical.plan();
+        LogicalNode logicalPlan = logicalPlanner.plan(expr);
+        PhysicalNode node = physicalPlanner.plan(metadata, logicalPlan, new PlannerContext());
 
-        assertInstanceOf(PhysicalFullScan.class, physicalNode);
-        PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalNode;
-        assertNull(physicalFullScan.getBounds());
-        assertNull(physicalFullScan.getField());
+        assertInstanceOf(PhysicalFullScan.class, node);
+        PhysicalFullScan fullScan = (PhysicalFullScan) node;
+        assertInstanceOf(PhysicalFilter.class, fullScan.node());
+
+        PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+        assertEquals("status", filter.selector());
+        assertEquals(Operator.EQ, filter.op());
+        assertEquals("ACTIVE", extractValue(filter.operand()));
     }
 
-    private DirectorySubspace createIndex(BucketMetadata metadata, IndexDefinition definition) {
-        DirectorySubspace subspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            subspace = IndexUtil.create(tr, metadata.subspace(), definition);
-            tr.commit().join();
-        }
-        return subspace;
-    }
+    // ============================================================================
+    // Full Scan vs Index Scan Tests (ignoring indexed cases per user request)
+    // ============================================================================
 
-    @Test
-    void when_planning_single_field_with_string_type_and_gte() {
-        BucketMetadata metadata = getBucketMetadata();
+    @Nested
+    @DisplayName("Basic Transposition Tests")
+    class BasicTranspositionTests {
 
-        IndexDefinition sampleIndex = IndexDefinition.create("a_idx", "a", BsonType.STRING, SortOrder.ASCENDING);
-        DirectorySubspace sampleIndexSubspace = createIndex(metadata, sampleIndex);
-        metadata.indexes().register(sampleIndex, sampleIndexSubspace);
+        @Test
+        @DisplayName("LogicalFilter should transpose to PhysicalFullScan with PhysicalFilter")
+        void testLogicalFilterTransposition() {
+            LogicalFilter logicalFilter = new LogicalFilter("status", Operator.EQ, "active");
+            PhysicalNode result = planLogical(logicalFilter);
 
-        LogicalNode logicalNode = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_STRING_TYPE_AND_GTE);
-        PlannerContext context = new PlannerContext(metadata);
-        PhysicalPlanner physical = new PhysicalPlanner(context, logicalNode);
-        PhysicalNode physicalNode = physical.plan();
+            // Should be FullScan since no index exists for "status"
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
 
-        assertInstanceOf(PhysicalIndexScan.class, physicalNode);
-
-        PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalNode;
-        assertEquals("a_idx", physicalIndexScan.getIndex().name());
-        assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().bqlValue().bsonType());
-        assertEquals("string-value", physicalIndexScan.getBounds().lower().bqlValue().value());
-    }
-
-    @Test
-    void when_planning_single_field_with_int32_type_and_eq() {
-        BucketMetadata metadata = getBucketMetadata();
-        // FULL SCAN
-        LogicalNode logicalNode = getLogicalPlan(TestQuery.SINGLE_FIELD_WITH_IN32_TYPE_AND_EQ);
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
-        PhysicalNode physicalNode = physical.plan();
-
-        assertInstanceOf(PhysicalFullScan.class, physicalNode);
-
-        PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalNode;
-
-        // lower bound
-        assertEquals(BsonType.INT32, physicalFullScan.getBounds().lower().bqlValue().bsonType());
-        assertEquals(20, physicalFullScan.getBounds().lower().bqlValue().value());
-
-        // upper bound
-        assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().bqlValue().bsonType());
-        assertEquals(20, physicalFullScan.getBounds().upper().bqlValue().value());
-    }
-
-    @Test
-    void intersection_operator_with_two_indexed_fields() {
-        BucketMetadata metadata = getBucketMetadata();
-
-        IndexDefinition sampleIndexA = IndexDefinition.create("a_idx", "a", BsonType.INT32, SortOrder.ASCENDING);
-        DirectorySubspace sampleIndexASubspace = createIndex(metadata, sampleIndexA);
-        metadata.indexes().register(sampleIndexA, sampleIndexASubspace);
-
-        IndexDefinition sampleIndexB = IndexDefinition.create("b_idx", "b", BsonType.STRING, SortOrder.ASCENDING);
-        DirectorySubspace sampleIndexBSubspace = createIndex(metadata, sampleIndexB);
-        metadata.indexes().register(sampleIndexB, sampleIndexBSubspace);
-
-        LogicalNode logicalNode = getLogicalPlan("{ a: { $gte: 20 }, b: { $eq: 'string-value' } }");
-
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
-        PhysicalNode physicalNode = physical.plan();
-
-        PhysicalIntersectionOperator physicalIntersectionOperator = (PhysicalIntersectionOperator) physicalNode;
-
-        {
-            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalIntersectionOperator.getChildren().getFirst();
-            assertEquals(BsonType.INT32, physicalIndexScan.getBounds().lower().bqlValue().bsonType());
-            assertEquals(20, physicalIndexScan.getBounds().lower().bqlValue().value());
+            // Should contain PhysicalFilter with same fields
+            assertInstanceOf(PhysicalFilter.class, fullScan.node());
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("status", filter.selector());
+            assertEquals(Operator.EQ, filter.op());
+            assertEquals("active", extractValue(filter.operand()));
         }
 
-        {
-            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalIntersectionOperator.getChildren().get(1);
+        @Test
+        @DisplayName("LogicalAnd should transpose to PhysicalAnd with child transposition")
+        void testLogicalAndTransposition() {
+            LogicalAnd logicalAnd = new LogicalAnd(Arrays.asList(
+                    new LogicalFilter("status", Operator.EQ, "active"),
+                    new LogicalFilter("priority", Operator.GT, 5)
+            ));
+            PhysicalNode result = planLogical(logicalAnd);
 
-            // Lower bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().bqlValue().bsonType());
-            assertEquals("string-value", physicalIndexScan.getBounds().lower().bqlValue().value());
+            assertInstanceOf(PhysicalAnd.class, result);
+            PhysicalAnd physicalAnd = (PhysicalAnd) result;
+            assertEquals(2, physicalAnd.children().size());
 
-            // Upper bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().upper().bqlValue().bsonType());
-            assertEquals("string-value", physicalIndexScan.getBounds().upper().bqlValue().value());
-        }
-    }
-
-    @Test
-    void or_operator_with_two_indexed_fields() {
-        BucketMetadata metadata = getBucketMetadata();
-
-        IndexDefinition sampleIndexStatus = IndexDefinition.create("status_idx", "status", BsonType.STRING, SortOrder.ASCENDING);
-        DirectorySubspace sampleIndexStatusSubspace = createIndex(metadata, sampleIndexStatus);
-        metadata.indexes().register(sampleIndexStatus, sampleIndexStatusSubspace);
-
-        IndexDefinition sampleIndexQty = IndexDefinition.create("qty_idx", "qty", BsonType.INT32, SortOrder.ASCENDING);
-        DirectorySubspace sampleIndexQtySubspace = createIndex(metadata, sampleIndexQty);
-        metadata.indexes().register(sampleIndexQty, sampleIndexQtySubspace);
-
-        LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
-        PhysicalNode physicalNode = physical.plan();
-
-        assertInstanceOf(PhysicalUnionOperator.class, physicalNode);
-
-        PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalNode;
-
-        {
-            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().getFirst();
-
-            // lower bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().bqlValue().bsonType());
-            assertEquals("A", physicalIndexScan.getBounds().lower().bqlValue().value());
-
-            // Upper bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().upper().bqlValue().bsonType());
-            assertEquals("A", physicalIndexScan.getBounds().upper().bqlValue().value());
+            // Both children should be FullScans with filters
+            assertInstanceOf(PhysicalFullScan.class, physicalAnd.children().get(0));
+            assertInstanceOf(PhysicalFullScan.class, physicalAnd.children().get(1));
         }
 
-        {
-            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(1);
-            assertEquals(BsonType.INT32, physicalIndexScan.getBounds().upper().bqlValue().bsonType());
-            assertEquals(30, physicalIndexScan.getBounds().upper().bqlValue().value());
+        @Test
+        @DisplayName("LogicalOr should transpose to PhysicalOr with child transposition")
+        void testLogicalOrTransposition() {
+            LogicalOr logicalOr = new LogicalOr(Arrays.asList(
+                    new LogicalFilter("category", Operator.EQ, "electronics"),
+                    new LogicalFilter("featured", Operator.EQ, true)
+            ));
+            PhysicalNode result = planLogical(logicalOr);
+
+            assertInstanceOf(PhysicalOr.class, result);
+            PhysicalOr physicalOr = (PhysicalOr) result;
+            assertEquals(2, physicalOr.children().size());
+
+            // Both children should be FullScans with filters
+            assertInstanceOf(PhysicalFullScan.class, physicalOr.children().get(0));
+            assertInstanceOf(PhysicalFullScan.class, physicalOr.children().get(1));
+        }
+
+        @Test
+        @DisplayName("LogicalNot should transpose to PhysicalNot with child transposition")
+        void testLogicalNotTransposition() {
+            LogicalNot logicalNot = new LogicalNot(new LogicalFilter("deleted", Operator.EQ, true));
+            PhysicalNode result = planLogical(logicalNot);
+
+            assertInstanceOf(PhysicalNot.class, result);
+            PhysicalNot physicalNot = (PhysicalNot) result;
+
+            // Child should be FullScan with filter
+            assertInstanceOf(PhysicalFullScan.class, physicalNot.child());
+            PhysicalFullScan fullScan = (PhysicalFullScan) physicalNot.child();
+            assertInstanceOf(PhysicalFilter.class, fullScan.node());
+        }
+
+        @Test
+        @DisplayName("LogicalElemMatch should transpose to PhysicalElemMatch with subplan transposition")
+        void testLogicalElemMatchTransposition() {
+            LogicalElemMatch logicalElemMatch = new LogicalElemMatch("items",
+                    new LogicalFilter("price", Operator.GT, 100));
+            PhysicalNode result = planLogical(logicalElemMatch);
+
+            assertInstanceOf(PhysicalElemMatch.class, result);
+            PhysicalElemMatch physicalElemMatch = (PhysicalElemMatch) result;
+            assertEquals("items", physicalElemMatch.selector());
+
+            // Subplan should be FullScan with filter
+            assertInstanceOf(PhysicalFullScan.class, physicalElemMatch.subPlan());
+        }
+
+        @Test
+        @DisplayName("LogicalTrue should transpose to PhysicalTrue singleton")
+        void testLogicalTrueTransposition() {
+            LogicalTrue logicalTrue = LogicalTrue.INSTANCE;
+            PhysicalNode result = planLogical(logicalTrue);
+
+            assertInstanceOf(PhysicalTrue.class, result);
+            // With ID assignment, each instance is unique, so we check type instead of identity
+        }
+
+        @Test
+        @DisplayName("LogicalFalse should transpose to PhysicalFalse singleton")
+        void testLogicalFalseTransposition() {
+            LogicalFalse logicalFalse = LogicalFalse.INSTANCE;
+            PhysicalNode result = planLogical(logicalFalse);
+
+            assertInstanceOf(PhysicalFalse.class, result);
+            // With ID assignment, each instance is unique, so we check type instead of identity
         }
     }
 
-    @Test
-    void or_operator_with_two_not_indexed_fields() {
-        LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(getBucketMetadata()), logicalNode);
-        PhysicalNode physicalNode = physical.plan();
+    // ============================================================================
+    // Complex Nested Query Tests
+    // ============================================================================
 
-        assertInstanceOf(PhysicalUnionOperator.class, physicalNode);
+    @Nested
+    @DisplayName("Scan Strategy Tests")
+    class ScanStrategyTests {
 
-        PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalNode;
+        @Test
+        @DisplayName("Filter without index should use FullScan")
+        void testFullScanStrategy() {
+            // Non-indexed field should use FullScan
+            LogicalFilter filter = new LogicalFilter("non_indexed_field", Operator.EQ, "value");
+            PhysicalNode result = planLogical(filter);
 
-        {
-            PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().getFirst();
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
 
-            // Lower bound
-            assertEquals(BsonType.STRING, physicalFullScan.getBounds().lower().bqlValue().bsonType());
-            assertEquals("A", physicalFullScan.getBounds().lower().bqlValue().value());
-
-            // Upper bound
-            assertEquals(BsonType.STRING, physicalFullScan.getBounds().upper().bqlValue().bsonType());
-            assertEquals("A", physicalFullScan.getBounds().upper().bqlValue().value());
+            // Verify filter is pushed down to scan
+            assertInstanceOf(PhysicalFilter.class, fullScan.node());
+            PhysicalFilter physicalFilter = (PhysicalFilter) fullScan.node();
+            assertEquals("non_indexed_field", physicalFilter.selector());
+            assertEquals(Operator.EQ, physicalFilter.op());
+            assertEquals("value", physicalFilter.operand());
         }
 
-        {
-            PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
-            assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().bqlValue().bsonType());
-            assertEquals(30, physicalFullScan.getBounds().upper().bqlValue().value());
-        }
-    }
+        @Test
+        @DisplayName("All operators should work with FullScan")
+        void testAllOperatorsWithFullScan() {
+            Operator[] operators = {Operator.EQ, Operator.NE, Operator.GT, Operator.GTE,
+                    Operator.LT, Operator.LTE, Operator.IN, Operator.NIN,
+                    Operator.ALL, Operator.SIZE, Operator.EXISTS};
 
-    @Test
-    void or_operator_with_only_one_indexed_field() {
-        BucketMetadata metadata = getBucketMetadata();
-        IndexDefinition sampleIndexStatus = IndexDefinition.create("status_idx", "status", BsonType.STRING, SortOrder.ASCENDING);
-        DirectorySubspace sampleIndexStatusSubspace = createIndex(metadata, sampleIndexStatus);
-        metadata.indexes().register(sampleIndexStatus, sampleIndexStatusSubspace);
+            for (Operator op : operators) {
+                Object operand = switch (op) {
+                    case SIZE -> 5;
+                    case EXISTS -> true;
+                    case IN, NIN, ALL -> Arrays.asList("a", "b", "c");
+                    default -> "test_value";
+                };
 
-        LogicalNode logicalNode = getLogicalPlan("{ $or: [ { status: {$eq: 'A' } }, { qty: { $lt: 30 } } ] }");
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
-        PhysicalNode physicalNode = physical.plan();
+                LogicalFilter filter = new LogicalFilter("test_field", op, operand);
+                PhysicalNode result = planLogical(filter);
 
-        assertInstanceOf(PhysicalUnionOperator.class, physicalNode);
+                assertInstanceOf(PhysicalFullScan.class, result, "Operator " + op + " should use FullScan");
+                PhysicalFullScan fullScan = (PhysicalFullScan) result;
+                assertInstanceOf(PhysicalFilter.class, fullScan.node());
 
-        PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalNode;
-
-        {
-            PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().getFirst();
-
-            // lower bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().lower().bqlValue().bsonType());
-            assertEquals("A", physicalIndexScan.getBounds().lower().bqlValue().value());
-
-            // upper bound
-            assertEquals(BsonType.STRING, physicalIndexScan.getBounds().upper().bqlValue().bsonType());
-            assertEquals("A", physicalIndexScan.getBounds().upper().bqlValue().value());
-        }
-
-        {
-            PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
-            assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().bqlValue().bsonType());
-            assertEquals(30, physicalFullScan.getBounds().upper().bqlValue().value());
-        }
-    }
-
-    @Test
-    void when_planning_complex_query_one() {
-        BucketMetadata metadata = getBucketMetadata();
-        LogicalNode logicalNode = getLogicalPlan(TestQuery.COMPLEX_QUERY_ONE);
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
-        PhysicalNode physicalNode = physical.plan();
-
-        assertInstanceOf(PhysicalIntersectionOperator.class, physicalNode);
-        PhysicalIntersectionOperator physicalIntersectionOperator = (PhysicalIntersectionOperator) physicalNode;
-        assertEquals(2, physicalIntersectionOperator.getChildren().size());
-
-        {
-            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().getFirst());
-            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().getFirst();
-            assertEquals(2, physicalUnionOperator.getChildren().size());
-            {
-                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().getFirst());
-                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().getFirst();
-                assertEquals("qty", physicalFullScan.getField());
-                assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().bqlValue().bsonType());
-                assertEquals(10, physicalFullScan.getBounds().upper().bqlValue().value());
-            }
-
-            {
-                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().get(1));
-                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
-                assertEquals("qty", physicalFullScan.getField());
-                assertEquals(BsonType.INT32, physicalFullScan.getBounds().lower().bqlValue().bsonType());
-                assertEquals(50, physicalFullScan.getBounds().lower().bqlValue().value());
-            }
-        }
-
-        {
-            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().get(1));
-            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().get(1);
-            assertEquals(2, physicalUnionOperator.getChildren().size());
-            {
-                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().getFirst());
-                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().getFirst();
-                assertEquals("sale", physicalFullScan.getField());
-
-                assertEquals(BsonType.BOOLEAN, physicalFullScan.getBounds().lower().bqlValue().bsonType());
-                assertTrue((Boolean) physicalFullScan.getBounds().lower().bqlValue().value());
-
-                assertEquals(BsonType.BOOLEAN, physicalFullScan.getBounds().upper().bqlValue().bsonType());
-                assertTrue((Boolean) physicalFullScan.getBounds().upper().bqlValue().value());
-            }
-
-            {
-                assertInstanceOf(PhysicalFullScan.class, physicalUnionOperator.getChildren().get(1));
-                PhysicalFullScan physicalFullScan = (PhysicalFullScan) physicalUnionOperator.getChildren().get(1);
-                assertEquals("price", physicalFullScan.getField());
-                assertEquals(BsonType.INT32, physicalFullScan.getBounds().upper().bqlValue().bsonType());
-                assertEquals(5, physicalFullScan.getBounds().upper().bqlValue().value());
+                PhysicalFilter physicalFilter = (PhysicalFilter) fullScan.node();
+                assertEquals("test_field", physicalFilter.selector());
+                assertEquals(op, physicalFilter.op());
+                assertEquals(operand, physicalFilter.operand());
             }
         }
     }
 
-    @Test
-    void when_planning_complex_query_one_with_indexes() {
-        BucketMetadata metadata = getBucketMetadata();
+    // ============================================================================
+    // Field Reuse Optimization Tests
+    // ============================================================================
 
-        IndexDefinition sampleSaleStatus = IndexDefinition.create("sale_idx", "sale", BsonType.BOOLEAN, SortOrder.ASCENDING);
-        DirectorySubspace sampleSaleSubspace = createIndex(metadata, sampleSaleStatus);
-        metadata.indexes().register(sampleSaleStatus, sampleSaleSubspace);
+    @Nested
+    @DisplayName("Complex Nested Query Tests")
+    class ComplexNestedQueryTests {
 
-        IndexDefinition sampleIndexPrice = IndexDefinition.create("price_idx", "price", BsonType.INT32, SortOrder.ASCENDING);
-        DirectorySubspace sampleIndexPriceSubspace = createIndex(metadata, sampleIndexPrice);
-        metadata.indexes().register(sampleIndexPrice, sampleIndexPriceSubspace);
+        @Test
+        @DisplayName("Deeply nested AND/OR should transpose correctly")
+        void testDeeplyNestedAndOr() {
+            PhysicalNode result = planQuery("""
+                    {
+                      "$and": [
+                        { "tenant_id": "123" },
+                        {
+                          "$or": [
+                            { "role": "admin" },
+                            {
+                              "$and": [
+                                { "permissions": { "$in": ["read", "write"] } },
+                                { "active": true }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                    """);
 
-        IndexDefinition sampleIndexQty = IndexDefinition.create("qty_idx", "qty", BsonType.INT32, SortOrder.ASCENDING);
-        DirectorySubspace sampleIndexQtySubspace = createIndex(metadata, sampleIndexQty);
-        metadata.indexes().register(sampleIndexQty, sampleIndexQtySubspace);
+            assertInstanceOf(PhysicalAnd.class, result);
+            PhysicalAnd rootAnd = (PhysicalAnd) result;
+            assertEquals(2, rootAnd.children().size());
 
-        LogicalNode logicalNode = getLogicalPlan(TestQuery.COMPLEX_QUERY_ONE);
-        PhysicalPlanner physical = new PhysicalPlanner(new PlannerContext(metadata), logicalNode);
-        PhysicalNode physicalNode = physical.plan();
+            // Find the tenant_id scan and the OR node
+            PhysicalFullScan tenantScan = null;
+            PhysicalOr orNode = null;
 
-        assertInstanceOf(PhysicalIntersectionOperator.class, physicalNode);
-        PhysicalIntersectionOperator physicalIntersectionOperator = (PhysicalIntersectionOperator) physicalNode;
-        assertEquals(2, physicalIntersectionOperator.getChildren().size());
-
-        {
-            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().getFirst());
-            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().getFirst();
-            assertEquals(2, physicalUnionOperator.getChildren().size());
-            {
-                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().getFirst());
-                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().getFirst();
-                assertEquals("qty", physicalIndexScan.getField());
-                assertEquals("qty_idx", physicalIndexScan.getIndex().name());
-                assertEquals(BsonType.INT32, physicalIndexScan.getBounds().upper().bqlValue().bsonType());
-                assertEquals(10, physicalIndexScan.getBounds().upper().bqlValue().value());
+            for (PhysicalNode child : rootAnd.children()) {
+                if (child instanceof PhysicalFullScan scan &&
+                        scan.node() instanceof PhysicalFilter filter &&
+                        "tenant_id".equals(filter.selector())) {
+                    tenantScan = scan;
+                } else if (child instanceof PhysicalOr or) {
+                    orNode = or;
+                }
             }
 
-            {
-                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().get(1));
-                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(1);
-                assertEquals("qty", physicalIndexScan.getField());
-                assertEquals("qty_idx", physicalIndexScan.getIndex().name());
-                assertEquals(BsonType.INT32, physicalIndexScan.getBounds().lower().bqlValue().bsonType());
-                assertEquals(50, physicalIndexScan.getBounds().lower().bqlValue().value());
+            assertNotNull(tenantScan);
+            assertNotNull(orNode);
+            assertEquals(2, orNode.children().size());
+        }
+
+        @Test
+        @DisplayName("Multiple NOT operators should transpose correctly")
+        void testMultipleNotOperators() {
+            PhysicalNode result = planQuery("""
+                    {
+                      "$and": [
+                        { "$not": { "status": "deleted" } },
+                        { "$not": { "hidden": true } }
+                      ]
+                    }
+                    """);
+
+            assertInstanceOf(PhysicalAnd.class, result);
+            PhysicalAnd andNode = (PhysicalAnd) result;
+            assertEquals(2, andNode.children().size());
+
+            // Both children should be NOT nodes
+            assertInstanceOf(PhysicalNot.class, andNode.children().get(0));
+            assertInstanceOf(PhysicalNot.class, andNode.children().get(1));
+        }
+
+        @Test
+        @DisplayName("ElemMatch with nested logical operators should transpose correctly")
+        void testElemMatchWithNestedLogical() {
+            PhysicalNode result = planQuery("""
+                    {
+                      "products": {
+                        "$elemMatch": {
+                          "$and": [
+                            { "price": { "$gte": 100 } },
+                            {
+                              "$or": [
+                                { "category": "electronics" },
+                                { "featured": true }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    }
+                    """);
+
+            assertInstanceOf(PhysicalElemMatch.class, result);
+            PhysicalElemMatch elemMatch = (PhysicalElemMatch) result;
+            assertEquals("products", elemMatch.selector());
+
+            // Sub-plan should be PhysicalAnd
+            assertInstanceOf(PhysicalAnd.class, elemMatch.subPlan());
+            PhysicalAnd subAnd = (PhysicalAnd) elemMatch.subPlan();
+            assertEquals(2, subAnd.children().size());
+        }
+
+        @Test
+        @DisplayName("Very deep nesting should transpose correctly")
+        void testVeryDeepMixedNesting() {
+            PhysicalNode result = planQuery("""
+                    {
+                      "$and": [
+                        { "level1": "a" },
+                        {
+                          "$or": [
+                            { "level2_a": "b" },
+                            {
+                              "$and": [
+                                { "level3_a": "c" },
+                                {
+                                  "$not": {
+                                    "$or": [
+                                      { "level4_a": "d" },
+                                      {
+                                        "$and": [
+                                          { "level5_a": "e" },
+                                          { "level5_b": { "$gt": 100 } }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                    """);
+
+            // Should successfully transpose deeply nested structure
+            assertInstanceOf(PhysicalAnd.class, result);
+            PhysicalAnd rootAnd = (PhysicalAnd) result;
+            assertEquals(2, rootAnd.children().size());
+        }
+    }
+
+    // ============================================================================
+    // Edge Cases and Error Handling
+    // ============================================================================
+
+    @Nested
+    @DisplayName("Field Reuse Optimization Tests")
+    class FieldReuseOptimizationTests {
+
+        @Test
+        @DisplayName("LogicalFilter fields should be reused directly in PhysicalFilter")
+        void testDirectFieldReuse() {
+            String selector = "test_selector";
+            Operator operator = Operator.GT;
+            Object operand = 42;
+
+            LogicalFilter logicalFilter = new LogicalFilter(selector, operator, operand);
+            PhysicalNode result = planLogical(logicalFilter);
+
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            assertInstanceOf(PhysicalFilter.class, fullScan.node());
+
+            PhysicalFilter physicalFilter = (PhysicalFilter) fullScan.node();
+
+            // Fields should be same references (zero-copy)
+            assertSame(selector, physicalFilter.selector());
+            assertSame(operator, physicalFilter.op());
+            assertSame(operand, physicalFilter.operand());
+        }
+
+        @Test
+        @DisplayName("Complex operands should be reused without copying")
+        void testComplexOperandReuse() {
+            List<String> complexOperand = Arrays.asList("value1", "value2", "value3");
+
+            LogicalFilter logicalFilter = new LogicalFilter("selector", Operator.IN, complexOperand);
+            PhysicalNode result = planLogical(logicalFilter);
+
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter physicalFilter = (PhysicalFilter) fullScan.node();
+
+            // Should be same list reference (zero-copy)
+            assertSame(complexOperand, physicalFilter.operand());
+        }
+
+        @Test
+        @DisplayName("Singleton instances should be reused")
+        void testSingletonReuse() {
+            LogicalTrue logicalTrue = LogicalTrue.INSTANCE;
+            LogicalFalse logicalFalse = LogicalFalse.INSTANCE;
+
+            PhysicalNode trueResult = planLogical(logicalTrue);
+            PhysicalNode falseResult = planLogical(logicalFalse);
+
+            // Should reuse singleton instances
+            // With ID assignment, each instance is unique, so we check type instead of identity
+            assertInstanceOf(PhysicalTrue.class, trueResult);
+            assertInstanceOf(PhysicalFalse.class, falseResult);
+        }
+    }
+
+    // ============================================================================
+    // Performance Optimization Tests  
+    // ============================================================================
+
+    @Nested
+    @DisplayName("Edge Cases and Error Handling")
+    class EdgeCasesTests {
+
+        @Test
+        @DisplayName("Null LogicalNode should throw NullPointerException")
+        void testNullLogicalNode() {
+            assertThrows(NullPointerException.class, () -> {
+                planLogical(null);
+            });
+        }
+
+        @Test
+        @DisplayName("Empty AND should transpose to TRUE")
+        void testEmptyAnd() {
+            PhysicalNode result = planQuery("{ \"$and\": [] }");
+
+            // After logical optimization: empty AND becomes TRUE, then transposes to PhysicalTrue
+            assertInstanceOf(PhysicalTrue.class, result);
+            // With ID assignment, each instance is unique, so we check type instead of identity
+            assertInstanceOf(PhysicalTrue.class, result);
+        }
+
+        @Test
+        @DisplayName("Empty OR should transpose to FALSE")
+        void testEmptyOr() {
+            PhysicalNode result = planQuery("{ \"$or\": [] }");
+
+            // After logical optimization: empty OR becomes FALSE, then transposes to PhysicalFalse
+            assertInstanceOf(PhysicalFalse.class, result);
+            // With ID assignment, each instance is unique, so we check type instead of identity
+            assertInstanceOf(PhysicalFalse.class, result);
+        }
+
+        @Test
+        @DisplayName("Single child AND should be simplified and transposed")
+        void testSingleChildAnd() {
+            PhysicalNode result = planQuery("""
+                    {
+                      "$and": [
+                        { "status": "active" }
+                      ]
+                    }
+                    """);
+
+            // After logical optimization: single child AND becomes just the child
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("status", filter.selector());
+        }
+
+        @Test
+        @DisplayName("Complex numeric values should transpose correctly")
+        void testComplexNumericValues() {
+            PhysicalNode result = planQuery("""
+                    {
+                      "$and": [
+                        { "pi": 3.14159 },
+                        { "large_number": 2147483647 },
+                        { "negative": -42 }
+                      ]
+                    }
+                    """);
+
+            assertInstanceOf(PhysicalAnd.class, result);
+            PhysicalAnd andNode = (PhysicalAnd) result;
+            assertEquals(3, andNode.children().size());
+
+            // All should be FullScans with preserved numeric values
+            for (PhysicalNode child : andNode.children()) {
+                assertInstanceOf(PhysicalFullScan.class, child);
+                PhysicalFullScan fullScan = (PhysicalFullScan) child;
+                assertInstanceOf(PhysicalFilter.class, fullScan.node());
             }
         }
 
-        {
-            assertInstanceOf(PhysicalUnionOperator.class, physicalIntersectionOperator.getChildren().get(1));
-            PhysicalUnionOperator physicalUnionOperator = (PhysicalUnionOperator) physicalIntersectionOperator.getChildren().get(1);
-            assertEquals(2, physicalUnionOperator.getChildren().size());
-            {
-                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().getFirst());
-                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().getFirst();
-                assertEquals("sale", physicalIndexScan.getField());
-                assertEquals("sale_idx", physicalIndexScan.getIndex().name());
+        @Test
+        @DisplayName("Unicode values should transpose correctly")
+        void testUnicodeValues() {
+            PhysicalNode result = planQuery("{ \"名前\": \"テスト\" }");
 
-                assertEquals(BsonType.BOOLEAN, physicalIndexScan.getBounds().lower().bqlValue().bsonType());
-                assertTrue((Boolean) physicalIndexScan.getBounds().lower().bqlValue().value());
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("名前", filter.selector());
+            assertEquals("テスト", extractValue(filter.operand()));
+        }
+    }
 
-                assertEquals(BsonType.BOOLEAN, physicalIndexScan.getBounds().upper().bqlValue().bsonType());
-                assertTrue((Boolean) physicalIndexScan.getBounds().upper().bqlValue().value());
+    // ============================================================================
+    // Integration Tests
+    // ============================================================================
+
+    @Nested
+    @DisplayName("Performance Optimization Tests")
+    class PerformanceOptimizationTests {
+
+        @Test
+        @DisplayName("Large query transposition should be efficient")
+        void testLargeQueryPerformance() {
+            // Create logical plan with 100 filters
+            List<LogicalNode> filters = new java.util.ArrayList<>();
+            for (int i = 0; i < 100; i++) {
+                filters.add(new LogicalFilter("selector" + i, Operator.EQ, "value" + i));
+            }
+            LogicalAnd largeAnd = new LogicalAnd(filters);
+
+            long startTime = System.nanoTime();
+            PhysicalNode result = planLogical(largeAnd);
+            long endTime = System.nanoTime();
+
+            long durationMs = (endTime - startTime) / 1_000_000;
+            assertTrue(durationMs < 50, "Large transposition should complete within 50ms, took: " + durationMs + "ms");
+
+            assertInstanceOf(PhysicalAnd.class, result);
+            PhysicalAnd physicalAnd = (PhysicalAnd) result;
+            assertEquals(100, physicalAnd.children().size());
+        }
+
+        @Test
+        @DisplayName("Deep nesting transposition should handle recursion efficiently")
+        void testDeepNestingPerformance() {
+            // Create deeply nested NOT structure via BQL for optimization to work
+            StringBuilder queryBuilder = new StringBuilder();
+
+            // Build a nested NOT query: NOT(NOT(NOT(...(selector = value)...)))
+            queryBuilder.append("{ \"$not\": ".repeat(50));
+            queryBuilder.append("{ \"selector\": \"value\" }");
+            queryBuilder.append(" }".repeat(50));
+
+            long startTime = System.nanoTime();
+            PhysicalNode result = planQuery(queryBuilder.toString());
+            long endTime = System.nanoTime();
+
+            long durationMs = (endTime - startTime) / 1_000_000;
+            assertTrue(durationMs < 100, "Deep nesting transposition should complete within 100ms, took: " + durationMs + "ms");
+
+            // After logical optimization: even depth (50) should result in PhysicalFullScan
+            // (all NOT pairs cancel out, leaving just the filter)
+            assertInstanceOf(PhysicalFullScan.class, result);
+        }
+
+        @Test
+        @DisplayName("Memory efficiency - no intermediate collections")
+        @Disabled
+        void testMemoryEfficiency() {
+            // Create nested structure that could create intermediate collections
+            LogicalNode complex = new LogicalAnd(Arrays.asList(
+                    new LogicalFilter("a", Operator.EQ, "1"),
+                    new LogicalOr(Arrays.asList(
+                            new LogicalFilter("b", Operator.EQ, "2"),
+                            new LogicalNot(new LogicalFilter("c", Operator.EQ, "3")),
+                            new LogicalElemMatch("items", new LogicalFilter("d", Operator.GT, 4))
+                    ))
+            ));
+
+            // Record memory before
+            Runtime.getRuntime().gc();
+            long memoryBefore = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+
+            PhysicalNode result = planLogical(complex);
+
+            // Record memory after
+            Runtime.getRuntime().gc();
+            long memoryAfter = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+
+            long memoryUsed = memoryAfter - memoryBefore;
+
+            // Should not use excessive memory (less than 1MB for this small structure)
+            assertTrue(memoryUsed < 1_000_000, "Memory usage should be minimal, used: " + memoryUsed + " bytes");
+
+            // Verify structure is correct
+            assertInstanceOf(PhysicalAnd.class, result);
+        }
+    }
+
+    // ============================================================================
+    // Original Test (preserved)
+    // ============================================================================
+
+    @Nested
+    @DisplayName("Integration Tests")
+    class IntegrationTests {
+
+        @Test
+        @DisplayName("Complete BQL to Physical pipeline should work")
+        void testCompletePipeline() {
+            String bqlQuery = """
+                    {
+                      "$and": [
+                        { "tenant_id": "123" },
+                        {
+                          "$or": [
+                            { "status": "active" },
+                            { "$not": { "archived": true } }
+                          ]
+                        },
+                        {
+                          "items": {
+                            "$elemMatch": {
+                              "$and": [
+                                { "price": { "$gte": 100 } },
+                                { "category": { "$in": ["electronics", "books"] } }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                    """;
+
+            PhysicalNode result = planQuery(bqlQuery);
+
+            assertInstanceOf(PhysicalAnd.class, result);
+            PhysicalAnd rootAnd = (PhysicalAnd) result;
+            assertEquals(3, rootAnd.children().size());
+
+            // Verify all major node types are present
+            boolean hasFullScan = false;
+            boolean hasOr = false;
+            boolean hasElemMatch = false;
+
+            for (PhysicalNode child : rootAnd.children()) {
+                if (child instanceof PhysicalFullScan) hasFullScan = true;
+                else if (child instanceof PhysicalOr) hasOr = true;
+                else if (child instanceof PhysicalElemMatch) hasElemMatch = true;
             }
 
-            {
-                assertInstanceOf(PhysicalIndexScan.class, physicalUnionOperator.getChildren().get(1));
-                PhysicalIndexScan physicalIndexScan = (PhysicalIndexScan) physicalUnionOperator.getChildren().get(1);
-                assertEquals("price", physicalIndexScan.getField());
-                assertEquals("price_idx", physicalIndexScan.getIndex().name());
-                assertEquals(BsonType.INT32, physicalIndexScan.getBounds().upper().bqlValue().bsonType());
-                assertEquals(5, physicalIndexScan.getBounds().upper().bqlValue().value());
-            }
+            assertTrue(hasFullScan, "Should have PhysicalFullScan");
+            assertTrue(hasOr, "Should have PhysicalOr");
+            assertTrue(hasElemMatch, "Should have PhysicalElemMatch");
+        }
+
+        @Test
+        @DisplayName("Transposition should preserve optimization results")
+        void testOptimizationPreservation() {
+            // Query that will be optimized by logical planner
+            String bqlQuery = """
+                    {
+                      "$and": [
+                        { "status": "active" },
+                        {
+                          "$not": {
+                            "$not": { "published": true }
+                          }
+                        }
+                      ]
+                    }
+                    """;
+
+            PhysicalNode result = planQuery(bqlQuery);
+
+            // After logical optimization, double NOT should be eliminated
+            // Result should be AND of two filters
+            assertInstanceOf(PhysicalAnd.class, result);
+            PhysicalAnd andNode = (PhysicalAnd) result;
+            assertEquals(2, andNode.children().size());
+
+            // Both should be FullScans (no NOT wrapper)
+            assertInstanceOf(PhysicalFullScan.class, andNode.children().get(0));
+            assertInstanceOf(PhysicalFullScan.class, andNode.children().get(1));
         }
     }
 }

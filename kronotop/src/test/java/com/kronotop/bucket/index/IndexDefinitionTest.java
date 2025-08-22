@@ -32,7 +32,7 @@ class IndexDefinitionTest {
 
         assertEquals(index.id(), decoded.id());
         assertEquals(index.name(), decoded.name());
-        assertEquals(index.field(), decoded.field());
+        assertEquals(index.selector(), decoded.selector());
         assertEquals(index.sortOrder(), decoded.sortOrder());
         assertEquals(index.bsonType(), decoded.bsonType());
     }

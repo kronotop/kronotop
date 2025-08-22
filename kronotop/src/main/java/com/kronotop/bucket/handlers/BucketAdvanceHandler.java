@@ -19,15 +19,13 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.executor.PlanExecutor;
-import com.kronotop.bucket.executor.PlanExecutorConfig;
+import com.kronotop.bucket.QueryExecutor;
+import com.kronotop.bucket.QueryExecutorConfig;
 import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.Objects;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
@@ -45,21 +43,14 @@ public class BucketAdvanceHandler extends BaseBucketHandler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
-
-            PlanExecutorConfig config = session.attr(SessionAttributes.PLAN_EXECUTOR_CONFIG).get();
+            QueryExecutorConfig config = session.attr(SessionAttributes.BUCKET_QUERY_EXECUTOR_CONFIG).get();
             if (Objects.isNull(config)) {
                 throw new KronotopException("No previous query state found in this session");
             }
-            PlanExecutor executor = new PlanExecutor(config);
-            try {
-                Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-                return executor.execute(tr);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
+            return QueryExecutor.execute(context, tr, config);
         }, (entries) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {

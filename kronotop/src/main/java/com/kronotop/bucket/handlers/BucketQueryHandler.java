@@ -18,22 +18,12 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.executor.PlanExecutor;
-import com.kronotop.bucket.executor.PlanExecutorConfig;
-import com.kronotop.bucket.executor.PlanExecutorEnvironment;
+import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
-import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
@@ -50,56 +40,28 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
         request.attr(MessageTypes.BUCKETQUERY).set(new BucketQueryMessage(request));
     }
 
-    public PlanExecutorConfig preparePlanExecutorConfig(
-            Transaction tr,
-            Session session,
-            BucketQueryMessage message,
-            BucketMetadata metadata,
-            BucketShard shard,
-            PhysicalNode plan
-    ) {
-        PlanExecutorEnvironment environment = new PlanExecutorEnvironment(metadata, shard, plan);
-        PlanExecutorConfig config = new PlanExecutorConfig(environment);
-
-        if (message.getArguments().limit() == 0) {
-            config.setLimit(
-                    session.attr(SessionAttributes.LIMIT).get()
-            );
-        } else {
-            config.setLimit(message.getArguments().limit());
-        }
-        config.setReverse(message.getArguments().reverse());
-
-        boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();
-        config.setPinReadVersion(pinReadVersion);
-
-        tr.getReadVersion().thenAccept(config::setReadVersion);
-
-        // Now we have a validated and sanitized plan executor config.
-        session.attr(SessionAttributes.PLAN_EXECUTOR_CONFIG).set(config);
-        return config;
-    }
-
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
 
-            BucketShard shard = getOrSelectBucketShardId(message.getArguments().shard());
-
             Session session = request.getSession();
-
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
             BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, message.getBucket());
 
-            PhysicalNode plan = service.getPlanner().plan(metadata, message.getQuery());
-            PlanExecutorConfig config = preparePlanExecutorConfig(tr, session, message, metadata, shard, plan);
-            PlanExecutor executor = new PlanExecutor(config);
-            try {
-                return executor.execute(tr);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
+            QueryExecutorConfig config = new QueryExecutorConfig(metadata, message.getQuery());
+            if (message.getArguments().limit() == 0) {
+                config.setLimit(session.attr(SessionAttributes.LIMIT).get());
+            } else {
+                config.setLimit(message.getArguments().limit());
             }
+            config.setReverse(message.getArguments().reverse());
+            boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();
+            config.setPinReadVersion(pinReadVersion);
+            tr.getReadVersion().thenAccept(config::setReadVersion);
+
+            session.attr(SessionAttributes.BUCKET_QUERY_EXECUTOR_CONFIG).set(config);
+            return QueryExecutor.execute(context, tr, config);
         }, (entries) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {

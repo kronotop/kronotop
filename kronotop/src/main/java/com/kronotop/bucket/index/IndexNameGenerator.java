@@ -20,6 +20,6 @@ import org.bson.BsonType;
 
 public class IndexNameGenerator {
     public static String generate(String field, BsonType bsonType, SortOrder sortOrder) {
-        return String.format("field:%s.bsonType:%s.sortOrder:%s", field, bsonType, sortOrder);
+        return String.format("selector:%s.bsonType:%s.sortOrder:%s", field, bsonType, sortOrder);
     }
 }

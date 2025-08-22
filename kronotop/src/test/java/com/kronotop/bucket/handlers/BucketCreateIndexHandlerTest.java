@@ -23,7 +23,6 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -48,7 +47,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
     void shouldCreateIndexWithMultipleFields() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"field\": {\"bson_type\": \"int32\", \"sort_order\": \"asc\"}, \"username\": {\"bson_type\": \"string\", \"sort_order\": \"desc\"}}").encode(buf);
+        cmd.createIndex(BUCKET_NAME, "{\"selector\": {\"bson_type\": \"int32\", \"sort_order\": \"asc\"}, \"username\": {\"bson_type\": \"string\", \"sort_order\": \"desc\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -59,7 +58,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
     void invalidTypeShouldReturnError() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"field\": {\"bson_type\": \"int322\", \"sort_order\": \"asc\"}}").encode(buf);
+        cmd.createIndex(BUCKET_NAME, "{\"selector\": {\"bson_type\": \"int322\", \"sort_order\": \"asc\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -70,7 +69,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
     void invalidSortOrderShouldReturnError() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"field\": {\"bson_type\": \"int32\", \"sort_order\": \"bsc\"}}").encode(buf);
+        cmd.createIndex(BUCKET_NAME, "{\"selector\": {\"bson_type\": \"int32\", \"sort_order\": \"bsc\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -79,7 +78,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldCreateIndexForValidTypes() {
-        String template = "{\"field\": {\"bson_type\": \"%s\", \"sort_order\": \"asc\"}}";
+        String template = "{\"selector\": {\"bson_type\": \"%s\", \"sort_order\": \"asc\"}}";
         List<String> validTypes = List.of("int32", "string", "double", "binary", "boolean", "datetime", "timestamp", "int64", "decimal128");
         for (String validType : validTypes) {
             BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
@@ -98,7 +97,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldCreateIndexForValidSortOrder() {
-        String template = "{\"field\": {\"name\": \"%s\", \"bson_type\": \"int32\", \"sort_order\": \"%s\"}}";
+        String template = "{\"selector\": {\"name\": \"%s\", \"bson_type\": \"int32\", \"sort_order\": \"%s\"}}";
         List<String> validSortOrderKinds = List.of("asc", "desc", "ascending", "descending");
         for (String validSortOrderKind : validSortOrderKinds) {
             BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
@@ -117,7 +116,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldThrowAnErrorWhenIndexAlreadyExists() {
-        String definition = "{\"field\": {\"bson_type\": \"int32\", \"sort_order\": \"asc\"}, \"username\": {\"bson_type\": \"string\", \"sort_order\": \"desc\"}}";
+        String definition = "{\"selector\": {\"bson_type\": \"int32\", \"sort_order\": \"asc\"}, \"username\": {\"bson_type\": \"string\", \"sort_order\": \"desc\"}}";
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -133,7 +132,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
             Object msg = runCommand(channel, buf);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertNotNull(actualMessage);
-            assertEquals("ERR 'field:field.bsonType:INT32.sortOrder:ASCENDING' has already exist", actualMessage.content());
+            assertEquals("ERR 'selector:selector.bsonType:INT32.sortOrder:ASCENDING' has already exist", actualMessage.content());
         }
     }
 

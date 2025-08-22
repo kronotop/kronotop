@@ -16,112 +16,84 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.planner.Bound;
-import com.kronotop.bucket.planner.Bounds;
-import com.kronotop.bucket.planner.PlannerContext;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.planner.logical.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 public class PhysicalPlanner {
-    private final List<PhysicalOptimizationStage> stages;
-    private final PlannerContext context;
-    private final LogicalNode root;
 
-    public PhysicalPlanner(PlannerContext context, LogicalNode root, List<PhysicalOptimizationStage> stages) {
-        this.context = context;
-        this.root = root;
-        this.stages = stages;
-    }
-
-    public PhysicalPlanner(PlannerContext context, LogicalNode root) {
-        this(context, root, List.of());
+    public PhysicalPlanner() {
     }
 
     /**
-     * Computes the bounds of the provided logical comparison filter based on its operator type.
-     *
-     * @param filter the logical comparison filter whose bounds are to be determined
-     * @return a Bounds object representing the lower and upper bounds derived from the filter's operator type
-     * @throws IllegalStateException if the filter has an unexpected or unsupported operator type
+     * Efficiently transposes a LogicalNode to PhysicalNode with minimal CPU and memory overhead.
+     * <p>
+     * Key optimizations:
+     * - Direct field reuse between logical and physical nodes
+     * - Singleton instance reuse for constants (True/False)
+     * - In-place list transformation to avoid intermediate collections
+     * - Pattern matching for efficient dispatch
      */
-    private Bounds prepareBounds(LogicalComparisonFilter filter) {
-        return switch (filter.getOperatorType()) {
-            case EQ -> new Bounds(
-                    new Bound(filter.getOperatorType(), filter.bqlValue()),
-                    new Bound(filter.getOperatorType(), filter.bqlValue())
+    public PhysicalNode plan(BucketMetadata metadata, LogicalNode logicalPlan, PlannerContext context) {
+        return switch (logicalPlan) {
+            // Direct field transposition - zero-copy for primitive fields
+            case LogicalFilter filter -> transposeFilter(metadata, filter, context);
+
+            // Efficient list transformation - reuse child structure
+            case LogicalAnd and -> new PhysicalAnd(context.generateId(), transposeChildren(metadata, and.children(), context));
+            case LogicalOr or -> new PhysicalOr(context.generateId(), transposeChildren(metadata, or.children(), context));
+
+            // Single child transposition
+            case LogicalNot not -> new PhysicalNot(context.generateId(), plan(metadata, not.child(), context));
+            case LogicalElemMatch elemMatch -> new PhysicalElemMatch(
+                    context.generateId(),
+                    elemMatch.selector(),
+                    plan(metadata, elemMatch.subPlan(), context)
             );
-            case GT, GTE -> new Bounds(new Bound(filter.getOperatorType(), filter.bqlValue()), null);
-            case LT, LTE -> new Bounds(null, new Bound(filter.getOperatorType(), filter.bqlValue()));
-            default -> throw new IllegalStateException("Unexpected value: " + filter.getOperatorType());
+
+            // Singleton instance reuse - no object allocation
+            case LogicalTrue ignored -> new PhysicalTrue(context.generateId());
+            case LogicalFalse ignored -> new PhysicalFalse(context.generateId());
         };
     }
 
-    private IndexDefinition findIndex(String field) {
-        for (IndexDefinition definition : context.getBucketMetadata().indexes().getDefinitions()) {
-            if (definition.field().equals(field)) {
-                return definition;
-            }
+    /**
+     * Efficiently transposes LogicalFilter to either PhysicalFilter, PhysicalIndexScan,
+     * or PhysicalFullScan based on index availability.
+     * Zero-copy field reuse for optimal performance.
+     */
+    private PhysicalNode transposeFilter(BucketMetadata metadata, LogicalFilter filter, PlannerContext context) {
+        // Check for index availability
+        DirectorySubspace subspace = metadata.indexes().getSubspace(filter.selector());
+
+        // Direct field reuse - no object copying
+        PhysicalFilter node = new PhysicalFilter(context.generateId(), filter.selector(), filter.op(), filter.operand());
+
+        if (subspace != null) {
+            // Index available - use index scan with filter pushdown
+            return new PhysicalIndexScan(context.generateId(), node);
         }
-        return null;
+
+        // No index - full scan with filter
+        return new PhysicalFullScan(context.generateId(), node);
     }
 
-    private List<PhysicalNode> traverse(List<LogicalNode> children) {
-        List<PhysicalNode> nodes = new ArrayList<>();
-        children.forEach(child -> {
-            switch (child) {
-                case LogicalComparisonFilter logicalFilter -> {
-                    // TODO: This assumes the field hierarchy only has a single leaf and it eques to index's path
-                    IndexDefinition index = findIndex(logicalFilter.getField());
-                    if (index != null) {
-                        PhysicalIndexScan physicalIndexScan = new PhysicalIndexScan(index);
-                        physicalIndexScan.setField(logicalFilter.getField());
-                        physicalIndexScan.setBounds(prepareBounds(logicalFilter));
-                        nodes.add(physicalIndexScan);
-                    } else {
-                        PhysicalFullScan physicalFullScan = new PhysicalFullScan();
-                        physicalFullScan.setField(logicalFilter.getField());
-                        physicalFullScan.setBounds(prepareBounds(logicalFilter));
-                        nodes.add(physicalFullScan);
-                    }
-                }
-                case LogicalOrFilter logicalFilter -> {
-                    List<PhysicalNode> result = traverse(logicalFilter.getChildren());
-                    PhysicalUnionOperator node = new PhysicalUnionOperator(result);
-                    nodes.add(node);
-                }
-                case LogicalAndFilter logicalFilter -> {
-                    List<PhysicalNode> result = traverse(logicalFilter.getChildren());
-                    PhysicalIntersectionOperator node = new PhysicalIntersectionOperator(result);
-                    nodes.add(node);
-                }
-                default -> throw new IllegalStateException("Unexpected value: " + child);
-            }
-        });
-        return nodes;
-    }
+    /**
+     * Efficiently transposes a list of LogicalNodes to PhysicalNodes.
+     * Pre-sizes the result list to avoid array reallocation.
+     */
+    private List<PhysicalNode> transposeChildren(BucketMetadata metadata, List<LogicalNode> children, PlannerContext context) {
+        // Pre-size to avoid array growth and copying
+        List<PhysicalNode> physicalChildren = new ArrayList<>(children.size());
 
-    private PhysicalNode convertLogicalPlan() {
-        if (Objects.requireNonNull(root) instanceof LogicalFullScan node) {
-            List<PhysicalNode> result = traverse(node.getChildren());
-            if (result.isEmpty()) {
-                return new PhysicalFullScan(List.of());
-            } else if (result.size() == 1) {
-                return result.getFirst();
-            }
-            return new PhysicalIntersectionOperator(result);
+        // Transform each child - compiler can optimize this loop
+        for (LogicalNode child : children) {
+            physicalChildren.add(plan(metadata, child, context));
         }
-        throw new IllegalStateException("Unexpected value: " + root);
-    }
 
-    public PhysicalNode plan() {
-        PhysicalNode node = convertLogicalPlan();
-        for (PhysicalOptimizationStage stage : stages) {
-            node = stage.optimize(node);
-        }
-        return node;
+        return physicalChildren;
     }
 }

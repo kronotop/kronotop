@@ -34,6 +34,7 @@ import static io.lettuce.core.internal.LettuceStrings.string;
 import static io.lettuce.core.protocol.CommandKeyword.*;
 import static io.lettuce.core.protocol.CommandType.*;
 import static io.lettuce.core.protocol.CommandType.COPY;
+import static io.lettuce.core.protocol.CommandType.DEL;
 import static io.lettuce.core.protocol.CommandType.SAVE;
 
 // Source: https://github.com/redis/lettuce/blob/27dbd4bb35cc431ad0222bf2d287157a2671831a/src/main/java/io/lettuce/core/RedisCommandBuilder.java
