@@ -8,13 +8,15 @@ import java.util.List;
 
 public class PipelineRewriter {
     public static PipelineNode rewrite(PhysicalNode plan) {
-        switch (plan){
+        switch (plan) {
             case PhysicalIndexScan physicalIndexScan -> {
                 PipelineNode child = rewrite(physicalIndexScan.node());
-                return new IndexScanNode(physicalIndexScan, List.of(child));
+                List<PipelineNode> children = child != null ? List.of(child) : List.of();
+                return new IndexScanNode(physicalIndexScan, children);
             }
-            case PhysicalFilter physicalFilter -> {
-                return new FilterNode(physicalFilter, List.of());
+            case PhysicalFilter ignore -> {
+                // Leaf node
+                return null;
             }
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);
         }
