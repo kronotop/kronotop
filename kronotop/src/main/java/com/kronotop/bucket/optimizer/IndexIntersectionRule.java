@@ -68,7 +68,7 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
             PhysicalNode optimized = apply(child, metadata, context);
 
             // Check if this is an index scan with an equality condition
-            if (optimized instanceof PhysicalIndexScan(int id, PhysicalNode node) &&
+            if (optimized instanceof PhysicalIndexScan(int idIgnored, PhysicalNode node, var indexIgnored) &&
                     node instanceof PhysicalFilter filter &&
                     isEqualityOperator(filter.op())) {
 
@@ -98,7 +98,7 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
         } else {
             // Not enough indexed conditions, add them back as regular index scans
             for (IndexScanCandidate candidate : indexCandidates) {
-                nonIndexedChildren.add(new PhysicalIndexScan(context.generateId(), candidate.filter));
+                nonIndexedChildren.add(new PhysicalIndexScan(context.generateId(), candidate.filter, candidate.index));
             }
         }
 
@@ -146,7 +146,7 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
 
     private boolean hasMultipleIndexScansWithEqualityOperators(PhysicalAnd and) {
         long indexScanCount = and.children().stream()
-                .filter(child -> child instanceof PhysicalIndexScan(int id, PhysicalNode node) &&
+                .filter(child -> child instanceof PhysicalIndexScan(int id, PhysicalNode node, var indexIgnored) &&
                         node instanceof PhysicalFilter filter &&
                         isEqualityOperator(filter.op()))
                 .count();

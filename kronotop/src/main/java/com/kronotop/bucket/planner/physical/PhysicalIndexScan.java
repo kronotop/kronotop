@@ -16,9 +16,10 @@
 
 package com.kronotop.bucket.planner.physical;
 
+import com.kronotop.bucket.index.IndexDefinition;
 import java.util.Objects;
 
-public record PhysicalIndexScan(int id, PhysicalNode node) implements PhysicalNode {
+public record PhysicalIndexScan(int id, PhysicalNode node, IndexDefinition index) implements PhysicalNode {
     @Override
     public <R> R accept(PhysicalPlanVisitor<R> visitor) {
         return visitor.visitIndexScan(this);
@@ -28,13 +29,14 @@ public record PhysicalIndexScan(int id, PhysicalNode node) implements PhysicalNo
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (!(obj instanceof PhysicalIndexScan other)) return false;
-        return Objects.equals(node, other.node);
+        return Objects.equals(node, other.node) &&
+               Objects.equals(index, other.index);
         // Note: id is intentionally excluded from comparison
     }
     
     @Override
     public int hashCode() {
-        return Objects.hash(node);
+        return Objects.hash(node, index);
         // Note: id is intentionally excluded from hash
     }
 }

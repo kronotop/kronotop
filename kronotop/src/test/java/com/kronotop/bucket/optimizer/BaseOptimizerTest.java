@@ -144,7 +144,7 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
      * Helper method to create a manual PhysicalIndexScan for testing
      */
     PhysicalIndexScan createIndexScan(PhysicalFilter filter) {
-        return new PhysicalIndexScan(1, filter);
+        return new PhysicalIndexScan(1, filter, null);
     }
 
     /**

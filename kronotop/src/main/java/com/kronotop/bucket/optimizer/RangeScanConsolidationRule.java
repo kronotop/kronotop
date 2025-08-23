@@ -65,7 +65,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
 
             // Check if this is an index scan or full scan with a range condition
             PhysicalFilter extractedFilter = null;
-            if (optimized instanceof PhysicalIndexScan(int indexId, PhysicalNode node) &&
+            if (optimized instanceof PhysicalIndexScan(int indexId, PhysicalNode node, var indexIgnored) &&
                     node instanceof PhysicalFilter indexFilter &&
                     isRangeOperator(indexFilter.op())) {
                 extractedFilter = indexFilter;
@@ -99,7 +99,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
                     // If consolidation failed, add all original conditions
                     for (RangeCondition condition : conditions) {
                         if (condition.index != null) {
-                            optimizedChildren.add(new PhysicalIndexScan(context.generateId(), condition.filter));
+                            optimizedChildren.add(new PhysicalIndexScan(context.generateId(), condition.filter, condition.index));
                         } else {
                             optimizedChildren.add(new PhysicalFullScan(context.generateId(), condition.filter));
                         }
@@ -109,7 +109,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
                 // Single condition, just add it back
                 RangeCondition condition = conditions.get(0);
                 if (condition.index != null) {
-                    optimizedChildren.add(new PhysicalIndexScan(context.generateId(), condition.filter));
+                    optimizedChildren.add(new PhysicalIndexScan(context.generateId(), condition.filter, condition.index));
                 } else {
                     optimizedChildren.add(new PhysicalFullScan(context.generateId(), condition.filter));
                 }
@@ -240,7 +240,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     private boolean hasIndexScansWithRangeOperators(PhysicalAnd and) {
         return and.children().stream()
                 .anyMatch(child ->
-                        (child instanceof PhysicalIndexScan(int indexId, PhysicalNode indexNode) &&
+                        (child instanceof PhysicalIndexScan(int indexId, PhysicalNode indexNode, var indexIgnored) &&
                                 indexNode instanceof PhysicalFilter indexFilter &&
                                 isRangeOperator(indexFilter.op())) ||
                                 (child instanceof PhysicalFullScan(int scanId, PhysicalNode scanNode) &&

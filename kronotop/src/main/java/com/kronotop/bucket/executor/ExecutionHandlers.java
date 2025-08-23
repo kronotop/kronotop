@@ -1153,7 +1153,7 @@ class ExecutionHandlers {
             if (plan instanceof PhysicalFilter directFilter) {
                 filter = directFilter;
             } else if (plan instanceof PhysicalIndexScan(
-                    int ignored, PhysicalNode node
+                    int ignored, PhysicalNode node, var indexIgnored
             ) && node instanceof PhysicalFilter scanFilter) {
                 filter = scanFilter;
             }
@@ -1486,9 +1486,15 @@ class ExecutionHandlers {
      */
     Map<Versionstamp, ByteBuffer> executePhysicalIndexIntersection(Transaction tr, PhysicalIndexIntersection indexIntersection) {
         // Convert the PhysicalIndexIntersection to the format expected by executeIndexBasedAnd
-        List<PhysicalNode> indexBasedPlans = indexIntersection.filters().stream()
-                .map(filter -> (PhysicalNode) new PhysicalIndexScan(config.getPlannerContext().generateId(), filter))
-                .toList();
+        List<PhysicalFilter> filters = indexIntersection.filters();
+        List<IndexDefinition> indexes = indexIntersection.indexes();
+        
+        List<PhysicalNode> indexBasedPlans = new ArrayList<>();
+        for (int i = 0; i < filters.size(); i++) {
+            PhysicalFilter filter = filters.get(i);
+            IndexDefinition index = indexes.get(i);
+            indexBasedPlans.add(new PhysicalIndexScan(config.getPlannerContext().generateId(), filter, index));
+        }
 
         return executeIndexBasedAnd(tr, indexBasedPlans);
     }
