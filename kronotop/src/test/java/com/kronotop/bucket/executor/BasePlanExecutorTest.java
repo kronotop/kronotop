@@ -62,6 +62,18 @@ public abstract class BasePlanExecutorTest extends BaseHandlerTest {
     protected static final int SHARD_ID = 0;
     protected static final int LIMIT = 5;
 
+    protected PhysicalNode planQueryAndOptimize(BucketMetadata metadata, String query) {
+        LogicalPlanner logicalPlanner = new LogicalPlanner();
+        PhysicalPlanner physicalPlanner = new PhysicalPlanner();
+        Optimizer optimizer = new Optimizer();
+
+        PlannerContext plannerContext = new PlannerContext();
+        BqlExpr parsedQuery = BqlParser.parse(query);
+        LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
+        PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, plannerContext);
+        return optimizer.optimize(metadata, physicalPlan, plannerContext);
+    }
+
     /**
      * Helper method to create BSON documents for testing.
      */

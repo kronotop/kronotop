@@ -32,6 +32,7 @@ public class PlanExecutorConfig {
     private final BucketMetadata metadata;
     private final PhysicalNode plan;
     private final PlannerContext plannerContext;
+    private final PipelineContext executionContext = new PipelineContext();
 
     private final Cursor cursor = new Cursor();
 
@@ -117,5 +118,9 @@ public class PlanExecutorConfig {
 
     public String getSortByField() {
         return sortByField;
+    }
+
+    public PipelineContext executionContext() {
+        return executionContext;
     }
 }
