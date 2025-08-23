@@ -1,5 +1,6 @@
 package com.kronotop.bucket.executor;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
 
 import java.util.List;
@@ -13,6 +14,6 @@ public final class IndexScanNode extends AbstractPipelineNode {
     }
 
     @Override
-    protected void run(PipelineContext ctx) {
+    protected void run(Transaction tr, PipelineContext ctx) {
     }
 }

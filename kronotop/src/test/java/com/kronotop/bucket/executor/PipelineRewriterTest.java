@@ -1,5 +1,6 @@
 package com.kronotop.bucket.executor;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
@@ -19,6 +20,8 @@ class PipelineRewriterTest extends BasePlanExecutorTest {
         System.out.println(node);
         PipelineExecutor executor = new PipelineExecutor(node);
         PipelineContext ctx = new PipelineContext();
-        executor.run(ctx);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            executor.run(tr, ctx);
+        }
     }
 }

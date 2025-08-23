@@ -1,5 +1,7 @@
 package com.kronotop.bucket.executor;
 
+import com.apple.foundationdb.Transaction;
+
 public class PipelineExecutor {
     private final PipelineNode root;
 
@@ -7,15 +9,15 @@ public class PipelineExecutor {
         this.root = root;
     }
 
-    public void run(PipelineContext ctx) {
-        executeNode(root, ctx);
+    public void run(Transaction tr, PipelineContext ctx) {
+        executeNode(tr, ctx, root);
     }
 
-    private void executeNode(PipelineNode node, PipelineContext ctx) {
+    private void executeNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
         for (PipelineNode child : node.children()) {
-            executeNode(child, ctx);
+            executeNode(tr, ctx, child);
         }
         System.out.println("running " + node);
-        node.execute(ctx);
+        node.execute(tr, ctx);
     }
 }

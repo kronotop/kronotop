@@ -1,5 +1,7 @@
 package com.kronotop.bucket.executor;
 
+import com.apple.foundationdb.Transaction;
+
 import java.util.List;
 
 public abstract class AbstractPipelineNode implements PipelineNode {
@@ -15,9 +17,9 @@ public abstract class AbstractPipelineNode implements PipelineNode {
     }
 
     @Override
-    public final void execute(PipelineContext ctx) {
-        run(ctx);
+    public final void execute(Transaction tr, PipelineContext ctx) {
+        run(tr, ctx);
     }
 
-    protected abstract void run(PipelineContext ctx);
+    protected abstract void run(Transaction tr, PipelineContext ctx);
 }

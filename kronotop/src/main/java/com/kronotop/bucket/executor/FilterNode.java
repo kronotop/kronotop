@@ -1,5 +1,6 @@
 package com.kronotop.bucket.executor;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.planner.physical.PhysicalFilter;
 
 import java.util.List;
@@ -10,7 +11,7 @@ public class FilterNode extends AbstractPipelineNode{
     }
 
     @Override
-    protected void run(PipelineContext ctx) {
+    protected void run(Transaction tr, PipelineContext ctx) {
 
     }
 }
