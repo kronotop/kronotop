@@ -1122,18 +1122,6 @@ class ExecutionHandlers {
     }
 
     private Map<Versionstamp, ByteBuffer> executeChildPlan(Transaction tr, PhysicalNode childPlan) {
-        // Use hierarchical cursor management for nested operations
-        boolean isNestedOperation = (childPlan instanceof PhysicalAnd || childPlan instanceof PhysicalOr);
-
-        if (isNestedOperation) {
-            // TODO: Kill that method
-            // We're in nested execution - use cursor context management
-            return executeChildPlanInternal(tr, childPlan);
-        }
-        return executeChildPlanInternal(tr, childPlan);
-    }
-
-    private Map<Versionstamp, ByteBuffer> executeChildPlanInternal(Transaction tr, PhysicalNode childPlan) {
         return switch (childPlan) {
             case PhysicalFilter ignored -> executeIndexScan(tr, childPlan);
             case PhysicalIndexScan indexScan -> executeIndexScan(tr, indexScan.node());
