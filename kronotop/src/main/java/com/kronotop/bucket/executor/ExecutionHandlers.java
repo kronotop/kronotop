@@ -176,12 +176,6 @@ class ExecutionHandlers {
     private static final int MAX_CONCURRENT_DOCUMENTS = 16;
     private static final Duration OPERATION_TIMEOUT = Duration.ofSeconds(30);
     /**
-     * Stack-based cursor management for nested operations.
-     * Ensures proper cursor boundary inheritance and isolation.
-     */
-    private static final ThreadLocal<Stack<CursorContext>> CURSOR_STACK =
-            ThreadLocal.withInitial(Stack::new);
-    /**
      * Maximum recursion depth for nested operations to prevent stack overflow.
      */
     private static final int MAX_RECURSION_DEPTH = 50;
@@ -525,16 +519,11 @@ class ExecutionHandlers {
             boolean needsCursorProtection = (singleChild instanceof PhysicalAnd || singleChild instanceof PhysicalOr);
 
             if (needsCursorProtection) {
-                pushNestedCursorContext(singleChild.id());
-                try {
-                    Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, singleChild);
-                    if (!results.isEmpty()) {
-                        cursorManager.setCursorBoundaries(config, physicalAnd.id(), results);
-                    }
-                    return results;
-                } finally {
-                    popNestedCursorContext(singleChild.id(), new HashMap<>());
+                Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, singleChild);
+                if (!results.isEmpty()) {
+                    cursorManager.setCursorBoundaries(config, physicalAnd.id(), results);
                 }
+                return results;
             } else {
                 Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, singleChild);
                 if (!results.isEmpty()) {
@@ -1136,9 +1125,9 @@ class ExecutionHandlers {
         // Use hierarchical cursor management for nested operations
         boolean isNestedOperation = (childPlan instanceof PhysicalAnd || childPlan instanceof PhysicalOr);
 
-        if (isNestedOperation && hasNestedCursorContext()) {
+        if (isNestedOperation) {
+            // TODO: Kill that method
             // We're in nested execution - use cursor context management
-            pushNestedCursorContext(childPlan.id());
             return executeChildPlanInternal(tr, childPlan);
         }
         return executeChildPlanInternal(tr, childPlan);
@@ -2189,91 +2178,6 @@ class ExecutionHandlers {
         return results;
     }
 
-    /**
-     * Pushes a new cursor context onto the stack for nested operation.
-     * Inherits cursor boundaries from current state.
-     *
-     * @param nodeId the physical node ID
-     */
-    private void pushNestedCursorContext(int nodeId) {
-        // Inherit cursor boundaries from current state
-        Map<IndexDefinition, Bounds> inherited = new HashMap<>();
-        Bounds currentBounds = config.cursor().getBounds(nodeId);
-        if (currentBounds != null) {
-            inherited.put(DefaultIndexDefinition.ID, currentBounds);
-        }
-
-        CursorContext context = new CursorContext(nodeId, inherited, new ArrayList<>());
-        CURSOR_STACK.get().push(context);
-    }
-
-    /**
-     * Pops cursor context from stack and consolidates cursor boundaries.
-     * Updates parent cursor state based on nested operation results.
-     *
-     * @param nodeId  the physical node ID
-     * @param results results from the nested operation
-     */
-    private void popNestedCursorContext(int nodeId, Map<Versionstamp, ByteBuffer> results) {
-        if (!CURSOR_STACK.get().isEmpty()) {
-            // Consolidate cursor boundaries from nested operation results
-            if (!results.isEmpty()) {
-                consolidateNestedCursorBoundaries(nodeId, results);
-            }
-        }
-    }
-
-    /**
-     * Consolidates cursor boundaries after nested operation completion.
-     * Ensures proper cursor advancement for pagination continuation.
-     *
-     * @param nodeId  the node ID that completed execution
-     * @param results results from the nested operation
-     */
-    private void consolidateNestedCursorBoundaries(int nodeId,
-                                                   Map<Versionstamp, ByteBuffer> results) {
-        if (results.isEmpty()) {
-            return;
-        }
-
-        // Determine cursor advancement direction
-        Versionstamp cursorKey;
-        Operator cursorOperator;
-
-        if (config.isReverse()) {
-            // For reverse scans, cursor should continue from smallest document
-            cursorKey = results.keySet().stream().min(Versionstamp::compareTo).orElseThrow();
-            cursorOperator = Operator.LT;
-        } else {
-            // For forward scans, cursor should continue from largest document
-            cursorKey = results.keySet().stream().max(Versionstamp::compareTo).orElseThrow();
-            cursorOperator = Operator.GT;
-        }
-
-        // Create cursor bound for ID index
-        Bound cursorBound = new Bound(cursorOperator, new VersionstampVal(cursorKey));
-
-        // Set appropriate boundary based on scan direction
-        Bounds newBounds;
-        if (config.isReverse()) {
-            newBounds = new Bounds(null, cursorBound);
-        } else {
-            newBounds = new Bounds(cursorBound, null);
-        }
-
-        // Update cursor state for this node
-        config.cursor().setBounds(nodeId, newBounds);
-    }
-
-    /**
-     * Checks if the cursor stack has any active contexts.
-     * Useful for determining if we're in nested execution.
-     *
-     * @return true if nested execution is active
-     */
-    private boolean hasNestedCursorContext() {
-        return !CURSOR_STACK.get().isEmpty();
-    }
 
     /**
      * Executes a child plan with proper cursor context management.
@@ -2288,7 +2192,6 @@ class ExecutionHandlers {
         boolean isNestedOperation = (child instanceof PhysicalAnd || child instanceof PhysicalOr);
 
         if (isNestedOperation) {
-            pushNestedCursorContext(child.id());
             try {
                 Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, child);
 
@@ -2304,7 +2207,8 @@ class ExecutionHandlers {
 
                 return results;
             } finally {
-                popNestedCursorContext(child.id(), new HashMap<>());
+                // TODO: Requires a proper cleanup
+                config.cursor().clear();
             }
         } else {
             // For non-nested operations, execute and set cursor boundaries
@@ -2879,17 +2783,6 @@ class ExecutionHandlers {
      * Result record for concurrent document retrieval and filtering operations.
      */
     private record DocumentFilterResult(int index, Versionstamp versionstamp, ByteBuffer filteredDocument) {
-    }
-
-    /**
-     * Represents cursor context for a nested operation level.
-     * Maintains inherited boundaries and active node IDs.
-     */
-    private record CursorContext(
-            int nodeId,
-            Map<IndexDefinition, Bounds> inheritedBounds,
-            List<Integer> activeNodeIds
-    ) {
     }
 
     /**
