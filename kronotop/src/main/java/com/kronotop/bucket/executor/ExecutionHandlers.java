@@ -409,7 +409,6 @@ class ExecutionHandlers {
             Bounds bounds = config.cursor().getBounds(plan.id());
 
             // Calculate selectors using unified SelectorCalculator
-            // Note: SecondaryIndexContext is not applicable for index scans as they use IndexScanContext
             FilterScanContext context = new FilterScanContext(indexSubspace, config, bounds, filter, definition);
             SelectorPair selectors = selectorCalculator.calculateSelectors(context);
             KeySelector beginSelector = selectors.beginSelector();

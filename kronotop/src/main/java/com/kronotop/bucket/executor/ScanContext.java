@@ -64,24 +64,6 @@ class IdIndexScanContext extends ScanContext {
 }
 
 /**
- * Context for secondary index scans.
- * Used for index-based AND operations and general secondary index scans.
- */
-class SecondaryIndexScanContext extends ScanContext {
-    private final IndexDefinition indexDefinition;
-
-    public SecondaryIndexScanContext(DirectorySubspace indexSubspace, PlanExecutorConfig config,
-                                     Bounds bounds, IndexDefinition indexDefinition) {
-        super(indexSubspace, config, bounds);
-        this.indexDefinition = indexDefinition;
-    }
-
-    public IndexDefinition indexDefinition() {
-        return indexDefinition;
-    }
-}
-
-/**
  * Context for filter-based scans.
  * Used by executeIndexScan for applying specific filter conditions.
  */
