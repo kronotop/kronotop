@@ -386,7 +386,6 @@ class ExecutionHandlers {
         LinkedHashMap<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
 
         if (!(plan instanceof PhysicalFilter filter)) {
-            System.out.println(plan);
             throw new IllegalArgumentException("PhysicalNode must be a PhysicalFilter instance");
         }
 
@@ -514,23 +513,21 @@ class ExecutionHandlers {
         }
 
         if (children.size() == 1) {
-            // CURSOR PROTECTION: Maintain cursor context for single child
+            // CURSOR PROTECTION: Maintain cursor context for a single child
             PhysicalNode singleChild = children.getFirst();
             boolean needsCursorProtection = (singleChild instanceof PhysicalAnd || singleChild instanceof PhysicalOr);
 
+            Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, singleChild);
             if (needsCursorProtection) {
-                Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, singleChild);
                 if (!results.isEmpty()) {
                     cursorManager.setCursorBoundaries(config, physicalAnd.id(), results);
                 }
-                return results;
             } else {
-                Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, singleChild);
                 if (!results.isEmpty()) {
-                    cursorManager.setCursorBoundaries(config, physicalAnd.id(), results);
+                    cursorManager.setCursorBoundaries(config, singleChild.id(), results);
                 }
-                return results;
             }
+            return results;
         }
 
         // CURSOR PROTECTION: Use enhanced execution strategy framework
