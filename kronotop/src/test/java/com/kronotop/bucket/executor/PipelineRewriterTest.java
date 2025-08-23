@@ -18,8 +18,9 @@ class PipelineRewriterTest extends BasePlanExecutorTest {
         PhysicalNode plan = planQueryAndOptimize(metadata, "{'age': {'$gt': 22}}");
         PipelineNode node = PipelineRewriter.rewrite(plan);
         System.out.println(node);
+
         PipelineExecutor executor = new PipelineExecutor(node);
-        PipelineContext ctx = new PipelineContext();
+        PipelineContext ctx = new PipelineContext(metadata);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             executor.run(tr, ctx);
         }

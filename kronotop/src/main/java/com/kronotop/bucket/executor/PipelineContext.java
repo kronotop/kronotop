@@ -16,14 +16,27 @@
 
 package com.kronotop.bucket.executor;
 
+import com.kronotop.bucket.BucketMetadata;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class PipelineContext {
+    private final BucketMetadata metadata;
+
+    // State
     private final ReadWriteLock lock = new ReentrantReadWriteLock(true);
     private final Map<Integer, ExecutionState> states = new HashMap<>();
+
+    public PipelineContext(BucketMetadata metadata) {
+        this.metadata = metadata;
+    }
+
+    public BucketMetadata getMetadata() {
+        return metadata;
+    }
 
     public void setBounds(int parentNodeId, int nodeId, Bounds bounds) {
         lock.writeLock().lock();
