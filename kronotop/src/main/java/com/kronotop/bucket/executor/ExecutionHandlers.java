@@ -392,7 +392,7 @@ class ExecutionHandlers {
         String selector = filter.selector();
         IndexDefinition definition = config.getMetadata().indexes().getIndexBySelector(selector);
         if (definition == null) {
-            // No index for this field - throw exception like original PlanExecutor
+            // No index for this field
             throw new IllegalStateException("Index not found for selector: " + selector);
         }
 
