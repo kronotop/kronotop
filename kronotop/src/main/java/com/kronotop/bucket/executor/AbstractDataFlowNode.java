@@ -7,10 +7,10 @@ import com.kronotop.bucket.index.IndexDefinition;
 
 import java.util.List;
 
-public abstract class AbstractPipelineNode implements PipelineNode {
+public abstract class AbstractDataFlowNode implements PipelineNode {
     private final List<PipelineNode> children;
 
-    protected AbstractPipelineNode(List<PipelineNode> children) {
+    protected AbstractDataFlowNode(List<PipelineNode> children) {
         this.children = children;
     }
 

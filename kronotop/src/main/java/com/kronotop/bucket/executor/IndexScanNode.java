@@ -17,7 +17,7 @@ import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public final class IndexScanNode extends AbstractPipelineNode {
+public final class IndexScanNode extends AbstractScanNode {
     private final PhysicalIndexScan plan;
 
     public IndexScanNode(PhysicalIndexScan physicalNode, List<PipelineNode> children) {
