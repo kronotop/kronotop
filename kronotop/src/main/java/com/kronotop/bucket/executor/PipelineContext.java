@@ -38,6 +38,9 @@ public class PipelineContext {
 
     private final ConcurrentHashMap<Integer, LinkedHashMap<Versionstamp, ByteBuffer>> output = new ConcurrentHashMap<>();
 
+    // DAG executor implementation starts here
+    private final ConcurrentHashMap<Integer, CursorState> cursor = new ConcurrentHashMap<>();
+
     public PipelineContext(Context context, BucketMetadata metadata, PlanExecutorConfig config) {
         this.context = context;
         this.metadata = metadata;
@@ -49,6 +52,14 @@ public class PipelineContext {
         this.documentRetriever = new DocumentRetriever(bucketService);
         this.indexUtils = new IndexUtils();
         this.selectorCalculator = new SelectorCalculator(indexUtils, cursorManager);
+    }
+
+    public void setCursor(int nodeId, CursorState state) {
+        cursor.put(nodeId, state);
+    }
+
+    public CursorState getCursor(int nodeId) {
+        return cursor.get(nodeId);
     }
 
     public Context context() {
