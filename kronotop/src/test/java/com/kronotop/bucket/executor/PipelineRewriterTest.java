@@ -5,6 +5,10 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
+import com.kronotop.bucket.pipeline.PipelineContext;
+import com.kronotop.bucket.pipeline.PipelineExecutor;
+import com.kronotop.bucket.pipeline.PipelineNode;
+import com.kronotop.bucket.pipeline.PipelineRewriter;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.bucket.planner.physical.PlannerContext;
 import org.bson.BsonType;
@@ -41,7 +45,7 @@ class PipelineRewriterTest extends BasePlanExecutorTest {
         PlanExecutorConfig config = new PlanExecutorConfig(metadata, plan, plannerContext);
         config.setLimit(10);
 
-        PipelineContext ctx = new PipelineContext(context, metadata, config);
+        PipelineContext ctx = new PipelineContext(context, metadata);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             executor.run(tr, ctx);
         }

@@ -1,4 +1,4 @@
-package com.kronotop.bucket.executor;
+package com.kronotop.bucket.pipeline;
 
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PhysicalFilter;

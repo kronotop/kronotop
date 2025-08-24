@@ -1,4 +1,4 @@
-package com.kronotop.bucket.executor;
+package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
 
