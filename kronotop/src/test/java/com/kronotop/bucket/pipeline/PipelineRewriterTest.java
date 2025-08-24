@@ -1,14 +1,11 @@
-package com.kronotop.bucket.executor;
+package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
-import com.kronotop.bucket.pipeline.PipelineContext;
-import com.kronotop.bucket.pipeline.PipelineExecutor;
-import com.kronotop.bucket.pipeline.PipelineNode;
-import com.kronotop.bucket.pipeline.PipelineRewriter;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.bucket.planner.physical.PlannerContext;
 import org.bson.BsonType;
@@ -16,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-class PipelineRewriterTest extends BasePlanExecutorTest {
+class PipelineRewriterTest extends BasePipelineTest {
 
     @Test
     void test() {
