@@ -12,7 +12,8 @@ public class PipelineRewriter {
             case PhysicalIndexScan physicalIndexScan -> {
                 PipelineNode child = rewrite(physicalIndexScan.node());
                 List<PipelineNode> children = child != null ? List.of(child) : List.of();
-                return new IndexScanNode(physicalIndexScan, children);
+                //return new IndexScanNode(physicalIndexScan, children);
+                return null;
             }
             case PhysicalFilter ignore -> {
                 // Leaf node
