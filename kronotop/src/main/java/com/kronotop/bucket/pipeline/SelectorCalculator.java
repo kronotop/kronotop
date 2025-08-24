@@ -23,7 +23,6 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.executor.Bound;
 import com.kronotop.bucket.executor.CursorManager;
-import com.kronotop.bucket.executor.IndexUtils;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.planner.Operator;

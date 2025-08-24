@@ -25,7 +25,6 @@ import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
-import com.kronotop.bucket.planner.physical.PhysicalFilter;
 
 import java.math.BigDecimal;
 
@@ -76,24 +75,24 @@ public class IndexUtils {
     /**
      * Constructs index range selectors for a given filter with index definition.
      */
-    KeySelector[] constructIndexRangeSelectors(DirectorySubspace indexSubspace, PhysicalFilter filter, IndexDefinition definition) {
+    KeySelector[] constructIndexRangeSelectors(DirectorySubspace indexSubspace, Predicate predicate, IndexDefinition definition) {
         Object indexValue;
         Tuple indexTuple;
 
         // Special handling for _id index - it uses Versionstamp directly, not bytes
-        if (definition != null && DefaultIndexDefinition.ID.selector().equals(definition.selector()) && filter.operand() instanceof VersionstampVal(
+        if (definition != null && DefaultIndexDefinition.ID.selector().equals(definition.selector()) && predicate.operand() instanceof VersionstampVal(
                 Versionstamp value
         )) {
             indexValue = value; // Use Versionstamp directly
         } else {
-            indexValue = extractIndexValue(filter.operand());
+            indexValue = extractIndexValue(predicate.operand());
         }
 
         indexTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), indexValue);
 
         byte[] indexKey = indexSubspace.pack(indexTuple);
 
-        return switch (filter.op()) {
+        return switch (predicate.op()) {
             case EQ -> {
                 // For equality, scan all entries with the same indexed value
                 // The key structure is [ENTRIES_MAGIC, indexed_value, versionstamp]
@@ -135,7 +134,7 @@ public class IndexUtils {
                 KeySelector end = KeySelector.firstGreaterOrEqual(createIndexEntriesBoundary(indexSubspace));
                 yield new KeySelector[]{begin, end};
             }
-            default -> throw new UnsupportedOperationException("Index scan not supported for operator: " + filter.op());
+            default -> throw new UnsupportedOperationException("Index scan not supported for operator: " + predicate.op());
         };
     }
 
