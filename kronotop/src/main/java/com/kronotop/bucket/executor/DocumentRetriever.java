@@ -36,7 +36,7 @@ import java.nio.ByteBuffer;
  * Handles document retrieval operations from storage.
  * Extracted from PlanExecutor to provide focused document retrieval functionality.
  */
-class DocumentRetriever {
+public class DocumentRetriever {
     private final BucketService bucketService;
 
     DocumentRetriever(BucketService bucketService) {

@@ -37,7 +37,7 @@ import java.util.List;
  * Handles all filter evaluation operations for BSON documents.
  * Extracted from PlanExecutor to provide focused filter evaluation functionality.
  */
-class FilterEvaluator {
+public class FilterEvaluator {
     /**
      * Applies a physical filter to a BSON document and determines whether the document satisfies the filter criteria.
      *

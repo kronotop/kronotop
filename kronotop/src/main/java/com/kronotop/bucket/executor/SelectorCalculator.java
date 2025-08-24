@@ -71,7 +71,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
  * @see IndexUtils
  * @see CursorManager
  */
-class SelectorCalculator {
+public class SelectorCalculator {
     private final IndexUtils indexUtils;
     private final CursorManager cursorManager;
 

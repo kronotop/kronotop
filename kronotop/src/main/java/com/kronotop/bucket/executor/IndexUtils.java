@@ -23,6 +23,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.bql.ast.*;
+import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.planner.physical.PhysicalFilter;
 
@@ -32,7 +33,7 @@ import java.math.BigDecimal;
  * Utilities for index operations and selector construction.
  * Extracted from PlanExecutor to provide focused index operation functionality.
  */
-class IndexUtils {
+public class IndexUtils {
 
     /**
      * Extracts the raw value from a {@link Bound}'s value based on its type. The method handles
@@ -79,7 +80,7 @@ class IndexUtils {
     /**
      * Constructs index range selectors for a given filter with index definition.
      */
-    KeySelector[] constructIndexRangeSelectors(DirectorySubspace indexSubspace, PhysicalFilter filter, com.kronotop.bucket.index.IndexDefinition definition) {
+    KeySelector[] constructIndexRangeSelectors(DirectorySubspace indexSubspace, PhysicalFilter filter, IndexDefinition definition) {
         Object indexValue;
         Tuple indexTuple;
 

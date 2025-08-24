@@ -17,7 +17,6 @@ public class PipelineExecutor {
         for (PipelineNode child : node.children()) {
             executeNode(tr, ctx, child);
         }
-        System.out.println("running " + node);
         node.execute(tr, ctx);
     }
 }

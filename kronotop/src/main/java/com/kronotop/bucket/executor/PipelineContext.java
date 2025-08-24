@@ -16,62 +16,75 @@
 
 package com.kronotop.bucket.executor;
 
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.index.IndexUtil;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PipelineContext {
+    private final Context context;
     private final BucketMetadata metadata;
+    private final PlanExecutorConfig config;
+    private final CursorManager cursorManager;
+    private final FilterEvaluator filterEvaluator;
+    private final DocumentRetriever documentRetriever;
+    private final IndexUtils indexUtils;
+    private final SelectorCalculator selectorCalculator;
 
-    // State
-    private final ReadWriteLock lock = new ReentrantReadWriteLock(true);
-    private final Map<Integer, ExecutionState> states = new HashMap<>();
+    private final ConcurrentHashMap<Integer, LinkedHashMap<Versionstamp, ByteBuffer>> output = new ConcurrentHashMap<>();
 
-    public PipelineContext(BucketMetadata metadata) {
+    public PipelineContext(Context context, BucketMetadata metadata, PlanExecutorConfig config) {
+        this.context = context;
         this.metadata = metadata;
+        this.config = config;
+
+        BucketService bucketService = context.getService(BucketService.NAME);
+        this.cursorManager = new CursorManager();
+        this.filterEvaluator = new FilterEvaluator();
+        this.documentRetriever = new DocumentRetriever(bucketService);
+        this.indexUtils = new IndexUtils();
+        this.selectorCalculator = new SelectorCalculator(indexUtils, cursorManager);
+    }
+
+    public Context context() {
+        return context;
     }
 
     public BucketMetadata getMetadata() {
         return metadata;
     }
 
-    public void setBounds(int parentNodeId, int nodeId, Bounds bounds) {
-        lock.writeLock().lock();
-        try {
-            states.put(nodeId, new ExecutionState(parentNodeId, bounds));
-        } finally {
-            lock.writeLock().unlock();
-        }
+    public PlanExecutorConfig config() {
+        return config;
     }
 
-    public Bounds getBounds(int parentNodeId, int nodeId) {
-        lock.readLock().unlock();
-        try {
-            ExecutionState state = states.get(nodeId);
-            if (state.parentNodeId() != parentNodeId) {
-                return null;
-            }
-            return state.bounds();
-        } finally {
-            lock.readLock().unlock();
-        }
+    public SelectorCalculator selectorCalculator() {
+        return selectorCalculator;
     }
 
-    public boolean clear(int parentNodeId, int nodeId) {
-        lock.writeLock().lock();
-        try {
-            ExecutionState state = states.get(nodeId);
-            if (state.parentNodeId() == parentNodeId) {
-                states.remove(nodeId);
-                return true;
-            }
-            return false;
-        } finally {
-            lock.writeLock().unlock();
-        }
+    public CursorManager cursorManager() {
+        return cursorManager;
+    }
+
+    public FilterEvaluator filterEvaluator() {
+        return filterEvaluator;
+    }
+
+    public DocumentRetriever documentRetriever() {
+        return documentRetriever;
+    }
+
+    public IndexUtils indexUtils() {
+        return indexUtils;
+    }
+
+    public LinkedHashMap<Versionstamp, ByteBuffer> getResults(int nodeId) {
+        return output.computeIfAbsent(nodeId, (ignored) -> new LinkedHashMap<>());
     }
 }
 
