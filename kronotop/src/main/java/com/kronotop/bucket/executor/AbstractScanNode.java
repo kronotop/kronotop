@@ -2,15 +2,16 @@ package com.kronotop.bucket.executor;
 
 import java.util.List;
 
-public abstract class AbstractScanNode implements ScanNode {
-    private final List<PredicateNode> children;
+public abstract class AbstractScanNode extends AbstractPipelineNode implements ScanNode {
+    private final List<Predicate> children;
 
-    protected AbstractScanNode(List<PredicateNode> children) {
+    protected AbstractScanNode(int id, List<Predicate> children) {
+        super(id);
         this.children = children;
     }
 
     @Override
-    public List<PredicateNode> predicates() {
+    public List<Predicate> predicates() {
         return children;
     }
 }
