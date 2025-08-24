@@ -21,12 +21,9 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.bucket.bql.ast.BqlValue;
-import com.kronotop.bucket.executor.Bound;
-import com.kronotop.bucket.executor.CursorManager;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.planner.Operator;
-import com.kronotop.bucket.planner.physical.PhysicalFilter;
 
 public class SelectorCalculator {
     private final IndexUtils indexUtils;
@@ -72,7 +69,7 @@ public class SelectorCalculator {
                 endSelector = selectors[1];   // Upper bound of filter condition
             } else {
                 // Cursor continuation - combine filter bounds with cursor position
-                com.kronotop.bucket.executor.Bound effectiveLowerBound = getEffectiveLowerBound(predicate, cursor.bounds());
+                Bound effectiveLowerBound = getEffectiveLowerBound(predicate, cursor.bounds());
 
                 // Determine start position for continuation
                 if (effectiveLowerBound != null) {
@@ -98,7 +95,7 @@ public class SelectorCalculator {
                 endSelector = selectors[1];   // Upper-bound selector from filter
             } else {
                 // Cursor continuation - determine most restrictive lower bound
-                Bound effectiveLowerBound = getEffectiveLowerBound(filter, bounds);
+                Bound effectiveLowerBound = getEffectiveLowerBound(predicate, cursor.bounds());
 
                 // Check for precise cursor position (includes versionstamp)
                 CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(config, filter.id());
@@ -135,10 +132,9 @@ public class SelectorCalculator {
         return selectors[1];
     }
 
-
-    private Bound getEffectiveLowerBound(Predicate filter, Bounds cursorBounds) {
+    private Bound getEffectiveLowerBound(Predicate predicate, Bounds cursorBounds) {
         Bound cursorLower = cursorBounds.lower();
-        Bound originalLower = getOriginalLowerBound(filter);
+        Bound originalLower = getOriginalLowerBound(predicate);
 
         if (cursorLower == null) return originalLower;
         if (originalLower == null) {
@@ -154,11 +150,11 @@ public class SelectorCalculator {
         return cursorValue.toString().compareTo(originalValue.toString()) > 0 ? cursorLower : originalLower;
     }
 
-    private com.kronotop.bucket.executor.Bound getOriginalLowerBound(PhysicalFilter filter) {
+    private Bound getOriginalLowerBound(Predicate predicate) {
         // Extract lower bound from filter based on operator
-        return switch (filter.op()) {
-            case GT -> new com.kronotop.bucket.executor.Bound(Operator.GT, (BqlValue) filter.operand());
-            case GTE -> new com.kronotop.bucket.executor.Bound(Operator.GTE, (BqlValue) filter.operand());
+        return switch (predicate.op()) {
+            case GT -> new Bound(Operator.GT, (BqlValue) predicate.operand());
+            case GTE -> new Bound(Operator.GTE, (BqlValue) predicate.operand());
             case LT, LTE, EQ, NE -> null; // These operators don't impose lower bounds
             default -> null;
         };
