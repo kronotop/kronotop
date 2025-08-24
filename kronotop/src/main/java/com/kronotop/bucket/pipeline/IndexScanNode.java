@@ -7,9 +7,6 @@ import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.BqlValue;
-import com.kronotop.bucket.executor.Bounds;
-import com.kronotop.bucket.executor.FilterScanContext;
-import com.kronotop.bucket.executor.SelectorPair;
 import com.kronotop.bucket.index.IndexDefinition;
 
 import java.util.Arrays;
@@ -30,7 +27,7 @@ public final class IndexScanNode extends AbstractScanNode {
         // Continue scanning until we find results or exhaust the index
         while (true) {
             IndexScanContext indexScanContext = new IndexScanContext(id(), subspace, cursor, ctx.isReverse(), predicate, index());
-            SelectorPair selectors = selectorCalculator.calculateSelectors(indexScanContext);
+            SelectorPair selectors = ctx.dependencies().selectorCalculator().calculateSelectors(indexScanContext);
             KeySelector beginSelector = selectors.beginSelector();
             KeySelector endSelector = selectors.endSelector();
 

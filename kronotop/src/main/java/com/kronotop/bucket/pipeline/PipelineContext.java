@@ -34,9 +34,12 @@ public class PipelineContext {
     private volatile boolean pinReadVersion;
     private volatile String sortByField = DefaultIndexDefinition.ID.selector();
 
-    public PipelineContext(Context context, BucketMetadata metadata) {
+    private final Dependencies dependencies;
+
+    public PipelineContext(Context context, BucketMetadata metadata, Dependencies dependencies) {
         this.context = context;
         this.metadata = metadata;
+        this.dependencies = dependencies;
     }
 
     /**
@@ -50,10 +53,6 @@ public class PipelineContext {
             throw new IllegalArgumentException("limit must be a non-negative integer");
         }
         this.limit = limit;
-    }
-
-    public void setCursor(int nodeId, Cursor state) {
-        cursor.put(nodeId, state);
     }
 
     public Cursor getCursor(int nodeId) {
@@ -102,6 +101,10 @@ public class PipelineContext {
 
     public void setSortByField(String sortByField) {
         this.sortByField = sortByField;
+    }
+
+    public Dependencies dependencies() {
+        return dependencies;
     }
 }
 

@@ -42,7 +42,11 @@ class PipelineRewriterTest extends BasePipelineTest {
         PlanExecutorConfig config = new PlanExecutorConfig(metadata, plan, plannerContext);
         config.setLimit(10);
 
-        PipelineContext ctx = new PipelineContext(context, metadata);
+        IndexUtils indexUtils = new IndexUtils();
+        CursorManager cursorManager = new CursorManager();
+        SelectorCalculator selectorCalculator = new SelectorCalculator(indexUtils, cursorManager);
+        Dependencies dependencies = new Dependencies(selectorCalculator);
+        PipelineContext ctx = new PipelineContext(context, metadata, dependencies);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             executor.run(tr, ctx);
         }
