@@ -17,7 +17,7 @@ public final class IndexScanNode extends AbstractScanNode {
         Predicate predicate = predicates().getFirst();
         DirectorySubspace subspace = ctx.getMetadata().indexes().getSubspace(index().selector());
         Cursor cursor = ctx.getCursor(id());
-        IndexScanContext indexScanContext = new IndexScanContext(subspace, cursor, ctx.isReverse(), predicate, index());
+        IndexScanContext indexScanContext = new IndexScanContext(id(), subspace, cursor, ctx.isReverse(), predicate, index());
         System.out.println(indexScanContext);
     }
 }

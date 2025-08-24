@@ -98,7 +98,7 @@ public class SelectorCalculator {
                 Bound effectiveLowerBound = getEffectiveLowerBound(predicate, cursor.bounds());
 
                 // Check for precise cursor position (includes versionstamp)
-                CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(config, filter.id());
+                CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(cursor, context.nodeId());
 
                 if (position != null) {
                     // Precise positioning: construct exact continuation point

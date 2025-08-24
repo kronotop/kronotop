@@ -335,22 +335,14 @@ public class CursorManager {
      * based on the bounds stored in the provided plan executor configuration.
      * If no bounds or versionstamp information is available, this method returns null.
      *
-     * @param config the plan executor configuration containing cursor state and bounds
      * @return the last processed cursor position as a {@code CursorPosition} object, or null if unavailable
      */
-    CursorPosition getLastProcessedPosition(PlanExecutorConfig config, int nodeId) {
-        // TODO: REFACTOR
-        Bounds bounds = config.cursor().getBounds(nodeId);
-        if (bounds == null) {
-            return null;
-        }
-
+    CursorPosition getLastProcessedPosition(Cursor cursor, int nodeId) {
         // Check both lower and upper bounds for cursor position info
-        Bound cursorBound = bounds.lower() != null ? bounds.lower() : bounds.upper();
+        Bound cursorBound = cursor.bounds().lower() != null ? cursor.bounds().lower() : cursor.bounds().upper();
         if (cursorBound != null && cursorBound.versionstamp() != null) {
             return new CursorPosition(nodeId, cursorBound.value(), cursorBound.versionstamp());
         }
-
         return null;
     }
 

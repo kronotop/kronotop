@@ -17,7 +17,7 @@ public class PipelineRewriter {
                 ))) {
                     throw new IllegalStateException("PhysicalNode must be a PhysicalFilter instance");
                 }
-                PhysicalFilter predicate = new PhysicalFilter(id, selector, op, operand);
+                Predicate predicate = new Predicate(id, selector, op, operand);
                 yield new IndexScanNode(indexScan.id(), indexScan.index(), List.of(predicate));
             }
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);

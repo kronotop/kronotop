@@ -4,11 +4,13 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.index.IndexDefinition;
 
 abstract class ScanContext {
+    protected final int nodeId;
     protected final DirectorySubspace indexSubspace;
     protected final Cursor cursor;
     protected final boolean isReverse;
 
-    protected ScanContext(DirectorySubspace indexSubspace, Cursor cursor, boolean isReverse) {
+    protected ScanContext(int nodeId, DirectorySubspace indexSubspace, Cursor cursor, boolean isReverse) {
+        this.nodeId = nodeId;
         this.indexSubspace = indexSubspace;
         this.cursor = cursor;
         this.isReverse = isReverse;
@@ -25,14 +27,18 @@ abstract class ScanContext {
     public boolean isReverse() {
         return isReverse;
     }
+
+    public int nodeId() {
+        return nodeId;
+    }
 }
 
 class IndexScanContext extends ScanContext {
     private final Predicate predicate;
     private final IndexDefinition index;
 
-    public IndexScanContext(DirectorySubspace indexSubspace, Cursor cursor, boolean isReverse, Predicate predicate, IndexDefinition indexDefinition) {
-        super(indexSubspace, cursor, isReverse);
+    public IndexScanContext(int nodeId, DirectorySubspace indexSubspace, Cursor cursor, boolean isReverse, Predicate predicate, IndexDefinition indexDefinition) {
+        super(nodeId, indexSubspace, cursor, isReverse);
         this.predicate = predicate;
         this.index = indexDefinition;
     }
