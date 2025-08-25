@@ -36,6 +36,10 @@ public class BasePipelineTest extends BaseHandlerTest {
     protected static final String BUCKET_NAME = "test-bucket";
     protected static final int SHARD_ID = 0;
 
+    private final LogicalPlanner logicalPlanner = new LogicalPlanner();
+    private final PhysicalPlanner physicalPlanner = new PhysicalPlanner();
+    private final Optimizer optimizer = new Optimizer();
+
     protected List<Versionstamp> insertDocumentsAndGetVersionstamps(String bucketName, List<byte[]> documents) {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
@@ -90,23 +94,7 @@ public class BasePipelineTest extends BaseHandlerTest {
         return BucketMetadataUtil.createOrOpen(context, session, bucketName);
     }
 
-    protected PhysicalNode planQueryAndOptimize(BucketMetadata metadata, String query) {
-        LogicalPlanner logicalPlanner = new LogicalPlanner();
-        PhysicalPlanner physicalPlanner = new PhysicalPlanner();
-        Optimizer optimizer = new Optimizer();
-
-        PlannerContext plannerContext = new PlannerContext();
-        BqlExpr parsedQuery = BqlParser.parse(query);
-        LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
-        PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, plannerContext);
-        return optimizer.optimize(metadata, physicalPlan, plannerContext);
-    }
-
     protected PipelineExecutor createPipelineExecutorForQuery(BucketMetadata metadata, String query) {
-        LogicalPlanner logicalPlanner = new LogicalPlanner();
-        PhysicalPlanner physicalPlanner = new PhysicalPlanner();
-        Optimizer optimizer = new Optimizer();
-
         PlannerContext plannerContext = new PlannerContext();
         BqlExpr parsedQuery = BqlParser.parse(query);
         LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
