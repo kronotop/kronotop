@@ -19,7 +19,7 @@ class SingleIndexScanIntegrationTest extends BasePipelineTest {
 
     @Test
     void testGtOperatorFiltersCorrectly() {
-        final String TEST_BUCKET_NAME = "test-bucket-full-scan-logic";
+        final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
