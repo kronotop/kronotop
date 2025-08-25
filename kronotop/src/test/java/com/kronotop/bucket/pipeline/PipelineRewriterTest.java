@@ -47,7 +47,8 @@ class PipelineRewriterTest extends BasePipelineTest {
         CursorManager cursorManager = new CursorManager();
         SelectorCalculator selectorCalculator = new SelectorCalculator(indexUtils, cursorManager);
         DocumentRetriever documentRetriever = new DocumentRetriever(context.getService(BucketService.NAME));
-        Dependencies dependencies = new Dependencies(selectorCalculator, documentRetriever);
+        FilterEvaluator filterEvaluator = new FilterEvaluator();
+        Dependencies dependencies = new Dependencies(selectorCalculator, documentRetriever, filterEvaluator);
         PipelineContext ctx = new PipelineContext(context, metadata, dependencies);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             executor.run(tr, ctx);
