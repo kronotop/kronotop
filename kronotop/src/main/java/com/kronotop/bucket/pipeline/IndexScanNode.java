@@ -29,19 +29,22 @@ public final class IndexScanNode extends AbstractScanNode {
         KeySelector endSelector = selectors.endSelector();
 
         AsyncIterable<KeyValue> indexEntries = tr.getRange(beginSelector, endSelector, ctx.limit(), ctx.isReverse());
-        Versionstamp lastProcessedKey;
-        BqlValue lastIndexValue;
 
         for (KeyValue indexEntry : indexEntries) {
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
-            lastProcessedKey = location.versionstamp();
+            Versionstamp lastProcessedKey = location.versionstamp();
 
             // Extract index value for cursor management
             Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
             Object rawIndexValue = indexKeyTuple.get(1);
-            lastIndexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
-            if (predicate.test(lastIndexValue)) {
-                // set output here
+            BqlValue lastIndexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
+            if (predicate.canEvaluate()) {
+                // NE Operator
+                if (predicate.test(lastIndexValue)) {
+                    // set output here
+                    ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
+                }
+            } else {
                 ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
             }
             // set cursor here
