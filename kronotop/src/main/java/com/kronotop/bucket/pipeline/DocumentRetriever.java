@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.kronotop.bucket.executor;
+package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
@@ -34,7 +34,6 @@ import java.nio.ByteBuffer;
 
 /**
  * Handles document retrieval operations from storage.
- * Extracted from PlanExecutor to provide focused document retrieval functionality.
  */
 public class DocumentRetriever {
     private final BucketService bucketService;
@@ -156,6 +155,6 @@ public class DocumentRetriever {
     /**
      * Record representing document location information.
      */
-    public record DocumentLocation(Versionstamp documentId, int shardId, EntryMetadata entryMetadata) {
+    record DocumentLocation(Versionstamp documentId, int shardId, EntryMetadata entryMetadata) {
     }
 }

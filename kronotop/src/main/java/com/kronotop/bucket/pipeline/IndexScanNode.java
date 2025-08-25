@@ -5,11 +5,11 @@ import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.index.IndexDefinition;
 
-import java.util.Arrays;
 import java.util.List;
 
 public final class IndexScanNode extends AbstractScanNode {
@@ -21,13 +21,13 @@ public final class IndexScanNode extends AbstractScanNode {
     public void execute(PipelineContext ctx, Transaction tr) {
         System.out.printf("IndexScanNode ==> %d, %s, %s%n", id(), index(), predicates());
         IndexScanPredicate predicate = predicates().getFirst();
-        DirectorySubspace subspace = ctx.getMetadata().indexes().getSubspace(index().selector());
+        DirectorySubspace indexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
         Cursor cursor = ctx.getOrCreateCursor(id());
 
         // Continue scanning until we find results or exhaust the index
         while (true) {
-            IndexScanContext indexScanContext = new IndexScanContext(id(), subspace, cursor, ctx.isReverse(), predicate, index());
-            SelectorPair selectors = ctx.dependencies().selectorCalculator().calculateSelectors(indexScanContext);
+            IndexScanContext indexScanContext = new IndexScanContext(id(), indexSubspace, cursor, ctx.isReverse(), predicate, index());
+            SelectorPair selectors = ctx.dep().selectorCalculator().calculateSelectors(indexScanContext);
             KeySelector beginSelector = selectors.beginSelector();
             KeySelector endSelector = selectors.endSelector();
 
@@ -36,10 +36,21 @@ public final class IndexScanNode extends AbstractScanNode {
             BqlValue lastIndexValue = null;
             boolean hasIndexEntries = false;
 
+            // 1- Test predicate
+            // 2- Collect DocumentRetriever.DocumentLocation
+            // 3- Set output
             for (KeyValue indexEntry : indexEntries) {
-                System.out.println(Arrays.toString(indexEntry.getKey()));
-                System.out.println(Arrays.toString(indexEntry.getValue()));
+                hasIndexEntries = true;
+                DocumentRetriever.DocumentLocation location = ctx.dep().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
+                lastProcessedKey = location.documentId();
+
+                // Extract index value for cursor management
+                Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
+                Object rawIndexValue = indexKeyTuple.get(1);
+                lastIndexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
             }
+            System.out.println(lastProcessedKey);
+            System.out.println(lastIndexValue);
             break;
         }
     }

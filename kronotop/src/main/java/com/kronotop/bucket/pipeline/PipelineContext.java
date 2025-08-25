@@ -103,7 +103,7 @@ public class PipelineContext {
         this.sortByField = sortByField;
     }
 
-    public Dependencies dependencies() {
+    public Dependencies dep() {
         return dependencies;
     }
 }

@@ -3,6 +3,7 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
@@ -45,7 +46,8 @@ class PipelineRewriterTest extends BasePipelineTest {
         IndexUtils indexUtils = new IndexUtils();
         CursorManager cursorManager = new CursorManager();
         SelectorCalculator selectorCalculator = new SelectorCalculator(indexUtils, cursorManager);
-        Dependencies dependencies = new Dependencies(selectorCalculator);
+        DocumentRetriever documentRetriever = new DocumentRetriever(context.getService(BucketService.NAME));
+        Dependencies dependencies = new Dependencies(selectorCalculator, documentRetriever);
         PipelineContext ctx = new PipelineContext(context, metadata, dependencies);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             executor.run(tr, ctx);

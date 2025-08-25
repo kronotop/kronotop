@@ -1,4 +1,4 @@
 package com.kronotop.bucket.pipeline;
 
-public record Dependencies(SelectorCalculator selectorCalculator) {
+public record Dependencies(SelectorCalculator selectorCalculator, DocumentRetriever documentRetriever) {
 }
