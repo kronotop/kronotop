@@ -34,15 +34,15 @@ public class PipelineContext {
     private volatile boolean pinReadVersion;
     private volatile String sortByField = DefaultIndexDefinition.ID.selector();
 
-    private final Dependencies dependencies;
+    private final PipelineEnv env;
 
     // Output
     private final Output output = new Output();
 
-    public PipelineContext(Context context, BucketMetadata metadata, Dependencies dependencies) {
+    public PipelineContext(Context context, BucketMetadata metadata, PipelineEnv env) {
         this.context = context;
         this.metadata = metadata;
-        this.dependencies = dependencies;
+        this.env = env;
     }
 
     /**
@@ -106,8 +106,8 @@ public class PipelineContext {
         this.sortByField = sortByField;
     }
 
-    public Dependencies dep() {
-        return dependencies;
+    public PipelineEnv env() {
+        return env;
     }
 
     public Output output() {

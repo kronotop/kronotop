@@ -24,7 +24,7 @@ public final class IndexScanNode extends AbstractScanNode {
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
         IndexScanContext indexScanContext = new IndexScanContext(id(), indexSubspace, state, ctx.isReverse(), predicate, index());
-        SelectorPair selectors = ctx.dep().selectorCalculator().calculateSelectors(indexScanContext);
+        SelectorPair selectors = ctx.env().selectorCalculator().calculateSelectors(indexScanContext);
         KeySelector beginSelector = selectors.beginSelector();
         KeySelector endSelector = selectors.endSelector();
 
@@ -33,7 +33,7 @@ public final class IndexScanNode extends AbstractScanNode {
         BqlValue lastIndexValue;
 
         for (KeyValue indexEntry : indexEntries) {
-            DocumentLocation location = ctx.dep().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
+            DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
             lastProcessedKey = location.versionstamp();
 
             // Extract index value for cursor management
@@ -45,7 +45,7 @@ public final class IndexScanNode extends AbstractScanNode {
                 ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
             }
             // set cursor here
-            ctx.dep().cursorManager().setCursorBoundsForIndexScan(ctx, id(), index(), lastIndexValue, lastProcessedKey);
+            ctx.env().cursorManager().setCursorBoundsForIndexScan(ctx, id(), index(), lastIndexValue, lastProcessedKey);
         }
     }
 }

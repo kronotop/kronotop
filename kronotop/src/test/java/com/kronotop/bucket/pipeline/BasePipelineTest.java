@@ -111,7 +111,7 @@ public class BasePipelineTest extends BaseHandlerTest {
         SelectorCalculator selectorCalculator = new SelectorCalculator(indexUtils, cursorManager);
         DocumentRetriever documentRetriever = new DocumentRetriever(context.getService(BucketService.NAME));
         FilterEvaluator filterEvaluator = new FilterEvaluator();
-        Dependencies dependencies = new Dependencies(selectorCalculator, documentRetriever, filterEvaluator, cursorManager);
+        PipelineEnv dependencies = new PipelineEnv(selectorCalculator, documentRetriever, filterEvaluator, cursorManager);
         return new PipelineContext(context, metadata, dependencies);
     }
 }

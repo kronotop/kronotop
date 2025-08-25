@@ -20,7 +20,7 @@ public class PipelineExecutor {
         Map<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
         Map<Integer, DocumentLocation> locations = ctx.output().getLocations(root.id());
         for (DocumentLocation location : locations.values()) {
-            ByteBuffer document = ctx.dep().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
+            ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
             results.put(location.versionstamp(), document);
         }
         ctx.output().clear(root.id());
