@@ -151,10 +151,4 @@ public class DocumentRetriever {
         }
         return idIndexSubspace;
     }
-
-    /**
-     * Record representing document location information.
-     */
-    record DocumentLocation(Versionstamp documentId, int shardId, EntryMetadata entryMetadata) {
-    }
 }

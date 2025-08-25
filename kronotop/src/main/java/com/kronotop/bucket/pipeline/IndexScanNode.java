@@ -41,7 +41,7 @@ public final class IndexScanNode extends AbstractScanNode {
             // 3- Set output
             for (KeyValue indexEntry : indexEntries) {
                 hasIndexEntries = true;
-                DocumentRetriever.DocumentLocation location = ctx.dep().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
+                DocumentLocation location = ctx.dep().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
                 lastProcessedKey = location.documentId();
 
                 // Extract index value for cursor management
