@@ -42,7 +42,7 @@ public class BasePipelineTest extends BaseHandlerTest {
     private final LogicalPlanner logicalPlanner = new LogicalPlanner();
     private final PhysicalPlanner physicalPlanner = new PhysicalPlanner();
     private final Optimizer optimizer = new Optimizer();
-    private final FilterEvaluator filterEvaluator = new FilterEvaluator();
+    private final PredicateEvaluator filterEvaluator = new PredicateEvaluator();
     private final IndexUtils indexUtils = new IndexUtils();
     private final CursorManager cursorManager = new CursorManager();
     private final SelectorCalculator selectorCalculator = new SelectorCalculator(indexUtils, cursorManager);

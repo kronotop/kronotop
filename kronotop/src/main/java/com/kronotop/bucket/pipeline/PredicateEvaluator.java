@@ -33,10 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Handles all filter evaluation operations for BSON documents.
- */
-public class FilterEvaluator {
+public class PredicateEvaluator {
     /**
      * Applies a physical filter to a BSON document and determines whether the document satisfies the filter criteria.
      *
