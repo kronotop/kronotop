@@ -229,7 +229,7 @@ public class FilterEvaluator {
      * @return true if the comparison satisfies the operator's condition, otherwise false
      * @throws UnsupportedOperationException if the provided operator is not supported for this comparison type
      */
-    private <T> boolean evaluateComparison(Operator op, T actual, T expected) {
+    static  <T> boolean evaluateComparison(Operator op, T actual, T expected) {
         return switch (op) {
             case EQ -> {
                 if (actual instanceof byte[] actualBytes && expected instanceof byte[] expectedBytes) {
@@ -443,7 +443,7 @@ public class FilterEvaluator {
      * @throws UnsupportedOperationException if expected is not a list
      */
     @SuppressWarnings("unchecked")
-    private List<Object> validateListOperand(Object expected, String operatorName) {
+    static List<Object> validateListOperand(Object expected, String operatorName) {
         if (expected instanceof List<?> expectedList) {
             return (List<Object>) expectedList;
         } else {
