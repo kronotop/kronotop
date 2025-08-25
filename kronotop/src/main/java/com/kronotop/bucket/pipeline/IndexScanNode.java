@@ -40,7 +40,7 @@ public final class IndexScanNode extends AbstractScanNode {
             Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
             Object rawIndexValue = indexKeyTuple.get(1);
             lastIndexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
-            if (predicate.canEvaluate() && predicate.test(lastIndexValue)) {
+            if (predicate.test(lastIndexValue)) {
                 // set output here
                 ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
             }

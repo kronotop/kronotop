@@ -152,6 +152,41 @@ class SingleIndexScanIntegrationTest extends BasePipelineTest {
         }
     }
 
+    @Test
+    void testNeOperatorFiltersCorrectly() {
+        final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-ne";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        // Insert multiple documents with different ages, including some with age 25
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 30, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'Claire'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Bob'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        // Query for age != 25, which should match 3 documents (ages 20, 30, 35)
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'age': {'$ne': 25}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            // Should return 3 documents with age != 25 (ages 20, 30, 35)
+            assertEquals(3, results.size(), "Should return exactly 3 documents with age != 25");
+
+            // Verify the content of each returned document
+            assertEquals(Set.of("John", "George", "Bob"), extractNamesFromResults(results));
+            assertEquals(Set.of(20, 30, 35), extractAgesFromResults(results));
+        }
+    }
+
     @ParameterizedTest
     @MethodSource("provideComparisonOperatorTestCases")
     void testComparisonOperatorsWithAllTypes(String operator, BsonType bsonType, String fieldName,
