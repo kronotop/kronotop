@@ -6,6 +6,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.bucket.index.IndexDefinition;
@@ -13,9 +14,7 @@ import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.optimizer.Optimizer;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
-import com.kronotop.bucket.planner.physical.PhysicalNode;
-import com.kronotop.bucket.planner.physical.PhysicalPlanner;
-import com.kronotop.bucket.planner.physical.PlannerContext;
+import com.kronotop.bucket.planner.physical.*;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.VersionstampUtil;
@@ -101,5 +100,30 @@ public class BasePipelineTest extends BaseHandlerTest {
         LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
         PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, plannerContext);
         return optimizer.optimize(metadata, physicalPlan, plannerContext);
+    }
+
+    protected PipelineExecutor createPipelineExecutorForQuery(BucketMetadata metadata, String query) {
+        LogicalPlanner logicalPlanner = new LogicalPlanner();
+        PhysicalPlanner physicalPlanner = new PhysicalPlanner();
+        Optimizer optimizer = new Optimizer();
+
+        PlannerContext plannerContext = new PlannerContext();
+        BqlExpr parsedQuery = BqlParser.parse(query);
+        LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
+        PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, plannerContext);
+        PhysicalNode optimizedPlan = optimizer.optimize(metadata, physicalPlan, plannerContext);
+
+        PipelineNode node = PipelineRewriter.rewrite(optimizedPlan);
+        return new PipelineExecutor(node);
+    }
+
+    protected PipelineContext createPipelineContext(BucketMetadata metadata) {
+        IndexUtils indexUtils = new IndexUtils();
+        CursorManager cursorManager = new CursorManager();
+        SelectorCalculator selectorCalculator = new SelectorCalculator(indexUtils, cursorManager);
+        DocumentRetriever documentRetriever = new DocumentRetriever(context.getService(BucketService.NAME));
+        FilterEvaluator filterEvaluator = new FilterEvaluator();
+        Dependencies dependencies = new Dependencies(selectorCalculator, documentRetriever, filterEvaluator, cursorManager);
+        return new PipelineContext(context, metadata, dependencies);
     }
 }
