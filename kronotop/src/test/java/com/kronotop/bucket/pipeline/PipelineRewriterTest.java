@@ -1,15 +1,13 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
-import com.kronotop.bucket.planner.physical.PlannerContext;
-import com.kronotop.internal.VersionstampUtil;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +35,7 @@ class PipelineRewriterTest extends BasePipelineTest {
 
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
 
-        PhysicalNode plan = planQueryAndOptimize(metadata, "{'age': {'$eq': 35}}");
+        PhysicalNode plan = planQueryAndOptimize(metadata, "{'age': {'$gt': 22}}");
         //PhysicalNode plan = planQueryAndOptimize(metadata, "{ 'age': {'$gt': 22}, 'name': {'$eq': 'Burhan'} }");
         PipelineNode node = PipelineRewriter.rewrite(plan);
 
@@ -51,19 +49,10 @@ class PipelineRewriterTest extends BasePipelineTest {
         Dependencies dependencies = new Dependencies(selectorCalculator, documentRetriever, filterEvaluator, cursorManager);
         PipelineContext ctx = new PipelineContext(context, metadata, dependencies);
 
-        while (true) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                executor.run(tr, ctx);
-            }
-            Map<Integer, DocumentLocation> locations = ctx.output().getLocations(node.id());
-            if (locations.isEmpty()) {
-                break;
-            }
-            for (DocumentLocation location : locations.values()) {
-                ByteBuffer document = documentRetriever.retrieveDocument(metadata, location);
-                System.out.println("VERSIONSTAMP " + VersionstampUtil.base32HexEncode(location.versionstamp()) + " " + BSONUtil.fromBson(document.array()).toJson());
-            }
-            ctx.output().clear(node.id());
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<Versionstamp, ByteBuffer> results = executor.execute(tr, ctx);
+            System.out.println(results);
         }
     }
 }
+// System.out.println("VERSIONSTAMP " + VersionstampUtil.base32HexEncode(location.versionstamp()) + " " + BSONUtil.fromBson(document.array()).toJson());

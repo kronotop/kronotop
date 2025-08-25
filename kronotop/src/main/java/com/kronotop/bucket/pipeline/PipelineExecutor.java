@@ -1,6 +1,11 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
+
+import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class PipelineExecutor {
     private final PipelineNode root;
@@ -9,8 +14,17 @@ public class PipelineExecutor {
         this.root = root;
     }
 
-    public void run(Transaction tr, PipelineContext ctx) {
+    public Map<Versionstamp, ByteBuffer> execute(Transaction tr, PipelineContext ctx) {
         executeNode(tr, ctx, root);
+
+        Map<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
+        Map<Integer, DocumentLocation> locations = ctx.output().getLocations(root.id());
+        for (DocumentLocation location : locations.values()) {
+            ByteBuffer document = ctx.dep().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
+            results.put(location.versionstamp(), document);
+        }
+        ctx.output().clear(root.id());
+        return results;
     }
 
     private void executeNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
