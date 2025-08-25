@@ -53,5 +53,6 @@ class PipelineRewriterTest extends BasePipelineTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             executor.run(tr, ctx);
         }
+        System.out.println(ctx.output());
     }
 }

@@ -36,6 +36,9 @@ public class PipelineContext {
 
     private final Dependencies dependencies;
 
+    // Output
+    private final Output output = new Output();
+
     public PipelineContext(Context context, BucketMetadata metadata, Dependencies dependencies) {
         this.context = context;
         this.metadata = metadata;
@@ -105,6 +108,10 @@ public class PipelineContext {
 
     public Dependencies dep() {
         return dependencies;
+    }
+
+    public Output output() {
+        return output;
     }
 }
 
