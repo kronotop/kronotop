@@ -1,10 +1,7 @@
 package com.kronotop.bucket.pipeline;
 
 import com.kronotop.bucket.planner.Operator;
-import com.kronotop.bucket.planner.physical.PhysicalAnd;
-import com.kronotop.bucket.planner.physical.PhysicalFilter;
-import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
-import com.kronotop.bucket.planner.physical.PhysicalNode;
+import com.kronotop.bucket.planner.physical.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,11 +10,26 @@ public class PipelineRewriter {
     public static PipelineNode rewrite(PhysicalNode plan) {
         return switch (plan) {
             case PhysicalAnd physicalAnd -> {
+                int indexScan = 0;
+                int fullScan = 0;
                 List<PipelineNode> children = new ArrayList<>();
                 for (PhysicalNode child : physicalAnd.children()) {
+                    if (child instanceof PhysicalFullScan) {
+                        fullScan++;
+                    } else if (child instanceof PhysicalIndexScan) {
+                        indexScan++;
+                    }
                     children.add(rewrite(child));
                 }
-                yield new IntersectionNode(physicalAnd.id(), children);
+                ExecutionStrategy strategy;
+                if (fullScan == 0) {
+                    strategy = ExecutionStrategy.INDEX_SCAN;
+                } else if (indexScan == 0) {
+                    strategy = ExecutionStrategy.FULL_SCAN;
+                } else {
+                    strategy = ExecutionStrategy.MIXED_SCAN;
+                }
+                yield new IntersectionNode(physicalAnd.id(), strategy, children);
             }
             case PhysicalIndexScan indexScan -> {
                 PhysicalNode physicalNode = indexScan.node();
