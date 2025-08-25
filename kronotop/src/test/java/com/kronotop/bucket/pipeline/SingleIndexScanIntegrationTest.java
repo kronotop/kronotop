@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class SingleIndexScanIntegrationTest extends BasePipelineTest {
 
     @Test
-    void testIndexScanWithGT() {
+    void testGtOperatorFiltersCorrectly() {
         final String TEST_BUCKET_NAME = "test-bucket-full-scan-logic";
 
         // Create an age index for this test
