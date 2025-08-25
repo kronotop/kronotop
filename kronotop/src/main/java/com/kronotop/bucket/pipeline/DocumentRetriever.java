@@ -111,11 +111,11 @@ public class DocumentRetriever {
         try {
             return bucketShard.volume().get(
                     metadata.volumePrefix(),
-                    location.documentId(),
+                    location.versionstamp(),
                     location.entryMetadata()
             );
         } catch (IOException e) {
-            throw new RuntimeException("Failed to retrieve document with ID: " + location.documentId() + " from shard: " + location.shardId(), e);
+            throw new RuntimeException("Failed to retrieve document with ID: " + location.versionstamp() + " from shard: " + location.shardId(), e);
         }
     }
 
