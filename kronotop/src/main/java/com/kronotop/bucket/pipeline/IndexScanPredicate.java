@@ -11,8 +11,7 @@ public record IndexScanPredicate(int id, String selector, Operator op, Object op
     }
 
     public boolean test(BqlValue value) {
-        if (op.equals(Operator.NE)) {
-
-        }
+        // TODO: implement a filter for NE operator
+        return true;
     }
 }

@@ -19,7 +19,6 @@ public final class IndexScanNode extends AbstractScanNode {
 
     @Override
     public void execute(PipelineContext ctx, Transaction tr) {
-        System.out.printf("IndexScanNode ==> %d, %s, %s%n", id(), index(), predicates());
         IndexScanPredicate predicate = predicates().getFirst();
         DirectorySubspace indexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
         Cursor cursor = ctx.getOrCreateCursor(id());
@@ -34,13 +33,11 @@ public final class IndexScanNode extends AbstractScanNode {
             AsyncIterable<KeyValue> indexEntries = tr.getRange(beginSelector, endSelector, ctx.limit(), ctx.isReverse());
             Versionstamp lastProcessedKey = null;
             BqlValue lastIndexValue = null;
-            boolean hasIndexEntries = false;
 
             // 1- Test predicate
             // 2- Collect DocumentRetriever.DocumentLocation
             // 3- Set output
             for (KeyValue indexEntry : indexEntries) {
-                hasIndexEntries = true;
                 DocumentLocation location = ctx.dep().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
                 lastProcessedKey = location.documentId();
 
@@ -48,9 +45,11 @@ public final class IndexScanNode extends AbstractScanNode {
                 Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
                 Object rawIndexValue = indexKeyTuple.get(1);
                 lastIndexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
+                if (predicate.canEvaluate() && predicate.test(lastIndexValue)) {
+                    // set output here
+                }
+                // set cursor here
             }
-            System.out.println(lastProcessedKey);
-            System.out.println(lastIndexValue);
             break;
         }
     }
