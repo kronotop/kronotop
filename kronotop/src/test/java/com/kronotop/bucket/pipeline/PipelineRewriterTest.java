@@ -20,9 +20,9 @@ class PipelineRewriterTest extends BasePipelineTest {
     void test() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic";
 
-        // Create an age index for this test
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert multiple documents with different field types and values
         List<byte[]> documents = List.of(
@@ -34,7 +34,8 @@ class PipelineRewriterTest extends BasePipelineTest {
 
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
 
-        PhysicalNode plan = planQueryAndOptimize(metadata, "{'age': {'$gt': 22}}");
+        //PhysicalNode plan = planQueryAndOptimize(metadata, "{'age': {'$lte': 40}}");
+        PhysicalNode plan = planQueryAndOptimize(metadata, "{ 'age': {'$gt': 22}, 'name': {'$eq': 'Burhan'} }");
         PipelineNode node = PipelineRewriter.rewrite(plan);
 
         PipelineExecutor executor = new PipelineExecutor(node);
@@ -50,6 +51,7 @@ class PipelineRewriterTest extends BasePipelineTest {
         FilterEvaluator filterEvaluator = new FilterEvaluator();
         Dependencies dependencies = new Dependencies(selectorCalculator, documentRetriever, filterEvaluator, cursorManager);
         PipelineContext ctx = new PipelineContext(context, metadata, dependencies);
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             executor.run(tr, ctx);
         }
