@@ -7,5 +7,5 @@ import java.util.List;
 // Primary & Secondary index scan and testing predicates.
 public interface ScanNode extends PipelineNode {
     IndexDefinition index();
-    List<Predicate> predicates();
+    List<IndexScanPredicate> predicates();
 }

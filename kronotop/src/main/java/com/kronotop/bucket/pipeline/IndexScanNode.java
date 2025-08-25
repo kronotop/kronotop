@@ -13,14 +13,14 @@ import java.util.Arrays;
 import java.util.List;
 
 public final class IndexScanNode extends AbstractScanNode {
-    public IndexScanNode(int id, IndexDefinition index, List<Predicate> predicates) {
+    public IndexScanNode(int id, IndexDefinition index, List<IndexScanPredicate> predicates) {
         super(id, index, predicates);
     }
 
     @Override
     public void execute(PipelineContext ctx, Transaction tr) {
         System.out.printf("IndexScanNode ==> %d, %s, %s%n", id(), index(), predicates());
-        Predicate predicate = predicates().getFirst();
+        IndexScanPredicate predicate = predicates().getFirst();
         DirectorySubspace subspace = ctx.getMetadata().indexes().getSubspace(index().selector());
         Cursor cursor = ctx.getCursor(id());
 

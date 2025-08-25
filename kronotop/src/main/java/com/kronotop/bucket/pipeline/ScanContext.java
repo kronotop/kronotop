@@ -34,16 +34,16 @@ abstract class ScanContext {
 }
 
 class IndexScanContext extends ScanContext {
-    private final Predicate predicate;
+    private final IndexScanPredicate predicate;
     private final IndexDefinition index;
 
-    public IndexScanContext(int nodeId, DirectorySubspace indexSubspace, Cursor cursor, boolean isReverse, Predicate predicate, IndexDefinition indexDefinition) {
+    public IndexScanContext(int nodeId, DirectorySubspace indexSubspace, Cursor cursor, boolean isReverse, IndexScanPredicate predicate, IndexDefinition indexDefinition) {
         super(nodeId, indexSubspace, cursor, isReverse);
         this.predicate = predicate;
         this.index = indexDefinition;
     }
 
-    public Predicate predicate() {
+    public IndexScanPredicate predicate() {
         return predicate;
     }
 

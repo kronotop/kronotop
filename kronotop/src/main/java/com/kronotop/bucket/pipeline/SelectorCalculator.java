@@ -50,7 +50,7 @@ public class SelectorCalculator {
 
     private SelectorPair calculateIndexScanSelectors(IndexScanContext context) {
         DirectorySubspace indexSubspace = context.indexSubspace();
-        Predicate predicate = context.predicate();
+        IndexScanPredicate predicate = context.predicate();
         Cursor cursor = context.cursor();
         boolean isReverse = context.isReverse();
 
@@ -122,17 +122,17 @@ public class SelectorCalculator {
         return new SelectorPair(beginSelector, endSelector);
     }
 
-    private KeySelector getLowerBoundSelector(DirectorySubspace indexSubspace, Predicate predicate, IndexDefinition indexDefinition) {
+    private KeySelector getLowerBoundSelector(DirectorySubspace indexSubspace, IndexScanPredicate predicate, IndexDefinition indexDefinition) {
         KeySelector[] selectors = indexUtils.constructIndexRangeSelectors(indexSubspace, predicate, indexDefinition);
         return selectors[0];
     }
 
-    private KeySelector getUpperBoundSelector(DirectorySubspace indexSubspace, Predicate predicate, IndexDefinition indexDefinition) {
+    private KeySelector getUpperBoundSelector(DirectorySubspace indexSubspace, IndexScanPredicate predicate, IndexDefinition indexDefinition) {
         KeySelector[] selectors = indexUtils.constructIndexRangeSelectors(indexSubspace, predicate, indexDefinition);
         return selectors[1];
     }
 
-    private Bound getEffectiveLowerBound(Predicate predicate, Bounds cursorBounds) {
+    private Bound getEffectiveLowerBound(IndexScanPredicate predicate, Bounds cursorBounds) {
         Bound cursorLower = cursorBounds.lower();
         Bound originalLower = getOriginalLowerBound(predicate);
 
@@ -150,7 +150,7 @@ public class SelectorCalculator {
         return cursorValue.toString().compareTo(originalValue.toString()) > 0 ? cursorLower : originalLower;
     }
 
-    private Bound getOriginalLowerBound(Predicate predicate) {
+    private Bound getOriginalLowerBound(IndexScanPredicate predicate) {
         // Extract lower bound from filter based on operator
         return switch (predicate.op()) {
             case GT -> new Bound(Operator.GT, (BqlValue) predicate.operand());

@@ -75,7 +75,7 @@ public class IndexUtils {
     /**
      * Constructs index range selectors for a given filter with index definition.
      */
-    KeySelector[] constructIndexRangeSelectors(DirectorySubspace indexSubspace, Predicate predicate, IndexDefinition definition) {
+    KeySelector[] constructIndexRangeSelectors(DirectorySubspace indexSubspace, IndexScanPredicate predicate, IndexDefinition definition) {
         Object indexValue;
         Tuple indexTuple;
 
