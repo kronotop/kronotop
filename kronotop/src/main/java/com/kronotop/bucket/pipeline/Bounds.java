@@ -16,5 +16,28 @@
 
 package com.kronotop.bucket.pipeline;
 
-public record Bounds(Bound lower, Bound upper) {
+public class Bounds {
+    private volatile Bound lower;
+    private volatile Bound upper;
+
+    public Bounds(Bound lower, Bound upper) {
+        this.lower = lower;
+        this.upper = upper;
+    }
+
+    public void setLower(Bound lower) {
+        this.lower = lower;
+    }
+
+    public Bound getLower() {
+        return lower;
+    }
+
+    public void setUpper(Bound upper) {
+        this.upper = upper;
+    }
+
+    public Bound getUpper() {
+        return upper;
+    }
 }

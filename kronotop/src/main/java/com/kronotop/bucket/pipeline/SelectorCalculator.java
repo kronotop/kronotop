@@ -80,8 +80,8 @@ public class SelectorCalculator {
                 }
 
                 // Determine end position - use cursor upper bound or original filter upper bound
-                if (cursor.bounds().upper() != null) {
-                    endSelector = indexUtils.createIndexSelectorFromBound(indexSubspace, cursor.bounds().upper());
+                if (cursor.bounds().getUpper() != null) {
+                    endSelector = indexUtils.createIndexSelectorFromBound(indexSubspace, cursor.bounds().getUpper());
                 } else {
                     endSelector = getUpperBoundSelector(indexSubspace, predicate, context.indexDefinition());
                 }
@@ -133,7 +133,7 @@ public class SelectorCalculator {
     }
 
     private Bound getEffectiveLowerBound(IndexScanPredicate predicate, Bounds cursorBounds) {
-        Bound cursorLower = cursorBounds.lower();
+        Bound cursorLower = cursorBounds.getLower();
         Bound originalLower = getOriginalLowerBound(predicate);
 
         if (cursorLower == null) return originalLower;

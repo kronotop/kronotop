@@ -51,7 +51,7 @@ public class CursorManager {
      */
     CursorPosition getLastProcessedPosition(Cursor cursor, int nodeId) {
         // Check both lower and upper bounds for cursor position info
-        Bound cursorBound = cursor.bounds().lower() != null ? cursor.bounds().lower() : cursor.bounds().upper();
+        Bound cursorBound = cursor.bounds().getLower() != null ? cursor.bounds().getLower() : cursor.bounds().getUpper();
         if (cursorBound != null && cursorBound.versionstamp() != null) {
             return new CursorPosition(nodeId, cursorBound.value(), cursorBound.versionstamp());
         }

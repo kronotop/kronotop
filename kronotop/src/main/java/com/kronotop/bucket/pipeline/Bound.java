@@ -23,7 +23,7 @@ import com.kronotop.bucket.planner.Operator;
 public class Bound {
     private final Operator operator;
     private final BqlValue value;
-    private Versionstamp versionstamp;
+    private volatile Versionstamp versionstamp;
 
     // Primary Index (DefaultIndexDefinition.ID) structure -> Versionstamp
     // Secondary Index Key Structure -> BqlValue | Versionstamp
