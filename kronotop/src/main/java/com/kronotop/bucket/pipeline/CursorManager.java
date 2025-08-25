@@ -17,10 +17,56 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.bql.ast.*;
+import com.kronotop.bucket.executor.Bounds;
+import com.kronotop.bucket.executor.CursorState;
+import com.kronotop.bucket.executor.PlanExecutorConfig;
+import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.planner.Operator;
 
 public class CursorManager {
 
+    /**
+     * Sets cursor bounds for index scans with specific positioning.
+     */
+    void setCursorBoundsForIndexScan(
+            PipelineContext ctx,
+            int nodeId,
+            IndexDefinition definition,
+            BqlValue lastIndexValue,
+            Versionstamp lastVersionstamp
+    ) {
+        // Set cursor bounds based on a scan direction
+        Operator cursorOperator = ctx.isReverse() ? Operator.LT : Operator.GT;
+
+        Bound lower;
+        Bound upper;
+        com.kronotop.bucket.executor.Bound cursorBound;
+        if (DefaultIndexDefinition.ID.selector().equals(definition.selector())) {
+            // Primary Index (DefaultIndexDefinition.ID) structure -> Versionstamp
+            // For primary index, use VersionstampVal and keep versionstamp null in Bound
+            cursorBound = new com.kronotop.bucket.executor.Bound(cursorOperator, new VersionstampVal(lastVersionstamp));
+        } else {
+            // Secondary Index Key Structure -> BqlValue | Versionstamp
+            // For secondary indexes, store BqlValue and set versionstamp on Bound
+            cursorBound = new com.kronotop.bucket.executor.Bound(cursorOperator, lastIndexValue);
+            cursorBound.setVersionstamp(lastVersionstamp);
+        }
+
+        Bounds cursorBounds;
+        if (ctx.isReverse()) {
+            // For reverse scans: set upper bound (LT) to continue before the last processed
+            cursorBounds = new Bounds(null, cursorBound);
+        } else {
+            // For forward scans: set lower bound (GT) to continue after last processed
+            cursorBounds = new Bounds(cursorBound, null);
+        }
+
+        Cursor cursor = ctx.getOrCreateCursor(nodeId);
+        cursor.bounds().setLower();
+        ctx.cursor().setState(nodeId, new CursorState(cursorBounds));
+    }
     /**
      * Extracts the raw index value from a BqlValue for index operations.
      */
