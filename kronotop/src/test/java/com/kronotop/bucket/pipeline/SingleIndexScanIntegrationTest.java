@@ -27,10 +27,10 @@ class SingleIndexScanIntegrationTest extends BasePipelineTest {
 
         // Insert multiple documents with different field types and values
         List<byte[]> documents = List.of(
-                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Burak'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Ufuk'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'Burhan'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Sevinc'}")
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
@@ -45,14 +45,8 @@ class SingleIndexScanIntegrationTest extends BasePipelineTest {
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
 
             // Verify the content of each returned document
-            assertEquals(Set.of("Ufuk", "Burhan", "Sevinc"), extractNamesFromResults(results));
+            assertEquals(Set.of("Alice", "George", "Claire"), extractNamesFromResults(results));
             assertEquals(Set.of(23, 25, 35), extractAgesFromResults(results));
-        } catch (RuntimeException e) {
-            if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
-                System.out.println("Skipping full scan logic test due to infrastructure issues");
-            } else {
-                throw e;
-            }
         }
     }
 }
