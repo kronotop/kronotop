@@ -19,11 +19,13 @@ public class PipelineExecutor {
 
         Map<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
         Map<Integer, DocumentLocation> locations = ctx.output().getLocations(root.id());
-        for (DocumentLocation location : locations.values()) {
-            ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
-            results.put(location.versionstamp(), document);
+        if (locations != null) {
+            for (DocumentLocation location : locations.values()) {
+                ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
+                results.put(location.versionstamp(), document);
+            }
+            ctx.output().clear(root.id());
         }
-        ctx.output().clear(root.id());
         return results;
     }
 
