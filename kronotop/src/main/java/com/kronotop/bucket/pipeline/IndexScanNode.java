@@ -21,20 +21,17 @@ public final class IndexScanNode extends AbstractScanNode {
     public void execute(PipelineContext ctx, Transaction tr) {
         IndexScanPredicate predicate = predicates().getFirst();
         DirectorySubspace indexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
-        Cursor cursor = ctx.getOrCreateCursor(id());
+        ExecutionState state = ctx.getOrCreateExecutionState(id());
 
-        IndexScanContext indexScanContext = new IndexScanContext(id(), indexSubspace, cursor, ctx.isReverse(), predicate, index());
+        IndexScanContext indexScanContext = new IndexScanContext(id(), indexSubspace, state, ctx.isReverse(), predicate, index());
         SelectorPair selectors = ctx.dep().selectorCalculator().calculateSelectors(indexScanContext);
         KeySelector beginSelector = selectors.beginSelector();
         KeySelector endSelector = selectors.endSelector();
 
         AsyncIterable<KeyValue> indexEntries = tr.getRange(beginSelector, endSelector, ctx.limit(), ctx.isReverse());
-        Versionstamp lastProcessedKey = null;
-        BqlValue lastIndexValue = null;
+        Versionstamp lastProcessedKey;
+        BqlValue lastIndexValue;
 
-        // 1- Test predicate - [OK]
-        // 2- Collect DocumentLocation instances [OK]
-        // 3- Set output
         for (KeyValue indexEntry : indexEntries) {
             DocumentLocation location = ctx.dep().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
             lastProcessedKey = location.versionstamp();
@@ -48,6 +45,7 @@ public final class IndexScanNode extends AbstractScanNode {
                 ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
             }
             // set cursor here
+            ctx.dep().cursorManager().setCursorBoundsForIndexScan(ctx, id(), index(), lastIndexValue, lastProcessedKey);
         }
     }
 }

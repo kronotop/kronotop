@@ -19,9 +19,6 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.bql.ast.*;
-import com.kronotop.bucket.executor.Bounds;
-import com.kronotop.bucket.executor.CursorState;
-import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 
@@ -40,33 +37,30 @@ public class CursorManager {
         // Set cursor bounds based on a scan direction
         Operator cursorOperator = ctx.isReverse() ? Operator.LT : Operator.GT;
 
-        Bound lower;
-        Bound upper;
-        com.kronotop.bucket.executor.Bound cursorBound;
+        Bound cursorBound;
         if (DefaultIndexDefinition.ID.selector().equals(definition.selector())) {
             // Primary Index (DefaultIndexDefinition.ID) structure -> Versionstamp
             // For primary index, use VersionstampVal and keep versionstamp null in Bound
-            cursorBound = new com.kronotop.bucket.executor.Bound(cursorOperator, new VersionstampVal(lastVersionstamp));
+            cursorBound = new Bound(cursorOperator, new VersionstampVal(lastVersionstamp));
         } else {
             // Secondary Index Key Structure -> BqlValue | Versionstamp
             // For secondary indexes, store BqlValue and set versionstamp on Bound
-            cursorBound = new com.kronotop.bucket.executor.Bound(cursorOperator, lastIndexValue);
+            cursorBound = new Bound(cursorOperator, lastIndexValue);
             cursorBound.setVersionstamp(lastVersionstamp);
         }
 
-        Bounds cursorBounds;
+        ExecutionState state = ctx.getOrCreateExecutionState(nodeId);
         if (ctx.isReverse()) {
             // For reverse scans: set upper bound (LT) to continue before the last processed
-            cursorBounds = new Bounds(null, cursorBound);
+            state.setUpper(cursorBound);
+            state.setLower(null);
         } else {
             // For forward scans: set lower bound (GT) to continue after last processed
-            cursorBounds = new Bounds(cursorBound, null);
+            state.setLower(cursorBound);
+            state.setUpper(null);
         }
-
-        Cursor cursor = ctx.getOrCreateCursor(nodeId);
-        cursor.bounds().setLower();
-        ctx.cursor().setState(nodeId, new CursorState(cursorBounds));
     }
+
     /**
      * Extracts the raw index value from a BqlValue for index operations.
      */
@@ -95,9 +89,9 @@ public class CursorManager {
      *
      * @return the last processed cursor position as a {@code CursorPosition} object, or null if unavailable
      */
-    CursorPosition getLastProcessedPosition(Cursor cursor, int nodeId) {
+    CursorPosition getLastProcessedPosition(ExecutionState state, int nodeId) {
         // Check both lower and upper bounds for cursor position info
-        Bound cursorBound = cursor.bounds().getLower() != null ? cursor.bounds().getLower() : cursor.bounds().getUpper();
+        Bound cursorBound = state.getLower() != null ? state.getLower() : state.getUpper();
         if (cursorBound != null && cursorBound.versionstamp() != null) {
             return new CursorPosition(nodeId, cursorBound.value(), cursorBound.versionstamp());
         }

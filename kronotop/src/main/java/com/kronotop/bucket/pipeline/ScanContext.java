@@ -6,13 +6,13 @@ import com.kronotop.bucket.index.IndexDefinition;
 abstract class ScanContext {
     protected final int nodeId;
     protected final DirectorySubspace indexSubspace;
-    protected final Cursor cursor;
+    protected final ExecutionState state;
     protected final boolean isReverse;
 
-    protected ScanContext(int nodeId, DirectorySubspace indexSubspace, Cursor cursor, boolean isReverse) {
+    protected ScanContext(int nodeId, DirectorySubspace indexSubspace, ExecutionState state, boolean isReverse) {
         this.nodeId = nodeId;
         this.indexSubspace = indexSubspace;
-        this.cursor = cursor;
+        this.state = state;
         this.isReverse = isReverse;
     }
 
@@ -20,8 +20,8 @@ abstract class ScanContext {
         return indexSubspace;
     }
 
-    public Cursor cursor() {
-        return cursor;
+    public ExecutionState state() {
+        return state;
     }
 
     public boolean isReverse() {
@@ -37,8 +37,8 @@ class IndexScanContext extends ScanContext {
     private final IndexScanPredicate predicate;
     private final IndexDefinition index;
 
-    public IndexScanContext(int nodeId, DirectorySubspace indexSubspace, Cursor cursor, boolean isReverse, IndexScanPredicate predicate, IndexDefinition indexDefinition) {
-        super(nodeId, indexSubspace, cursor, isReverse);
+    public IndexScanContext(int nodeId, DirectorySubspace indexSubspace, ExecutionState state, boolean isReverse, IndexScanPredicate predicate, IndexDefinition indexDefinition) {
+        super(nodeId, indexSubspace, state, isReverse);
         this.predicate = predicate;
         this.index = indexDefinition;
     }

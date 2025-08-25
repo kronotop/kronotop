@@ -51,7 +51,7 @@ public class SelectorCalculator {
     private SelectorPair calculateIndexScanSelectors(IndexScanContext context) {
         DirectorySubspace indexSubspace = context.indexSubspace();
         IndexScanPredicate predicate = context.predicate();
-        Cursor cursor = context.cursor();
+        ExecutionState state = context.state();
         boolean isReverse = context.isReverse();
 
         // Base prefix for all index entries: [ENTRIES_MAGIC]
@@ -62,14 +62,14 @@ public class SelectorCalculator {
         if (isReverse) {
             // Reverse scan: FoundationDB handles direction internally via reverse=true parameter
             // We construct selectors in logical order (begin < end), same as forward scans
-            if (cursor.bounds() == null) {
+            if (state.getLower() == null && state.getUpper() == null) {
                 // Fresh scan - construct range from filter conditions only
                 KeySelector[] selectors = indexUtils.constructIndexRangeSelectors(indexSubspace, predicate, context.indexDefinition());
                 beginSelector = selectors[0]; // Lower bound of filter condition
                 endSelector = selectors[1];   // Upper bound of filter condition
             } else {
                 // Cursor continuation - combine filter bounds with cursor position
-                Bound effectiveLowerBound = getEffectiveLowerBound(predicate, cursor.bounds());
+                Bound effectiveLowerBound = getEffectiveLowerBound(predicate, state);
 
                 // Determine start position for continuation
                 if (effectiveLowerBound != null) {
@@ -80,25 +80,25 @@ public class SelectorCalculator {
                 }
 
                 // Determine end position - use cursor upper bound or original filter upper bound
-                if (cursor.bounds().getUpper() != null) {
-                    endSelector = indexUtils.createIndexSelectorFromBound(indexSubspace, cursor.bounds().getUpper());
+                if (state.getUpper() != null) {
+                    endSelector = indexUtils.createIndexSelectorFromBound(indexSubspace, state.getUpper());
                 } else {
                     endSelector = getUpperBoundSelector(indexSubspace, predicate, context.indexDefinition());
                 }
             }
         } else {
             // Forward scan logic
-            if (cursor.bounds() == null) {
+            if (state.getLower() == null && state.getUpper() == null) {
                 // Fresh scan - construct range from filter conditions only
                 KeySelector[] selectors = indexUtils.constructIndexRangeSelectors(indexSubspace, predicate, context.indexDefinition());
                 beginSelector = selectors[0]; // Lower-bound selector from filter
                 endSelector = selectors[1];   // Upper-bound selector from filter
             } else {
                 // Cursor continuation - determine most restrictive lower bound
-                Bound effectiveLowerBound = getEffectiveLowerBound(predicate, cursor.bounds());
+                Bound effectiveLowerBound = getEffectiveLowerBound(predicate, state);
 
                 // Check for precise cursor position (includes versionstamp)
-                CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(cursor, context.nodeId());
+                CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(state, context.nodeId());
 
                 if (position != null) {
                     // Precise positioning: construct exact continuation point
@@ -132,8 +132,8 @@ public class SelectorCalculator {
         return selectors[1];
     }
 
-    private Bound getEffectiveLowerBound(IndexScanPredicate predicate, Bounds cursorBounds) {
-        Bound cursorLower = cursorBounds.getLower();
+    private Bound getEffectiveLowerBound(IndexScanPredicate predicate, ExecutionState state) {
+        Bound cursorLower = state.getLower();
         Bound originalLower = getOriginalLowerBound(predicate);
 
         if (cursorLower == null) return originalLower;

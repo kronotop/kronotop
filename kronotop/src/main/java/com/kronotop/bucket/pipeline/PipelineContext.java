@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PipelineContext {
     private final Context context;
     private final BucketMetadata metadata;
-    private final ConcurrentHashMap<Integer, Cursor> cursor = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, ExecutionState> executionStates = new ConcurrentHashMap<>();
 
     // Mutable fields
     private volatile boolean reverse;
@@ -58,8 +58,8 @@ public class PipelineContext {
         this.limit = limit;
     }
 
-    public Cursor getOrCreateCursor(int nodeId) {
-        return cursor.computeIfAbsent(nodeId, (ignored) -> new Cursor(new Bounds()));
+    public ExecutionState getOrCreateExecutionState(int nodeId) {
+        return executionStates.computeIfAbsent(nodeId, (ignored) -> new ExecutionState());
     }
 
     public Context context() {
