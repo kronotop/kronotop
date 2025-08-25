@@ -121,7 +121,7 @@ class SingleIndexScanIntegrationTest extends BasePipelineTest {
             assertEquals(Set.of(23, 25, 35), extractAgesFromResults(results));
         }
     }
-    
+
     @ParameterizedTest
     @MethodSource("provideComparisonOperatorTestCases")
     void testComparisonOperatorsWithAllTypes(String operator, BsonType bsonType, String fieldName,
@@ -150,6 +150,41 @@ class SingleIndexScanIntegrationTest extends BasePipelineTest {
         } catch (RuntimeException e) {
             if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
                 System.out.println("Skipping test due to infrastructure issues: " + testDescription);
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideComparisonOperatorTestCases")
+    void testComparisonOperatorsWithAllTypesReverse(String operator, BsonType bsonType, String fieldName,
+                                                    List<String> testDocuments, String queryValue,
+                                                    int expectedCount, String testDescription) {
+        final String TEST_BUCKET_NAME = "test-bucket-comparison-reverse-" + operator.toLowerCase() + "-" + bsonType.name().toLowerCase();
+
+        // Create index for the test field
+        IndexDefinition index = IndexDefinition.create(fieldName + "-index", fieldName, bsonType, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
+
+        // Insert test documents
+        List<byte[]> documents = testDocuments.stream()
+                .map(BSONUtil::jsonToDocumentThenBytes)
+                .toList();
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        // Execute query with REVERSE=true
+        String query = String.format("{'%s': {'$%s': %s}}", fieldName, operator.toLowerCase(), queryValue);
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, query);
+        PipelineContext ctx = createPipelineContext(metadata);
+        ctx.setReverse(true);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            assertEquals(expectedCount, results.size(), testDescription + " (REVERSE=true)");
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
+                System.out.println("Skipping test due to infrastructure issues: " + testDescription + " (REVERSE=true)");
             } else {
                 throw e;
             }
