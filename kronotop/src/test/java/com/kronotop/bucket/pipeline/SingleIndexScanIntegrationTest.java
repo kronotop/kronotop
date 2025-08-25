@@ -1,18 +1,17 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
-import org.bson.BsonBinaryReader;
-import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -55,49 +54,5 @@ class SingleIndexScanIntegrationTest extends BasePipelineTest {
                 throw e;
             }
         }
-    }
-
-    // Helper method to extract names from results
-    private Set<String> extractNamesFromResults(Map<?, ByteBuffer> results) {
-        Set<String> names = new HashSet<>();
-        for (ByteBuffer documentBuffer : results.values()) {
-            documentBuffer.rewind();
-            try (BsonBinaryReader reader = new BsonBinaryReader(documentBuffer)) {
-                reader.readStartDocument();
-                while (reader.readBsonType() != org.bson.BsonType.END_OF_DOCUMENT) {
-                    String fieldName = reader.readName();
-                    if ("name".equals(fieldName)) {
-                        names.add(reader.readString());
-                    } else {
-                        reader.skipValue();
-                    }
-                }
-                reader.readEndDocument();
-            }
-        }
-        return names;
-    }
-
-    protected Set<Integer> extractAgesFromResults(Map<?, ByteBuffer> results) {
-        Set<Integer> ages = new LinkedHashSet<>();
-
-        for (ByteBuffer documentBuffer : results.values()) {
-            documentBuffer.rewind();
-            try (BsonReader reader = new BsonBinaryReader(documentBuffer)) {
-                reader.readStartDocument();
-
-                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                    String fieldName = reader.readName();
-                    if ("age".equals(fieldName)) {
-                        ages.add(reader.readInt32());
-                    } else {
-                        reader.skipValue();
-                    }
-                }
-                reader.readEndDocument();
-            }
-        }
-
-        return ages;
     }
 }
