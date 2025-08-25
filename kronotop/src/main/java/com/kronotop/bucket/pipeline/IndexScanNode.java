@@ -22,7 +22,7 @@ public final class IndexScanNode extends AbstractScanNode {
         System.out.printf("IndexScanNode ==> %d, %s, %s%n", id(), index(), predicates());
         IndexScanPredicate predicate = predicates().getFirst();
         DirectorySubspace subspace = ctx.getMetadata().indexes().getSubspace(index().selector());
-        Cursor cursor = ctx.getCursor(id());
+        Cursor cursor = ctx.getOrCreateCursor(id());
 
         // Continue scanning until we find results or exhaust the index
         while (true) {

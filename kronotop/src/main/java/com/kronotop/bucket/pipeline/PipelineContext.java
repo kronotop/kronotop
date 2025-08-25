@@ -55,8 +55,8 @@ public class PipelineContext {
         this.limit = limit;
     }
 
-    public Cursor getCursor(int nodeId) {
-        return cursor.get(nodeId);
+    public Cursor getOrCreateCursor(int nodeId) {
+        return cursor.computeIfAbsent(nodeId, (ignored) -> new Cursor(new Bounds()));
     }
 
     public Context context() {

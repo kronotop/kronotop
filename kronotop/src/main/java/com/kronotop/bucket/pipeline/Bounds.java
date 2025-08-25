@@ -20,6 +20,10 @@ public class Bounds {
     private volatile Bound lower;
     private volatile Bound upper;
 
+    public Bounds() {
+        this(null, null);
+    }
+
     public Bounds(Bound lower, Bound upper) {
         this.lower = lower;
         this.upper = upper;
