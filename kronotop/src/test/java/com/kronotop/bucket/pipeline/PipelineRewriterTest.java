@@ -9,10 +9,13 @@ import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.bucket.planner.physical.PlannerContext;
+import com.kronotop.internal.VersionstampUtil;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 
 class PipelineRewriterTest extends BasePipelineTest {
 
@@ -34,15 +37,11 @@ class PipelineRewriterTest extends BasePipelineTest {
 
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
 
-        //PhysicalNode plan = planQueryAndOptimize(metadata, "{'age': {'$lte': 40}}");
-        PhysicalNode plan = planQueryAndOptimize(metadata, "{ 'age': {'$gt': 22}, 'name': {'$eq': 'Burhan'} }");
+        PhysicalNode plan = planQueryAndOptimize(metadata, "{'age': {'$eq': 35}}");
+        //PhysicalNode plan = planQueryAndOptimize(metadata, "{ 'age': {'$gt': 22}, 'name': {'$eq': 'Burhan'} }");
         PipelineNode node = PipelineRewriter.rewrite(plan);
 
         PipelineExecutor executor = new PipelineExecutor(node);
-
-        PlannerContext plannerContext = new PlannerContext();
-        PlanExecutorConfig config = new PlanExecutorConfig(metadata, plan, plannerContext);
-        config.setLimit(10);
 
         IndexUtils indexUtils = new IndexUtils();
         CursorManager cursorManager = new CursorManager();
@@ -52,9 +51,19 @@ class PipelineRewriterTest extends BasePipelineTest {
         Dependencies dependencies = new Dependencies(selectorCalculator, documentRetriever, filterEvaluator, cursorManager);
         PipelineContext ctx = new PipelineContext(context, metadata, dependencies);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            executor.run(tr, ctx);
+        while (true) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                executor.run(tr, ctx);
+            }
+            Map<Integer, DocumentLocation> locations = ctx.output().getLocations(node.id());
+            if (locations.isEmpty()) {
+                break;
+            }
+            for (DocumentLocation location : locations.values()) {
+                ByteBuffer document = documentRetriever.retrieveDocument(metadata, location);
+                System.out.println("VERSIONSTAMP " + VersionstampUtil.base32HexEncode(location.versionstamp()) + " " + BSONUtil.fromBson(document.array()).toJson());
+            }
+            ctx.output().clear(node.id());
         }
-        System.out.println(ctx.output());
     }
 }

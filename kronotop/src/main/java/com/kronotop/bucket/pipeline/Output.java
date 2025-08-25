@@ -1,23 +1,46 @@
 package com.kronotop.bucket.pipeline;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Output {
-    private final Map<Integer, Map<Integer, DocumentLocation>> locationsByNodeId = new ConcurrentHashMap<>();
+    private final ReadWriteLock lock = new ReentrantReadWriteLock(true);
+    private final Map<Integer, Map<Integer, DocumentLocation>> locationsByNodeId = new LinkedHashMap<>();
 
     public void appendLocation(int nodeId, int locationId, DocumentLocation location) {
-        Map<Integer, DocumentLocation> locations = locationsByNodeId.computeIfAbsent(nodeId,
-                (ignored) -> new ConcurrentHashMap<>());
-        locations.put(locationId, location);
+        lock.writeLock().lock();
+        try {
+            Map<Integer, DocumentLocation> locations = locationsByNodeId.computeIfAbsent(nodeId,
+                    (ignored) -> new LinkedHashMap<>());
+            locations.put(locationId, location);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     public Map<Integer, DocumentLocation> getLocations(int nodeId) {
-        Map<Integer, DocumentLocation> locations = locationsByNodeId.get(nodeId);
-        if (locations == null) {
-            return null;
+        lock.readLock().lock();
+        try {
+            Map<Integer, DocumentLocation> locations = locationsByNodeId.get(nodeId);
+            if (locations == null) {
+                return null;
+            }
+            return Collections.unmodifiableMap(locations);
+        } finally {
+            lock.readLock().unlock();
         }
-        return Collections.unmodifiableMap(locations);
+    }
+
+    public void clear(int nodeId) {
+        lock.writeLock().lock();
+        try {
+            Map<Integer, DocumentLocation> locations = locationsByNodeId.get(nodeId);
+            locations.clear();
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 }

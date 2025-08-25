@@ -21,14 +21,8 @@ public class PipelineRewriter {
                     }
                     children.add(rewrite(child));
                 }
-                ExecutionStrategy strategy;
-                if (fullScan == 0) {
-                    strategy = ExecutionStrategy.INDEX_SCAN;
-                } else if (indexScan == 0) {
-                    strategy = ExecutionStrategy.FULL_SCAN;
-                } else {
-                    strategy = ExecutionStrategy.MIXED_SCAN;
-                }
+                ExecutionStrategy strategy = fullScan == 0 ? ExecutionStrategy.INDEX_SCAN :
+                        indexScan == 0 ? ExecutionStrategy.FULL_SCAN : ExecutionStrategy.MIXED_SCAN;
                 yield new IntersectionNode(physicalAnd.id(), strategy, children);
             }
             case PhysicalIndexScan indexScan -> {
