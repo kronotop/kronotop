@@ -1,5 +1,6 @@
 package com.kronotop.bucket.pipeline;
 
+import com.apple.foundationdb.Transaction;
 import org.roaringbitmap.RoaringBitmap;
 
 import java.util.ArrayList;
@@ -13,13 +14,13 @@ public class IntersectionNode extends AbstractLogicalNode implements LogicalNode
     }
 
     @Override
-    public void execute(PipelineContext ctx) {
+    public void execute(PipelineContext ctx, Transaction tr) {
         // Collect all child results once
         List<Map<Integer, DocumentLocation>> childLocations = collectChildLocations(ctx);
         
         // Compute intersection efficiently
         RoaringBitmap intersection = computeIntersection(childLocations);
-        
+
         // Output results using first child's locations (they're all equivalent)
         outputResults(ctx, intersection, childLocations.getFirst());
     }

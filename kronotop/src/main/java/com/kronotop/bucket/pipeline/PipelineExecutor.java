@@ -31,14 +31,12 @@ public class PipelineExecutor {
 
     private void executeNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
         switch (node) {
-            case ScanNode scanNode -> {
-                scanNode.execute(ctx, tr);
-            }
+            case ScanNode scanNode -> scanNode.execute(ctx, tr);
             case LogicalNode logicalNode -> {
                 for (PipelineNode child : logicalNode.children()) {
                     executeNode(tr, ctx, child);
                 }
-                logicalNode.execute(ctx);
+                logicalNode.execute(ctx, tr);
             }
             default -> throw new IllegalStateException("Unexpected PipelineNode: " + node);
         }
