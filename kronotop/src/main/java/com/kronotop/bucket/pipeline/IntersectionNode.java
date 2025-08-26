@@ -3,59 +3,44 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import org.roaringbitmap.RoaringBitmap;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class IntersectionNode extends AbstractLogicalNode implements LogicalNode{
+public class IntersectionNode extends AbstractLogicalNode implements LogicalNode {
     public IntersectionNode(int id, ExecutionStrategy strategy, List<PipelineNode> children) {
         super(id, strategy, children);
     }
 
     @Override
     public void execute(PipelineContext ctx, Transaction tr) {
-        // Collect all child results once
-        List<Map<Integer, DocumentLocation>> childLocations = collectChildLocations(ctx);
-        
         // Compute intersection efficiently
-        RoaringBitmap intersection = computeIntersection(childLocations);
+        RoaringBitmap intersection = computeIntersection(ctx);
 
-        if (intersection.getCardinality() < ctx.limit()) {
+        intersection.forEach((int entryMetadataId) -> {
             for (PipelineNode child : children()) {
-                if (!(child instanceof TransactionAwareNode txAwareNode)) {
-                    continue;
-                }
-                txAwareNode.execute(ctx, tr);
+                DocumentLocation location = ctx.output().getLocations(child.id()).get(entryMetadataId);
+                ctx.output().appendLocation(id(), entryMetadataId, location);
             }
-            childLocations = collectChildLocations(ctx);
-            intersection = computeIntersection(childLocations);
-        }
-
-        // Output results using first child's locations (they're all equivalent)
-        outputResults(ctx, intersection, childLocations.getFirst());
+        });
     }
 
-    private List<Map<Integer, DocumentLocation>> collectChildLocations(PipelineContext ctx) {
-        List<Map<Integer, DocumentLocation>> locations = new ArrayList<>(children().size());
-        for (PipelineNode child : children()) {
-            Map<Integer, DocumentLocation> childLocs = ctx.output().getLocations(child.id());
-            locations.add(childLocs != null ? childLocs : Collections.emptyMap());
-        }
-        return locations;
-    }
+    private RoaringBitmap computeIntersection(PipelineContext ctx) {
+        // Initialize
+        PipelineNode firstChild = children().getFirst();
+        Map<Integer, DocumentLocation> locations = ctx.output().getLocations(firstChild.id());
+        RoaringBitmap result = createBitmapFromKeys(locations);
 
-    private RoaringBitmap computeIntersection(List<Map<Integer, DocumentLocation>> childLocations) {
-        RoaringBitmap result = createBitmapFromKeys(childLocations.getFirst());
-        
-        for (int i = 1; i < childLocations.size(); i++) {
-            RoaringBitmap childBitmap = createBitmapFromKeys(childLocations.get(i));
+        // Calculate the final intersection bitmap
+        for (int i = 1; i < children().size(); i++) {
+            PipelineNode child = children().get(i);
+            Map<Integer, DocumentLocation> loc = ctx.output().getLocations(child.id());
+            RoaringBitmap childBitmap = createBitmapFromKeys(loc);
             result.and(childBitmap);
-            
+
             // Early exit if the intersection becomes empty
             if (result.isEmpty()) break;
         }
-        
+
         return result;
     }
 
@@ -65,12 +50,17 @@ public class IntersectionNode extends AbstractLogicalNode implements LogicalNode
         bitmap.addN(keys, 0, keys.length);
         return bitmap;
     }
-
-    private void outputResults(PipelineContext ctx, RoaringBitmap intersection, 
-                              Map<Integer, DocumentLocation> sourceLocations) {
-        intersection.forEach((int documentId) -> {
-            DocumentLocation location = sourceLocations.get(documentId);
-            ctx.output().appendLocation(id(), documentId, location);
-        });
-    }
 }
+
+/*
+if (intersection.getCardinality() < ctx.limit()) {
+            for (PipelineNode child : children()) {
+                if (!(child instanceof TransactionAwareNode txAwareNode)) {
+                    continue;
+                }
+                txAwareNode.execute(ctx, tr);
+            }
+            childLocations = collectChildLocations(ctx);
+            intersection = computeIntersection(childLocations);
+        }
+ */
