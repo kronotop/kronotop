@@ -76,8 +76,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testIndexBaseANDLogicWithSmallNumberOfEntries() {
-        final String TEST_BUCKET_NAME = "test-bucket-and-logic";
+    void testWithDifferentIndexTypes() {
+        final String TEST_BUCKET_NAME = "test-with-different-index-types";
 
         // Create indexes for age and name
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
@@ -150,8 +150,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testPhysicalAndExecutionLogicMatchesMultipleDocuments() {
-        final String TEST_BUCKET_NAME = "test-bucket-and-multiple";
+    void testEqualityWithMultipleDocuments() {
+        final String TEST_BUCKET_NAME = "test-equality-with-multiple-documents";
 
         // Create indexes for age and name
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
