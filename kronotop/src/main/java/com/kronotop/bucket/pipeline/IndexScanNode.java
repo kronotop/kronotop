@@ -48,6 +48,7 @@ public final class IndexScanNode extends AbstractScanNode {
                 ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
             }
             // set cursor here
+            state.updateLastProcessedIndexEntry(lastProcessedKey, lastIndexValue);
             ctx.env().cursorManager().setCursorBoundsForIndexScan(ctx, id(), index(), lastIndexValue, lastProcessedKey);
         }
     }
