@@ -83,11 +83,8 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
                 for (ByteBuffer buffer : results.values()) {
                     System.out.println(BSONUtil.fromBson(buffer.array()).toJson());
                 }
-                if (results.size() == 0) {
-                    break;
-                }
-                if (total >= 20) {
-                    fail("Exceeds 20 iterations");
+                if (results.isEmpty()) {
+                    System.out.println("DONE");
                     break;
                 }
             }

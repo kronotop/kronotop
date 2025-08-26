@@ -4,6 +4,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 
 import java.nio.ByteBuffer;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -15,15 +16,32 @@ public class PipelineExecutor {
     }
 
     public Map<Versionstamp, ByteBuffer> execute(Transaction tr, PipelineContext ctx) {
-        executeNode(tr, ctx, root);
+        Map<Integer, DocumentLocation> locations = ctx.output().getLocations(root.id());
+        if (locations == null || locations.size() < ctx.limit()) {
+            executeNode(tr, ctx, root);
+        }
+        if (locations == null) {
+            locations = ctx.output().getLocations(root.id());
+        }
 
         Map<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
-        Map<Integer, DocumentLocation> locations = ctx.output().getLocations(root.id());
-        if (locations != null) {
-            for (DocumentLocation location : locations.values()) {
-                ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
-                results.put(location.versionstamp(), document);
+        if (locations == null) {
+            return results;
+        }
+
+        int counter = 0;
+        for (Iterator<DocumentLocation> iterator = locations.values().iterator(); iterator.hasNext(); ) {
+            if (counter >= ctx.limit()) {
+                break;
             }
+            DocumentLocation location = iterator.next();
+            ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
+            results.put(location.versionstamp(), document);
+            counter++;
+            iterator.remove();
+            System.out.println(">>> " + locations.size() + " counter " + counter);
+        }
+        if (results.isEmpty()) {
             ctx.output().clear(root.id());
         }
         return results;

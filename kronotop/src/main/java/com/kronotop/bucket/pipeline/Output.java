@@ -24,11 +24,7 @@ public class Output {
     public Map<Integer, DocumentLocation> getLocations(int nodeId) {
         lock.readLock().lock();
         try {
-            Map<Integer, DocumentLocation> locations = locationsByNodeId.get(nodeId);
-            if (locations == null) {
-                return null;
-            }
-            return Collections.unmodifiableMap(locations);
+            return locationsByNodeId.get(nodeId);
         } finally {
             lock.readLock().unlock();
         }
@@ -39,6 +35,7 @@ public class Output {
         try {
             Map<Integer, DocumentLocation> locations = locationsByNodeId.get(nodeId);
             locations.clear();
+            locationsByNodeId.remove(nodeId);
         } finally {
             lock.writeLock().unlock();
         }

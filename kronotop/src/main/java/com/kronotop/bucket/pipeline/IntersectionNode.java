@@ -1,10 +1,12 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import org.roaringbitmap.RoaringBitmap;
 
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class IntersectionNode extends AbstractLogicalNode implements LogicalNode {
     public IntersectionNode(int id, ExecutionStrategy strategy, List<PipelineNode> children) {
@@ -15,19 +17,33 @@ public class IntersectionNode extends AbstractLogicalNode implements LogicalNode
     public void execute(PipelineContext ctx, Transaction tr) {
         // Compute intersection efficiently
         RoaringBitmap intersection = computeIntersection(ctx);
+        if (intersection == null) {
+            return;
+        }
 
+        TreeMap<Versionstamp, DocumentLocation> results = new TreeMap<>();
         intersection.forEach((int entryMetadataId) -> {
             for (PipelineNode child : children()) {
                 DocumentLocation location = ctx.output().getLocations(child.id()).get(entryMetadataId);
-                ctx.output().appendLocation(id(), entryMetadataId, location);
+                results.put(location.versionstamp(), location);
             }
         });
+        for (DocumentLocation location : results.values()) {
+            ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
+        }
+
+        for (PipelineNode child: children()) {
+            ctx.output().clear(child.id());
+        }
     }
 
     private RoaringBitmap computeIntersection(PipelineContext ctx) {
         // Initialize
         PipelineNode firstChild = children().getFirst();
         Map<Integer, DocumentLocation> locations = ctx.output().getLocations(firstChild.id());
+        if (locations == null) {
+            return null;
+        }
         RoaringBitmap result = createBitmapFromKeys(locations);
 
         // Calculate the final intersection bitmap
@@ -51,16 +67,3 @@ public class IntersectionNode extends AbstractLogicalNode implements LogicalNode
         return bitmap;
     }
 }
-
-/*
-if (intersection.getCardinality() < ctx.limit()) {
-            for (PipelineNode child : children()) {
-                if (!(child instanceof TransactionAwareNode txAwareNode)) {
-                    continue;
-                }
-                txAwareNode.execute(ctx, tr);
-            }
-            childLocations = collectChildLocations(ctx);
-            intersection = computeIntersection(childLocations);
-        }
- */
