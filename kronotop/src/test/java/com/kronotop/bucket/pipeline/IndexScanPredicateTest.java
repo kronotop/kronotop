@@ -48,17 +48,6 @@ class IndexScanPredicateTest {
         assertTrue(result, "Non-NE operators should always return true");
     }
 
-    @Test
-    void testCanEvaluateReturnsTrueOnlyForNe() {
-        // Test NE operator
-        IndexScanPredicate nePredicate = new IndexScanPredicate(1, "field", Operator.NE, new StringVal("test"));
-        assertTrue(nePredicate.canEvaluate());
-
-        // Test other operators
-        IndexScanPredicate eqPredicate = new IndexScanPredicate(1, "field", Operator.EQ, new StringVal("test"));
-        assertFalse(eqPredicate.canEvaluate());
-    }
-
     @ParameterizedTest
     @MethodSource("provideBqlValueTestCases")
     void testNeOperatorWithMatchingTypes(BqlValue operand, BqlValue matchingValue, BqlValue differentValue) {

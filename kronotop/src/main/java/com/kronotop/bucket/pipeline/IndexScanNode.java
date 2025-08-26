@@ -45,7 +45,7 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
 
         AsyncIterable<KeyValue> indexEntries = tr.getRange(beginSelector, endSelector, state.getLimit(), ctx.isReverse());
 
-        int counter=0;
+        int counter = 0;
         for (KeyValue indexEntry : indexEntries) {
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
             Versionstamp lastProcessedKey = location.versionstamp();
@@ -54,13 +54,8 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
             Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
             Object rawIndexValue = indexKeyTuple.get(1);
             BqlValue lastIndexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
-            if (predicate.canEvaluate()) {
-                // NE Operator
-                if (predicate.test(lastIndexValue)) {
-                    // set output here
-                    ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
-                }
-            } else {
+            if (predicate.test(lastIndexValue)) {
+                // set output here
                 ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
             }
             counter++;

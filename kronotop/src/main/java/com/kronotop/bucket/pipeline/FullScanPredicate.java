@@ -5,13 +5,8 @@ import com.kronotop.bucket.planner.Operator;
 
 import java.nio.ByteBuffer;
 
-public record FullScanPredicate(int id, String selector, Operator op, Object operand) implements Predicate {
+public record FullScanPredicate(int id, String selector, Operator op, Object operand) {
     public boolean test(Versionstamp versionstamp, ByteBuffer buffer) {
-        return true;
-    }
-
-    @Override
-    public boolean canEvaluate() {
         return true;
     }
 }

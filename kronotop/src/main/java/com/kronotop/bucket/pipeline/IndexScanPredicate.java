@@ -3,12 +3,7 @@ package com.kronotop.bucket.pipeline;
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.planner.Operator;
 
-public record IndexScanPredicate(int id, String selector, Operator op, Object operand) implements Predicate {
-    @Override
-    public boolean canEvaluate() {
-        return op.equals(Operator.NE);
-    }
-
+public record IndexScanPredicate(int id, String selector, Operator op, Object operand) {
     public boolean test(BqlValue bqlValue) {
         if (!(op.equals(Operator.NE))) {
             return true;
