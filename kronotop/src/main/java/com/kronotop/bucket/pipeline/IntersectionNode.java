@@ -30,7 +30,6 @@ public class IntersectionNode extends AbstractLogicalNode implements LogicalNode
             }
             childLocations = collectChildLocations(ctx);
             intersection = computeIntersection(childLocations);
-            System.out.println(intersection.getCardinality());
         }
 
         // Output results using first child's locations (they're all equivalent)
