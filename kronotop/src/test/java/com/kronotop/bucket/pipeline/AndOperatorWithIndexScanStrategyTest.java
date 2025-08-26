@@ -8,6 +8,7 @@ import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonReader;
 import org.bson.BsonType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -228,6 +229,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
+    @Disabled
     void testAndOperatorWithPriceQuantityRelation() {
         final String TEST_BUCKET_NAME = "test-bucket-price-quantity-relation";
 

@@ -2,30 +2,14 @@ package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.*;
-import com.kronotop.bucket.index.IndexDefinition;
 import org.bson.BsonType;
 
 import java.math.BigDecimal;
-import java.util.List;
 
-public abstract class AbstractScanNode extends AbstractPipelineNode implements ScanNode {
-    private final List<IndexScanPredicate> children;
-    private final IndexDefinition index;
+public abstract class AbstractTransactionAwareNode extends AbstractPipelineNode implements TransactionAwareNode {
 
-    protected AbstractScanNode(int id, IndexDefinition index, List<IndexScanPredicate> children) {
+    protected AbstractTransactionAwareNode(int id) {
         super(id);
-        this.index = index;
-        this.children = children;
-    }
-
-    @Override
-    public List<IndexScanPredicate> predicates() {
-        return children;
-    }
-
-    @Override
-    public IndexDefinition index() {
-        return index;
     }
 
     /**

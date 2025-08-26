@@ -12,9 +12,24 @@ import com.kronotop.bucket.index.IndexDefinition;
 
 import java.util.List;
 
-public final class IndexScanNode extends AbstractScanNode {
+public final class IndexScanNode extends AbstractTransactionAwareNode implements ScanNode<IndexScanPredicate> {
+    private final IndexDefinition index;
+    private final List<IndexScanPredicate> predicates;
+
     public IndexScanNode(int id, IndexDefinition index, List<IndexScanPredicate> predicates) {
-        super(id, index, predicates);
+        super(id);
+        this.index = index;
+        this.predicates = predicates;
+    }
+
+    @Override
+    public IndexDefinition index() {
+        return index;
+    }
+
+    @Override
+    public List<IndexScanPredicate> predicates() {
+        return predicates;
     }
 
     @Override
