@@ -6,6 +6,7 @@ public class ExecutionState {
     private final AtomicInteger limit = new AtomicInteger();
     private volatile Bound lower;
     private volatile Bound upper;
+    private volatile boolean exhausted;
 
     public Bound getUpper() {
         return upper;
@@ -38,5 +39,13 @@ public class ExecutionState {
 
     public void setLimit(int limit) {
         this.limit.set(limit);
+    }
+
+    public void setExhausted(boolean exhausted) {
+        this.exhausted = exhausted;
+    }
+
+    public boolean isExhausted() {
+        return exhausted;
     }
 }

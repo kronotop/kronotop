@@ -30,6 +30,7 @@ public final class IndexScanNode extends AbstractScanNode {
 
         AsyncIterable<KeyValue> indexEntries = tr.getRange(beginSelector, endSelector, state.getLimit(), ctx.isReverse());
 
+        int counter=0;
         for (KeyValue indexEntry : indexEntries) {
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
             Versionstamp lastProcessedKey = location.versionstamp();
@@ -47,8 +48,10 @@ public final class IndexScanNode extends AbstractScanNode {
             } else {
                 ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
             }
+            counter++;
             // set cursor here
             ctx.env().cursorManager().setCursorBoundsForIndexScan(ctx, id(), index(), lastIndexValue, lastProcessedKey);
         }
+        state.setExhausted(counter <= 0);
     }
 }
