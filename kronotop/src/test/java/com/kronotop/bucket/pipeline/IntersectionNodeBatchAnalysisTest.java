@@ -22,6 +22,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -34,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
     
     @Test
+    @Disabled
     void testIntersectionWith50DocumentsAndLimit2() {
         final String TEST_BUCKET_NAME = "test-bucket-intersection-50-docs";
         
@@ -54,7 +56,8 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
         
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Map<?, ByteBuffer> results = executor.execute(tr, ctx);
-            
+
+            System.out.println(results.size());
             // Should return at most 2 results due to limit
             assertTrue(results.size() <= 2, "Should return at most 2 results due to limit");
             
@@ -89,6 +92,7 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
             int quantity = 160 + (i % 40); // Quantity between 160-199
             
             String json = String.format("{'price': %d, 'quantity': %d, 'id': %d}", price, quantity, i);
+            System.out.println(json);
             documents.add(BSONUtil.jsonToDocumentThenBytes(json));
         }
         

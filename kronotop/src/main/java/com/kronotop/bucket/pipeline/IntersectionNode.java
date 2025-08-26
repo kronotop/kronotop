@@ -21,6 +21,23 @@ public class IntersectionNode extends AbstractLogicalNode implements LogicalNode
         // Compute intersection efficiently
         RoaringBitmap intersection = computeIntersection(childLocations);
 
+        // 1- Pick a driver child, most selective one?
+        // 2 -
+        if (intersection.getCardinality() < ctx.limit()) {
+            for (PipelineNode child : children()) {
+                if (!(child instanceof TransactionAwareNode txAwareNode)) {
+                    continue;
+                }
+                System.out.println(txAwareNode);
+                ExecutionState state = ctx.getOrCreateExecutionState(txAwareNode.id());
+                state.setLimit(100);
+                txAwareNode.execute(ctx, tr);
+            }
+            childLocations = collectChildLocations(ctx);
+            intersection = computeIntersection(childLocations);
+            System.out.println(intersection.getCardinality());
+        }
+
         // Output results using first child's locations (they're all equivalent)
         outputResults(ctx, intersection, childLocations.getFirst());
     }

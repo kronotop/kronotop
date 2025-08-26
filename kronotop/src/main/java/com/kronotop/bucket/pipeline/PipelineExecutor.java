@@ -31,7 +31,11 @@ public class PipelineExecutor {
 
     private void executeNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
         switch (node) {
-            case ScanNode scanNode -> scanNode.execute(ctx, tr);
+            case ScanNode scanNode -> {
+                ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
+                state.tryInitializingLimit(ctx.limit());
+                scanNode.execute(ctx, tr);
+            }
             case LogicalNode logicalNode -> {
                 for (PipelineNode child : logicalNode.children()) {
                     executeNode(tr, ctx, child);
