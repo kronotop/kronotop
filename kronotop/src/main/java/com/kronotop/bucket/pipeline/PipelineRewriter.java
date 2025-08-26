@@ -33,7 +33,7 @@ public class PipelineRewriter {
                     throw new IllegalStateException("PhysicalNode must be a PhysicalFilter instance");
                 }
                 IndexScanPredicate predicate = new IndexScanPredicate(id, selector, op, operand);
-                yield new IndexScanNode(indexScan.id(), indexScan.index(), List.of(predicate));
+                yield new IndexScanNode(indexScan.id(), indexScan.index(), predicate);
             }
             case PhysicalFullScan fullScan -> {
                 PhysicalNode physicalNode = fullScan.node();
@@ -43,7 +43,7 @@ public class PipelineRewriter {
                     throw new IllegalStateException("PhysicalNode must be a PhysicalFilter instance");
                 }
                 FullScanPredicate predicate = new FullScanPredicate(id, selector, op, operand);
-                yield new FullScanNode(id, List.of(predicate));
+                yield new FullScanNode(id, predicate);
             }
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);
         };

@@ -10,16 +10,14 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.index.IndexDefinition;
 
-import java.util.List;
-
 public final class IndexScanNode extends AbstractTransactionAwareNode implements ScanNode<IndexScanPredicate> {
     private final IndexDefinition index;
-    private final List<IndexScanPredicate> predicates;
+    private final IndexScanPredicate predicate;
 
-    public IndexScanNode(int id, IndexDefinition index, List<IndexScanPredicate> predicates) {
+    public IndexScanNode(int id, IndexDefinition index, IndexScanPredicate predicate) {
         super(id);
         this.index = index;
-        this.predicates = predicates;
+        this.predicate = predicate;
     }
 
     @Override
@@ -28,17 +26,16 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
     }
 
     @Override
-    public List<IndexScanPredicate> predicates() {
-        return predicates;
+    public IndexScanPredicate predicate() {
+        return predicate;
     }
 
     @Override
     public void execute(PipelineContext ctx, Transaction tr) {
-        IndexScanPredicate predicate = predicates().getFirst();
         DirectorySubspace indexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
-        IndexScanContext indexScanContext = new IndexScanContext(id(), indexSubspace, state, ctx.isReverse(), predicate, index());
+        IndexScanContext indexScanContext = new IndexScanContext(id(), indexSubspace, state, ctx.isReverse(), predicate(), index());
         SelectorPair selectors = ctx.env().selectorCalculator().calculateSelectors(indexScanContext);
         KeySelector beginSelector = selectors.beginSelector();
         KeySelector endSelector = selectors.endSelector();

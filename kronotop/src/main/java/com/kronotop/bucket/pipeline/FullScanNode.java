@@ -4,13 +4,11 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.IndexDefinition;
 
-import java.util.List;
-
 public class FullScanNode extends AbstractTransactionAwareNode implements ScanNode<FullScanPredicate> {
     private final IndexDefinition index = DefaultIndexDefinition.ID;
-    private final List<FullScanPredicate> predicates;
+    private final FullScanPredicate predicates;
 
-    protected FullScanNode(int id, List<FullScanPredicate> predicates) {
+    protected FullScanNode(int id, FullScanPredicate predicates) {
         super(id);
         this.predicates = predicates;
     }
@@ -21,7 +19,7 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
     }
 
     @Override
-    public List<FullScanPredicate> predicates() {
+    public FullScanPredicate predicate() {
         return predicates;
     }
 
