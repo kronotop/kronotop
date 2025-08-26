@@ -15,21 +15,40 @@ public class IntersectionNode extends AbstractLogicalNode implements LogicalNode
 
     @Override
     public void execute(PipelineContext ctx, Transaction tr) {
-        // Compute intersection efficiently
-        RoaringBitmap intersection = computeIntersection(ctx);
-        if (intersection == null) {
-            return;
-        }
-
-        TreeMap<Versionstamp, DocumentLocation> results = new TreeMap<>();
-        intersection.forEach((int entryMetadataId) -> {
-            for (PipelineNode child : children()) {
-                DocumentLocation location = ctx.output().getLocations(child.id()).get(entryMetadataId);
-                results.put(location.versionstamp(), location);
+        while(true) {
+            // Compute intersection efficiently
+            RoaringBitmap intersection = computeIntersection(ctx);
+            if (intersection == null) {
+                return;
             }
-        });
-        for (DocumentLocation location : results.values()) {
-            ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
+            TreeMap<Versionstamp, DocumentLocation> results = new TreeMap<>();
+            intersection.forEach((int entryMetadataId) -> {
+                for (PipelineNode child : children()) {
+                    DocumentLocation location = ctx.output().getLocations(child.id()).get(entryMetadataId);
+                    results.put(location.versionstamp(), location);
+                }
+            });
+            for (DocumentLocation location : results.values()) {
+                ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
+            }
+            if (ctx.output().getLocations(id()).size() < ctx.limit()) {
+                boolean exhausted = false;
+                for (PipelineNode child : children()) {
+                    if (child instanceof TransactionAwareNode txAwareNode) {
+                        txAwareNode.execute(ctx, tr);
+                    }
+                    ExecutionState state = ctx.getOrCreateExecutionState(child.id());
+                    if (state.isExhausted()) {
+                        exhausted = true;
+                        break;
+                    }
+                }
+                if (exhausted) {
+                    break;
+                }
+            } else {
+                break;
+            }
         }
 
         for (PipelineNode child: children()) {

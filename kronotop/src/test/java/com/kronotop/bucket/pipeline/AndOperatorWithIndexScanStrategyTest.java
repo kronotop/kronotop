@@ -3,7 +3,6 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.executor.PlanExecutor;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonBinaryReader;
@@ -12,7 +11,10 @@ import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -219,6 +221,92 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         } catch (RuntimeException e) {
             if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
                 System.out.println("Skipping AND multiple match test due to infrastructure issues");
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    @Test
+    void testAndOperatorWithPriceQuantityRelation() {
+        final String TEST_BUCKET_NAME = "test-bucket-price-quantity-relation";
+
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
+
+        // Insert 350 documents with pattern {'price': $price, 'quantity': $price*20}
+        List<byte[]> documents = new java.util.ArrayList<>();
+        for (int price = 1; price <= 350; price++) {
+            int quantity = price * 20;
+            documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'price': %d, 'quantity': %d}", price, quantity)));
+        }
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        // Query for documents where price > 100 AND quantity > 2500
+        // This should match documents where price > 100 AND price*20 > 2500
+        // Since price*20 > 2500 means price > 125, the effective condition is price > 125
+        // So we expect documents with price from 126 to 350 = 225 documents
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{ 'price': { '$gt': 100 }, 'quantity': { '$gt': 2500 } }");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            // Expected results: documents with price > 100 AND quantity > 2500
+            // Since quantity = price * 20, quantity > 2500 means price > 125
+            // Combined with price > 100, the effective condition is price > 125
+            // Documents matching: price 126-350 = 225 documents
+            assertEquals(225, results.size(), "Should return exactly 225 documents matching both conditions");
+
+            // Verify some sample documents from the results
+            Set<Integer> actualPrices = new HashSet<>();
+            Set<Integer> actualQuantities = new HashSet<>();
+
+            for (ByteBuffer documentBuffer : results.values()) {
+                documentBuffer.rewind();
+                try (BsonReader reader = new BsonBinaryReader(documentBuffer)) {
+                    reader.readStartDocument();
+                    Integer price = null;
+                    Integer quantity = null;
+
+                    while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                        String fieldName = reader.readName();
+                        switch (fieldName) {
+                            case "price" -> price = reader.readInt32();
+                            case "quantity" -> quantity = reader.readInt32();
+                            default -> reader.skipValue();
+                        }
+                    }
+                    reader.readEndDocument();
+
+                    assertNotNull(price, "Document should have a price field");
+                    assertNotNull(quantity, "Document should have a quantity field");
+                    assertTrue(price > 100, "Price should be greater than 100, but was: " + price);
+                    assertTrue(quantity > 2500, "Quantity should be greater than 2500, but was: " + quantity);
+                    assertEquals(price * 20, quantity.intValue(), "Quantity should equal price * 20");
+
+                    actualPrices.add(price);
+                    actualQuantities.add(quantity);
+                }
+            }
+
+            // Verify that we have the expected range of prices (126-350)
+            assertTrue(actualPrices.contains(126), "Results should contain document with price=126");
+            assertTrue(actualPrices.contains(350), "Results should contain document with price=350");
+            assertFalse(actualPrices.contains(125), "Results should not contain document with price=125 (quantity=2500 fails quantity > 2500)");
+            assertFalse(actualPrices.contains(100), "Results should not contain document with price=100 (fails price > 100)");
+
+            // Verify price range bounds
+            int minPrice = actualPrices.stream().mapToInt(Integer::intValue).min().orElse(0);
+            int maxPrice = actualPrices.stream().mapToInt(Integer::intValue).max().orElse(0);
+            assertEquals(126, minPrice, "Minimum price in results should be 126");
+            assertEquals(350, maxPrice, "Maximum price in results should be 350");
+
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
+                System.out.println("Skipping price-quantity relation test due to infrastructure issues");
             } else {
                 throw e;
             }
