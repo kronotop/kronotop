@@ -27,8 +27,10 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -53,40 +55,63 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
         PipelineContext ctx = createPipelineContext(metadata);
         ctx.setLimit(2);
 
-        int total = 0;
+        Set<Integer> seenDocumentIds = new HashSet<>();
+        int batchCount = 0;
+        int totalDocumentsReturned = 0;
+
         while(true) {
-            total++;
+            batchCount++;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Map<?, ByteBuffer> results = executor.execute(tr, ctx);
 
                 // Should return at most 2 results due to limit
                 assertTrue(results.size() <= 2, "Should return at most 2 results due to limit");
 
-                // Verify all returned documents match the criteria
+                // Process each document in this batch
                 for (ByteBuffer buffer : results.values()) {
                     String json = BSONUtil.fromBson(buffer.array()).toJson();
-
-                    // Simple validation - just check if the document contains reasonable values
-                    // Since all our generated docs have price 30-49 and quantity 160-199,
-                    // they should all match the query criteria (price > 25, quantity > 150)
-                    assertTrue(json.contains("\"price\""), "Document should contain price field");
-                    assertTrue(json.contains("\"quantity\""), "Document should contain quantity field");
+                    // Extract document values for validation
+                    int price = extractIntValue(json, "price");
+                    int quantity = extractIntValue(json, "quantity");
+                    int id = extractIntValue(json, "id");
+                    
+                    // Verify document matches query criteria
+                    assertTrue(price > 25, "Document price (" + price + ") should be > 25");
+                    assertTrue(quantity > 150, "Document quantity (" + quantity + ") should be > 150");
+                    
+                    // Ensure no duplicate documents across batches
+                    assertFalse(seenDocumentIds.contains(id), "Document with id " + id + " already seen in previous batch");
+                    seenDocumentIds.add(id);
+                    
+                    totalDocumentsReturned++;
                 }
 
-                System.out.println("Test completed successfully:");
-                System.out.println("- Generated 50 documents");
-                System.out.println("- Query: price > 25 AND quantity > 150");
-                System.out.println("- Limit: 2");
-                System.out.println("- Results returned: " + results.size());
-                for (ByteBuffer buffer : results.values()) {
-                    System.out.println(BSONUtil.fromBson(buffer.array()).toJson());
-                }
+                System.out.println("Batch " + batchCount + ":");
+                System.out.println("- Results in this batch: " + results.size());
+                System.out.println("- Total accumulated results: " + totalDocumentsReturned);
+
                 if (results.isEmpty()) {
-                    System.out.println("DONE");
+                    System.out.println("DONE - No more results");
                     break;
                 }
             }
         }
+
+        // Final validation: all 50 generated documents should match criteria, so we expect all 50
+        assertEquals(50, totalDocumentsReturned, 
+            "Expected all 50 documents to match criteria (price > 25 AND quantity > 150)");
+        
+        // Verify uniqueness
+        assertEquals(totalDocumentsReturned, seenDocumentIds.size(), 
+            "All returned documents should be unique");
+        
+        System.out.println("Test completed successfully:");
+        System.out.println("- Generated 50 documents");
+        System.out.println("- Query: price > 25 AND quantity > 150");
+        System.out.println("- Limit per batch: 2");
+        System.out.println("- Total batches: " + batchCount);
+        System.out.println("- Total documents returned: " + totalDocumentsReturned);
+        System.out.println("- All documents verified against expected criteria");
     }
     
     /**
@@ -101,7 +126,6 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
             int quantity = 160 + (i % 40); // Quantity between 160-199
             
             String json = String.format("{'price': %d, 'quantity': %d, 'id': %d}", price, quantity, i);
-            System.out.println(json);
             documents.add(BSONUtil.jsonToDocumentThenBytes(json));
         }
         
@@ -112,16 +136,44 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
      * Extracts integer value from JSON string for a given field
      */
     private int extractIntValue(String json, String fieldName) {
-        String pattern = "\"" + fieldName + "\" : ";
-        int startIndex = json.indexOf(pattern);
-        if (startIndex == -1) return 0;
+        // Try different patterns that might be used in JSON formatting
+        String[] patterns = {
+            "\"" + fieldName + "\" : ",
+            "\"" + fieldName + "\": ",
+            "\"" + fieldName + "\":",
+            fieldName + " : ",
+            fieldName + ": ",
+            fieldName + ":"
+        };
         
-        startIndex += pattern.length();
-        int endIndex = json.indexOf(',', startIndex);
-        if (endIndex == -1) {
-            endIndex = json.indexOf('}', startIndex);
+        for (String pattern : patterns) {
+            int startIndex = json.indexOf(pattern);
+            if (startIndex != -1) {
+                startIndex += pattern.length();
+                
+                // Skip any whitespace
+                while (startIndex < json.length() && Character.isWhitespace(json.charAt(startIndex))) {
+                    startIndex++;
+                }
+                
+                // Find the end of the number
+                int endIndex = startIndex;
+                while (endIndex < json.length() && 
+                       (Character.isDigit(json.charAt(endIndex)) || json.charAt(endIndex) == '-')) {
+                    endIndex++;
+                }
+                
+                if (endIndex > startIndex) {
+                    try {
+                        return Integer.parseInt(json.substring(startIndex, endIndex));
+                    } catch (NumberFormatException e) {
+                        // Continue to next pattern
+                    }
+                }
+            }
         }
         
-        return Integer.parseInt(json.substring(startIndex, endIndex).trim());
+        // Fallback: return 0 if field not found
+        return 0;
     }
 }
