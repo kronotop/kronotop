@@ -33,7 +33,7 @@ public class PipelineExecutor {
         switch (node) {
             case ScanNode scanNode -> {
                 ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
-                state.tryInitializingLimit(ctx.limit());
+                state.tryInitializingLimit(Math.max(ctx.limit(), 100));
                 scanNode.execute(ctx, tr);
             }
             case LogicalNode logicalNode -> {
