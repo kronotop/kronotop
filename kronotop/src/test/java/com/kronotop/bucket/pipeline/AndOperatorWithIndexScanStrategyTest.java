@@ -12,14 +12,11 @@ import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
+class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
     void testAndOperatorWithTwoIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-and-index-scan";
