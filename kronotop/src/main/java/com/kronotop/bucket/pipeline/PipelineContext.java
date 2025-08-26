@@ -23,13 +23,15 @@ import com.kronotop.bucket.DefaultIndexDefinition;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class PipelineContext {
+    public static final int MAXIMUM_LIMIT = 10000;
+    public static final int DEFAULT_LIMIT = 100;
     private final Context context;
     private final BucketMetadata metadata;
     private final ConcurrentHashMap<Integer, ExecutionState> executionStates = new ConcurrentHashMap<>();
 
     // Mutable fields
     private volatile boolean reverse;
-    private volatile int limit;
+    private volatile int limit = DEFAULT_LIMIT;
     private volatile long readVersion;
     private volatile boolean pinReadVersion;
     private volatile String sortByField = DefaultIndexDefinition.ID.selector();
@@ -52,6 +54,9 @@ public class PipelineContext {
      * @param limit the maximum number of bucket entries allowed for processing; must be a non-negative integer
      */
     public void setLimit(int limit) {
+        if (limit >= MAXIMUM_LIMIT) {
+            throw new IllegalArgumentException("Maximum limit value is " + MAXIMUM_LIMIT);
+        }
         if (limit < 0) {
             throw new IllegalArgumentException("limit must be a non-negative integer");
         }

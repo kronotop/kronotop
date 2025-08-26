@@ -29,6 +29,7 @@ public class PipelineExecutor {
             return results;
         }
 
+        // We must have some batched results
         int counter = 0;
         for (Iterator<DocumentLocation> iterator = locations.values().iterator(); iterator.hasNext(); ) {
             if (counter >= ctx.limit()) {
@@ -39,7 +40,6 @@ public class PipelineExecutor {
             results.put(location.versionstamp(), document);
             counter++;
             iterator.remove();
-            System.out.println(">>> " + locations.size() + " counter " + counter);
         }
         if (results.isEmpty()) {
             ctx.output().clear(root.id());
@@ -51,7 +51,7 @@ public class PipelineExecutor {
         switch (node) {
             case ScanNode scanNode -> {
                 ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
-                state.tryInitializingLimit(Math.max(ctx.limit(), 100));
+                state.tryInitializingLimit(Math.max(ctx.limit(), PipelineContext.DEFAULT_LIMIT));
                 scanNode.execute(ctx, tr);
             }
             case LogicalNode logicalNode -> {

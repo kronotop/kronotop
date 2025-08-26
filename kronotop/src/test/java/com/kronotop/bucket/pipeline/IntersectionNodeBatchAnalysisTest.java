@@ -35,7 +35,6 @@ import static org.junit.jupiter.api.Assertions.*;
 public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
     
     @Test
-    @Disabled
     void testIntersectionWith50DocumentsAndLimit2() {
         final String TEST_BUCKET_NAME = "test-bucket-intersection-50-docs";
         
@@ -60,9 +59,8 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Map<?, ByteBuffer> results = executor.execute(tr, ctx);
 
-                System.out.println(results.size());
                 // Should return at most 2 results due to limit
-                //assertTrue(results.size() <= 2, "Should return at most 2 results due to limit");
+                assertTrue(results.size() <= 2, "Should return at most 2 results due to limit");
 
                 // Verify all returned documents match the criteria
                 for (ByteBuffer buffer : results.values()) {
