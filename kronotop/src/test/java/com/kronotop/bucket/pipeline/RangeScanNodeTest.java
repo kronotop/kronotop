@@ -3,6 +3,7 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
@@ -35,7 +36,7 @@ public class RangeScanNodeTest extends BasePipelineTest {
 
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
 
-        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'age': {'$gt': 22}, 'age': {'$lte': 35}}");
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{ 'age': { '$gt': 22, '$lte': 35 } }");
         PipelineContext ctx = createPipelineContext(metadata);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
