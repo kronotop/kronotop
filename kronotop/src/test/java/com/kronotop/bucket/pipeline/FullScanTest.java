@@ -19,7 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-public class FullScanTest extends BasePipelineTest {
+class FullScanTest extends BasePipelineTest {
+
     @Test
     void testGtOperatorFiltersCorrectly() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
@@ -121,12 +122,7 @@ public class FullScanTest extends BasePipelineTest {
                 assertTrue(results.size() <= batchSize, 
                     String.format("Batch %d should return at most %d documents, but returned %d", 
                         actualIterations, batchSize, results.size()));
-                
-                // If we've reached the expected total, we should stop
-                if (totalDocumentsReturned >= expectedTotalMatches) {
-                    break;
-                }
-                
+
                 // Safety check to prevent infinite loop
                 if (actualIterations > expectedIterations + 5) {
                     fail(String.format("Too many iterations: expected ~%d, got %d", 

@@ -49,15 +49,21 @@ public class PipelineExecutor {
     }
 
     private Map<Versionstamp, ByteBuffer> executeFullScanNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
-        Map<Versionstamp, ByteBuffer> documents = ctx.output().getDocuments(node.id());
+        Map<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
+        ExecutionState state = ctx.getOrCreateExecutionState(node.id());
 
+        Map<Versionstamp, ByteBuffer> documents = ctx.output().getDocuments(node.id());
         if (documents == null || documents.isEmpty()) {
+            if (state.isExhausted()) {
+                return results;
+            }
             executeNode(tr, ctx, node);
         }
 
-        documents = ctx.output().getDocuments(node.id());
+        if (documents == null) {
+            documents = ctx.output().getDocuments(node.id());
+        }
 
-        Map<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
         int counter = 0;
         for (Iterator<Map.Entry<Versionstamp, ByteBuffer>> iterator = documents.entrySet().iterator(); iterator.hasNext(); ) {
             if (counter >= ctx.limit()) {
@@ -68,9 +74,7 @@ public class PipelineExecutor {
             counter++;
             iterator.remove();
         }
-        ExecutionState state = ctx.getOrCreateExecutionState(node.id());
-        System.out.println(">>> " + state.isExhausted() + " " +  documents.size() + " " + results.size());
-        if (results.isEmpty()) {
+        if (documents.isEmpty() && state.isExhausted()) {
             ctx.output().removeDocuments(node.id());
         }
         return results;
