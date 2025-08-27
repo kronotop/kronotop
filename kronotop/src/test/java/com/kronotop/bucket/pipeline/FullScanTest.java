@@ -267,4 +267,56 @@ class FullScanTest extends BasePipelineTest {
             }
         }
     }
+
+    @Test
+    void testEqOperatorFiltersCorrectly() {
+        final String TEST_BUCKET_NAME = "test-bucket-eq-operator";
+
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"), // Same age as Alice
+                BSONUtil.jsonToDocumentThenBytes("{'age': 30, 'name': 'Bob'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'Claire'}"), // Same age as Alice and George
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'David'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'age': {'$eq': 25}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            System.out.println("=== EQ Operator Results ===");
+            for (ByteBuffer buffer : results.values()) {
+                String json = BSONUtil.fromBson(buffer.array()).toJson();
+                System.out.println(json);
+            }
+
+            // Should return 3 documents with age = 25 (Alice, George, Claire)
+            // Excluding John (20), Bob (30), and David (35)
+            assertEquals(3, results.size(), "Should return exactly 3 documents with age = 25");
+
+            // Verify the content of each returned document
+            Set<String> returnedNames = extractNamesFromResults(results);
+            Set<Integer> returnedAges = extractAgesFromResults(results);
+            
+            // Should include Alice, George, Claire (all age 25)
+            // Should exclude John (20), Bob (30), David (35)
+            assertEquals(Set.of("Alice", "George", "Claire"), returnedNames,
+                "Should return Alice, George, and Claire (all with age 25)");
+            assertEquals(Set.of(25), returnedAges,
+                "Should return only age 25");
+
+            // Verify that all returned documents have age = 25
+            for (Integer age : returnedAges) {
+                assertEquals(25, age, "All returned documents should have age = 25");
+            }
+        }
+    }
 }
