@@ -21,8 +21,6 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PhysicalAnd;
-import com.kronotop.bucket.planner.physical.PhysicalFilter;
-import com.kronotop.bucket.planner.physical.PhysicalNode;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonReader;
 import org.bson.BsonType;
@@ -35,15 +33,120 @@ import java.util.List;
 
 public class PredicateEvaluator {
     /**
-     * Applies a physical filter to a BSON document and determines whether the document satisfies the filter criteria.
+     * Generic comparison method for comparable values (strings, byte arrays, etc.).
      *
-     * @param filter   the {@link PhysicalFilter} containing the filter criteria, including the selector (field name),
-     *                 operator, and operand (expected value).
-     * @param document the {@link ByteBuffer} representing the BSON-encoded document to be evaluated.
-     * @return the original {@link ByteBuffer} if the document matches the filter criteria; otherwise, null if
-     * the document does not match the filter or an error occurs during processing.
+     * @param op       the comparison operator to be applied
+     * @param actual   the actual value to be evaluated
+     * @param expected the expected value to compare against
+     * @param <T>      the type of values being compared
+     * @return true if the comparison satisfies the operator's condition, otherwise false
+     * @throws UnsupportedOperationException if the provided operator is not supported for this comparison type
      */
-    ByteBuffer applyPhysicalFilter(FullScanPredicate filter, ByteBuffer document) {
+    public static <T> boolean evaluateComparison(Operator op, T actual, T expected) {
+        return switch (op) {
+            case EQ -> {
+                if (actual instanceof byte[] actualBytes && expected instanceof byte[] expectedBytes) {
+                    yield Arrays.equals(actualBytes, expectedBytes);
+                } else {
+                    yield actual.equals(expected);
+                }
+            }
+            case NE -> {
+                if (actual instanceof byte[] actualBytes && expected instanceof byte[] expectedBytes) {
+                    yield !Arrays.equals(actualBytes, expectedBytes);
+                } else {
+                    yield !actual.equals(expected);
+                }
+            }
+            case GT, GTE, LT, LTE -> {
+                if (actual instanceof String actualStr && expected instanceof String expectedStr) {
+                    int cmp = actualStr.compareTo(expectedStr);
+                    yield switch (op) {
+                        case GT -> cmp > 0;
+                        case GTE -> cmp >= 0;
+                        case LT -> cmp < 0;
+                        case LTE -> cmp <= 0;
+                        default -> false;
+                    };
+                } else if (actual instanceof byte[] actualBytes && expected instanceof byte[] expectedBytes) {
+                    int cmp = Arrays.compare(actualBytes, expectedBytes);
+                    yield switch (op) {
+                        case GT -> cmp > 0;
+                        case GTE -> cmp >= 0;
+                        case LT -> cmp < 0;
+                        case LTE -> cmp <= 0;
+                        default -> false;
+                    };
+                } else {
+                    throw new UnsupportedOperationException("Comparison operator " + op + " not supported for type: " + actual.getClass().getSimpleName());
+                }
+            }
+            case IN -> {
+                List<Object> expectedList = validateListOperand(expected, "IN");
+                yield expectedList.contains(actual);
+            }
+            case NIN -> {
+                List<Object> expectedList = validateListOperand(expected, "NIN");
+                yield !expectedList.contains(actual);
+            }
+            default -> throw new UnsupportedOperationException("Comparison not supported for operator: " + op);
+        };
+    }
+
+    /**
+     * Applies a PhysicalAnd filter to a BSON document by applying all child filters.
+     * All child filters must match for the document to pass.
+     *
+     * @param andFilter the {@link PhysicalAnd} containing multiple child filters
+     * @param document  the {@link ByteBuffer} representing the BSON-encoded document to be evaluated
+     * @return the original {@link ByteBuffer} if the document matches all filters; otherwise, null
+     */
+    /*ByteBuffer applyPhysicalAnd(PhysicalAnd andFilter, ByteBuffer document) {
+        for (PhysicalNode child : andFilter.children()) {
+            if (child instanceof PhysicalFilter filter) {
+                ByteBuffer result = applyPhysicalFilter(filter, document.duplicate());
+                if (result == null) {
+                    return null; // One filter failed, document doesn't match
+                }
+            } else {
+                // For now, only support PhysicalFilter children in AND
+                throw new UnsupportedOperationException("Nested logical operators in PhysicalAnd not yet supported: " + child.getClass().getSimpleName());
+            }
+        }
+
+        // All filters passed
+        return document.rewind();
+    }*/
+
+    /**
+     * Validates that the expected value is a list for IN/NIN operations.
+     *
+     * @param expected     the expected value to validate
+     * @param operatorName the name of the operator (for error messages)
+     * @return the list if valid
+     * @throws UnsupportedOperationException if expected is not a list
+     */
+    @SuppressWarnings("unchecked")
+    static List<Object> validateListOperand(Object expected, String operatorName) {
+        if (expected instanceof List<?> expectedList) {
+            return (List<Object>) expectedList;
+        } else {
+            throw new UnsupportedOperationException(operatorName + " operator requires a list of expected values");
+        }
+    }
+
+    /**
+     * Tests if a BSON document satisfies the conditions specified by a {@link FullScanPredicate}.
+     * The method iterates through the fields in the provided BSON document and applies the predicate
+     * filtering logic to determine whether the document matches the specified criteria.
+     * <p>
+     * Callers of this method MUST rewind the document.
+     *
+     * @param filter   the {@link FullScanPredicate} that defines the condition to be tested against the document
+     * @param document the BSON document represented as a {@link ByteBuffer} that needs to be evaluated
+     * @return true if the BSON document satisfies the conditions specified by the predicate, false otherwise
+     */
+    public static boolean testFullScanPredicate(FullScanPredicate filter, ByteBuffer document) {
         try (BsonReader reader = new BsonBinaryReader(document)) {
             reader.readStartDocument();
             while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
@@ -60,18 +163,19 @@ public class PredicateEvaluator {
                     if (filter.operand() instanceof List<?> operandList) {
                         boolean matches = evaluateInOperation(reader, operandList);
                         if (filter.op() == Operator.IN) {
-                            return matches ? document.rewind() : null;
+                            return matches;
                         } else { // NIN
-                            return matches ? null : document.rewind();
+                            return !matches;
                         }
                     } else {
                         reader.skipValue();
-                        return null;
+                        return false;
                     }
                 }
 
                 // Apply the filter based on operand type and operator for non-IN/NIN operators
-                boolean matches = switch (filter.operand()) {
+                // Document comparison is complex and typically not used in filters
+                return switch (filter.operand()) {
                     case StringVal(String expectedValue) -> {
                         if (reader.getCurrentBsonType() != BsonType.STRING) {
                             reader.skipValue();
@@ -174,13 +278,6 @@ public class PredicateEvaluator {
                         yield false;
                     }
                 };
-
-                if (matches) {
-                    return document.rewind();
-                }
-
-                // If we've found the field but it doesn't match, the document doesn't pass the filter
-                return null;
             }
             reader.readEndDocument();
         } catch (Exception e) {
@@ -188,93 +285,7 @@ public class PredicateEvaluator {
         }
 
         // Field not found in document - doesn't match the filter
-        return null;
-    }
-
-    /**
-     * Applies a PhysicalAnd filter to a BSON document by applying all child filters.
-     * All child filters must match for the document to pass.
-     *
-     * @param andFilter the {@link PhysicalAnd} containing multiple child filters
-     * @param document  the {@link ByteBuffer} representing the BSON-encoded document to be evaluated
-     * @return the original {@link ByteBuffer} if the document matches all filters; otherwise, null
-     */
-    /*ByteBuffer applyPhysicalAnd(PhysicalAnd andFilter, ByteBuffer document) {
-        for (PhysicalNode child : andFilter.children()) {
-            if (child instanceof PhysicalFilter filter) {
-                ByteBuffer result = applyPhysicalFilter(filter, document.duplicate());
-                if (result == null) {
-                    return null; // One filter failed, document doesn't match
-                }
-            } else {
-                // For now, only support PhysicalFilter children in AND
-                throw new UnsupportedOperationException("Nested logical operators in PhysicalAnd not yet supported: " + child.getClass().getSimpleName());
-            }
-        }
-
-        // All filters passed
-        return document.rewind();
-    }*/
-
-    /**
-     * Generic comparison method for comparable values (strings, byte arrays, etc.).
-     *
-     * @param op       the comparison operator to be applied
-     * @param actual   the actual value to be evaluated
-     * @param expected the expected value to compare against
-     * @param <T>      the type of values being compared
-     * @return true if the comparison satisfies the operator's condition, otherwise false
-     * @throws UnsupportedOperationException if the provided operator is not supported for this comparison type
-     */
-    static  <T> boolean evaluateComparison(Operator op, T actual, T expected) {
-        return switch (op) {
-            case EQ -> {
-                if (actual instanceof byte[] actualBytes && expected instanceof byte[] expectedBytes) {
-                    yield Arrays.equals(actualBytes, expectedBytes);
-                } else {
-                    yield actual.equals(expected);
-                }
-            }
-            case NE -> {
-                if (actual instanceof byte[] actualBytes && expected instanceof byte[] expectedBytes) {
-                    yield !Arrays.equals(actualBytes, expectedBytes);
-                } else {
-                    yield !actual.equals(expected);
-                }
-            }
-            case GT, GTE, LT, LTE -> {
-                if (actual instanceof String actualStr && expected instanceof String expectedStr) {
-                    int cmp = actualStr.compareTo(expectedStr);
-                    yield switch (op) {
-                        case GT -> cmp > 0;
-                        case GTE -> cmp >= 0;
-                        case LT -> cmp < 0;
-                        case LTE -> cmp <= 0;
-                        default -> false;
-                    };
-                } else if (actual instanceof byte[] actualBytes && expected instanceof byte[] expectedBytes) {
-                    int cmp = Arrays.compare(actualBytes, expectedBytes);
-                    yield switch (op) {
-                        case GT -> cmp > 0;
-                        case GTE -> cmp >= 0;
-                        case LT -> cmp < 0;
-                        case LTE -> cmp <= 0;
-                        default -> false;
-                    };
-                } else {
-                    throw new UnsupportedOperationException("Comparison operator " + op + " not supported for type: " + actual.getClass().getSimpleName());
-                }
-            }
-            case IN -> {
-                List<Object> expectedList = validateListOperand(expected, "IN");
-                yield expectedList.contains(actual);
-            }
-            case NIN -> {
-                List<Object> expectedList = validateListOperand(expected, "NIN");
-                yield !expectedList.contains(actual);
-            }
-            default -> throw new UnsupportedOperationException("Comparison not supported for operator: " + op);
-        };
+        return false;
     }
 
     /**
@@ -286,7 +297,7 @@ public class PredicateEvaluator {
      * @return true if the comparison satisfies the operator's condition, otherwise false
      * @throws UnsupportedOperationException if the operator is not supported for numeric comparisons
      */
-    private boolean evaluateNumericComparison(Operator op, Number actual, Number expected) {
+    private static boolean evaluateNumericComparison(Operator op, Number actual, Number expected) {
         return switch (op) {
             case EQ -> {
                 if (actual instanceof BigDecimal actualBig && expected instanceof BigDecimal expectedBig) {
@@ -359,7 +370,7 @@ public class PredicateEvaluator {
      * @return true if the comparison satisfies the operator's condition, otherwise false
      * @throws UnsupportedOperationException if the provided operator is not supported for boolean comparisons
      */
-    private boolean evaluateBooleanComparison(Operator op, boolean actual, Object expected) {
+    private static boolean evaluateBooleanComparison(Operator op, boolean actual, Object expected) {
         return switch (op) {
             case EQ -> {
                 if (expected instanceof Boolean expectedBool) {
@@ -395,7 +406,7 @@ public class PredicateEvaluator {
      * @return true if the comparison satisfies the operator's condition, otherwise false
      * @throws UnsupportedOperationException if the operator is not supported for null comparisons
      */
-    private boolean evaluateNullComparison(Operator op, boolean isNull) {
+    private static boolean evaluateNullComparison(Operator op, boolean isNull) {
         return switch (op) {
             case EQ -> isNull;  // Field is null
             case NE -> !isNull; // Field is not null
@@ -410,7 +421,7 @@ public class PredicateEvaluator {
      * @param reader the BSON reader positioned at the field to read
      * @return the BqlValue representation of the BSON field, or null if unsupported type
      */
-    private BqlValue readBsonValue(BsonReader reader) {
+    private static BqlValue readBsonValue(BsonReader reader) {
         return switch (reader.getCurrentBsonType()) {
             case STRING -> new StringVal(reader.readString());
             case INT32 -> new Int32Val(reader.readInt32());
@@ -432,30 +443,13 @@ public class PredicateEvaluator {
     }
 
     /**
-     * Validates that the expected value is a list for IN/NIN operations.
-     *
-     * @param expected     the expected value to validate
-     * @param operatorName the name of the operator (for error messages)
-     * @return the list if valid
-     * @throws UnsupportedOperationException if expected is not a list
-     */
-    @SuppressWarnings("unchecked")
-    static List<Object> validateListOperand(Object expected, String operatorName) {
-        if (expected instanceof List<?> expectedList) {
-            return (List<Object>) expectedList;
-        } else {
-            throw new UnsupportedOperationException(operatorName + " operator requires a list of expected values");
-        }
-    }
-
-    /**
      * Checks if a BSON value matches any of the expected values in a list.
      *
      * @param reader         the BSON reader positioned at the field to check
      * @param expectedValues the list of expected values to match against
      * @return true if the BSON value matches any expected value
      */
-    private boolean matchesAnyExpectedValue(BsonReader reader, List<?> expectedValues) {
+    private static boolean matchesAnyExpectedValue(BsonReader reader, List<?> expectedValues) {
         BqlValue actualValue = readBsonValue(reader);
         if (actualValue == null) {
             return false;
@@ -476,7 +470,7 @@ public class PredicateEvaluator {
      * @param expectedValues the list of expected values to compare against
      * @return true if the field value satisfies the IN/NIN condition
      */
-    private boolean evaluateInOperation(BsonReader reader, List<?> expectedValues) {
+    private static boolean evaluateInOperation(BsonReader reader, List<?> expectedValues) {
         return matchesAnyExpectedValue(reader, expectedValues);
     }
 
@@ -487,7 +481,7 @@ public class PredicateEvaluator {
      * @param value2 the second BqlValue to compare
      * @return true if the values are equal, false otherwise
      */
-    private boolean compareValues(BqlValue value1, BqlValue value2) {
+    private static boolean compareValues(BqlValue value1, BqlValue value2) {
         if (value1.getClass() != value2.getClass()) {
             return false;
         }
@@ -517,7 +511,7 @@ public class PredicateEvaluator {
      * @param expectedValues the expected array values for comparison
      * @return true if the array comparison satisfies the operator's condition, otherwise false
      */
-    private boolean evaluateArrayComparison(BsonReader reader, Operator op, List<BqlValue> expectedValues) {
+    private static boolean evaluateArrayComparison(BsonReader reader, Operator op, List<BqlValue> expectedValues) {
         if (reader.getCurrentBsonType() != BsonType.ARRAY) {
             reader.skipValue();
             // Only arrays have size
@@ -546,7 +540,7 @@ public class PredicateEvaluator {
                 }
                 reader.readEndArray();
 
-                if (!expectedValues.isEmpty() && expectedValues.get(0) instanceof Int32Val(int expectedSize)) {
+                if (!expectedValues.isEmpty() && expectedValues.getFirst() instanceof Int32Val(int expectedSize)) {
                     yield actualSize == expectedSize;
                 } else {
                     yield false;
