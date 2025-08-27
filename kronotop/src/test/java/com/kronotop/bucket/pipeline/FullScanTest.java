@@ -5,6 +5,7 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
+import org.bson.BsonBinaryReader;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -49,6 +50,69 @@ class FullScanTest extends BasePipelineTest {
             // Verify the content of each returned document
             assertEquals(Set.of("Alice", "George", "Claire"), extractNamesFromResults(results));
             assertEquals(Set.of(23, 25, 35), extractAgesFromResults(results));
+        }
+    }
+
+    @Test
+    void testGtOperatorFiltersCorrectlyReverse() {
+        final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
+
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'age': {'$gt': 22}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+        ctx.setReverse(true);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            // Should return 3 documents with age > 22 (ages 23, 25, 35)
+            assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
+
+            // Extract results in order and validate reverse sorting (descending by age)
+            List<Integer> resultAges = new ArrayList<>();
+            List<String> resultNames = new ArrayList<>();
+            
+            for (ByteBuffer buffer : results.values()) {
+                String json = BSONUtil.fromBson(buffer.array()).toJson();
+                System.out.println(json);
+                
+                // Extract age and name for order validation
+                buffer.rewind();
+                try (BsonBinaryReader reader = new BsonBinaryReader(buffer)) {
+                    reader.readStartDocument();
+                    while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                        String fieldName = reader.readName();
+                        if ("age".equals(fieldName)) {
+                            resultAges.add(reader.readInt32());
+                        } else if ("name".equals(fieldName)) {
+                            resultNames.add(reader.readString());
+                        } else {
+                            reader.skipValue();
+                        }
+                    }
+                    reader.readEndDocument();
+                }
+            }
+
+            // Verify the results are in reverse order (descending by age: 35, 25, 23)
+            List<Integer> expectedAgesInReverseOrder = List.of(35, 25, 23);
+            List<String> expectedNamesInReverseOrder = List.of("Claire", "George", "Alice");
+            
+            assertEquals(expectedAgesInReverseOrder, resultAges, 
+                "Ages should be in descending order: [35, 25, 23]");
+            assertEquals(expectedNamesInReverseOrder, resultNames, 
+                "Names should be in corresponding reverse order: [Claire, George, Alice]");
         }
     }
 
