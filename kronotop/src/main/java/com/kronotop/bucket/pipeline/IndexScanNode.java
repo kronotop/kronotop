@@ -10,7 +10,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.index.IndexDefinition;
 
-public final class IndexScanNode extends AbstractTransactionAwareNode implements ScanNode<IndexScanPredicate> {
+public final class IndexScanNode extends AbstractTransactionAwareNode implements ScanNode {
     private final IndexDefinition index;
     private final IndexScanPredicate predicate;
 
@@ -26,16 +26,11 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
     }
 
     @Override
-    public IndexScanPredicate predicate() {
-        return predicate;
-    }
-
-    @Override
     public void execute(PipelineContext ctx, Transaction tr) {
         DirectorySubspace indexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
-        SecondaryIndexScanContext indexScanContext = new SecondaryIndexScanContext(id(), indexSubspace, state, ctx.isReverse(), predicate(), index());
+        SecondaryIndexScanContext indexScanContext = new SecondaryIndexScanContext(id(), indexSubspace, state, ctx.isReverse(), predicate, index());
         SelectorPair selectors = ctx.env().selectorCalculator().calculateSelectors(indexScanContext);
         KeySelector beginSelector = selectors.beginSelector();
         KeySelector endSelector = selectors.endSelector();

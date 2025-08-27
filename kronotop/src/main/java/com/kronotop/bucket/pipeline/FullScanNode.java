@@ -12,7 +12,7 @@ import com.kronotop.bucket.index.IndexDefinition;
 
 import java.nio.ByteBuffer;
 
-public class FullScanNode extends AbstractTransactionAwareNode implements ScanNode<FullScanPredicate> {
+public class FullScanNode extends AbstractTransactionAwareNode implements ScanNode {
     private final IndexDefinition index = DefaultIndexDefinition.ID;
     private final FullScanPredicate predicate;
 
@@ -27,16 +27,11 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
     }
 
     @Override
-    public FullScanPredicate predicate() {
-        return predicate;
-    }
-
-    @Override
     public void execute(PipelineContext ctx, Transaction tr) {
         DirectorySubspace idIndexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
-        PrimaryIndexScanContext indexScanContext = new PrimaryIndexScanContext(id(), idIndexSubspace, state, ctx.isReverse(), predicate());
+        PrimaryIndexScanContext indexScanContext = new PrimaryIndexScanContext(id(), idIndexSubspace, state, ctx.isReverse(), predicate);
         SelectorPair selectors = ctx.env().selectorCalculator().calculateSelectors(indexScanContext);
         KeySelector beginSelector = selectors.beginSelector();
         KeySelector endSelector = selectors.endSelector();
