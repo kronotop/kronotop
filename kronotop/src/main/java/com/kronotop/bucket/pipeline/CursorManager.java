@@ -29,12 +29,11 @@ import static com.kronotop.bucket.pipeline.IndexUtils.getKeySelector;
 public class CursorManager {
 
     /**
-     * Sets cursor bounds for index scans with specific positioning.
+     * Sets cursor bounds for secondary index scans with specific positioning.
      */
-    void setCursorBoundsForIndexScan(
+    void saveSecondaryIndexCheckpoint(
             PipelineContext ctx,
             int nodeId,
-            IndexDefinition definition,
             BqlValue lastIndexValue,
             Versionstamp lastVersionstamp
     ) {
@@ -42,16 +41,31 @@ public class CursorManager {
         Operator cursorOperator = ctx.isReverse() ? Operator.LT : Operator.GT;
 
         Bound cursorBound;
-        if (DefaultIndexDefinition.ID.selector().equals(definition.selector())) {
-            // Primary Index (DefaultIndexDefinition.ID) structure -> Versionstamp
-            // For primary index, use VersionstampVal and keep versionstamp null in Bound
-            cursorBound = new Bound(cursorOperator, new VersionstampVal(lastVersionstamp));
+        // Secondary Index Key Structure -> BqlValue | Versionstamp
+        // For secondary indexes, store BqlValue and set versionstamp on Bound
+        cursorBound = new Bound(cursorOperator, lastIndexValue);
+        cursorBound.setVersionstamp(lastVersionstamp);
+
+        ExecutionState state = ctx.getOrCreateExecutionState(nodeId);
+        if (ctx.isReverse()) {
+            // For reverse scans: set upper bound (LT) to continue before the last processed
+            state.setUpper(cursorBound);
+            state.setLower(null);
         } else {
-            // Secondary Index Key Structure -> BqlValue | Versionstamp
-            // For secondary indexes, store BqlValue and set versionstamp on Bound
-            cursorBound = new Bound(cursorOperator, lastIndexValue);
-            cursorBound.setVersionstamp(lastVersionstamp);
+            // For forward scans: set lower bound (GT) to continue after last processed
+            state.setLower(cursorBound);
+            state.setUpper(null);
         }
+    }
+
+    void savePrimaryIndexCheckpoint(PipelineContext ctx, int nodeId, Versionstamp lastVersionstamp) {
+        // Set cursor bounds based on a scan direction
+        Operator cursorOperator = ctx.isReverse() ? Operator.LT : Operator.GT;
+
+        Bound cursorBound;
+        // Primary Index (DefaultIndexDefinition.ID) structure -> Versionstamp
+        // For primary index, use VersionstampVal and keep versionstamp null in Bound
+        cursorBound = new Bound(cursorOperator, new VersionstampVal(lastVersionstamp));
 
         ExecutionState state = ctx.getOrCreateExecutionState(nodeId);
         if (ctx.isReverse()) {

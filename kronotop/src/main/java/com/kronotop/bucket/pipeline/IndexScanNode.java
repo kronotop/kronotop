@@ -40,19 +40,18 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
         int counter = 0;
         for (KeyValue indexEntry : indexEntries) {
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
-            Versionstamp lastProcessedKey = location.versionstamp();
+            Versionstamp versionstamp = location.versionstamp();
 
             // Extract index value for cursor management
             Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
             Object rawIndexValue = indexKeyTuple.get(1);
-            BqlValue lastIndexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
-            if (predicate.test(lastIndexValue)) {
+            BqlValue indexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
+            if (predicate.test(indexValue)) {
                 // set output here
                 ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
             }
             counter++;
-            // set cursor here
-            ctx.env().cursorManager().setCursorBoundsForIndexScan(ctx, id(), index(), lastIndexValue, lastProcessedKey);
+            ctx.env().cursorManager().saveSecondaryIndexCheckpoint(ctx, id(), indexValue, versionstamp);
         }
         state.setExhausted(counter <= 0);
     }

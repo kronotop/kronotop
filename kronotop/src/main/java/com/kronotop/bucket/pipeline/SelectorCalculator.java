@@ -42,7 +42,7 @@ public class SelectorCalculator {
 
     SelectorPair calculateSelectors(ScanContext context) {
         return switch (context) {
-            case SecondaryIndexScanContext ctx -> calculateIndexScanSelectors(ctx);
+            case SecondaryIndexScanContext ctx -> calculateSecondaryIndexScanSelectors(ctx);
             case PrimaryIndexScanContext ctx -> calculatePrimaryIndexSelectors(ctx);
             default ->
                     throw new IllegalArgumentException("Unsupported scan context type: " + context.getClass().getSimpleName());
@@ -93,7 +93,7 @@ public class SelectorCalculator {
         return new SelectorPair(beginSelector, endSelector);
     }
 
-    private SelectorPair calculateIndexScanSelectors(SecondaryIndexScanContext context) {
+    private SelectorPair calculateSecondaryIndexScanSelectors(SecondaryIndexScanContext context) {
         DirectorySubspace indexSubspace = context.indexSubspace();
         IndexScanPredicate predicate = context.predicate();
         ExecutionState state = context.state();
