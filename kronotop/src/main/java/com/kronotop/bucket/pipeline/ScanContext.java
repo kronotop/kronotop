@@ -65,3 +65,22 @@ class PrimaryIndexScanContext extends ScanContext {
         return index;
     }
 }
+
+class RangeScanContext extends ScanContext {
+    private final RangeScanPredicate predicate;
+    private final IndexDefinition index;
+
+    public RangeScanContext(int nodeId, DirectorySubspace indexSubspace, ExecutionState state, boolean isReverse, RangeScanPredicate predicate, IndexDefinition indexDefinition) {
+        super(nodeId, indexSubspace, state, isReverse);
+        this.predicate = predicate;
+        this.index = indexDefinition;
+    }
+
+    public RangeScanPredicate predicate() {
+        return predicate;
+    }
+
+    public IndexDefinition indexDefinition() {
+        return index;
+    }
+}

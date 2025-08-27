@@ -54,7 +54,7 @@ public class PipelineRewriter {
                         rangeScan.includeLower(),
                         rangeScan.includeUpper()
                 );
-                yield new RangeScanNode(rangeScan.id(), predicate);
+                yield new RangeScanNode(rangeScan.id(), rangeScan.index(), predicate);
             }
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);
         };
