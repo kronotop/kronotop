@@ -54,17 +54,11 @@ class SecondaryIndexScanContext extends ScanContext {
 }
 
 class PrimaryIndexScanContext extends ScanContext {
-    private final FullScanPredicate predicate;
     private final IndexDefinition index;
 
-    public PrimaryIndexScanContext(int nodeId, DirectorySubspace indexSubspace, ExecutionState state, boolean isReverse, FullScanPredicate predicate) {
+    public PrimaryIndexScanContext(int nodeId, DirectorySubspace indexSubspace, ExecutionState state, boolean isReverse) {
         super(nodeId, indexSubspace, state, isReverse);
-        this.predicate = predicate;
         this.index = DefaultIndexDefinition.ID;
-    }
-
-    public FullScanPredicate predicate() {
-        return predicate;
     }
 
     public IndexDefinition indexDefinition() {

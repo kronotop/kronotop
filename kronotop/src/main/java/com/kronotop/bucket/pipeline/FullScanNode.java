@@ -11,14 +11,15 @@ import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.IndexDefinition;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
 public class FullScanNode extends AbstractTransactionAwareNode implements ScanNode {
     private final IndexDefinition index = DefaultIndexDefinition.ID;
-    private final FullScanPredicate predicate;
+    private final List<FullScanPredicate> predicates;
 
-    protected FullScanNode(int id, FullScanPredicate predicate) {
+    protected FullScanNode(int id, List<FullScanPredicate> predicates) {
         super(id);
-        this.predicate = predicate;
+        this.predicates = predicates;
     }
 
     @Override
@@ -31,7 +32,7 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
         DirectorySubspace idIndexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
-        PrimaryIndexScanContext indexScanContext = new PrimaryIndexScanContext(id(), idIndexSubspace, state, ctx.isReverse(), predicate);
+        PrimaryIndexScanContext indexScanContext = new PrimaryIndexScanContext(id(), idIndexSubspace, state, ctx.isReverse());
         SelectorPair selectors = ctx.env().selectorCalculator().calculateSelectors(indexScanContext);
         KeySelector beginSelector = selectors.beginSelector();
         KeySelector endSelector = selectors.endSelector();
@@ -43,8 +44,10 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(idIndexSubspace, indexEntry);
             Versionstamp lastProcessedKey = location.versionstamp();
             ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
-            if (predicate.test(lastProcessedKey, document)) {
-                System.out.println(BSONUtil.fromBson(document.array()).toJson());
+            for (FullScanPredicate predicate : predicates) {
+                if (predicate.test(lastProcessedKey, document)) {
+                    System.out.println(BSONUtil.fromBson(document.array()).toJson());
+                }
             }
         }
     }
