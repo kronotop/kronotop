@@ -4,7 +4,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 
 import java.nio.ByteBuffer;
-import java.nio.channels.Pipe;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -19,7 +18,7 @@ public class PipelineExecutor {
     private Map<Versionstamp, ByteBuffer> executeAndFetchDocuments(Transaction tr, PipelineContext ctx, PipelineNode node) {
         Map<Integer, DocumentLocation> locations = ctx.output().getLocations(node.id());
         if (locations == null || locations.size() < ctx.limit()) {
-            executeNode(tr, ctx, node);
+            executePipelineNode(tr, ctx, node);
         }
         if (locations == null) {
             locations = ctx.output().getLocations(node.id());
@@ -48,7 +47,7 @@ public class PipelineExecutor {
         return results;
     }
 
-    private Map<Versionstamp, ByteBuffer> executeFullScanNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
+    private Map<Versionstamp, ByteBuffer> visitFullScanNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
         Map<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
         ExecutionState state = ctx.getOrCreateExecutionState(node.id());
 
@@ -57,7 +56,7 @@ public class PipelineExecutor {
             if (state.isExhausted()) {
                 return results;
             }
-            executeNode(tr, ctx, node);
+            executePipelineNode(tr, ctx, node);
         }
 
         if (documents == null) {
@@ -82,12 +81,12 @@ public class PipelineExecutor {
 
     public Map<Versionstamp, ByteBuffer> execute(Transaction tr, PipelineContext ctx) {
         return switch (root) {
-            case FullScanNode node -> executeFullScanNode(tr, ctx, node);
+            case FullScanNode node -> visitFullScanNode(tr, ctx, node);
             default -> executeAndFetchDocuments(tr, ctx, root);
         };
     }
 
-    private void executeNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
+    private void executePipelineNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
         switch (node) {
             case ScanNode scanNode -> {
                 ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
@@ -96,7 +95,7 @@ public class PipelineExecutor {
             }
             case LogicalNode logicalNode -> {
                 for (PipelineNode child : logicalNode.children()) {
-                    executeNode(tr, ctx, child);
+                    executePipelineNode(tr, ctx, child);
                 }
                 logicalNode.execute(ctx, tr);
             }
