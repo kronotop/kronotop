@@ -469,13 +469,13 @@ class FullScanNodeTest extends BasePipelineTest {
             // Verify the content of each returned document
             Set<String> returnedNames = extractNamesFromResults(results);
             Set<Integer> returnedAges = extractAgesFromResults(results);
-            
+
             // Should include Amy (15), John (20)
             // Should exclude Alice (23), George (25), Claire (35)
             assertEquals(Set.of("Amy", "John"), returnedNames,
-                "Should return Amy and John (ages < 23)");
+                    "Should return Amy and John (ages < 23)");
             assertEquals(Set.of(15, 20), returnedAges,
-                "Should return ages 15, 20 (both < 23)");
+                    "Should return ages 15, 20 (both < 23)");
 
             // Verify that all returned documents have age < 23
             for (Integer age : returnedAges) {
@@ -520,13 +520,13 @@ class FullScanNodeTest extends BasePipelineTest {
             // Verify the content of each returned document
             Set<String> returnedNames = extractNamesFromResults(results);
             Set<Integer> returnedAges = extractAgesFromResults(results);
-            
+
             // Should include Alice (23), George (25), Claire (35)
             // Should exclude Amy (15), John (20)
             assertEquals(Set.of("Alice", "George", "Claire"), returnedNames,
-                "Should return Alice, George, and Claire (ages >= 23)");
+                    "Should return Alice, George, and Claire (ages >= 23)");
             assertEquals(Set.of(23, 25, 35), returnedAges,
-                "Should return ages 23, 25, 35 (all >= 23)");
+                    "Should return ages 23, 25, 35 (all >= 23)");
 
             // Verify that all returned documents have age >= 23
             for (Integer age : returnedAges) {
@@ -571,18 +571,45 @@ class FullScanNodeTest extends BasePipelineTest {
             // Verify the content of each returned document
             Set<String> returnedNames = extractNamesFromResults(results);
             Set<Integer> returnedAges = extractAgesFromResults(results);
-            
+
             // Should include Amy (15), John (20), Alice (23)
             // Should exclude George (25), Claire (35)
             assertEquals(Set.of("Amy", "John", "Alice"), returnedNames,
-                "Should return Amy, John, and Alice (ages <= 23)");
+                    "Should return Amy, John, and Alice (ages <= 23)");
             assertEquals(Set.of(15, 20, 23), returnedAges,
-                "Should return ages 15, 20, 23 (all <= 23)");
+                    "Should return ages 15, 20, 23 (all <= 23)");
 
             // Verify that all returned documents have age <= 23
             for (Integer age : returnedAges) {
                 assertTrue(age <= 23, "All returned documents should have age <= 23, but found: " + age);
             }
+        }
+    }
+
+    @Test
+    void testGtOperatorReturnsZeroResults() {
+        final String TEST_BUCKET_NAME = "test-bucket-zero-results";
+
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert multiple documents with ages that won't match our query
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 10, 'name': 'Amy'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 15, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 18, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'George'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        // Query for age > 50 which should return no results since all ages are <= 20
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'age': {'$gt': 50}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            // Should return 0 documents since no document has age > 50
+            assertEquals(0, results.size(), "Should return exactly 0 documents with age > 50");
         }
     }
 }

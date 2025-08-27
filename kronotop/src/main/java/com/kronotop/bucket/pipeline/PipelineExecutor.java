@@ -81,6 +81,10 @@ public class PipelineExecutor {
             documents = ctx.output().getDocuments(node.id());
         }
 
+        if (documents == null) {
+            return results;
+        }
+
         int counter = 0;
         for (Iterator<Map.Entry<Versionstamp, ByteBuffer>> iterator = documents.entrySet().iterator(); iterator.hasNext(); ) {
             if (counter >= ctx.limit()) {
