@@ -16,7 +16,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class SingleIndexScanBatchingTest extends BasePipelineTest {
+public class IndexScanNodeBatchingTest extends BasePipelineTest {
     @Test
     void testGtOperatorFiltersCorrectly() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";

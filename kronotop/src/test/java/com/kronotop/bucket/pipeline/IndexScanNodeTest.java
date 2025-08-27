@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class SingleIndexScanIntegrationTest extends BasePipelineTest {
+class IndexScanNodeTest extends BasePipelineTest {
 
     private static Stream<Arguments> provideComparisonOperatorTestCases() {
         return Stream.of(
