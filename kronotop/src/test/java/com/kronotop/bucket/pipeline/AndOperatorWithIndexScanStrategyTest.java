@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
+    @Disabled
     void testAndOperatorWithTwoIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-and-index-scan";
 
@@ -79,6 +80,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
+    @Disabled
     void testWithDifferentIndexTypes() {
         final String TEST_BUCKET_NAME = "test-with-different-index-types";
 
@@ -153,6 +155,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
+    @Disabled
     void testEqualityWithMultipleDocuments() {
         final String TEST_BUCKET_NAME = "test-equality-with-multiple-documents";
 

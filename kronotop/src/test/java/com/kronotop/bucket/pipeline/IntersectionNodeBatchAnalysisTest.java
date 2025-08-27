@@ -37,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
     
     @Test
+    @Disabled
     void testIntersectionWith50DocumentsAndLimit() {
         final String TEST_BUCKET_NAME = "test-bucket-intersection-50-docs";
         

@@ -2,6 +2,7 @@ package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.KronotopException;
 
 import java.nio.ByteBuffer;
 import java.util.Iterator;
@@ -30,39 +31,6 @@ public class PipelineExecutor {
             }
             default -> throw new IllegalStateException("Unexpected PipelineNode: " + node);
         }
-    }
-
-    @Deprecated
-    private Map<Versionstamp, ByteBuffer> executeAndFetchDocuments(Transaction tr, PipelineContext ctx, PipelineNode node) {
-        Map<Integer, DocumentLocation> locations = ctx.output().getLocations(node.id());
-        if (locations == null || locations.size() < ctx.limit()) {
-            executePipelineNode(tr, ctx, node);
-        }
-        if (locations == null) {
-            locations = ctx.output().getLocations(node.id());
-        }
-
-        Map<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
-        if (locations == null) {
-            return results;
-        }
-
-        // We must have some batched results
-        int counter = 0;
-        for (Iterator<DocumentLocation> iterator = locations.values().iterator(); iterator.hasNext(); ) {
-            if (counter >= ctx.limit()) {
-                break;
-            }
-            DocumentLocation location = iterator.next();
-            ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
-            results.put(location.versionstamp(), document);
-            counter++;
-            iterator.remove();
-        }
-        if (results.isEmpty()) {
-            ctx.output().clearLocations(node.id());
-        }
-        return results;
     }
 
     private Map<Versionstamp, ByteBuffer> visitFullScanNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
@@ -141,7 +109,7 @@ public class PipelineExecutor {
         return switch (root) {
             case FullScanNode node -> visitFullScanNode(tr, ctx, node);
             case IndexScanNode node -> visitIndexScanNode(tr, ctx, node);
-            default -> executeAndFetchDocuments(tr, ctx, root);
+            default -> throw new KronotopException("Unknown PipelineNode type");
         };
     }
 }

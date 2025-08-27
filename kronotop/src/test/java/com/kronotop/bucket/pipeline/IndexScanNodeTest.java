@@ -247,12 +247,6 @@ class IndexScanNodeTest extends BasePipelineTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Map<?, ByteBuffer> results = executor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription + " (REVERSE=true)");
-        } catch (RuntimeException e) {
-            if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
-                System.out.println("Skipping test due to infrastructure issues: " + testDescription + " (REVERSE=true)");
-            } else {
-                throw e;
-            }
         }
     }
 }
