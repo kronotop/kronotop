@@ -12,7 +12,7 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class FullScanTest extends BasePipelineTest {
+class FullScanNodeTest extends BasePipelineTest {
 
     @Test
     void testGtOperatorFiltersCorrectly() {
@@ -431,5 +431,158 @@ class FullScanTest extends BasePipelineTest {
         }
 
         System.out.println("=== REVERSE Test completed successfully! ===");
+    }
+
+    @Test
+    void testLtOperatorFiltersCorrectly() {
+        final String TEST_BUCKET_NAME = "test-bucket-lt-operator";
+
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 15, 'name': 'Amy'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'age': {'$lt': 23}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            System.out.println("=== LT Operator Results ===");
+            for (ByteBuffer buffer : results.values()) {
+                String json = BSONUtil.fromBson(buffer.array()).toJson();
+                System.out.println(json);
+            }
+
+            // Should return 2 documents with age < 23 (ages 15, 20)
+            // Excluding Alice (23), George (25), and Claire (35)
+            assertEquals(2, results.size(), "Should return exactly 2 documents with age < 23");
+
+            // Verify the content of each returned document
+            Set<String> returnedNames = extractNamesFromResults(results);
+            Set<Integer> returnedAges = extractAgesFromResults(results);
+            
+            // Should include Amy (15), John (20)
+            // Should exclude Alice (23), George (25), Claire (35)
+            assertEquals(Set.of("Amy", "John"), returnedNames,
+                "Should return Amy and John (ages < 23)");
+            assertEquals(Set.of(15, 20), returnedAges,
+                "Should return ages 15, 20 (both < 23)");
+
+            // Verify that all returned documents have age < 23
+            for (Integer age : returnedAges) {
+                assertTrue(age < 23, "All returned documents should have age < 23, but found: " + age);
+            }
+        }
+    }
+
+    @Test
+    void testGteOperatorFiltersCorrectly() {
+        final String TEST_BUCKET_NAME = "test-bucket-gte-operator";
+
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 15, 'name': 'Amy'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'age': {'$gte': 23}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            System.out.println("=== GTE Operator Results ===");
+            for (ByteBuffer buffer : results.values()) {
+                String json = BSONUtil.fromBson(buffer.array()).toJson();
+                System.out.println(json);
+            }
+
+            // Should return 3 documents with age >= 23 (ages 23, 25, 35)
+            // Excluding Amy (15) and John (20)
+            assertEquals(3, results.size(), "Should return exactly 3 documents with age >= 23");
+
+            // Verify the content of each returned document
+            Set<String> returnedNames = extractNamesFromResults(results);
+            Set<Integer> returnedAges = extractAgesFromResults(results);
+            
+            // Should include Alice (23), George (25), Claire (35)
+            // Should exclude Amy (15), John (20)
+            assertEquals(Set.of("Alice", "George", "Claire"), returnedNames,
+                "Should return Alice, George, and Claire (ages >= 23)");
+            assertEquals(Set.of(23, 25, 35), returnedAges,
+                "Should return ages 23, 25, 35 (all >= 23)");
+
+            // Verify that all returned documents have age >= 23
+            for (Integer age : returnedAges) {
+                assertTrue(age >= 23, "All returned documents should have age >= 23, but found: " + age);
+            }
+        }
+    }
+
+    @Test
+    void testLteOperatorFiltersCorrectly() {
+        final String TEST_BUCKET_NAME = "test-bucket-lte-operator";
+
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 15, 'name': 'Amy'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'age': {'$lte': 23}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            System.out.println("=== LTE Operator Results ===");
+            for (ByteBuffer buffer : results.values()) {
+                String json = BSONUtil.fromBson(buffer.array()).toJson();
+                System.out.println(json);
+            }
+
+            // Should return 3 documents with age <= 23 (ages 15, 20, 23)
+            // Excluding George (25) and Claire (35)
+            assertEquals(3, results.size(), "Should return exactly 3 documents with age <= 23");
+
+            // Verify the content of each returned document
+            Set<String> returnedNames = extractNamesFromResults(results);
+            Set<Integer> returnedAges = extractAgesFromResults(results);
+            
+            // Should include Amy (15), John (20), Alice (23)
+            // Should exclude George (25), Claire (35)
+            assertEquals(Set.of("Amy", "John", "Alice"), returnedNames,
+                "Should return Amy, John, and Alice (ages <= 23)");
+            assertEquals(Set.of(15, 20, 23), returnedAges,
+                "Should return ages 15, 20, 23 (all <= 23)");
+
+            // Verify that all returned documents have age <= 23
+            for (Integer age : returnedAges) {
+                assertTrue(age <= 23, "All returned documents should have age <= 23, but found: " + age);
+            }
+        }
     }
 }
