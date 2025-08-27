@@ -41,14 +41,21 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
 
         int counter = 0;
         for (KeyValue indexEntry : indexEntries) {
+            counter++;
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(idIndexSubspace, indexEntry);
             Versionstamp lastProcessedKey = location.versionstamp();
             ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
+            boolean passed = true;
             for (FullScanPredicate predicate : predicates) {
-                if (predicate.test(lastProcessedKey, document)) {
-                    System.out.println(BSONUtil.fromBson(document.array()).toJson());
+                if (!predicate.test(lastProcessedKey, document)) {
+                    passed = false;
+                    break;
                 }
             }
+            if (passed) {
+                ctx.output().appendDocument(id(), lastProcessedKey, document);
+            }
         }
+        state.setExhausted(counter <= 0);
     }
 }

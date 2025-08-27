@@ -42,7 +42,7 @@ public class PipelineExecutor {
             iterator.remove();
         }
         if (results.isEmpty()) {
-            ctx.output().clear(root.id());
+            ctx.output().clearLocations(root.id());
         }
         return results;
     }

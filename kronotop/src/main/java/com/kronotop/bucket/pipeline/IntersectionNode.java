@@ -52,7 +52,7 @@ public class IntersectionNode extends AbstractLogicalNode implements LogicalNode
         }
 
         for (PipelineNode child: children()) {
-            ctx.output().clear(child.id());
+            ctx.output().clearLocations(child.id());
         }
     }
 
