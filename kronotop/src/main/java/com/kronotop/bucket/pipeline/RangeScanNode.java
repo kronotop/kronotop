@@ -3,7 +3,14 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.index.IndexDefinition;
 
-public class RangeScanNode implements ScanNode {
+public class RangeScanNode extends AbstractTransactionAwareNode implements ScanNode {
+    private final RangeScanPredicate predicate;
+
+    protected RangeScanNode(int id, RangeScanPredicate predicate) {
+        super(id);
+        this.predicate = predicate;
+    }
+
     @Override
     public IndexDefinition index() {
         return null;
@@ -12,10 +19,5 @@ public class RangeScanNode implements ScanNode {
     @Override
     public void execute(PipelineContext ctx, Transaction tr) {
 
-    }
-
-    @Override
-    public int id() {
-        return 0;
     }
 }

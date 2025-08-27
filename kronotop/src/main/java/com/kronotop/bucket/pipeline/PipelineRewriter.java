@@ -46,6 +46,16 @@ public class PipelineRewriter {
                 ResidualPredicate predicate = new ResidualPredicate(id, selector, op, operand);
                 yield new FullScanNode(id, List.of(predicate));
             }
+            case PhysicalRangeScan rangeScan -> {
+                RangeScanPredicate predicate = new RangeScanPredicate(
+                        rangeScan.selector(),
+                        rangeScan.lowerBound(),
+                        rangeScan.upperBound(),
+                        rangeScan.includeLower(),
+                        rangeScan.includeUpper()
+                );
+                yield new RangeScanNode(rangeScan.id(), predicate);
+            }
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);
         };
     }

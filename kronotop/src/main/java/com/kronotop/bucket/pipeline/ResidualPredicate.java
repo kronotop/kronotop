@@ -5,7 +5,7 @@ import com.kronotop.bucket.planner.Operator;
 
 import java.nio.ByteBuffer;
 
-public record ResidualPredicate(int id, String selector, Operator op, Object operand) implements Predicate {
+public record ResidualPredicate(int id, String selector, Operator op, Object operand) {
     public boolean test(Versionstamp versionstamp, ByteBuffer document) {
         try {
             return PredicateEvaluator.testResidualPredicate(this, document);
