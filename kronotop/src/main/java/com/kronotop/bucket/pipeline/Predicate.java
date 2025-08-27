@@ -2,7 +2,7 @@ package com.kronotop.bucket.pipeline;
 
 import com.kronotop.bucket.planner.Operator;
 
-public sealed interface Predicate permits IndexScanPredicate, FullScanPredicate {
+public sealed interface Predicate permits IndexScanPredicate, ResidualPredicate {
     int id();
     String selector();
     Operator op();

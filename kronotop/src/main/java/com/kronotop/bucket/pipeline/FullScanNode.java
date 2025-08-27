@@ -6,7 +6,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.IndexDefinition;
 
@@ -15,9 +14,9 @@ import java.util.List;
 
 public class FullScanNode extends AbstractTransactionAwareNode implements ScanNode {
     private final IndexDefinition index = DefaultIndexDefinition.ID;
-    private final List<FullScanPredicate> predicates;
+    private final List<ResidualPredicate> predicates;
 
-    protected FullScanNode(int id, List<FullScanPredicate> predicates) {
+    protected FullScanNode(int id, List<ResidualPredicate> predicates) {
         super(id);
         this.predicates = predicates;
     }
@@ -46,7 +45,7 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
             Versionstamp versionstamp = location.versionstamp();
             ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
             boolean passed = true;
-            for (FullScanPredicate predicate : predicates) {
+            for (ResidualPredicate predicate : predicates) {
                 if (!predicate.test(versionstamp, document)) {
                     passed = false;
                     break;

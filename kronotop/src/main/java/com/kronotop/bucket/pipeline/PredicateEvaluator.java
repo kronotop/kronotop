@@ -136,17 +136,17 @@ public class PredicateEvaluator {
     }
 
     /**
-     * Tests if a BSON document satisfies the conditions specified by a {@link FullScanPredicate}.
+     * Tests if a BSON document satisfies the conditions specified by a {@link ResidualPredicate}.
      * The method iterates through the fields in the provided BSON document and applies the predicate
      * filtering logic to determine whether the document matches the specified criteria.
      * <p>
      * Callers of this method MUST rewind the document.
      *
-     * @param filter   the {@link FullScanPredicate} that defines the condition to be tested against the document
+     * @param filter   the {@link ResidualPredicate} that defines the condition to be tested against the document
      * @param document the BSON document represented as a {@link ByteBuffer} that needs to be evaluated
      * @return true if the BSON document satisfies the conditions specified by the predicate, false otherwise
      */
-    public static boolean testFullScanPredicate(FullScanPredicate filter, ByteBuffer document) {
+    public static boolean testResidualPredicate(ResidualPredicate filter, ByteBuffer document) {
         try (BsonReader reader = new BsonBinaryReader(document)) {
             reader.readStartDocument();
             while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {

@@ -169,8 +169,8 @@ class PredicateEvaluatorTest {
     }
 
     @Nested
-    @DisplayName("FullScanPredicate Tests")
-    class FullScanPredicateTests {
+    @DisplayName("ResidualPredicate Tests")
+    class ResidualPredicateTests {
 
         @Test
         @DisplayName("String field equality match")
@@ -178,8 +178,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "name", Operator.EQ, new StringVal("John"));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "name", Operator.EQ, new StringVal("John"));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
             // Note: PredicateEvaluator doesn't guarantee buffer position after test
         }
 
@@ -189,8 +189,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "name", Operator.EQ, new StringVal("Jane"));
-            assertFalse(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "name", Operator.EQ, new StringVal("Jane"));
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -199,8 +199,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("age", new BsonInt32(25));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "age", Operator.GT, new Int32Val(20));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "age", Operator.GT, new Int32Val(20));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -209,8 +209,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("timestamp", new BsonInt64(1234567890L));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "timestamp", Operator.LTE, new Int64Val(2000000000L));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "timestamp", Operator.LTE, new Int64Val(2000000000L));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -219,8 +219,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("price", new BsonDouble(19.99));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "price", Operator.LT, new DoubleVal(20.0));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "price", Operator.LT, new DoubleVal(20.0));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -229,8 +229,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("amount", new BsonDecimal128(new Decimal128(new BigDecimal("100.50"))));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "amount", Operator.GTE, new Decimal128Val(new BigDecimal("100.00")));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "amount", Operator.GTE, new Decimal128Val(new BigDecimal("100.00")));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -239,8 +239,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("active", new BsonBoolean(true));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "active", Operator.EQ, new BooleanVal(true));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "active", Operator.EQ, new BooleanVal(true));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -249,8 +249,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("optional", new BsonNull());
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "optional", Operator.EQ, NullVal.INSTANCE);
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "optional", Operator.EQ, NullVal.INSTANCE);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -260,8 +260,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("data", new BsonBinary(BsonBinarySubType.BINARY, binaryData));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "data", Operator.EQ, new BinaryVal(binaryData));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "data", Operator.EQ, new BinaryVal(binaryData));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -272,8 +272,8 @@ class PredicateEvaluatorTest {
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
             // BsonTimestamp.getValue() returns the encoded timestamp value
-            FullScanPredicate predicate = new FullScanPredicate(1, "created", Operator.EQ, new TimestampVal(bsonTimestamp.getValue()));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "created", Operator.EQ, new TimestampVal(bsonTimestamp.getValue()));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -283,8 +283,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("eventTime", new BsonDateTime(dateTime));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "eventTime", Operator.EQ, new DateTimeVal(dateTime));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "eventTime", Operator.EQ, new DateTimeVal(dateTime));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -297,8 +297,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("version", new BsonBinary(BsonBinarySubType.BINARY, versionstampBytes));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "version", Operator.EQ, new VersionstampVal(versionstamp));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "version", Operator.EQ, new VersionstampVal(versionstamp));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -314,8 +314,8 @@ class PredicateEvaluatorTest {
             
             // Testing current behavior: array IN operation with ArrayVal operand
             List<BqlValue> expectedValues = List.of(new StringVal("banana"));
-            FullScanPredicate predicate = new FullScanPredicate(1, "fruits", Operator.IN, new ArrayVal(expectedValues));
-            boolean result = PredicateEvaluator.testFullScanPredicate(predicate, buffer);
+            ResidualPredicate predicate = new ResidualPredicate(1, "fruits", Operator.IN, new ArrayVal(expectedValues));
+            boolean result = PredicateEvaluator.testResidualPredicate(predicate, buffer);
             
             // Current implementation returns false for this operation
             assertFalse(result);
@@ -333,8 +333,8 @@ class PredicateEvaluatorTest {
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
             List<BqlValue> expectedSize = List.of(new Int32Val(3));
-            FullScanPredicate predicate = new FullScanPredicate(1, "items", Operator.SIZE, new ArrayVal(expectedSize));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "items", Operator.SIZE, new ArrayVal(expectedSize));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -349,8 +349,8 @@ class PredicateEvaluatorTest {
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
             List<BqlValue> expectedValues = List.of(new StringVal("apple"), new StringVal("banana"));
-            FullScanPredicate predicate = new FullScanPredicate(1, "fruits", Operator.ALL, new ArrayVal(expectedValues));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "fruits", Operator.ALL, new ArrayVal(expectedValues));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -359,8 +359,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("age", new BsonString("not-a-number"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "age", Operator.GT, new Int32Val(20));
-            assertFalse(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "age", Operator.GT, new Int32Val(20));
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -369,8 +369,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "age", Operator.GT, new Int32Val(20));
-            assertFalse(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "age", Operator.GT, new Int32Val(20));
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -380,8 +380,8 @@ class PredicateEvaluatorTest {
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
             List<BqlValue> categories = List.of(new StringVal("electronics"), new StringVal("books"));
-            FullScanPredicate predicate = new FullScanPredicate(1, "category", Operator.IN, categories);
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "category", Operator.IN, categories);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -391,8 +391,8 @@ class PredicateEvaluatorTest {
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
             List<BqlValue> categories = List.of(new StringVal("books"), new StringVal("clothing"));
-            FullScanPredicate predicate = new FullScanPredicate(1, "category", Operator.NIN, categories);
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "category", Operator.NIN, categories);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -402,8 +402,8 @@ class PredicateEvaluatorTest {
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
             List<BqlValue> expectedSize = List.of(new Int32Val(1));
-            FullScanPredicate predicate = new FullScanPredicate(1, "name", Operator.SIZE, new ArrayVal(expectedSize));
-            assertFalse(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "name", Operator.SIZE, new ArrayVal(expectedSize));
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -412,8 +412,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("nested", new BsonDocument("key", new BsonString("value")));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "nested", Operator.EQ, new DocumentVal(java.util.Map.of()));
-            assertFalse(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "nested", Operator.EQ, new DocumentVal(java.util.Map.of()));
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
     }
 
@@ -452,8 +452,8 @@ class PredicateEvaluatorTest {
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
             List<BqlValue> expectedSize = List.of(new Int32Val(0));
-            FullScanPredicate predicate = new FullScanPredicate(1, "items", Operator.SIZE, new ArrayVal(expectedSize));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "items", Operator.SIZE, new ArrayVal(expectedSize));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -464,8 +464,8 @@ class PredicateEvaluatorTest {
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
             List<BqlValue> expectedValues = List.of(); // Empty list
-            FullScanPredicate predicate = new FullScanPredicate(1, "items", Operator.ALL, new ArrayVal(expectedValues));
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "items", Operator.ALL, new ArrayVal(expectedValues));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -481,8 +481,8 @@ class PredicateEvaluatorTest {
             
             // Testing current behavior: array IN operation with mixed types
             List<BqlValue> expectedValues = List.of(new Int32Val(42));
-            FullScanPredicate predicate = new FullScanPredicate(1, "mixed", Operator.IN, new ArrayVal(expectedValues));
-            boolean result = PredicateEvaluator.testFullScanPredicate(predicate, buffer);
+            ResidualPredicate predicate = new ResidualPredicate(1, "mixed", Operator.IN, new ArrayVal(expectedValues));
+            boolean result = PredicateEvaluator.testResidualPredicate(predicate, buffer);
             
             // Current implementation returns false for array IN operations
             assertFalse(result);
@@ -494,8 +494,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("optional", new BsonNull());
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "optional", Operator.EXISTS, NullVal.INSTANCE);
-            assertFalse(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "optional", Operator.EXISTS, NullVal.INSTANCE);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -504,8 +504,8 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
             
-            FullScanPredicate predicate = new FullScanPredicate(1, "name", Operator.EXISTS, NullVal.INSTANCE);
-            assertTrue(PredicateEvaluator.testFullScanPredicate(predicate, buffer));
+            ResidualPredicate predicate = new ResidualPredicate(1, "name", Operator.EXISTS, NullVal.INSTANCE);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
     }
 
@@ -516,8 +516,8 @@ class PredicateEvaluatorTest {
         BsonDocument doc = new BsonDocument("value", new BsonDouble(specialValue));
         ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
         
-        FullScanPredicate predicate = new FullScanPredicate(1, "value", Operator.EQ, new DoubleVal(specialValue));
-        boolean result = PredicateEvaluator.testFullScanPredicate(predicate, buffer);
+        ResidualPredicate predicate = new ResidualPredicate(1, "value", Operator.EQ, new DoubleVal(specialValue));
+        boolean result = PredicateEvaluator.testResidualPredicate(predicate, buffer);
         
         if (Double.isNaN(specialValue)) {
             // NaN == NaN should be true for our BQL equality
