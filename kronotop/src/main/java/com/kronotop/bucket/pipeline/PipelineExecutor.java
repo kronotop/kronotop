@@ -15,6 +15,24 @@ public class PipelineExecutor {
         this.root = root;
     }
 
+    private void executePipelineNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
+        switch (node) {
+            case ScanNode scanNode -> {
+                ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
+                state.tryInitializingLimit(Math.max(ctx.limit(), PipelineContext.DEFAULT_LIMIT));
+                scanNode.execute(ctx, tr);
+            }
+            case LogicalNode logicalNode -> {
+                for (PipelineNode child : logicalNode.children()) {
+                    executePipelineNode(tr, ctx, child);
+                }
+                logicalNode.execute(ctx, tr);
+            }
+            default -> throw new IllegalStateException("Unexpected PipelineNode: " + node);
+        }
+    }
+
+    @Deprecated
     private Map<Versionstamp, ByteBuffer> executeAndFetchDocuments(Transaction tr, PipelineContext ctx, PipelineNode node) {
         Map<Integer, DocumentLocation> locations = ctx.output().getLocations(node.id());
         if (locations == null || locations.size() < ctx.limit()) {
@@ -79,27 +97,47 @@ public class PipelineExecutor {
         return results;
     }
 
+    private Map<Versionstamp, ByteBuffer> visitIndexScanNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
+        Map<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
+        ExecutionState state = ctx.getOrCreateExecutionState(node.id());
+        Map<Integer, DocumentLocation> locations = ctx.output().getLocations(node.id());
+        if (locations == null || locations.isEmpty()) {
+            if (state.isExhausted()) {
+                return results;
+            }
+            executePipelineNode(tr, ctx, node);
+        }
+        if (locations == null) {
+            locations = ctx.output().getLocations(node.id());
+        }
+
+        if (locations == null) {
+            return results;
+        }
+
+        // We must have some batched results
+        int counter = 0;
+        for (Iterator<DocumentLocation> iterator = locations.values().iterator(); iterator.hasNext(); ) {
+            if (counter >= ctx.limit()) {
+                break;
+            }
+            DocumentLocation location = iterator.next();
+            ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
+            results.put(location.versionstamp(), document);
+            counter++;
+            iterator.remove();
+        }
+        if (results.isEmpty() && state.isExhausted()) {
+            ctx.output().clearLocations(node.id());
+        }
+        return results;
+    }
+
     public Map<Versionstamp, ByteBuffer> execute(Transaction tr, PipelineContext ctx) {
         return switch (root) {
             case FullScanNode node -> visitFullScanNode(tr, ctx, node);
+            case IndexScanNode node -> visitIndexScanNode(tr, ctx, node);
             default -> executeAndFetchDocuments(tr, ctx, root);
         };
-    }
-
-    private void executePipelineNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
-        switch (node) {
-            case ScanNode scanNode -> {
-                ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
-                state.tryInitializingLimit(Math.max(ctx.limit(), PipelineContext.DEFAULT_LIMIT));
-                scanNode.execute(ctx, tr);
-            }
-            case LogicalNode logicalNode -> {
-                for (PipelineNode child : logicalNode.children()) {
-                    executePipelineNode(tr, ctx, child);
-                }
-                logicalNode.execute(ctx, tr);
-            }
-            default -> throw new IllegalStateException("Unexpected PipelineNode: " + node);
-        }
     }
 }
