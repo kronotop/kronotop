@@ -22,7 +22,7 @@ public class RangeScanNode extends AbstractTransactionAwareNode implements ScanN
 
     @Override
     public IndexDefinition index() {
-        return null;
+        return index;
     }
 
     @Override

@@ -8,7 +8,6 @@ import java.util.List;
 
 public class PipelineRewriter {
     public static PipelineNode rewrite(PhysicalNode plan) {
-        System.out.println(plan);
         return switch (plan) {
             case PhysicalAnd physicalAnd -> {
                 int indexScan = 0;

@@ -109,6 +109,7 @@ public class PipelineExecutor {
         return switch (root) {
             case FullScanNode node -> visitFullScanNode(tr, ctx, node);
             case IndexScanNode node -> visitIndexScanNode(tr, ctx, node);
+            case RangeScanNode node -> visitIndexScanNode(tr, ctx, node);
             default -> throw new KronotopException("Unknown PipelineNode type");
         };
     }

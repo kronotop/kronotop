@@ -21,12 +21,9 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.bucket.bql.ast.BqlValue;
-import com.kronotop.bucket.executor.Bounds;
-import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.planner.Operator;
-import com.kronotop.bucket.planner.physical.PhysicalRangeScan;
 
 public class SelectorCalculator {
     private final IndexUtils indexUtils;
@@ -82,10 +79,9 @@ public class SelectorCalculator {
      */
     private SelectorPair calculateRangeScanSelectors(RangeScanContext context) {
         DirectorySubspace indexSubspace = context.indexSubspace();
-        PhysicalRangeScan rangeScan = context.rangeScan();
-        //Bounds bounds = context.bounds();
+        ExecutionState state = context.state();
+        RangeScanPredicate predicate = context.predicate();
         boolean isReverse = context.isReverse();
-        PlanExecutorConfig config = context.config();
 
         KeySelector beginSelector;
         KeySelector endSelector;
@@ -93,14 +89,14 @@ public class SelectorCalculator {
         if (isReverse) {
             // For reverse scans, use the same selector logic as forward scans
             // The reverse behavior is handled by passing reverse=true to getRange()
-            if (bounds == null) {
+            if (state.getLower() == null && state.getUpper() == null) {
                 // No cursor - construct range from rangeScan bounds
-                KeySelector[] selectors = constructRangeScanSelectors(indexSubspace, rangeScan);
+                KeySelector[] selectors = constructRangeScanSelectors(indexSubspace, predicate);
                 beginSelector = selectors[0]; // Lower bound (same as forward)
                 endSelector = selectors[1];   // Upper bound (same as forward)
             } else {
                 // Check if we have stored cursor state for precise positioning
-                CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(config, rangeScan.id());
+                CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(state, context.nodeId());
 
                 if (position != null) {
                     // Construct a precise KeySelector using both index value and versionstamp
@@ -108,30 +104,30 @@ public class SelectorCalculator {
                     Tuple cursorTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), indexValue, position.versionstamp());
                     byte[] cursorKey_bytes = indexSubspace.pack(cursorTuple);
                     endSelector = KeySelector.firstGreaterOrEqual(cursorKey_bytes); // For reverse: end before this position
-                } else if (bounds.upper() != null) {
-                    endSelector = indexUtils.createIndexSelectorFromBound(indexSubspace, bounds.upper());
+                } else if (state.getUpper() != null) {
+                    endSelector = indexUtils.createIndexSelectorFromBound(indexSubspace, state.getUpper());
                 } else {
                     // Use the original range scan upper bound
-                    endSelector = getUpperBoundSelectorForRangeScan(indexSubspace, rangeScan);
+                    endSelector = getUpperBoundSelectorForRangeScan(indexSubspace, predicate);
                 }
 
                 // For reverse scans, begin selector should still be the lower bound
                 // The reverse behavior is handled by the reverse=true parameter to getRange()
-                beginSelector = getLowerBoundSelectorForRangeScan(indexSubspace, rangeScan);
+                beginSelector = getLowerBoundSelectorForRangeScan(indexSubspace, predicate);
             }
         } else {
             // Forward scan logic
-            if (bounds == null) {
+            if (state.getLower() == null && state.getUpper() == null) {
                 // No cursor - construct range from rangeScan bounds
-                KeySelector[] selectors = constructRangeScanSelectors(indexSubspace, rangeScan);
+                KeySelector[] selectors = constructRangeScanSelectors(indexSubspace, predicate);
                 beginSelector = selectors[0]; // Lower-bound selector
                 endSelector = selectors[1];   // Upper-bound selector
             } else {
                 // Combine cursor bounds with original range bounds
-                Bound effectiveLowerBound = getEffectiveLowerBoundForRangeScan(rangeScan, bounds);
+                Bound effectiveLowerBound = getEffectiveLowerBoundForRangeScan(predicate, state);
 
                 // Check if we have stored cursor state for precise positioning
-                CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(config, rangeScan.id());
+                CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(state, context.nodeId());
 
                 if (position != null) {
                     // Construct a precise KeySelector using both index value and versionstamp
@@ -151,11 +147,11 @@ public class SelectorCalculator {
                                 throw new IllegalArgumentException("Unsupported lower bound operator for range scan: " + effectiveLowerBound.operator());
                     };
                 } else {
-                    beginSelector = getLowerBoundSelectorForRangeScan(indexSubspace, rangeScan);
+                    beginSelector = getLowerBoundSelectorForRangeScan(indexSubspace, predicate);
                 }
 
                 // Use the original range scan upper bound for end selector
-                endSelector = getUpperBoundSelectorForRangeScan(indexSubspace, rangeScan);
+                endSelector = getUpperBoundSelectorForRangeScan(indexSubspace, predicate);
             }
         }
 
@@ -338,13 +334,13 @@ public class SelectorCalculator {
         };
     }
 
-    private KeySelector getLowerBoundSelectorForRangeScan(DirectorySubspace indexSubspace, PhysicalRangeScan rangeScan) {
-        if (rangeScan.lowerBound() != null) {
-            Object lowerIndexValue = indexUtils.extractIndexValue(rangeScan.lowerBound());
+    private KeySelector getLowerBoundSelectorForRangeScan(DirectorySubspace indexSubspace, RangeScanPredicate predicate) {
+        if (predicate.lowerBound() != null) {
+            Object lowerIndexValue = indexUtils.extractIndexValue(predicate.lowerBound());
             Tuple lowerTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), lowerIndexValue);
             byte[] lowerKey = indexSubspace.pack(lowerTuple);
 
-            if (rangeScan.includeLower()) {
+            if (predicate.includeLower()) {
                 return KeySelector.firstGreaterOrEqual(lowerKey);
             } else {
                 return KeySelector.firstGreaterThan(lowerKey);
@@ -354,13 +350,13 @@ public class SelectorCalculator {
         }
     }
 
-    private KeySelector getUpperBoundSelectorForRangeScan(DirectorySubspace indexSubspace, PhysicalRangeScan rangeScan) {
-        if (rangeScan.upperBound() != null) {
-            Object upperIndexValue = indexUtils.extractIndexValue(rangeScan.upperBound());
+    private KeySelector getUpperBoundSelectorForRangeScan(DirectorySubspace indexSubspace, RangeScanPredicate predicate) {
+        if (predicate.upperBound() != null) {
+            Object upperIndexValue = indexUtils.extractIndexValue(predicate.upperBound());
             Tuple upperTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), upperIndexValue);
             byte[] upperKey = indexSubspace.pack(upperTuple);
 
-            if (rangeScan.includeUpper()) {
+            if (predicate.includeUpper()) {
                 // Include upper bound: scan up to and including all entries with this value
                 // This matches IndexUtils logic for LTE operations
                 byte[] endKey = ByteArrayUtil.strinc(upperKey);
@@ -374,14 +370,14 @@ public class SelectorCalculator {
         }
     }
 
-    private Bound getEffectiveLowerBoundForRangeScan(PhysicalRangeScan rangeScan, Bounds cursorBounds) {
-        Bound cursorLower = cursorBounds.lower();
+    private Bound getEffectiveLowerBoundForRangeScan(RangeScanPredicate predicate, ExecutionState state) {
+        Bound cursorLower = state.getLower();
         Bound originalLower = null;
 
         // Create Bound object from rangeScan's lower bound
-        if (rangeScan.lowerBound() != null) {
-            Operator lowerOp = rangeScan.includeLower() ? Operator.GTE : Operator.GT;
-            originalLower = new Bound(lowerOp, (BqlValue) rangeScan.lowerBound());
+        if (predicate.lowerBound() != null) {
+            Operator lowerOp = predicate.includeLower() ? Operator.GTE : Operator.GT;
+            originalLower = new Bound(lowerOp, (BqlValue) predicate.lowerBound());
         }
 
         if (cursorLower == null) return originalLower;
@@ -411,20 +407,19 @@ public class SelectorCalculator {
      * </ul>
      *
      * @param indexSubspace the index subspace to construct selectors for
-     * @param rangeScan the range scan containing upper/lower bounds and inclusion flags
      * @return array with [beginSelector, endSelector] for the range
      */
-    private KeySelector[] constructRangeScanSelectors(DirectorySubspace indexSubspace, PhysicalRangeScan rangeScan) {
+    private KeySelector[] constructRangeScanSelectors(DirectorySubspace indexSubspace, RangeScanPredicate predicate) {
         KeySelector beginSelector;
         KeySelector endSelector;
 
         // Handle lower bound
-        if (rangeScan.lowerBound() != null) {
-            Object lowerIndexValue = indexUtils.extractIndexValue(rangeScan.lowerBound());
+        if (predicate.lowerBound() != null) {
+            Object lowerIndexValue = indexUtils.extractIndexValue(predicate.lowerBound());
             Tuple lowerTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), lowerIndexValue);
             byte[] lowerKey = indexSubspace.pack(lowerTuple);
 
-            if (rangeScan.includeLower()) {
+            if (predicate.includeLower()) {
                 beginSelector = KeySelector.firstGreaterOrEqual(lowerKey);
             } else {
                 beginSelector = KeySelector.firstGreaterThan(lowerKey);
@@ -434,12 +429,12 @@ public class SelectorCalculator {
         }
 
         // Handle upper bound
-        if (rangeScan.upperBound() != null) {
-            Object upperIndexValue = indexUtils.extractIndexValue(rangeScan.upperBound());
+        if (predicate.upperBound() != null) {
+            Object upperIndexValue = indexUtils.extractIndexValue(predicate.upperBound());
             Tuple upperTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), upperIndexValue);
             byte[] upperKey = indexSubspace.pack(upperTuple);
 
-            if (rangeScan.includeUpper()) {
+            if (predicate.includeUpper()) {
                 // Include upper bound: scan up to and including all entries with this value
                 // This matches IndexUtils logic for LTE operations
                 byte[] endKey = ByteArrayUtil.strinc(upperKey);
