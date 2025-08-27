@@ -1,5 +1,6 @@
 package com.kronotop.bucket.pipeline;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;

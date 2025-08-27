@@ -3,7 +3,6 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
