@@ -35,7 +35,7 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
         DirectorySubspace indexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
-        IndexScanContext indexScanContext = new IndexScanContext(id(), indexSubspace, state, ctx.isReverse(), predicate(), index());
+        SecondaryIndexScanContext indexScanContext = new SecondaryIndexScanContext(id(), indexSubspace, state, ctx.isReverse(), predicate(), index());
         SelectorPair selectors = ctx.env().selectorCalculator().calculateSelectors(indexScanContext);
         KeySelector beginSelector = selectors.beginSelector();
         KeySelector endSelector = selectors.endSelector();

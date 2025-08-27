@@ -43,7 +43,7 @@ public class PredicateEvaluator {
      * @return the original {@link ByteBuffer} if the document matches the filter criteria; otherwise, null if
      * the document does not match the filter or an error occurs during processing.
      */
-    ByteBuffer applyPhysicalFilter(PhysicalFilter filter, ByteBuffer document) {
+    ByteBuffer applyPhysicalFilter(FullScanPredicate filter, ByteBuffer document) {
         try (BsonReader reader = new BsonBinaryReader(document)) {
             reader.readStartDocument();
             while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
@@ -199,7 +199,7 @@ public class PredicateEvaluator {
      * @param document  the {@link ByteBuffer} representing the BSON-encoded document to be evaluated
      * @return the original {@link ByteBuffer} if the document matches all filters; otherwise, null
      */
-    ByteBuffer applyPhysicalAnd(PhysicalAnd andFilter, ByteBuffer document) {
+    /*ByteBuffer applyPhysicalAnd(PhysicalAnd andFilter, ByteBuffer document) {
         for (PhysicalNode child : andFilter.children()) {
             if (child instanceof PhysicalFilter filter) {
                 ByteBuffer result = applyPhysicalFilter(filter, document.duplicate());
@@ -214,7 +214,7 @@ public class PredicateEvaluator {
 
         // All filters passed
         return document.rewind();
-    }
+    }*/
 
     /**
      * Generic comparison method for comparable values (strings, byte arrays, etc.).

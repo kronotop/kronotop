@@ -16,11 +16,15 @@
 
 package com.kronotop.bucket.pipeline;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.planner.Operator;
+
+import static com.kronotop.bucket.pipeline.IndexUtils.getKeySelector;
 
 public class CursorManager {
 
@@ -96,6 +100,28 @@ public class CursorManager {
             return new CursorPosition(nodeId, cursorBound.value(), cursorBound.versionstamp());
         }
         return null;
+    }
+
+    /**
+     * Creates a KeySelector from a cursor bound for pagination.
+     *
+     * @param idIndexSubspace the ID index subspace
+     * @param bound           the bound containing the cursor position
+     * @return appropriate KeySelector for the bound
+     */
+    KeySelector createSelectorFromBound(DirectorySubspace idIndexSubspace, Bound bound) {
+        if (bound == null) {
+            throw new IllegalArgumentException("Bound cannot be null");
+        }
+
+        Object boundValue = bound.value();
+        if (boundValue instanceof VersionstampVal(Versionstamp value)) {
+            boundValue = value; // Extract the actual Versionstamp
+        } else {
+            throw new IllegalStateException("Bound value must be VersionstampVal, got: " + boundValue.getClass().getSimpleName());
+        }
+
+        return getKeySelector(idIndexSubspace, bound, boundValue);
     }
 
     /**

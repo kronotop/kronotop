@@ -42,13 +42,58 @@ public class SelectorCalculator {
 
     SelectorPair calculateSelectors(ScanContext context) {
         return switch (context) {
-            case IndexScanContext indexScanCtx -> calculateIndexScanSelectors(indexScanCtx);
+            case SecondaryIndexScanContext ctx -> calculateIndexScanSelectors(ctx);
+            case PrimaryIndexScanContext ctx -> calculatePrimaryIndexSelectors(ctx);
             default ->
                     throw new IllegalArgumentException("Unsupported scan context type: " + context.getClass().getSimpleName());
         };
     }
 
-    private SelectorPair calculateIndexScanSelectors(IndexScanContext context) {
+    private SelectorPair calculatePrimaryIndexSelectors(PrimaryIndexScanContext context) {
+        DirectorySubspace indexSubspace = context.indexSubspace();
+        ExecutionState state = context.state();
+        boolean isReverse = context.isReverse();
+
+        // Base prefix for all entries in this index: [ENTRIES_MAGIC]
+        byte[] basePrefix = indexUtils.createIndexEntriesPrefix(indexSubspace);
+        KeySelector beginSelector;
+        KeySelector endSelector;
+
+        if (isReverse) {
+            // Reverse scan: FoundationDB reverses the iteration direction internally
+            // We still specify selectors in logical order (begin < end)
+            beginSelector = KeySelector.firstGreaterOrEqual(basePrefix);
+
+            if (state.getLower() == null && state.getUpper() == null) {
+                // No cursor - scan entire bucket from end to beginning
+                endSelector = KeySelector.firstGreaterOrEqual(indexUtils.createIndexEntriesBoundary(indexSubspace));
+            } else {
+                // Continue reverse scan from cursor position
+                // Use upper bound as the stopping point for reverse iteration
+                if (state.getUpper() != null) {
+                    endSelector = cursorManager.createSelectorFromBound(indexSubspace, state.getUpper());
+                } else {
+                    endSelector = KeySelector.firstGreaterOrEqual(indexUtils.createIndexEntriesBoundary(indexSubspace));
+                }
+            }
+        } else {
+            // Forward scan logic
+            if (state.getLower() == null && state.getUpper() == null) {
+                // No cursor - start from beginning of bucket
+                beginSelector = KeySelector.firstGreaterOrEqual(basePrefix);
+            } else {
+                // Continue forward scan from last processed position
+                beginSelector = cursorManager.createSelectorFromBound(indexSubspace, state.getLower());
+            }
+
+            // Always scan to end of bucket for forward scans
+            endSelector = KeySelector.firstGreaterOrEqual(indexUtils.createIndexEntriesBoundary(indexSubspace));
+        }
+
+        return new SelectorPair(beginSelector, endSelector);
+    }
+
+    private SelectorPair calculateIndexScanSelectors(SecondaryIndexScanContext context) {
         DirectorySubspace indexSubspace = context.indexSubspace();
         IndexScanPredicate predicate = context.predicate();
         ExecutionState state = context.state();
