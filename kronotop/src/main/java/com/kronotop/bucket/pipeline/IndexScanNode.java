@@ -30,7 +30,14 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
         DirectorySubspace indexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
-        SecondaryIndexScanContext indexScanContext = new SecondaryIndexScanContext(id(), indexSubspace, state, ctx.isReverse(), predicate, index());
+        SecondaryIndexScanContext indexScanContext = new SecondaryIndexScanContext(
+                id(),
+                indexSubspace,
+                state,
+                ctx.isReverse(),
+                predicate,
+                index()
+        );
         SelectorPair selectors = ctx.env().selectorCalculator().calculateSelectors(indexScanContext);
         KeySelector beginSelector = selectors.beginSelector();
         KeySelector endSelector = selectors.endSelector();
@@ -42,7 +49,6 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
             Versionstamp versionstamp = location.versionstamp();
 
-            // Extract index value for cursor management
             Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
             Object rawIndexValue = indexKeyTuple.get(1);
             BqlValue indexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());

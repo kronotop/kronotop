@@ -1,26 +1,28 @@
 package com.kronotop.bucket.pipeline;
 
-import java.util.*;
+import java.util.Map;
+import java.util.Random;
+import java.util.TreeMap;
 
 /**
  * Log10 tabanlı histogram (production kısıtlarına uygun).
- *
+ * <p>
  * - Her dekad (10^d..10^(d+1)) m alt-bucketa (j=0..m-1) bölünür.
  * - Pencere boyutu W: aynı anda en fazla W dekad aktif tutulur.
  * - Okumayı azaltmak için:
- *    * dekad toplamı (sum) tutulur,
- *    * j'ler grupSize büyüklüğünde "grup toplamı" olarak da tutulur.
+ * * dekad toplamı (sum) tutulur,
+ * * j'ler grupSize büyüklüğünde "grup toplamı" olarak da tutulur.
  * - Pencereden taşan dekadların toplamları underflow/overflow özetlerine eklenir.
  * - total, şardlı sayılır (FDB'de hot key kaçınma için).
- *
+ * <p>
  * NOT: Bu sınıf in-memory. FDB'ye geçerken:
- *   counts[d][j]          -> (/stats,price,log10,m,d,j)
- *   decadeSum[d]          -> (/stats,price,log10,m,d,"sum")
- *   groupSum[d][g]        -> (/stats,price,log10,m,d,"g",g)
- *   totalShards[s]        -> (/stats,price,total,s)
- *   underflowSum          -> (/stats,price,underflow_sum)
- *   overflowSum           -> (/stats,price,overflow_sum)
- *   meta(dMin,dMax,m,W,groupSize,shards) -> (/stats,price,meta)
+ * counts[d][j]          -> (/stats,price,log10,m,d,j)
+ * decadeSum[d]          -> (/stats,price,log10,m,d,"sum")
+ * groupSum[d][g]        -> (/stats,price,log10,m,d,"g",g)
+ * totalShards[s]        -> (/stats,price,total,s)
+ * underflowSum          -> (/stats,price,underflow_sum)
+ * overflowSum           -> (/stats,price,overflow_sum)
+ * meta(dMin,dMax,m,W,groupSize,shards) -> (/stats,price,meta)
  */
 public class LogHistogramDynamic {
     private final int m;                 // alt-bucket sayısı / dekad
@@ -35,16 +37,13 @@ public class LogHistogramDynamic {
     private final TreeMap<Integer, Long> decadeSum = new TreeMap<>();
     // Grup toplamları: d -> long[groupsPerDecade]
     private final TreeMap<Integer, long[]> groupSum = new TreeMap<>();
-
-    // Pencereden taşan toplamlar (özet)
-    private long underflowSum = 0;
-    private long overflowSum  = 0;
-
     // Şardlı total
     private final long[] totalShards;
-    private long zeroOrNeg = 0;
-
     private final Random rnd = new Random();
+    // Pencereden taşan toplamlar (özet)
+    private long underflowSum = 0;
+    private long overflowSum = 0;
+    private long zeroOrNeg = 0;
 
     public LogHistogramDynamic(int m, int groupSize, int windowDecades, int shardCount) {
         if (m <= 0) throw new IllegalArgumentException("m must be > 0");
@@ -63,7 +62,42 @@ public class LogHistogramDynamic {
 
     /* ===================== Yazma (O(1), okumasız) ===================== */
 
-    /** Değeri histogram'a ekle (v<=0 -> zeroOrNeg). */
+    private static double clamp01(double x) {
+        if (x < 0) return 0;
+        if (x > 1) return 1;
+        return x;
+    }
+
+    public static void main(String[] args) {
+        // m=16, groupSize=4 (grup başına 4 j), W=8 dekad, total için 16 shard
+        LogHistogramDynamic hist = new LogHistogramDynamic(16, 4, 8, 16);
+
+        //double[] values = {30, 40, 99, 123, 250, 999, 2587, 4589, 10000};
+        //for (double v : values) hist.add(v);
+
+        // pencereyi zorlayalım
+        //double[] more = {1.2, 2.5, 6.7, 8.9, 1e6, 3e7, 9e8, 4.2e9};
+        //for (double v : more) hist.add(v);
+        Random r = new Random();
+        r.setSeed(System.nanoTime());
+        for (int i = 0; i < 1000000; i++) {
+            hist.add(r.nextInt(300));
+        }
+
+        hist.printDebug();
+
+        System.out.printf("%nP(>25)   = %.6f%n", hist.estimateGreaterThan(25));
+        System.out.printf("%nP(>50)   = %.6f%n", hist.estimateGreaterThan(50));
+        System.out.printf("P(>200)  = %.6f%n", hist.estimateGreaterThan(200));
+        System.out.printf("P(>3000) = %.6f%n", hist.estimateGreaterThan(3000));
+        System.out.printf("P([100,500)) = %.6f%n", hist.estimateRange(100, 500));
+    }
+
+    /* ===================== Tahmin (O(W) ~ sabit) ===================== */
+
+    /**
+     * Değeri histogram'a ekle (v<=0 -> zeroOrNeg).
+     */
     public void add(double v) {
         if (v <= 0) {
             zeroOrNeg++;
@@ -95,9 +129,11 @@ public class LogHistogramDynamic {
         totalShards[s] += delta;
     }
 
-    /* ===================== Tahmin (O(W) ~ sabit) ===================== */
+    /* ===================== Pencere Yönetimi ===================== */
 
-    /** P( price > t ) */
+    /**
+     * P( price > t )
+     */
     public double estimateGreaterThan(double t) {
         long total = totalCount();
         if (total == 0) return 0.0;
@@ -130,7 +166,7 @@ public class LogHistogramDynamic {
             // jT ile aynı grupta: gruptaki j>jT olanları tek tek ekle
             long[] row = counts.get(dT);
             int start = gT * groupSize;
-            int end   = Math.min(start + groupSize - 1, m - 1);
+            int end = Math.min(start + groupSize - 1, m - 1);
             for (int j = Math.max(jT + 1, start); j <= end; j++) {
                 countAbove += row[j];
             }
@@ -150,7 +186,9 @@ public class LogHistogramDynamic {
         return clamp01((double) countAbove / (double) total);
     }
 
-    /** P( price in [a,b) )  ~  P(>=a) - P(>=b) */
+    /**
+     * P( price in [a,b) )  ~  P(>=a) - P(>=b)
+     */
     public double estimateRange(double a, double b) {
         long total = totalCount();
         if (total == 0) return 0.0;
@@ -162,7 +200,7 @@ public class LogHistogramDynamic {
         return clamp01(geA - geB);
     }
 
-    /* ===================== Pencere Yönetimi ===================== */
+    /* ===================== Yardımcılar / Debug ===================== */
 
     private void ensureActiveDecade(int dNew) {
         if (counts.containsKey(dNew)) return;
@@ -192,14 +230,12 @@ public class LogHistogramDynamic {
         long sum = decadeSum.getOrDefault(d, 0L);
         if (sum > 0) {
             if (toOverflow) overflowSum += sum;
-            else            underflowSum += sum;
+            else underflowSum += sum;
         }
         counts.remove(d);
         decadeSum.remove(d);
         groupSum.remove(d);
     }
-
-    /* ===================== Yardımcılar / Debug ===================== */
 
     private int bucketIndexWithinDecade(double logV, int d) {
         double frac = logV - d; // [0,1)
@@ -215,13 +251,11 @@ public class LogHistogramDynamic {
         return s;
     }
 
-    private static double clamp01(double x) {
-        if (x < 0) return 0;
-        if (x > 1) return 1;
-        return x;
-    }
+    /* ===================== Demo ===================== */
 
-    /** İnsan okuyabilir dump (debug) */
+    /**
+     * İnsan okuyabilir dump (debug)
+     */
     public void printDebug() {
         System.out.println("=== ACTIVE ===");
         for (Map.Entry<Integer, long[]> e : counts.entrySet()) {
@@ -237,27 +271,5 @@ public class LogHistogramDynamic {
         System.out.println("decadeSum: " + decadeSum);
         System.out.println("underflowSum=" + underflowSum + ", overflowSum=" + overflowSum);
         System.out.println("total=" + totalCount() + " (zeroOrNeg=" + zeroOrNeg + ")");
-    }
-
-    /* ===================== Demo ===================== */
-
-    public static void main(String[] args) {
-        // m=16, groupSize=4 (grup başına 4 j), W=8 dekad, total için 16 shard
-        LogHistogramDynamic hist = new LogHistogramDynamic(16, 4, 8, 16);
-
-        double[] values = {30, 40, 99, 123, 250, 999, 2587, 4589, 10000};
-        for (double v : values) hist.add(v);
-
-        // pencereyi zorlayalım
-        double[] more = {1.2, 2.5, 6.7, 8.9, 1e6, 3e7, 9e8, 4.2e9};
-        for (double v : more) hist.add(v);
-
-        hist.printDebug();
-
-        System.out.printf("%nP(>0)   = %.6f%n", hist.estimateGreaterThan(0));
-        System.out.printf("%nP(>25)   = %.6f%n", hist.estimateGreaterThan(25));
-        System.out.printf("P(>200)  = %.6f%n", hist.estimateGreaterThan(200));
-        System.out.printf("P(>3000) = %.6f%n", hist.estimateGreaterThan(3000));
-        System.out.printf("P([100,500)) = %.6f%n", hist.estimateRange(100, 500));
     }
 }
