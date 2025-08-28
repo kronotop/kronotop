@@ -6,12 +6,14 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
+import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -212,11 +214,18 @@ class IndexScanNodeTest extends BasePipelineTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Map<?, ByteBuffer> results = executor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription);
-        } catch (RuntimeException e) {
-            if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
-                System.out.println("Skipping test due to infrastructure issues: " + testDescription);
-            } else {
-                throw e;
+
+            // Verify concrete expected results based on specific test cases
+            if (!results.isEmpty()) {
+                List<Object> actualFieldValues = new ArrayList<>();
+                for (ByteBuffer buffer : results.values()) {
+                    Document doc = BSONUtil.fromBson(buffer.array());
+                    actualFieldValues.add(doc.get(fieldName));
+                }
+
+                // Check concrete expected results for specific test cases
+                validateIndexScanResults(operator, bsonType, fieldName, testDocuments, queryValue,
+                        actualFieldValues, testDescription, false);
             }
         }
     }
@@ -247,6 +256,165 @@ class IndexScanNodeTest extends BasePipelineTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Map<?, ByteBuffer> results = executor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription + " (REVERSE=true)");
+
+            // Verify concrete expected results based on specific test cases
+            if (!results.isEmpty()) {
+                List<Object> actualFieldValues = new ArrayList<>();
+                for (ByteBuffer buffer : results.values()) {
+                    Document doc = BSONUtil.fromBson(buffer.array());
+                    actualFieldValues.add(doc.get(fieldName));
+                }
+
+                // Check concrete expected results for specific test cases
+                validateIndexScanResults(operator, bsonType, fieldName, testDocuments, queryValue,
+                        actualFieldValues, testDescription + " (REVERSE=true)", true);
+            }
+        }
+    }
+
+    private void validateIndexScanResults(String operator, BsonType bsonType, String fieldName,
+                                          List<String> testDocuments, String queryValue,
+                                          List<Object> actualFieldValues, String testDescription, boolean isReverse) {
+        // Calculate expected results based on the test data and operator
+        List<Object> expectedValues = new ArrayList<>();
+
+        // Parse the test documents to get all field values
+        List<Object> allFieldValues = new ArrayList<>();
+        for (String docJson : testDocuments) {
+            Document doc = Document.parse(docJson);
+            allFieldValues.add(doc.get(fieldName));
+        }
+
+        // Parse the query value for comparison
+        Object queryVal = parseQueryValue(queryValue, bsonType);
+
+        // Apply the operator logic to filter values
+        for (Object fieldValue : allFieldValues) {
+            if (shouldIncludeValue(fieldValue, queryVal, operator)) {
+                expectedValues.add(fieldValue);
+            }
+        }
+
+        // Sort expected values (ascending for forward, descending for reverse)
+        expectedValues.sort((a, b) -> {
+            int comparison = compareValues(a, b);
+            return isReverse ? -comparison : comparison;
+        });
+
+        // Validate results
+        assertEquals(expectedValues.size(), actualFieldValues.size(),
+                "Expected " + expectedValues.size() + " values but got " + actualFieldValues.size() +
+                        " for: " + testDescription);
+
+        // Check each value matches
+        for (int i = 0; i < expectedValues.size(); i++) {
+            Object expected = expectedValues.get(i);
+            Object actual = actualFieldValues.get(i);
+
+            // Handle numeric type conversion issues
+            if (expected instanceof Number && actual instanceof Number) {
+                double expectedDouble = ((Number) expected).doubleValue();
+                double actualDouble = ((Number) actual).doubleValue();
+                assertEquals(expectedDouble, actualDouble, 0.001,
+                        "At position " + i + ", expected " + expected + " but got " + actual +
+                                " for: " + testDescription);
+            } else {
+                assertEquals(expected, actual,
+                        "At position " + i + ", expected " + expected + " but got " + actual +
+                                " for: " + testDescription);
+            }
+        }
+    }
+
+    private Object parseQueryValue(String queryValue, BsonType bsonType) {
+        switch (bsonType) {
+            case INT32:
+                return Integer.parseInt(queryValue);
+            case INT64:
+                return Long.parseLong(queryValue);
+            case DOUBLE:
+                return Double.parseDouble(queryValue);
+            case STRING:
+                // Remove quotes from string values
+                return queryValue.replaceAll("\"", "");
+            case BOOLEAN:
+                return Boolean.parseBoolean(queryValue);
+            case DECIMAL128:
+                // For decimal128, handle different input formats
+                if (queryValue.contains("$numberDecimal")) {
+                    // Parse from JSON format like {"$numberDecimal": "100.50"}
+                    try {
+                        Document decimalDoc = Document.parse(queryValue);
+                        String decimalStr = decimalDoc.getString("$numberDecimal");
+                        return Double.parseDouble(decimalStr);
+                    } catch (Exception e) {
+                        // If document parsing fails, try to extract the value directly
+                        String extracted = queryValue.replaceAll(".*\"\\$numberDecimal\"\\s*:\\s*\"([^\"]+)\".*", "$1");
+                        return Double.parseDouble(extracted);
+                    }
+                } else {
+                    // Direct numeric value
+                    return Double.parseDouble(queryValue);
+                }
+            default:
+                return queryValue;
+        }
+    }
+
+    private boolean shouldIncludeValue(Object fieldValue, Object queryValue, String operator) {
+        int comparison = compareValues(fieldValue, queryValue);
+
+        return switch (operator.toUpperCase()) {
+            case "GT" -> comparison > 0;
+            case "LT" -> comparison < 0;
+            case "GTE" -> comparison >= 0;
+            case "LTE" -> comparison <= 0;
+            case "EQ" -> comparison == 0;
+            case "NE" -> comparison != 0;
+            default -> false;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private int compareValues(Object a, Object b) {
+        // Handle DECIMAL128 values specially
+        if (a != null && a.getClass().getSimpleName().equals("Decimal128")) {
+            double aDouble = convertDecimal128ToDouble(a);
+            double bDouble = (b instanceof Number) ? ((Number) b).doubleValue() : convertDecimal128ToDouble(b);
+            return Double.compare(aDouble, bDouble);
+        } else if (b != null && b.getClass().getSimpleName().equals("Decimal128")) {
+            double aDouble = (a instanceof Number) ? ((Number) a).doubleValue() : convertDecimal128ToDouble(a);
+            double bDouble = convertDecimal128ToDouble(b);
+            return Double.compare(aDouble, bDouble);
+        } else if (a instanceof Number && b instanceof Number) {
+            double aDouble = ((Number) a).doubleValue();
+            double bDouble = ((Number) b).doubleValue();
+            return Double.compare(aDouble, bDouble);
+        } else if (a instanceof String && b instanceof String) {
+            return ((String) a).compareTo((String) b);
+        } else if (a instanceof Boolean && b instanceof Boolean) {
+            return ((Boolean) a).compareTo((Boolean) b);
+        } else if (a instanceof Comparable && b instanceof Comparable) {
+            return ((Comparable<Object>) a).compareTo(b);
+        }
+        return 0;
+    }
+    
+    private double convertDecimal128ToDouble(Object decimal128) {
+        if (decimal128 == null) return 0.0;
+        
+        // Use reflection to get the value from Decimal128
+        try {
+            // Decimal128 has a doubleValue() method
+            java.lang.reflect.Method doubleValueMethod = decimal128.getClass().getMethod("doubleValue");
+            return (Double) doubleValueMethod.invoke(decimal128);
+        } catch (Exception e) {
+            // If reflection fails, try toString and parse
+            try {
+                return Double.parseDouble(decimal128.toString());
+            } catch (NumberFormatException nfe) {
+                return 0.0;
+            }
         }
     }
 }
