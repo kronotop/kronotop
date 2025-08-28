@@ -46,9 +46,7 @@ public record IndexScanPredicate(int id, String selector, Operator op, Object op
                 }
                 yield PredicateEvaluator.evaluateComparison(this.op(), actualValue, expectedValue);
             }
-            case NullVal ignored -> {
-                yield !(bqlValue instanceof NullVal);
-            }
+            case NullVal ignored -> !(bqlValue instanceof NullVal);
             case BinaryVal(byte[] expectedValue) -> {
                 if (!(bqlValue instanceof BinaryVal(byte[] actualValue))) {
                     yield false;

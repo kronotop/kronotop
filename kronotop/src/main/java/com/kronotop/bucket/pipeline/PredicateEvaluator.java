@@ -284,7 +284,7 @@ public class PredicateEvaluator {
         }
 
         // Field not found in document - doesn't match the filter
-        return filter.operand() instanceof NullVal;
+        return filter.op().equals(Operator.EQ) && filter.operand() instanceof NullVal;
     }
 
     /**
