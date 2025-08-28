@@ -119,7 +119,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
             }
         }
 
-        List<String> expectedResult = List.of("{\"name\": \"Frank\"}",
+        List<String> expectedResult = List.of(
                 "{\"age\": 20, \"name\": \"John\"}",
                 "{\"age\": 23, \"name\": \"Alice\"}",
                 "{\"age\": 25, \"name\": \"George\"}",
@@ -160,4 +160,40 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult);
     }
 
+    @Test
+    void testIndexScanNodeWithNullValues_NE() {
+        final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
+
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Frank'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': null, 'name': 'Donald'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'age': {'$ne': null}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        List<String> actualResult = new ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            for (ByteBuffer buffer : results.values()) {
+                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+            }
+        }
+
+        List<String> expectedResult = List.of(
+                "{\"age\": 20, \"name\": \"John\"}",
+                "{\"age\": 23, \"name\": \"Alice\"}",
+                "{\"age\": 25, \"name\": \"George\"}",
+                "{\"age\": 35, \"name\": \"Claire\"}");
+        assertEquals(expectedResult, actualResult);
+    }
 }
