@@ -35,10 +35,10 @@ public record IndexScanPredicate(int id, String selector, Operator op, Object op
                 yield PredicateEvaluator.evaluateComparison(this.op(), actualValue, expectedValue);
             }
             case Decimal128Val decimal128Val -> {
-                if (!(bqlValue instanceof Decimal128Val actualDecimal128Val)) {
+                if (!(bqlValue instanceof Decimal128Val(java.math.BigDecimal value))) {
                     yield false;
                 }
-                yield PredicateEvaluator.evaluateComparison(this.op(), actualDecimal128Val.value(), decimal128Val.value());
+                yield PredicateEvaluator.evaluateComparison(this.op(), value, decimal128Val.value());
             }
             case BooleanVal(boolean expectedValue) -> {
                 if (!(bqlValue instanceof BooleanVal(boolean actualValue))) {
@@ -68,22 +68,22 @@ public record IndexScanPredicate(int id, String selector, Operator op, Object op
                 yield PredicateEvaluator.evaluateComparison(this.op(), actualValue, expectedValue);
             }
             case VersionstampVal versionstampVal -> {
-                if (!(bqlValue instanceof VersionstampVal actualVersionstampVal)) {
+                if (!(bqlValue instanceof VersionstampVal(com.apple.foundationdb.tuple.Versionstamp value))) {
                     yield false;
                 }
-                yield PredicateEvaluator.evaluateComparison(this.op(), actualVersionstampVal.value().getBytes(), versionstampVal.value().getBytes());
+                yield PredicateEvaluator.evaluateComparison(this.op(), value.getBytes(), versionstampVal.value().getBytes());
             }
             case ArrayVal arrayVal -> {
-                if (!(bqlValue instanceof ArrayVal actualArrayVal)) {
+                if (!(bqlValue instanceof ArrayVal(java.util.List<BqlValue> values))) {
                     yield false;
                 }
-                yield !arrayVal.values().equals(actualArrayVal.values());
+                yield !arrayVal.values().equals(values);
             }
             case DocumentVal documentVal -> {
-                if (!(bqlValue instanceof DocumentVal actualDocumentVal)) {
+                if (!(bqlValue instanceof DocumentVal(java.util.Map<String, BqlValue> fields))) {
                     yield false;
                 }
-                yield !documentVal.fields().equals(actualDocumentVal.fields());
+                yield !documentVal.fields().equals(fields);
             }
             default -> throw new IllegalStateException("Unexpected value: " + this.operand());
         };

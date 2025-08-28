@@ -19,9 +19,7 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.bql.ast.*;
-import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 
 import static com.kronotop.bucket.pipeline.IndexUtils.getKeySelector;

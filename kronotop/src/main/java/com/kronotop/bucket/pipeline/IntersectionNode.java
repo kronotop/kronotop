@@ -15,7 +15,7 @@ public class IntersectionNode extends AbstractLogicalNode implements LogicalNode
 
     @Override
     public void execute(PipelineContext ctx, Transaction tr) {
-        while(true) {
+        while (true) {
             // Compute intersection efficiently
             RoaringBitmap intersection = computeIntersection(ctx);
             if (intersection == null) {
@@ -51,7 +51,7 @@ public class IntersectionNode extends AbstractLogicalNode implements LogicalNode
             }
         }
 
-        for (PipelineNode child: children()) {
+        for (PipelineNode child : children()) {
             ctx.output().clearLocations(child.id());
         }
     }

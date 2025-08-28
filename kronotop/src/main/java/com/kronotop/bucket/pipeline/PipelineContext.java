@@ -28,18 +28,15 @@ public class PipelineContext {
     private final Context context;
     private final BucketMetadata metadata;
     private final ConcurrentHashMap<Integer, ExecutionState> executionStates = new ConcurrentHashMap<>();
-
+    private final PipelineEnv env;
+    // Output
+    private final Output output = new Output();
     // Mutable fields
     private volatile boolean reverse;
     private volatile int limit = DEFAULT_LIMIT;
     private volatile long readVersion;
     private volatile boolean pinReadVersion;
     private volatile String sortByField = DefaultIndexDefinition.ID.selector();
-
-    private final PipelineEnv env;
-
-    // Output
-    private final Output output = new Output();
 
     public PipelineContext(Context context, BucketMetadata metadata, PipelineEnv env) {
         this.context = context;

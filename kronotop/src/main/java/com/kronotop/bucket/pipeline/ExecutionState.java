@@ -41,11 +41,11 @@ public class ExecutionState {
         this.limit.set(limit);
     }
 
-    public void setExhausted(boolean exhausted) {
-        this.exhausted = exhausted;
-    }
-
     public boolean isExhausted() {
         return exhausted;
+    }
+
+    public void setExhausted(boolean exhausted) {
+        this.exhausted = exhausted;
     }
 }
