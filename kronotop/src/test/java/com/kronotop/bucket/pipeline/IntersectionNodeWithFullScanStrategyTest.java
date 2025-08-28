@@ -15,6 +15,37 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
     @Test
+    void testIntersectionContradiction() {
+        final String TEST_BUCKET_NAME = "test-intersection-full-scan-strategy";
+
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'John'}"), // match
+                BSONUtil.jsonToDocumentThenBytes("{'age': 40, 'name': 'Alison'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 47, 'name': 'John'}") // match
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{ $and: [ { 'age': { '$gt': 22 } }, { 'name': { '$eq': 'John', '$ne': 'John' } } ] }");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            for (ByteBuffer buffer : results.values()) {
+                System.out.println(BSONUtil.fromBson(buffer.array()).toJson());
+            }
+            assertEquals(0, results.size());
+        }
+    }
+
+    @Test
     void testIntersectionWithTwoField() {
         final String TEST_BUCKET_NAME = "test-intersection-full-scan-strategy";
 
