@@ -153,7 +153,7 @@ public class IndexUtils {
             case TimestampVal(long value) -> value;
             case Decimal128Val(BigDecimal value) -> value.toString();
             case NullVal ignored -> null;
-            case VersionstampVal(Versionstamp value) -> value.getBytes();
+            case VersionstampVal(Versionstamp value) -> value;
             default ->
                     throw new IllegalArgumentException("Unsupported operand type for index: " + operand.getClass().getSimpleName());
         };

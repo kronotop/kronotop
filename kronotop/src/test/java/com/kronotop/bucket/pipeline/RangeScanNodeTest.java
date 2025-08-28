@@ -1,10 +1,12 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
+import com.kronotop.internal.VersionstampUtil;
 import org.bson.BsonType;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
@@ -75,6 +77,43 @@ public class RangeScanNodeTest extends BasePipelineTest {
                         List.of("{\"level\": 5}", "{\"level\": 10}", "{\"level\": 15}", "{\"level\": 20}"),
                         "{'level': {'$gte': 10, '$lte': 10}}", 1, "Should return 1 document with level = 10 (single value range)")
         );
+    }
+
+    @Test
+    void testIDIndexRange() {
+        final String TEST_BUCKET_NAME = "test-bucket-id-range-scan-logic-gt";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
+        );
+
+        List<Versionstamp> versionstamps = insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        String query = String.format("{ '_id': { '$gte': '%s', '$lte': '%s' } }",
+                VersionstampUtil.base32HexEncode(versionstamps.getFirst()),
+                VersionstampUtil.base32HexEncode(versionstamps.getLast())
+        );
+        System.out.println(query);
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, query);
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            assertEquals(4, results.size());
+
+            // Verify the content of each returned document
+            assertEquals(Set.of("John", "Alice", "George", "Claire"), extractNamesFromResults(results));
+            assertEquals(Set.of(20, 23, 25, 35), extractAgesFromResults(results));
+        }
     }
 
     @Test
