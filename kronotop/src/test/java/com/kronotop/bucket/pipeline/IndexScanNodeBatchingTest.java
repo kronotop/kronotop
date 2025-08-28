@@ -85,7 +85,7 @@ public class IndexScanNodeBatchingTest extends BasePipelineTest {
                 totalProcessedDocuments += results.size();
 
                 // Verify the documents are returned in ascending age order
-                Set<Integer> ages = extractAgesFromResults(results);
+                Set<Integer> ages = extractIntegerFieldFromResults(results, "age");
                 for (Integer age : ages) {
                     assertTrue(age > 22, "All returned documents should have age > 22");
                 }
@@ -167,7 +167,7 @@ public class IndexScanNodeBatchingTest extends BasePipelineTest {
                 totalProcessedDocuments += results.size();
 
                 // Verify the documents are returned in ascending age order and all have age >= 33
-                Set<Integer> ages = extractAgesFromResults(results);
+                Set<Integer> ages = extractIntegerFieldFromResults(results, "age");
                 for (Integer age : ages) {
                     assertTrue(age >= 33, String.format("All returned documents should have age >= 33, but found age: %d", age));
                 }
@@ -254,7 +254,7 @@ public class IndexScanNodeBatchingTest extends BasePipelineTest {
                 totalProcessedDocuments += results.size();
 
                 // Verify the documents are returned in descending age order and all have age >= 33
-                Set<Integer> ages = extractAgesFromResults(results);
+                Set<Integer> ages = extractIntegerFieldFromResults(results, "age");
                 for (Integer age : ages) {
                     assertTrue(age >= 33, String.format("All returned documents should have age >= 33, but found age: %d", age));
                     assertTrue(age <= previousAge, String.format("Ages should be in descending order, but found age %d after %d", age, previousAge));
@@ -330,7 +330,7 @@ public class IndexScanNodeBatchingTest extends BasePipelineTest {
                 totalDocumentsReturned += results.size();
 
                 // Collect and verify ages in this batch
-                Set<Integer> batchAges = extractAgesFromResults(results);
+                Set<Integer> batchAges = extractIntegerFieldFromResults(results, "age");
                 for (Integer age : batchAges) {
                     assertTrue(age > 22, "All returned documents should have age > 22, but found: " + age);
                     allReturnedAges.add(age);
@@ -433,7 +433,7 @@ public class IndexScanNodeBatchingTest extends BasePipelineTest {
                 totalDocumentsReturned += results.size();
 
                 // Collect and verify ages in this batch
-                Set<Integer> batchAges = extractAgesFromResults(results);
+                Set<Integer> batchAges = extractIntegerFieldFromResults(results, "age");
                 for (Integer age : batchAges) {
                     assertTrue(age > 22, "All returned documents should have age > 22, but found: " + age);
                     allReturnedAges.add(age);

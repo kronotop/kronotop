@@ -112,7 +112,7 @@ public class RangeScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             assertEquals(Set.of("John", "Alice", "George", "Claire"), extractNamesFromResults(results));
-            assertEquals(Set.of(20, 23, 25, 35), extractAgesFromResults(results));
+            assertEquals(Set.of(20, 23, 25, 35), extractIntegerFieldFromResults(results, "age"));
         }
     }
 
@@ -145,7 +145,7 @@ public class RangeScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             assertEquals(Set.of("Alice", "George", "Claire"), extractNamesFromResults(results));
-            assertEquals(Set.of(23, 25, 35), extractAgesFromResults(results));
+            assertEquals(Set.of(23, 25, 35), extractIntegerFieldFromResults(results, "age"));
         }
     }
 

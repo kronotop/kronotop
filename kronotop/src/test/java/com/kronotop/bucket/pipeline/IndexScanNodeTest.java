@@ -124,7 +124,7 @@ class IndexScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             assertEquals(Set.of("Alice", "George", "Claire"), extractNamesFromResults(results));
-            assertEquals(Set.of(23, 25, 35), extractAgesFromResults(results));
+            assertEquals(Set.of(23, 25, 35), extractIntegerFieldFromResults(results, "age"));
         }
     }
 
@@ -219,7 +219,7 @@ class IndexScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             assertEquals(Set.of("Alice", "George", "Claire"), extractNamesFromResults(results));
-            assertEquals(Set.of(23, 25, 35), extractAgesFromResults(results));
+            assertEquals(Set.of(23, 25, 35), extractIntegerFieldFromResults(results, "age"));
         }
     }
 
@@ -366,7 +366,7 @@ class IndexScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             assertEquals(Set.of("John", "George", "Bob"), extractNamesFromResults(results));
-            assertEquals(Set.of(20, 30, 35), extractAgesFromResults(results));
+            assertEquals(Set.of(20, 30, 35), extractIntegerFieldFromResults(results, "age"));
         }
     }
 

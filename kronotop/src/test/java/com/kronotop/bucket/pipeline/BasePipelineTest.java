@@ -14,7 +14,9 @@ import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.optimizer.Optimizer;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
-import com.kronotop.bucket.planner.physical.*;
+import com.kronotop.bucket.planner.physical.PhysicalNode;
+import com.kronotop.bucket.planner.physical.PhysicalPlanner;
+import com.kronotop.bucket.planner.physical.PlannerContext;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.VersionstampUtil;
@@ -32,7 +34,6 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 public class BasePipelineTest extends BaseHandlerTest {
 
@@ -68,6 +69,7 @@ public class BasePipelineTest extends BaseHandlerTest {
         }
         return versionstamps;
     }
+
     protected void createBucket(String bucketName) {
         // Bucket is created implicitly through BucketMetadataUtil.createOrOpen()
         Session session = getSession();
@@ -137,29 +139,6 @@ public class BasePipelineTest extends BaseHandlerTest {
             }
         }
         return names;
-    }
-
-    Set<Integer> extractAgesFromResults(Map<?, ByteBuffer> results) {
-        Set<Integer> ages = new LinkedHashSet<>();
-
-        for (ByteBuffer documentBuffer : results.values()) {
-            documentBuffer.rewind();
-            try (BsonReader reader = new BsonBinaryReader(documentBuffer)) {
-                reader.readStartDocument();
-
-                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                    String fieldName = reader.readName();
-                    if ("age".equals(fieldName)) {
-                        ages.add(reader.readInt32());
-                    } else {
-                        reader.skipValue();
-                    }
-                }
-                reader.readEndDocument();
-            }
-        }
-
-        return ages;
     }
 
     Set<Integer> extractIntegerFieldFromResults(Map<?, ByteBuffer> results, String field) {

@@ -41,7 +41,7 @@ class FullScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             assertEquals(Set.of("Alice", "George", "Claire"), extractNamesFromResults(results));
-            assertEquals(Set.of(23, 25, 35), extractAgesFromResults(results));
+            assertEquals(Set.of(23, 25, 35), extractIntegerFieldFromResults(results, "age"));
         }
     }
 
@@ -143,7 +143,7 @@ class FullScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             Set<String> returnedNames = extractNamesFromResults(results);
-            Set<Integer> returnedAges = extractAgesFromResults(results);
+            Set<Integer> returnedAges = extractIntegerFieldFromResults(results, "age");
 
             // Should include John (20), George (25), Claire (35)
             // Should exclude Alice and Bob (both age 23)
@@ -195,7 +195,7 @@ class FullScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             Set<String> returnedNames = extractNamesFromResults(results);
-            Set<Integer> returnedAges = extractAgesFromResults(results);
+            Set<Integer> returnedAges = extractIntegerFieldFromResults(results, "age");
 
             // Should include Alice, George, Claire (all age 25)
             // Should exclude John (20), Bob (30), David (35)
@@ -246,7 +246,7 @@ class FullScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             Set<String> returnedNames = extractNamesFromResults(results);
-            Set<Integer> returnedAges = extractAgesFromResults(results);
+            Set<Integer> returnedAges = extractIntegerFieldFromResults(results, "age");
 
             // Should include Amy (15), John (20)
             // Should exclude Alice (23), George (25), Claire (35)
@@ -297,7 +297,7 @@ class FullScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             Set<String> returnedNames = extractNamesFromResults(results);
-            Set<Integer> returnedAges = extractAgesFromResults(results);
+            Set<Integer> returnedAges = extractIntegerFieldFromResults(results, "age");
 
             // Should include Alice (23), George (25), Claire (35)
             // Should exclude Amy (15), John (20)
@@ -348,7 +348,7 @@ class FullScanNodeTest extends BasePipelineTest {
 
             // Verify the content of each returned document
             Set<String> returnedNames = extractNamesFromResults(results);
-            Set<Integer> returnedAges = extractAgesFromResults(results);
+            Set<Integer> returnedAges = extractIntegerFieldFromResults(results, "age");
 
             // Should include Amy (15), John (20), Alice (23)
             // Should exclude George (25), Claire (35)

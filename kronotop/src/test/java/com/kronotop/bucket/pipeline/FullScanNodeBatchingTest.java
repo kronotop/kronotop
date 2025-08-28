@@ -69,7 +69,7 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
                 totalDocumentsReturned += results.size();
 
                 // Collect and verify ages in this batch
-                Set<Integer> batchAges = extractAgesFromResults(results);
+                Set<Integer> batchAges = extractIntegerFieldFromResults(results, "age");
                 for (Integer age : batchAges) {
                     assertTrue(age > 22, "All returned documents should have age > 22, but found: " + age);
                     allReturnedAges.add(age);
@@ -171,7 +171,7 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
                 totalDocumentsReturned += results.size();
 
                 // Collect and verify ages in this batch
-                Set<Integer> batchAges = extractAgesFromResults(results);
+                Set<Integer> batchAges = extractIntegerFieldFromResults(results, "age");
                 for (Integer age : batchAges) {
                     assertTrue(age > 22, "All returned documents should have age > 22, but found: " + age);
                     allReturnedAges.add(age);

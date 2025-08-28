@@ -76,7 +76,7 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
             assertEquals(2, results.size(), "Should return exactly 3 documents with age > 22");
 
             assertEquals(Set.of("John"), extractNamesFromResults(results));
-            assertEquals(Set.of(35, 47), extractAgesFromResults(results));
+            assertEquals(Set.of(35, 47), extractIntegerFieldFromResults(results, "age"));
         }
     }
 
@@ -143,7 +143,7 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
         
         // Verify all returned documents match the condition
         Set<String> categories = extractCategoriesFromResults(allResults);
-        Set<Integer> ages = extractAgesFromResults(allResults);
+        Set<Integer> ages = extractIntegerFieldFromResults(allResults, "age");
         
         assertEquals(Set.of("electronics"), categories, "All documents should have category 'electronics'");
         assertTrue(ages.stream().allMatch(age -> age >= 10), "All ages should be >= 10");
@@ -245,7 +245,7 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
         
         // Verify all returned documents match the condition
         Set<String> categories = extractCategoriesFromResults(allResults);
-        Set<Integer> ages = extractAgesFromResults(allResults);
+        Set<Integer> ages = extractIntegerFieldFromResults(allResults, "age");
         
         assertEquals(Set.of("electronics"), categories, "All documents should have category 'electronics'");
         assertTrue(ages.stream().allMatch(age -> age >= 10), "All ages should be >= 10");
