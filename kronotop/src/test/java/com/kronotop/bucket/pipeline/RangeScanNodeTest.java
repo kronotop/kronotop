@@ -6,18 +6,21 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
+import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RangeScanNodeTest extends BasePipelineTest {
 
@@ -197,11 +200,82 @@ public class RangeScanNodeTest extends BasePipelineTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Map<?, ByteBuffer> results = executor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription + " (REVERSE=true)");
-        } catch (RuntimeException e) {
-            if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
-                System.out.println("Skipping test due to infrastructure issues: " + testDescription + " (REVERSE=true)");
+            
+            // Verify concrete expected results based on specific test cases
+            if (!results.isEmpty()) {
+                List<Object> actualFieldValues = new ArrayList<>();
+                for (ByteBuffer buffer : results.values()) {
+                    Document doc = BSONUtil.fromBson(buffer.array());
+                    actualFieldValues.add(doc.get(fieldName));
+                }
+                
+                // Check concrete expected results for specific test cases
+                validateReverseResults(fieldName, bsonType, rangeQuery, actualFieldValues, testDescription);
+            }
+        }
+    }
+
+    private void validateReverseResults(String fieldName, BsonType bsonType, String rangeQuery, 
+                                       List<Object> actualFieldValues, String testDescription) {
+        // Calculate expected results in reverse order based on the specific query
+        List<Object> expectedValues = new ArrayList<>();
+        
+        if (fieldName.equals("age") && rangeQuery.contains("'$gt': 20, '$lt': 40")) {
+            // For age range 20 < age < 40, expects [35, 25] in reverse order  
+            expectedValues = List.of(35, 25);
+        } else if (fieldName.equals("age") && rangeQuery.contains("'$gte': 20, '$lte': 40")) {
+            // For age range 20 <= age <= 40, expects [40, 30, 20] in reverse order
+            expectedValues = List.of(40, 30, 20);
+        } else if (fieldName.equals("age") && rangeQuery.contains("'$gt': 12, '$lte': 22")) {
+            // For age range 12 < age <= 22, expects [20, 15] in reverse order
+            expectedValues = List.of(20, 15);
+        } else if (fieldName.equals("timestamp") && rangeQuery.contains("'$gte': 1500000000, '$lt': 3500000000")) {
+            // For timestamp range 1500000000 <= timestamp < 3500000000, expects [3000000000L, 2000000000L] in reverse order
+            expectedValues = List.of(3000000000L, 2000000000L);
+        } else if (fieldName.equals("price") && rangeQuery.contains("'$gt': 15.0, '$lt': 35.0")) {
+            // For price range 15.0 < price < 35.0, expects [30.2, 20.7] in reverse order
+            expectedValues = List.of(30.2, 20.7);
+        } else if (fieldName.equals("price") && rangeQuery.contains("'$gte': 15.75, '$lte': 35.00")) {
+            // For price range 15.75 <= price <= 35.00, expects [35.00, 25.50, 15.75] in reverse order
+            expectedValues = List.of(35.00, 25.50, 15.75);
+        } else if (fieldName.equals("name") && rangeQuery.contains("'$gt': \"Bob\", '$lt': \"David\"")) {
+            // For name range 'Bob' < name < 'David', expects ["Charlie"] in reverse order
+            expectedValues = List.of("Charlie");
+        } else if (fieldName.equals("category") && rangeQuery.contains("'$gte': \"clothes\", '$lte': \"electronics\"")) {
+            // For category range 'clothes' <= category <= 'electronics', expects ["electronics", "clothes"] in reverse order
+            expectedValues = List.of("electronics", "clothes");
+        } else if (fieldName.equals("balance") && rangeQuery.contains("'$gt': {\"$numberDecimal\": \"150.00\"}")) {
+            // For balance range > 150.00 and < 350.00, expects decimal values in reverse order
+            // Note: This is more complex due to Decimal128 handling, skip detailed validation for now
+            return;
+        } else if (fieldName.equals("level") && rangeQuery.contains("'$gte': 10, '$lte': 10")) {
+            // For level range level = 10, expects [10] 
+            expectedValues = List.of(10);
+        } else {
+            // For empty ranges or other cases, no specific validation needed
+            return;
+        }
+        
+        assertEquals(expectedValues.size(), actualFieldValues.size(), 
+                    "Expected " + expectedValues.size() + " values but got " + actualFieldValues.size() + 
+                    " for reverse query: " + testDescription);
+        
+        // Check that actual values match expected values in reverse order
+        for (int i = 0; i < expectedValues.size(); i++) {
+            Object expected = expectedValues.get(i);
+            Object actual = actualFieldValues.get(i);
+            
+            // Handle type conversion issues between Long and Integer for numeric values
+            if (expected instanceof Number && actual instanceof Number) {
+                long expectedLong = ((Number) expected).longValue();
+                long actualLong = ((Number) actual).longValue();
+                assertEquals(expectedLong, actualLong, 
+                            "At position " + i + ", expected " + expectedLong + " but got " + actualLong + 
+                            " for reverse query: " + testDescription);
             } else {
-                throw e;
+                assertEquals(expected, actual, 
+                            "At position " + i + ", expected " + expected + " but got " + actual + 
+                            " for reverse query: " + testDescription);
             }
         }
     }
