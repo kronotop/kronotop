@@ -20,72 +20,8 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RangeScanNodeTest extends BasePipelineTest {
-
-    @Test
-    void testGtOperatorFiltersCorrectly() {
-        final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
-
-        // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
-
-        // Insert multiple documents with different field types and values
-        List<byte[]> documents = List.of(
-                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
-        );
-
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
-
-        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{ 'age': { '$gt': 22, '$lte': 35 } }");
-        PipelineContext ctx = createPipelineContext(metadata);
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
-
-            // Should return 3 documents with age > 22 (ages 23, 25, 35)
-            assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
-
-            // Verify the content of each returned document
-            assertEquals(Set.of("Alice", "George", "Claire"), extractNamesFromResults(results));
-            assertEquals(Set.of(23, 25, 35), extractAgesFromResults(results));
-        }
-    }
-
-    @Test
-    void testGtOperatorReturnsEmptyResultSet() {
-        final String TEST_BUCKET_NAME = "test-bucket-range-scan-empty-result-gt";
-        
-        // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
-        
-        // Insert documents with ages all below the query threshold
-        List<byte[]> documents = List.of(
-                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 18, 'name': 'Alice'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 21, 'name': 'Bob'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 19, 'name': 'Claire'}")
-        );
-        
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
-        
-        // Query for age > 22, which should match no documents since all ages are <= 21
-        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{ 'age': { '$gt': 10, '$lt': 18 } }");
-        PipelineContext ctx = createPipelineContext(metadata);
-        
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
-            
-            // Should return 0 documents since no documents have age > 22
-            assertEquals(0, results.size(), "Should return exactly 0 documents with age > 22");
-        }
-    }
 
     private static Stream<Arguments> provideRangeQueryTestCases() {
         return Stream.of(
@@ -100,7 +36,7 @@ public class RangeScanNodeTest extends BasePipelineTest {
                         List.of("{\"age\": 5}", "{\"age\": 10}", "{\"age\": 15}", "{\"age\": 20}", "{\"age\": 25}"),
                         "{'age': {'$gt': 12, '$lte': 22}}", 2, "Should return 2 documents with 12 < age <= 22"),
 
-                // INT64 range tests  
+                // INT64 range tests
                 Arguments.of("timestamp", BsonType.INT64,
                         List.of("{\"timestamp\": 1000000000}", "{\"timestamp\": 2000000000}", "{\"timestamp\": 3000000000}", "{\"timestamp\": 4000000000}"),
                         "{'timestamp': {'$gte': 1500000000, '$lt': 3500000000}}", 2, "Should return 2 documents with 1500000000 <= timestamp < 3500000000"),
@@ -141,30 +77,93 @@ public class RangeScanNodeTest extends BasePipelineTest {
         );
     }
 
+    @Test
+    void testGtOperatorFiltersCorrectly() {
+        final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{ 'age': { '$gt': 22, '$lte': 35 } }");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            // Should return 3 documents with age > 22 (ages 23, 25, 35)
+            assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
+
+            // Verify the content of each returned document
+            assertEquals(Set.of("Alice", "George", "Claire"), extractNamesFromResults(results));
+            assertEquals(Set.of(23, 25, 35), extractAgesFromResults(results));
+        }
+    }
+
+    @Test
+    void testGtOperatorReturnsEmptyResultSet() {
+        final String TEST_BUCKET_NAME = "test-bucket-range-scan-empty-result-gt";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        // Insert documents with ages all below the query threshold
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 18, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 21, 'name': 'Bob'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 19, 'name': 'Claire'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        // Query for age > 22, which should match no documents since all ages are <= 21
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{ 'age': { '$gt': 10, '$lt': 18 } }");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            // Should return 0 documents since no documents have age > 22
+            assertEquals(0, results.size(), "Should return exactly 0 documents with age > 22");
+        }
+    }
+
     @ParameterizedTest
     @MethodSource("provideRangeQueryTestCases")
-    void testRangeQueriesWithAllTypes(String fieldName, BsonType bsonType, List<String> testDocuments, 
-                                     String rangeQuery, int expectedCount, String testDescription) {
+    void testRangeQueriesWithAllTypes(String fieldName, BsonType bsonType, List<String> testDocuments,
+                                      String rangeQuery, int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-range-" + fieldName + "-" + bsonType.name().toLowerCase();
-        
+
         // Create index for the test field
         IndexDefinition index = IndexDefinition.create(fieldName + "-index", fieldName, bsonType, SortOrder.ASCENDING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
-        
+
         // Insert test documents
         List<byte[]> documents = testDocuments.stream()
                 .map(BSONUtil::jsonToDocumentThenBytes)
                 .toList();
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
-        
+
         // Execute range query
         PipelineExecutor executor = createPipelineExecutorForQuery(metadata, rangeQuery);
         PipelineContext ctx = createPipelineContext(metadata);
-        
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Map<?, ByteBuffer> results = executor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription);
-            
+
             // Verify concrete expected results based on specific test cases
             if (!results.isEmpty()) {
                 List<Object> actualFieldValues = new ArrayList<>();
@@ -172,7 +171,7 @@ public class RangeScanNodeTest extends BasePipelineTest {
                     Document doc = BSONUtil.fromBson(buffer.array());
                     actualFieldValues.add(doc.get(fieldName));
                 }
-                
+
                 // Check concrete expected results for specific test cases
                 validateForwardResults(fieldName, bsonType, rangeQuery, actualFieldValues, testDescription);
             }
@@ -185,31 +184,31 @@ public class RangeScanNodeTest extends BasePipelineTest {
         }
     }
 
-    @ParameterizedTest  
+    @ParameterizedTest
     @MethodSource("provideRangeQueryTestCases")
     void testRangeQueriesWithAllTypesReverse(String fieldName, BsonType bsonType, List<String> testDocuments,
-                                            String rangeQuery, int expectedCount, String testDescription) {
+                                             String rangeQuery, int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-range-reverse-" + fieldName + "-" + bsonType.name().toLowerCase();
-        
+
         // Create index for the test field
         IndexDefinition index = IndexDefinition.create(fieldName + "-index", fieldName, bsonType, SortOrder.ASCENDING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
-        
+
         // Insert test documents
         List<byte[]> documents = testDocuments.stream()
                 .map(BSONUtil::jsonToDocumentThenBytes)
                 .toList();
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
-        
+
         // Execute range query with REVERSE=true
         PipelineExecutor executor = createPipelineExecutorForQuery(metadata, rangeQuery);
         PipelineContext ctx = createPipelineContext(metadata);
         ctx.setReverse(true);
-        
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Map<?, ByteBuffer> results = executor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription + " (REVERSE=true)");
-            
+
             // Verify concrete expected results based on specific test cases
             if (!results.isEmpty()) {
                 List<Object> actualFieldValues = new ArrayList<>();
@@ -217,18 +216,18 @@ public class RangeScanNodeTest extends BasePipelineTest {
                     Document doc = BSONUtil.fromBson(buffer.array());
                     actualFieldValues.add(doc.get(fieldName));
                 }
-                
+
                 // Check concrete expected results for specific test cases
                 validateReverseResults(fieldName, bsonType, rangeQuery, actualFieldValues, testDescription);
             }
         }
     }
 
-    private void validateReverseResults(String fieldName, BsonType bsonType, String rangeQuery, 
-                                       List<Object> actualFieldValues, String testDescription) {
+    private void validateReverseResults(String fieldName, BsonType bsonType, String rangeQuery,
+                                        List<Object> actualFieldValues, String testDescription) {
         // Calculate expected results in reverse order based on the specific query
         List<Object> expectedValues = new ArrayList<>();
-        
+
         if (fieldName.equals("age") && rangeQuery.contains("'$gt': 20, '$lt': 40")) {
             // For age range 20 < age < 40, expects [35, 25] in reverse order  
             expectedValues = List.of(35, 25);
@@ -264,36 +263,36 @@ public class RangeScanNodeTest extends BasePipelineTest {
             // For empty ranges or other cases, no specific validation needed
             return;
         }
-        
-        assertEquals(expectedValues.size(), actualFieldValues.size(), 
-                    "Expected " + expectedValues.size() + " values but got " + actualFieldValues.size() + 
-                    " for reverse query: " + testDescription);
-        
+
+        assertEquals(expectedValues.size(), actualFieldValues.size(),
+                "Expected " + expectedValues.size() + " values but got " + actualFieldValues.size() +
+                        " for reverse query: " + testDescription);
+
         // Check that actual values match expected values in reverse order
         for (int i = 0; i < expectedValues.size(); i++) {
             Object expected = expectedValues.get(i);
             Object actual = actualFieldValues.get(i);
-            
+
             // Handle type conversion issues between Long and Integer for numeric values
             if (expected instanceof Number && actual instanceof Number) {
                 long expectedLong = ((Number) expected).longValue();
                 long actualLong = ((Number) actual).longValue();
-                assertEquals(expectedLong, actualLong, 
-                            "At position " + i + ", expected " + expectedLong + " but got " + actualLong + 
-                            " for reverse query: " + testDescription);
+                assertEquals(expectedLong, actualLong,
+                        "At position " + i + ", expected " + expectedLong + " but got " + actualLong +
+                                " for reverse query: " + testDescription);
             } else {
-                assertEquals(expected, actual, 
-                            "At position " + i + ", expected " + expected + " but got " + actual + 
-                            " for reverse query: " + testDescription);
+                assertEquals(expected, actual,
+                        "At position " + i + ", expected " + expected + " but got " + actual +
+                                " for reverse query: " + testDescription);
             }
         }
     }
 
-    private void validateForwardResults(String fieldName, BsonType bsonType, String rangeQuery, 
-                                       List<Object> actualFieldValues, String testDescription) {
+    private void validateForwardResults(String fieldName, BsonType bsonType, String rangeQuery,
+                                        List<Object> actualFieldValues, String testDescription) {
         // Calculate expected results in forward order based on the specific query
         List<Object> expectedValues = new ArrayList<>();
-        
+
         if (fieldName.equals("age") && rangeQuery.contains("'$gt': 20, '$lt': 40")) {
             // For age range 20 < age < 40, expects [25, 35] in forward order  
             expectedValues = List.of(25, 35);
@@ -329,27 +328,27 @@ public class RangeScanNodeTest extends BasePipelineTest {
             // For empty ranges or other cases, no specific validation needed
             return;
         }
-        
-        assertEquals(expectedValues.size(), actualFieldValues.size(), 
-                    "Expected " + expectedValues.size() + " values but got " + actualFieldValues.size() + 
-                    " for forward query: " + testDescription);
-        
+
+        assertEquals(expectedValues.size(), actualFieldValues.size(),
+                "Expected " + expectedValues.size() + " values but got " + actualFieldValues.size() +
+                        " for forward query: " + testDescription);
+
         // Check that actual values match expected values in forward order
         for (int i = 0; i < expectedValues.size(); i++) {
             Object expected = expectedValues.get(i);
             Object actual = actualFieldValues.get(i);
-            
+
             // Handle type conversion issues between Long and Integer for numeric values
             if (expected instanceof Number && actual instanceof Number) {
                 long expectedLong = ((Number) expected).longValue();
                 long actualLong = ((Number) actual).longValue();
-                assertEquals(expectedLong, actualLong, 
-                            "At position " + i + ", expected " + expectedLong + " but got " + actualLong + 
-                            " for forward query: " + testDescription);
+                assertEquals(expectedLong, actualLong,
+                        "At position " + i + ", expected " + expectedLong + " but got " + actualLong +
+                                " for forward query: " + testDescription);
             } else {
-                assertEquals(expected, actual, 
-                            "At position " + i + ", expected " + expected + " but got " + actual + 
-                            " for forward query: " + testDescription);
+                assertEquals(expected, actual,
+                        "At position " + i + ", expected " + expected + " but got " + actual +
+                                " for forward query: " + testDescription);
             }
         }
     }
