@@ -49,4 +49,34 @@ public class RangeScanNodeTest extends BasePipelineTest {
             assertEquals(Set.of(23, 25, 35), extractAgesFromResults(results));
         }
     }
+
+    @Test
+    void testGtOperatorReturnsEmptyResultSet() {
+        final String TEST_BUCKET_NAME = "test-bucket-range-scan-empty-result-gt";
+        
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+        
+        // Insert documents with ages all below the query threshold
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 18, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 21, 'name': 'Bob'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 19, 'name': 'Claire'}")
+        );
+        
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        
+        // Query for age > 22, which should match no documents since all ages are <= 21
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{ 'age': { '$gt': 10, '$lt': 18 } }");
+        PipelineContext ctx = createPipelineContext(metadata);
+        
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            
+            // Should return 0 documents since no documents have age > 22
+            assertEquals(0, results.size(), "Should return exactly 0 documents with age > 22");
+        }
+    }
 }
