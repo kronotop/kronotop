@@ -161,4 +161,27 @@ public class BasePipelineTest extends BaseHandlerTest {
 
         return ages;
     }
+
+    Set<Integer> extractIntegerFieldFromResults(Map<?, ByteBuffer> results, String field) {
+        Set<Integer> ages = new LinkedHashSet<>();
+
+        for (ByteBuffer documentBuffer : results.values()) {
+            documentBuffer.rewind();
+            try (BsonReader reader = new BsonBinaryReader(documentBuffer)) {
+                reader.readStartDocument();
+
+                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                    String fieldName = reader.readName();
+                    if (field.equals(fieldName)) {
+                        ages.add(reader.readInt32());
+                    } else {
+                        reader.skipValue();
+                    }
+                }
+                reader.readEndDocument();
+            }
+        }
+
+        return ages;
+    }
 }

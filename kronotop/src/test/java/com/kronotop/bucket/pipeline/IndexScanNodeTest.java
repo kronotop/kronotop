@@ -129,6 +129,68 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
+    void testGtWithNegativeIntegers() {
+        final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("negative-number-index", "negative", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'negative': -20}"),
+                BSONUtil.jsonToDocumentThenBytes("{'negative': -23}"),
+                BSONUtil.jsonToDocumentThenBytes("{'negative': -25}"),
+                BSONUtil.jsonToDocumentThenBytes("{'negative': -35}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'negative': {'$gt': -26}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            assertEquals(3, results.size());
+
+            // Verify the content of each returned document
+            assertEquals(Set.of(-25, -23, -20), extractIntegerFieldFromResults(results, "negative"));
+        }
+    }
+
+    @Test
+    void testLtWithNegativeIntegers() {
+        final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("negative-number-index", "negative", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'negative': -20}"),
+                BSONUtil.jsonToDocumentThenBytes("{'negative': -23}"),
+                BSONUtil.jsonToDocumentThenBytes("{'negative': -25}"),
+                BSONUtil.jsonToDocumentThenBytes("{'negative': -35}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'negative': {'$lte': -23}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            assertEquals(3, results.size());
+
+            // Verify the content of each returned document
+            assertEquals(Set.of(-35, -25, -23), extractIntegerFieldFromResults(results, "negative"));
+        }
+    }
+
+    @Test
     void testGtOperatorFiltersCorrectly() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
