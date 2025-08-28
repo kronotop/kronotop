@@ -163,10 +163,19 @@ public class RangeScanNodeTest extends BasePipelineTest {
         
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Map<?, ByteBuffer> results = executor.execute(tr, ctx);
-            for (ByteBuffer buffer: results.values()) {
-                System.out.println(BSONUtil.fromBson(buffer.array()).toJson());
-            }
             assertEquals(expectedCount, results.size(), testDescription);
+            
+            // Verify concrete expected results based on specific test cases
+            if (!results.isEmpty()) {
+                List<Object> actualFieldValues = new ArrayList<>();
+                for (ByteBuffer buffer : results.values()) {
+                    Document doc = BSONUtil.fromBson(buffer.array());
+                    actualFieldValues.add(doc.get(fieldName));
+                }
+                
+                // Check concrete expected results for specific test cases
+                validateForwardResults(fieldName, bsonType, rangeQuery, actualFieldValues, testDescription);
+            }
         } catch (RuntimeException e) {
             if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
                 System.out.println("Skipping test due to infrastructure issues: " + testDescription);
@@ -276,6 +285,71 @@ public class RangeScanNodeTest extends BasePipelineTest {
                 assertEquals(expected, actual, 
                             "At position " + i + ", expected " + expected + " but got " + actual + 
                             " for reverse query: " + testDescription);
+            }
+        }
+    }
+
+    private void validateForwardResults(String fieldName, BsonType bsonType, String rangeQuery, 
+                                       List<Object> actualFieldValues, String testDescription) {
+        // Calculate expected results in forward order based on the specific query
+        List<Object> expectedValues = new ArrayList<>();
+        
+        if (fieldName.equals("age") && rangeQuery.contains("'$gt': 20, '$lt': 40")) {
+            // For age range 20 < age < 40, expects [25, 35] in forward order  
+            expectedValues = List.of(25, 35);
+        } else if (fieldName.equals("age") && rangeQuery.contains("'$gte': 20, '$lte': 40")) {
+            // For age range 20 <= age <= 40, expects [20, 30, 40] in forward order
+            expectedValues = List.of(20, 30, 40);
+        } else if (fieldName.equals("age") && rangeQuery.contains("'$gt': 12, '$lte': 22")) {
+            // For age range 12 < age <= 22, expects [15, 20] in forward order
+            expectedValues = List.of(15, 20);
+        } else if (fieldName.equals("timestamp") && rangeQuery.contains("'$gte': 1500000000, '$lt': 3500000000")) {
+            // For timestamp range 1500000000 <= timestamp < 3500000000, expects [2000000000L, 3000000000L] in forward order
+            expectedValues = List.of(2000000000L, 3000000000L);
+        } else if (fieldName.equals("price") && rangeQuery.contains("'$gt': 15.0, '$lt': 35.0")) {
+            // For price range 15.0 < price < 35.0, expects [20.7, 30.2] in forward order
+            expectedValues = List.of(20.7, 30.2);
+        } else if (fieldName.equals("price") && rangeQuery.contains("'$gte': 15.75, '$lte': 35.00")) {
+            // For price range 15.75 <= price <= 35.00, expects [15.75, 25.50, 35.00] in forward order
+            expectedValues = List.of(15.75, 25.50, 35.00);
+        } else if (fieldName.equals("name") && rangeQuery.contains("'$gt': \"Bob\", '$lt': \"David\"")) {
+            // For name range 'Bob' < name < 'David', expects ["Charlie"] in forward order
+            expectedValues = List.of("Charlie");
+        } else if (fieldName.equals("category") && rangeQuery.contains("'$gte': \"clothes\", '$lte': \"electronics\"")) {
+            // For category range 'clothes' <= category <= 'electronics', expects ["clothes", "electronics"] in forward order
+            expectedValues = List.of("clothes", "electronics");
+        } else if (fieldName.equals("balance") && rangeQuery.contains("'$gt': {\"$numberDecimal\": \"150.00\"}")) {
+            // For balance range > 150.00 and < 350.00, expects decimal values in forward order
+            // Note: This is more complex due to Decimal128 handling, skip detailed validation for now
+            return;
+        } else if (fieldName.equals("level") && rangeQuery.contains("'$gte': 10, '$lte': 10")) {
+            // For level range level = 10, expects [10] 
+            expectedValues = List.of(10);
+        } else {
+            // For empty ranges or other cases, no specific validation needed
+            return;
+        }
+        
+        assertEquals(expectedValues.size(), actualFieldValues.size(), 
+                    "Expected " + expectedValues.size() + " values but got " + actualFieldValues.size() + 
+                    " for forward query: " + testDescription);
+        
+        // Check that actual values match expected values in forward order
+        for (int i = 0; i < expectedValues.size(); i++) {
+            Object expected = expectedValues.get(i);
+            Object actual = actualFieldValues.get(i);
+            
+            // Handle type conversion issues between Long and Integer for numeric values
+            if (expected instanceof Number && actual instanceof Number) {
+                long expectedLong = ((Number) expected).longValue();
+                long actualLong = ((Number) actual).longValue();
+                assertEquals(expectedLong, actualLong, 
+                            "At position " + i + ", expected " + expectedLong + " but got " + actualLong + 
+                            " for forward query: " + testDescription);
+            } else {
+                assertEquals(expected, actual, 
+                            "At position " + i + ", expected " + expected + " but got " + actual + 
+                            " for forward query: " + testDescription);
             }
         }
     }
