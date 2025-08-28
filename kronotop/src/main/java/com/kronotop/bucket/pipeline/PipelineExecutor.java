@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class PipelineExecutor {
     private final PipelineNode root;
@@ -106,6 +107,10 @@ public class PipelineExecutor {
     }
 
     public Map<Versionstamp, ByteBuffer> execute(Transaction tr, PipelineContext ctx) {
+        if (Objects.isNull(root)) {
+            // PhysicalFalse -> this query makes no sense
+            return Map.of();
+        }
         return switch (root) {
             case FullScanNode node -> visitFullScanNode(tr, ctx, node);
             case IndexScanNode node -> visitIndexScanNode(tr, ctx, node);

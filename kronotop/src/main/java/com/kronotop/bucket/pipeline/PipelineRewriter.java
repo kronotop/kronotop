@@ -55,6 +55,7 @@ public class PipelineRewriter {
                 );
                 yield new RangeScanNode(rangeScan.id(), rangeScan.index(), predicate);
             }
+            case PhysicalFalse ignored -> null; // this query makes no sense.
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);
         };
     }
