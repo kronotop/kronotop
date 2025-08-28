@@ -5,6 +5,7 @@ import com.kronotop.bucket.bql.ast.*;
 import org.bson.BsonType;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 public abstract class AbstractTransactionAwareNode extends AbstractPipelineNode implements TransactionAwareNode {
 
@@ -16,6 +17,9 @@ public abstract class AbstractTransactionAwareNode extends AbstractPipelineNode 
      * Creates a BqlValue from a raw index value based on the BSON type.
      */
     BqlValue createBqlValueFromIndexValue(Object value, BsonType bsonType) {
+        if (Objects.isNull(value)) {
+            return new NullVal();
+        }
         return switch (bsonType) {
             case STRING -> new StringVal((String) value);
             case INT32 -> new Int32Val(((Long) value).intValue()); // Index stores INT32 as long

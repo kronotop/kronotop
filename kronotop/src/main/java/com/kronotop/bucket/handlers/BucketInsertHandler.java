@@ -202,9 +202,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                     }
 
                     Object indexValue = extractFieldValueFromBsonDocument(entry, selector, definition.bsonType());
-                    if (indexValue != null) {
-                        IndexBuilder.setIndexEntry(tr, definition, shard.id(), metadata, indexValue, appendedEntry);
-                    }
+                    IndexBuilder.setIndexEntry(tr, definition, shard.id(), metadata, indexValue, appendedEntry);
                 }
             }
 
