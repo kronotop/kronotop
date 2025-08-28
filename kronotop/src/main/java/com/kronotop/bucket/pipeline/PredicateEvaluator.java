@@ -151,7 +151,6 @@ public class PredicateEvaluator {
             reader.readStartDocument();
             while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                 String fieldName = reader.readName();
-
                 // Skip fields that don't match the selector
                 if (!filter.selector().equals(fieldName)) {
                     reader.skipValue();
@@ -285,7 +284,7 @@ public class PredicateEvaluator {
         }
 
         // Field not found in document - doesn't match the filter
-        return false;
+        return filter.operand() instanceof NullVal;
     }
 
     /**
