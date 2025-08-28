@@ -160,6 +160,9 @@ public class RangeScanNodeTest extends BasePipelineTest {
         
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            for (ByteBuffer buffer: results.values()) {
+                System.out.println(BSONUtil.fromBson(buffer.array()).toJson());
+            }
             assertEquals(expectedCount, results.size(), testDescription);
         } catch (RuntimeException e) {
             if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {

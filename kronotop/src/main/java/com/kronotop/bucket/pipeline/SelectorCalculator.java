@@ -422,7 +422,8 @@ public class SelectorCalculator {
             if (predicate.includeLower()) {
                 beginSelector = KeySelector.firstGreaterOrEqual(lowerKey);
             } else {
-                beginSelector = KeySelector.firstGreaterThan(lowerKey);
+                byte[] endKey = ByteArrayUtil.strinc(lowerKey);
+                beginSelector = KeySelector.firstGreaterThan(endKey);
             }
         } else {
             beginSelector = KeySelector.firstGreaterOrEqual(indexUtils.createIndexEntriesPrefix(indexSubspace));
