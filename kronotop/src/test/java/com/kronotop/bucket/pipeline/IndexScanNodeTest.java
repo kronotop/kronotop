@@ -162,6 +162,88 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
+    void testIndexWithDoubleMaxValue() {
+        final String TEST_BUCKET_NAME = "test-bucket-index-with-double-max-value";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("double-index", "double", BsonType.DOUBLE, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        String document = String.format("{\"double\": %s, \"string\": \"John\"}", Double.MAX_VALUE);
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(BSONUtil.jsonToDocumentThenBytes(document));
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'double': {'$gt': 22}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            assertEquals(1, results.size());
+            for (ByteBuffer buffer : results.values()) {
+                assertEquals(document, BSONUtil.fromBson(buffer.array()).toJson());
+            }
+        }
+    }
+
+    @Test
+    void testIndexWithInt64MaxValue() {
+        final String TEST_BUCKET_NAME = "test-bucket-index-with-long-max-value";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("long-index", "long", BsonType.INT64, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        String document = String.format("{\"long\": %s, \"string\": \"John\"}", Long.MAX_VALUE);
+        System.out.println(document);
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(BSONUtil.jsonToDocumentThenBytes(document));
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'long': {'$gt': 22}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            assertEquals(1, results.size());
+            for (ByteBuffer buffer : results.values()) {
+                assertEquals(document, BSONUtil.fromBson(buffer.array()).toJson());
+            }
+        }
+    }
+
+    @Test
+    void testIndexWithInt32MaxValue() {
+        final String TEST_BUCKET_NAME = "test-bucket-index-with-integer-max-value";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("integer-index", "integer", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        String document = String.format("{\"integer\": %s, \"string\": \"John\"}", Integer.MAX_VALUE);
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(BSONUtil.jsonToDocumentThenBytes(document));
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{'integer': {'$gt': 22}}");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+
+            assertEquals(1, results.size());
+            for (ByteBuffer buffer : results.values()) {
+                assertEquals(document, BSONUtil.fromBson(buffer.array()).toJson());
+            }
+        }
+    }
+
+    @Test
     void testGtOperatorReturnsEmptyResultSet() {
         final String TEST_BUCKET_NAME = "test-bucket-empty-result-gt";
 

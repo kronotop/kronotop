@@ -73,17 +73,12 @@ public class LogHistogramDynamic {
         // m=16, groupSize=4 (grup başına 4 j), W=8 dekad, total için 16 shard
         LogHistogramDynamic hist = new LogHistogramDynamic(16, 4, 8, 16);
 
-        //double[] values = {30, 40, 99, 123, 250, 999, 2587, 4589, 10000};
-        //for (double v : values) hist.add(v);
+        double[] values = {30, 40, 99, 123, 250, 999, 2587, 4589, 10000};
+        for (double v : values) hist.add(v);
 
         // pencereyi zorlayalım
-        //double[] more = {1.2, 2.5, 6.7, 8.9, 1e6, 3e7, 9e8, 4.2e9};
-        //for (double v : more) hist.add(v);
-        Random r = new Random();
-        r.setSeed(System.nanoTime());
-        for (int i = 0; i < 1000000; i++) {
-            hist.add(r.nextInt(300));
-        }
+        double[] more = {1.2, 2.5, 6.7, 8.9, 1e6, 3e7, 9e8, 4.2e9};
+        for (double v : more) hist.add(v);
 
         hist.printDebug();
 
