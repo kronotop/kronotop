@@ -15,10 +15,17 @@ import java.util.List;
 public class FullScanNode extends AbstractTransactionAwareNode implements ScanNode {
     private final IndexDefinition index = DefaultIndexDefinition.ID;
     private final List<ResidualPredicate> predicates;
+    private MatchingRule matchingRule = MatchingRule.ANY;
 
     protected FullScanNode(int id, List<ResidualPredicate> predicates) {
         super(id);
         this.predicates = predicates;
+    }
+
+    protected FullScanNode(int id, List<ResidualPredicate> predicates, MatchingRule matchingRule) {
+        super(id);
+        this.predicates = predicates;
+        this.matchingRule = matchingRule;
     }
 
     @Override
