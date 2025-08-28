@@ -399,10 +399,10 @@ class IndexScanNodeTest extends BasePipelineTest {
         }
         return 0;
     }
-    
+
     private double convertDecimal128ToDouble(Object decimal128) {
         if (decimal128 == null) return 0.0;
-        
+
         // Use reflection to get the value from Decimal128
         try {
             // Decimal128 has a doubleValue() method
