@@ -26,6 +26,10 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
         return index;
     }
 
+    public List<ResidualPredicate> predicates() {
+        return predicates;
+    }
+
     @Override
     public void execute(PipelineContext ctx, Transaction tr) {
         DirectorySubspace idIndexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());

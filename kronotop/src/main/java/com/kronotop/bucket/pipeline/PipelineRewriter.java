@@ -1,5 +1,6 @@
 package com.kronotop.bucket.pipeline;
 
+import com.kronotop.KronotopException;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 
@@ -23,6 +24,17 @@ public class PipelineRewriter {
                 }
                 ExecutionStrategy strategy = fullScan == 0 ? ExecutionStrategy.INDEX_SCAN :
                         indexScan == 0 ? ExecutionStrategy.FULL_SCAN : ExecutionStrategy.MIXED_SCAN;
+                if (strategy.equals(ExecutionStrategy.FULL_SCAN)) {
+                    List<ResidualPredicate> predicates = new ArrayList<>();
+                    for (PipelineNode child : children) {
+                        if (child instanceof FullScanNode fullScanNode) {
+                            predicates.addAll(fullScanNode.predicates());
+                        } else {
+                            throw new KronotopException("Fail...");
+                        }
+                    }
+                    yield new FullScanNode(physicalAnd.id(), predicates);
+                }
                 yield new IntersectionNode(physicalAnd.id(), strategy, children);
             }
             case PhysicalIndexScan indexScan -> {

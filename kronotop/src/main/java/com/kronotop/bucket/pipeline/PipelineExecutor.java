@@ -106,6 +106,11 @@ public class PipelineExecutor {
         return results;
     }
 
+    private Map<Versionstamp, ByteBuffer> visitIntersectionNode(Transaction tr, PipelineContext ctx, PipelineNode node) {
+        executePipelineNode(tr, ctx, node);
+        return Map.of();
+    }
+
     public Map<Versionstamp, ByteBuffer> execute(Transaction tr, PipelineContext ctx) {
         if (Objects.isNull(root)) {
             // PhysicalFalse -> this query makes no sense
@@ -115,6 +120,7 @@ public class PipelineExecutor {
             case FullScanNode node -> visitFullScanNode(tr, ctx, node);
             case IndexScanNode node -> visitIndexScanNode(tr, ctx, node);
             case RangeScanNode node -> visitIndexScanNode(tr, ctx, node);
+            case IntersectionNode node -> visitIntersectionNode(tr, ctx, node);
             default -> throw new KronotopException("Unknown PipelineNode type");
         };
     }
