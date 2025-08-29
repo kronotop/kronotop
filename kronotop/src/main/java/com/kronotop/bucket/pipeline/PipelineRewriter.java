@@ -68,6 +68,33 @@ public class PipelineRewriter {
                 yield new RangeScanNode(rangeScan.id(), rangeScan.index(), predicate);
             }
             case PhysicalFalse ignored -> null; // this query makes no sense.
+            case PhysicalOr physicalOr -> {
+                int indexScan = 0;
+                int fullScan = 0;
+                List<PipelineNode> children = new ArrayList<>();
+                for (PhysicalNode child : physicalOr.children()) {
+                    if (child instanceof PhysicalFullScan) {
+                        fullScan++;
+                    } else if (child instanceof PhysicalIndexScan) {
+                        indexScan++;
+                    }
+                    children.add(rewrite(child));
+                }
+                ExecutionStrategy strategy = fullScan == 0 ? ExecutionStrategy.INDEX_SCAN :
+                        indexScan == 0 ? ExecutionStrategy.FULL_SCAN : ExecutionStrategy.MIXED_SCAN;
+                if (strategy.equals(ExecutionStrategy.FULL_SCAN)) {
+                    List<ResidualPredicate> predicates = new ArrayList<>();
+                    for (PipelineNode child : children) {
+                        if (child instanceof FullScanNode fullScanNode) {
+                            predicates.addAll(fullScanNode.predicates());
+                        } else {
+                            throw new KronotopException("Fail...");
+                        }
+                    }
+                    yield new FullScanNode(physicalOr.id(), predicates, MatchingRule.ANY);
+                }
+                yield new UnionNode(physicalOr.id(), strategy, children);
+            }
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);
         };
     }

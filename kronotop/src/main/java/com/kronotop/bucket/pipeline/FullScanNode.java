@@ -48,6 +48,15 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
         return matched;
     }
 
+    private boolean applyANYMatchingRule(Versionstamp versionstamp, ByteBuffer document) {
+        for (ResidualPredicate predicate : predicates) {
+            if (predicate.test(versionstamp, document)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public void execute(PipelineContext ctx, Transaction tr) {
         DirectorySubspace idIndexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
@@ -70,6 +79,8 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
             boolean append = false;
             if (matchingRule.equals(MatchingRule.ALL)) {
                 append = applyALLMatchingRule(versionstamp, document);
+            } else if (matchingRule.equals(MatchingRule.ANY)) {
+                append = applyANYMatchingRule(versionstamp, document);
             }
 
             if (append) {
