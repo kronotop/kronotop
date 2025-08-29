@@ -3,20 +3,18 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class NestedQueriesTest extends BasePipelineTest {
+
     @Test
-    @Disabled
-    void foo() {
+    void testNestedAndOrQueryReturnsCorrectIntersection() {
         final String TEST_BUCKET_NAME = "test-bucket-nested-investigation";
 
         // Create bucket metadata without any secondary indexes
@@ -64,7 +62,22 @@ public class NestedQueriesTest extends BasePipelineTest {
             PipelineContext ctx = createPipelineContext(metadata);
 
             Map<?, ByteBuffer> results = executor.execute(tr, ctx);
-            System.out.println(results);
+            for (ByteBuffer buffer : results.values()) {
+                System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
+            }
+
+            // Verify correct intersection: should return exactly Laptop and Book A
+            assertEquals(2, results.size(),
+                    "Nested AND/OR query should return exactly 2 documents (Laptop and Book A)");
+
+            // Extract document names for verification
+            List<String> resultNames = results.values().stream()
+                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name"))
+                    .sorted()
+                    .toList();
+
+            assertEquals(List.of("Book A", "Laptop"), resultNames,
+                    "Result should contain exactly Laptop and Book A");
         }
     }
 }

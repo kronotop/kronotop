@@ -43,16 +43,20 @@ public class PipelineRewriter {
     private static SubPlan traverseChildren(List<PhysicalNode> children) {
         int indexScan = 0;
         int fullScan = 0;
+        boolean nested = false;
         List<PipelineNode> traversedChildren = new ArrayList<>();
         for (PhysicalNode child : children) {
             if (child instanceof PhysicalFullScan) {
                 fullScan++;
             } else if (child instanceof PhysicalIndexScan) {
                 indexScan++;
+            } else {
+                nested = true;
             }
             traversedChildren.add(rewrite(child));
         }
-        ExecutionStrategy strategy = fullScan == 0 ? ExecutionStrategy.INDEX_SCAN :
+        ExecutionStrategy strategy = nested ? ExecutionStrategy.NESTED :
+                fullScan == 0 ? ExecutionStrategy.INDEX_SCAN :
                 indexScan == 0 ? ExecutionStrategy.FULL_SCAN : ExecutionStrategy.MIXED_SCAN;
         return new SubPlan(strategy, traversedChildren);
     }
@@ -91,6 +95,8 @@ public class PipelineRewriter {
                 SubPlan subplan = traverseChildren(physicalAnd.children());
                 if (subplan.strategy().equals(ExecutionStrategy.FULL_SCAN)) {
                     yield convertToFullScanNode(physicalAnd.id(), subplan, PredicateEvalStrategy.AND);
+                } else if (subplan.strategy().equals(ExecutionStrategy.NESTED)) {
+                    yield convertToFullScanNode(physicalAnd.id(), subplan, PredicateEvalStrategy.AND);
                 }
                 yield new IntersectionNode(physicalAnd.id(), subplan.strategy(), subplan.children());
             }
@@ -128,6 +134,8 @@ public class PipelineRewriter {
             case PhysicalOr physicalOr -> {
                 SubPlan subplan = traverseChildren(physicalOr.children());
                 if (subplan.strategy().equals(ExecutionStrategy.FULL_SCAN)) {
+                    yield convertToFullScanNode(physicalOr.id(), subplan, PredicateEvalStrategy.OR);
+                } else if (subplan.strategy().equals(ExecutionStrategy.NESTED)) {
                     yield convertToFullScanNode(physicalOr.id(), subplan, PredicateEvalStrategy.OR);
                 }
                 yield new UnionNode(physicalOr.id(), subplan.strategy(), subplan.children());
