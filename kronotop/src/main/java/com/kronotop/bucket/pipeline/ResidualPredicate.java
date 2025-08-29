@@ -5,7 +5,7 @@ import com.kronotop.bucket.planner.Operator;
 
 import java.nio.ByteBuffer;
 
-public record ResidualPredicate(int id, String selector, Operator op, Object operand) {
+public record ResidualPredicate(int id, String selector, Operator op, Object operand) implements ResidualPredicateNode {
     public boolean test(ByteBuffer document) {
         switch (op) {
             case LT, LTE, GT, GTE:
