@@ -1,13 +1,12 @@
 package com.kronotop.bucket.pipeline;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.NullVal;
 import com.kronotop.bucket.planner.Operator;
 
 import java.nio.ByteBuffer;
 
 public record ResidualPredicate(int id, String selector, Operator op, Object operand) {
-    public boolean test(Versionstamp versionstamp, ByteBuffer document) {
+    public boolean test(ByteBuffer document) {
         switch (op) {
             case LT, LTE, GT, GTE:
                 if (operand instanceof NullVal) {

@@ -37,10 +37,10 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
         return predicates;
     }
 
-    private boolean applyALLMatchingRule(Versionstamp versionstamp, ByteBuffer document) {
+    private boolean applyALLMatchingRule(ByteBuffer document) {
         boolean matched = true;
         for (ResidualPredicate predicate : predicates) {
-            if (!predicate.test(versionstamp, document)) {
+            if (!predicate.test(document)) {
                 matched = false;
                 break;
             }
@@ -48,9 +48,9 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
         return matched;
     }
 
-    private boolean applyANYMatchingRule(Versionstamp versionstamp, ByteBuffer document) {
+    private boolean applyANYMatchingRule(ByteBuffer document) {
         for (ResidualPredicate predicate : predicates) {
-            if (predicate.test(versionstamp, document)) {
+            if (predicate.test(document)) {
                 return true;
             }
         }
@@ -78,9 +78,9 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
 
             boolean append = false;
             if (matchingRule.equals(MatchingRule.ALL)) {
-                append = applyALLMatchingRule(versionstamp, document);
+                append = applyALLMatchingRule(document);
             } else if (matchingRule.equals(MatchingRule.ANY)) {
-                append = applyANYMatchingRule(versionstamp, document);
+                append = applyANYMatchingRule(document);
             }
 
             if (append) {
