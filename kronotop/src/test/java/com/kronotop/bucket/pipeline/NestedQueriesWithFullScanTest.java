@@ -237,4 +237,112 @@ public class NestedQueriesWithFullScanTest extends BasePipelineTest {
             */
         }
     }
+
+    @Test
+    void testNestedOrWithComplexAndBranchesReturnsCorrectUnion() {
+        final String TEST_BUCKET_NAME = "test-bucket-nested-or-complex";
+
+        // Create bucket metadata without any secondary indexes
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert test documents with varied data for OR with AND branches testing
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Laptop Pro\", \"quantity\": 15, \"price\": 1200, \"category\": \"electronics\", \"brand\": \"TechCorp\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Mouse Pad\", \"quantity\": 100, \"price\": 8, \"category\": \"accessories\", \"brand\": \"OfficeMax\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Math Textbook\", \"quantity\": 12, \"price\": 85, \"category\": \"book\", \"brand\": \"EduPress\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Novel Collection\", \"quantity\": 6, \"price\": 25, \"category\": \"book\", \"brand\": \"ReadMore\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Gaming Chair\", \"quantity\": 3, \"price\": 450, \"category\": \"furniture\", \"brand\": \"ComfortMax\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Standing Desk\", \"quantity\": 8, \"price\": 320, \"category\": \"furniture\", \"brand\": \"WorkSpace\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Printer Paper\", \"quantity\": 200, \"price\": 12, \"category\": \"office\", \"brand\": \"PaperCo\" }")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            String nestedOrWithAndQuery = """
+                    {
+                      "$or": [
+                        {
+                          "$and": [
+                            { "category": { "$eq": "book" } },
+                            { "price": { "$gt": 50 } }
+                          ]
+                        },
+                        {
+                          "$and": [
+                            { "quantity": { "$gte": 100 } },
+                            { "price": { "$lt": 20 } }
+                          ]
+                        },
+                        {
+                          "$and": [
+                            { "category": { "$eq": "furniture" } },
+                            { "brand": { "$eq": "WorkSpace" } }
+                          ]
+                        }
+                      ]
+                    }
+                    """;
+
+            PipelineExecutor executor = createPipelineExecutorForQuery(metadata, nestedOrWithAndQuery);
+            PipelineContext ctx = createPipelineContext(metadata);
+
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            for (ByteBuffer buffer : results.values()) {
+                System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
+            }
+
+            // Verify correct union: should return exactly Math Textbook, Mouse Pad, Printer Paper, and Standing Desk
+            assertEquals(4, results.size(),
+                    "Nested OR with AND branches should return exactly 4 documents");
+
+            // Extract document names for verification
+            List<String> resultNames = results.values().stream()
+                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name"))
+                    .sorted()
+                    .toList();
+
+            assertEquals(List.of("Math Textbook", "Mouse Pad", "Printer Paper", "Standing Desk"), resultNames,
+                    "Result should contain exactly Math Textbook, Mouse Pad, Printer Paper, and Standing Desk");
+
+            /*
+            NESTED OR WITH COMPLEX AND BRANCHES ANALYSIS:
+
+            First AND branch: category=book AND price>50
+            - Laptop Pro: category=electronics (✗) → No match
+            - Mouse Pad: category=accessories (✗) → No match
+            - Math Textbook: category=book (✓) AND price=85 (✓) → Match ✓
+            - Novel Collection: category=book (✓) AND price=25 (✗) → No match
+            - Gaming Chair: category=furniture (✗) → No match
+            - Standing Desk: category=furniture (✗) → No match
+            - Printer Paper: category=office (✗) → No match
+            → First AND: {Math Textbook}
+
+            Second AND branch: quantity>=100 AND price<20
+            - Laptop Pro: quantity=15 (✗) → No match
+            - Mouse Pad: quantity=100 (✓) AND price=8 (✓) → Match ✓
+            - Math Textbook: quantity=12 (✗) → No match
+            - Novel Collection: quantity=6 (✗) → No match
+            - Gaming Chair: quantity=3 (✗) → No match
+            - Standing Desk: quantity=8 (✗) → No match
+            - Printer Paper: quantity=200 (✓) AND price=12 (✓) → Match ✓
+            → Second AND: {Mouse Pad, Printer Paper}
+
+            Third AND branch: category=furniture AND brand=WorkSpace
+            - Laptop Pro: category=electronics (✗) → No match
+            - Mouse Pad: category=accessories (✗) → No match
+            - Math Textbook: category=book (✗) → No match
+            - Novel Collection: category=book (✗) → No match
+            - Gaming Chair: category=furniture (✓) AND brand=ComfortMax (✗) → No match
+            - Standing Desk: category=furniture (✓) AND brand=WorkSpace (✓) → Match ✓
+            - Printer Paper: category=office (✗) → No match
+            → Third AND: {Standing Desk}
+
+            OR union: {Math Textbook} ∪ {Mouse Pad, Printer Paper} ∪ {Standing Desk}
+            = {Math Textbook, Mouse Pad, Printer Paper, Standing Desk}
+
+            EXPECTED RESULT: Math Textbook, Mouse Pad, Printer Paper, Standing Desk
+            */
+        }
+    }
 }
