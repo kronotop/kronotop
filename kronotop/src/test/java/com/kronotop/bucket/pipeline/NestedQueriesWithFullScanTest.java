@@ -345,4 +345,73 @@ public class NestedQueriesWithFullScanTest extends BasePipelineTest {
             */
         }
     }
+
+    @Test
+    void testNestedQueryWithContradictoryAND() {
+        final String TEST_BUCKET_NAME = "test-bucket-nested-or-complex";
+
+        // Create bucket metadata without any secondary indexes
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert test documents with varied data for OR with AND branches testing
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Laptop Pro\", \"quantity\": 15, \"price\": 1200, \"category\": \"electronics\", \"brand\": \"TechCorp\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Mouse Pad\", \"quantity\": 100, \"price\": 8, \"category\": \"accessories\", \"brand\": \"OfficeMax\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Math Textbook\", \"quantity\": 12, \"price\": 85, \"category\": \"book\", \"brand\": \"EduPress\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Novel Collection\", \"quantity\": 6, \"price\": 25, \"category\": \"book\", \"brand\": \"ReadMore\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Gaming Chair\", \"quantity\": 3, \"price\": 450, \"category\": \"furniture\", \"brand\": \"ComfortMax\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Standing Desk\", \"quantity\": 8, \"price\": 320, \"category\": \"furniture\", \"brand\": \"WorkSpace\" }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Printer Paper\", \"quantity\": 200, \"price\": 12, \"category\": \"office\", \"brand\": \"PaperCo\" }")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            String nestedOrWithAndQuery = """
+                    {
+                      "$or": [
+                        {
+                          "$and": [
+                            { "category": { "$eq": "book" } },
+                            { "price": { "$gt": 50 } }
+                          ]
+                        },
+                        {
+                          "$and": [
+                            { "quantity": { "$gte": 100 } },
+                            { "price": { "$lt": 20 } }
+                          ]
+                        },
+                        {
+                          "$and": [
+                            { "category": { "$eq": "furniture" } },
+                            { "category": { "$ne": "furniture" } }
+                          ]
+                        }
+                      ]
+                    }
+                    """;
+
+            PipelineExecutor executor = createPipelineExecutorForQuery(metadata, nestedOrWithAndQuery);
+            PipelineContext ctx = createPipelineContext(metadata);
+
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            for (ByteBuffer buffer : results.values()) {
+                System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
+            }
+
+            // Verify correct union: should return exactly Math Textbook, Mouse Pad, Printer Paper
+            assertEquals(3, results.size(),
+                    "Nested OR with AND branches should return exactly 4 documents");
+
+            // Extract document names for verification
+            List<String> resultNames = results.values().stream()
+                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name"))
+                    .sorted()
+                    .toList();
+
+            assertEquals(List.of("Math Textbook", "Mouse Pad", "Printer Paper"), resultNames,
+                    "Result should contain exactly Math Textbook, Mouse Pad and Printer Paper");
+        }
+    }
 }
