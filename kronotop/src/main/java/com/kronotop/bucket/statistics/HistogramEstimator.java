@@ -23,17 +23,19 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 
 /**
- * Provides selectivity estimation using the FDB-based log10 histogram.
+ * Provides selectivity estimation using the FDB-based LogHistogramDynamic2 implementation.
  * 
- * This class implements efficient range-based reads using FoundationDB's getScan pattern
- * to calculate selectivity estimates like P(field > threshold) and P(a <= field < b).
+ * This class implements the LogHistogramDynamic2 selectivity logic with separate positive
+ * and negative histograms:
  * 
- * The estimation algorithm follows the original LogHistogramDynamic approach:
- * 1. Read overflow summary (single key)
- * 2. Scan decade sums for d > dT (range read)
- * 3. Scan group sums for d == dT, g > gT (range read)  
- * 4. Read individual buckets for same group as jT (few keys)
- * 5. Apply linear interpolation for partial bucket contribution
+ * For P(field > threshold):
+ * - If threshold > 0: use posHist.estimateGreaterThan(threshold) / totalCount
+ * - If threshold = 0: count all positive values  
+ * - If threshold < 0: count all positives + negatives with |v| < |threshold|
+ * 
+ * For P(a <= field < b): computed as P(field >= a) - P(field >= b)
+ * 
+ * Each histogram uses efficient individual key reads to avoid range scan issues.
  */
 public class HistogramEstimator {
     
@@ -48,7 +50,7 @@ public class HistogramEstimator {
     }
     
     /**
-     * Estimates P(field > threshold) selectivity
+     * Estimates P(field > threshold) using LogHistogramDynamic2 algorithm
      */
     public double estimateGreaterThan(double threshold) {
         try (Transaction tr = histogram.getDatabase().createTransaction()) {
@@ -57,7 +59,7 @@ public class HistogramEstimator {
     }
     
     /**
-     * Estimates P(field > threshold) within an existing transaction
+     * Estimates P(field > threshold) within an existing transaction using LogHistogramDynamic2
      */
     public double estimateGreaterThan(Transaction tr, double threshold) {
         HistogramMetadata metadata = histogram.getMetadata(bucketName, fieldName);
@@ -67,12 +69,78 @@ public class HistogramEstimator {
         
         DirectorySubspace subspace = histogram.getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
         
-        // Get total count
+        // Get total count across all histograms
         long totalCount = getTotalCount(tr, subspace, metadata.shardCount());
-        if (totalCount == 0 || threshold <= 0) {
-            return threshold <= 0 ? 1.0 : 0.0;
+        if (totalCount == 0) {
+            return 0.0;
         }
         
+        long countAbove = 0;
+        
+        if (threshold > 0) {
+            // Case 1: threshold > 0 - count positives greater than threshold
+            countAbove = estimateHistogramGreaterThan(tr, subspace, HistogramKeySchema.POS_HIST_PREFIX, threshold, metadata);
+            
+        } else if (threshold == 0) {
+            // Case 2: threshold = 0 - count all positive values
+            countAbove = getHistogramTotalCount(tr, subspace, HistogramKeySchema.POS_HIST_PREFIX);
+            
+        } else {
+            // Case 3: threshold < 0 - count all positives + zeros + negatives with |v| < |threshold|
+            // All positives count
+            long positiveCount = getHistogramTotalCount(tr, subspace, HistogramKeySchema.POS_HIST_PREFIX);
+            countAbove += positiveCount;
+            
+            // All zeros count (they are greater than any negative threshold)
+            byte[] zeroData = tr.get(HistogramKeySchema.zeroCountKey(subspace)).join();
+            if (zeroData != null) {
+                countAbove += HistogramKeySchema.decodeCounterValue(zeroData);
+            }
+            
+            // Negatives with |v| < |threshold| (i.e., values closer to zero than threshold)
+            // This means negative values with magnitude less than |threshold|
+            double thresholdMagnitude = -threshold; // |threshold|
+            long negLessThanThreshold = estimateHistogramLessThan(tr, subspace, HistogramKeySchema.NEG_HIST_PREFIX, thresholdMagnitude, metadata);
+            countAbove += negLessThanThreshold;
+        }
+        
+        return Math.max(0.0, Math.min(1.0, (double) countAbove / totalCount));
+    }
+    
+    /**
+     * Estimates P(a <= field < b) selectivity using LogHistogramDynamic2
+     */
+    public double estimateRange(double a, double b) {
+        if (a >= b) {
+            return 0.0;
+        }
+        
+        try (Transaction tr = histogram.getDatabase().createTransaction()) {
+            // P([a,b)) = P(field >= a) - P(field >= b)
+            // For P(field >= x), we compute 1 - P(field < x) = 1 - P(field <= x-epsilon)
+            // But it's easier to compute P(field > x-epsilon) directly
+            
+            double eps = 1e-9;
+            double geqA = estimateGreaterThanOrEqual(tr, a);
+            double geqB = estimateGreaterThanOrEqual(tr, b);
+            return Math.max(0.0, Math.min(1.0, geqA - geqB));
+        }
+    }
+    
+    /**
+     * Estimates P(field >= threshold) 
+     */
+    private double estimateGreaterThanOrEqual(Transaction tr, double threshold) {
+        // P(field >= threshold) = P(field > threshold - epsilon)
+        double eps = 1e-12;
+        return estimateGreaterThan(tr, threshold - eps);
+    }
+    
+    /**
+     * Estimates count > threshold for a specific histogram (pos or neg)
+     */
+    private long estimateHistogramGreaterThan(Transaction tr, DirectorySubspace subspace, String histType, 
+                                            double threshold, HistogramMetadata metadata) {
         double logT = Math.log10(threshold);
         int dT = (int) Math.floor(logT);
         int jT = bucketIndexWithinDecade(logT, dT, metadata.m());
@@ -80,45 +148,41 @@ public class HistogramEstimator {
         
         long countAbove = 0;
         
-        // 1. Add overflow summary (single key read)
-        byte[] overflowData = tr.get(HistogramKeySchema.overflowSumKey(subspace)).join();
+        // 1. Add overflow summary
+        byte[] overflowData = tr.get(HistogramKeySchema.overflowSumKey(subspace, histType)).join();
         if (overflowData != null) {
             countAbove += HistogramKeySchema.decodeCounterValue(overflowData);
         }
         
-        // 2. Scan decade sums for d > dT (use individual reads instead of range scan for now)
-        // Note: Range scan was including non-sum keys, so falling back to individual reads
-        for (int d = dT + 1; d <= dT + 20; d++) { // Check reasonable range
-            byte[] decadeSumData = tr.get(HistogramKeySchema.decadeSumKey(subspace, d)).join();
+        // 2. Add decade sums for d > dT
+        for (int d = dT + 1; d <= dT + 20; d++) {
+            byte[] decadeSumData = tr.get(HistogramKeySchema.decadeSumKey(subspace, histType, d)).join();
             if (decadeSumData != null) {
-                long decadeSum = HistogramKeySchema.decodeCounterValue(decadeSumData);
-                countAbove += decadeSum;
+                countAbove += HistogramKeySchema.decodeCounterValue(decadeSumData);
             }
         }
         
-        // 3. Handle d == dT decade: use individual reads for group sums g > gT
+        // 3. Add group sums for d == dT, g > gT
         for (int g = gT + 1; g < metadata.groupsPerDecade(); g++) {
-            byte[] groupSumData = tr.get(HistogramKeySchema.groupSumKey(subspace, dT, g)).join();
+            byte[] groupSumData = tr.get(HistogramKeySchema.groupSumKey(subspace, histType, dT, g)).join();
             if (groupSumData != null) {
-                long groupSum = HistogramKeySchema.decodeCounterValue(groupSumData);
-                countAbove += groupSum;
+                countAbove += HistogramKeySchema.decodeCounterValue(groupSumData);
             }
         }
         
-        // 4. Handle same group as jT: scan individual j > jT (few key reads)
+        // 4. Add individual buckets for same group, j > jT
         int groupStart = gT * metadata.groupSize();
         int groupEnd = Math.min(groupStart + metadata.groupSize() - 1, metadata.m() - 1);
         
         for (int j = Math.max(jT + 1, groupStart); j <= groupEnd; j++) {
-            byte[] bucketData = tr.get(HistogramKeySchema.bucketCountKey(subspace, dT, j)).join();
+            byte[] bucketData = tr.get(HistogramKeySchema.bucketCountKey(subspace, histType, dT, j)).join();
             if (bucketData != null) {
-                long count = HistogramKeySchema.decodeCounterValue(bucketData);
-                countAbove += count;
+                countAbove += HistogramKeySchema.decodeCounterValue(bucketData);
             }
         }
         
-        // 5. Partial contribution from j == jT bucket (linear interpolation in log space)
-        byte[] bucketData = tr.get(HistogramKeySchema.bucketCountKey(subspace, dT, jT)).join();
+        // 5. Partial contribution from j == jT bucket
+        byte[] bucketData = tr.get(HistogramKeySchema.bucketCountKey(subspace, histType, dT, jT)).join();
         if (bucketData != null) {
             long bucketCount = HistogramKeySchema.decodeCounterValue(bucketData);
             if (bucketCount > 0) {
@@ -130,37 +194,72 @@ public class HistogramEstimator {
             }
         }
         
-        return Math.max(0.0, Math.min(1.0, (double) countAbove / totalCount));
+        return countAbove;
     }
     
     /**
-     * Estimates P(a <= field < b) selectivity
+     * Estimates count < threshold for a specific histogram (for negative magnitude calculations)
      */
-    public double estimateRange(double a, double b) {
-        if (b <= 0 || a >= b) {
-            return 0.0;
+    private long estimateHistogramLessThan(Transaction tr, DirectorySubspace subspace, String histType, 
+                                         double threshold, HistogramMetadata metadata) {
+        // Get total for this histogram and subtract the >= portion
+        long totalHist = getHistogramTotalCount(tr, subspace, histType);
+        long greaterEqual = estimateHistogramGreaterThan(tr, subspace, histType, threshold, metadata);
+        
+        // Also need to account for values exactly equal to threshold
+        double logT = Math.log10(threshold);
+        int dT = (int) Math.floor(logT);
+        int jT = bucketIndexWithinDecade(logT, dT, metadata.m());
+        
+        byte[] bucketData = tr.get(HistogramKeySchema.bucketCountKey(subspace, histType, dT, jT)).join();
+        long equalCount = 0;
+        if (bucketData != null) {
+            long bucketCount = HistogramKeySchema.decodeCounterValue(bucketData);
+            if (bucketCount > 0) {
+                double lower = dT + (double) jT / metadata.m();
+                double upper = dT + (double) (jT + 1) / metadata.m();
+                double ratio = (upper > lower) ? (logT - lower) / (upper - lower) : 0.0;
+                ratio = Math.max(0.0, Math.min(1.0, ratio));
+                equalCount = Math.round(bucketCount * ratio);
+            }
         }
         
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
-            // P([a,b)) = P(>=a) - P(>=b)
-            double eps = 1e-12;
-            double geA = estimateGreaterThan(tr, a - eps);
-            double geB = estimateGreaterThan(tr, b - eps);
-            return Math.max(0.0, Math.min(1.0, geA - geB));
-        }
+        return totalHist - greaterEqual - equalCount;
     }
     
     /**
-     * Gets total count from all shards plus zero/negative count
+     * Gets total count for a specific histogram type (pos or neg)
+     */
+    private long getHistogramTotalCount(Transaction tr, DirectorySubspace subspace, String histType) {
+        long total = 0;
+        
+        // Sum overflow and underflow
+        byte[] overflowData = tr.get(HistogramKeySchema.overflowSumKey(subspace, histType)).join();
+        if (overflowData != null) {
+            total += HistogramKeySchema.decodeCounterValue(overflowData);
+        }
+        
+        byte[] underflowData = tr.get(HistogramKeySchema.underflowSumKey(subspace, histType)).join();
+        if (underflowData != null) {
+            total += HistogramKeySchema.decodeCounterValue(underflowData);
+        }
+        
+        // Sum all active decades (approximate by scanning reasonable range)
+        for (int d = -10; d <= 10; d++) {
+            byte[] decadeSumData = tr.get(HistogramKeySchema.decadeSumKey(subspace, histType, d)).join();
+            if (decadeSumData != null) {
+                total += HistogramKeySchema.decodeCounterValue(decadeSumData);
+            }
+        }
+        
+        return total;
+    }
+    
+    /**
+     * Gets total count from all shards (includes pos + neg + zero)
      */
     private long getTotalCount(Transaction tr, DirectorySubspace subspace, int shardCount) {
         long total = 0;
-        
-        // Get zero/negative count
-        byte[] zeroData = tr.get(HistogramKeySchema.zeroOrNegKey(subspace)).join();
-        if (zeroData != null) {
-            total += HistogramKeySchema.decodeCounterValue(zeroData);
-        }
         
         // Sum all total shards
         for (int s = 0; s < shardCount; s++) {

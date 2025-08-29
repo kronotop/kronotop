@@ -117,12 +117,11 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
         
         HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
         
-        // Values > 0: {50, 100} = 2/5 = 0.4 (but threshold <= 0 is special case in algorithm)
-        // Note: The algorithm treats threshold <= 0 as a special case returning 1.0
-        assertEquals(1.0, estimator.estimateGreaterThan(0), 0.05, "P(>0) should be 1.0 due to special handling of threshold <= 0");
+        // Values > 0: {50, 100} = 2/5 = 0.4
+        assertEquals(0.4, estimator.estimateGreaterThan(0), 0.15, "P(>0) should be approximately 0.4 (2 out of 5 positive values)");
         
-        // Values > -10: threshold <= 0 case, algorithm returns 1.0
-        assertEquals(1.0, estimator.estimateGreaterThan(-10), 0.05, "P(>-10) should be 1.0 due to algorithm's threshold <= 0 handling");
+        // Values > -10: positives {50, 100} + zeros {0} + negatives closer to zero {-5} = 4/5 = 0.8
+        assertEquals(0.8, estimator.estimateGreaterThan(-10), 0.15, "P(>-10) should be approximately 0.8 (4 values > -10)");
         
         // Values > 75: {100} = 1/5 = 0.2
         assertEquals(0.2, estimator.estimateGreaterThan(75), 0.15, "P(>75) should be approximately 0.2 (1 out of 5 values)");

@@ -38,8 +38,12 @@ public class HistogramKeySchema {
     public static final String TOTAL_PREFIX = "total";
     public static final String UNDERFLOW_KEY = "underflow_sum";
     public static final String OVERFLOW_KEY = "overflow_sum";
-    public static final String ZERO_OR_NEG_KEY = "zero_or_neg";
+    public static final String ZERO_COUNT_KEY = "zero_count";
     public static final String METADATA_KEY = "meta";
+    
+    // Histogram type prefixes
+    public static final String POS_HIST_PREFIX = "pos";
+    public static final String NEG_HIST_PREFIX = "neg";
     
     // Little-endian encoded 1 for atomic ADD operations
     public static final byte[] ONE_LE = encodeCounterValue(1L);
@@ -87,24 +91,24 @@ public class HistogramKeySchema {
     }
     
     /**
-     * Creates key for individual bucket count: d/{decade}/j/{subBucket}
+     * Creates key for individual bucket count: {histType}/d/{decade}/j/{subBucket}
      */
-    public static byte[] bucketCountKey(DirectorySubspace subspace, int decade, int subBucket) {
-        return subspace.pack(Tuple.from(COUNTS_PREFIX, decade, "j", subBucket));
+    public static byte[] bucketCountKey(DirectorySubspace subspace, String histType, int decade, int subBucket) {
+        return subspace.pack(Tuple.from(histType, COUNTS_PREFIX, decade, "j", subBucket));
     }
     
     /**
-     * Creates key for decade sum: d/{decade}/sum
+     * Creates key for decade sum: {histType}/d/{decade}/sum
      */
-    public static byte[] decadeSumKey(DirectorySubspace subspace, int decade) {
-        return subspace.pack(Tuple.from(COUNTS_PREFIX, decade, DECADE_SUM_SUFFIX));
+    public static byte[] decadeSumKey(DirectorySubspace subspace, String histType, int decade) {
+        return subspace.pack(Tuple.from(histType, COUNTS_PREFIX, decade, DECADE_SUM_SUFFIX));
     }
     
     /**
-     * Creates key for group sum: d/{decade}/g/{group}
+     * Creates key for group sum: {histType}/d/{decade}/g/{group}
      */
-    public static byte[] groupSumKey(DirectorySubspace subspace, int decade, int group) {
-        return subspace.pack(Tuple.from(COUNTS_PREFIX, decade, GROUP_SUM_PREFIX, group));
+    public static byte[] groupSumKey(DirectorySubspace subspace, String histType, int decade, int group) {
+        return subspace.pack(Tuple.from(histType, COUNTS_PREFIX, decade, GROUP_SUM_PREFIX, group));
     }
     
     /**
@@ -115,24 +119,24 @@ public class HistogramKeySchema {
     }
     
     /**
-     * Creates key for underflow summary
+     * Creates key for underflow summary: {histType}/underflow_sum
      */
-    public static byte[] underflowSumKey(DirectorySubspace subspace) {
-        return subspace.pack(Tuple.from(UNDERFLOW_KEY));
+    public static byte[] underflowSumKey(DirectorySubspace subspace, String histType) {
+        return subspace.pack(Tuple.from(histType, UNDERFLOW_KEY));
     }
     
     /**
-     * Creates key for overflow summary
+     * Creates key for overflow summary: {histType}/overflow_sum
      */
-    public static byte[] overflowSumKey(DirectorySubspace subspace) {
-        return subspace.pack(Tuple.from(OVERFLOW_KEY));
+    public static byte[] overflowSumKey(DirectorySubspace subspace, String histType) {
+        return subspace.pack(Tuple.from(histType, OVERFLOW_KEY));
     }
     
     /**
-     * Creates key for zero/negative count
+     * Creates key for zero count
      */
-    public static byte[] zeroOrNegKey(DirectorySubspace subspace) {
-        return subspace.pack(Tuple.from(ZERO_OR_NEG_KEY));
+    public static byte[] zeroCountKey(DirectorySubspace subspace) {
+        return subspace.pack(Tuple.from(ZERO_COUNT_KEY));
     }
     
     /**
@@ -143,44 +147,30 @@ public class HistogramKeySchema {
     }
     
     /**
-     * Creates range begin key for decade sums starting from decade
+     * Creates range begin key for all histogram entries of a given type
      */
-    public static byte[] decadeSumRangeBegin(DirectorySubspace subspace, int fromDecade) {
-        return subspace.pack(Tuple.from(COUNTS_PREFIX, fromDecade, DECADE_SUM_SUFFIX));
+    public static byte[] histogramTypeRangeBegin(DirectorySubspace subspace, String histType) {
+        return subspace.pack(Tuple.from(histType));
     }
     
     /**
-     * Creates range end key for decade sums up to decade (exclusive)
+     * Creates range end key for all histogram entries of a given type (exclusive)
      */
-    public static byte[] decadeSumRangeEnd(DirectorySubspace subspace, int toDecade) {
-        return subspace.pack(Tuple.from(COUNTS_PREFIX, toDecade, DECADE_SUM_SUFFIX));
+    public static byte[] histogramTypeRangeEnd(DirectorySubspace subspace, String histType) {
+        return subspace.pack(Tuple.from(histType + "\u0000"));
     }
     
     /**
-     * Creates range begin key for group sums starting from group
+     * Creates range begin key for all decade entries of a histogram type
      */
-    public static byte[] groupSumRangeBegin(DirectorySubspace subspace, int decade, int fromGroup) {
-        return subspace.pack(Tuple.from(COUNTS_PREFIX, decade, GROUP_SUM_PREFIX, fromGroup));
+    public static byte[] decadeRangeBegin(DirectorySubspace subspace, String histType, int decade) {
+        return subspace.pack(Tuple.from(histType, COUNTS_PREFIX, decade));
     }
     
     /**
-     * Creates range end key for group sums up to group (exclusive)
+     * Creates range end key for all decade entries of a histogram type (exclusive)
      */
-    public static byte[] groupSumRangeEnd(DirectorySubspace subspace, int decade, int toGroup) {
-        return subspace.pack(Tuple.from(COUNTS_PREFIX, decade, GROUP_SUM_PREFIX, toGroup));
-    }
-    
-    /**
-     * Creates range begin key for all decade entries
-     */
-    public static byte[] decadeRangeBegin(DirectorySubspace subspace, int decade) {
-        return subspace.pack(Tuple.from(COUNTS_PREFIX, decade));
-    }
-    
-    /**
-     * Creates range end key for all decade entries (exclusive)
-     */
-    public static byte[] decadeRangeEnd(DirectorySubspace subspace, int decade) {
-        return subspace.pack(Tuple.from(COUNTS_PREFIX, decade + 1));
+    public static byte[] decadeRangeEnd(DirectorySubspace subspace, String histType, int decade) {
+        return subspace.pack(Tuple.from(histType, COUNTS_PREFIX, decade + 1));
     }
 }

@@ -96,38 +96,53 @@ class HistogramKeySchemaTest extends BaseStandaloneInstanceTest {
     
     @Test
     void testBucketCountKey() {
-        byte[] key = HistogramKeySchema.bucketCountKey(testSubspace, 2, 5);
+        String histType = HistogramKeySchema.POS_HIST_PREFIX;
+        byte[] key = HistogramKeySchema.bucketCountKey(testSubspace, histType, 2, 5);
         assertNotNull(key);
         
         // Different parameters should produce different keys
-        byte[] differentKey = HistogramKeySchema.bucketCountKey(testSubspace, 2, 6);
+        byte[] differentKey = HistogramKeySchema.bucketCountKey(testSubspace, histType, 2, 6);
         assertFalse(Arrays.equals(key, differentKey));
         
-        byte[] differentDecadeKey = HistogramKeySchema.bucketCountKey(testSubspace, 3, 5);
+        byte[] differentDecadeKey = HistogramKeySchema.bucketCountKey(testSubspace, histType, 3, 5);
         assertFalse(Arrays.equals(key, differentDecadeKey));
+        
+        // Different histogram type should produce different key
+        byte[] differentHistTypeKey = HistogramKeySchema.bucketCountKey(testSubspace, HistogramKeySchema.NEG_HIST_PREFIX, 2, 5);
+        assertFalse(Arrays.equals(key, differentHistTypeKey));
     }
     
     @Test
     void testDecadeSumKey() {
-        byte[] key = HistogramKeySchema.decadeSumKey(testSubspace, 2);
+        String histType = HistogramKeySchema.POS_HIST_PREFIX;
+        byte[] key = HistogramKeySchema.decadeSumKey(testSubspace, histType, 2);
         assertNotNull(key);
         
         // Different decade should produce different key
-        byte[] differentKey = HistogramKeySchema.decadeSumKey(testSubspace, 3);
+        byte[] differentKey = HistogramKeySchema.decadeSumKey(testSubspace, histType, 3);
         assertFalse(Arrays.equals(key, differentKey));
+        
+        // Different histogram type should produce different key
+        byte[] differentHistTypeKey = HistogramKeySchema.decadeSumKey(testSubspace, HistogramKeySchema.NEG_HIST_PREFIX, 2);
+        assertFalse(Arrays.equals(key, differentHistTypeKey));
     }
     
     @Test
     void testGroupSumKey() {
-        byte[] key = HistogramKeySchema.groupSumKey(testSubspace, 2, 1);
+        String histType = HistogramKeySchema.POS_HIST_PREFIX;
+        byte[] key = HistogramKeySchema.groupSumKey(testSubspace, histType, 2, 1);
         assertNotNull(key);
         
         // Different parameters should produce different keys
-        byte[] differentGroupKey = HistogramKeySchema.groupSumKey(testSubspace, 2, 2);
+        byte[] differentGroupKey = HistogramKeySchema.groupSumKey(testSubspace, histType, 2, 2);
         assertFalse(Arrays.equals(key, differentGroupKey));
         
-        byte[] differentDecadeKey = HistogramKeySchema.groupSumKey(testSubspace, 3, 1);
+        byte[] differentDecadeKey = HistogramKeySchema.groupSumKey(testSubspace, histType, 3, 1);
         assertFalse(Arrays.equals(key, differentDecadeKey));
+        
+        // Different histogram type should produce different key
+        byte[] differentHistTypeKey = HistogramKeySchema.groupSumKey(testSubspace, HistogramKeySchema.NEG_HIST_PREFIX, 2, 1);
+        assertFalse(Arrays.equals(key, differentHistTypeKey));
     }
     
     @Test
@@ -142,40 +157,47 @@ class HistogramKeySchemaTest extends BaseStandaloneInstanceTest {
     
     @Test
     void testSummaryKeys() {
-        byte[] underflowKey = HistogramKeySchema.underflowSumKey(testSubspace);
-        byte[] overflowKey = HistogramKeySchema.overflowSumKey(testSubspace);
-        byte[] zeroOrNegKey = HistogramKeySchema.zeroOrNegKey(testSubspace);
+        String posHistType = HistogramKeySchema.POS_HIST_PREFIX;
+        String negHistType = HistogramKeySchema.NEG_HIST_PREFIX;
+        
+        byte[] posUnderflowKey = HistogramKeySchema.underflowSumKey(testSubspace, posHistType);
+        byte[] posOverflowKey = HistogramKeySchema.overflowSumKey(testSubspace, posHistType);
+        byte[] negUnderflowKey = HistogramKeySchema.underflowSumKey(testSubspace, negHistType);
+        byte[] negOverflowKey = HistogramKeySchema.overflowSumKey(testSubspace, negHistType);
+        byte[] zeroCountKey = HistogramKeySchema.zeroCountKey(testSubspace);
         byte[] metadataKey = HistogramKeySchema.metadataKey(testSubspace);
         
         // All keys should be different
-        assertFalse(Arrays.equals(underflowKey, overflowKey));
-        assertFalse(Arrays.equals(underflowKey, zeroOrNegKey));
-        assertFalse(Arrays.equals(underflowKey, metadataKey));
-        assertFalse(Arrays.equals(overflowKey, zeroOrNegKey));
-        assertFalse(Arrays.equals(overflowKey, metadataKey));
-        assertFalse(Arrays.equals(zeroOrNegKey, metadataKey));
+        assertFalse(Arrays.equals(posUnderflowKey, posOverflowKey));
+        assertFalse(Arrays.equals(posUnderflowKey, negUnderflowKey));
+        assertFalse(Arrays.equals(posUnderflowKey, zeroCountKey));
+        assertFalse(Arrays.equals(posUnderflowKey, metadataKey));
+        assertFalse(Arrays.equals(posOverflowKey, negOverflowKey));
+        assertFalse(Arrays.equals(posOverflowKey, zeroCountKey));
+        assertFalse(Arrays.equals(posOverflowKey, metadataKey));
+        assertFalse(Arrays.equals(zeroCountKey, metadataKey));
     }
     
     @Test
     void testRangeKeys() {
-        // Test decade sum range
-        byte[] beginKey = HistogramKeySchema.decadeSumRangeBegin(testSubspace, 2);
-        byte[] endKey = HistogramKeySchema.decadeSumRangeEnd(testSubspace, 5);
+        String histType = HistogramKeySchema.POS_HIST_PREFIX;
+        
+        // Test histogram type range
+        byte[] histTypeBeginKey = HistogramKeySchema.histogramTypeRangeBegin(testSubspace, histType);
+        byte[] histTypeEndKey = HistogramKeySchema.histogramTypeRangeEnd(testSubspace, histType);
         
         // Begin should be less than end (lexicographic order)
-        assertTrue(compareByteArrays(beginKey, endKey) < 0);
-        
-        // Test group sum range
-        byte[] groupBeginKey = HistogramKeySchema.groupSumRangeBegin(testSubspace, 2, 1);
-        byte[] groupEndKey = HistogramKeySchema.groupSumRangeEnd(testSubspace, 2, 3);
-        
-        assertTrue(compareByteArrays(groupBeginKey, groupEndKey) < 0);
+        assertTrue(compareByteArrays(histTypeBeginKey, histTypeEndKey) < 0);
         
         // Test decade range
-        byte[] decadeBeginKey = HistogramKeySchema.decadeRangeBegin(testSubspace, 2);
-        byte[] decadeEndKey = HistogramKeySchema.decadeRangeEnd(testSubspace, 2);
+        byte[] decadeBeginKey = HistogramKeySchema.decadeRangeBegin(testSubspace, histType, 2);
+        byte[] decadeEndKey = HistogramKeySchema.decadeRangeEnd(testSubspace, histType, 2);
         
         assertTrue(compareByteArrays(decadeBeginKey, decadeEndKey) < 0);
+        
+        // Test different histogram types produce different ranges
+        byte[] negDecadeBeginKey = HistogramKeySchema.decadeRangeBegin(testSubspace, HistogramKeySchema.NEG_HIST_PREFIX, 2);
+        assertFalse(Arrays.equals(decadeBeginKey, negDecadeBeginKey));
     }
     
     @Test

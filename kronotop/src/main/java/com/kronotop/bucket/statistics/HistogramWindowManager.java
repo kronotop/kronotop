@@ -76,8 +76,8 @@ public class HistogramWindowManager {
      * Maintains window size within an existing transaction
      */
     public void maintainWindow(Transaction tr, DirectorySubspace subspace, HistogramMetadata metadata) {
-        // 1. Discover active decades
-        Set<Integer> activeDecades = getActiveDecades(tr, subspace);
+        // 1. Discover active decades across both histograms
+        Set<Integer> activeDecades = getAllActiveDecades(tr, subspace);
         
         if (activeDecades.size() <= metadata.windowDecades()) {
             return; // No maintenance needed
@@ -90,31 +90,34 @@ public class HistogramWindowManager {
         List<Integer> sortedDecades = new ArrayList<>(activeDecades);
         Collections.sort(sortedDecades);
         
-        // 3. Evict oldest decades first (can be enhanced with better heuristics)
+        // 3. Evict oldest decades first from both histograms
         while (sortedDecades.size() > metadata.windowDecades()) {
             int evictDecade = sortedDecades.remove(0); // Remove oldest
-            evictDecadeToSummary(tr, subspace, evictDecade, false); // to underflow
-            logger.info("Evicted decade " + evictDecade + " to underflow");
+            // Evict from both positive and negative histograms
+            evictDecadeToSummary(tr, subspace, HistogramKeySchema.POS_HIST_PREFIX, evictDecade, false);
+            evictDecadeToSummary(tr, subspace, HistogramKeySchema.NEG_HIST_PREFIX, evictDecade, false);
+            logger.info("Evicted decade " + evictDecade + " from both histograms to underflow");
         }
     }
     
     /**
-     * Discovers all active decades by scanning decade entries
+     * Discovers all active decades by scanning both positive and negative histogram entries
      */
-    private Set<Integer> getActiveDecades(Transaction tr, DirectorySubspace subspace) {
+    private Set<Integer> getActiveDecades(Transaction tr, DirectorySubspace subspace, String histType) {
         Set<Integer> decades = new HashSet<>();
         
-        // Scan all "d" entries to find active decades
-        byte[] beginKey = subspace.pack(Tuple.from(HistogramKeySchema.COUNTS_PREFIX));
+        // Scan all histogram type entries to find active decades
+        byte[] beginKey = subspace.pack(Tuple.from(histType, HistogramKeySchema.COUNTS_PREFIX));
         byte[] endKey = ByteArrayUtil.strinc(beginKey);
         AsyncIterable<KeyValue> entries = tr.getRange(beginKey, endKey);
         
         for (KeyValue kv : entries) {
             try {
                 Tuple tuple = subspace.unpack(kv.getKey());
-                if (tuple.size() >= 2 && HistogramKeySchema.COUNTS_PREFIX.equals(tuple.getString(0))) {
+                if (tuple.size() >= 3 && histType.equals(tuple.getString(0)) && 
+                    HistogramKeySchema.COUNTS_PREFIX.equals(tuple.getString(1))) {
                     // Handle both Integer and Long from tuple decoding
-                    Number decadeNum = (Number) tuple.get(1);
+                    Number decadeNum = (Number) tuple.get(2);
                     Integer decade = decadeNum.intValue();
                     decades.add(decade);
                 }
@@ -128,38 +131,46 @@ public class HistogramWindowManager {
     }
     
     /**
-     * Evicts a decade to summary and clears its data
+     * Gets combined active decades from both histograms
      */
-    private void evictDecadeToSummary(Transaction tr, DirectorySubspace subspace, int decade, boolean toOverflow) {
-        // 1. Get decade sum
-        byte[] decadeSumData = tr.get(HistogramKeySchema.decadeSumKey(subspace, decade)).join();
+    private Set<Integer> getAllActiveDecades(Transaction tr, DirectorySubspace subspace) {
+        Set<Integer> allDecades = new HashSet<>();
+        allDecades.addAll(getActiveDecades(tr, subspace, HistogramKeySchema.POS_HIST_PREFIX));
+        allDecades.addAll(getActiveDecades(tr, subspace, HistogramKeySchema.NEG_HIST_PREFIX));
+        return allDecades;
+    }
+    
+    /**
+     * Evicts a decade from a specific histogram to summary and clears its data
+     */
+    private void evictDecadeToSummary(Transaction tr, DirectorySubspace subspace, String histType, int decade, boolean toOverflow) {
+        // 1. Get decade sum for this histogram type
+        byte[] decadeSumData = tr.get(HistogramKeySchema.decadeSumKey(subspace, histType, decade)).join();
         if (decadeSumData == null) {
-            logger.warning("No decade sum found for decade " + decade);
+            // No data for this decade in this histogram, skip silently
             return;
         }
         
         long decadeSum = HistogramKeySchema.decodeCounterValue(decadeSumData);
         if (decadeSum <= 0) {
-            logger.info("Decade " + decade + " has zero sum, skipping");
-            return;
+            return; // Skip if zero sum
         }
         
         // 2. Add to appropriate summary using atomic ADD
-        String summaryKey = toOverflow ? HistogramKeySchema.OVERFLOW_KEY : HistogramKeySchema.UNDERFLOW_KEY;
         byte[] summaryDelta = HistogramKeySchema.encodeCounterValue(decadeSum);
         
         if (toOverflow) {
-            tr.mutate(MutationType.ADD, HistogramKeySchema.overflowSumKey(subspace), summaryDelta);
+            tr.mutate(MutationType.ADD, HistogramKeySchema.overflowSumKey(subspace, histType), summaryDelta);
         } else {
-            tr.mutate(MutationType.ADD, HistogramKeySchema.underflowSumKey(subspace), summaryDelta);
+            tr.mutate(MutationType.ADD, HistogramKeySchema.underflowSumKey(subspace, histType), summaryDelta);
         }
         
-        // 3. Clear all decade entries using range clear
-        byte[] decadeBegin = HistogramKeySchema.decadeRangeBegin(subspace, decade);
-        byte[] decadeEnd = HistogramKeySchema.decadeRangeEnd(subspace, decade);
+        // 3. Clear all decade entries for this histogram type using range clear
+        byte[] decadeBegin = HistogramKeySchema.decadeRangeBegin(subspace, histType, decade);
+        byte[] decadeEnd = HistogramKeySchema.decadeRangeEnd(subspace, histType, decade);
         tr.clear(decadeBegin, decadeEnd);
         
-        logger.info("Evicted decade " + decade + " with sum " + decadeSum + 
+        logger.info("Evicted " + histType + " decade " + decade + " with sum " + decadeSum + 
                    " to " + (toOverflow ? "overflow" : "underflow"));
     }
     
@@ -174,7 +185,7 @@ public class HistogramWindowManager {
     }
     
     /**
-     * Gets statistics about active decades for monitoring
+     * Gets statistics about active decades for monitoring across both histograms
      */
     public WindowStats getWindowStats(String bucketName, String fieldName, HistogramMetadata metadata) {
         try (Transaction tr = database.createTransaction()) {
@@ -182,19 +193,27 @@ public class HistogramWindowManager {
                     "stats", bucketName, fieldName, "log10_hist", "m", String.valueOf(metadata.m())
             )).join();
             
-            Set<Integer> activeDecades = getActiveDecades(tr, subspace);
+            Set<Integer> activeDecades = getAllActiveDecades(tr, subspace);
             
-            // Get summary counts
+            // Get summary counts from both histograms
             long underflowSum = 0;
-            byte[] underflowData = tr.get(HistogramKeySchema.underflowSumKey(subspace)).join();
-            if (underflowData != null) {
-                underflowSum = HistogramKeySchema.decodeCounterValue(underflowData);
+            byte[] posUnderflowData = tr.get(HistogramKeySchema.underflowSumKey(subspace, HistogramKeySchema.POS_HIST_PREFIX)).join();
+            if (posUnderflowData != null) {
+                underflowSum += HistogramKeySchema.decodeCounterValue(posUnderflowData);
+            }
+            byte[] negUnderflowData = tr.get(HistogramKeySchema.underflowSumKey(subspace, HistogramKeySchema.NEG_HIST_PREFIX)).join();
+            if (negUnderflowData != null) {
+                underflowSum += HistogramKeySchema.decodeCounterValue(negUnderflowData);
             }
             
             long overflowSum = 0;
-            byte[] overflowData = tr.get(HistogramKeySchema.overflowSumKey(subspace)).join();
-            if (overflowData != null) {
-                overflowSum = HistogramKeySchema.decodeCounterValue(overflowData);
+            byte[] posOverflowData = tr.get(HistogramKeySchema.overflowSumKey(subspace, HistogramKeySchema.POS_HIST_PREFIX)).join();
+            if (posOverflowData != null) {
+                overflowSum += HistogramKeySchema.decodeCounterValue(posOverflowData);
+            }
+            byte[] negOverflowData = tr.get(HistogramKeySchema.overflowSumKey(subspace, HistogramKeySchema.NEG_HIST_PREFIX)).join();
+            if (negOverflowData != null) {
+                overflowSum += HistogramKeySchema.decodeCounterValue(negOverflowData);
             }
             
             return new WindowStats(
