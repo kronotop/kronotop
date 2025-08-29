@@ -34,7 +34,6 @@ public class NestedQueriesWithFullScanTest extends BasePipelineTest {
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            // FS-2 FS-1
             String complexQuery = """
                     {
                       "$and": [
@@ -133,6 +132,109 @@ public class NestedQueriesWithFullScanTest extends BasePipelineTest {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
             assertEquals(expectedResult, actualResult);
+        }
+    }
+
+    @Test
+    void testDeepNestedAndOrQueryWithMultipleFields() {
+        final String TEST_BUCKET_NAME = "test-bucket-deep-nested";
+
+        // Create bucket metadata without any secondary indexes
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert test documents with multiple fields for complex nested query testing
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Smartphone\", \"quantity\": 20, \"price\": 650, \"category\": \"electronics\", \"inStock\": true }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Tablet\", \"quantity\": 5, \"price\": 300, \"category\": \"electronics\", \"inStock\": false }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Science Book\", \"quantity\": 8, \"price\": 45, \"category\": \"book\", \"inStock\": true }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"History Book\", \"quantity\": 3, \"price\": 35, \"category\": \"book\", \"inStock\": true }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Sofa\", \"quantity\": 2, \"price\": 800, \"category\": \"furniture\", \"inStock\": false }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Table\", \"quantity\": 7, \"price\": 250, \"category\": \"furniture\", \"inStock\": true }"),
+                BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Marker Set\", \"quantity\": 40, \"price\": 15, \"category\": \"stationery\", \"inStock\": true }")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            String deepNestedQuery = """
+                    {
+                      "$and": [
+                        {
+                          "$or": [
+                            { "quantity": { "$gte": 8 } },
+                            {
+                              "$and": [
+                                { "price": { "$lt": 50 } },
+                                { "inStock": { "$eq": true } }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "$or": [
+                            {
+                              "$and": [
+                                { "category": { "$eq": "electronics" } },
+                                { "price": { "$gte": 400 } }
+                              ]
+                            },
+                            { "category": { "$eq": "furniture" } }
+                          ]
+                        }
+                      ]
+                    }
+                    """;
+
+            PipelineExecutor executor = createPipelineExecutorForQuery(metadata, deepNestedQuery);
+            PipelineContext ctx = createPipelineContext(metadata);
+
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            for (ByteBuffer buffer : results.values()) {
+                System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
+            }
+
+            // Verify correct intersection: should return exactly Smartphone
+            assertEquals(1, results.size(),
+                    "Deep nested AND/OR query should return exactly 1 document (Smartphone)");
+
+            // Extract document names for verification
+            List<String> resultNames = results.values().stream()
+                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name"))
+                    .sorted()
+                    .toList();
+
+            assertEquals(List.of("Smartphone"), resultNames,
+                    "Result should contain exactly Smartphone");
+
+            /*
+            DEEP NESTED QUERY ANALYSIS:
+
+            First OR branch: quantity >= 8 OR (price < 50 AND inStock = true)
+            - Smartphone: quantity=20 (✓) → Match ✓
+            - Tablet: quantity=5 (✗), price=300 (✗) → No match
+            - Science Book: quantity=8 (✓) → Match ✓
+            - History Book: quantity=3 (✗), price=35 (✓) AND inStock=true (✓) → Match ✓
+            - Sofa: quantity=2 (✗), price=800 (✗) → No match
+            - Table: quantity=7 (✗), price=250 (✗) → No match
+            - Marker Set: quantity=40 (✓) → Match ✓
+            → First OR: {Smartphone, Science Book, History Book, Marker Set}
+
+            Second OR branch: (category=electronics AND price>=400) OR category=furniture
+            - Smartphone: category=electronics (✓) AND price=650 (✓) → Match ✓
+            - Tablet: category=electronics (✓) AND price=300 (✗) → No match
+            - Science Book: category=book (✗) → No match
+            - History Book: category=book (✗) → No match
+            - Sofa: category=furniture (✓) → Match ✓
+            - Table: category=furniture (✓) → Match ✓
+            - Marker Set: category=stationery (✗) → No match
+            → Second OR: {Smartphone, Sofa, Table}
+
+            Final AND intersection:
+            {Smartphone, Science Book, History Book, Marker Set} ∩ {Smartphone, Sofa, Table}
+            = {Smartphone}
+
+            EXPECTED RESULT: Smartphone only
+            */
         }
     }
 }
