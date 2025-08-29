@@ -15,7 +15,7 @@ import java.util.List;
 public class FullScanNode extends AbstractTransactionAwareNode implements ScanNode {
     private final IndexDefinition index = DefaultIndexDefinition.ID;
     private final List<ResidualPredicate> predicates;
-    private MatchingRule matchingRule = MatchingRule.ANY;
+    private MatchingRule matchingRule = MatchingRule.ALL;
 
     protected FullScanNode(int id, List<ResidualPredicate> predicates) {
         super(id);
@@ -37,6 +37,17 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
         return predicates;
     }
 
+    private boolean applyALLMatchingRule(Versionstamp versionstamp, ByteBuffer document) {
+        boolean matched = true;
+        for (ResidualPredicate predicate : predicates) {
+            if (!predicate.test(versionstamp, document)) {
+                matched = false;
+                break;
+            }
+        }
+        return matched;
+    }
+
     @Override
     public void execute(PipelineContext ctx, Transaction tr) {
         DirectorySubspace idIndexSubspace = ctx.getMetadata().indexes().getSubspace(index().selector());
@@ -55,14 +66,13 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(idIndexSubspace, indexEntry);
             Versionstamp versionstamp = location.versionstamp();
             ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
-            boolean passed = true;
-            for (ResidualPredicate predicate : predicates) {
-                if (!predicate.test(versionstamp, document)) {
-                    passed = false;
-                    break;
-                }
+
+            boolean append = false;
+            if (matchingRule.equals(MatchingRule.ALL)) {
+                append = applyALLMatchingRule(versionstamp, document);
             }
-            if (passed) {
+
+            if (append) {
                 ctx.output().appendDocument(id(), versionstamp, document);
             }
             ctx.env().cursorManager().savePrimaryIndexCheckpoint(ctx, id(), versionstamp);
