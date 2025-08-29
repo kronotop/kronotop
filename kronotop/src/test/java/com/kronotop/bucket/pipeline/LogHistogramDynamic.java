@@ -70,23 +70,24 @@ public class LogHistogramDynamic {
     }
 
     public static void main(String[] args) {
+        //         double[] values = {-30, -40, -99, -123, -250, -999, -2587, -4589, -10000};
         // m=16, groupSize=4 (grup başına 4 j), W=8 dekad, total için 16 shard
         LogHistogramDynamic hist = new LogHistogramDynamic(16, 4, 8, 16);
 
-        double[] values = {30, 40, 99, 123, 250, 999, 2587, 4589, 10000};
+        double[] values = {-30, -40, -99, -123, -250, -999, -2587, -4589, -10000};
         for (double v : values) hist.add(v);
 
         // pencereyi zorlayalım
-        double[] more = {1.2, 2.5, 6.7, 8.9, 1e6, 3e7, 9e8, 4.2e9};
-        for (double v : more) hist.add(v);
+        //double[] more = {1.2, 2.5, 6.7, 8.9, 1e6, 3e7, 9e8, 4.2e9};
+        //for (double v : more) hist.add(v);
 
         hist.printDebug();
 
-        System.out.printf("%nP(>25)   = %.6f%n", hist.estimateGreaterThan(25));
-        System.out.printf("%nP(>50)   = %.6f%n", hist.estimateGreaterThan(50));
-        System.out.printf("P(>200)  = %.6f%n", hist.estimateGreaterThan(200));
-        System.out.printf("P(>3000) = %.6f%n", hist.estimateGreaterThan(3000));
-        System.out.printf("P([100,500)) = %.6f%n", hist.estimateRange(100, 500));
+        System.out.printf("%nP(>25)   = %.6f%n", hist.estimateGreaterThan(-45));
+        //System.out.printf("%nP(>50)   = %.6f%n", hist.estimateGreaterThan(50));
+        //System.out.printf("P(>200)  = %.6f%n", hist.estimateGreaterThan(200));
+        //System.out.printf("P(>3000) = %.6f%n", hist.estimateGreaterThan(3000));
+        //System.out.printf("P([100,500)) = %.6f%n", hist.estimateRange(100, 500));
     }
 
     /* ===================== Tahmin (O(W) ~ sabit) ===================== */
