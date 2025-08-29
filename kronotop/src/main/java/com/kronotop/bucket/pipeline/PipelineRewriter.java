@@ -4,9 +4,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * The PipelineRewriter class is responsible for transforming a physical execution plan,
@@ -25,6 +23,42 @@ import java.util.Objects;
 public class PipelineRewriter {
 
     /**
+     * Determines the execution strategy based on the types of child nodes.
+     *
+     * @param children the list of {@link PhysicalNode} representing the children
+     * @return the appropriate {@link ExecutionStrategy}
+     */
+    private static ExecutionStrategy determineStrategy(List<PhysicalNode> children) {
+        int indexScan = 0;
+        int fullScan = 0;
+        boolean hasLogicalChildren = false;
+
+        for (PhysicalNode child : children) {
+            if (child instanceof PhysicalFullScan) {
+                fullScan++;
+            } else if (child instanceof PhysicalIndexScan) {
+                indexScan++;
+            } else if (child instanceof PhysicalAnd || child instanceof PhysicalOr) {
+                hasLogicalChildren = true;
+            }
+        }
+
+        return hasLogicalChildren ? ExecutionStrategy.NESTED :
+                fullScan == 0 ? ExecutionStrategy.INDEX_SCAN :
+                        indexScan == 0 ? ExecutionStrategy.FULL_SCAN : ExecutionStrategy.MIXED_SCAN;
+    }
+
+    /**
+     * Rewrites a list of physical nodes into pipeline nodes.
+     *
+     * @param children the list of {@link PhysicalNode} to rewrite
+     * @return the list of rewritten {@link PipelineNode} instances
+     */
+    private static List<PipelineNode> rewriteChildren(List<PhysicalNode> children) {
+        return children.stream().map(PipelineRewriter::rewrite).toList();
+    }
+
+    /**
      * Traverses through a list of {@link PhysicalNode} children and processes each child
      * to determine the appropriate {@link ExecutionStrategy} and generate a list of rewritten
      * {@link PipelineNode} instances.
@@ -41,43 +75,61 @@ public class PipelineRewriter {
      * the rewritten list of {@link PipelineNode} instances
      */
     private static SubPlan traverseChildren(List<PhysicalNode> children) {
-        int indexScan = 0;
-        int fullScan = 0;
-        boolean nested = false;
-        List<PipelineNode> traversedChildren = new ArrayList<>();
-        for (PhysicalNode child : children) {
-            if (child instanceof PhysicalFullScan) {
-                fullScan++;
-            } else if (child instanceof PhysicalIndexScan) {
-                indexScan++;
-            } else {
-                nested = true;
-            }
-            traversedChildren.add(rewrite(child));
-        }
-        ExecutionStrategy strategy = nested ? ExecutionStrategy.NESTED :
-                fullScan == 0 ? ExecutionStrategy.INDEX_SCAN :
-                indexScan == 0 ? ExecutionStrategy.FULL_SCAN : ExecutionStrategy.MIXED_SCAN;
-        return new SubPlan(strategy, traversedChildren);
+        ExecutionStrategy strategy = determineStrategy(children);
+        List<PipelineNode> rewritten = rewriteChildren(children);
+        return new SubPlan(strategy, rewritten);
+    }
+
+    /**
+     * Combines residual predicates from multiple FullScanNode children into a single predicate.
+     *
+     * @param children the list of pipeline nodes (must be FullScanNode instances)
+     * @param strategy the strategy for combining predicates (AND or OR)
+     * @return the combined residual predicate node
+     */
+    private static ResidualPredicateNode combineResiduals(
+            List<PipelineNode> children,
+            PredicateEvalStrategy strategy) {
+
+        List<ResidualPredicateNode> predicates = children.stream()
+                .map(child -> {
+                    if (!(child instanceof FullScanNode fullScanNode)) {
+                        throw new KronotopException("Child plan must be a FullScanNode instance but " + child.getClass().getSimpleName());
+                    }
+                    return fullScanNode.predicate();
+                })
+                .toList();
+
+        return strategy == PredicateEvalStrategy.AND
+                ? new ResidualAndNode(predicates)
+                : new ResidualOrNode(predicates);
+    }
+
+    /**
+     * Rewrites logical operators (AND/OR) into appropriate pipeline nodes based on execution strategy.
+     *
+     * @param id                the node identifier
+     * @param children          the list of child physical nodes
+     * @param predicateStrategy the predicate evaluation strategy (AND or OR)
+     * @param nodeFactory       factory function to create intersection/union nodes
+     * @return the rewritten pipeline node
+     */
+    private static PipelineNode rewriteLogicalOperator(
+            int id,
+            List<PhysicalNode> children,
+            PredicateEvalStrategy predicateStrategy,
+            NodeFactory nodeFactory) {
+
+        SubPlan subplan = traverseChildren(children);
+
+        return switch (subplan.strategy()) {
+            case FULL_SCAN, NESTED -> convertToFullScanNode(id, subplan, predicateStrategy);
+            default -> nodeFactory.create(id, subplan.strategy(), subplan.children());
+        };
     }
 
     private static FullScanNode convertToFullScanNode(int id, SubPlan subplan, PredicateEvalStrategy strategy) {
-        List<ResidualPredicateNode> children = new ArrayList<>();
-        for (PipelineNode child : subplan.children()) {
-            if (child instanceof FullScanNode fullScanNode) {
-                children.add(fullScanNode.predicate());
-            } else {
-                throw new KronotopException("Child plan must be a FullScanNode instance but " + child.getClass().getSimpleName());
-            }
-        }
-        ResidualPredicateNode predicate;
-        if (Objects.equals(strategy, PredicateEvalStrategy.AND)) {
-            predicate = new ResidualAndNode(children);
-        } else if (Objects.equals(strategy, PredicateEvalStrategy.OR)) {
-            predicate = new ResidualOrNode(children);
-        } else {
-            throw new IllegalArgumentException("Unknown predicate rule");
-        }
+        ResidualPredicateNode predicate = combineResiduals(subplan.children(), strategy);
         return new FullScanNode(id, predicate);
     }
 
@@ -91,15 +143,12 @@ public class PipelineRewriter {
      */
     public static PipelineNode rewrite(PhysicalNode plan) {
         return switch (plan) {
-            case PhysicalAnd physicalAnd -> {
-                SubPlan subplan = traverseChildren(physicalAnd.children());
-                if (subplan.strategy().equals(ExecutionStrategy.FULL_SCAN)) {
-                    yield convertToFullScanNode(physicalAnd.id(), subplan, PredicateEvalStrategy.AND);
-                } else if (subplan.strategy().equals(ExecutionStrategy.NESTED)) {
-                    yield convertToFullScanNode(physicalAnd.id(), subplan, PredicateEvalStrategy.AND);
-                }
-                yield new IntersectionNode(physicalAnd.id(), subplan.strategy(), subplan.children());
-            }
+            case PhysicalAnd physicalAnd -> rewriteLogicalOperator(
+                    physicalAnd.id(),
+                    physicalAnd.children(),
+                    PredicateEvalStrategy.AND,
+                    IntersectionNode::new
+            );
             case PhysicalIndexScan indexScan -> {
                 PhysicalNode physicalNode = indexScan.node();
                 if (!(physicalNode instanceof PhysicalFilter(
@@ -131,17 +180,19 @@ public class PipelineRewriter {
                 yield new RangeScanNode(rangeScan.id(), rangeScan.index(), predicate);
             }
             case PhysicalFalse ignored -> null; // this query makes no sense.
-            case PhysicalOr physicalOr -> {
-                SubPlan subplan = traverseChildren(physicalOr.children());
-                if (subplan.strategy().equals(ExecutionStrategy.FULL_SCAN)) {
-                    yield convertToFullScanNode(physicalOr.id(), subplan, PredicateEvalStrategy.OR);
-                } else if (subplan.strategy().equals(ExecutionStrategy.NESTED)) {
-                    yield convertToFullScanNode(physicalOr.id(), subplan, PredicateEvalStrategy.OR);
-                }
-                yield new UnionNode(physicalOr.id(), subplan.strategy(), subplan.children());
-            }
+            case PhysicalOr physicalOr -> rewriteLogicalOperator(
+                    physicalOr.id(),
+                    physicalOr.children(),
+                    PredicateEvalStrategy.OR,
+                    UnionNode::new
+            );
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);
         };
+    }
+
+    @FunctionalInterface
+    private interface NodeFactory {
+        PipelineNode create(int id, ExecutionStrategy strategy, List<PipelineNode> children);
     }
 }
 
