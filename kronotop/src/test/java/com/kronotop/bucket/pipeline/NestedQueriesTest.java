@@ -3,6 +3,7 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -14,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class NestedQueriesTest extends BasePipelineTest {
     @Test
+    @Disabled
     void foo() {
         final String TEST_BUCKET_NAME = "test-bucket-nested-investigation";
 

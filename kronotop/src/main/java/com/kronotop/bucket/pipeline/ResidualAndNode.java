@@ -12,6 +12,13 @@ public class ResidualAndNode implements ResidualPredicateNode {
 
     @Override
     public boolean test(ByteBuffer document) {
-        return false;
+        boolean matched = true;
+        for (ResidualPredicateNode predicate : children) {
+            if (!predicate.test(document)) {
+                matched = false;
+                break;
+            }
+        }
+        return matched;
     }
 }

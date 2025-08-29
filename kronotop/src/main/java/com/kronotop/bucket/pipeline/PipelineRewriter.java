@@ -6,6 +6,7 @@ import com.kronotop.bucket.planner.physical.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The PipelineRewriter class is responsible for transforming a physical execution plan,
@@ -56,27 +57,24 @@ public class PipelineRewriter {
         return new SubPlan(strategy, traversedChildren);
     }
 
-    /**
-     * Converts a {@link SubPlan} into a {@link FullScanNode} by consolidating
-     * the predicates of all child {@link FullScanNode} instances and applying
-     * the provided {@link MatchingRule}.
-     *
-     * @param id           the unique identifier for the resulting {@link FullScanNode}
-     * @param subplan      the {@link SubPlan} containing child {@link PipelineNode} instances to process
-     * @param matchingRule the {@link MatchingRule} to apply to the resulting {@link FullScanNode}
-     * @return a new {@link FullScanNode} instance containing consolidated predicates and the specified matching rule
-     * @throws KronotopException if a child {@link PipelineNode} within the {@link SubPlan} is not a {@link FullScanNode}
-     */
-    private static FullScanNode convertToFullScanNode(int id, SubPlan subplan, MatchingRule matchingRule) {
-        List<ResidualPredicate> predicates = new ArrayList<>();
+    private static FullScanNode convertToFullScanNode(int id, SubPlan subplan, PredicateEvalStrategy strategy) {
+        List<ResidualPredicateNode> children = new ArrayList<>();
         for (PipelineNode child : subplan.children()) {
             if (child instanceof FullScanNode fullScanNode) {
-                predicates.addAll(fullScanNode.predicates());
+                children.add(fullScanNode.predicate());
             } else {
                 throw new KronotopException("Child plan must be a FullScanNode instance but " + child.getClass().getSimpleName());
             }
         }
-        return new FullScanNode(id, predicates, matchingRule);
+        ResidualPredicateNode predicate;
+        if (Objects.equals(strategy, PredicateEvalStrategy.AND)) {
+            predicate = new ResidualAndNode(children);
+        } else if (Objects.equals(strategy, PredicateEvalStrategy.OR)) {
+            predicate = new ResidualOrNode(children);
+        } else {
+            throw new IllegalArgumentException("Unknown predicate rule");
+        }
+        return new FullScanNode(id, predicate);
     }
 
     /**
@@ -92,7 +90,7 @@ public class PipelineRewriter {
             case PhysicalAnd physicalAnd -> {
                 SubPlan subplan = traverseChildren(physicalAnd.children());
                 if (subplan.strategy().equals(ExecutionStrategy.FULL_SCAN)) {
-                    yield convertToFullScanNode(physicalAnd.id(), subplan, MatchingRule.ALL);
+                    yield convertToFullScanNode(physicalAnd.id(), subplan, PredicateEvalStrategy.AND);
                 }
                 yield new IntersectionNode(physicalAnd.id(), subplan.strategy(), subplan.children());
             }
@@ -114,7 +112,7 @@ public class PipelineRewriter {
                     throw new IllegalStateException("PhysicalNode must be a PhysicalFilter instance");
                 }
                 ResidualPredicate predicate = new ResidualPredicate(id, selector, op, operand);
-                yield new FullScanNode(id, List.of(predicate));
+                yield new FullScanNode(id, predicate);
             }
             case PhysicalRangeScan rangeScan -> {
                 RangeScanPredicate predicate = new RangeScanPredicate(
@@ -130,7 +128,7 @@ public class PipelineRewriter {
             case PhysicalOr physicalOr -> {
                 SubPlan subplan = traverseChildren(physicalOr.children());
                 if (subplan.strategy().equals(ExecutionStrategy.FULL_SCAN)) {
-                    yield convertToFullScanNode(physicalOr.id(), subplan, MatchingRule.ANY);
+                    yield convertToFullScanNode(physicalOr.id(), subplan, PredicateEvalStrategy.OR);
                 }
                 yield new UnionNode(physicalOr.id(), subplan.strategy(), subplan.children());
             }

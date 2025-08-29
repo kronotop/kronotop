@@ -10,22 +10,14 @@ import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.IndexDefinition;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 
 public class FullScanNode extends AbstractTransactionAwareNode implements ScanNode {
     private final IndexDefinition index = DefaultIndexDefinition.ID;
-    private final List<ResidualPredicate> predicates;
-    private MatchingRule matchingRule = MatchingRule.ALL;
+    private final ResidualPredicateNode predicate;
 
-    protected FullScanNode(int id, List<ResidualPredicate> predicates) {
+    protected FullScanNode(int id, ResidualPredicateNode predicate) {
         super(id);
-        this.predicates = predicates;
-    }
-
-    protected FullScanNode(int id, List<ResidualPredicate> predicates, MatchingRule matchingRule) {
-        super(id);
-        this.predicates = predicates;
-        this.matchingRule = matchingRule;
+        this.predicate = predicate;
     }
 
     @Override
@@ -33,28 +25,8 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
         return index;
     }
 
-    public List<ResidualPredicate> predicates() {
-        return predicates;
-    }
-
-    private boolean applyALLMatchingRule(ByteBuffer document) {
-        boolean matched = true;
-        for (ResidualPredicate predicate : predicates) {
-            if (!predicate.test(document)) {
-                matched = false;
-                break;
-            }
-        }
-        return matched;
-    }
-
-    private boolean applyANYMatchingRule(ByteBuffer document) {
-        for (ResidualPredicate predicate : predicates) {
-            if (predicate.test(document)) {
-                return true;
-            }
-        }
-        return false;
+    public ResidualPredicateNode predicate() {
+        return predicate;
     }
 
     @Override
@@ -76,14 +48,7 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
             Versionstamp versionstamp = location.versionstamp();
             ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.getMetadata(), location);
 
-            boolean append = false;
-            if (matchingRule.equals(MatchingRule.ALL)) {
-                append = applyALLMatchingRule(document);
-            } else if (matchingRule.equals(MatchingRule.ANY)) {
-                append = applyANYMatchingRule(document);
-            }
-
-            if (append) {
+            if (predicate.test(document)) {
                 ctx.output().appendDocument(id(), versionstamp, document);
             }
             ctx.env().cursorManager().savePrimaryIndexCheckpoint(ctx, id(), versionstamp);
