@@ -42,4 +42,34 @@ public class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             assertEquals(Set.of(20, 35, 40, 47), extractIntegerFieldFromResults(results, "age"));
         }
     }
+
+    @Test
+    void testUnionWithSingleSubQuery() {
+        final String TEST_BUCKET_NAME = "test-intersection-full-scan-strategy";
+
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}"), // match
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'John'}"), // match
+                BSONUtil.jsonToDocumentThenBytes("{'age': 40, 'name': 'Alison'}"), // match
+                BSONUtil.jsonToDocumentThenBytes("{'age': 47, 'name': 'John'}") // match
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineExecutor executor = createPipelineExecutorForQuery(metadata, "{ $or: [ { 'age': { '$gt': 25 } } ] }");
+        PipelineContext ctx = createPipelineContext(metadata);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            assertEquals(4, results.size());
+            assertEquals(Set.of("Claire", "John", "Alison"), extractNamesFromResults(results));
+            assertEquals(Set.of(35, 40, 47), extractIntegerFieldFromResults(results, "age"));
+        }
+    }
 }
