@@ -27,12 +27,12 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * FoundationDB-based log10 histogram implementation following LogHistogramDynamic2 design.
- * 
+ * <p>
  * This implementation maintains two separate histograms:
  * - posHist: for positive values using log10 bucketing
  * - negHist: for negative values using log10 of magnitude (|v|)
  * - zeroCount: separate counter for zero values
- * 
+ * <p>
  * Key benefits:
  * - O(1) write operations using atomic ADD mutations (no reads required)
  * - Correct handling of positive, negative, and zero values
@@ -40,7 +40,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * - Window management through background janitor tasks 
  * - Hot key avoidance via sharded total counters
  * - ACID transactional consistency
- * 
+ * <p>
  * Key Schema:
  * /stats/{bucketName}/{fieldName}/log10_hist/m/{m}/
  *   pos/d/{d}/j/{j}         -> count (positive bucket counts)
@@ -89,17 +89,6 @@ public class FDBLogHistogram {
     
     /**
      * Adds a value to the histogram using atomic mutations (O(1), read-free).
-     * 
-     * Algorithm follows LogHistogramDynamic2:
-     * - For value > 0: add to posHist using log10(value) bucketing
-     * - For value < 0: add to negHist using log10(|value|) bucketing  
-     * - For value = 0: increment zeroCount
-     * 
-     * Each insert increments:
-     *   - bucket counts[d][j] 
-     *   - decadeSum[d]
-     *   - groupSum[d][g] where g = j / groupSize
-     *   - totalShards[randomShard]
      */
     public void add(String bucketName, String fieldName, double value) {
         HistogramMetadata metadata = getMetadata(bucketName, fieldName);
@@ -119,10 +108,6 @@ public class FDBLogHistogram {
      */
     public void addValue(Transaction tr, String bucketName, String fieldName, double value, HistogramMetadata metadata) {
         DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
-        
-        // Add to random total shard (shared across all histograms)
-        int shard = ThreadLocalRandom.current().nextInt(metadata.shardCount());
-        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, shard), HistogramKeySchema.ONE_LE);
         
         if (value == 0.0) {
             // Handle zero values separately
@@ -147,10 +132,111 @@ public class FDBLogHistogram {
         int subBucket = bucketIndexWithinDecade(log, decade, metadata.m());
         int group = subBucket / metadata.groupSize();
         
+        // Deterministic shard based on value
+        int shard = computeShardId(value, metadata.shardCount());
+        
         // Atomic ADD operations (no reads required)
         tr.mutate(MutationType.ADD, HistogramKeySchema.bucketCountKey(subspace, histType, decade, subBucket), HistogramKeySchema.ONE_LE);
         tr.mutate(MutationType.ADD, HistogramKeySchema.decadeSumKey(subspace, histType, decade), HistogramKeySchema.ONE_LE);
         tr.mutate(MutationType.ADD, HistogramKeySchema.groupSumKey(subspace, histType, decade, group), HistogramKeySchema.ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, histType, shard), HistogramKeySchema.ONE_LE);
+    }
+    
+    /**
+     * Deletes a value using atomic ADD(-1) operations - exact inverse of insert
+     */
+    public void deleteValue(Transaction tr, String bucketName, String fieldName, double value, HistogramMetadata metadata) {
+        DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
+        
+        if (value == 0.0) {
+            // Handle zero values separately
+            tr.mutate(MutationType.ADD, HistogramKeySchema.zeroCountKey(subspace), HistogramKeySchema.NEGATIVE_ONE_LE);
+            return;
+        }
+        
+        // Determine histogram type and magnitude
+        String histType;
+        double magnitude;
+        if (value > 0) {
+            histType = HistogramKeySchema.POS_HIST_PREFIX;
+            magnitude = value;
+        } else {
+            histType = HistogramKeySchema.NEG_HIST_PREFIX;
+            magnitude = -value; // Use absolute value for negatives
+        }
+        
+        // Calculate decade and sub-bucket using log10 of magnitude
+        double log = Math.log10(magnitude);
+        int decade = (int) Math.floor(log);
+        int subBucket = bucketIndexWithinDecade(log, decade, metadata.m());
+        int group = subBucket / metadata.groupSize();
+        
+        // Deterministic shard based on value
+        int shard = computeShardId(value, metadata.shardCount());
+        
+        // Atomic ADD(-1) operations - exact inverse of insert
+        tr.mutate(MutationType.ADD, HistogramKeySchema.bucketCountKey(subspace, histType, decade, subBucket), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.decadeSumKey(subspace, histType, decade), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.groupSumKey(subspace, histType, decade, group), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, histType, shard), HistogramKeySchema.NEGATIVE_ONE_LE);
+    }
+    
+    /**
+     * Updates a value atomically (delete old + insert new in single transaction)
+     */
+    public void updateValue(Transaction tr, String bucketName, String fieldName, double oldValue, double newValue, HistogramMetadata metadata) {
+        if (oldValue == newValue) {
+            return; // No change needed
+        }
+        
+        // Atomic delete old + insert new
+        deleteValue(tr, bucketName, fieldName, oldValue, metadata);
+        addValue(tr, bucketName, fieldName, newValue, metadata);
+    }
+    
+    /**
+     * Deletes a value from the histogram.
+     */
+        public void delete(String bucketName, String fieldName, double value) {
+        HistogramMetadata metadata = getMetadata(bucketName, fieldName);
+        if (metadata == null) {
+            return; // Nothing to delete if histogram doesn't exist
+        }
+        
+        try (Transaction tr = database.createTransaction()) {
+            deleteValue(tr, bucketName, fieldName, value, metadata);
+            tr.commit().join();
+        }
+    }
+    
+    /**
+     * Updates a value in the histogram.
+     */
+    public void update(String bucketName, String fieldName, double oldValue, double newValue) {
+        if (oldValue == newValue) {
+            return; // No change needed
+        }
+        
+        HistogramMetadata metadata = getMetadata(bucketName, fieldName);
+        if (metadata == null) {
+            metadata = HistogramMetadata.defaultMetadata();
+            initialize(bucketName, fieldName, metadata);
+        }
+        
+        try (Transaction tr = database.createTransaction()) {
+            updateValue(tr, bucketName, fieldName, oldValue, newValue, metadata);
+            tr.commit().join();
+        }
+    }
+    
+    /**
+     * Computes deterministic shard ID based on value hash
+     */
+    private int computeShardId(double value, int shardCount) {
+        // Use Double.doubleToLongBits for deterministic hash of double values
+        long hash = Double.doubleToLongBits(value);
+        // Apply mask to ensure positive value, then mod by shard count
+        return (int) ((hash & 0x7fffffffL) % shardCount);
     }
     
     /**

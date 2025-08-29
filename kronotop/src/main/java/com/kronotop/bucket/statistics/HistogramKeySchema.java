@@ -45,8 +45,9 @@ public class HistogramKeySchema {
     public static final String POS_HIST_PREFIX = "pos";
     public static final String NEG_HIST_PREFIX = "neg";
     
-    // Little-endian encoded 1 for atomic ADD operations
+    // Little-endian encoded values for atomic ADD operations
     public static final byte[] ONE_LE = encodeCounterValue(1L);
+    public static final byte[] NEGATIVE_ONE_LE = encodeCounterValue(-1L);
     
     /**
      * Encodes a long value in little-endian format for FoundationDB counter mutations
@@ -112,10 +113,10 @@ public class HistogramKeySchema {
     }
     
     /**
-     * Creates key for total shard: total/{shardId}
+     * Creates key for histogram-specific total shard: {histType}/total/{shardId}
      */
-    public static byte[] totalShardKey(DirectorySubspace subspace, int shardId) {
-        return subspace.pack(Tuple.from(TOTAL_PREFIX, shardId));
+    public static byte[] totalShardKey(DirectorySubspace subspace, String histType, int shardId) {
+        return subspace.pack(Tuple.from(histType, TOTAL_PREFIX, shardId));
     }
     
     /**

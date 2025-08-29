@@ -147,12 +147,16 @@ class HistogramKeySchemaTest extends BaseStandaloneInstanceTest {
     
     @Test
     void testTotalShardKey() {
-        byte[] key = HistogramKeySchema.totalShardKey(testSubspace, 5);
+        byte[] key = HistogramKeySchema.totalShardKey(testSubspace, "pos", 5);
         assertNotNull(key);
         
         // Different shard should produce different key
-        byte[] differentKey = HistogramKeySchema.totalShardKey(testSubspace, 6);
+        byte[] differentKey = HistogramKeySchema.totalShardKey(testSubspace, "pos", 6);
         assertFalse(Arrays.equals(key, differentKey));
+        
+        // Different histogram type should produce different key
+        byte[] differentHistTypeKey = HistogramKeySchema.totalShardKey(testSubspace, "neg", 5);
+        assertFalse(Arrays.equals(key, differentHistTypeKey));
     }
     
     @Test

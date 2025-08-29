@@ -261,12 +261,26 @@ public class HistogramEstimator {
     private long getTotalCount(Transaction tr, DirectorySubspace subspace, int shardCount) {
         long total = 0;
         
-        // Sum all total shards
+        // Sum positive histogram total shards
         for (int s = 0; s < shardCount; s++) {
-            byte[] shardData = tr.get(HistogramKeySchema.totalShardKey(subspace, s)).join();
+            byte[] shardData = tr.get(HistogramKeySchema.totalShardKey(subspace, HistogramKeySchema.POS_HIST_PREFIX, s)).join();
             if (shardData != null) {
                 total += HistogramKeySchema.decodeCounterValue(shardData);
             }
+        }
+        
+        // Sum negative histogram total shards
+        for (int s = 0; s < shardCount; s++) {
+            byte[] shardData = tr.get(HistogramKeySchema.totalShardKey(subspace, HistogramKeySchema.NEG_HIST_PREFIX, s)).join();
+            if (shardData != null) {
+                total += HistogramKeySchema.decodeCounterValue(shardData);
+            }
+        }
+        
+        // Add zero count
+        byte[] zeroData = tr.get(HistogramKeySchema.zeroCountKey(subspace)).join();
+        if (zeroData != null) {
+            total += HistogramKeySchema.decodeCounterValue(zeroData);
         }
         
         return total;
