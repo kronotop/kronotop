@@ -18,9 +18,8 @@ package com.kronotop.bucket.statistics;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kronotop.internal.JSONUtil;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -44,7 +43,6 @@ public class HistogramKeySchema {
     // Little-endian encoded values for atomic ADD operations
     public static final byte[] ONE_LE = encodeCounterValue(1L);
     public static final byte[] NEGATIVE_ONE_LE = encodeCounterValue(-1L);
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
      * Encodes a long value in little-endian format for FoundationDB counter mutations
@@ -67,11 +65,7 @@ public class HistogramKeySchema {
      * Encodes histogram metadata as JSON
      */
     public static byte[] encodeMetadata(HistogramMetadata metadata) {
-        try {
-            return OBJECT_MAPPER.writeValueAsBytes(metadata);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to encode histogram metadata", e);
-        }
+        return JSONUtil.writeValueAsBytes(metadata);
     }
 
     /**
@@ -81,11 +75,7 @@ public class HistogramKeySchema {
         if (data == null) {
             return null;
         }
-        try {
-            return OBJECT_MAPPER.readValue(data, HistogramMetadata.class);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to decode histogram metadata", e);
-        }
+        return JSONUtil.readValue(data, HistogramMetadata.class);
     }
 
     /**
