@@ -29,8 +29,6 @@ import java.nio.ByteOrder;
  * Implements the key schema design for log10 histogram storage.
  */
 public class HistogramKeySchema {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    
     // Key constants
     public static final String COUNTS_PREFIX = "d";
     public static final String DECADE_SUM_SUFFIX = "sum";
@@ -40,22 +38,21 @@ public class HistogramKeySchema {
     public static final String OVERFLOW_KEY = "overflow_sum";
     public static final String ZERO_COUNT_KEY = "zero_count";
     public static final String METADATA_KEY = "meta";
-    
     // Histogram type prefixes
     public static final String POS_HIST_PREFIX = "pos";
     public static final String NEG_HIST_PREFIX = "neg";
-    
     // Little-endian encoded values for atomic ADD operations
     public static final byte[] ONE_LE = encodeCounterValue(1L);
     public static final byte[] NEGATIVE_ONE_LE = encodeCounterValue(-1L);
-    
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     /**
      * Encodes a long value in little-endian format for FoundationDB counter mutations
      */
     public static byte[] encodeCounterValue(long value) {
         return ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(value).array();
     }
-    
+
     /**
      * Decodes a little-endian long value from FoundationDB
      */
@@ -65,7 +62,7 @@ public class HistogramKeySchema {
         }
         return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
     }
-    
+
     /**
      * Encodes histogram metadata as JSON
      */
@@ -76,7 +73,7 @@ public class HistogramKeySchema {
             throw new RuntimeException("Failed to encode histogram metadata", e);
         }
     }
-    
+
     /**
      * Decodes histogram metadata from JSON
      */
@@ -90,84 +87,84 @@ public class HistogramKeySchema {
             throw new RuntimeException("Failed to decode histogram metadata", e);
         }
     }
-    
+
     /**
      * Creates key for individual bucket count: {histType}/d/{decade}/j/{subBucket}
      */
     public static byte[] bucketCountKey(DirectorySubspace subspace, String histType, int decade, int subBucket) {
         return subspace.pack(Tuple.from(histType, COUNTS_PREFIX, decade, "j", subBucket));
     }
-    
+
     /**
      * Creates key for decade sum: {histType}/d/{decade}/sum
      */
     public static byte[] decadeSumKey(DirectorySubspace subspace, String histType, int decade) {
         return subspace.pack(Tuple.from(histType, COUNTS_PREFIX, decade, DECADE_SUM_SUFFIX));
     }
-    
+
     /**
      * Creates key for group sum: {histType}/d/{decade}/g/{group}
      */
     public static byte[] groupSumKey(DirectorySubspace subspace, String histType, int decade, int group) {
         return subspace.pack(Tuple.from(histType, COUNTS_PREFIX, decade, GROUP_SUM_PREFIX, group));
     }
-    
+
     /**
      * Creates key for histogram-specific total shard: {histType}/total/{shardId}
      */
     public static byte[] totalShardKey(DirectorySubspace subspace, String histType, int shardId) {
         return subspace.pack(Tuple.from(histType, TOTAL_PREFIX, shardId));
     }
-    
+
     /**
      * Creates key for underflow summary: {histType}/underflow_sum
      */
     public static byte[] underflowSumKey(DirectorySubspace subspace, String histType) {
         return subspace.pack(Tuple.from(histType, UNDERFLOW_KEY));
     }
-    
+
     /**
      * Creates key for overflow summary: {histType}/overflow_sum
      */
     public static byte[] overflowSumKey(DirectorySubspace subspace, String histType) {
         return subspace.pack(Tuple.from(histType, OVERFLOW_KEY));
     }
-    
+
     /**
      * Creates key for zero count
      */
     public static byte[] zeroCountKey(DirectorySubspace subspace) {
         return subspace.pack(Tuple.from(ZERO_COUNT_KEY));
     }
-    
+
     /**
      * Creates key for metadata
      */
     public static byte[] metadataKey(DirectorySubspace subspace) {
         return subspace.pack(Tuple.from(METADATA_KEY));
     }
-    
+
     /**
      * Creates range begin key for all histogram entries of a given type
      */
     public static byte[] histogramTypeRangeBegin(DirectorySubspace subspace, String histType) {
         return subspace.pack(Tuple.from(histType));
     }
-    
+
     /**
      * Creates range end key for all histogram entries of a given type (exclusive)
      */
     public static byte[] histogramTypeRangeEnd(DirectorySubspace subspace, String histType) {
         return subspace.pack(Tuple.from(histType + "\u0000"));
     }
-    
+
     /**
      * Creates range begin key for all decade entries of a histogram type
      */
     public static byte[] decadeRangeBegin(DirectorySubspace subspace, String histType, int decade) {
         return subspace.pack(Tuple.from(histType, COUNTS_PREFIX, decade));
     }
-    
+
     /**
      * Creates range end key for all decade entries of a histogram type (exclusive)
      */

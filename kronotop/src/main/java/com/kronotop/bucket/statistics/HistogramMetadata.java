@@ -27,13 +27,13 @@ public record HistogramMetadata(
         int shardCount,         // total counter sharding to avoid hot keys
         int version             // versioning for schema changes
 ) {
-    
+
     public static final int DEFAULT_M = 16;
     public static final int DEFAULT_GROUP_SIZE = 4;
     public static final int DEFAULT_WINDOW_DECADES = 8;
     public static final int DEFAULT_SHARD_COUNT = 16;
     public static final int CURRENT_VERSION = 1;
-    
+
     public HistogramMetadata {
         if (m <= 0) {
             throw new IllegalArgumentException("m must be > 0");
@@ -51,20 +51,20 @@ public record HistogramMetadata(
             throw new IllegalArgumentException("version must be > 0");
         }
     }
-    
+
     /**
      * Creates default histogram metadata
      */
     public static HistogramMetadata defaultMetadata() {
         return new HistogramMetadata(
-                DEFAULT_M, 
-                DEFAULT_GROUP_SIZE, 
-                DEFAULT_WINDOW_DECADES, 
-                DEFAULT_SHARD_COUNT, 
+                DEFAULT_M,
+                DEFAULT_GROUP_SIZE,
+                DEFAULT_WINDOW_DECADES,
+                DEFAULT_SHARD_COUNT,
                 CURRENT_VERSION
         );
     }
-    
+
     /**
      * Number of groups per decade
      */
