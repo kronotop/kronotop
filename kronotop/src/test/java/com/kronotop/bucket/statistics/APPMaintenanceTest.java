@@ -35,6 +35,19 @@ public class APPMaintenanceTest extends BaseStandaloneInstanceTest {
     @BeforeEach
     public void setUp() {
         histogram = new FDBAdaptivePrefixHistogram(instance.getContext().getFoundationDB());
+        
+        // Clear any existing data to ensure clean test state
+        clearHistogramData();
+    }
+    
+    private void clearHistogramData() {
+        try (var tr = histogram.getDatabase().createTransaction()) {
+            var subspace = histogram.getHistogramSubspace(tr, bucketName, fieldName);
+            
+            // Clear all data in the histogram subspace
+            tr.clear(subspace.range());
+            tr.commit().join();
+        }
     }
 
     @Test

@@ -66,8 +66,18 @@ public class FDBAdaptivePrefixHistogram {
         try (Transaction tr = database.createTransaction()) {
             DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName);
             
-            // Store metadata
+            // Check if already initialized
             byte[] metaKey = APPKeySchema.metadataKey(subspace);
+            /*byte[] existingMetaValue = tr.get(metaKey).join();
+            if (existingMetaValue != null) {
+                // Already initialized - just update metadata if needed
+                byte[] newMetaValue = APPKeySchema.encodeMetadata(metadata);
+                tr.set(metaKey, newMetaValue);
+                tr.commit().join();
+                return;
+            }*/
+
+            // Store metadata
             byte[] metaValue = APPKeySchema.encodeMetadata(metadata);
             tr.set(metaKey, metaValue);
             

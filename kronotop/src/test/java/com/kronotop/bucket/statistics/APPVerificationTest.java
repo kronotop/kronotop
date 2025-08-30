@@ -47,6 +47,19 @@ public class APPVerificationTest extends BaseStandaloneInstanceTest {
     public void setUp() {
         histogram = new FDBAdaptivePrefixHistogram(instance.getContext().getFoundationDB());
         groundTruth = new TreeMap<>(Arrays::compareUnsigned);
+        
+        // Clear any existing data to ensure clean test state
+        clearHistogramData();
+    }
+    
+    private void clearHistogramData() {
+        try (var tr = histogram.getDatabase().createTransaction()) {
+            var subspace = histogram.getHistogramSubspace(tr, bucketName, fieldName);
+            
+            // Clear all data in the histogram subspace
+            tr.clear(subspace.range());
+            tr.commit().join();
+        }
     }
 
     // ===== 1. INVARIANTS & STRUCTURAL CORRECTNESS =====
