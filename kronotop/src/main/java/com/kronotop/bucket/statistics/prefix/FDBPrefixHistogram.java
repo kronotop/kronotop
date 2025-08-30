@@ -23,6 +23,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 
+import javax.xml.crypto.Data;
 import java.util.Arrays;
 
 /**
@@ -40,10 +41,14 @@ import java.util.Arrays;
  * - i64: little-endian counter value
  */
 public class FDBPrefixHistogram {
-    private final Context context;
+    private final Database database;
 
-    public FDBPrefixHistogram(Context context) {
-        this.context = context;
+    public FDBPrefixHistogram(Database database) {
+        this.database = database;
+    }
+
+    public Database getDatabase() {
+        return database;
     }
 
     /**
@@ -51,7 +56,7 @@ public class FDBPrefixHistogram {
      * This should be called once during index setup.
      */
     public void initialize(String indexName, PrefixHistogramMetadata metadata) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = database.createTransaction()) {
             DirectorySubspace metaSubspace = getHistogramMetaSubspace(tr, indexName);
             byte[] metaKey = PrefixHistogramKeySchema.metadataKey(metaSubspace);
             byte[] metaValue = PrefixHistogramKeySchema.encodeMetadata(metadata);
@@ -70,7 +75,7 @@ public class FDBPrefixHistogram {
             initialize(indexName, metadata);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = database.createTransaction()) {
             addValue(tr, indexName, key, metadata);
             tr.commit().join();
         }
@@ -100,7 +105,7 @@ public class FDBPrefixHistogram {
             return; // Nothing to delete if histogram doesn't exist
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = database.createTransaction()) {
             deleteValue(tr, indexName, key, metadata);
             tr.commit().join();
         }
@@ -135,7 +140,7 @@ public class FDBPrefixHistogram {
             initialize(indexName, metadata);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = database.createTransaction()) {
             updateValue(tr, indexName, oldKey, newKey, metadata);
             tr.commit().join();
         }
@@ -158,7 +163,7 @@ public class FDBPrefixHistogram {
      * Gets histogram metadata, returning null if not found
      */
     public PrefixHistogramMetadata getMetadata(String indexName) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = database.createTransaction()) {
             DirectorySubspace metaSubspace = getHistogramMetaSubspace(tr, indexName);
             byte[] metaData = tr.get(PrefixHistogramKeySchema.metadataKey(metaSubspace)).join();
             return PrefixHistogramKeySchema.decodeMetadata(metaData);
@@ -169,7 +174,7 @@ public class FDBPrefixHistogram {
      * Creates histogram estimator for selectivity calculations
      */
     public PrefixHistogramEstimator createEstimator(String indexName) {
-        return new PrefixHistogramEstimator(context, indexName);
+        return new PrefixHistogramEstimator(this, indexName);
     }
 
     /**
@@ -177,7 +182,7 @@ public class FDBPrefixHistogram {
      * Schema: HIST/<indexName>/N/<N>/
      */
     public DirectorySubspace getHistogramSubspace(Transaction tr, String indexName, int N) {
-        return directoryLayer.createOrOpen(tr, Arrays.asList(
+        return DirectoryLayer.getDefault().createOrOpen(tr, Arrays.asList(
                 PrefixHistogramKeySchema.HIST_PREFIX, indexName, 
                 PrefixHistogramKeySchema.N_PREFIX, String.valueOf(N)
         )).join();
@@ -188,7 +193,7 @@ public class FDBPrefixHistogram {
      * Schema: HIST/<indexName>/
      */
     public DirectorySubspace getHistogramMetaSubspace(Transaction tr, String indexName) {
-        return directoryLayer.createOrOpen(tr, Arrays.asList(
+        return DirectoryLayer.getDefault().createOrOpen(tr, Arrays.asList(
                 PrefixHistogramKeySchema.HIST_PREFIX, indexName
         )).join();
     }
@@ -202,7 +207,7 @@ public class FDBPrefixHistogram {
             return 0;
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = database.createTransaction()) {
             DirectorySubspace subspace = getHistogramSubspace(tr, indexName, metadata.N());
             byte[] data = tr.get(PrefixHistogramKeySchema.bucketCountKey(subspace, pN)).join();
             return PrefixHistogramKeySchema.decodeCounterValue(data);
@@ -218,7 +223,7 @@ public class FDBPrefixHistogram {
             return 0;
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = database.createTransaction()) {
             DirectorySubspace subspace = getHistogramSubspace(tr, indexName, metadata.N());
             
             long total = 0;
