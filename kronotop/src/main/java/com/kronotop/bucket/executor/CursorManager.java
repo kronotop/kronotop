@@ -41,7 +41,7 @@ import static com.kronotop.bucket.executor.IndexUtils.getKeySelector;
  * cursor advancement to avoid infinite loops when processing filter criteria. The class
  * also provides functionalities to create and extract values for specific types used in index operations.
  */
-class CursorManager {
+public class CursorManager {
     /**
      * Sets cursor boundaries based on results for pagination.
      */

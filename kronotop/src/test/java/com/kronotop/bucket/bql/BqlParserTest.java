@@ -514,4 +514,74 @@ class BqlParserTest {
         assertEquals("age", gtExpr.selector());
         assertEquals(18, ((Int32Val) gtExpr.value()).value());
     }
+
+    @Test
+    void testDuplicateFieldWithDifferentOperators() {
+        // Test case from the reported issue: {'age': {'$gt': 22}, 'age': {'$lte': 35}}
+        // This demonstrates a common user mistake - JSON does not allow duplicate keys
+        String invalidQuery = "{ \"age\": { \"$gt\": 22 }, \"age\": { \"$lte\": 35 } }";
+        BqlExpr result = BqlParser.parse(invalidQuery);
+
+        assertNotNull(result, "Parsed result should not be null");
+        
+        // Due to JSON parsing, the second "age" field overwrites the first one
+        // This is standard JSON behavior - duplicate keys are not allowed
+        assertInstanceOf(BqlLte.class, result, "JSON parsing keeps only the last occurrence of duplicate keys");
+        BqlLte lteExpr = (BqlLte) result;
+        assertEquals("age", lteExpr.selector(), "Selector should be 'age'");
+        assertEquals(35, ((Int32Val) lteExpr.value()).value(), "Value should be 35 (the $gt: 22 is discarded by JSON parser)");
+        
+        String explanation = BqlParser.explain(result);
+        System.out.println("Result after JSON duplicate key handling: " + explanation);
+    }
+
+    @Test 
+    void testCorrectWayToCombineMultipleConditionsOnSameField() {
+        // The CORRECT way to combine multiple operators on the same field
+        String correctQuery = "{ \"age\": { \"$gt\": 22, \"$lte\": 35 } }";
+        BqlExpr result = BqlParser.parse(correctQuery);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlAnd.class, result, "Multiple operators on same field should be combined with AND");
+        
+        BqlAnd andExpr = (BqlAnd) result;
+        assertEquals(2, andExpr.children().size(), "Should have both conditions");
+        
+        // Verify the conditions
+        assertInstanceOf(BqlGt.class, andExpr.children().get(0), "First child should be BqlGt");
+        assertInstanceOf(BqlLte.class, andExpr.children().get(1), "Second child should be BqlLte");
+        
+        BqlGt gtExpr = (BqlGt) andExpr.children().get(0);
+        assertEquals("age", gtExpr.selector());
+        assertEquals(22, ((Int32Val) gtExpr.value()).value());
+
+        BqlLte lteExpr = (BqlLte) andExpr.children().get(1);
+        assertEquals("age", lteExpr.selector());
+        assertEquals(35, ((Int32Val) lteExpr.value()).value());
+    }
+
+    @Test
+    void testExplicitAndForMultipleFieldConditions() {
+        // Another CORRECT way using explicit $and operator  
+        String explicitAndQuery = "{ \"$and\": [{ \"age\": { \"$gt\": 22 } }, { \"age\": { \"$lte\": 35 } }] }";
+        BqlExpr result = BqlParser.parse(explicitAndQuery);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlAnd.class, result, "Explicit $and should create BqlAnd");
+        
+        BqlAnd andExpr = (BqlAnd) result;
+        assertEquals(2, andExpr.children().size(), "Should have both conditions");
+        
+        // Verify the conditions
+        assertInstanceOf(BqlGt.class, andExpr.children().get(0), "First child should be BqlGt");
+        assertInstanceOf(BqlLte.class, andExpr.children().get(1), "Second child should be BqlLte");
+        
+        BqlGt gtExpr = (BqlGt) andExpr.children().get(0);
+        assertEquals("age", gtExpr.selector());
+        assertEquals(22, ((Int32Val) gtExpr.value()).value());
+
+        BqlLte lteExpr = (BqlLte) andExpr.children().get(1);
+        assertEquals("age", lteExpr.selector());
+        assertEquals(35, ((Int32Val) lteExpr.value()).value());
+    }
 }

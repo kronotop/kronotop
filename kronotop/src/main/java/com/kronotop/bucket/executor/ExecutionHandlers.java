@@ -23,6 +23,8 @@ import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
@@ -173,12 +175,6 @@ class ExecutionHandlers {
     private static final int MAX_CONCURRENT_SCANNERS = 8;
     private static final int MAX_CONCURRENT_DOCUMENTS = 16;
     private static final Duration OPERATION_TIMEOUT = Duration.ofSeconds(30);
-    /**
-     * Stack-based cursor management for nested operations.
-     * Ensures proper cursor boundary inheritance and isolation.
-     */
-    private static final ThreadLocal<Stack<CursorContext>> CURSOR_STACK =
-            ThreadLocal.withInitial(Stack::new);
     /**
      * Maximum recursion depth for nested operations to prevent stack overflow.
      */
@@ -390,14 +386,13 @@ class ExecutionHandlers {
         LinkedHashMap<Versionstamp, ByteBuffer> results = new LinkedHashMap<>();
 
         if (!(plan instanceof PhysicalFilter filter)) {
-            System.out.println(plan);
             throw new IllegalArgumentException("PhysicalNode must be a PhysicalFilter instance");
         }
 
         String selector = filter.selector();
         IndexDefinition definition = config.getMetadata().indexes().getIndexBySelector(selector);
         if (definition == null) {
-            // No index for this field - throw exception like original PlanExecutor
+            // No index for this field
             throw new IllegalStateException("Index not found for selector: " + selector);
         }
 
@@ -414,7 +409,6 @@ class ExecutionHandlers {
             Bounds bounds = config.cursor().getBounds(plan.id());
 
             // Calculate selectors using unified SelectorCalculator
-            // Note: SecondaryIndexContext is not applicable for index scans as they use IndexScanContext
             FilterScanContext context = new FilterScanContext(indexSubspace, config, bounds, filter, definition);
             SelectorPair selectors = selectorCalculator.calculateSelectors(context);
             KeySelector beginSelector = selectors.beginSelector();
@@ -518,28 +512,21 @@ class ExecutionHandlers {
         }
 
         if (children.size() == 1) {
-            // CURSOR PROTECTION: Maintain cursor context for single child
+            // CURSOR PROTECTION: Maintain cursor context for a single child
             PhysicalNode singleChild = children.getFirst();
             boolean needsCursorProtection = (singleChild instanceof PhysicalAnd || singleChild instanceof PhysicalOr);
 
+            Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, singleChild);
             if (needsCursorProtection) {
-                pushNestedCursorContext(singleChild.id());
-                try {
-                    Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, singleChild);
-                    if (!results.isEmpty()) {
-                        cursorManager.setCursorBoundaries(config, physicalAnd.id(), results);
-                    }
-                    return results;
-                } finally {
-                    popNestedCursorContext(singleChild.id(), new HashMap<>());
-                }
-            } else {
-                Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, singleChild);
                 if (!results.isEmpty()) {
                     cursorManager.setCursorBoundaries(config, physicalAnd.id(), results);
                 }
-                return results;
+            } else {
+                if (!results.isEmpty()) {
+                    cursorManager.setCursorBoundaries(config, singleChild.id(), results);
+                }
             }
+            return results;
         }
 
         // CURSOR PROTECTION: Use enhanced execution strategy framework
@@ -1131,18 +1118,6 @@ class ExecutionHandlers {
     }
 
     private Map<Versionstamp, ByteBuffer> executeChildPlan(Transaction tr, PhysicalNode childPlan) {
-        // Use hierarchical cursor management for nested operations
-        boolean isNestedOperation = (childPlan instanceof PhysicalAnd || childPlan instanceof PhysicalOr);
-
-        if (isNestedOperation && hasNestedCursorContext()) {
-            // We're in nested execution - use cursor context management
-            pushNestedCursorContext(childPlan.id());
-            return executeChildPlanInternal(tr, childPlan);
-        }
-        return executeChildPlanInternal(tr, childPlan);
-    }
-
-    private Map<Versionstamp, ByteBuffer> executeChildPlanInternal(Transaction tr, PhysicalNode childPlan) {
         return switch (childPlan) {
             case PhysicalFilter ignored -> executeIndexScan(tr, childPlan);
             case PhysicalIndexScan indexScan -> executeIndexScan(tr, indexScan.node());
@@ -1178,7 +1153,7 @@ class ExecutionHandlers {
             if (plan instanceof PhysicalFilter directFilter) {
                 filter = directFilter;
             } else if (plan instanceof PhysicalIndexScan(
-                    int ignored, PhysicalNode node
+                    int ignored, PhysicalNode node, var indexIgnored
             ) && node instanceof PhysicalFilter scanFilter) {
                 filter = scanFilter;
             }
@@ -1511,9 +1486,15 @@ class ExecutionHandlers {
      */
     Map<Versionstamp, ByteBuffer> executePhysicalIndexIntersection(Transaction tr, PhysicalIndexIntersection indexIntersection) {
         // Convert the PhysicalIndexIntersection to the format expected by executeIndexBasedAnd
-        List<PhysicalNode> indexBasedPlans = indexIntersection.filters().stream()
-                .map(filter -> (PhysicalNode) new PhysicalIndexScan(config.getPlannerContext().generateId(), filter))
-                .toList();
+        List<PhysicalFilter> filters = indexIntersection.filters();
+        List<IndexDefinition> indexes = indexIntersection.indexes();
+        
+        List<PhysicalNode> indexBasedPlans = new ArrayList<>();
+        for (int i = 0; i < filters.size(); i++) {
+            PhysicalFilter filter = filters.get(i);
+            IndexDefinition index = indexes.get(i);
+            indexBasedPlans.add(new PhysicalIndexScan(config.getPlannerContext().generateId(), filter, index));
+        }
 
         return executeIndexBasedAnd(tr, indexBasedPlans);
     }
@@ -2187,91 +2168,6 @@ class ExecutionHandlers {
         return results;
     }
 
-    /**
-     * Pushes a new cursor context onto the stack for nested operation.
-     * Inherits cursor boundaries from current state.
-     *
-     * @param nodeId the physical node ID
-     */
-    private void pushNestedCursorContext(int nodeId) {
-        // Inherit cursor boundaries from current state
-        Map<IndexDefinition, Bounds> inherited = new HashMap<>();
-        Bounds currentBounds = config.cursor().getBounds(nodeId);
-        if (currentBounds != null) {
-            inherited.put(DefaultIndexDefinition.ID, currentBounds);
-        }
-
-        CursorContext context = new CursorContext(nodeId, inherited, new ArrayList<>());
-        CURSOR_STACK.get().push(context);
-    }
-
-    /**
-     * Pops cursor context from stack and consolidates cursor boundaries.
-     * Updates parent cursor state based on nested operation results.
-     *
-     * @param nodeId  the physical node ID
-     * @param results results from the nested operation
-     */
-    private void popNestedCursorContext(int nodeId, Map<Versionstamp, ByteBuffer> results) {
-        if (!CURSOR_STACK.get().isEmpty()) {
-            // Consolidate cursor boundaries from nested operation results
-            if (!results.isEmpty()) {
-                consolidateNestedCursorBoundaries(nodeId, results);
-            }
-        }
-    }
-
-    /**
-     * Consolidates cursor boundaries after nested operation completion.
-     * Ensures proper cursor advancement for pagination continuation.
-     *
-     * @param nodeId  the node ID that completed execution
-     * @param results results from the nested operation
-     */
-    private void consolidateNestedCursorBoundaries(int nodeId,
-                                                   Map<Versionstamp, ByteBuffer> results) {
-        if (results.isEmpty()) {
-            return;
-        }
-
-        // Determine cursor advancement direction
-        Versionstamp cursorKey;
-        Operator cursorOperator;
-
-        if (config.isReverse()) {
-            // For reverse scans, cursor should continue from smallest document
-            cursorKey = results.keySet().stream().min(Versionstamp::compareTo).orElseThrow();
-            cursorOperator = Operator.LT;
-        } else {
-            // For forward scans, cursor should continue from largest document
-            cursorKey = results.keySet().stream().max(Versionstamp::compareTo).orElseThrow();
-            cursorOperator = Operator.GT;
-        }
-
-        // Create cursor bound for ID index
-        Bound cursorBound = new Bound(cursorOperator, new VersionstampVal(cursorKey));
-
-        // Set appropriate boundary based on scan direction
-        Bounds newBounds;
-        if (config.isReverse()) {
-            newBounds = new Bounds(null, cursorBound);
-        } else {
-            newBounds = new Bounds(cursorBound, null);
-        }
-
-        // Update cursor state for this node
-        config.cursor().setBounds(nodeId, newBounds);
-    }
-
-    /**
-     * Checks if the cursor stack has any active contexts.
-     * Useful for determining if we're in nested execution.
-     *
-     * @return true if nested execution is active
-     */
-    private boolean hasNestedCursorContext() {
-        return !CURSOR_STACK.get().isEmpty();
-    }
 
     /**
      * Executes a child plan with proper cursor context management.
@@ -2286,7 +2182,6 @@ class ExecutionHandlers {
         boolean isNestedOperation = (child instanceof PhysicalAnd || child instanceof PhysicalOr);
 
         if (isNestedOperation) {
-            pushNestedCursorContext(child.id());
             try {
                 Map<Versionstamp, ByteBuffer> results = executeChildPlan(tr, child);
 
@@ -2302,7 +2197,8 @@ class ExecutionHandlers {
 
                 return results;
             } finally {
-                popNestedCursorContext(child.id(), new HashMap<>());
+                // TODO: Requires a proper cleanup
+                config.cursor().clear();
             }
         } else {
             // For non-nested operations, execute and set cursor boundaries
@@ -2571,13 +2467,15 @@ class ExecutionHandlers {
             if (i == 0) {
                 // Initialize with first child results
                 for (Map.Entry<Versionstamp, ByteBuffer> entry : childResults.entrySet()) {
-                    entryIdToDocument.put(entry.getKey().hashCode(), new VersionstampDocumentPair(entry.getKey(), entry.getValue()));
+                    HashCode hashCode = Hashing.murmur3_128().hashBytes(entry.getKey().getBytes());
+                    entryIdToDocument.put(hashCode.asInt(), new VersionstampDocumentPair(entry.getKey(), entry.getValue()));
                 }
             } else {
                 // Intersect with subsequent children at document level
                 Map<Integer, VersionstampDocumentPair> intersectedResults = new HashMap<>();
                 for (Map.Entry<Versionstamp, ByteBuffer> entry : childResults.entrySet()) {
-                    int tempId = entry.getKey().hashCode();
+                    HashCode hashCode = Hashing.murmur3_128().hashBytes(entry.getKey().getBytes());
+                    int tempId = hashCode.asInt();
                     if (entryIdToDocument.containsKey(tempId)) {
                         intersectedResults.put(tempId, new VersionstampDocumentPair(entry.getKey(), entry.getValue()));
                     }
@@ -2875,17 +2773,6 @@ class ExecutionHandlers {
      * Result record for concurrent document retrieval and filtering operations.
      */
     private record DocumentFilterResult(int index, Versionstamp versionstamp, ByteBuffer filteredDocument) {
-    }
-
-    /**
-     * Represents cursor context for a nested operation level.
-     * Maintains inherited boundaries and active node IDs.
-     */
-    private record CursorContext(
-            int nodeId,
-            Map<IndexDefinition, Bounds> inheritedBounds,
-            List<Integer> activeNodeIds
-    ) {
     }
 
     /**

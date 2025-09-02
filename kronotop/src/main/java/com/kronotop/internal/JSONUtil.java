@@ -29,6 +29,9 @@ public class JSONUtil {
     public static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static <T> T readValue(byte[] content, Class<T> valueType) {
+        if (content == null) {
+            return null;
+        }
         try {
             return objectMapper.readValue(content, valueType);
         } catch (IOException e) {

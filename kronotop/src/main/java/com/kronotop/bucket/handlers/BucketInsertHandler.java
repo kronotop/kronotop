@@ -95,7 +95,10 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
 
                     // Check if the actual BSON type matches the expected type from IndexDefinition
                     if (actualBsonType != expectedBsonType) {
-                        return null; // Type mismatch, ignore this field
+                        // Int64 covers Int32 values
+                        if (!(expectedBsonType.equals(BsonType.INT64) && actualBsonType.equals(BsonType.INT32))) {
+                            throw new KronotopException("Type mismatch for '" + selector + "'. Expected BsonType="+expectedBsonType);
+                        }
                     }
 
                     // Extract the value based on the BSON type
@@ -107,7 +110,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                         case BOOLEAN -> reader.readBoolean();
                         case BINARY -> reader.readBinaryData().getData();
                         case DATE_TIME -> reader.readDateTime();
-                        case DECIMAL128 -> reader.readDecimal128().toString();
+                        case DECIMAL128 -> reader.readDecimal128().bigDecimalValue();
                         case NULL -> {
                             reader.readNull();
                             yield null;
@@ -199,9 +202,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                     }
 
                     Object indexValue = extractFieldValueFromBsonDocument(entry, selector, definition.bsonType());
-                    if (indexValue != null) {
-                        IndexBuilder.setIndexEntry(tr, definition, shard.id(), metadata, indexValue, appendedEntry);
-                    }
+                    IndexBuilder.setIndexEntry(tr, definition, shard.id(), metadata, indexValue, appendedEntry);
                 }
             }
 

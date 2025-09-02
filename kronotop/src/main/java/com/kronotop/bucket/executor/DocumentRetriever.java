@@ -36,7 +36,7 @@ import java.nio.ByteBuffer;
  * Handles document retrieval operations from storage.
  * Extracted from PlanExecutor to provide focused document retrieval functionality.
  */
-class DocumentRetriever {
+public class DocumentRetriever {
     private final BucketService bucketService;
 
     DocumentRetriever(BucketService bucketService) {
@@ -156,6 +156,6 @@ class DocumentRetriever {
     /**
      * Record representing document location information.
      */
-    record DocumentLocation(Versionstamp documentId, int shardId, EntryMetadata entryMetadata) {
+    public record DocumentLocation(Versionstamp documentId, int shardId, EntryMetadata entryMetadata) {
     }
 }

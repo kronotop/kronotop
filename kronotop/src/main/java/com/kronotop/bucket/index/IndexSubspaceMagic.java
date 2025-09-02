@@ -17,7 +17,8 @@
 package com.kronotop.bucket.index;
 
 public enum IndexSubspaceMagic {
-    ENTRIES((byte) 0x01);
+    ENTRIES((byte) 0x01),
+    PREFIX_HISTOGRAM((byte) 0x01);
 
     public final byte value;
 

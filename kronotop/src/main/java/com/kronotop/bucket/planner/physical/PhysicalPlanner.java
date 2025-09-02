@@ -18,6 +18,7 @@ package com.kronotop.bucket.planner.physical;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.planner.logical.*;
 
 import java.util.ArrayList;
@@ -68,13 +69,14 @@ public class PhysicalPlanner {
     private PhysicalNode transposeFilter(BucketMetadata metadata, LogicalFilter filter, PlannerContext context) {
         // Check for index availability
         DirectorySubspace subspace = metadata.indexes().getSubspace(filter.selector());
+        IndexDefinition indexDefinition = metadata.indexes().getIndexBySelector(filter.selector());
 
         // Direct field reuse - no object copying
         PhysicalFilter node = new PhysicalFilter(context.generateId(), filter.selector(), filter.op(), filter.operand());
 
         if (subspace != null) {
             // Index available - use index scan with filter pushdown
-            return new PhysicalIndexScan(context.generateId(), node);
+            return new PhysicalIndexScan(context.generateId(), node, indexDefinition);
         }
 
         // No index - full scan with filter

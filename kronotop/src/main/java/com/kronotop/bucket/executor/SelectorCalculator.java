@@ -71,7 +71,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
  * @see IndexUtils
  * @see CursorManager
  */
-class SelectorCalculator {
+public class SelectorCalculator {
     private final IndexUtils indexUtils;
     private final CursorManager cursorManager;
 
@@ -100,7 +100,6 @@ class SelectorCalculator {
      * @see IdIndexScanContext
      * @see FilterScanContext
      * @see RangeScanContext
-     * @see SecondaryIndexScanContext
      */
     SelectorPair calculateSelectors(ScanContext context) {
         // Dispatch to specialized calculation method based on context type
@@ -108,7 +107,6 @@ class SelectorCalculator {
             case IdIndexScanContext idCtx -> calculateIdIndexSelectors(idCtx);
             case FilterScanContext filterCtx -> calculateFilterSelectors(filterCtx);
             case RangeScanContext rangeCtx -> calculateRangeSelectors(rangeCtx);
-            case SecondaryIndexScanContext secCtx -> calculateSecondaryIndexSelectors(secCtx);
             default ->
                     throw new IllegalArgumentException("Unsupported scan context type: " + context.getClass().getSimpleName());
         };
@@ -380,31 +378,6 @@ class SelectorCalculator {
         }
 
         return new SelectorPair(beginSelector, endSelector);
-    }
-
-    /**
-     * Calculates selectors for secondary index scans.
-     * 
-     * <p>Secondary index scans are used for:</p>
-     * <ul>
-     *   <li>AND operations combining results from multiple index conditions</li>
-     *   <li>General secondary index operations when no specific filter is applied</li>
-     *   <li>Batch-intersect-continue algorithms for complex query execution</li>
-     * </ul>
-     * 
-     * <p>Currently delegates to cursor-aware scan range creation for general scanning.
-     * This method can be expanded to handle more specific secondary index scan patterns.</p>
-     * 
-     * @param context the secondary index scan context containing index definition and cursor bounds
-     * @return selector pair for the secondary index scan range
-     */
-    private SelectorPair calculateSecondaryIndexSelectors(SecondaryIndexScanContext context) {
-        // Delegate to general cursor-aware scanning logic
-        // Future enhancement: add specialized logic for different secondary index patterns
-        DirectorySubspace indexSubspace = context.indexSubspace();
-        Bounds bounds = context.bounds();
-
-        return calculateCursorAwareScanRange(indexSubspace, bounds);
     }
 
     /**
