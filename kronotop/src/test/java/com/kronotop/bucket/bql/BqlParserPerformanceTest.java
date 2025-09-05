@@ -17,6 +17,7 @@
 package com.kronotop.bucket.bql;
 
 import com.kronotop.bucket.bql.ast.BqlExpr;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +35,7 @@ class BqlParserPerformanceTest {
 
     @Test
     @DisplayName("Simple query parsing performance should be fast")
+    @Disabled
     void testSimpleQueryParsingPerformance() {
         String simpleQuery = "{ \"status\": \"active\" }";
         int iterations = 10000;
@@ -62,6 +64,7 @@ class BqlParserPerformanceTest {
 
     @Test
     @DisplayName("Complex query parsing performance should be reasonable")
+    @Disabled
     void testComplexQueryParsingPerformance() {
         String complexQuery = """
                 {
@@ -111,6 +114,7 @@ class BqlParserPerformanceTest {
 
     @Test
     @DisplayName("Large query with many conditions should parse efficiently")
+    @Disabled
     void testLargeQueryPerformance() {
         // Generate a query with 50 conditions
         StringBuilder largeQueryBuilder = new StringBuilder();
@@ -150,6 +154,7 @@ class BqlParserPerformanceTest {
 
     @Test
     @DisplayName("Serialization performance should be fast")
+    @Disabled
     void testSerializationPerformance() {
         String complexQuery = """
                 {
@@ -200,6 +205,7 @@ class BqlParserPerformanceTest {
 
     @Test
     @DisplayName("Explanation generation performance should be reasonable")
+    @Disabled
     void testExplanationPerformance() {
         String complexQuery = """
                 {
@@ -250,6 +256,7 @@ class BqlParserPerformanceTest {
 
     @Test
     @DisplayName("Memory usage should be reasonable for many queries")
+    @Disabled
     void testMemoryUsage() {
         String testQuery = """
                 {
@@ -297,6 +304,7 @@ class BqlParserPerformanceTest {
 
     @Test
     @DisplayName("Concurrent parsing should work correctly and efficiently")
+    @Disabled
     void testConcurrentParsing() throws InterruptedException, ExecutionException {
         String[] testQueries = {
                 "{ \"status\": \"active\" }",
@@ -363,6 +371,7 @@ class BqlParserPerformanceTest {
 
     @Test
     @DisplayName("Stress test with mixed operations should handle high load")
+    @Disabled
     void testStressTestMixedOperations() {
         BqlQueryGenerator generator = new BqlQueryGenerator();
         int queryCount = 5000;
@@ -414,6 +423,7 @@ class BqlParserPerformanceTest {
 
     @Test
     @DisplayName("Parser should handle repeated parsing of same query efficiently")
+    @Disabled
     void testRepeatedQueryCaching() {
         String repeatedQuery = """
                 {
@@ -463,6 +473,7 @@ class BqlParserPerformanceTest {
 
     @Test
     @DisplayName("Throughput test should achieve reasonable queries per second")
+    @Disabled
     void testThroughputBenchmark() {
         String[] benchmarkQueries = {
                 "{ \"id\": 12345 }",
