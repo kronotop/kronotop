@@ -38,7 +38,7 @@ class FullScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -70,7 +70,7 @@ class FullScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -102,7 +102,7 @@ class FullScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -166,7 +166,7 @@ class FullScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             System.out.println("=== NE Operator Results ===");
             for (ByteBuffer buffer : results.values()) {
@@ -219,7 +219,7 @@ class FullScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             System.out.println("=== EQ Operator Results ===");
             for (ByteBuffer buffer : results.values()) {
@@ -271,7 +271,7 @@ class FullScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             System.out.println("=== LT Operator Results ===");
             for (ByteBuffer buffer : results.values()) {
@@ -323,7 +323,7 @@ class FullScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             System.out.println("=== GTE Operator Results ===");
             for (ByteBuffer buffer : results.values()) {
@@ -375,7 +375,7 @@ class FullScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             System.out.println("=== LTE Operator Results ===");
             for (ByteBuffer buffer : results.values()) {
@@ -427,7 +427,7 @@ class FullScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             // Should return 0 documents since no document has age > 50
             assertEquals(0, results.size(), "Should return exactly 0 documents with age > 50");
         }

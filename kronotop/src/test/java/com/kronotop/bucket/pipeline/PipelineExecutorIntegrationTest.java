@@ -40,7 +40,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertTrue(results.isEmpty());
         }
     }
@@ -56,7 +56,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertTrue(results.isEmpty());
         }
     }
@@ -84,7 +84,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
 
         List<String> actualResult = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
@@ -117,7 +117,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
 
         List<String> actualResult = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
@@ -155,7 +155,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
 
         List<String> actualResult = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
@@ -189,7 +189,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
 
         List<String> actualResult = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
@@ -226,7 +226,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertTrue(results.isEmpty());
         }
     }
@@ -254,7 +254,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertTrue(results.isEmpty());
         }
     }
@@ -282,7 +282,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertTrue(results.isEmpty());
         }
     }

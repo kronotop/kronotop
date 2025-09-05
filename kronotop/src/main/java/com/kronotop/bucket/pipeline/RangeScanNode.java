@@ -40,6 +40,7 @@ public class RangeScanNode extends AbstractTransactionAwareNode implements ScanN
 
         AsyncIterable<KeyValue> indexEntries = tr.getRange(selectors.begin(), selectors.end(), state.getLimit(), ctx.options().isReverse());
 
+        DataSink sink = ctx.sinks().loadOrCreateDocumentLocationSink(id());
         int counter = 0;
         for (KeyValue indexEntry : indexEntries) {
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
@@ -48,7 +49,7 @@ public class RangeScanNode extends AbstractTransactionAwareNode implements ScanN
             Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
             Object rawIndexValue = indexKeyTuple.get(1);
             BqlValue indexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
-            ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
+            ctx.sinks().writeDocumentLocation(sink, location.entryMetadata().id(), location);
             ctx.env().cursorManager().saveIndexScanCheckpoint(ctx, id(), indexValue, versionstamp);
             counter++;
         }

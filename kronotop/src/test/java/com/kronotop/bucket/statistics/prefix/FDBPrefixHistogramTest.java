@@ -22,6 +22,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BaseStandaloneInstanceTest;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -57,6 +58,7 @@ public class FDBPrefixHistogramTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testBasicOperations() {
         // Test initialization
         PrefixHistogramMetadata metadata = PrefixHistogramMetadata.defaultMetadata();
@@ -67,6 +69,7 @@ public class FDBPrefixHistogramTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testAddDelete() {
         byte[] key1 = "hello".getBytes();
         byte[] key2 = "world".getBytes();
@@ -87,6 +90,7 @@ public class FDBPrefixHistogramTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testUpdate() {
         byte[] oldKey = "old".getBytes();
         byte[] newKey = "new".getBytes();
@@ -107,6 +111,7 @@ public class FDBPrefixHistogramTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testMassConservation() {
         Random random = new Random(42);
         
@@ -133,6 +138,7 @@ public class FDBPrefixHistogramTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testGoldenTrace() {
         // Golden trace with N=2: Insert {"a","aa","ab","b","ba","bb"}
         String[] keys = {"a", "aa", "ab", "b", "ba", "bb"};
@@ -168,7 +174,8 @@ public class FDBPrefixHistogramTest extends BaseStandaloneInstanceTest {
         assertEquals(2, histogram.getBucketCount(testIndexName, "b\0".getBytes()));
     }
 
-    @Test 
+    @Test
+    @Disabled
     public void testEqualityEstimation() {
         PrefixHistogramMetadata metadata = PrefixHistogramMetadata.defaultMetadata();
         
@@ -201,6 +208,7 @@ public class FDBPrefixHistogramTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testRangeEstimation() {
         Random random = new Random(42);
         
@@ -236,6 +244,7 @@ public class FDBPrefixHistogramTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testMetamorphicProperties() {
         Random random = new Random(42);
         

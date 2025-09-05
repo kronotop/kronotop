@@ -16,30 +16,30 @@ import static com.kronotop.bucket.pipeline.IndexUtils.getKeySelector;
 
 /**
  * Calculates FoundationDB KeySelector pairs for different types of scan operations in the query pipeline.
- * 
+ *
  * <p>This class is responsible for determining the appropriate start and end positions for scanning
  * FoundationDB index entries based on the scan context and cursor state. It supports three main
  * scan types:</p>
- * 
+ *
  * <ul>
  *   <li><strong>Full Scan</strong> - Scans all entries in an index without filtering</li>
  *   <li><strong>Index Scan</strong> - Scans index entries matching a specific condition (=, >, >=, <, <=, !=)</li>
  *   <li><strong>Range Scan</strong> - Scans index entries within a specified range with inclusive/exclusive bounds</li>
  * </ul>
- * 
+ *
  * <p><strong>Key Structure:</strong><br>
  * All index entries follow the structure: {@code [ENTRIES_MAGIC, indexed_value, versionstamp]}<br>
  * This allows for efficient range queries and cursor-based pagination.</p>
- * 
+ *
  * <p><strong>Cursor Support:</strong><br>
  * The calculator handles continuation from previous scan operations by examining the cursor state
  * and constructing selectors that resume from the last processed position while maintaining
  * scan direction and boundary constraints.</p>
- * 
+ *
  * <p><strong>Direction Support:</strong><br>
  * Both forward and reverse scans are supported. Reverse scans require special handling of
  * selector boundaries to ensure correct ordering and continuation.</p>
- * 
+ *
  * @since 0.13
  */
 class SelectorCalculator {
@@ -48,11 +48,11 @@ class SelectorCalculator {
 
     /**
      * Calculates the appropriate KeySelector pair for the given scan context.
-     * 
+     *
      * <p>This is the main entry point that dispatches to specific calculation methods
      * based on the scan context type. Each scan type requires different logic for
      * determining start and end positions.</p>
-     * 
+     *
      * @param context the scan context containing operation details, cursor state, and predicates
      * @return a SelectorPair containing begin and end KeySelectors for the scan operation
      * @throws KronotopException if the context type is not supported
@@ -68,15 +68,15 @@ class SelectorCalculator {
 
     /**
      * Calculates KeySelector pair for range scan operations with upper and lower bounds.
-     * 
+     *
      * <p>Range scans support both inclusive and exclusive bounds on both ends of the range.
      * When continuing from a cursor position, the method ensures that the scan resumes from
      * the correct position while maintaining the original range boundaries.</p>
-     * 
+     *
      * <p><strong>Fresh Scan:</strong> Constructs selectors based solely on the range predicate bounds.</p>
      * <p><strong>Continuation:</strong> Adjusts the appropriate selector (begin for forward, end for reverse)
      * to resume from the cursor position while preserving the opposite boundary.</p>
-     * 
+     *
      * @param ctx the range scan context containing bounds, direction, and cursor state
      * @return a SelectorPair for scanning the specified range
      */
@@ -99,17 +99,17 @@ class SelectorCalculator {
 
     /**
      * Calculates KeySelector pair for full scan operations across an entire index.
-     * 
+     *
      * <p>Full scans traverse all entries in an index without any filtering predicates.
      * The method handles both forward and reverse scans, with cursor-based continuation
      * support for paginated results.</p>
-     * 
+     *
      * <p><strong>Forward Scans:</strong> Start from index beginning and scan towards the end.
      * For continuations, resume from the lower bound in cursor state.</p>
-     * 
+     *
      * <p><strong>Reverse Scans:</strong> Start from index end and scan towards the beginning.
      * For continuations, resume from the upper bound in cursor state.</p>
-     * 
+     *
      * @param ctx the full scan context containing direction and cursor state
      * @return a SelectorPair for scanning the entire index
      */
@@ -148,15 +148,15 @@ class SelectorCalculator {
 
     /**
      * Calculates KeySelector pair for index scan operations with specific filter conditions.
-     * 
+     *
      * <p>Index scans apply single-operand predicates (=, >, >=, <, <=, !=) to filter index
      * entries before retrieving documents. This method translates logical operators into
      * appropriate FoundationDB KeySelector ranges.</p>
-     * 
+     *
      * <p><strong>Fresh Scan:</strong> Constructs selectors based on the operator and operand value.</p>
      * <p><strong>Continuation:</strong> Adjusts the appropriate selector boundary to resume from
      * the cursor position while maintaining the original filter constraints.</p>
-     * 
+     *
      * <p><strong>Supported Operators:</strong></p>
      * <ul>
      *   <li><strong>EQ</strong> - Scans all entries with exactly the specified value</li>
@@ -164,7 +164,7 @@ class SelectorCalculator {
      *   <li><strong>LT/LTE</strong> - Scans from index beginning to the value boundary</li>
      *   <li><strong>NE</strong> - Falls back to full scan with filtering (TODO: optimize with multiple ranges)</li>
      * </ul>
-     * 
+     *
      * @param ctx the index scan context containing predicate, direction, and cursor state
      * @return a SelectorPair for scanning entries matching the filter condition
      */
@@ -189,13 +189,13 @@ class SelectorCalculator {
 
     /**
      * Constructs KeySelector pair for fresh index scan operations based on operator and operand.
-     * 
+     *
      * <p>This method translates BQL operators into appropriate FoundationDB KeySelector ranges.
      * It handles special cases like the _id index (which uses Versionstamp directly) and
      * provides optimized range construction for each operator type.</p>
-     * 
+     *
      * <p><strong>Key Structure:</strong> {@code [ENTRIES_MAGIC, indexed_value, versionstamp]}</p>
-     * 
+     *
      * <p><strong>Operator Handling:</strong></p>
      * <ul>
      *   <li><strong>EQ:</strong> Scans entries where {@code indexed_value} equals the operand</li>
@@ -205,11 +205,11 @@ class SelectorCalculator {
      *   <li><strong>LTE:</strong> Scans entries where {@code indexed_value <= operand}</li>
      *   <li><strong>NE:</strong> Falls back to full scan (optimization opportunity for multiple ranges)</li>
      * </ul>
-     * 
+     *
      * @param indexSubspace the FoundationDB subspace for this index
-     * @param operator the comparison operator (EQ, GT, GTE, LT, LTE, NE)
-     * @param operand the value to compare against (BqlValue or Versionstamp for _id index)
-     * @param definition the index definition for special handling
+     * @param operator      the comparison operator (EQ, GT, GTE, LT, LTE, NE)
+     * @param operand       the value to compare against (BqlValue or Versionstamp for _id index)
+     * @param definition    the index definition for special handling
      * @return a SelectorPair defining the scan range for this operation
      * @throws UnsupportedOperationException if the operator is not supported for index scans
      */
@@ -293,11 +293,11 @@ class SelectorCalculator {
 
     /**
      * Extracts the native Java object from a BqlValue for index storage.
-     * 
+     *
      * <p>This method converts BQL value types into their corresponding Java objects that
      * can be stored in FoundationDB index entries. It handles type normalization (e.g.,
      * converting INT32 to long) to ensure consistent index storage.</p>
-     * 
+     *
      * <p><strong>Type Mapping:</strong></p>
      * <ul>
      *   <li>StringVal → String</li>
@@ -312,7 +312,7 @@ class SelectorCalculator {
      *   <li>VersionstampVal → Versionstamp</li>
      *   <li>NullVal → null</li>
      * </ul>
-     * 
+     *
      * @param bqlValue the BQL value to extract from
      * @return the native Java object for index storage
      * @throws IllegalArgumentException if the BqlValue type is not supported for indexing
@@ -337,20 +337,20 @@ class SelectorCalculator {
 
     /**
      * Creates a KeySelector from a cursor bound for _id index continuation.
-     * 
+     *
      * <p>This method is specifically designed for the _id index (primary index) which uses
      * Versionstamp values. It extracts the Versionstamp from the bound and delegates to
      * IndexUtils for KeySelector creation.</p>
-     * 
+     *
      * <p><strong>Note:</strong> This method assumes the bound contains a VersionstampVal,
      * which is appropriate since it's used for _id index operations where Versionstamps
      * are the primary key.</p>
-     * 
+     *
      * @param idIndexSubspace the _id index subspace
-     * @param bound the cursor bound containing position information
+     * @param bound           the cursor bound containing position information
      * @return a KeySelector for resuming from the bound position
      * @throws IllegalArgumentException if bound is null
-     * @throws IllegalStateException if bound value is not a VersionstampVal
+     * @throws IllegalStateException    if bound value is not a VersionstampVal
      */
     private static KeySelector createSelectorFromBound(DirectorySubspace idIndexSubspace, Bound bound) {
         if (bound == null) {
@@ -369,26 +369,26 @@ class SelectorCalculator {
 
     /**
      * Constructs KeySelector pair for fresh range scan operations.
-     * 
+     *
      * <p>This method creates begin and end selectors for range scans based on the predicate's
      * upper and lower bounds. Both bounds are optional, and each can be inclusive or exclusive.</p>
-     * 
+     *
      * <p><strong>Lower Bound Handling:</strong></p>
      * <ul>
      *   <li>If present and inclusive: {@code firstGreaterOrEqual(lowerKey)}</li>
      *   <li>If present and exclusive: {@code firstGreaterThan(strinc(lowerKey))}</li>
      *   <li>If absent: Start from index beginning</li>
      * </ul>
-     * 
+     *
      * <p><strong>Upper Bound Handling:</strong></p>
      * <ul>
      *   <li>If present and inclusive: {@code firstGreaterOrEqual(strinc(upperKey))} to include all entries with that value</li>
      *   <li>If present and exclusive: {@code firstGreaterOrEqual(upperKey)} to exclude entries with that value</li>
      *   <li>If absent: End at index boundary</li>
      * </ul>
-     * 
+     *
      * @param indexSubspace the FoundationDB subspace for this index
-     * @param predicate the range scan predicate containing bounds and inclusion flags
+     * @param predicate     the range scan predicate containing bounds and inclusion flags
      * @return a SelectorPair defining the range scan boundaries
      */
     private static SelectorPair constructRangeScanSelectors(DirectorySubspace indexSubspace, RangeScanPredicate predicate) {

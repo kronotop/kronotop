@@ -44,7 +44,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Expected results: documents with price > 22 AND quantity > 80
             // Document 1: {'price': 20, 'quantity': 100} - NO (price <= 22)
@@ -105,7 +105,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 1 document with age > 22 AND name == 'Claire' (only age=25, name='Claire')
             assertEquals(1, results.size(), "Should return exactly 1 document with age > 22 AND name == 'Claire'");
@@ -183,7 +183,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return exactly 3 documents with age > 22 AND name == 'John' (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22 AND name == 'John'");
@@ -261,7 +261,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Expected results: documents with price > 100 AND quantity > 2500
             // Since quantity = price * 20, quantity > 2500 means price > 125

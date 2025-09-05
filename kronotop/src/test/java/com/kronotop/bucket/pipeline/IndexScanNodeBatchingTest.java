@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class IndexScanNodeBatchingTest extends BasePipelineTest {
+class IndexScanNodeBatchingTest extends BasePipelineTest {
     @Test
     void testGtOperatorFiltersCorrectly() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
@@ -62,7 +62,7 @@ public class IndexScanNodeBatchingTest extends BasePipelineTest {
             int totalIterations = 0;
 
             while (true) {
-                Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
                 totalIterations++;
 
                 if (results.isEmpty()) {
@@ -144,7 +144,7 @@ public class IndexScanNodeBatchingTest extends BasePipelineTest {
             int totalIterations = 0;
 
             while (true) {
-                Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
                 totalIterations++;
 
                 if (results.isEmpty()) {
@@ -230,7 +230,7 @@ public class IndexScanNodeBatchingTest extends BasePipelineTest {
             int previousAge = Integer.MAX_VALUE; // Track descending order
 
             while (true) {
-                Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
                 totalIterations++;
 
                 if (results.isEmpty()) {
@@ -316,7 +316,7 @@ public class IndexScanNodeBatchingTest extends BasePipelineTest {
         // Iterate through all batches using cursor-based pagination with index scan
         while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
                 actualIterations++;
 
                 if (results.isEmpty()) {
@@ -416,7 +416,7 @@ public class IndexScanNodeBatchingTest extends BasePipelineTest {
         // Iterate through all batches using cursor-based pagination in reverse order with index scan
         while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
                 actualIterations++;
 
                 if (results.isEmpty()) {

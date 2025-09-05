@@ -17,16 +17,13 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.KeyValue;
-import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.IndexEntry;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.volume.EntryMetadata;
 
 import java.io.IOException;
@@ -40,26 +37,6 @@ public class DocumentRetriever {
 
     DocumentRetriever(BucketService bucketService) {
         this.bucketService = bucketService;
-    }
-
-    /**
-     * Extracts document location information from an index entry.
-     *
-     * @param idIndexSubspace the ID index directory subspace
-     * @param indexEntry      the key-value pair from the index scan
-     * @return document location containing ID, shard, and metadata
-     */
-    DocumentLocation extractDocumentLocation(DirectorySubspace idIndexSubspace, KeyValue indexEntry) {
-        // Extract the Versionstamp from the index key
-        Tuple indexKeyTuple = idIndexSubspace.unpack(indexEntry.getKey());
-        Versionstamp documentId = (Versionstamp) indexKeyTuple.get(1); // Skip ENTRIES_MAGIC, get Versionstamp
-
-        // Decode the IndexEntry from the value
-        IndexEntry indexEntryData = IndexEntry.decode(indexEntry.getValue());
-        int shardId = indexEntryData.shardId();
-        EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(indexEntryData.entryMetadata()));
-
-        return new DocumentLocation(documentId, shardId, entryMetadata);
     }
 
     /**
@@ -117,38 +94,5 @@ public class DocumentRetriever {
         } catch (IOException e) {
             throw new RuntimeException("Failed to retrieve document with ID: " + location.versionstamp() + " from shard: " + location.shardId(), e);
         }
-    }
-
-    /**
-     * Retrieves a document by its Versionstamp using the ID index.
-     */
-    ByteBuffer retrieveDocumentById(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
-        DirectorySubspace idIndexSubspace = getIdIndexSubspace(metadata);
-        Tuple idKey = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), versionstamp);
-        byte[] indexKey = idIndexSubspace.pack(idKey);
-
-        byte[] indexValue = tr.get(indexKey).join();
-        if (indexValue != null) {
-            IndexEntry indexEntryData = IndexEntry.decode(indexValue);
-            EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(indexEntryData.entryMetadata()));
-            DocumentLocation location = new DocumentLocation(versionstamp, indexEntryData.shardId(), entryMetadata);
-            return retrieveDocument(metadata, location);
-        }
-        return null;
-    }
-
-    /**
-     * Gets the ID index subspace from bucket metadata.
-     *
-     * @param metadata the bucket metadata
-     * @return the directory subspace for the ID index
-     * @throws RuntimeException if the ID index is not found
-     */
-    private DirectorySubspace getIdIndexSubspace(BucketMetadata metadata) {
-        DirectorySubspace idIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
-        if (idIndexSubspace == null) {
-            throw new RuntimeException("ID index not found for bucket: " + metadata.name());
-        }
-        return idIndexSubspace;
     }
 }

@@ -11,11 +11,7 @@ import org.bson.Document;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,7 +53,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
             // Loop until no more results
             Map<Versionstamp, ByteBuffer> batch;
             do {
-                batch = executor.execute(tr, ctx);
+                batch = readExecutor.execute(tr, ctx);
                 if (!batch.isEmpty()) {
                     batchCount++;
 
@@ -91,5 +87,66 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         for (int i = 0; i < sortedAges.size(); i++) {
             assertEquals(51 + i, sortedAges.get(i), "Ages should be sequential starting from 51");
         }
+    }
+
+
+    @Test
+    void testInt32RangeWithMixedInputWithReverseAndLimit() {
+        final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input-with-limit-and-reverse";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 11, 'name': 'Donald'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 30, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 10, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 11, 'name': 'Donald'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Claire'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 50, 'name': 'Alison'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gte': 20, '$lte': 48}}");
+        QueryOptions config = QueryOptions.builder().reverse(true).limit(2).build();
+        QueryContext ctx = new QueryContext(metadata, config, plan);
+
+        List<List<String>> expectedResult = new ArrayList<>();
+
+        expectedResult.add(Arrays.asList(
+                "{\"age\": 30, \"name\": \"George\"}",
+                "{\"age\": 20, \"name\": \"Claire\"}"
+        ));
+
+        expectedResult.add(Arrays.asList(
+                "{\"age\": 20, \"name\": \"George\"}",
+                "{\"age\": 20, \"name\": \"Alice\"}"
+        ));
+
+        expectedResult.add(List.of(
+                "{\"age\": 20, \"name\": \"John\"}"
+        ));
+
+        int index = 0;
+        while(true) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+                if (results.isEmpty()) {
+                    break;
+                }
+                List<String> intermediate = new ArrayList<>();
+                for (ByteBuffer buffer : results.values()) {
+                    intermediate.add(BSONUtil.fromBson(buffer.array()).toJson());
+                }
+                assertEquals(expectedResult.get(index), intermediate);
+                index++;
+            }
+        }
+        assertEquals(expectedResult.size(), index);
     }
 }

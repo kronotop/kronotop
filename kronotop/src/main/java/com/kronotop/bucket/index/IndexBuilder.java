@@ -27,20 +27,18 @@ import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.volume.AppendedEntry;
 
 public class IndexBuilder {
+    private final static byte[] NULL_VALUE = new byte[]{0};
 
     private static void setIndexForBSONType(
             Transaction tr,
             IndexDefinition definition,
+            DirectorySubspace indexSubspace,
             int shardId,
             BucketMetadata metadata,
-            Tuple tuple,
+            Tuple entryKeyTuple,
             AppendedEntry entry
     ) {
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
-        if (indexSubspace == null) {
-            throw new KronotopException("Index '" + definition.name() + "' not found");
-        }
-        byte[] key = indexSubspace.packWithVersionstamp(tuple);
+        byte[] key = indexSubspace.packWithVersionstamp(entryKeyTuple);
         IndexEntry indexEntry = new IndexEntry(shardId, entry.encodedMetadata());
         byte[] value = indexEntry.encode();
 
@@ -59,29 +57,57 @@ public class IndexBuilder {
      * @throws KronotopException if the required ID index subspace cannot be found in the metadata indexes.
      */
     public static void setIDIndexEntry(Transaction tr, int shardId, BucketMetadata metadata, AppendedEntry[] entries) {
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+        if (indexSubspace == null) {
+            throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
+        }
+
         for (AppendedEntry entry : entries) {
             Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), Versionstamp.incomplete(entry.userVersion()));
-            setIndexForBSONType(tr, DefaultIndexDefinition.ID, shardId, metadata, tuple, entry);
+            setIndexForBSONType(tr, DefaultIndexDefinition.ID, indexSubspace, shardId, metadata, tuple, entry);
         }
     }
 
     /**
-     * Sets an index entry for a given value in a transactional context. This method constructs a
-     * tuple for the index entry based on the provided definition, shard ID, bucket metadata, and
-     * index value, and delegates the setting operation to a BSON-type-specific handler.
+     * Sets an entry in the index subspace for a given index definition and value within a transactional context.
+     * This method is responsible for handling the creation of both the index entry and its back pointer,
+     * ensuring the consistency of index operations.
      *
-     * @param tr         The transaction object used to perform mutations against the underlying
-     *                   segmented storage system.
-     * @param definition The definition of the index, containing metadata such as its name, selector,
-     *                   BSON type, and sort order.
-     * @param shardId    The identifier of the shard in which the indexed entry resides.
-     * @param metadata   The bucket metadata containing information about indexes and storage subspaces.
-     * @param indexValue The value being indexed. This value is used as part of the index key in the table.
-     * @param entry      The appended entry containing metadata and user-defined version details
-     *                   associated with the indexed entry.
+     * @param tr         The transaction object used to perform mutations against the storage system.
+     * @param definition The definition of the index, which includes metadata such as name, selector, and type.
+     * @param shardId    The identifier of the shard in which the indexed entries reside.
+     * @param metadata   The bucket metadata containing information about indexes, subspaces, and storage hierarchy.
+     * @param indexValue The value of the index being stored, which serves as the index key during indexing operations.
+     * @param entry      The appended entry containing details such as user version and metadata associated with the entry.
+     * @throws KronotopException if the required index subspace cannot be retrieved from the metadata indexes.
      */
-    public static void setIndexEntry(Transaction tr, IndexDefinition definition, int shardId, BucketMetadata metadata, Object indexValue, AppendedEntry entry) {
-        Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), indexValue, Versionstamp.incomplete(entry.userVersion()));
-        setIndexForBSONType(tr, definition, shardId, metadata, tuple, entry);
+    public static void setIndexEntry(
+            Transaction tr,
+            IndexDefinition definition,
+            int shardId,
+            BucketMetadata metadata,
+            Object indexValue,
+            AppendedEntry entry
+    ) {
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        if (indexSubspace == null) {
+            throw new KronotopException("Index '" + definition.name() + "' not found");
+        }
+
+        Tuple entryKeyTuple = Tuple.from(
+                IndexSubspaceMagic.ENTRIES.getValue(),
+                indexValue,
+                Versionstamp.incomplete(entry.userVersion())
+        );
+        setIndexForBSONType(tr, definition, indexSubspace, shardId, metadata, entryKeyTuple, entry);
+
+        Tuple backPointerTuple = Tuple.from(
+                IndexSubspaceMagic.BACK_POINTER.getValue(),
+                Versionstamp.incomplete(entry.userVersion()),
+                indexValue
+        );
+
+        byte[] backPointer = indexSubspace.packWithVersionstamp(backPointerTuple);
+        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, backPointer, NULL_VALUE);
     }
 }

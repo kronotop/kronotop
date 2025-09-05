@@ -1,7 +1,6 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.IndexDefinition;
 
 abstract class ScanContext {

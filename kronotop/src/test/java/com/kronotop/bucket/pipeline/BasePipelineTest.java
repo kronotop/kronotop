@@ -1,7 +1,11 @@
 package com.kronotop.bucket.pipeline;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BucketMetadata;
@@ -10,6 +14,7 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.optimizer.Optimizer;
 import com.kronotop.bucket.planner.logical.LogicalNode;
@@ -31,7 +36,6 @@ import org.bson.BsonReader;
 import org.bson.BsonType;
 import org.junit.jupiter.api.BeforeEach;
 
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.*;
 
@@ -46,14 +50,17 @@ public class BasePipelineTest extends BaseHandlerTest {
     private final PhysicalPlanner physicalPlanner = new PhysicalPlanner();
     private final Optimizer optimizer = new Optimizer();
     private final CursorManager cursorManager = new CursorManager();
-
-    protected PipelineExecutor executor;
+    protected ReadExecutor readExecutor;
+    protected DeleteExecutor deleteExecutor;
 
     @BeforeEach
     public void setupPipelineExecutor() {
-        DocumentRetriever documentRetriever = new DocumentRetriever(context.getService(BucketService.NAME));
-        PipelineEnv env = new PipelineEnv(documentRetriever, cursorManager);
-        executor = new PipelineExecutor(env);
+        BucketService bucketService = context.getService(BucketService.NAME);
+        DocumentRetriever documentRetriever = new DocumentRetriever(bucketService);
+        PipelineEnv env = new PipelineEnv(bucketService, documentRetriever, cursorManager);
+        PipelineExecutor executor = new PipelineExecutor(env);
+        readExecutor = new ReadExecutor(executor);
+        deleteExecutor = new DeleteExecutor(executor);
     }
 
     protected List<Versionstamp> insertDocumentsAndGetVersionstamps(String bucketName, List<byte[]> documents) {
@@ -163,5 +170,25 @@ public class BasePipelineTest extends BaseHandlerTest {
         }
 
         return ages;
+    }
+
+    List<KeyValue> fetchAllIndexedEntries(DirectorySubspace indexSubspace) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return tr.getRange(begin, end).asList().join();
+        }
+    }
+
+    List<KeyValue> fetchAllIndexBackPointers(DirectorySubspace indexSubspace) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return tr.getRange(begin, end).asList().join();
+        }
     }
 }

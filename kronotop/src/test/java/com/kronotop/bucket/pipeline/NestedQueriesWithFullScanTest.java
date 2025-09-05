@@ -12,7 +12,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class NestedQueriesWithFullScanTest extends BasePipelineTest {
+class NestedQueriesWithFullScanTest extends BasePipelineTest {
 
     @Test
     void testNestedAndOrQueryReturnsCorrectIntersection() {
@@ -62,7 +62,7 @@ public class NestedQueriesWithFullScanTest extends BasePipelineTest {
             QueryOptions config = QueryOptions.builder().build();
             QueryContext ctx = new QueryContext(metadata, config, plan);
 
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
             }
@@ -129,7 +129,7 @@ public class NestedQueriesWithFullScanTest extends BasePipelineTest {
             );
 
             List<String> actualResult = new ArrayList<>();
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
@@ -191,7 +191,7 @@ public class NestedQueriesWithFullScanTest extends BasePipelineTest {
             QueryOptions config = QueryOptions.builder().build();
             QueryContext ctx = new QueryContext(metadata, config, plan);
 
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
             }
@@ -291,7 +291,7 @@ public class NestedQueriesWithFullScanTest extends BasePipelineTest {
             QueryOptions config = QueryOptions.builder().build();
             QueryContext ctx = new QueryContext(metadata, config, plan);
 
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
             }
@@ -400,7 +400,7 @@ public class NestedQueriesWithFullScanTest extends BasePipelineTest {
             QueryOptions config = QueryOptions.builder().build();
             QueryContext ctx = new QueryContext(metadata, config, plan);
 
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
             }

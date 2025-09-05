@@ -54,11 +54,11 @@ public class ExecutionState {
         this.exhausted = exhausted;
     }
 
-    public void setSelector(SelectorPair selector) {
-        this.selector = selector;
-    }
-
     public SelectorPair getSelector() {
         return selector;
+    }
+
+    public void setSelector(SelectorPair selector) {
+        this.selector = selector;
     }
 }

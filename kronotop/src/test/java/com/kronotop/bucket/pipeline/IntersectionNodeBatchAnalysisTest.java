@@ -63,7 +63,7 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
         while(true) {
             batchCount++;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
                 // Should return at most 2 results due to limit
                 assertTrue(results.size() <= 2, "Should return at most 2 results due to limit");
@@ -142,7 +142,7 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
         while(true) {
             batchCount++;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
                 // Should return at most 2 results due to limit
                 assertTrue(results.size() <= 2, "Should return at most 2 results due to limit");

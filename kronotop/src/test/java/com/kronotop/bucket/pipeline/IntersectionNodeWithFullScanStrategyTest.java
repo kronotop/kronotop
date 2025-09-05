@@ -1,6 +1,7 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import org.bson.BsonBinaryReader;
@@ -38,7 +39,7 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 System.out.println(BSONUtil.fromBson(buffer.array()).toJson());
             }
@@ -65,12 +66,12 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{ $and: [ { 'age': { '$gt': 22 } }, { 'name': { '$eq': 'John' } } ] }");
+        PipelineNode plan = createExecutionPlan(metadata, "{ $and: [ { 'age': { '$gt': 22 } }, { 'name': { '$gte': 'John' } } ] }");
         QueryOptions config = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             for (ByteBuffer buffer : results.values()) {
                 System.out.println(BSONUtil.fromBson(buffer.array()).toJson());
             }
@@ -90,13 +91,13 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
         // Create 200 documents where exactly 150 match the condition (age >= 10 AND category = 'electronics')
         List<byte[]> documents = new ArrayList<>();
-        
+
         // Create 150 matching documents (age 10-159, category 'electronics')
         for (int i = 0; i < 150; i++) {
             String doc = String.format("{'age': %d, 'category': 'electronics'}", i + 10);
             documents.add(BSONUtil.jsonToDocumentThenBytes(doc));
         }
-        
+
         // Create 50 non-matching documents
         // 25 with age < 10 and different category
         for (int i = 0; i < 25; i++) {
@@ -122,16 +123,16 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             while (true) {
                 iterationCount++;
-                Map<?, ByteBuffer> batchResults = executor.execute(tr, ctx);
-                
+                Map<?, ByteBuffer> batchResults = readExecutor.execute(tr, ctx);
+
                 if (batchResults.isEmpty()) {
                     break;
                 }
-                
+
                 // Track batch size for verification
                 totalBatchSize += batchResults.size();
                 allResults.putAll(batchResults);
-                
+
                 // Log batch content for verification
                 System.out.println("Iteration " + iterationCount + ", batch size: " + batchResults.size());
                 for (ByteBuffer buffer : batchResults.values()) {
@@ -142,21 +143,21 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
         // Verify the results
         assertEquals(150, allResults.size(), "Should return exactly 150 matching documents");
-        
+
         // Verify all returned documents match the condition
         Set<String> categories = extractCategoriesFromResults(allResults);
         Set<Integer> ages = extractIntegerFieldFromResults(allResults, "age");
-        
+
         assertEquals(Set.of("electronics"), categories, "All documents should have category 'electronics'");
         assertTrue(ages.stream().allMatch(age -> age >= 10), "All ages should be >= 10");
-        
+
         // Verify batch processing worked correctly
         assertEquals(150, totalBatchSize, "Total batch size should equal result count");
-        
+
         // The iteration count includes the final empty iteration, so it should be one more than 150/2
         int expectedIterations = (150 / 2) + 1; // 75 + 1 = 76 iterations (including final empty check)
         assertEquals(expectedIterations, iterationCount, "Should take " + expectedIterations + " iterations (including final empty iteration)");
-        
+
         System.out.println("Total iterations: " + iterationCount);
         System.out.println("Total results: " + allResults.size());
         System.out.println("Age range: " + ages.stream().min(Integer::compareTo).orElse(0) + " to " + ages.stream().max(Integer::compareTo).orElse(0));
@@ -170,13 +171,13 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
         // Create 200 documents where exactly 150 match the condition (age >= 10 AND category = 'electronics')
         List<byte[]> documents = new ArrayList<>();
-        
+
         // Create 150 matching documents (age 10-159, category 'electronics')
         for (int i = 0; i < 150; i++) {
             String doc = String.format("{'age': %d, 'category': 'electronics'}", i + 10);
             documents.add(BSONUtil.jsonToDocumentThenBytes(doc));
         }
-        
+
         // Create 50 non-matching documents
         // 25 with age < 10 and different category
         for (int i = 0; i < 25; i++) {
@@ -203,16 +204,16 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             while (true) {
                 iterationCount++;
-                Map<?, ByteBuffer> batchResults = executor.execute(tr, ctx);
-                
+                Map<?, ByteBuffer> batchResults = readExecutor.execute(tr, ctx);
+
                 if (batchResults.isEmpty()) {
                     break;
                 }
-                
+
                 // Track batch size for verification
                 totalBatchSize += batchResults.size();
                 allResults.putAll(batchResults);
-                
+
                 // Track age sequence for reverse order verification
                 for (ByteBuffer buffer : batchResults.values()) {
                     buffer.rewind();
@@ -231,7 +232,7 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
                         reader.readEndDocument();
                     }
                 }
-                
+
                 // Log batch content for verification
                 System.out.println("Reverse Iteration " + iterationCount + ", batch size: " + batchResults.size());
                 for (ByteBuffer buffer : batchResults.values()) {
@@ -243,28 +244,28 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
         // Verify the results
         assertEquals(150, allResults.size(), "Should return exactly 150 matching documents");
-        
+
         // Verify all returned documents match the condition
         Set<String> categories = extractCategoriesFromResults(allResults);
         Set<Integer> ages = extractIntegerFieldFromResults(allResults, "age");
-        
+
         assertEquals(Set.of("electronics"), categories, "All documents should have category 'electronics'");
         assertTrue(ages.stream().allMatch(age -> age >= 10), "All ages should be >= 10");
-        
+
         // Verify batch processing worked correctly
         assertEquals(150, totalBatchSize, "Total batch size should equal result count");
-        
+
         // The iteration count includes the final empty iteration, so it should be one more than 150/2
         int expectedIterations = (150 / 2) + 1; // 75 + 1 = 76 iterations (including final empty check)
         assertEquals(expectedIterations, iterationCount, "Should take " + expectedIterations + " iterations (including final empty iteration)");
-        
+
         // Verify reverse ordering - ages should be in descending order
         assertTrue(isDescendingOrder(ageSequence), "Ages should be in descending order for reverse pagination");
-        
+
         // First document should have the highest age (159), last should have lowest (10)
         assertEquals(159, ageSequence.get(0), "First document should have age 159");
         assertEquals(10, ageSequence.get(ageSequence.size() - 1), "Last document should have age 10");
-        
+
         System.out.println("Reverse - Total iterations: " + iterationCount);
         System.out.println("Reverse - Total results: " + allResults.size());
         System.out.println("Reverse - Age range: " + ages.stream().max(Integer::compareTo).orElse(0) + " to " + ages.stream().min(Integer::compareTo).orElse(0));

@@ -114,7 +114,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -148,7 +148,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(3, results.size());
 
@@ -180,7 +180,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(3, results.size());
 
@@ -212,7 +212,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -220,39 +220,6 @@ class IndexScanNodeTest extends BasePipelineTest {
             // Verify the content of each returned document
             assertEquals(Set.of("Alice", "George", "Claire"), extractNamesFromResults(results));
             assertEquals(Set.of(23, 25, 35), extractIntegerFieldFromResults(results, "age"));
-        }
-    }
-
-    @Test
-    void testGtOperatorFiltersCorrectlyy() {
-        final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
-
-        // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
-
-        // Insert multiple documents with different field types and values
-        List<byte[]> documents = List.of(
-                BSONUtil.jsonToDocumentThenBytes("{'age': 11, 'name': 'Donald'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 30, 'name': 'George'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Alice'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 10, 'name': 'Alice'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'George'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Claire'}")
-        );
-
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
-
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gte': 20, '$lte': 48}}");
-        QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                System.out.println(BSONUtil.fromBson(buffer.array()).toJson());
-            }
         }
     }
 
@@ -418,7 +385,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size());
             for (ByteBuffer buffer : results.values()) {
@@ -447,7 +414,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size());
             for (ByteBuffer buffer : results.values()) {
@@ -475,7 +442,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size());
             for (ByteBuffer buffer : results.values()) {
@@ -508,7 +475,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 0 documents since no documents have age > 22
             assertEquals(0, results.size(), "Should return exactly 0 documents with age > 22");
@@ -540,7 +507,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age != 25 (ages 20, 30, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age != 25");
@@ -575,7 +542,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription);
 
             // Verify concrete expected results based on specific test cases
@@ -617,7 +584,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription + " (REVERSE=true)");
 
             // Verify concrete expected results based on specific test cases
@@ -785,7 +752,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             int index = 0;
             while (true) {
-                Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
                 if (results.isEmpty()) {
                     break;
                 }

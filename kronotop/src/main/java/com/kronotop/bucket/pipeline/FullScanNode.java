@@ -43,6 +43,7 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
                 ctx.options().isReverse()
         );
 
+        DataSink sink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
         int counter = 0;
         for (KeyValue indexEntry : indexEntries) {
             counter++;
@@ -51,7 +52,8 @@ public class FullScanNode extends AbstractTransactionAwareNode implements ScanNo
             ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.metadata(), location);
 
             if (predicate.test(document)) {
-                ctx.output().appendDocument(id(), versionstamp, document);
+                PersistedEntry entry = new PersistedEntry(location.shardId(), document);
+                ctx.sinks().writePersistedEntry(sink, versionstamp, entry);
             }
             ctx.env().cursorManager().saveFullScanCheckpoint(ctx, id(), versionstamp);
         }

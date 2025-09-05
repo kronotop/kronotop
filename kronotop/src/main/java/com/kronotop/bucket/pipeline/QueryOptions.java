@@ -25,58 +25,52 @@ import com.kronotop.bucket.DefaultIndexDefinition;
  *     .reverse(true)
  *     .limit(20)
  *     .build();
- *
- * // Query for deletion with custom sort field
- * QueryOptions deleteOpts = QueryOptions.builder()
- *     .delete(true)
- *     .sortByField("timestamp")
- *     .limit(100)
- *     .build();
  * }</pre>
  *
- * @since 1.0
  * @see QueryContext
  * @see DefaultIndexDefinition
+ * @since 1.0
  */
 public class QueryOptions {
-    /** Whether this query should perform deletion operations on matching documents. */
-    private final boolean delete;
-    
-    /** Whether results should be returned in reverse order. */
+    /**
+     * Whether results should be returned in reverse order.
+     */
     private final boolean reverse;
-    
-    /** The field name to use for sorting results. Defaults to document ID. */
+
+    /**
+     * The field name to use for sorting results. Defaults to document ID.
+     */
     private final String sortByField;
-    
-    /** Maximum number of documents to return in a single batch. */
+
+    /**
+     * Maximum number of documents to return in a single batch.
+     */
     private final int limit;
 
     /**
      * Private constructor used by the Builder pattern.
-     * 
+     *
      * @param builder the Builder instance containing the configuration values
      */
     private QueryOptions(Builder builder) {
-        this.delete = builder.delete;
         this.reverse = builder.reverse;
         this.sortByField = builder.sortByField;
         this.limit = builder.limit;
     }
 
     /**
-     * Returns whether this query should perform deletion operations.
-     * When true, matching documents will be deleted from the database.
-     * 
-     * @return true if deletion is enabled, false otherwise
+     * Creates a new Builder instance for constructing QueryOptions.
+     *
+     * @return a new Builder with default values
      */
-    public boolean isDelete() {
-        return delete;
+    public static Builder builder() {
+        return new Builder();
     }
 
     /**
      * Returns whether results should be returned in reverse order.
      * When true, results are sorted in descending order by the sort field.
-     * 
+     *
      * @return true if reverse ordering is enabled, false otherwise
      */
     public boolean isReverse() {
@@ -86,7 +80,7 @@ public class QueryOptions {
     /**
      * Returns the field name used for sorting results.
      * Defaults to the document ID field if not specified.
-     * 
+     *
      * @return the sort field name
      */
     public String getSortByField() {
@@ -96,7 +90,7 @@ public class QueryOptions {
     /**
      * Returns the maximum number of documents to return in a single batch.
      * This controls pagination behavior and memory usage during query execution.
-     * 
+     *
      * @return the result limit (0 to {@value QueryContext#MAXIMUM_LIMIT})
      */
     public int limit() {
@@ -104,48 +98,31 @@ public class QueryOptions {
     }
 
     /**
-     * Creates a new Builder instance for constructing QueryOptions.
-     * 
-     * @return a new Builder with default values
-     */
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    /**
      * Builder class for constructing QueryOptions instances using the builder pattern.
      * Provides a fluent API for configuring query options with method chaining.
-     * 
+     *
      * <p>All builder methods return the Builder instance to allow method chaining.
      * Call {@link #build()} to create the final immutable QueryOptions instance.
      */
     public static class Builder {
-        /** Whether to enable deletion operations. Defaults to false. */
-        private boolean delete = false;
-        
-        /** Whether to enable reverse ordering. Defaults to false. */
+        /**
+         * Whether to enable reverse ordering. Defaults to false.
+         */
         private boolean reverse = false;
-        
-        /** Field name for sorting. Defaults to document ID. */
+
+        /**
+         * Field name for sorting. Defaults to document ID.
+         */
         private String sortByField = DefaultIndexDefinition.ID.selector();
-        
-        /** Result limit. Defaults to {@value QueryContext#DEFAULT_LIMIT}. */
+
+        /**
+         * Result limit. Defaults to {@value QueryContext#DEFAULT_LIMIT}.
+         */
         private int limit = QueryContext.DEFAULT_LIMIT;
 
         /**
-         * Sets whether this query should perform deletion operations on matching documents.
-         * 
-         * @param delete true to enable deletion, false to disable (default)
-         * @return this Builder instance for method chaining
-         */
-        public Builder delete(boolean delete) {
-            this.delete = delete;
-            return this;
-        }
-
-        /**
          * Sets whether results should be returned in reverse (descending) order.
-         * 
+         *
          * @param reverse true for descending order, false for ascending order (default)
          * @return this Builder instance for method chaining
          */
@@ -156,7 +133,7 @@ public class QueryOptions {
 
         /**
          * Sets the field name to use for sorting results.
-         * 
+         *
          * @param sortByField the field name to sort by (must not be null)
          * @return this Builder instance for method chaining
          * @throws IllegalArgumentException if sortByField is null
@@ -169,7 +146,7 @@ public class QueryOptions {
         /**
          * Sets the maximum number of documents to return in a single batch.
          * This controls pagination and memory usage during query execution.
-         * 
+         *
          * @param limit the maximum result count (0 to {@value QueryContext#MAXIMUM_LIMIT})
          * @return this Builder instance for method chaining
          * @throws IllegalArgumentException if limit is negative or exceeds maximum
@@ -187,7 +164,7 @@ public class QueryOptions {
 
         /**
          * Builds and returns an immutable QueryOptions instance with the configured values.
-         * 
+         *
          * @return a new QueryOptions instance
          */
         public QueryOptions build() {

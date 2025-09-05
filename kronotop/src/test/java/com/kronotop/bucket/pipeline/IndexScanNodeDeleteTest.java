@@ -1,9 +1,14 @@
 package com.kronotop.bucket.pipeline;
 
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.SortOrder;
+import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -12,15 +17,15 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class FullScanNodeDeleteTest extends BasePipelineTest {
+class IndexScanNodeDeleteTest extends BasePipelineTest {
 
     @Test
     void testDeleteWithGreaterThanFilter() {
-        final String TEST_BUCKET_NAME = "test-bucket-gt-delete-full-scan";
+        final String TEST_BUCKET_NAME = "test-bucket-gt-delete-index-scan";
 
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
-        // Insert multiple documents with different field types and values
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
                 BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
@@ -32,27 +37,35 @@ class FullScanNodeDeleteTest extends BasePipelineTest {
 
         PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext deleteCtx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            List<Versionstamp> results = deleteExecutor.execute(tr, ctx);
-
+            List<Versionstamp> results = deleteExecutor.execute(tr, deleteCtx);
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
             tr.commit().join();
         }
 
-        // age > 22 deleted
+        QueryContext readCtx = new QueryContext(metadata, config, plan);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, readCtx);
             assertEquals(0, results.size());
         }
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(ageIndex.selector());
+
+        List<KeyValue> entries = fetchAllIndexedEntries(indexSubspace);
+        assertEquals(1, entries.size());
+
+        List<KeyValue> backPointers = fetchAllIndexBackPointers(indexSubspace);
+        assertEquals(1, backPointers.size());
     }
 
     @Test
     void testLimitedBatchDeleteWithPagination() {
         final String TEST_BUCKET_NAME = "test-bucket-batch-delete";
 
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
@@ -99,5 +112,13 @@ class FullScanNodeDeleteTest extends BasePipelineTest {
             Map<?, ByteBuffer> results = readExecutor.execute(tr, readCtx);
             assertEquals(0, results.size());
         }
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(ageIndex.selector());
+
+        List<KeyValue> entries = fetchAllIndexedEntries(indexSubspace);
+        assertEquals(2, entries.size());
+
+        List<KeyValue> backPointers = fetchAllIndexBackPointers(indexSubspace);
+        assertEquals(2, backPointers.size());
     }
 }

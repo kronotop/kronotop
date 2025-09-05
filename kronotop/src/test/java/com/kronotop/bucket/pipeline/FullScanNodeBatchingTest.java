@@ -56,7 +56,7 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
         // Iterate through all batches using cursor-based pagination
         while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
                 actualIterations++;
 
                 if (results.isEmpty()) {
@@ -155,7 +155,7 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
         // Iterate through all batches using cursor-based pagination in reverse order
         while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
                 actualIterations++;
 
                 if (results.isEmpty()) {

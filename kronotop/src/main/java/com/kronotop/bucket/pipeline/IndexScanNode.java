@@ -46,6 +46,7 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
                 ctx.options().isReverse()
         );
 
+        DataSink sink = ctx.sinks().loadOrCreateDocumentLocationSink(id());
         int counter = 0;
         for (KeyValue indexEntry : indexEntries) {
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(indexSubspace, indexEntry);
@@ -55,8 +56,7 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
             Object rawIndexValue = indexKeyTuple.get(1);
             BqlValue indexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
             if (predicate.test(indexValue)) {
-                // set output here
-                ctx.output().appendLocation(id(), location.entryMetadata().id(), location);
+                ctx.sinks().writeDocumentLocation(sink, location.entryMetadata().id(), location);
             }
             counter++;
             ctx.env().cursorManager().saveIndexScanCheckpoint(ctx, id(), indexValue, versionstamp);

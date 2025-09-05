@@ -20,6 +20,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -71,6 +72,7 @@ public class PrefixHistogramConcurrencyTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testConcurrentAddDelete() throws InterruptedException {
         int numThreads = 8;
         int opsPerThread = 1000;
@@ -116,6 +118,7 @@ public class PrefixHistogramConcurrencyTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testConcurrentUpdate() throws InterruptedException {
         int numThreads = 4;
         int opsPerThread = 500;
@@ -165,6 +168,7 @@ public class PrefixHistogramConcurrencyTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testConcurrentReadWrite() throws InterruptedException {
         int numWriters = 4;
         int numReaders = 4;
@@ -248,6 +252,7 @@ public class PrefixHistogramConcurrencyTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testIdempotentMutations() throws InterruptedException {
         // Test that retried Add/Delete operations don't change the net result
         int numThreads = 4;

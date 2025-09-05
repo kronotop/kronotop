@@ -31,6 +31,8 @@ import com.kronotop.bucket.statistics.prefix.FDBPrefixHistogram;
 import com.kronotop.internal.JSONUtil;
 import org.bson.BsonType;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -174,6 +176,12 @@ public class IndexUtil {
     private static void cardinalityCommon(Transaction tr, DirectorySubspace bucketMetadataSubspace, long indexId, byte[] delta) {
         byte[] key = getCardinalityKey(bucketMetadataSubspace, indexId);
         tr.mutate(MutationType.ADD, key, delta);
+    }
+
+    public static void cardinalityCommon(Transaction tr, DirectorySubspace bucketMetadataSubspace, long indexId, long delta) {
+        byte[] key = getCardinalityKey(bucketMetadataSubspace, indexId);
+        byte[] param = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(delta).array();
+        tr.mutate(MutationType.ADD, key, param);
     }
 
     /**

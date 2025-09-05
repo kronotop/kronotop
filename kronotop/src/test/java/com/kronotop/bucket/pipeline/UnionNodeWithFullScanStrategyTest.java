@@ -14,7 +14,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
+class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
     @Test
     void testUnionWithTwoField() {
         final String TEST_BUCKET_NAME = "test-intersection-full-scan-strategy";
@@ -39,7 +39,7 @@ public class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(5, results.size());
             assertEquals(Set.of("Claire", "John", "Alison"), extractNamesFromResults(results));
             assertEquals(Set.of(20, 35, 40, 47), extractIntegerFieldFromResults(results, "age"));
@@ -70,7 +70,7 @@ public class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(4, results.size());
             assertEquals(Set.of("Claire", "John", "Alison"), extractNamesFromResults(results));
             assertEquals(Set.of(35, 40, 47), extractIntegerFieldFromResults(results, "age"));
@@ -109,7 +109,7 @@ public class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
         );
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             List<String> actualResult = new ArrayList<>();
             for (ByteBuffer buffer : results.values()) {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
@@ -179,7 +179,7 @@ public class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             // Execute in loop to track ALL batches and iterations
             while (true) {
                 iterationCount++;
-                Map<?, ByteBuffer> batchResults = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> batchResults = readExecutor.execute(tr, ctx);
                 
                 if (batchResults.isEmpty()) {
                     System.out.printf("Batch %d: Retrieved 0 documents [EMPTY - END]%n", iterationCount);
@@ -220,7 +220,7 @@ public class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             // Now test full query to verify total count
             QueryOptions fullConfig = QueryOptions.builder().limit(200).build();
             QueryContext fullCtx = new QueryContext(metadata, fullConfig, plan);
-            Map<?, ByteBuffer> fullResults = executor.execute(tr, fullCtx);
+            Map<?, ByteBuffer> fullResults = readExecutor.execute(tr, fullCtx);
 
             // Debug the discrepancy
             System.out.printf("%nDEBUG: Batch iteration got %d, full query got %d%n", totalRetrieved, fullResults.size());
@@ -305,7 +305,7 @@ public class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             // Execute in loop to track ALL batches and iterations
             while (true) {
                 iterationCount++;
-                Map<?, ByteBuffer> batchResults = executor.execute(tr, ctx);
+                Map<?, ByteBuffer> batchResults = readExecutor.execute(tr, ctx);
                 
                 if (batchResults.isEmpty()) {
                     System.out.printf("Batch %d: Retrieved 0 documents [EMPTY - END]%n", iterationCount);
@@ -349,7 +349,7 @@ public class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             // Now test full query to verify total count
             QueryOptions fullConfig = QueryOptions.builder().limit(200).build();
             QueryContext fullCtx = new QueryContext(metadata, fullConfig, plan);
-            Map<?, ByteBuffer> fullResults = executor.execute(tr, fullCtx);
+            Map<?, ByteBuffer> fullResults = readExecutor.execute(tr, fullCtx);
 
             // Debug the discrepancy
             System.out.printf("%nDEBUG: Batch iteration got %d, full query got %d%n", totalRetrieved, fullResults.size());

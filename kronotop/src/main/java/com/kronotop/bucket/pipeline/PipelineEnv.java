@@ -1,4 +1,10 @@
 package com.kronotop.bucket.pipeline;
 
-public record PipelineEnv(DocumentRetriever documentRetriever, CursorManager cursorManager) {
+import com.kronotop.bucket.BucketService;
+
+public record PipelineEnv(
+        BucketService bucketService,
+        DocumentRetriever documentRetriever,
+        CursorManager cursorManager
+) {
 }

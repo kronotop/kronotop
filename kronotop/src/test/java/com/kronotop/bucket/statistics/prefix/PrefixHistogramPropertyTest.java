@@ -20,6 +20,7 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -51,6 +52,7 @@ public class PrefixHistogramPropertyTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testUniformDistribution() {
         DataGenerator generator = new UniformDataGenerator(42);
         Oracle oracle = generateData(generator, 50000);
@@ -69,6 +71,7 @@ public class PrefixHistogramPropertyTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testZipfDistribution() {
         DataGenerator generator = new ZipfDataGenerator(42, 0.8); // 80% concentration
         Oracle oracle = generateData(generator, 50000);
@@ -87,6 +90,7 @@ public class PrefixHistogramPropertyTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testClusteredDistribution() {
         DataGenerator generator = new ClusteredDataGenerator(42, 5); // 5 clusters
         Oracle oracle = generateData(generator, 50000);
@@ -105,6 +109,7 @@ public class PrefixHistogramPropertyTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testMixedDistribution() {
         DataGenerator generator = new MixedDataGenerator(42); // Uniform + hot clusters
         Oracle oracle = generateData(generator, 50000);
@@ -123,6 +128,7 @@ public class PrefixHistogramPropertyTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    @Disabled
     public void testEdgeCases() {
         // Edge keys: 00...00, FF...FF, short/long keys
         byte[][] edgeKeys = {

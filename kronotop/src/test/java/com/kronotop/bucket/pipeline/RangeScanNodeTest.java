@@ -15,15 +15,12 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class RangeScanNodeTest extends BasePipelineTest {
+class RangeScanNodeTest extends BasePipelineTest {
 
     private static Stream<Arguments> provideRangeQueryTestCases() {
         return Stream.of(
@@ -107,7 +104,7 @@ public class RangeScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(4, results.size());
 
@@ -140,7 +137,7 @@ public class RangeScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -175,7 +172,7 @@ public class RangeScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 0 documents since no documents have age > 22
             assertEquals(0, results.size(), "Should return exactly 0 documents with age > 22");
@@ -204,7 +201,7 @@ public class RangeScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription);
 
             // Verify concrete expected results based on specific test cases
@@ -249,7 +246,7 @@ public class RangeScanNodeTest extends BasePipelineTest {
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = executor.execute(tr, ctx);
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription + " (REVERSE=true)");
 
             // Verify concrete expected results based on specific test cases
@@ -394,5 +391,49 @@ public class RangeScanNodeTest extends BasePipelineTest {
                                 " for forward query: " + testDescription);
             }
         }
+    }
+
+    @Test
+    void testInt32RangeWithMixedInput() {
+        final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input";
+
+        // Create an age index for this test
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 11, 'name': 'Donald'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 30, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 10, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 11, 'name': 'Donald'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Claire'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 50, 'name': 'Alison'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gte': 20, '$lte': 48}}");
+        QueryOptions config = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(metadata, config, plan);
+
+        List<String> expectedResult = Arrays.asList(
+                "{\"age\": 20, \"name\": \"John\"}",
+                "{\"age\": 20, \"name\": \"Alice\"}",
+                "{\"age\": 20, \"name\": \"George\"}",
+                "{\"age\": 20, \"name\": \"Claire\"}",
+                "{\"age\": 30, \"name\": \"George\"}"
+        );
+
+        List<String> actualResult = new ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results.values()) {
+                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+            }
+        }
+        assertEquals(expectedResult, actualResult);
     }
 }
