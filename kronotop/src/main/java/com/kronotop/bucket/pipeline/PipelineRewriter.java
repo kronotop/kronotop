@@ -138,12 +138,12 @@ public class PipelineRewriter {
 
         return switch (intermediatePlan.strategy()) {
             case FULL_SCAN, NESTED -> convertToFullScanNode(id, intermediatePlan, predicateStrategy);
-            case MIXED_SCAN -> optimizeIndexScanWithResidual(ctx, intermediatePlan, predicateStrategy);
+            case MIXED_SCAN -> convertToIndexScanNode(ctx, intermediatePlan, predicateStrategy);
             default -> nodeFactory.create(id, intermediatePlan.strategy(), intermediatePlan.children());
         };
     }
 
-    private static PipelineNode optimizeIndexScanWithResidual(PlannerContext ctx, IntermediatePlan intermediatePlan, PredicateEvalStrategy predicateStrategy) {
+    private static PipelineNode convertToIndexScanNode(PlannerContext ctx, IntermediatePlan intermediatePlan, PredicateEvalStrategy predicateStrategy) {
         PipelineNode mostSelectiveIndexScan = selectMostSelectiveIndexScan(intermediatePlan.children());
 
         List<PipelineNode> otherNodes = new ArrayList<>();

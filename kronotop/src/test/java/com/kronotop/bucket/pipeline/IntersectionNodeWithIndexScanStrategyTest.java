@@ -16,11 +16,11 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
+class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
     @Disabled
-    void testIntersectionWithTwoField() {
-        final String TEST_BUCKET_NAME = "test-intersection-full-scan-strategy";
+    void testIntersectionWithTwoFieldsAndSingleIndex() {
+        final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-single-index";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
@@ -44,10 +44,6 @@ public class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest 
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                System.out.println(BSONUtil.fromBson(buffer.array()).toJson());
-            }
-
             assertEquals(2, results.size(), "Should return exactly 3 documents with age > 22");
 
             assertEquals(Set.of("John"), extractNamesFromResults(results));
