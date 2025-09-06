@@ -19,6 +19,10 @@ public class RangeScanNode extends AbstractScanNode implements ScanNode {
         this.predicate = predicate;
     }
 
+    public RangeScanPredicate predicate() {
+        return predicate;
+    }
+
     @Override
     public void execute(QueryContext ctx, Transaction tr) {
         DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(index.selector());

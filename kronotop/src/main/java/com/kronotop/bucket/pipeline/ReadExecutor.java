@@ -37,7 +37,7 @@ import java.util.Map;
  * @see PipelineExecutor
  * @see DataSink
  */
-public final class ReadExecutor implements Executor<Map<Versionstamp, ByteBuffer>> {
+public final class ReadExecutor extends BaseExecutor implements Executor<Map<Versionstamp, ByteBuffer>> {
     private final PipelineExecutor executor;
 
     /**
@@ -69,17 +69,13 @@ public final class ReadExecutor implements Executor<Map<Versionstamp, ByteBuffer
     public Map<Versionstamp, ByteBuffer> execute(Transaction tr, QueryContext ctx) {
         executor.execute(tr, ctx);
 
-        PipelineNode plan = ctx.plan();
-        if (plan == null) {
+        PipelineNode head = findHeadNode(ctx.plan());
+
+        if (head == null) {
             return Map.of();
         }
 
-        PipelineNode node = plan;
-        while (node.next() != null) {
-            node = plan.next();
-        }
-
-        DataSink sink = ctx.sinks().load(node.id());
+        DataSink sink = ctx.sinks().load(head.id());
         if (sink == null) {
             return Map.of();
         }

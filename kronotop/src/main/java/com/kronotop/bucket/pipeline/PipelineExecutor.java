@@ -20,9 +20,10 @@ public class PipelineExecutor {
     }
 
     private void executePipelineNode(Transaction tr, QueryContext ctx, PipelineNode node) {
+        ctx.setCurrentNodeId(node.id());
         switch (node) {
             case ScanNode scanNode -> {
-                ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
+                ExecutionState state = ctx.getOrCreateExecutionState(node.id());
                 state.tryInitializingLimit(ctx.options().limit());
                 scanNode.execute(ctx, tr);
             }
@@ -45,33 +46,11 @@ public class PipelineExecutor {
         }
     }
 
-    private void visitFullScanNode(Transaction tr, QueryContext ctx, PipelineNode node) {
+    private void visitScanNode(Transaction tr, QueryContext ctx, ScanNode scanNode) {
         do {
-            executePipelineNode(tr, ctx, node);
-            ExecutionState state = ctx.getOrCreateExecutionState(node.id());
-            DataSink sink = ctx.sinks().load(node.id());
-            if (sink == null) {
-                if (state.isExhausted()) {
-                    break;
-                }
-                continue;
-            }
-            if (sink.size() < ctx.options().limit()) {
-                if (state.isExhausted()) {
-                    break;
-                }
-                state.setLimit(ctx.options().limit() - sink.size());
-                continue; // fetch another batch
-            }
-            break;
-        } while (true);
-    }
-
-    private void visitIndexScanNode(Transaction tr, QueryContext ctx, PipelineNode node) {
-        do {
-            executePipelineNode(tr, ctx, node);
-            ExecutionState state = ctx.getOrCreateExecutionState(node.id());
-            DataSink sink = ctx.sinks().load(node.id());
+            executePipelineNode(tr, ctx, scanNode);
+            ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
+            DataSink sink = ctx.sinks().load(ctx.currentNodeId());
             if (sink == null) {
                 if (state.isExhausted()) {
                     break;
@@ -101,9 +80,7 @@ public class PipelineExecutor {
 
         ctx.setEnvironment(env);
         switch (ctx.plan()) {
-            case FullScanNode node -> visitFullScanNode(tr, ctx, node);
-            case IndexScanNode node -> visitIndexScanNode(tr, ctx, node);
-            case RangeScanNode node -> visitIndexScanNode(tr, ctx, node);
+            case ScanNode node -> visitScanNode(tr, ctx, node);
             case IntersectionNode node -> visitIntersectionNode(tr, ctx, node);
             default -> throw new KronotopException("Unknown PipelineNode type");
         }

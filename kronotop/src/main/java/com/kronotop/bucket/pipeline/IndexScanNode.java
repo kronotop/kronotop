@@ -19,12 +19,8 @@ public class IndexScanNode extends AbstractScanNode implements ScanNode {
         this.predicate = predicate;
     }
 
-    public IndexScanPredicate getPredicate() {
+    public IndexScanPredicate predicate() {
         return predicate;
-    }
-
-    public IndexDefinition getIndex() {
-        return index;
     }
 
     @Override

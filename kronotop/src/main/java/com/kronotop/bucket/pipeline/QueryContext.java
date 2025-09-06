@@ -90,6 +90,8 @@ public class QueryContext {
 
     private final ConcurrentHashMap<Integer, Integer> relations = new ConcurrentHashMap<>();
 
+    private volatile int currentNodeId;
+
     /**
      * The execution plan as a tree of pipeline nodes.
      */
@@ -227,6 +229,14 @@ public class QueryContext {
 
     public void setRelation(int childId, int parentId) {
         relations.put(childId, parentId);
+    }
+
+    public void setCurrentNodeId(int currentNodeId) {
+        this.currentNodeId = currentNodeId;
+    }
+
+    public int currentNodeId() {
+        return currentNodeId;
     }
 }
 

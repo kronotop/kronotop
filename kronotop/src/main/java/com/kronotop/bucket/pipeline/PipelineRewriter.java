@@ -37,7 +37,7 @@ public class PipelineRewriter {
         for (PhysicalNode child : children) {
             if (child instanceof PhysicalFullScan) {
                 fullScan++;
-            } else if (child instanceof PhysicalIndexScan) {
+            } else if (child instanceof PhysicalIndexScan || child instanceof PhysicalRangeScan) {
                 indexScan++;
             } else if (child instanceof PhysicalAnd || child instanceof PhysicalOr) {
                 hasLogicalChildren = true;
@@ -93,29 +93,53 @@ public class PipelineRewriter {
         return new IntermediatePlan(strategy, rewritten);
     }
 
-    /**
-     * Combines residual predicates from multiple FullScanNode children into a single predicate.
-     *
-     * @param children the list of pipeline nodes (must be FullScanNode instances)
-     * @param strategy the strategy for combining predicates (AND or OR)
-     * @return the combined residual predicate node
-     */
-    private static ResidualPredicateNode combineResiduals(
+    private static ResidualPredicateNode transformToResidualPredicate(
+            PlannerContext ctx,
             List<PipelineNode> children,
             PredicateEvalStrategy strategy) {
 
         List<ResidualPredicateNode> predicates = children.stream()
                 .map(child -> {
-                    if (!(child instanceof FullScanNode fullScanNode)) {
-                        throw new KronotopException("Child plan must be a FullScanNode instance but " + child.getClass().getSimpleName());
+                    switch (child) {
+                        case FullScanNode fullScanNode -> {
+                            return fullScanNode.predicate();
+                        }
+                        case IndexScanNode indexScanNode -> {
+                            IndexScanPredicate predicate = indexScanNode.predicate();
+                            return new ResidualPredicate(predicate.id(), predicate.selector(), predicate.op(), predicate.operand());
+                        }
+                        case RangeScanNode rangeScanNode -> {
+                            return rangeScanPredicateToResidualAndNode(ctx, rangeScanNode.predicate());
+                        }
+                        default ->
+                                throw new KronotopException("Cannot transform " + child.getClass().getSimpleName()
+                                        + " to " + ResidualPredicateNode.class.getSimpleName());
                     }
-                    return fullScanNode.predicate();
                 })
                 .toList();
 
         return strategy == PredicateEvalStrategy.AND
                 ? new ResidualAndNode(predicates)
                 : new ResidualOrNode(predicates);
+    }
+
+    private static ResidualPredicateNode rangeScanPredicateToResidualAndNode(PlannerContext ctx, RangeScanPredicate predicate) {
+        List<ResidualPredicateNode> children = new ArrayList<>();
+
+        Operator lowerBoundOp = Operator.GT;
+        if (predicate.includeLower()) {
+            lowerBoundOp = Operator.GTE;
+        }
+        children.add(new ResidualPredicate(ctx.nextId(), predicate.selector(), lowerBoundOp, predicate.lowerBound()));
+
+
+        Operator upperBoundOp = Operator.LT;
+        if (predicate.includeUpper()) {
+            upperBoundOp = Operator.LTE;
+        }
+        children.add(new ResidualPredicate(ctx.nextId(), predicate.selector(), upperBoundOp, predicate.upperBound()));
+
+        return new ResidualAndNode(children);
     }
 
     /**
@@ -137,13 +161,13 @@ public class PipelineRewriter {
         IntermediatePlan intermediatePlan = traverseChildren(ctx, children);
 
         return switch (intermediatePlan.strategy()) {
-            case FULL_SCAN, NESTED -> convertToFullScanNode(id, intermediatePlan, predicateStrategy);
-            case MIXED_SCAN -> optimizeIndexScanWithResidual(ctx, intermediatePlan, predicateStrategy);
+            case FULL_SCAN, NESTED -> convertToFullScanNode(ctx, id, intermediatePlan, predicateStrategy);
+            case MIXED_SCAN -> convertToIndexScanNode(ctx, intermediatePlan, predicateStrategy);
             default -> nodeFactory.create(id, intermediatePlan.strategy(), intermediatePlan.children());
         };
     }
 
-    private static PipelineNode optimizeIndexScanWithResidual(PlannerContext ctx, IntermediatePlan intermediatePlan, PredicateEvalStrategy predicateStrategy) {
+    private static PipelineNode convertToIndexScanNode(PlannerContext ctx, IntermediatePlan intermediatePlan, PredicateEvalStrategy predicateStrategy) {
         PipelineNode mostSelectiveIndexScan = selectMostSelectiveIndexScan(intermediatePlan.children());
 
         List<PipelineNode> otherNodes = new ArrayList<>();
@@ -153,23 +177,24 @@ public class PipelineRewriter {
             }
         }
 
-        ResidualPredicateNode predicate = combineResiduals(otherNodes, predicateStrategy);
+        ResidualPredicateNode predicate = transformToResidualPredicate(ctx, otherNodes, predicateStrategy);
         TransformWithResidualPredicateNode nextNode = new TransformWithResidualPredicateNode(ctx.nextId(), predicate);
         mostSelectiveIndexScan.connectNext(nextNode);
         return mostSelectiveIndexScan;
     }
 
     private static PipelineNode selectMostSelectiveIndexScan(List<PipelineNode> children) {
+        // Obviously, this method is a placeholder. It will be replaced with a proper one when we implement the histograms.
         for (PipelineNode node : children) {
-            if (node instanceof IndexScanNode) {
+            if (node instanceof IndexScanNode || node instanceof RangeScanNode) {
                 return node;
             }
         }
-        throw new IllegalStateException("No IndexScanNode found");
+        throw new IllegalStateException("No IndexScanNode or RangeScanNode found");
     }
 
-    private static FullScanNode convertToFullScanNode(int id, IntermediatePlan subplan, PredicateEvalStrategy strategy) {
-        ResidualPredicateNode predicate = combineResiduals(subplan.children(), strategy);
+    private static FullScanNode convertToFullScanNode(PlannerContext ctx, int id, IntermediatePlan subplan, PredicateEvalStrategy strategy) {
+        ResidualPredicateNode predicate = transformToResidualPredicate(ctx, subplan.children(), strategy);
         return new FullScanNode(id, predicate);
     }
 
