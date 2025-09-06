@@ -79,7 +79,12 @@ public final class DeleteExecutor implements Executor<List<Versionstamp>> {
             return List.of();
         }
 
-        DataSink sink = ctx.sinks().load(plan.id());
+        PipelineNode node = plan;
+        while (node.next() != null) {
+            node = plan.next();
+        }
+
+        DataSink sink = ctx.sinks().load(node.id());
         if (sink == null) {
             return List.of();
         }

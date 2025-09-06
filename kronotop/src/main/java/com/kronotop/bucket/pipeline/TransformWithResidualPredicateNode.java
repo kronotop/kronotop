@@ -22,6 +22,13 @@ public class TransformWithResidualPredicateNode extends AbstractPipelineNode imp
         DataSink newSink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
         try {
             switch (sink) {
+                case PersistedEntrySink persistedEntrySink -> {
+                    persistedEntrySink.forEach(((versionstamp, entry) -> {
+                        if (residualPredicate.test(entry.document())) {
+                            ctx.sinks().writePersistedEntry(newSink, versionstamp, entry);
+                        }
+                    }));
+                }
                 case DocumentLocationSink documentLocationSink -> {
                     documentLocationSink.forEach((entryMetadataId, location) -> {
                         ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.metadata(), location);
