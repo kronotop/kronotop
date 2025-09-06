@@ -30,7 +30,7 @@ public class PipelineExecutor {
                 for (PipelineNode child : logicalNode.children()) {
                     executePipelineNode(tr, ctx, child);
                 }
-                logicalNode.execute(ctx, tr);
+                logicalNode.execute(ctx);
             }
             default -> throw new IllegalStateException("Unexpected PipelineNode: " + node);
         }

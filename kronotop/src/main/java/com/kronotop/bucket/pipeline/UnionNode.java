@@ -1,7 +1,5 @@
 package com.kronotop.bucket.pipeline;
 
-import com.apple.foundationdb.Transaction;
-
 import java.util.List;
 
 public class UnionNode extends AbstractLogicalNode implements LogicalNode {
@@ -10,7 +8,6 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
     }
 
     @Override
-    public void execute(QueryContext ctx, Transaction tr) {
-
+    public void execute(QueryContext ctx) {
     }
 }

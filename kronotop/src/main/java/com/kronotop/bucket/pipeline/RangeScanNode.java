@@ -9,7 +9,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.index.IndexDefinition;
 
-public class RangeScanNode extends AbstractTransactionAwareNode implements ScanNode {
+public class RangeScanNode extends AbstractScanNode implements ScanNode {
     private final IndexDefinition index;
     private final RangeScanPredicate predicate;
 
@@ -20,13 +20,8 @@ public class RangeScanNode extends AbstractTransactionAwareNode implements ScanN
     }
 
     @Override
-    public IndexDefinition index() {
-        return index;
-    }
-
-    @Override
     public void execute(QueryContext ctx, Transaction tr) {
-        DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(index().selector());
+        DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(index.selector());
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
         RangeScanContext rangeScanCtx = new RangeScanContext(
@@ -48,7 +43,7 @@ public class RangeScanNode extends AbstractTransactionAwareNode implements ScanN
 
             Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
             Object rawIndexValue = indexKeyTuple.get(1);
-            BqlValue indexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
+            BqlValue indexValue = createBqlValueFromIndexValue(rawIndexValue, index.bsonType());
             ctx.sinks().writeDocumentLocation(sink, location.entryMetadata().id(), location);
             ctx.env().cursorManager().saveIndexScanCheckpoint(ctx, id(), indexValue, versionstamp);
             counter++;

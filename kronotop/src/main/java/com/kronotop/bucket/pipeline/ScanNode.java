@@ -1,8 +1,7 @@
 package com.kronotop.bucket.pipeline;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import com.apple.foundationdb.Transaction;
 
-// Primary & Secondary index scan and testing predicates.
-public interface ScanNode extends TransactionAwareNode {
-    IndexDefinition index();
+public interface ScanNode extends PipelineNode {
+    void execute(QueryContext ctx, Transaction tr);
 }

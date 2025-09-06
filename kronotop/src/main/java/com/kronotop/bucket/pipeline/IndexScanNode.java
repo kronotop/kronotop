@@ -9,7 +9,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.index.IndexDefinition;
 
-public final class IndexScanNode extends AbstractTransactionAwareNode implements ScanNode {
+public class IndexScanNode extends AbstractScanNode implements ScanNode {
     private final IndexDefinition index;
     private final IndexScanPredicate predicate;
 
@@ -20,13 +20,8 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
     }
 
     @Override
-    public IndexDefinition index() {
-        return index;
-    }
-
-    @Override
     public void execute(QueryContext ctx, Transaction tr) {
-        DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(index().selector());
+        DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(index.selector());
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
         IndexScanContext indexScanCtx = new IndexScanContext(
@@ -35,7 +30,7 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
                 state,
                 ctx.options().isReverse(),
                 predicate,
-                index()
+                index
         );
         SelectorPair selectors = SelectorCalculator.calculate(indexScanCtx);
 
@@ -54,7 +49,7 @@ public final class IndexScanNode extends AbstractTransactionAwareNode implements
 
             Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
             Object rawIndexValue = indexKeyTuple.get(1);
-            BqlValue indexValue = createBqlValueFromIndexValue(rawIndexValue, index().bsonType());
+            BqlValue indexValue = createBqlValueFromIndexValue(rawIndexValue, index.bsonType());
             if (predicate.test(indexValue)) {
                 ctx.sinks().writeDocumentLocation(sink, location.entryMetadata().id(), location);
             }

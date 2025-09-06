@@ -7,9 +7,9 @@ import org.bson.BsonType;
 import java.math.BigDecimal;
 import java.util.Objects;
 
-public abstract class AbstractTransactionAwareNode extends AbstractPipelineNode implements TransactionAwareNode {
+public abstract class AbstractScanNode extends AbstractPipelineNode implements ScanNode {
 
-    protected AbstractTransactionAwareNode(int id) {
+    protected AbstractScanNode(int id) {
         super(id);
     }
 

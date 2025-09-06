@@ -11,6 +11,10 @@ public class DataSinkRegistry {
         return sinks.get(parentNodeId);
     }
 
+    public void remove(int parentNodeId) {
+        sinks.remove(parentNodeId);
+    }
+
     public DataSink loadOrCreateDocumentLocationSink(int parentNodeId) {
         return sinks.computeIfAbsent(parentNodeId, (ignored) -> new DocumentLocationSink(parentNodeId));
     }
