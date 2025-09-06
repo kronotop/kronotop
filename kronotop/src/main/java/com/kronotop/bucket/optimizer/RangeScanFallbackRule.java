@@ -43,23 +43,23 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
             case PhysicalRangeScan rangeScan when rangeScan.index() == null -> 
                 convertToFullScan(rangeScan, context);
             case PhysicalAnd and -> new PhysicalAnd(
-                    context.generateId(),
+                    context.nextId(),
                     and.children().stream()
                             .map(child -> apply(child, metadata, context))
                             .toList()
             );
             case PhysicalOr or -> new PhysicalOr(
-                    context.generateId(),
+                    context.nextId(),
                     or.children().stream()
                             .map(child -> apply(child, metadata, context))
                             .toList()
             );
             case PhysicalNot not -> new PhysicalNot(
-                    context.generateId(), 
+                    context.nextId(),
                     apply(not.child(), metadata, context)
             );
             case PhysicalElemMatch elemMatch -> new PhysicalElemMatch(
-                    context.generateId(),
+                    context.nextId(),
                     elemMatch.selector(),
                     apply(elemMatch.subPlan(), metadata, context)
             );
@@ -74,7 +74,7 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
         if (rangeScan.lowerBound() != null) {
             Operator lowerOp = rangeScan.includeLower() ? Operator.GTE : Operator.GT;
             filters.add(new PhysicalFilter(
-                    context.generateId(), 
+                    context.nextId(),
                     rangeScan.selector(), 
                     lowerOp, 
                     rangeScan.lowerBound()
@@ -84,7 +84,7 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
         if (rangeScan.upperBound() != null) {
             Operator upperOp = rangeScan.includeUpper() ? Operator.LTE : Operator.LT;
             filters.add(new PhysicalFilter(
-                    context.generateId(), 
+                    context.nextId(),
                     rangeScan.selector(), 
                     upperOp, 
                     rangeScan.upperBound()
@@ -100,11 +100,11 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
         if (filters.size() == 1) {
             compositeFilter = filters.get(0);
         } else {
-            compositeFilter = new PhysicalAnd(context.generateId(), filters);
+            compositeFilter = new PhysicalAnd(context.nextId(), filters);
         }
 
         // Return a full scan with the composite filter
-        return new PhysicalFullScan(context.generateId(), compositeFilter);
+        return new PhysicalFullScan(context.nextId(), compositeFilter);
     }
 
     @Override

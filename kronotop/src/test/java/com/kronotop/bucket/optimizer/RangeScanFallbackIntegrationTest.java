@@ -34,7 +34,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         // Create a PhysicalRangeScan with null index (simulating no available index)
         PlannerContext context = new PlannerContext();
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
-                context.generateId(), "nonIndexedField", 10, 50, true, false, null
+                context.nextId(), "nonIndexedField", 10, 50, true, false, null
         );
 
         // Run through the optimizer
@@ -61,7 +61,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         // Create a PhysicalRangeScan with a valid index
         PlannerContext context = new PlannerContext();
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
-                context.generateId(), "age", 18, 65, true, false, ageIndex
+                context.nextId(), "age", 18, 65, true, false, ageIndex
         );
 
         // Run through the optimizer
@@ -86,14 +86,14 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         
         // One range scan with index, one without
         PhysicalRangeScan indexedScan = new PhysicalRangeScan(
-                context.generateId(), "age", 18, 65, true, false, ageIndex
+                context.nextId(), "age", 18, 65, true, false, ageIndex
         );
         PhysicalRangeScan nonIndexedScan = new PhysicalRangeScan(
-                context.generateId(), "score", 80, 100, true, true, null
+                context.nextId(), "score", 80, 100, true, true, null
         );
         
         PhysicalAnd andPlan = new PhysicalAnd(
-                context.generateId(), 
+                context.nextId(),
                 java.util.List.of(indexedScan, nonIndexedScan)
         );
 
@@ -131,14 +131,14 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         
         // Create a nested structure with range scan that needs fallback
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
-                context.generateId(), "nonIndexedField", 1, 10, true, true, null
+                context.nextId(), "nonIndexedField", 1, 10, true, true, null
         );
         
         PhysicalOr orPlan = new PhysicalOr(
-                context.generateId(),
+                context.nextId(),
                 java.util.List.of(
                         rangeScan,
-                        new PhysicalFilter(context.generateId(), "name", com.kronotop.bucket.planner.Operator.EQ, "test")
+                        new PhysicalFilter(context.nextId(), "name", com.kronotop.bucket.planner.Operator.EQ, "test")
                 )
         );
 
@@ -164,14 +164,14 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         
         // Create a plan that could be optimized by multiple rules
         PhysicalRangeScan rangeScan1 = new PhysicalRangeScan(
-                context.generateId(), "field1", 1, 10, true, false, null
+                context.nextId(), "field1", 1, 10, true, false, null
         );
         PhysicalRangeScan rangeScan2 = new PhysicalRangeScan(
-                context.generateId(), "field1", 5, 15, false, true, null
+                context.nextId(), "field1", 5, 15, false, true, null
         );
         
         PhysicalAnd andPlan = new PhysicalAnd(
-                context.generateId(),
+                context.nextId(),
                 java.util.List.of(rangeScan1, rangeScan2)
         );
 
@@ -192,7 +192,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         
         // Test with only lower bound
         PhysicalRangeScan lowerBoundOnly = new PhysicalRangeScan(
-                context.generateId(), "temperature", 20, null, true, false, null
+                context.nextId(), "temperature", 20, null, true, false, null
         );
 
         PhysicalNode optimized = optimizer.optimize(metadata, lowerBoundOnly, context);
@@ -203,7 +203,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
 
         // Test with only upper bound
         PhysicalRangeScan upperBoundOnly = new PhysicalRangeScan(
-                context.generateId(), "humidity", null, 80, false, true, null
+                context.nextId(), "humidity", null, 80, false, true, null
         );
 
         PhysicalNode optimized2 = optimizer.optimize(metadata, upperBoundOnly, context);

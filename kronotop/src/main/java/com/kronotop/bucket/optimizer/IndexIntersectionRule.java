@@ -43,14 +43,14 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
     public PhysicalNode apply(PhysicalNode node, BucketMetadata metadata, PlannerContext context) {
         return switch (node) {
             case PhysicalAnd and -> optimizeAnd(and, metadata, context);
-            case PhysicalNot not -> new PhysicalNot(context.generateId(), apply(not.child(), metadata, context));
+            case PhysicalNot not -> new PhysicalNot(context.nextId(), apply(not.child(), metadata, context));
             case PhysicalElemMatch elemMatch -> new PhysicalElemMatch(
-                    context.generateId(),
+                    context.nextId(),
                     elemMatch.selector(),
                     apply(elemMatch.subPlan(), metadata, context)
             );
             case PhysicalOr or -> new PhysicalOr(
-                    context.generateId(),
+                    context.nextId(),
                     or.children().stream()
                             .map(child -> apply(child, metadata, context))
                             .toList()
@@ -93,12 +93,12 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
                     .map(candidate -> candidate.filter)
                     .toList();
 
-            PhysicalIndexIntersection intersection = new PhysicalIndexIntersection(context.generateId(), indexes, filters);
+            PhysicalIndexIntersection intersection = new PhysicalIndexIntersection(context.nextId(), indexes, filters);
             nonIndexedChildren.add(intersection);
         } else {
             // Not enough indexed conditions, add them back as regular index scans
             for (IndexScanCandidate candidate : indexCandidates) {
-                nonIndexedChildren.add(new PhysicalIndexScan(context.generateId(), candidate.filter, candidate.index));
+                nonIndexedChildren.add(new PhysicalIndexScan(context.nextId(), candidate.filter, candidate.index));
             }
         }
 
@@ -106,10 +106,10 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
         if (nonIndexedChildren.size() == 1) {
             return nonIndexedChildren.get(0);
         } else if (nonIndexedChildren.size() < and.children().size()) {
-            return new PhysicalAnd(context.generateId(), nonIndexedChildren);
+            return new PhysicalAnd(context.nextId(), nonIndexedChildren);
         } else {
             // Even if no structural changes, children might have been optimized
-            return new PhysicalAnd(context.generateId(), nonIndexedChildren);
+            return new PhysicalAnd(context.nextId(), nonIndexedChildren);
         }
     }
 

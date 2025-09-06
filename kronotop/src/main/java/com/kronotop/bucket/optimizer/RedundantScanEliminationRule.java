@@ -37,9 +37,9 @@ public class RedundantScanEliminationRule implements PhysicalOptimizationRule {
         return switch (node) {
             case PhysicalAnd and -> optimizeAnd(and, metadata, context);
             case PhysicalOr or -> optimizeOr(or, metadata, context);
-            case PhysicalNot not -> new PhysicalNot(context.generateId(), apply(not.child(), metadata, context));
+            case PhysicalNot not -> new PhysicalNot(context.nextId(), apply(not.child(), metadata, context));
             case PhysicalElemMatch elemMatch -> new PhysicalElemMatch(
-                    context.generateId(),
+                    context.nextId(),
                     elemMatch.selector(),
                     apply(elemMatch.subPlan(), metadata, context)
             );
@@ -64,10 +64,10 @@ public class RedundantScanEliminationRule implements PhysicalOptimizationRule {
         if (deduplicatedChildren.size() == 1) {
             return deduplicatedChildren.get(0);
         } else if (deduplicatedChildren.size() < and.children().size()) {
-            return new PhysicalAnd(context.generateId(), deduplicatedChildren);
+            return new PhysicalAnd(context.nextId(), deduplicatedChildren);
         } else {
             // Even if no deduplication happened, children might have been optimized
-            return new PhysicalAnd(context.generateId(), deduplicatedChildren);
+            return new PhysicalAnd(context.nextId(), deduplicatedChildren);
         }
     }
 
@@ -88,10 +88,10 @@ public class RedundantScanEliminationRule implements PhysicalOptimizationRule {
         if (deduplicatedChildren.size() == 1) {
             return deduplicatedChildren.get(0);
         } else if (deduplicatedChildren.size() < or.children().size()) {
-            return new PhysicalOr(context.generateId(), deduplicatedChildren);
+            return new PhysicalOr(context.nextId(), deduplicatedChildren);
         } else {
             // Even if no deduplication happened, children might have been optimized
-            return new PhysicalOr(context.generateId(), deduplicatedChildren);
+            return new PhysicalOr(context.nextId(), deduplicatedChildren);
         }
     }
 

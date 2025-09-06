@@ -1493,7 +1493,7 @@ class ExecutionHandlers {
         for (int i = 0; i < filters.size(); i++) {
             PhysicalFilter filter = filters.get(i);
             IndexDefinition index = indexes.get(i);
-            indexBasedPlans.add(new PhysicalIndexScan(config.getPlannerContext().generateId(), filter, index));
+            indexBasedPlans.add(new PhysicalIndexScan(config.getPlannerContext().nextId(), filter, index));
         }
 
         return executeIndexBasedAnd(tr, indexBasedPlans);
@@ -1797,7 +1797,7 @@ class ExecutionHandlers {
         // Apply the range filter to validate the document matches the range criteria
         if (rangeScan.lowerBound() != null) {
             Operator lowerOp = rangeScan.includeLower() ? Operator.GTE : Operator.GT;
-            PhysicalFilter lowerFilter = new PhysicalFilter(config.getPlannerContext().generateId(), rangeScan.selector(), lowerOp, rangeScan.lowerBound());
+            PhysicalFilter lowerFilter = new PhysicalFilter(config.getPlannerContext().nextId(), rangeScan.selector(), lowerOp, rangeScan.lowerBound());
             ByteBuffer filtered = filterEvaluator.applyPhysicalFilter(lowerFilter, document.duplicate());
             if (filtered == null) {
                 return false;
@@ -1806,7 +1806,7 @@ class ExecutionHandlers {
 
         if (rangeScan.upperBound() != null) {
             Operator upperOp = rangeScan.includeUpper() ? Operator.LTE : Operator.LT;
-            PhysicalFilter upperFilter = new PhysicalFilter(config.getPlannerContext().generateId(), rangeScan.selector(), upperOp, rangeScan.upperBound());
+            PhysicalFilter upperFilter = new PhysicalFilter(config.getPlannerContext().nextId(), rangeScan.selector(), upperOp, rangeScan.upperBound());
             ByteBuffer filtered = filterEvaluator.applyPhysicalFilter(upperFilter, document.duplicate());
             return filtered != null;
         }

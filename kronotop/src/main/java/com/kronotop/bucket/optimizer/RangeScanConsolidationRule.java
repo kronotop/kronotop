@@ -39,14 +39,14 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     public PhysicalNode apply(PhysicalNode node, BucketMetadata metadata, PlannerContext context) {
         return switch (node) {
             case PhysicalAnd and -> optimizeAnd(and, metadata, context);
-            case PhysicalNot not -> new PhysicalNot(context.generateId(), apply(not.child(), metadata, context));
+            case PhysicalNot not -> new PhysicalNot(context.nextId(), apply(not.child(), metadata, context));
             case PhysicalElemMatch elemMatch -> new PhysicalElemMatch(
-                    context.generateId(),
+                    context.nextId(),
                     elemMatch.selector(),
                     apply(elemMatch.subPlan(), metadata, context)
             );
             case PhysicalOr or -> new PhysicalOr(
-                    context.generateId(),
+                    context.nextId(),
                     or.children().stream()
                             .map(child -> apply(child, metadata, context))
                             .toList()
@@ -99,9 +99,9 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
                     // If consolidation failed, add all original conditions
                     for (RangeCondition condition : conditions) {
                         if (condition.index != null) {
-                            optimizedChildren.add(new PhysicalIndexScan(context.generateId(), condition.filter, condition.index));
+                            optimizedChildren.add(new PhysicalIndexScan(context.nextId(), condition.filter, condition.index));
                         } else {
-                            optimizedChildren.add(new PhysicalFullScan(context.generateId(), condition.filter));
+                            optimizedChildren.add(new PhysicalFullScan(context.nextId(), condition.filter));
                         }
                     }
                 }
@@ -109,9 +109,9 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
                 // Single condition, just add it back
                 RangeCondition condition = conditions.get(0);
                 if (condition.index != null) {
-                    optimizedChildren.add(new PhysicalIndexScan(context.generateId(), condition.filter, condition.index));
+                    optimizedChildren.add(new PhysicalIndexScan(context.nextId(), condition.filter, condition.index));
                 } else {
-                    optimizedChildren.add(new PhysicalFullScan(context.generateId(), condition.filter));
+                    optimizedChildren.add(new PhysicalFullScan(context.nextId(), condition.filter));
                 }
             }
         }
@@ -120,7 +120,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
         if (optimizedChildren.size() == 1) {
             return optimizedChildren.get(0);
         } else if (optimizedChildren.size() != and.children().size()) {
-            return new PhysicalAnd(context.generateId(), optimizedChildren);
+            return new PhysicalAnd(context.nextId(), optimizedChildren);
         } else {
             return and;
         }
@@ -169,7 +169,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
 
         // Only create range scan if we have both bounds
         if (lowerBound != null && upperBound != null) {
-            return new PhysicalRangeScan(context.generateId(), selector, lowerBound, upperBound, includeLower, includeUpper, index);
+            return new PhysicalRangeScan(context.nextId(), selector, lowerBound, upperBound, includeLower, includeUpper, index);
         }
 
         return null;

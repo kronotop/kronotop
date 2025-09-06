@@ -44,20 +44,20 @@ public class PhysicalPlanner {
             case LogicalFilter filter -> transposeFilter(metadata, filter, context);
 
             // Efficient list transformation - reuse child structure
-            case LogicalAnd and -> new PhysicalAnd(context.generateId(), transposeChildren(metadata, and.children(), context));
-            case LogicalOr or -> new PhysicalOr(context.generateId(), transposeChildren(metadata, or.children(), context));
+            case LogicalAnd and -> new PhysicalAnd(context.nextId(), transposeChildren(metadata, and.children(), context));
+            case LogicalOr or -> new PhysicalOr(context.nextId(), transposeChildren(metadata, or.children(), context));
 
             // Single child transposition
-            case LogicalNot not -> new PhysicalNot(context.generateId(), plan(metadata, not.child(), context));
+            case LogicalNot not -> new PhysicalNot(context.nextId(), plan(metadata, not.child(), context));
             case LogicalElemMatch elemMatch -> new PhysicalElemMatch(
-                    context.generateId(),
+                    context.nextId(),
                     elemMatch.selector(),
                     plan(metadata, elemMatch.subPlan(), context)
             );
 
             // Singleton instance reuse - no object allocation
-            case LogicalTrue ignored -> new PhysicalTrue(context.generateId());
-            case LogicalFalse ignored -> new PhysicalFalse(context.generateId());
+            case LogicalTrue ignored -> new PhysicalTrue(context.nextId());
+            case LogicalFalse ignored -> new PhysicalFalse(context.nextId());
         };
     }
 
@@ -72,15 +72,15 @@ public class PhysicalPlanner {
         IndexDefinition indexDefinition = metadata.indexes().getIndexBySelector(filter.selector());
 
         // Direct field reuse - no object copying
-        PhysicalFilter node = new PhysicalFilter(context.generateId(), filter.selector(), filter.op(), filter.operand());
+        PhysicalFilter node = new PhysicalFilter(context.nextId(), filter.selector(), filter.op(), filter.operand());
 
         if (subspace != null) {
             // Index available - use index scan with filter pushdown
-            return new PhysicalIndexScan(context.generateId(), node, indexDefinition);
+            return new PhysicalIndexScan(context.nextId(), node, indexDefinition);
         }
 
         // No index - full scan with filter
-        return new PhysicalFullScan(context.generateId(), node);
+        return new PhysicalFullScan(context.nextId(), node);
     }
 
     /**

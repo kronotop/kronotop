@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class PlannerContext {
     private final AtomicInteger nextId = new AtomicInteger(1);
 
-    public int generateId() {
+    public int nextId() {
         return nextId.getAndIncrement();
     }
 }

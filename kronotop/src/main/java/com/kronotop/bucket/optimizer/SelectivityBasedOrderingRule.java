@@ -51,9 +51,9 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
         return switch (node) {
             case PhysicalAnd and -> optimizeAnd(and, estimator, metadata, context);
             case PhysicalOr or -> optimizeOr(or, estimator, metadata, context);
-            case PhysicalNot not -> new PhysicalNot(context.generateId(), apply(not.child(), metadata, context));
+            case PhysicalNot not -> new PhysicalNot(context.nextId(), apply(not.child(), metadata, context));
             case PhysicalElemMatch elemMatch -> new PhysicalElemMatch(
-                    context.generateId(),
+                    context.nextId(),
                     elemMatch.selector(),
                     apply(elemMatch.subPlan(), metadata, context)
             );
@@ -81,7 +81,7 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
             return optimizedChildren.get(0);
         } else if (!optimizedChildren.equals(and.children())) {
             // Only create new node if order changed or children were optimized
-            return new PhysicalAnd(context.generateId(), optimizedChildren);
+            return new PhysicalAnd(context.nextId(), optimizedChildren);
         } else {
             return and;
         }
@@ -107,7 +107,7 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
             return optimizedChildren.get(0);
         } else if (!optimizedChildren.equals(or.children())) {
             // Only create new node if order changed or children were optimized
-            return new PhysicalOr(context.generateId(), optimizedChildren);
+            return new PhysicalOr(context.nextId(), optimizedChildren);
         } else {
             return or;
         }
