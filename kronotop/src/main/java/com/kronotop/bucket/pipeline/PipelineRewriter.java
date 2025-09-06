@@ -44,9 +44,21 @@ public class PipelineRewriter {
             }
         }
 
-        return hasLogicalChildren ? ExecutionStrategy.NESTED :
-                fullScan == 0 ? ExecutionStrategy.INDEX_SCAN :
-                        indexScan == 0 ? ExecutionStrategy.FULL_SCAN : ExecutionStrategy.MIXED_SCAN;
+        if (hasLogicalChildren) {
+            return ExecutionStrategy.NESTED;
+        }
+
+        if (indexScan == 0) {
+            return ExecutionStrategy.FULL_SCAN;
+        }
+
+        if (indexScan == 1 && fullScan == 0) {
+            return ExecutionStrategy.INDEX_SCAN;
+        }
+
+        // More than one index, the later phases will pick
+        // the most selective index and rewrite the pipeline
+        return ExecutionStrategy.MIXED_SCAN;
     }
 
     /**
@@ -126,27 +138,35 @@ public class PipelineRewriter {
 
         return switch (intermediatePlan.strategy()) {
             case FULL_SCAN, NESTED -> convertToFullScanNode(id, intermediatePlan, predicateStrategy);
-            case MIXED_SCAN ->  {
-                IndexScanNode indexScanNode = null;
-                List<PipelineNode> fullscans = new ArrayList<>();
-                for (PipelineNode node : intermediatePlan.children()) {
-                    if (node instanceof FullScanNode) {
-                        fullscans.add(node);
-                    } else if (node instanceof IndexScanNode i) {
-                        indexScanNode = i;
-                    }
-                }
-                ResidualPredicateNode predicate = combineResiduals(fullscans, predicateStrategy);
-                TransformWithResidualPredicateNode trNode = new TransformWithResidualPredicateNode(ctx.nextId(), predicate);
-                assert indexScanNode != null;
-                indexScanNode.connectNext(trNode);
-                yield indexScanNode;
-            }
+            case MIXED_SCAN -> optimizeIndexScanWithResidual(ctx, intermediatePlan, predicateStrategy);
             default -> nodeFactory.create(id, intermediatePlan.strategy(), intermediatePlan.children());
         };
     }
 
+    private static PipelineNode optimizeIndexScanWithResidual(PlannerContext ctx, IntermediatePlan intermediatePlan, PredicateEvalStrategy predicateStrategy) {
+        PipelineNode mostSelectiveIndexScan = selectMostSelectiveIndexScan(intermediatePlan.children());
 
+        List<PipelineNode> otherNodes = new ArrayList<>();
+        for (PipelineNode node : intermediatePlan.children()) {
+            if (node.id() != mostSelectiveIndexScan.id()) {
+                otherNodes.add(node);
+            }
+        }
+
+        ResidualPredicateNode predicate = combineResiduals(otherNodes, predicateStrategy);
+        TransformWithResidualPredicateNode nextNode = new TransformWithResidualPredicateNode(ctx.nextId(), predicate);
+        mostSelectiveIndexScan.connectNext(nextNode);
+        return mostSelectiveIndexScan;
+    }
+
+    private static PipelineNode selectMostSelectiveIndexScan(List<PipelineNode> children) {
+        for (PipelineNode node : children) {
+            if (node instanceof IndexScanNode) {
+                return node;
+            }
+        }
+        throw new IllegalStateException("No IndexScanNode found");
+    }
 
     private static FullScanNode convertToFullScanNode(int id, IntermediatePlan subplan, PredicateEvalStrategy strategy) {
         ResidualPredicateNode predicate = combineResiduals(subplan.children(), strategy);
