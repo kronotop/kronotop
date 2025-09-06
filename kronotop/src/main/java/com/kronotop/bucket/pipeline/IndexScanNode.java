@@ -19,6 +19,14 @@ public class IndexScanNode extends AbstractScanNode implements ScanNode {
         this.predicate = predicate;
     }
 
+    public IndexScanPredicate getPredicate() {
+        return predicate;
+    }
+
+    public IndexDefinition getIndex() {
+        return index;
+    }
+
     @Override
     public void execute(QueryContext ctx, Transaction tr) {
         DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(index.selector());

@@ -88,6 +88,8 @@ public class QueryContext {
      */
     private final ConcurrentHashMap<Integer, ExecutionState> executionStates = new ConcurrentHashMap<>();
 
+    private final ConcurrentHashMap<Integer, Integer> relations = new ConcurrentHashMap<>();
+
     /**
      * The execution plan as a tree of pipeline nodes.
      */
@@ -217,6 +219,14 @@ public class QueryContext {
      */
     public PipelineNode plan() {
         return plan;
+    }
+
+    public int getParentId(int childId) {
+        return relations.get(childId);
+    }
+
+    public void setRelation(int childId, int parentId) {
+        relations.put(childId, parentId);
     }
 }
 

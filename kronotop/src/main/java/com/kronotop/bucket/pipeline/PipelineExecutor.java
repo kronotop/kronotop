@@ -32,7 +32,16 @@ public class PipelineExecutor {
                 }
                 logicalNode.execute(ctx);
             }
+            case TransformationNode transformationNode -> {
+                transformationNode.transform(ctx);
+            }
             default -> throw new IllegalStateException("Unexpected PipelineNode: " + node);
+        }
+
+        PipelineNode next = node.next();
+        if (next != null) {
+            ctx.setRelation(next.id(), node.id());
+            executePipelineNode(tr, ctx, next);
         }
     }
 

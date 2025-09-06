@@ -74,7 +74,12 @@ public final class ReadExecutor implements Executor<Map<Versionstamp, ByteBuffer
             return Map.of();
         }
 
-        DataSink sink = ctx.sinks().load(plan.id());
+        PipelineNode node = plan;
+        while (node.next() != null) {
+            node = plan.next();
+        }
+
+        DataSink sink = ctx.sinks().load(node.id());
         if (sink == null) {
             return Map.of();
         }

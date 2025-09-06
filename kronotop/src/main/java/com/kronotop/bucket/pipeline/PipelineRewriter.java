@@ -4,6 +4,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -54,8 +55,8 @@ public class PipelineRewriter {
      * @param children the list of {@link PhysicalNode} to rewrite
      * @return the list of rewritten {@link PipelineNode} instances
      */
-    private static List<PipelineNode> rewriteChildren(List<PhysicalNode> children) {
-        return children.stream().map(PipelineRewriter::rewrite).toList();
+    private static List<PipelineNode> rewriteChildren(PlannerContext ctx, List<PhysicalNode> children) {
+        return children.stream().map((node) -> PipelineRewriter.rewrite(ctx, node)).toList();
     }
 
     /**
@@ -74,9 +75,9 @@ public class PipelineRewriter {
      * @return a {@link SubPlan} object containing the determined {@link ExecutionStrategy} and
      * the rewritten list of {@link PipelineNode} instances
      */
-    private static SubPlan traverseChildren(List<PhysicalNode> children) {
+    private static SubPlan traverseChildren(PlannerContext ctx, List<PhysicalNode> children) {
         ExecutionStrategy strategy = determineStrategy(children);
-        List<PipelineNode> rewritten = rewriteChildren(children);
+        List<PipelineNode> rewritten = rewriteChildren(ctx, children);
         return new SubPlan(strategy, rewritten);
     }
 
@@ -115,15 +116,32 @@ public class PipelineRewriter {
      * @return the rewritten pipeline node
      */
     private static PipelineNode rewriteLogicalOperator(
+            PlannerContext ctx,
             int id,
             List<PhysicalNode> children,
             PredicateEvalStrategy predicateStrategy,
             NodeFactory nodeFactory) {
 
-        SubPlan subplan = traverseChildren(children);
+        SubPlan subplan = traverseChildren(ctx, children);
 
         return switch (subplan.strategy()) {
             case FULL_SCAN, NESTED -> convertToFullScanNode(id, subplan, predicateStrategy);
+            case MIXED_SCAN ->  {
+                IndexScanNode indexScanNode = null;
+                List<PipelineNode> fullscans = new ArrayList<>();
+                for (PipelineNode node : subplan.children()) {
+                    if (node instanceof FullScanNode) {
+                        fullscans.add(node);
+                    } else if (node instanceof IndexScanNode i) {
+                        indexScanNode = i;
+                    }
+                }
+                ResidualPredicateNode predicate = combineResiduals(fullscans, predicateStrategy);
+                TransformWithResidualPredicateNode trNode = new TransformWithResidualPredicateNode(ctx.nextId(), predicate);
+                assert indexScanNode != null;
+                indexScanNode.connectNext(trNode);
+                yield indexScanNode;
+            }
             default -> nodeFactory.create(id, subplan.strategy(), subplan.children());
         };
     }
@@ -141,9 +159,10 @@ public class PipelineRewriter {
      * @return the optimized logical pipeline node, or {@code null} for invalid queries
      * @throws IllegalStateException if a {@link PhysicalNode} is encountered with an unexpected or invalid state
      */
-    public static PipelineNode rewrite(PhysicalNode plan) {
+    public static PipelineNode rewrite(PlannerContext ctx, PhysicalNode plan) {
         return switch (plan) {
             case PhysicalAnd physicalAnd -> rewriteLogicalOperator(
+                    ctx,
                     physicalAnd.id(),
                     physicalAnd.children(),
                     PredicateEvalStrategy.AND,
@@ -181,6 +200,7 @@ public class PipelineRewriter {
             }
             case PhysicalFalse ignored -> null; // this query makes no sense.
             case PhysicalOr physicalOr -> rewriteLogicalOperator(
+                    ctx,
                     physicalOr.id(),
                     physicalOr.children(),
                     PredicateEvalStrategy.OR,

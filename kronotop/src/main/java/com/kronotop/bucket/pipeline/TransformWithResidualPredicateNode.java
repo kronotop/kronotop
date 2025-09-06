@@ -1,25 +1,23 @@
 package com.kronotop.bucket.pipeline;
 
-import com.kronotop.bucket.index.IndexDefinition;
-
 import java.nio.ByteBuffer;
 
-public class IndexScanNodeWithResidualPredicates extends IndexScanNode implements TransformationNode {
+public class TransformWithResidualPredicateNode extends AbstractPipelineNode implements TransformationNode {
     private final ResidualPredicateNode residualPredicate;
 
-    public IndexScanNodeWithResidualPredicates(int id, IndexDefinition index, IndexScanPredicate predicate, ResidualPredicateNode residualPredicate) {
-        super(id, index, predicate);
+    public TransformWithResidualPredicateNode(int id, ResidualPredicateNode residualPredicate) {
+        super(id);
         this.residualPredicate = residualPredicate;
     }
 
     @Override
     public void transform(QueryContext ctx) {
-        DataSink sink = ctx.sinks().load(id());
+        int parentId = ctx.getParentId(id());
+
+        DataSink sink = ctx.sinks().load(parentId);
         if (sink == null) {
             return;
         }
-
-        ctx.sinks().remove(id());
 
         DataSink newSink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
         try {
