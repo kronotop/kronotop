@@ -43,7 +43,7 @@ import java.util.*;
  * @see PipelineExecutor
  * @see DataSink
  */
-public final class DeleteExecutor implements Executor<List<Versionstamp>> {
+public final class DeleteExecutor extends BaseExecutor implements Executor<List<Versionstamp>> {
     private final PipelineExecutor executor;
 
     /**
@@ -74,17 +74,13 @@ public final class DeleteExecutor implements Executor<List<Versionstamp>> {
     public List<Versionstamp> execute(Transaction tr, QueryContext ctx) {
         executor.execute(tr, ctx);
 
-        PipelineNode plan = ctx.plan();
-        if (plan == null) {
+        PipelineNode head = findHeadNode(ctx.plan());
+
+        if (head == null) {
             return List.of();
         }
 
-        PipelineNode node = plan;
-        while (node.next() != null) {
-            node = plan.next();
-        }
-
-        DataSink sink = ctx.sinks().load(node.id());
+        DataSink sink = ctx.sinks().load(head.id());
         if (sink == null) {
             return List.of();
         }
