@@ -72,13 +72,13 @@ public class PipelineRewriter {
      *
      * @param children the list of {@link PhysicalNode} representing the children of the current node
      *                 in the physical execution plan
-     * @return a {@link SubPlan} object containing the determined {@link ExecutionStrategy} and
+     * @return a {@link IntermediatePlan} object containing the determined {@link ExecutionStrategy} and
      * the rewritten list of {@link PipelineNode} instances
      */
-    private static SubPlan traverseChildren(PlannerContext ctx, List<PhysicalNode> children) {
+    private static IntermediatePlan traverseChildren(PlannerContext ctx, List<PhysicalNode> children) {
         ExecutionStrategy strategy = determineStrategy(children);
         List<PipelineNode> rewritten = rewriteChildren(ctx, children);
-        return new SubPlan(strategy, rewritten);
+        return new IntermediatePlan(strategy, rewritten);
     }
 
     /**
@@ -122,14 +122,14 @@ public class PipelineRewriter {
             PredicateEvalStrategy predicateStrategy,
             NodeFactory nodeFactory) {
 
-        SubPlan subplan = traverseChildren(ctx, children);
+        IntermediatePlan intermediatePlan = traverseChildren(ctx, children);
 
-        return switch (subplan.strategy()) {
-            case FULL_SCAN, NESTED -> convertToFullScanNode(id, subplan, predicateStrategy);
+        return switch (intermediatePlan.strategy()) {
+            case FULL_SCAN, NESTED -> convertToFullScanNode(id, intermediatePlan, predicateStrategy);
             case MIXED_SCAN ->  {
                 IndexScanNode indexScanNode = null;
                 List<PipelineNode> fullscans = new ArrayList<>();
-                for (PipelineNode node : subplan.children()) {
+                for (PipelineNode node : intermediatePlan.children()) {
                     if (node instanceof FullScanNode) {
                         fullscans.add(node);
                     } else if (node instanceof IndexScanNode i) {
@@ -142,11 +142,13 @@ public class PipelineRewriter {
                 indexScanNode.connectNext(trNode);
                 yield indexScanNode;
             }
-            default -> nodeFactory.create(id, subplan.strategy(), subplan.children());
+            default -> nodeFactory.create(id, intermediatePlan.strategy(), intermediatePlan.children());
         };
     }
 
-    private static FullScanNode convertToFullScanNode(int id, SubPlan subplan, PredicateEvalStrategy strategy) {
+
+
+    private static FullScanNode convertToFullScanNode(int id, IntermediatePlan subplan, PredicateEvalStrategy strategy) {
         ResidualPredicateNode predicate = combineResiduals(subplan.children(), strategy);
         return new FullScanNode(id, predicate);
     }
@@ -216,5 +218,5 @@ public class PipelineRewriter {
     }
 }
 
-record SubPlan(ExecutionStrategy strategy, List<PipelineNode> children) {
+record IntermediatePlan(ExecutionStrategy strategy, List<PipelineNode> children) {
 }
