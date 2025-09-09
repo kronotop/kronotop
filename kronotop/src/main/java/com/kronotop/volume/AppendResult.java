@@ -25,7 +25,7 @@ public class AppendResult {
     private final CompletableFuture<byte[]> future;
     private final AppendedEntry[] appendedEntries;
     private final BiConsumer<Versionstamp, EntryMetadata> cacheUpdater;
-    private boolean calledOnce = false;
+    private volatile boolean calledOnce = false;
 
     AppendResult(CompletableFuture<byte[]> future, AppendedEntry[] appendedEntries, BiConsumer<Versionstamp, EntryMetadata> cacheUpdater) {
         this.future = future;

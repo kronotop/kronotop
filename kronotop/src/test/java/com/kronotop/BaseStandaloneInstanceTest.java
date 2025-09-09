@@ -19,6 +19,7 @@ package com.kronotop;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.directory.KronotopDirectory;
@@ -30,8 +31,10 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.Random;
 
 public class BaseStandaloneInstanceTest extends BaseTest {
+    private final Random random = new Random(System.currentTimeMillis());
     private static final String DEFAULT_CONFIG_FILE_NAME = "test.conf";
     protected KronotopTestInstance instance;
     protected Config config;
@@ -62,6 +65,12 @@ public class BaseStandaloneInstanceTest extends BaseTest {
     protected BucketMetadata getBucketMetadata(String name) {
         Session session = getSession();
         return BucketMetadataUtil.createOrOpen(context, session, name);
+    }
+
+    protected Versionstamp generateVersionstamp(int userVersion) {
+        byte[] trVersion = new byte[10];
+        random.nextBytes(trVersion);
+        return Versionstamp.complete(trVersion, userVersion);
     }
 
     @BeforeEach

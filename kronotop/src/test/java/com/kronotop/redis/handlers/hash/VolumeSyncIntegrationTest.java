@@ -23,7 +23,7 @@ import com.kronotop.redis.BaseVolumeSyncIntegrationTest;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.HashFieldPack;
 import com.kronotop.redis.storage.RedisShard;
-import com.kronotop.volume.KeyEntry;
+import com.kronotop.volume.KeyEntryPair;
 import com.kronotop.volume.VolumeSession;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -97,10 +97,10 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
             RedisShard shard = service.findShard(key, ShardStatus.READONLY);
             try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-                Iterable<KeyEntry> iterable = shard.volume().getRange(session);
+                Iterable<KeyEntryPair> iterable = shard.volume().getRange(session);
 
                 Map<String, String> result = new HashMap<>();
-                for (KeyEntry entry : iterable) {
+                for (KeyEntryPair entry : iterable) {
                     HashFieldPack hashFieldPack = HashFieldPack.unpack(entry.entry());
                     result.put(hashFieldPack.field(), new String(hashFieldPack.hashFieldValue().value()));
                 }

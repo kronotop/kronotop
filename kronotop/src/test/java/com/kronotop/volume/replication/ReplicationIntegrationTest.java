@@ -327,12 +327,12 @@ class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             }
 
             // Replication is running at the background.
-            KeyEntry[] entries = new KeyEntry[versionstampedKeys.length];
+            KeyEntryPair[] entries = new KeyEntryPair[versionstampedKeys.length];
             try (Transaction tr = database.createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 0; i < versionstampedKeys.length; i++) {
                     Versionstamp key = versionstampedKeys[i];
-                    entries[i] = new KeyEntry(key, ByteBuffer.wrap(String.format("new-entry-%d", i).getBytes()));
+                    entries[i] = new KeyEntryPair(key, ByteBuffer.wrap(String.format("new-entry-%d", i).getBytes()));
                 }
                 UpdateResult updateResult = volume.update(session, entries);
                 tr.commit().join();

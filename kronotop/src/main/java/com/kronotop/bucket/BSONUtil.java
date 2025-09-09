@@ -88,7 +88,17 @@ public class BSONUtil {
      * @return the deserialized {@code Document} object
      */
     public static Document fromBson(byte[] bytes) {
-        try (BsonBinaryReader reader = new BsonBinaryReader(ByteBuffer.wrap(bytes))) {
+        return fromBson(ByteBuffer.wrap(bytes));
+    }
+
+    /**
+     * Deserializes a {@code ByteBuffer} containing BSON data into a {@code Document}.
+     *
+     * @param buffer the {@code ByteBuffer} containing the serialized BSON data
+     * @return the deserialized {@code Document} object
+     */
+    public static Document fromBson(ByteBuffer buffer) {
+        try (BsonBinaryReader reader = new BsonBinaryReader(buffer)) {
             return DOCUMENT_CODEC.decode(reader, DecoderContext.builder().build());
         }
     }

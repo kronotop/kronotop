@@ -185,7 +185,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                 throw new UncheckedIOException(e);
             }
 
-            IndexBuilder.setIDIndexEntry(tr, shard.id(), metadata, appendResult.getAppendedEntries());
+            IndexBuilder.setPrimaryIndexEntry(tr, shard.id(), metadata, appendResult.getAppendedEntries());
 
             // Index creation for all user-defined indexes
             for (int i = 0; i < appendResult.getAppendedEntries().length; i++) {

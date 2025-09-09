@@ -34,6 +34,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -152,7 +153,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         assertDoesNotThrow(() -> {
             BucketMetadata metadata = getBucketMetadata(testBucketName);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexBuilder.setIDIndexEntry(tr, SHARD_ID, metadata, entries);
+                IndexBuilder.setPrimaryIndexEntry(tr, SHARD_ID, metadata, entries);
                 tr.commit().join();
             }
         });
@@ -163,7 +164,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         AppendedEntry[] entries = getAppendedEntries();
         BucketMetadata metadata = getBucketMetadata(testBucketName);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuilder.setIDIndexEntry(tr, SHARD_ID, metadata, entries);
+            IndexBuilder.setPrimaryIndexEntry(tr, SHARD_ID, metadata, entries);
             tr.commit().join();
         }
 
@@ -188,6 +189,675 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                 assertEquals(SHARD_ID, indexEntry.shardId());
                 assertArrayEquals(expectedEntryMetadata, indexEntry.entryMetadata());
             }
+        }
+    }
+
+    @Test
+    void shouldDropIndexEntry() {
+        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        AppendedEntry[] entries = getAppendedEntries();
+        String indexValue = "test-value";
+
+        // First set the index entry
+        setIndexEntryAndCommit(definition, metadata, indexValue, entries[0]);
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        DirectorySubspace metadataSubspace = metadata.subspace();
+
+        // Get the actual versionstamp from the committed index entry
+        Versionstamp actualVersionstamp = null;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] indexPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> beforeEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(indexPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(indexPrefix))
+            ).asList().join();
+            assertEquals(1, beforeEntries.size(), "Should have one entry before dropping");
+
+            // Extract the versionstamp from the index entry key
+            KeyValue indexEntry = beforeEntries.get(0);
+            Tuple unpackedIndex = indexSubspace.unpack(indexEntry.getKey());
+            actualVersionstamp = (Versionstamp) unpackedIndex.get(2); // versionstamp is at position 2
+
+            byte[] backPointerPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
+            List<KeyValue> beforeBackPointers = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(backPointerPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix))
+            ).asList().join();
+            assertEquals(1, beforeBackPointers.size(), "Should have one back pointer before dropping");
+        }
+
+        assertNotNull(actualVersionstamp, "Should have found the versionstamp");
+
+        // Drop the index entry using the actual versionstamp
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.dropIndexEntry(tr, actualVersionstamp, definition, indexSubspace, metadataSubspace);
+            tr.commit().join();
+        }
+
+        // Verify the entry and back pointer are removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] indexPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> afterEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(indexPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(indexPrefix))
+            ).asList().join();
+            assertEquals(0, afterEntries.size(), "Should have no entries after dropping");
+
+            byte[] backPointerPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
+            List<KeyValue> afterBackPointers = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(backPointerPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix))
+            ).asList().join();
+            assertEquals(0, afterBackPointers.size(), "Should have no back pointers after dropping");
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("indexValueTestData")
+    void shouldDropIndexEntryForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
+        IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        AppendedEntry[] entries = getAppendedEntries();
+
+        // Set the index entry
+        setIndexEntryAndCommit(definition, metadata, inputValue, entries[0]);
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        DirectorySubspace metadataSubspace = metadata.subspace();
+
+        // Retrieve the actual versionstamp from the committed index entry
+        Versionstamp actualVersionstamp;
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(1, indexEntries.size(), "Should have one index entry before dropping");
+            Tuple unpacked = indexSubspace.unpack(indexEntries.get(0).getKey());
+            actualVersionstamp = (Versionstamp) unpacked.get(2);
+        }
+
+        // Drop the index entry
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.dropIndexEntry(tr, actualVersionstamp, definition, indexSubspace, metadataSubspace);
+            tr.commit().join();
+        }
+
+        // Verify both index entry and back pointer are removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] indexPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> indexEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(indexPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(indexPrefix))
+            ).asList().join();
+            assertEquals(0, indexEntries.size(), "Should have no index entries after dropping for " + bsonType);
+
+            byte[] backPointerPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
+            List<KeyValue> backPointers = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(backPointerPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix))
+            ).asList().join();
+            assertEquals(0, backPointers.size(), "Should have no back pointers after dropping for " + bsonType);
+        }
+    }
+
+    @Test
+    void shouldDropMultipleIndexEntriesForSameVersionstamp() {
+        IndexDefinition stringIndex = IndexDefinition.create("string-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(stringIndex, testBucketName);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace intIndexSubspace = IndexUtil.create(tr, metadata.subspace(), intIndex);
+            assertNotNull(intIndexSubspace);
+            tr.commit().join();
+        }
+        // Refresh metadata
+        metadata = getBucketMetadata(testBucketName);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        String stringValue = "multi-drop-test";
+        Integer intValue = 42;
+
+        // Set entries for both indexes with the same versionstamp
+        setIndexEntryAndCommit(stringIndex, metadata, stringValue, entries[0]);
+        setIndexEntryAndCommit(intIndex, metadata, intValue, entries[0]);
+
+        DirectorySubspace stringIndexSubspace = metadata.indexes().getSubspace(stringIndex.selector());
+        DirectorySubspace intIndexSubspace = metadata.indexes().getSubspace(intIndex.selector());
+        DirectorySubspace metadataSubspace = metadata.subspace();
+
+        // Verify both entries exist
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] stringPrefix = stringIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> stringEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(stringPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(stringPrefix))
+            ).asList().join();
+            assertEquals(1, stringEntries.size(), "Should have string index entry");
+
+            byte[] intPrefix = intIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> intEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(intPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(intPrefix))
+            ).asList().join();
+            assertEquals(1, intEntries.size(), "Should have int index entry");
+        }
+
+        // Retrieve actual versionstamps from both indexes
+        Versionstamp stringVersionstamp, intVersionstamp;
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] stringPrefix = stringIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> stringEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(stringPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(stringPrefix))
+            ).asList().join();
+            assertEquals(1, stringEntries.size(), "Should have string index entry");
+            Tuple stringUnpacked = stringIndexSubspace.unpack(stringEntries.get(0).getKey());
+            stringVersionstamp = (Versionstamp) stringUnpacked.get(2);
+
+            byte[] intPrefix = intIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> intEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(intPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(intPrefix))
+            ).asList().join();
+            assertEquals(1, intEntries.size(), "Should have int index entry");
+            Tuple intUnpacked = intIndexSubspace.unpack(intEntries.get(0).getKey());
+            intVersionstamp = (Versionstamp) intUnpacked.get(2);
+        }
+
+        // Drop entries from the string index
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.dropIndexEntry(tr, stringVersionstamp, stringIndex, stringIndexSubspace, metadataSubspace);
+            tr.commit().join();
+        }
+
+        // Drop entries from the int index
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.dropIndexEntry(tr, intVersionstamp, intIndex, intIndexSubspace, metadataSubspace);
+            tr.commit().join();
+        }
+
+        // Verify all entries are removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] stringPrefix = stringIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> stringEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(stringPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(stringPrefix))
+            ).asList().join();
+            assertEquals(0, stringEntries.size(), "Should have no string index entries");
+
+            byte[] intPrefix = intIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> intEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(intPrefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(intPrefix))
+            ).asList().join();
+            assertEquals(0, intEntries.size(), "Should have no int index entries");
+        }
+    }
+
+    @Test
+    void shouldHandleDropIndexEntryForNonExistentVersionstamp() {
+        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        DirectorySubspace metadataSubspace = metadata.subspace();
+
+        // Try to drop entry for non-existent versionstamp
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Versionstamp nonExistentVersionstamp = Versionstamp.complete(new byte[10], 999);
+            assertDoesNotThrow(() -> {
+                IndexBuilder.dropIndexEntry(tr, nonExistentVersionstamp, definition, indexSubspace, metadataSubspace);
+                tr.commit().join();
+            }, "Should not throw exception for non-existent versionstamp");
+        }
+    }
+
+    @Test
+    void shouldDropOnlySpecificVersionstampEntries() {
+        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        AppendedEntry[] entries = getAppendedEntries();
+
+        // Set multiple entries with different versionstamps
+        setIndexEntryAndCommit(definition, metadata, "value1", entries[0]);
+        setIndexEntryAndCommit(definition, metadata, "value2", entries[1]);
+        setIndexEntryAndCommit(definition, metadata, "value3", entries[2]);
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        DirectorySubspace metadataSubspace = metadata.subspace();
+
+        // Verify all entries exist
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> allEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(prefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix))
+            ).asList().join();
+            assertEquals(3, allEntries.size(), "Should have 3 entries initially");
+        }
+
+        // Retrieve the actual versionstamp from the middle entry
+        Versionstamp actualVersionstamp;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> allEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(prefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix))
+            ).asList().join();
+            assertEquals(3, allEntries.size(), "Should have 3 entries initially");
+
+            // Find the entry with userVersion matching entries[1]
+            actualVersionstamp = null;
+            for (KeyValue kv : allEntries) {
+                Tuple unpacked = indexSubspace.unpack(kv.getKey());
+                Versionstamp versionstamp = (Versionstamp) unpacked.get(2);
+                if (versionstamp.getUserVersion() == entries[1].userVersion()) {
+                    actualVersionstamp = versionstamp;
+                    break;
+                }
+            }
+            assertNotNull(actualVersionstamp, "Should find middle entry versionstamp");
+        }
+
+        // Drop only the middle entry
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.dropIndexEntry(tr, actualVersionstamp, definition, indexSubspace, metadataSubspace);
+            tr.commit().join();
+        }
+
+        // Verify only one entry was removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            List<KeyValue> remainingEntries = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(prefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix))
+            ).asList().join();
+            assertEquals(2, remainingEntries.size(), "Should have 2 entries remaining");
+
+            // Verify the correct entries remain (entries[0] and entries[2])
+            boolean foundEntry0 = false, foundEntry2 = false;
+            for (KeyValue kv : remainingEntries) {
+                Tuple unpacked = indexSubspace.unpack(kv.getKey());
+                Versionstamp versionstamp = (Versionstamp) unpacked.get(2);
+                if (versionstamp.getUserVersion() == entries[0].userVersion()) {
+                    foundEntry0 = true;
+                } else if (versionstamp.getUserVersion() == entries[2].userVersion()) {
+                    foundEntry2 = true;
+                }
+            }
+            assertTrue(foundEntry0, "Entry 0 should still exist");
+            assertTrue(foundEntry2, "Entry 2 should still exist");
+        }
+    }
+
+    @Test
+    void shouldUpdateEntryMetadata() {
+        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        AppendedEntry[] entries = getAppendedEntries();
+        AppendedEntry entry = entries[0];
+        String indexValue = "update-test";
+
+        setIndexEntryAndCommit(definition, metadata, indexValue, entry);
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+
+        // Get the actual versionstamp from the committed entry
+        Versionstamp actualVersionstamp;
+        byte[] originalMetadata;
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(1, indexEntries.size(), "Should have one index entry");
+
+            Tuple unpacked = indexSubspace.unpack(indexEntries.get(0).getKey());
+            actualVersionstamp = (Versionstamp) unpacked.get(2);
+            originalMetadata = indexEntries.get(0).getValue();
+        }
+
+        // Create new metadata
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(2, 1, 2, "updated").encode().array();
+        assertFalse(Arrays.equals(originalMetadata, newMetadata), "New metadata should be different from original");
+
+        // Update entry metadata
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.updateEntryMetadata(tr, actualVersionstamp, newMetadata, indexSubspace);
+            tr.commit().join();
+        }
+
+        // Verify metadata was updated
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(1, indexEntries.size(), "Should still have one index entry");
+
+            byte[] updatedMetadata = indexEntries.get(0).getValue();
+            assertArrayEquals(newMetadata, updatedMetadata, "Metadata should be updated");
+            assertFalse(Arrays.equals(originalMetadata, updatedMetadata), "Updated metadata should differ from original");
+        }
+    }
+
+    @Test
+    void shouldUpdateEntryMetadataForMultipleIndexValues() {
+        IndexDefinition definition = IndexDefinition.create("multi-value-index", "tag", BsonType.STRING, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        AppendedEntry entry = entries[1];
+        String[] indexValues = {"tag1", "tag2", "tag3"};
+
+        // Set multiple index entries with the same versionstamp (simulating a document with multiple tags)
+        for (String value : indexValues) {
+            setIndexEntryAndCommit(definition, metadata, value, entry);
+        }
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+
+        // Get the actual versionstamp from one of the committed entries
+        Versionstamp actualVersionstamp;
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(indexValues.length, indexEntries.size(), "Should have entries for each index value");
+
+            Tuple unpacked = indexSubspace.unpack(indexEntries.get(0).getKey());
+            actualVersionstamp = (Versionstamp) unpacked.get(2);
+        }
+
+        // Create new metadata
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(3, 2, 3, "multi-updated").encode().array();
+
+        // Update entry metadata for all entries with this versionstamp
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.updateEntryMetadata(tr, actualVersionstamp, newMetadata, indexSubspace);
+            tr.commit().join();
+        }
+
+        // Verify all entries with the same versionstamp have updated metadata
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(indexValues.length, indexEntries.size(), "Should still have all index entries");
+
+            for (KeyValue kv : indexEntries) {
+                Tuple unpacked = indexSubspace.unpack(kv.getKey());
+                Versionstamp entryVersionstamp = (Versionstamp) unpacked.get(2);
+
+                if (entryVersionstamp.equals(actualVersionstamp)) {
+                    assertArrayEquals(newMetadata, kv.getValue(), "Entry metadata should be updated for versionstamp");
+                }
+            }
+        }
+    }
+
+    @Test
+    void shouldHandleUpdateEntryMetadataForNonExistentVersionstamp() {
+        IndexDefinition definition = IndexDefinition.create("empty-index", "value", BsonType.STRING, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Versionstamp nonExistentVersionstamp = Versionstamp.complete(new byte[10], 999);
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 0, 1, "test").encode().array();
+
+        // Should not throw exception for a non-existent versionstamp
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertDoesNotThrow(() -> {
+                IndexBuilder.updateEntryMetadata(tr, nonExistentVersionstamp, newMetadata, indexSubspace);
+                tr.commit().join();
+            }, "Should not throw exception for non-existent versionstamp");
+        }
+
+        // Verify no entries were created
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(0, indexEntries.size(), "Index should remain empty");
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("indexValueTestData")
+    void shouldUpdateEntryMetadataForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
+        IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        AppendedEntry[] entries = getAppendedEntries();
+        AppendedEntry entry = entries[0];
+
+        setIndexEntryAndCommit(definition, metadata, inputValue, entry);
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+
+        // Get the actual versionstamp
+        Versionstamp actualVersionstamp;
+        byte[] originalMetadata;
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(1, indexEntries.size(), "Should have one index entry for " + bsonType);
+
+            Tuple unpacked = indexSubspace.unpack(indexEntries.get(0).getKey());
+            actualVersionstamp = (Versionstamp) unpacked.get(2);
+            originalMetadata = indexEntries.get(0).getValue();
+        }
+
+        // Create new metadata specific to this BSON type test
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(5, 4, 5, "updated-" + bsonType.name().toLowerCase()).encode().array();
+        assertFalse(Arrays.equals(originalMetadata, newMetadata), "New metadata should differ from original for " + bsonType);
+
+        // Update entry metadata
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.updateEntryMetadata(tr, actualVersionstamp, newMetadata, indexSubspace);
+            tr.commit().join();
+        }
+
+        // Verify metadata was updated
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(1, indexEntries.size(), "Should still have one index entry for " + bsonType);
+
+            byte[] updatedMetadata = indexEntries.get(0).getValue();
+            assertArrayEquals(newMetadata, updatedMetadata, "Metadata should be updated for " + bsonType);
+        }
+    }
+
+    @Test
+    void shouldDropPrimaryIndex() {
+        BucketMetadata metadata = getBucketMetadata(testBucketName);
+        AppendedEntry[] entries = getAppendedEntries();
+
+        // First set the ID index entries
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.setPrimaryIndexEntry(tr, SHARD_ID, metadata, entries);
+            tr.commit().join();
+        }
+
+        DirectorySubspace primaryIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+
+        // Get the actual versionstamp from one of the committed entries
+        Versionstamp actualVersionstamp;
+        byte[] prefix = primaryIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(entries.length, indexEntries.size(), "Should have entries for all appended entries");
+
+            Tuple unpacked = primaryIndexSubspace.unpack(indexEntries.get(0).getKey());
+            actualVersionstamp = (Versionstamp) unpacked.get(1); // For ID index, versionstamp is at position 1
+        }
+
+        // Drop primary index entry
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.dropPrimaryIndex(tr, actualVersionstamp, metadata);
+            tr.commit().join();
+        }
+
+        // Verify the primary index entry was dropped
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(entries.length - 1, indexEntries.size(), "Should have one less entry after dropping");
+
+            // Verify the specific entry was removed
+            boolean found = false;
+            for (KeyValue kv : indexEntries) {
+                Tuple unpacked = primaryIndexSubspace.unpack(kv.getKey());
+                Versionstamp entryVersionstamp = (Versionstamp) unpacked.get(1);
+                if (entryVersionstamp.equals(actualVersionstamp)) {
+                    found = true;
+                    break;
+                }
+            }
+            assertFalse(found, "Dropped versionstamp should not be found in remaining entries");
+        }
+    }
+
+    @Test
+    void shouldUpdatePrimaryIndex() {
+        BucketMetadata metadata = getBucketMetadata(testBucketName);
+        AppendedEntry[] entries = getAppendedEntries();
+
+        // First set the primary index entries
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.setPrimaryIndexEntry(tr, SHARD_ID, metadata, entries);
+            tr.commit().join();
+        }
+
+        DirectorySubspace primaryIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+
+        // Get the actual versionstamp from one of the committed entries
+        Versionstamp actualVersionstamp;
+        byte[] originalIndexEntry;
+        byte[] prefix = primaryIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(entries.length, indexEntries.size(), "Should have entries for all appended entries");
+
+            Tuple unpacked = primaryIndexSubspace.unpack(indexEntries.get(0).getKey());
+            actualVersionstamp = (Versionstamp) unpacked.get(1); // For ID index, versionstamp is at position 1
+            originalIndexEntry = indexEntries.get(0).getValue();
+        }
+
+        // Create new metadata for update
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(2, 1, 2, "updated-primary").encode().array();
+        assertFalse(Arrays.equals(originalIndexEntry, newMetadata), "New metadata should be different from original");
+
+        // Update primary index entry metadata
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.updatePrimaryIndex(tr, actualVersionstamp, metadata, SHARD_ID, newMetadata);
+            tr.commit().join();
+        }
+
+        // Verify the primary index entry metadata was updated
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
+            assertEquals(entries.length, indexEntries.size(), "Should still have same number of entries");
+
+            // Find the updated entry and verify its metadata
+            boolean found = false;
+            for (KeyValue kv : indexEntries) {
+                Tuple unpacked = primaryIndexSubspace.unpack(kv.getKey());
+                Versionstamp entryVersionstamp = (Versionstamp) unpacked.get(1);
+                if (entryVersionstamp.equals(actualVersionstamp)) {
+                    IndexEntry indexEntry = new IndexEntry(SHARD_ID, newMetadata);
+                    assertArrayEquals(indexEntry.encode(), kv.getValue(), "Entry metadata should be updated");
+                    assertFalse(Arrays.equals(originalIndexEntry, kv.getValue()), "Updated metadata should differ from original");
+                    found = true;
+                    break;
+                }
+            }
+            assertTrue(found, "Updated entry should be found in primary index");
+        }
+    }
+
+    @Test
+    void shouldSetIndexEntryByVersionstamp() {
+        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+
+        String indexValue = "test-value";
+        int userVersion = 42;
+        Versionstamp versionstamp = generateVersionstamp(userVersion);
+        byte[] entryMetadata = getEncodedEntryMetadata();
+
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+
+        IndexEntryContainer container = new IndexEntryContainer(
+                metadata,
+                indexValue,
+                definition,
+                indexSubspace,
+                SHARD_ID,
+                entryMetadata
+        );
+
+        // Set index entry using versionstamp
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuilder.setIndexEntryByVersionstamp(tr, versionstamp, container);
+            tr.commit().join();
+        }
+
+        // Verify the index entry was created correctly
+        byte[] entryPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector entryBegin = KeySelector.firstGreaterOrEqual(entryPrefix);
+        KeySelector entryEnd = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(entryPrefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> indexEntries = tr.getRange(entryBegin, entryEnd).asList().join();
+            assertEquals(1, indexEntries.size(), "Should have exactly one index entry");
+
+            KeyValue entry = indexEntries.get(0);
+            Tuple unpackedKey = indexSubspace.unpack(entry.getKey());
+
+            assertEquals((long) IndexSubspaceMagic.ENTRIES.getValue(), unpackedKey.get(0), "Magic value should match");
+            assertEquals(indexValue, unpackedKey.get(1), "Index value should match");
+
+            Versionstamp actualVersionstamp = (Versionstamp) unpackedKey.get(2);
+            assertEquals(userVersion, actualVersionstamp.getUserVersion(), "User version should match");
+
+            IndexEntry indexEntry = IndexEntry.decode(entry.getValue());
+            assertEquals(SHARD_ID, indexEntry.shardId(), "Shard ID should match");
+            assertArrayEquals(entryMetadata, indexEntry.entryMetadata(), "Entry metadata should match");
+        }
+
+        // Verify the back pointer was created correctly
+        byte[] backPointerPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
+        KeySelector backPointerBegin = KeySelector.firstGreaterOrEqual(backPointerPrefix);
+        KeySelector backPointerEnd = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> backPointers = tr.getRange(backPointerBegin, backPointerEnd).asList().join();
+            assertEquals(1, backPointers.size(), "Should have exactly one back pointer");
+
+            KeyValue backPointer = backPointers.get(0);
+            Tuple unpackedBackPointer = indexSubspace.unpack(backPointer.getKey());
+
+            assertEquals((long) IndexSubspaceMagic.BACK_POINTER.getValue(), unpackedBackPointer.get(0), "Back pointer magic value should match");
+
+            Versionstamp backPointerVersionstamp = (Versionstamp) unpackedBackPointer.get(1);
+            assertEquals(userVersion, backPointerVersionstamp.getUserVersion(), "Back pointer versionstamp should match");
+            assertEquals(indexValue, unpackedBackPointer.get(2), "Back pointer index value should match");
+
+            assertArrayEquals(IndexBuilder.NULL_VALUE, backPointer.getValue(), "Back pointer value should be NULL_VALUE");
         }
     }
 }

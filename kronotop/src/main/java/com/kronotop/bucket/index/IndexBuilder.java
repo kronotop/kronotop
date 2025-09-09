@@ -16,9 +16,12 @@
 
 package com.kronotop.bucket.index;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
@@ -26,8 +29,10 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.volume.AppendedEntry;
 
+import java.util.List;
+
 public class IndexBuilder {
-    private final static byte[] NULL_VALUE = new byte[]{0};
+    public final static byte[] NULL_VALUE = new byte[]{0};
 
     private static void setIndexForBSONType(
             Transaction tr,
@@ -56,7 +61,7 @@ public class IndexBuilder {
      * @param entries  An array of appended entries to be indexed, each containing metadata and user version details.
      * @throws KronotopException if the required ID index subspace cannot be found in the metadata indexes.
      */
-    public static void setIDIndexEntry(Transaction tr, int shardId, BucketMetadata metadata, AppendedEntry[] entries) {
+    public static void setPrimaryIndexEntry(Transaction tr, int shardId, BucketMetadata metadata, AppendedEntry[] entries) {
         DirectorySubspace indexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
         if (indexSubspace == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
@@ -109,5 +114,110 @@ public class IndexBuilder {
 
         byte[] backPointer = indexSubspace.packWithVersionstamp(backPointerTuple);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, backPointer, NULL_VALUE);
+    }
+
+    public static void dropPrimaryIndex(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+        if (indexSubspace == null) {
+            throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
+        }
+        Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), versionstamp);
+        byte[] key = indexSubspace.pack(tuple);
+        tr.clear(key);
+        IndexUtil.decreaseCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
+    }
+
+    public static void dropIndexEntry(
+            Transaction tr,
+            Versionstamp versionstamp,
+            IndexDefinition definition,
+            DirectorySubspace indexSubspace,
+            DirectorySubspace metadataSubspace
+    ) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), versionstamp));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        // Drop index keys
+        long total = 0;
+        List<KeyValue> allBackPointers = tr.getRange(begin, end).asList().join();
+        for (KeyValue kv : allBackPointers) {
+            Tuple unpacked = indexSubspace.unpack(kv.getKey());
+            Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), unpacked.get(2), versionstamp);
+            byte[] indexKey = indexSubspace.pack(tuple);
+            tr.clear(indexKey);
+            total--;
+        }
+        IndexUtil.cardinalityCommon(tr, metadataSubspace, definition.id(), total);
+        // Drop the back pointers
+        tr.clear(begin.getKey(), end.getKey());
+    }
+
+    public static void updateEntryMetadata(
+            Transaction tr,
+            Versionstamp versionstamp,
+            byte[] entryMetadata,
+            DirectorySubspace indexSubspace
+    ) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), versionstamp));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        List<KeyValue> allBackPointers = tr.getRange(begin, end).asList().join();
+        for (KeyValue kv : allBackPointers) {
+            Tuple unpacked = indexSubspace.unpack(kv.getKey());
+            Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), unpacked.get(2), versionstamp);
+            byte[] indexKey = indexSubspace.pack(tuple);
+            tr.set(indexKey, entryMetadata);
+        }
+    }
+
+    public static void updatePrimaryIndex(
+            Transaction tr,
+            Versionstamp versionstamp,
+            BucketMetadata metadata,
+            int shardId,
+            byte[] entryMetadata
+    ) {
+        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+        if (indexSubspace == null) {
+            throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
+        }
+        Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), versionstamp);
+        byte[] key = indexSubspace.pack(tuple);
+        IndexEntry indexEntry = new IndexEntry(shardId, entryMetadata);
+        tr.set(key, indexEntry.encode());
+    }
+
+    /**
+     * Creates or updates an index entry and its corresponding back pointer using a provided versionstamp.
+     * This method sets both the index entry and back pointer directly using the given versionstamp,
+     * rather than relying on FoundationDB's versionstamp generation.
+     *
+     * @param tr          The transaction object used to perform mutations against the database.
+     * @param versionstamp The versionstamp to be used as part of both the index entry key and back pointer key.
+     * @param container   The container object holding necessary metadata, index value, subspaces, shard ID,
+     *                    and entry metadata required for constructing and storing the index entry and back pointer.
+     */
+    public static void setIndexEntryByVersionstamp(Transaction tr, Versionstamp versionstamp, IndexEntryContainer container) {
+        Tuple indexKeyTuple = Tuple.from(
+                IndexSubspaceMagic.ENTRIES.getValue(),
+                container.indexValue(),
+                versionstamp
+        );
+
+        byte[] indexKey = container.indexSubspace().pack(indexKeyTuple);
+        IndexEntry indexEntry = new IndexEntry(container.shardId(), container.entryMetadata());
+
+        tr.set(indexKey, indexEntry.encode());
+
+        Tuple backPointerTuple = Tuple.from(
+                IndexSubspaceMagic.BACK_POINTER.getValue(),
+                versionstamp,
+                container.indexValue()
+        );
+
+        byte[] backPointer = container.indexSubspace().pack(backPointerTuple);
+        tr.set(backPointer, NULL_VALUE);
     }
 }

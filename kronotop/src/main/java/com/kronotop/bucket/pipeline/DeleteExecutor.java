@@ -1,20 +1,16 @@
 package com.kronotop.bucket.pipeline;
 
-import com.apple.foundationdb.KeySelector;
-import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
-import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.volume.VolumeSession;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Executor responsible for performing document deletion operations in the Kronotop Cluster.
@@ -86,28 +82,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
         }
 
         try {
-            Map<Integer, List<Versionstamp>> byShardId = new HashMap<>();
-            switch (sink) {
-                case PersistedEntrySink persistedEntrySink -> persistedEntrySink.forEach((versionstamp, entry) -> {
-                    byShardId.compute(entry.shardId(), (k, versionstamps) -> {
-                        if (versionstamps == null) {
-                            versionstamps = new ArrayList<>();
-                        }
-                        versionstamps.add(versionstamp);
-                        return versionstamps;
-                    });
-                });
-                case DocumentLocationSink documentLocationSink -> documentLocationSink.forEach((ignored, entry) -> {
-                    byShardId.compute(entry.shardId(), (k, versionstamps) -> {
-                        if (versionstamps == null) {
-                            versionstamps = new ArrayList<>();
-                        }
-                        versionstamps.add(entry.versionstamp());
-                        return versionstamps;
-                    });
-                });
-            }
-
+            Map<Integer, List<Versionstamp>> byShardId = accumulateAndGroupVersionstampsByShardId(sink);
 
             // Collected all affected versionstamps and grouped by ShardID.
             List<Versionstamp> versionstamps = new ArrayList<>();
@@ -121,47 +96,19 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             // TODO: This code will be removed when we refactor how we store indexes in BucketMetadata
             for (String selector : ctx.metadata().indexes().getSelectors()) {
                 for (Versionstamp versionstamp : versionstamps) {
-                    dropIndexesForVersionstamp(tr, ctx, selector, versionstamp);
+                    IndexDefinition definition = ctx.metadata().indexes().getIndexBySelector(selector);
+                    DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(selector);
+                    IndexBuilder.dropIndexEntry(tr, versionstamp, definition, indexSubspace, ctx.metadata().subspace());
                 }
             }
 
             for (Versionstamp versionstamp : versionstamps) {
-                dropPrimaryIndex(tr, ctx, versionstamp);
+                IndexBuilder.dropPrimaryIndex(tr, versionstamp, ctx.metadata());
             }
 
             return versionstamps;
         } finally {
             sink.clear();
         }
-    }
-
-    private void dropPrimaryIndex(Transaction tr, QueryContext ctx, Versionstamp versionstamp) {
-        DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(DefaultIndexDefinition.ID.selector());
-        Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), versionstamp);
-        byte[] key = indexSubspace.pack(tuple);
-        tr.clear(key);
-    }
-
-    private void dropIndexesForVersionstamp(Transaction tr, QueryContext ctx, String selector, Versionstamp versionstamp) {
-        DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(selector);
-        IndexDefinition definition = ctx.metadata().indexes().getIndexBySelector(selector);
-
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), versionstamp));
-        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-
-        // Drop index keys
-        long total = 0;
-        List<KeyValue> allBackPointers = tr.getRange(begin, end).asList().join();
-        for (KeyValue kv : allBackPointers) {
-            Tuple unpacked = indexSubspace.unpack(kv.getKey());
-            Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), unpacked.get(2), versionstamp);
-            byte[] indexKey = indexSubspace.pack(tuple);
-            tr.clear(indexKey);
-            total--;
-        }
-        IndexUtil.cardinalityCommon(tr, ctx.metadata().subspace(), definition.id(), total);
-        // Drop the back pointers
-        tr.clear(begin.getKey(), end.getKey());
     }
 }

@@ -52,6 +52,7 @@ public class BasePipelineTest extends BaseHandlerTest {
     private final CursorManager cursorManager = new CursorManager();
     protected ReadExecutor readExecutor;
     protected DeleteExecutor deleteExecutor;
+    protected UpdateExecutor updateExecutor;
 
     @BeforeEach
     public void setupPipelineExecutor() {
@@ -61,6 +62,7 @@ public class BasePipelineTest extends BaseHandlerTest {
         PipelineExecutor executor = new PipelineExecutor(env);
         readExecutor = new ReadExecutor(executor);
         deleteExecutor = new DeleteExecutor(executor);
+        updateExecutor = new UpdateExecutor(executor);
     }
 
     protected List<Versionstamp> insertDocumentsAndGetVersionstamps(String bucketName, List<byte[]> documents) {

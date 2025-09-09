@@ -18,24 +18,5 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 
-import java.util.function.BiConsumer;
-
-public class UpdateResult {
-    private final UpdatedEntry[] entries;
-    private final BiConsumer<Versionstamp, EntryMetadata> cacheUpdater;
-
-    UpdateResult(UpdatedEntry[] entries, BiConsumer<Versionstamp, EntryMetadata> cacheUpdater) {
-        this.entries = entries;
-        this.cacheUpdater = cacheUpdater;
-    }
-
-    public void complete() {
-        for (UpdatedEntry entry : entries) {
-            cacheUpdater.accept(entry.versionstamp(), entry.metadata());
-        }
-    }
-
-    public UpdatedEntry[] entries() {
-        return entries;
-    }
+public record UpdatedEntry(Versionstamp versionstamp, EntryMetadata metadata, byte[] encodedMetadata) {
 }

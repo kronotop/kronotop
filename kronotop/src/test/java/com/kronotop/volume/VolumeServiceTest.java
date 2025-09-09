@@ -112,7 +112,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
             await().atMost(Duration.ofSeconds(5)).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     VolumeSession session = new VolumeSession(tr, prefix);
-                    Iterable<KeyEntry> iterable = volume.getRange(session);
+                    Iterable<KeyEntryPair> iterable = volume.getRange(session);
                     return !iterable.iterator().hasNext();
                 }
             });

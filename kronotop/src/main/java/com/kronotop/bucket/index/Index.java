@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-package com.kronotop.volume;
+package com.kronotop.bucket.index;
 
-import com.apple.foundationdb.tuple.Versionstamp;
+import com.apple.foundationdb.directory.DirectorySubspace;
 
-import java.nio.ByteBuffer;
-
-public record KeyEntry(Versionstamp key, ByteBuffer entry) {
+public record Index(IndexDefinition definition, DirectorySubspace subspace) {
 }

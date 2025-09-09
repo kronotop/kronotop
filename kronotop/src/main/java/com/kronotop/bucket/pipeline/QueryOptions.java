@@ -47,6 +47,8 @@ public class QueryOptions {
      */
     private final int limit;
 
+    private final UpdateOptions update;
+
     /**
      * Private constructor used by the Builder pattern.
      *
@@ -56,6 +58,7 @@ public class QueryOptions {
         this.reverse = builder.reverse;
         this.sortByField = builder.sortByField;
         this.limit = builder.limit;
+        this.update = builder.update;
     }
 
     /**
@@ -97,6 +100,10 @@ public class QueryOptions {
         return limit;
     }
 
+    public UpdateOptions update() {
+        return update;
+    }
+
     /**
      * Builder class for constructing QueryOptions instances using the builder pattern.
      * Provides a fluent API for configuring query options with method chaining.
@@ -105,6 +112,8 @@ public class QueryOptions {
      * Call {@link #build()} to create the final immutable QueryOptions instance.
      */
     public static class Builder {
+        private UpdateOptions update;
+
         /**
          * Whether to enable reverse ordering. Defaults to false.
          */
@@ -159,6 +168,11 @@ public class QueryOptions {
                 throw new IllegalArgumentException("limit must be a non-negative integer");
             }
             this.limit = limit;
+            return this;
+        }
+
+        public Builder update(UpdateOptions update) {
+            this.update = update;
             return this;
         }
 

@@ -144,9 +144,9 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
 
         {
-            KeyEntry[] entries = new KeyEntry[2];
-            entries[0] = new KeyEntry(versionstampedKeys[0], ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
-            entries[1] = new KeyEntry(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
+            KeyEntryPair[] entries = new KeyEntryPair[2];
+            entries[0] = new KeyEntryPair(versionstampedKeys[0], ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
+            entries[1] = new KeyEntryPair(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
             UpdateResult result;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
@@ -448,11 +448,11 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
 
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
-        KeyEntry[] pairs = new KeyEntry[versionstampedKeys.length];
+        KeyEntryPair[] pairs = new KeyEntryPair[versionstampedKeys.length];
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             int index = 0;
             for (Versionstamp versionstampedKey : versionstampedKeys) {
-                pairs[index] = new KeyEntry(versionstampedKey, randomBytes((int) bufferSize));
+                pairs[index] = new KeyEntryPair(versionstampedKey, randomBytes((int) bufferSize));
                 index++;
             }
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
@@ -531,8 +531,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int index = 0;
-            Iterable<KeyEntry> iterable = volume.getRange(session);
-            for (KeyEntry keyEntry : iterable) {
+            Iterable<KeyEntryPair> iterable = volume.getRange(session);
+            for (KeyEntryPair keyEntry : iterable) {
                 retrievedKeys[index] = keyEntry.key();
                 retrievedEntries[index] = keyEntry.entry();
                 index++;
@@ -567,8 +567,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int index = 0;
-            Iterable<KeyEntry> iterable = volume.getRange(session, limit);
-            for (KeyEntry keyEntry : iterable) {
+            Iterable<KeyEntryPair> iterable = volume.getRange(session, limit);
+            for (KeyEntryPair keyEntry : iterable) {
                 retrievedKeys[index] = keyEntry.key();
                 retrievedEntries[index] = keyEntry.entry();
                 index++;
@@ -603,8 +603,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int index = 0;
-            Iterable<KeyEntry> iterable = volume.getRange(session, true);
-            for (KeyEntry keyEntry : iterable) {
+            Iterable<KeyEntryPair> iterable = volume.getRange(session, true);
+            for (KeyEntryPair keyEntry : iterable) {
                 retrievedKeys[index] = keyEntry.key();
                 retrievedEntries[index] = keyEntry.entry();
                 index++;
@@ -651,9 +651,9 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(expectedKeys[expectedKeys.length - 1]);
 
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            Iterable<KeyEntry> iterable = volume.getRange(session, begin, end);
+            Iterable<KeyEntryPair> iterable = volume.getRange(session, begin, end);
             int index = 0;
-            for (KeyEntry keyEntry : iterable) {
+            for (KeyEntryPair keyEntry : iterable) {
                 retrievedKeys[index] = keyEntry.key();
                 retrievedEntries[index] = keyEntry.entry();
                 index++;
@@ -753,8 +753,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             int index = 0;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-                Iterable<KeyEntry> iterable = volume.getRange(session);
-                for (KeyEntry keyEntry : iterable) {
+                Iterable<KeyEntryPair> iterable = volume.getRange(session);
+                for (KeyEntryPair keyEntry : iterable) {
                     index++;
                 }
             }
@@ -765,8 +765,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             int index = 0;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, new Prefix("test"));
-                Iterable<KeyEntry> iterable = volume.getRange(session);
-                for (KeyEntry keyEntry : iterable) {
+                Iterable<KeyEntryPair> iterable = volume.getRange(session);
+                for (KeyEntryPair keyEntry : iterable) {
                     index++;
                 }
             }
@@ -958,9 +958,9 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
 
         volume.setStatus(VolumeStatus.READONLY);
-        KeyEntry[] entries = new KeyEntry[2];
-        entries[0] = new KeyEntry(versionstampedKeys[0], ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
-        entries[1] = new KeyEntry(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
+        KeyEntryPair[] entries = new KeyEntryPair[2];
+        entries[0] = new KeyEntryPair(versionstampedKeys[0], ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
+        entries[1] = new KeyEntryPair(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertThrows(VolumeReadOnlyException.class, () -> volume.update(session, entries));
