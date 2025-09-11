@@ -16,9 +16,17 @@
 
 package com.kronotop.bucket.pipeline;
 
+import com.kronotop.CommitHook;
 import com.kronotop.bucket.BucketMetadata;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 
 /**
  * Context object that holds all necessary information and state for executing
@@ -89,6 +97,9 @@ public class QueryContext {
     private final ConcurrentHashMap<Integer, ExecutionState> executionStates = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<Integer, Integer> relations = new ConcurrentHashMap<>();
+
+    private final Lock postCommitHooksLock = new ReentrantLock(true);
+    private final List<CommitHook> postCommitHooks = new ArrayList<>();
 
     private volatile int currentNodeId;
 
@@ -237,6 +248,27 @@ public class QueryContext {
 
     public int currentNodeId() {
         return currentNodeId;
+    }
+
+    public void registerPostCommitHook(CommitHook hook) {
+        postCommitHooksLock.lock();
+        try {
+            postCommitHooks.add(hook);
+        } finally {
+            postCommitHooksLock.unlock();
+        }
+    }
+
+    public void runPostCommitHooks() {
+        postCommitHooksLock.lock();
+        try {
+            for (CommitHook hook : postCommitHooks) {
+                hook.run();
+            }
+            postCommitHooks.clear();
+        } finally {
+            postCommitHooksLock.unlock();
+        }
     }
 }
 

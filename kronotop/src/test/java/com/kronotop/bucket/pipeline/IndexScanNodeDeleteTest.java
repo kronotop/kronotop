@@ -15,6 +15,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class IndexScanNodeDeleteTest extends BasePipelineTest {
@@ -43,6 +44,7 @@ class IndexScanNodeDeleteTest extends BasePipelineTest {
             List<Versionstamp> results = deleteExecutor.execute(tr, deleteCtx);
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
             tr.commit().join();
+            assertDoesNotThrow(deleteCtx::runPostCommitHooks);
         }
 
         QueryContext readCtx = new QueryContext(metadata, config, plan);

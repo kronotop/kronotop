@@ -3,6 +3,8 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /*
@@ -23,12 +25,14 @@ public class PipelineExecutor {
         ctx.setCurrentNodeId(node.id());
         switch (node) {
             case ScanNode scanNode -> {
-                ExecutionState state = ctx.getOrCreateExecutionState(node.id());
-                state.tryInitializingLimit(ctx.options().limit());
                 scanNode.execute(ctx, tr);
             }
             case LogicalNode logicalNode -> {
                 for (PipelineNode child : logicalNode.children()) {
+                    ExecutionState state = ctx.getOrCreateExecutionState(child.id());
+                    if (state.isExhausted()) {
+                        continue;
+                    }
                     executePipelineNode(tr, ctx, child);
                 }
                 logicalNode.execute(ctx);
@@ -47,9 +51,11 @@ public class PipelineExecutor {
     }
 
     private void visitScanNode(Transaction tr, QueryContext ctx, ScanNode scanNode) {
+        ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
+        state.initializeLimit(ctx.options().limit());
+
         do {
             executePipelineNode(tr, ctx, scanNode);
-            ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
             DataSink sink = ctx.sinks().load(ctx.currentNodeId());
             if (sink == null) {
                 if (state.isExhausted()) {
@@ -72,6 +78,59 @@ public class PipelineExecutor {
         executePipelineNode(tr, ctx, node);
     }
 
+    private void setChildrenLimits(QueryContext ctx, ExecutionState parentState, UnionNode node) {
+        List<PipelineNode> childrenStillHasData = new ArrayList<>();
+        for (PipelineNode child : node.children()) {
+            ExecutionState childState = ctx.getOrCreateExecutionState(child.id());
+            if (!childState.isExhausted()) {
+                childrenStillHasData.add(child);
+            }
+        }
+
+        if (childrenStillHasData.isEmpty()) {
+            // All children are exhausted
+            return;
+        }
+
+        int reminder = parentState.getLimit() % childrenStillHasData.size();
+        int childLimit = (parentState.getLimit() - reminder) / childrenStillHasData.size();
+
+        for (int index = 0; index < childrenStillHasData.size(); index++) {
+            PipelineNode child = childrenStillHasData.get(index);
+            ExecutionState childState = ctx.getOrCreateExecutionState(child.id());
+            if (index == 0) {
+                childState.setLimit(childLimit + reminder);
+            } else {
+                childState.setLimit(childLimit);
+            }
+        }
+    }
+
+    private void visitUnionNode(Transaction tr, QueryContext ctx, UnionNode node) {
+        ExecutionState state = ctx.getOrCreateExecutionState(node.id());
+        state.initializeLimit(ctx.options().limit());
+
+        do {
+            setChildrenLimits(ctx, state, node);
+            executePipelineNode(tr, ctx, node);
+            DataSink sink = ctx.sinks().load(node.id());
+            if (sink == null) {
+                if (state.isExhausted()) {
+                    break;
+                }
+                continue;
+            }
+            if (sink.size() < ctx.options().limit()) {
+                if (state.isExhausted()) {
+                    break;
+                }
+                state.setLimit(ctx.options().limit() - sink.size());
+                continue; // fetch another batch
+            }
+            break;
+        } while (true);
+    }
+
     public void execute(Transaction tr, QueryContext ctx) {
         if (Objects.isNull(ctx.plan())) {
             // PhysicalFalse -> this query makes no sense
@@ -82,6 +141,7 @@ public class PipelineExecutor {
         switch (ctx.plan()) {
             case ScanNode node -> visitScanNode(tr, ctx, node);
             case IntersectionNode node -> visitIntersectionNode(tr, ctx, node);
+            case UnionNode node -> visitUnionNode(tr, ctx, node);
             default -> throw new KronotopException("Unknown PipelineNode type");
         }
     }

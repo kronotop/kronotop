@@ -30,6 +30,7 @@ public class UpdateResult {
     }
 
     public void complete() {
+        // TODO: Check entry.metadata.length before update
         for (UpdatedEntry entry : entries) {
             cacheUpdater.accept(entry.versionstamp(), entry.metadata());
         }

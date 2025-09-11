@@ -8,6 +8,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
@@ -192,5 +193,20 @@ public class BasePipelineTest extends BaseHandlerTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return tr.getRange(begin, end).asList().join();
         }
+    }
+
+    List<String> runQueryOnBucket(BucketMetadata metadata, String query) {
+        List<String> actualResult = new ArrayList<>();
+        PipelineNode plan = createExecutionPlan(metadata, query);
+        QueryOptions options = QueryOptions.builder().build();
+        QueryContext readCtx = new QueryContext(metadata, options, plan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<Versionstamp, ByteBuffer> result = readExecutor.execute(tr, readCtx);
+            for (ByteBuffer buffer : result.values()) {
+                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+            }
+        }
+        return actualResult;
     }
 }

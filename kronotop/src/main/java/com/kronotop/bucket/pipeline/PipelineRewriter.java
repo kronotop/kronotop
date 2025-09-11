@@ -111,9 +111,8 @@ public class PipelineRewriter {
                         case RangeScanNode rangeScanNode -> {
                             return rangeScanPredicateToResidualAndNode(ctx, rangeScanNode.predicate());
                         }
-                        default ->
-                                throw new KronotopException("Cannot transform " + child.getClass().getSimpleName()
-                                        + " to " + ResidualPredicateNode.class.getSimpleName());
+                        default -> throw new KronotopException("Cannot transform " + child.getClass().getSimpleName()
+                                + " to " + ResidualPredicateNode.class.getSimpleName());
                     }
                 })
                 .toList();
@@ -162,9 +161,63 @@ public class PipelineRewriter {
 
         return switch (intermediatePlan.strategy()) {
             case FULL_SCAN, NESTED -> convertToFullScanNode(ctx, id, intermediatePlan, predicateStrategy);
-            case MIXED_SCAN -> convertToIndexScanNode(ctx, intermediatePlan, predicateStrategy);
-            default -> nodeFactory.create(id, intermediatePlan.strategy(), intermediatePlan.children());
+            case MIXED_SCAN -> {
+                if (PredicateEvalStrategy.AND.equals(predicateStrategy)) {
+                    yield convertToIndexScanNode(ctx, intermediatePlan, predicateStrategy);
+                }
+                yield convertToUnionNode(ctx, intermediatePlan.children());
+            }
+            default -> nodeFactory.create(id, intermediatePlan.children());
         };
+    }
+
+    /**
+     * Determines if the given list of {@link PipelineNode} instances contains more than one node
+     * of type {@link FullScanNode}.
+     *
+     * @param children the list of {@link PipelineNode} instances to analyze
+     * @return {@code true} if there are more than one {@link FullScanNode} in the list,
+     *         otherwise {@code false}
+     */
+    private static boolean hasManyFullScanNodes(List<PipelineNode> children) {
+        int numberOfFullScans = 0;
+        for (PipelineNode child : children) {
+            if (child instanceof FullScanNode) {
+                numberOfFullScans++;
+                if (numberOfFullScans > 1) {
+                    break;
+                }
+            }
+        }
+        return numberOfFullScans > 1;
+    }
+
+    /**
+     * Transforms a list of child {@link PipelineNode} instances into a {@link UnionNode}.
+     * If the child nodes include multiple {@link FullScanNode} instances,
+     * they are consolidated into a single {@link FullScanNode} containing a residual predicate.
+     *
+     * @param ctx      the {@link PlannerContext} providing context information and utilities
+     * @param children the list of child {@link PipelineNode} instances to be processed
+     * @return a {@link UnionNode} containing the transformed child nodes
+     */
+    private static PipelineNode convertToUnionNode(PlannerContext ctx, List<PipelineNode> children) {
+        if (!hasManyFullScanNodes(children)) {
+            return new UnionNode(ctx.nextId(), children);
+        }
+
+        List<PipelineNode> otherNodes = new ArrayList<>();
+        List<PipelineNode> fullScanNodes = new ArrayList<>();
+        for (PipelineNode child : children) {
+            if (child instanceof FullScanNode) {
+                fullScanNodes.add(child);
+            } else {
+                otherNodes.add(child);
+            }
+        }
+        ResidualPredicateNode predicate = transformToResidualPredicate(ctx, fullScanNodes, PredicateEvalStrategy.OR);
+        otherNodes.add(new FullScanNode(ctx.nextId(), predicate));
+        return new UnionNode(ctx.nextId(), otherNodes);
     }
 
     private static PipelineNode convertToIndexScanNode(PlannerContext ctx, IntermediatePlan intermediatePlan, PredicateEvalStrategy predicateStrategy) {
@@ -259,7 +312,7 @@ public class PipelineRewriter {
 
     @FunctionalInterface
     private interface NodeFactory {
-        PipelineNode create(int id, ExecutionStrategy strategy, List<PipelineNode> children);
+        PipelineNode create(int id, List<PipelineNode> children);
     }
 }
 

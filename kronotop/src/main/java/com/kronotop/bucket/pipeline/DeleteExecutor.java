@@ -3,9 +3,11 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.CommitHook;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.volume.DeleteResult;
 import com.kronotop.volume.VolumeSession;
 
 import java.util.ArrayList;
@@ -90,7 +92,9 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                 BucketShard shard = ctx.env().bucketService().getShard(item.getKey());
                 VolumeSession session = new VolumeSession(tr, ctx.metadata().volumePrefix());
                 versionstamps.addAll(item.getValue());
-                shard.volume().delete(session, item.getValue().toArray(new Versionstamp[0]));
+                DeleteResult deleteResult = shard.volume().delete(session, item.getValue().toArray(new Versionstamp[0]));
+                PostCommitHook postCommitHook = new PostCommitHook(deleteResult);
+                ctx.registerPostCommitHook(postCommitHook);
             }
 
             // TODO: This code will be removed when we refactor how we store indexes in BucketMetadata
@@ -109,6 +113,13 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             return versionstamps;
         } finally {
             sink.clear();
+        }
+    }
+
+    private record PostCommitHook(DeleteResult deleteResult) implements CommitHook {
+        @Override
+        public void run() {
+            deleteResult.complete();
         }
     }
 }

@@ -12,11 +12,10 @@ import org.bson.BsonString;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class IndexScanNodeUpdateTest extends BasePipelineTest {
@@ -46,6 +45,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 updateResult = updateExecutor.execute(tr, updateCtx);
                 tr.commit().join();
+                assertDoesNotThrow(updateCtx::runPostCommitHooks);
             }
         }
 
@@ -326,20 +326,5 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
             List<String> actualResult = runQueryOnBucket(metadata, "{'age': {'$gt': 22}}");
             assertEquals(expectedResult, actualResult);
         }
-    }
-
-    private List<String> runQueryOnBucket(BucketMetadata metadata, String query) {
-        List<String> actualResult = new ArrayList<>();
-        PipelineNode plan = createExecutionPlan(metadata, query);
-        QueryOptions options = QueryOptions.builder().build();
-        QueryContext readCtx = new QueryContext(metadata, options, plan);
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<Versionstamp, ByteBuffer> result = readExecutor.execute(tr, readCtx);
-            for (ByteBuffer buffer : result.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
-            }
-        }
-        return actualResult;
     }
 }

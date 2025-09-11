@@ -29,6 +29,15 @@ public abstract class AbstractDataSink<K, V> {
         }
     }
 
+    public V get(K key) {
+        lock.readLock().lock();
+        try {
+            return sink.get(key);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     public int size() {
         lock.readLock().lock();
         try {

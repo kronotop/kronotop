@@ -29,7 +29,14 @@ public class ExecutionState {
         this.lower = lower;
     }
 
-    public void tryInitializingLimit(int limit) {
+    /**
+     * Initializes the execution limit for processing by updating the internal state only if it has not been set previously.
+     * If the current limit is zero, it will be set to the provided value; otherwise, the limit remains unchanged.
+     *
+     * @param limit the maximum limit to be initialized, applicable if the current limit is zero
+     */
+    public void initializeLimit(int limit) {
+        // Limit cannot be zero, because it means "fetch all data" in FDB jargon.
         this.limit.updateAndGet((current) -> {
             if (current == 0) {
                 return limit;

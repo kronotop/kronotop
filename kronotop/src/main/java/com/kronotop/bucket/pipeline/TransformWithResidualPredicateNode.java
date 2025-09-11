@@ -35,7 +35,7 @@ public class TransformWithResidualPredicateNode extends AbstractPipelineNode imp
                     documentLocationSink.forEach((entryMetadataId, location) -> {
                         ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.metadata(), location);
                         if (residualPredicate.test(document)) {
-                            PersistedEntry entry = new PersistedEntry(location.shardId(), document);
+                            PersistedEntry entry = new PersistedEntry(location.shardId(), entryMetadataId, document);
                             ctx.sinks().writePersistedEntry(newSink, location.versionstamp(), entry);
                         }
                     });

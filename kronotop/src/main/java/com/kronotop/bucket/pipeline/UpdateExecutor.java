@@ -3,6 +3,7 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.CommitHook;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.index.IndexBuilder;
@@ -108,6 +109,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
                 // Update the documents at Volume level
                 UpdateResult updateResult = shard.volume().update(session, updatedEntries.toArray(new KeyEntryPair[0]));
+                ctx.registerPostCommitHook(new PostCommitHook(updateResult));
 
                 setUpdatedEntryMetadata(updateResultContainers, updateResult.entries());
             }
@@ -302,6 +304,13 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
         public int getShardId() {
             return shardId;
+        }
+    }
+
+    private record PostCommitHook(UpdateResult updateResult) implements CommitHook {
+        @Override
+        public void run() {
+            updateResult.complete();
         }
     }
 }

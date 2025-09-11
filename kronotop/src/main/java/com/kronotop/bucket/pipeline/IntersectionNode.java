@@ -4,8 +4,8 @@ import java.util.List;
 
 public class IntersectionNode extends AbstractLogicalNode implements LogicalNode {
 
-    public IntersectionNode(int id, ExecutionStrategy strategy, List<PipelineNode> children) {
-        super(id, strategy, children);
+    public IntersectionNode(int id, List<PipelineNode> children) {
+        super(id, children);
     }
 
     @Override
