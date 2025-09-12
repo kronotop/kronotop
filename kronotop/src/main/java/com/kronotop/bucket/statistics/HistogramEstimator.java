@@ -36,35 +36,21 @@ import com.apple.foundationdb.directory.DirectorySubspace;
  */
 public class HistogramEstimator {
 
-    private final FDBLogHistogram histogram;
-    private final String bucketName;
-    private final String fieldName;
+    private final DirectorySubspace subspace;
+    private final HistogramMetadata metadata;
 
-    public HistogramEstimator(FDBLogHistogram histogram, String bucketName, String fieldName) {
-        this.histogram = histogram;
-        this.bucketName = bucketName;
-        this.fieldName = fieldName;
-    }
-
-    /**
-     * Estimates P(field > threshold) using LogHistogramDynamic2 algorithm
-     */
-    public double estimateGreaterThan(double threshold) {
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
-            return estimateGreaterThan(tr, threshold);
-        }
+    public HistogramEstimator(HistogramMetadata metadata, DirectorySubspace subspace) {
+        this.subspace = subspace;
+        this.metadata = metadata;
     }
 
     /**
      * Estimates P(field > threshold) within an existing transaction using LogHistogramDynamic2
      */
     public double estimateGreaterThan(Transaction tr, double threshold) {
-        HistogramMetadata metadata = histogram.getMetadata(bucketName, fieldName);
         if (metadata == null) {
             return 0.0; // No data
         }
-
-        DirectorySubspace subspace = histogram.getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
 
         // Get total count across all histograms
         long totalCount = getTotalCount(tr, subspace, metadata.shardCount());
@@ -107,12 +93,11 @@ public class HistogramEstimator {
     /**
      * Estimates P(a <= field < b) selectivity using LogHistogramDynamic2
      */
-    public double estimateRange(double a, double b) {
+    public double estimateRange(Transaction tr, double a, double b) {
         if (a >= b) {
             return 0.0;
         }
 
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
             // P([a,b)) = P(field >= a) - P(field >= b)
             // For P(field >= x), we compute 1 - P(field < x) = 1 - P(field <= x-epsilon)
             // But it's easier to compute P(field > x-epsilon) directly
@@ -121,7 +106,6 @@ public class HistogramEstimator {
             double geqA = estimateGreaterThanOrEqual(tr, a);
             double geqB = estimateGreaterThanOrEqual(tr, b);
             return Math.max(0.0, Math.min(1.0, geqA - geqB));
-        }
     }
 
     /**
@@ -292,19 +276,5 @@ public class HistogramEstimator {
         if (j < 0) j = 0;
         if (j >= m) j = m - 1;
         return j;
-    }
-
-    /**
-     * Gets the bucket name
-     */
-    public String getBucketName() {
-        return bucketName;
-    }
-
-    /**
-     * Gets the field name
-     */
-    public String getFieldName() {
-        return fieldName;
     }
 }

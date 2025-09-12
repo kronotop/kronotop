@@ -16,12 +16,10 @@
 
 package com.kronotop.bucket.statistics;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
@@ -45,32 +43,6 @@ import java.util.logging.Logger;
 public class HistogramWindowManager {
 
     private static final Logger logger = Logger.getLogger(HistogramWindowManager.class.getName());
-
-    private final Database database;
-    private final DirectoryLayer directoryLayer;
-
-    public HistogramWindowManager(Database database, DirectoryLayer directoryLayer) {
-        this.database = database;
-        this.directoryLayer = directoryLayer;
-    }
-
-    /**
-     * Maintains window size for a specific histogram.
-     * This method should be called periodically by a background task.
-     */
-    public void maintainWindow(String bucketName, String fieldName, HistogramMetadata metadata) {
-        try (Transaction tr = database.createTransaction()) {
-            DirectorySubspace subspace = directoryLayer.createOrOpen(tr, Arrays.asList(
-                    "stats", bucketName, fieldName, "log10_hist", "m", String.valueOf(metadata.m())
-            )).join();
-
-            maintainWindow(tr, subspace, metadata);
-            tr.commit().join();
-
-        } catch (Exception e) {
-            logger.warning("Failed to maintain window for " + bucketName + "." + fieldName + ": " + e.getMessage());
-        }
-    }
 
     /**
      * Maintains window size within an existing transaction
@@ -174,60 +146,41 @@ public class HistogramWindowManager {
                 " to " + (toOverflow ? "overflow" : "underflow"));
     }
 
-    /**
-     * Maintains windows for all histograms in a bucket.
-     * This is a convenience method for bucket-level maintenance.
-     */
-    public void maintainBucketWindows(String bucketName, List<String> fieldNames, HistogramMetadata metadata) {
-        for (String fieldName : fieldNames) {
-            maintainWindow(bucketName, fieldName, metadata);
-        }
-    }
 
     /**
      * Gets statistics about active decades for monitoring across both histograms
      */
-    public WindowStats getWindowStats(String bucketName, String fieldName, HistogramMetadata metadata) {
-        try (Transaction tr = database.createTransaction()) {
-            DirectorySubspace subspace = directoryLayer.createOrOpen(tr, Arrays.asList(
-                    "stats", bucketName, fieldName, "log10_hist", "m", String.valueOf(metadata.m())
-            )).join();
+    public WindowStats getWindowStats(Transaction tr, DirectorySubspace subspace, HistogramMetadata metadata) {
+        Set<Integer> activeDecades = getAllActiveDecades(tr, subspace);
 
-            Set<Integer> activeDecades = getAllActiveDecades(tr, subspace);
-
-            // Get summary counts from both histograms
-            long underflowSum = 0;
-            byte[] posUnderflowData = tr.get(HistogramKeySchema.underflowSumKey(subspace, HistogramKeySchema.POS_HIST_PREFIX)).join();
-            if (posUnderflowData != null) {
-                underflowSum += HistogramKeySchema.decodeCounterValue(posUnderflowData);
-            }
-            byte[] negUnderflowData = tr.get(HistogramKeySchema.underflowSumKey(subspace, HistogramKeySchema.NEG_HIST_PREFIX)).join();
-            if (negUnderflowData != null) {
-                underflowSum += HistogramKeySchema.decodeCounterValue(negUnderflowData);
-            }
-
-            long overflowSum = 0;
-            byte[] posOverflowData = tr.get(HistogramKeySchema.overflowSumKey(subspace, HistogramKeySchema.POS_HIST_PREFIX)).join();
-            if (posOverflowData != null) {
-                overflowSum += HistogramKeySchema.decodeCounterValue(posOverflowData);
-            }
-            byte[] negOverflowData = tr.get(HistogramKeySchema.overflowSumKey(subspace, HistogramKeySchema.NEG_HIST_PREFIX)).join();
-            if (negOverflowData != null) {
-                overflowSum += HistogramKeySchema.decodeCounterValue(negOverflowData);
-            }
-
-            return new WindowStats(
-                    activeDecades.size(),
-                    activeDecades.isEmpty() ? null : Collections.min(activeDecades),
-                    activeDecades.isEmpty() ? null : Collections.max(activeDecades),
-                    underflowSum,
-                    overflowSum
-            );
-
-        } catch (Exception e) {
-            logger.warning("Failed to get window stats for " + bucketName + "." + fieldName + ": " + e.getMessage());
-            return new WindowStats(0, null, null, 0, 0);
+        // Get summary counts from both histograms
+        long underflowSum = 0;
+        byte[] posUnderflowData = tr.get(HistogramKeySchema.underflowSumKey(subspace, HistogramKeySchema.POS_HIST_PREFIX)).join();
+        if (posUnderflowData != null) {
+            underflowSum += HistogramKeySchema.decodeCounterValue(posUnderflowData);
         }
+        byte[] negUnderflowData = tr.get(HistogramKeySchema.underflowSumKey(subspace, HistogramKeySchema.NEG_HIST_PREFIX)).join();
+        if (negUnderflowData != null) {
+            underflowSum += HistogramKeySchema.decodeCounterValue(negUnderflowData);
+        }
+
+        long overflowSum = 0;
+        byte[] posOverflowData = tr.get(HistogramKeySchema.overflowSumKey(subspace, HistogramKeySchema.POS_HIST_PREFIX)).join();
+        if (posOverflowData != null) {
+            overflowSum += HistogramKeySchema.decodeCounterValue(posOverflowData);
+        }
+        byte[] negOverflowData = tr.get(HistogramKeySchema.overflowSumKey(subspace, HistogramKeySchema.NEG_HIST_PREFIX)).join();
+        if (negOverflowData != null) {
+            overflowSum += HistogramKeySchema.decodeCounterValue(negOverflowData);
+        }
+
+        return new WindowStats(
+                activeDecades.size(),
+                activeDecades.isEmpty() ? null : Collections.min(activeDecades),
+                activeDecades.isEmpty() ? null : Collections.max(activeDecades),
+                underflowSum,
+                overflowSum
+        );
     }
 
     /**

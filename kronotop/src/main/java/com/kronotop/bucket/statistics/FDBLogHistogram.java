@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.statistics;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
@@ -59,22 +58,29 @@ import java.util.List;
  * meta                    -> JSON (metadata)
  */
 public class FDBLogHistogram {
-    private final Database database;
-    private final DirectoryLayer directoryLayer;
 
     private final DirectorySubspace subspace;
     private final HistogramMetadata metadata;
 
-    public FDBLogHistogram(Database database) {
-        this(database, DirectoryLayer.getDefault());
+    public FDBLogHistogram(Transaction tr, List<String> root) {
+        this.metadata = openMetadata(tr, root);
+        this.subspace = openHistogramSubspace(tr, root, metadata);
     }
 
-    public FDBLogHistogram(Database database, DirectoryLayer directoryLayer) {
-        this.database = database;
-        this.directoryLayer = directoryLayer;
+    public static void initialize(Transaction tr, List<String> root) {
+        List<String> metaSubpath = new ArrayList<>(root);
+        metaSubpath.addAll(Arrays.asList(
+                "statistics", "log10_hist"
+        ));
+        DirectorySubspace metaSubspace = DirectoryLayer.getDefault().createOrOpen(tr, metaSubpath).join();
+        byte[] metaKey = HistogramKeySchema.metadataKey(metaSubspace);
+        HistogramMetadata defaultMetadata = HistogramMetadata.defaultMetadata();
+        byte[] metaValue = HistogramKeySchema.encodeMetadata(HistogramMetadata.defaultMetadata());
+        tr.set(metaKey, metaValue);
 
-        this.metadata = openMetadata(null, null);
-        this.subspace = openHistogramSubspace(null, null, metadata);
+        List<String> histogramSubspace = new ArrayList<>(root);
+        histogramSubspace.addAll(Arrays.asList("statistics", "log10_hist", "m", String.valueOf(defaultMetadata.m())));
+        DirectoryLayer.getDefault().createOrOpen(tr, histogramSubspace).join();
     }
 
     private HistogramMetadata openMetadata(Transaction tr, List<String> root) {
@@ -99,59 +105,11 @@ public class FDBLogHistogram {
         return DirectoryLayer.getDefault().open(tr, subpath).join();
     }
 
-    public static void initialize(Transaction tr, List<String> root) {
-        List<String> metaSubpath = new ArrayList<>(root);
-        metaSubpath.addAll(Arrays.asList(
-                "statistics", "log10_hist"
-        ));
-        DirectorySubspace metaSubspace = DirectoryLayer.getDefault().createOrOpen(tr, metaSubpath).join();
-        byte[] metaKey = HistogramKeySchema.metadataKey(metaSubspace);
-        HistogramMetadata defaultMetadata = HistogramMetadata.defaultMetadata();
-        byte[] metaValue = HistogramKeySchema.encodeMetadata(HistogramMetadata.defaultMetadata());
-        tr.set(metaKey, metaValue);
-
-        List<String> histogramSubspace = new ArrayList<>(root);
-        histogramSubspace.addAll(Arrays.asList("statistics", "log10_hist", "m", String.valueOf(defaultMetadata.m())));
-        DirectoryLayer.getDefault().createOrOpen(tr, histogramSubspace).join();
-    }
-
-    /**
-     * Initializes a histogram for the given bucket and field with specified metadata.
-     * This should be called once during bucket/field setup.
-     */
-    public void initialize(String bucketName, String fieldName, HistogramMetadata metadata) {
-        try (Transaction tr = database.createTransaction()) {
-            // Store metadata at a path that doesn't depend on m value
-            DirectorySubspace metaSubspace = getHistogramMetaSubspace(tr, bucketName, fieldName);
-            byte[] metaKey = HistogramKeySchema.metadataKey(metaSubspace);
-            byte[] metaValue = HistogramKeySchema.encodeMetadata(metadata);
-            tr.set(metaKey, metaValue);
-
-            tr.commit().join();
-        }
-    }
-
-    /**
-     * Adds a value to the histogram using atomic mutations (O(1), read-free).
-     */
-    public void add(String bucketName, String fieldName, double value) {
-        HistogramMetadata metadata = getMetadata(bucketName, fieldName);
-        if (metadata == null) {
-            metadata = HistogramMetadata.defaultMetadata();
-            initialize(bucketName, fieldName, metadata);
-        }
-
-        try (Transaction tr = database.createTransaction()) {
-            addValue(tr, bucketName, fieldName, value, metadata);
-            tr.commit().join();
-        }
-    }
-
     /**
      * Adds a value within an existing transaction following LogHistogramDynamic2
      */
-    public void addValue(Transaction tr, String bucketName, String fieldName, double value, HistogramMetadata metadata) {
-        DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
+    public void addValue(Transaction tr, double value, HistogramMetadata metadata) {
+        //DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
 
         if (value == 0.0) {
             // Handle zero values separately
@@ -189,8 +147,8 @@ public class FDBLogHistogram {
     /**
      * Deletes a value using atomic ADD(-1) operations - exact inverse of insert
      */
-    public void deleteValue(Transaction tr, String bucketName, String fieldName, double value, HistogramMetadata metadata) {
-        DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
+    public void deleteValue(Transaction tr, double value, HistogramMetadata metadata) {
+        //DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
 
         if (value == 0.0) {
             // Handle zero values separately
@@ -228,49 +186,14 @@ public class FDBLogHistogram {
     /**
      * Updates a value atomically (delete old + insert new in single transaction)
      */
-    public void updateValue(Transaction tr, String bucketName, String fieldName, double oldValue, double newValue, HistogramMetadata metadata) {
+    public void updateValue(Transaction tr, double oldValue, double newValue, HistogramMetadata metadata) {
         if (oldValue == newValue) {
             return; // No change needed
         }
 
         // Atomic delete old + insert new
-        deleteValue(tr, bucketName, fieldName, oldValue, metadata);
-        addValue(tr, bucketName, fieldName, newValue, metadata);
-    }
-
-    /**
-     * Deletes a value from the histogram.
-     */
-    public void delete(String bucketName, String fieldName, double value) {
-        HistogramMetadata metadata = getMetadata(bucketName, fieldName);
-        if (metadata == null) {
-            return; // Nothing to delete if histogram doesn't exist
-        }
-
-        try (Transaction tr = database.createTransaction()) {
-            deleteValue(tr, bucketName, fieldName, value, metadata);
-            tr.commit().join();
-        }
-    }
-
-    /**
-     * Updates a value in the histogram.
-     */
-    public void update(String bucketName, String fieldName, double oldValue, double newValue) {
-        if (oldValue == newValue) {
-            return; // No change needed
-        }
-
-        HistogramMetadata metadata = getMetadata(bucketName, fieldName);
-        if (metadata == null) {
-            metadata = HistogramMetadata.defaultMetadata();
-            initialize(bucketName, fieldName, metadata);
-        }
-
-        try (Transaction tr = database.createTransaction()) {
-            updateValue(tr, bucketName, fieldName, oldValue, newValue, metadata);
-            tr.commit().join();
-        }
+        deleteValue(tr, oldValue, metadata);
+        addValue(tr, newValue, metadata);
     }
 
     /**
@@ -284,60 +207,10 @@ public class FDBLogHistogram {
     }
 
     /**
-     * Gets histogram metadata, returning null if not found
-     */
-    public HistogramMetadata getMetadata(String bucketName, String fieldName) {
-        try (Transaction tr = database.createTransaction()) {
-            DirectorySubspace metaSubspace = getHistogramMetaSubspace(tr, bucketName, fieldName);
-            byte[] metaData = tr.get(HistogramKeySchema.metadataKey(metaSubspace)).join();
-            return HistogramKeySchema.decodeMetadata(metaData);
-        }
-    }
-
-    /**
      * Creates histogram estimator for selectivity calculations
      */
-    public HistogramEstimator createEstimator(String bucketName, String fieldName) {
-        return new HistogramEstimator(this, bucketName, fieldName);
-    }
-
-    /**
-     * Creates window manager for background maintenance
-     */
-    public HistogramWindowManager createWindowManager() {
-        return new HistogramWindowManager(database, directoryLayer);
-    }
-
-    /**
-     * Gets the FoundationDB database instance
-     */
-    public Database getDatabase() {
-        return database;
-    }
-
-    /**
-     * Gets the directory layer instance
-     */
-    public DirectoryLayer getDirectoryLayer() {
-        return directoryLayer;
-    }
-
-    /**
-     * Gets or creates the histogram subspace for given parameters
-     */
-    public DirectorySubspace getHistogramSubspace(Transaction tr, String bucketName, String fieldName, int m) {
-        return directoryLayer.createOrOpen(tr, Arrays.asList(
-                "stats", bucketName, fieldName, "log10_hist", "m", String.valueOf(m)
-        )).join();
-    }
-
-    /**
-     * Gets or creates the histogram metadata subspace (independent of m parameter)
-     */
-    public DirectorySubspace getHistogramMetaSubspace(Transaction tr, String bucketName, String fieldName) {
-        return directoryLayer.createOrOpen(tr, Arrays.asList(
-                "stats", bucketName, fieldName, "log10_hist"
-        )).join();
+    public HistogramEstimator createEstimator() {
+        return new HistogramEstimator(metadata, subspace);
     }
 
     /**
