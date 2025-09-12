@@ -22,7 +22,9 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * FoundationDB-based log10 histogram implementation following LogHistogramDynamic2 design.
@@ -60,6 +62,9 @@ public class FDBLogHistogram {
     private final Database database;
     private final DirectoryLayer directoryLayer;
 
+    private final DirectorySubspace subspace;
+    private final HistogramMetadata metadata;
+
     public FDBLogHistogram(Database database) {
         this(database, DirectoryLayer.getDefault());
     }
@@ -67,6 +72,47 @@ public class FDBLogHistogram {
     public FDBLogHistogram(Database database, DirectoryLayer directoryLayer) {
         this.database = database;
         this.directoryLayer = directoryLayer;
+
+        this.metadata = openMetadata(null, null);
+        this.subspace = openHistogramSubspace(null, null, metadata);
+    }
+
+    private HistogramMetadata openMetadata(Transaction tr, List<String> root) {
+        DirectorySubspace metaSubspace = openHistogramMetaSubspace(tr, root);
+        byte[] metaData = tr.get(HistogramKeySchema.metadataKey(metaSubspace)).join();
+        return HistogramKeySchema.decodeMetadata(metaData);
+    }
+
+    private DirectorySubspace openHistogramMetaSubspace(Transaction tr, List<String> root) {
+        List<String> subpath = new ArrayList<>(root);
+        subpath.addAll(Arrays.asList(
+                "statistics", "log10_hist"
+        ));
+        return DirectoryLayer.getDefault().open(tr, subpath).join();
+    }
+
+    private DirectorySubspace openHistogramSubspace(Transaction tr, List<String> root, HistogramMetadata metadata) {
+        List<String> subpath = new ArrayList<>(root);
+        subpath.addAll(Arrays.asList(
+                "statistics", "log10_hist", "m", String.valueOf(metadata.m())
+        ));
+        return DirectoryLayer.getDefault().open(tr, subpath).join();
+    }
+
+    public static void initialize(Transaction tr, List<String> root) {
+        List<String> metaSubpath = new ArrayList<>(root);
+        metaSubpath.addAll(Arrays.asList(
+                "statistics", "log10_hist"
+        ));
+        DirectorySubspace metaSubspace = DirectoryLayer.getDefault().createOrOpen(tr, metaSubpath).join();
+        byte[] metaKey = HistogramKeySchema.metadataKey(metaSubspace);
+        HistogramMetadata defaultMetadata = HistogramMetadata.defaultMetadata();
+        byte[] metaValue = HistogramKeySchema.encodeMetadata(HistogramMetadata.defaultMetadata());
+        tr.set(metaKey, metaValue);
+
+        List<String> histogramSubspace = new ArrayList<>(root);
+        histogramSubspace.addAll(Arrays.asList("statistics", "log10_hist", "m", String.valueOf(defaultMetadata.m())));
+        DirectoryLayer.getDefault().createOrOpen(tr, histogramSubspace).join();
     }
 
     /**
