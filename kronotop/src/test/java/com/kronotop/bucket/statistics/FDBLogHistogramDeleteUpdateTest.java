@@ -136,20 +136,22 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testDeleteNegativeValue() {
-        
         double value = -50.0;
         
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert negative value
-            histogram.addValue(tr, testBucket, testField, value, metadata);
-            
+            histogram.addValue(tr, value);
+            tr.commit().join();
+        }
+        
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Delete negative value
-            histogram.deleteValue(tr, testBucket, testField, value, metadata);
+            histogram.deleteValue(tr, value);
             
             // Verify deletion
-            HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+            HistogramEstimator estimator = histogram.getEstimator();
             double afterDelete = estimator.estimateGreaterThan(tr, -100);
             assertEquals(0.0, afterDelete, 0.01, "Should have no values after delete");
             
@@ -159,31 +161,32 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
     
     @Test
     void testMultipleIdenticalValues() {
-        
-        
-        
         double value = 100.0;
         
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
-            // Insert same value multiple times with different primary keys
-            histogram.addValue(tr, testBucket, testField, value, metadata);
-            histogram.addValue(tr, testBucket, testField, value, metadata);
-            histogram.addValue(tr, testBucket, testField, value, metadata);
-            
-            HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Insert same value multiple times
+            histogram.addValue(tr, value);
+            histogram.addValue(tr, value);
+            histogram.addValue(tr, value);
+            tr.commit().join();
+        }
+        
+        HistogramEstimator estimator = histogram.getEstimator();
+        
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             double beforeDelete = estimator.estimateGreaterThan(tr, 50);
             assertTrue(beforeDelete > 0, "Should have positive selectivity with 3 values");
             
             // Delete one instance
-            histogram.deleteValue(tr, testBucket, testField, value, metadata);
+            histogram.deleteValue(tr, value);
             
             // Should still have values (but fewer)
             double afterOneDelete = estimator.estimateGreaterThan(tr, 50);
             assertTrue(afterOneDelete > 0, "Should still have positive selectivity after one delete");
             
             // Delete remaining instances
-            histogram.deleteValue(tr, testBucket, testField, value, metadata);
-            histogram.deleteValue(tr, testBucket, testField, value, metadata);
+            histogram.deleteValue(tr, value);
+            histogram.deleteValue(tr, value);
             
             // Now should be zero
             double afterAllDeletes = estimator.estimateGreaterThan(tr, 50);
@@ -193,7 +196,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    @Test
+    /*@Test
     void testBasicUpdateOperation() {
         
         double oldValue = 50.0;
