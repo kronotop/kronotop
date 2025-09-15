@@ -113,20 +113,22 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testDeleteZeroValue() {
-        
         double value = 0.0;
         
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert zero
-            histogram.addValue(tr, testBucket, testField, value, metadata);
-            
+            histogram.addValue(tr, value);
+            tr.commit().join();
+        }
+        
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Delete zero
-            histogram.deleteValue(tr, testBucket, testField, value, metadata);
+            histogram.deleteValue(tr, value);
             
             // Verify zero count is back to zero
-            HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+            HistogramEstimator estimator = histogram.getEstimator();
             double afterDelete = estimator.estimateGreaterThan(tr, -1);
             assertEquals(0.0, afterDelete, 0.01, "Should have no values after deleting zero");
             
@@ -134,7 +136,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    @Test
+    /*@Test
     void testDeleteNegativeValue() {
         
         double value = -50.0;
