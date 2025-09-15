@@ -29,7 +29,8 @@ import org.bson.BsonType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
 
@@ -37,7 +38,6 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
     private FDBLogHistogram histogram;
     private String testBucket; // Will be unique per test
     private HistogramMetadata metadata;
-    private HistogramWindowManager windowManager;
 
     protected void createBucket(String bucketName) {
         // Bucket is created implicitly through BucketMetadataUtil.createOrOpen()
@@ -82,51 +82,60 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             histogram = new FDBLogHistogram(tr, indexSubspace.getPath());
         }
-        windowManager = new HistogramWindowManager();
     }
-    
+
     @Test
     void testWindowMaintenanceWithSmallWindow() {
+        HistogramWindowManager windowManager = histogram.getWindowManager();
         // Dataset: 6 values spanning decades 0-5
         // Decades: 0(1.0), 1(15.0), 2(150.0), 3(1500.0), 4(15000.0), 5(150000.0) = 6 decades total
         double[] values = {
-            1.0,     // decade 0  
-            15.0,    // decade 1
-            150.0,   // decade 2  
-            1500.0,  // decade 3
-            15000.0, // decade 4
-            150000.0 // decade 5
+                1.0,     // decade 0
+                15.0,    // decade 1
+                150.0,   // decade 2
+                1500.0,  // decade 3
+                15000.0, // decade 4
+                150000.0 // decade 5
         };
-        
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
-        
-        // Get initial stats - should have 6 active decades
-        HistogramWindowManager.WindowStats initialStats = windowManager.getWindowStats(testBucket, testField, metadata);
-        assertEquals(6, initialStats.activeDecadeCount(), "Should have exactly 6 active decades before maintenance");
-        assertTrue(initialStats.activeDecadeCount() > metadata.windowDecades(), "Initial decades (6) should exceed window limit (3)");
-        assertEquals(0, initialStats.underflowSum(), "Should have no underflow before maintenance");
-        
-        // Perform window maintenance - will keep 3 newest decades (3,4,5) and evict oldest (0,1,2)
-        windowManager.maintainWindow(testBucket, testField, metadata);
-        
-        // Check that window was reduced to limit
-        HistogramWindowManager.WindowStats finalStats = windowManager.getWindowStats(testBucket, testField, metadata);
-        assertEquals(3, finalStats.activeDecadeCount(), "Should have exactly 3 active decades after maintenance (the limit)");
-        assertTrue(finalStats.activeDecadeCount() <= metadata.windowDecades(), "Final decades should not exceed window limit");
-        
-        // Check that underflow summary was updated with evicted data
-        assertEquals(3, finalStats.underflowSum(), "Should have exactly 3 values in underflow (evicted decades 0,1,2)");
-        assertEquals(0, finalStats.overflowSum(), "Should have no overflow data");
-        
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Get initial stats - should have 6 active decades
+            HistogramWindowManager.WindowStats initialStats = windowManager.getWindowStats(tr);
+            assertEquals(6, initialStats.activeDecadeCount(), "Should have exactly 6 active decades before maintenance");
+            assertTrue(initialStats.activeDecadeCount() > metadata.windowDecades(), "Initial decades (6) should exceed window limit (3)");
+            assertEquals(0, initialStats.underflowSum(), "Should have no underflow before maintenance");
+
+            // Perform window maintenance - will keep 3 newest decades (3,4,5) and evict oldest (0,1,2)
+            windowManager.maintainWindow(tr);
+
+            // Check that window was reduced to limit
+            HistogramWindowManager.WindowStats finalStats = windowManager.getWindowStats(tr);
+            assertEquals(3, finalStats.activeDecadeCount(), "Should have exactly 3 active decades after maintenance (the limit)");
+            assertTrue(finalStats.activeDecadeCount() <= metadata.windowDecades(), "Final decades should not exceed window limit");
+
+            // Check that underflow summary was updated with evicted data
+            assertEquals(3, finalStats.underflowSum(), "Should have exactly 3 values in underflow (evicted decades 0,1,2)");
+            assertEquals(0, finalStats.overflowSum(), "Should have no overflow data");
+
+            tr.commit().join();
+        }
+
         // Test that estimation still works after eviction
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-        
-        // Values > 1000: should include {1500.0, 15000.0, 150000.0} plus some contribution from underflow
-        double highValueEstimate = estimator.estimateGreaterThan(1000);
-        assertTrue(highValueEstimate >= 0.3, "P(>1000) should be at least 0.3 after maintenance, got " + highValueEstimate);
-        assertTrue(highValueEstimate <= 1.0, "P(>1000) should not exceed 1.0, got " + highValueEstimate);
+        HistogramEstimator estimator = histogram.getEstimator();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Values > 1000: should include {1500.0, 15000.0, 150000.0} plus some contribution from underflow
+            double highValueEstimate = estimator.estimateGreaterThan(tr, 1000);
+            assertTrue(highValueEstimate >= 0.3, "P(>1000) should be at least 0.3 after maintenance, got " + highValueEstimate);
+            assertTrue(highValueEstimate <= 1.0, "P(>1000) should not exceed 1.0, got " + highValueEstimate);
+        }
     }
     
     /*@Test

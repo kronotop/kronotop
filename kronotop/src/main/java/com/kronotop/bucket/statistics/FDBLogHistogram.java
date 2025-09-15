@@ -61,11 +61,13 @@ public class FDBLogHistogram {
     private final DirectorySubspace subspace;
     private final HistogramMetadata metadata;
     private final HistogramEstimator estimator;
+    private final HistogramWindowManager windowManager;
 
     public FDBLogHistogram(Transaction tr, List<String> root) {
         this.metadata = openMetadata(tr, root);
         this.subspace = openHistogramSubspace(tr, root, metadata);
         this.estimator = new HistogramEstimator(metadata, subspace);
+        this.windowManager = new HistogramWindowManager(metadata, subspace);
     }
 
     public static void initialize(Transaction tr, List<String> root) {
@@ -212,6 +214,10 @@ public class FDBLogHistogram {
 
     public HistogramEstimator getEstimator() {
         return estimator;
+    }
+
+    public HistogramWindowManager getWindowManager() {
+        return windowManager;
     }
 
     /**

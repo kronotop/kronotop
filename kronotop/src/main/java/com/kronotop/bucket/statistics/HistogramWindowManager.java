@@ -41,13 +41,19 @@ import java.util.logging.Logger;
  * The window manager runs as a background task to avoid impacting write performance.
  */
 public class HistogramWindowManager {
+    private static final Logger LOGGER = Logger.getLogger(HistogramWindowManager.class.getName());
+    private final HistogramMetadata metadata;
+    private final DirectorySubspace subspace;
 
-    private static final Logger logger = Logger.getLogger(HistogramWindowManager.class.getName());
+    HistogramWindowManager(HistogramMetadata metadata, DirectorySubspace subspace) {
+        this.metadata = metadata;
+        this.subspace = subspace;
+    }
 
     /**
      * Maintains window size within an existing transaction
      */
-    public void maintainWindow(Transaction tr, DirectorySubspace subspace, HistogramMetadata metadata) {
+    public void maintainWindow(Transaction tr) {
         // 1. Discover active decades across both histograms
         Set<Integer> activeDecades = getAllActiveDecades(tr, subspace);
 
@@ -55,7 +61,7 @@ public class HistogramWindowManager {
             return; // No maintenance needed
         }
 
-        logger.info("Maintaining window: found " + activeDecades.size() +
+        LOGGER.info("Maintaining window: found " + activeDecades.size() +
                 " decades, limit is " + metadata.windowDecades());
 
         // 2. Sort decades and determine which to evict
@@ -68,7 +74,7 @@ public class HistogramWindowManager {
             // Evict from both positive and negative histograms
             evictDecadeToSummary(tr, subspace, HistogramKeySchema.POS_HIST_PREFIX, evictDecade, false);
             evictDecadeToSummary(tr, subspace, HistogramKeySchema.NEG_HIST_PREFIX, evictDecade, false);
-            logger.info("Evicted decade " + evictDecade + " from both histograms to underflow");
+            LOGGER.info("Evicted decade " + evictDecade + " from both histograms to underflow");
         }
     }
 
@@ -95,7 +101,7 @@ public class HistogramWindowManager {
                 }
             } catch (Exception e) {
                 // Skip malformed keys
-                logger.warning("Skipping malformed key during decade discovery: " + e.getMessage());
+                LOGGER.warning("Skipping malformed key during decade discovery: " + e.getMessage());
             }
         }
 
@@ -142,7 +148,7 @@ public class HistogramWindowManager {
         byte[] decadeEnd = HistogramKeySchema.decadeRangeEnd(subspace, histType, decade);
         tr.clear(decadeBegin, decadeEnd);
 
-        logger.info("Evicted " + histType + " decade " + decade + " with sum " + decadeSum +
+        LOGGER.info("Evicted " + histType + " decade " + decade + " with sum " + decadeSum +
                 " to " + (toOverflow ? "overflow" : "underflow"));
     }
 
@@ -150,7 +156,7 @@ public class HistogramWindowManager {
     /**
      * Gets statistics about active decades for monitoring across both histograms
      */
-    public WindowStats getWindowStats(Transaction tr, DirectorySubspace subspace, HistogramMetadata metadata) {
+    public WindowStats getWindowStats(Transaction tr) {
         Set<Integer> activeDecades = getAllActiveDecades(tr, subspace);
 
         // Get summary counts from both histograms
