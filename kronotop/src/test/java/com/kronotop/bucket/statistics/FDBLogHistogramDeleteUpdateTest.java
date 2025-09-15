@@ -554,24 +554,32 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testPublicUpdateNoOpSameValue() {
         double value = 150.0;
         
-        // Insert value
-        histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Insert value
+            histogram.addValue(tr, value);
+            tr.commit().join();
+        }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-        double beforeUpdate = estimator.estimateGreaterThan(100);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Update to same value (should be no-op)
-        histogram.update(testBucket, testField, value, value);
-        
-        double afterUpdate = estimator.estimateGreaterThan(100);
-        assertEquals(beforeUpdate, afterUpdate, 0.01, "No-op update should not change selectivity");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            double beforeUpdate = estimator.estimateGreaterThan(tr, 100);
+            
+            // Update to same value (should be no-op)
+            histogram.updateValue(tr, value, value);
+            
+            double afterUpdate = estimator.estimateGreaterThan(tr, 100);
+            assertEquals(beforeUpdate, afterUpdate, 0.01, "No-op update should not change selectivity");
+            
+            tr.commit().join();
+        }
     }
     
-    @Test
+    /*@Test
     void testPublicMethodsWithZeroValues() {
         double zeroValue = 0.0;
         double positiveValue = 100.0;
