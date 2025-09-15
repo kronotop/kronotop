@@ -28,12 +28,9 @@ import com.kronotop.server.Session;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
-
-    private final String testField = "price";
 
     protected void createBucket(String bucketName) {
         // Bucket is created implicitly through BucketMetadataUtil.createOrOpen()
@@ -134,7 +131,7 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
             assertTrue(highValueEstimate <= 1.0, "P(>1000) should not exceed 1.0, got " + highValueEstimate);
         }
     }
-    
+
     @Test
     void testWindowMaintenanceWithinLimits() {
         // Large window (10 decades) to avoid evictions
@@ -189,144 +186,98 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
             assertTrue(estimator.estimateGreaterThan(tr, 50) <= 0.25, "P(>50) should be very small, at most 0.25 due to bucketing approximation");
         }
     }
-    
-    /*@Test
+
+    @Test
     void testEmptyHistogramStats() {
         HistogramMetadata metadata = HistogramMetadata.defaultMetadata();
-        histogram.initialize(testBucket, testField, metadata);
-        
-        HistogramWindowManager.WindowStats stats = windowManager.getWindowStats(testBucket, testField, metadata);
-        
-        assertEquals(0, stats.activeDecadeCount());
-        assertNull(stats.minActiveDecade());
-        assertNull(stats.maxActiveDecade());
-        assertEquals(0, stats.underflowSum());
-        assertEquals(0, stats.overflowSum());
+        FDBLogHistogram histogram = initialize(metadata);
+
+        HistogramWindowManager windowManager = histogram.getWindowManager();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            HistogramWindowManager.WindowStats stats = windowManager.getWindowStats(tr);
+
+            assertEquals(0, stats.activeDecadeCount());
+            assertNull(stats.minActiveDecade());
+            assertNull(stats.maxActiveDecade());
+            assertEquals(0, stats.underflowSum());
+            assertEquals(0, stats.overflowSum());
+        }
     }
-    
+
     @Test
     void testWindowStatsAfterDataAdded() {
         HistogramMetadata metadata = HistogramMetadata.defaultMetadata();
-        histogram.initialize(testBucket, testField, metadata);
-        
+        FDBLogHistogram histogram = initialize(metadata);
+
+        HistogramWindowManager windowManager = histogram.getWindowManager();
+
         // Add values in different decades
-        histogram.add(testBucket, testField, 1.5);      // decade 0
-        histogram.add(testBucket, testField, 25.0);     // decade 1  
-        histogram.add(testBucket, testField, 350.0);    // decade 2
-        histogram.add(testBucket, testField, 4700.0);   // decade 3
-        
-        HistogramWindowManager.WindowStats stats = windowManager.getWindowStats(testBucket, testField, metadata);
-        
-        assertEquals(4, stats.activeDecadeCount());
-        assertEquals(Integer.valueOf(0), stats.minActiveDecade());
-        assertEquals(Integer.valueOf(3), stats.maxActiveDecade());
-        assertEquals(0, stats.underflowSum()); // No evictions yet
-        assertEquals(0, stats.overflowSum());  // No evictions yet
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            histogram.addValue(tr, 1.5);      // decade 0
+            histogram.addValue(tr, 25.0);     // decade 1
+            histogram.addValue(tr, 350.0);    // decade 2
+            histogram.addValue(tr, 4700.0);   // decade 3
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            HistogramWindowManager.WindowStats stats = windowManager.getWindowStats(tr);
+
+            assertEquals(4, stats.activeDecadeCount());
+            assertEquals(Integer.valueOf(0), stats.minActiveDecade());
+            assertEquals(Integer.valueOf(3), stats.maxActiveDecade());
+            assertEquals(0, stats.underflowSum()); // No evictions yet
+            assertEquals(0, stats.overflowSum());  // No evictions yet
+        }
     }
-    
+
     @Test
     void testWindowMaintenancePreservesEstimation() {
         // Create histogram with small window (2 decades) to force eviction
         HistogramMetadata metadata = new HistogramMetadata(16, 4, 2, 16, 1);
-        histogram.initialize(testBucket, testField, metadata);
-        
+        FDBLogHistogram histogram = initialize(metadata);
+
+        HistogramWindowManager windowManager = histogram.getWindowManager();
+
         // Dataset: 5 values spanning decades {1.0, 10.0, 100.0, 1000.0, 10000.0}
         // Decades: 0(1.0), 1(10.0), 2(100.0), 3(1000.0), 4(10000.0) = 5 decades total
         double[] values = {1.0, 10.0, 100.0, 1000.0, 10000.0};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
-        
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-        
+
+        HistogramEstimator estimator = histogram.getEstimator();
+
         // Before maintenance: Values > 0.5: all 5 values = 5/5 = 1.0
-        double beforeMaintenance = estimator.estimateGreaterThan(0.5);
-        assertEquals(1.0, beforeMaintenance, 0.05, "Before maintenance: P(>0.5) should be 1.0 as all values are greater than 0.5");
-        
-        // Perform maintenance - will evict oldest decades (0,1,2) keeping only (3,4)
-        windowManager.maintainWindow(testBucket, testField, metadata);
-        
-        // After maintenance: some data evicted to underflow summary
-        double afterMaintenance = estimator.estimateGreaterThan(0.5);
-        
-        // Estimation should still be reasonable but may have precision loss
-        // Since evicted data goes to underflow summary, the estimate should account for that
-        assertTrue(afterMaintenance >= 0.3, "After maintenance: P(>0.5) should be at least 0.3, got " + afterMaintenance + " (precision loss due to eviction is expected)");
-        assertTrue(afterMaintenance <= 1.0, "After maintenance: P(>0.5) should not exceed 1.0, got " + afterMaintenance);
-        
-        // Test more specific threshold after maintenance
-        // Values > 500: {1000.0, 10000.0} should still be detectable
-        double afterMaintenanceHighThreshold = estimator.estimateGreaterThan(500);
-        assertTrue(afterMaintenanceHighThreshold > 0.1, "After maintenance: P(>500) should be greater than 0.1, got " + afterMaintenanceHighThreshold);
-    }
-    
-    @Test
-    void testMultipleBucketMaintenance() {
-        String bucket1 = "bucket1";
-        String bucket2 = "bucket2";
-        String field = "test_field";
-        
-        // Small window (3 decades) to force evictions
-        HistogramMetadata metadata = new HistogramMetadata(16, 4, 3, 16, 1);
-        
-        histogram.initialize(bucket1, field, metadata);
-        histogram.initialize(bucket2, field, metadata);
-        
-        // Bucket1 dataset: 5 values {1.0, 50.0, 2500.0, 125000.0, 6250000.0}
-        // Decades: 0, 1, 3, 5, 6 = 5 decades total
-        double[] values = {1.0, 50.0, 2500.0, 125000.0, 6250000.0};
-        for (double value : values) {
-            histogram.add(bucket1, field, value);
-            histogram.add(bucket2, field, value * 2); // Bucket2: {2.0, 100.0, 5000.0, 250000.0, 12500000.0}
+        double beforeMaintenance;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            beforeMaintenance = estimator.estimateGreaterThan(tr, 0.5);
+            assertEquals(1.0, beforeMaintenance, 0.05, "Before maintenance: P(>0.5) should be 1.0 as all values are greater than 0.5");
         }
-        
-        // Get initial stats before maintenance
-        HistogramWindowManager.WindowStats initialStats1 = windowManager.getWindowStats(bucket1, field, metadata);
-        HistogramWindowManager.WindowStats initialStats2 = windowManager.getWindowStats(bucket2, field, metadata);
-        
-        assertTrue(initialStats1.activeDecadeCount() > metadata.windowDecades(), 
-                "Bucket1 should have more than " + metadata.windowDecades() + " decades before maintenance, got " + initialStats1.activeDecadeCount());
-        assertTrue(initialStats2.activeDecadeCount() > metadata.windowDecades(),
-                "Bucket2 should have more than " + metadata.windowDecades() + " decades before maintenance, got " + initialStats2.activeDecadeCount());
-        
-        // Perform maintenance on both
-        java.util.List<String> fields = java.util.List.of(field);
-        windowManager.maintainBucketWindows(bucket1, fields, metadata);
-        windowManager.maintainBucketWindows(bucket2, fields, metadata);
-        
-        // Get final stats after maintenance
-        HistogramWindowManager.WindowStats finalStats1 = windowManager.getWindowStats(bucket1, field, metadata);
-        HistogramWindowManager.WindowStats finalStats2 = windowManager.getWindowStats(bucket2, field, metadata);
-        
-        // Both should have window constraints enforced
-        assertTrue(finalStats1.activeDecadeCount() <= metadata.windowDecades(),
-                "Bucket1 should have at most " + metadata.windowDecades() + " decades after maintenance, got " + finalStats1.activeDecadeCount());
-        assertTrue(finalStats2.activeDecadeCount() <= metadata.windowDecades(),
-                "Bucket2 should have at most " + metadata.windowDecades() + " decades after maintenance, got " + finalStats2.activeDecadeCount());
-        
-        // Both should have some evicted data in underflow
-        assertTrue(finalStats1.underflowSum() > 0, "Bucket1 should have underflow sum > 0 after eviction, got " + finalStats1.underflowSum());
-        assertTrue(finalStats2.underflowSum() > 0, "Bucket2 should have underflow sum > 0 after eviction, got " + finalStats2.underflowSum());
-        
-        // Both buckets should have independent maintenance (they may have same underflow sum by coincidence)
-        // The important thing is both had evictions and maintain independent states
-        assertTrue(finalStats1.underflowSum() > 0 && finalStats2.underflowSum() > 0,
-                "Both buckets should have positive underflow sums indicating successful independent maintenance");
-        
-        // Test estimation still works after maintenance
-        HistogramEstimator estimator1 = histogram.createEstimator(bucket1, field);
-        HistogramEstimator estimator2 = histogram.createEstimator(bucket2, field);
-        
-        // Both should have reasonable estimates for high values that weren't evicted
-        double estimate1 = estimator1.estimateGreaterThan(100000);
-        double estimate2 = estimator2.estimateGreaterThan(100000);
-        
-        // Since some data may be evicted to underflow, lower the expectation
-        // The key is that we get reasonable non-zero estimates after maintenance
-        assertTrue(estimate1 >= 0.0, "Bucket1 P(>100000) should be >= 0.0 after maintenance, got " + estimate1);
-        assertTrue(estimate2 >= 0.0, "Bucket2 P(>100000) should be >= 0.0 after maintenance, got " + estimate2);
-        
-        // Test that estimators still work after maintenance - at least one should have some selectivity
-        assertTrue(estimate1 + estimate2 > 0.0, "At least one bucket should have positive selectivity after maintenance");
-    }*/
+
+        // Perform maintenance - will evict oldest decades (0,1,2) keeping only (3,4)
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            windowManager.maintainWindow(tr);
+            tr.commit().join();
+        }
+
+        // After maintenance: some data evicted to underflow summary
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            double afterMaintenance = estimator.estimateGreaterThan(tr, 0.5);
+
+            // Estimation should still be reasonable but may have precision loss
+            // Since evicted data goes to underflow summary, the estimate should account for that
+            assertTrue(afterMaintenance >= 0.3, "After maintenance: P(>0.5) should be at least 0.3, got " + afterMaintenance + " (precision loss due to eviction is expected)");
+            assertTrue(afterMaintenance <= 1.0, "After maintenance: P(>0.5) should not exceed 1.0, got " + afterMaintenance);
+
+            // Test more specific threshold after maintenance
+            // Values > 500: {1000.0, 10000.0} should still be detectable
+            double afterMaintenanceHighThreshold = estimator.estimateGreaterThan(tr, 500);
+            assertTrue(afterMaintenanceHighThreshold > 0.1, "After maintenance: P(>500) should be greater than 0.1, got " + afterMaintenanceHighThreshold);
+        }
+    }
 }
