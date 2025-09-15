@@ -225,26 +225,31 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
     void testLargeValueRange() {
         // Dataset: 7 values spanning many decades {1.2, 25, 678, 4589, 123456, 7.89e6, 3.45e8}
         double[] values = {1.2, 25, 678, 4589, 123456, 7.89e6, 3.45e8};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Values > 1: all 7 values = 7/7 = 1.0
-        assertEquals(1.0, estimator.estimateGreaterThan(1), 0.05, "P(>1) should be 1.0 as all values are greater than 1");
-        
-        // Values > 1000: {4589, 123456, 7.89e6, 3.45e8} = 4/7 ≈ 0.571
-        assertEquals(0.571, estimator.estimateGreaterThan(1000), 0.15, "P(>1000) should be approximately 0.571 (4 out of 7 values)");
-        
-        // Values > 1e6: {7.89e6, 3.45e8} = 2/7 ≈ 0.286
-        assertEquals(0.286, estimator.estimateGreaterThan(1e6), 0.15, "P(>1e6) should be approximately 0.286 (2 out of 7 values)");
-        
-        // Values > 1e9: none = 0/7 = 0.0 (3.45e8 < 1e9)
-        assertEquals(0.0, estimator.estimateGreaterThan(1e9), 0.1, "P(>1e9) should be 0.0 as no values exceed 1 billion");
-        
-        // Range [100, 10000): {678, 4589} = 2/7 ≈ 0.286
-        assertEquals(0.286, estimator.estimateRange(100, 10000), 0.15, "P([100,10000)) should be approximately 0.286 (2 out of 7 values)");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Values > 1: all 7 values = 7/7 = 1.0
+            assertEquals(1.0, estimator.estimateGreaterThan(tr, 1), 0.05, "P(>1) should be 1.0 as all values are greater than 1");
+            
+            // Values > 1000: {4589, 123456, 7.89e6, 3.45e8} = 4/7 ≈ 0.571
+            assertEquals(0.571, estimator.estimateGreaterThan(tr, 1000), 0.15, "P(>1000) should be approximately 0.571 (4 out of 7 values)");
+            
+            // Values > 1e6: {7.89e6, 3.45e8} = 2/7 ≈ 0.286
+            assertEquals(0.286, estimator.estimateGreaterThan(tr, 1e6), 0.15, "P(>1e6) should be approximately 0.286 (2 out of 7 values)");
+            
+            // Values > 1e9: none = 0/7 = 0.0 (3.45e8 < 1e9)
+            assertEquals(0.0, estimator.estimateGreaterThan(tr, 1e9), 0.1, "P(>1e9) should be 0.0 as no values exceed 1 billion");
+            
+            // Range [100, 10000): {678, 4589} = 2/7 ≈ 0.286
+            assertEquals(0.286, estimator.estimateRange(tr, 100, 10000), 0.15, "P([100,10000)) should be approximately 0.286 (2 out of 7 values)");
+        }
     }
     
     /*@Test
