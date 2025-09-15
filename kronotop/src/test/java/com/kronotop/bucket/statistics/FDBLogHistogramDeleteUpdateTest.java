@@ -484,34 +484,42 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testPublicDeleteMultipleValues() {
         double value1 = 100.0;
         double value2 = 200.0;
         double value3 = 300.0;
         
-        // Insert multiple values
-        histogram.add(testBucket, testField, value1);
-        histogram.add(testBucket, testField, value2);
-        histogram.add(testBucket, testField, value3);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Insert multiple values
+            histogram.addValue(tr, value1);
+            histogram.addValue(tr, value2);
+            histogram.addValue(tr, value3);
+            tr.commit().join();
+        }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-        double initialCount = estimator.estimateGreaterThan(50);
-        assertTrue(initialCount > 0, "Should have values after inserts");
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Delete values one by one
-        histogram.delete(testBucket, testField, value2);
-        double afterFirstDelete = estimator.estimateGreaterThan(50);
-        assertTrue(afterFirstDelete > 0, "Should still have values after first delete");
-        
-        histogram.delete(testBucket, testField, value1);
-        histogram.delete(testBucket, testField, value3);
-        
-        double afterAllDeletes = estimator.estimateGreaterThan(50);
-        assertEquals(0.0, afterAllDeletes, 0.01, "Should have no values after all deletes");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            double initialCount = estimator.estimateGreaterThan(tr, 50);
+            assertTrue(initialCount > 0, "Should have values after inserts");
+            
+            // Delete values one by one
+            histogram.deleteValue(tr, value2);
+            double afterFirstDelete = estimator.estimateGreaterThan(tr, 50);
+            assertTrue(afterFirstDelete > 0, "Should still have values after first delete");
+            
+            histogram.deleteValue(tr, value1);
+            histogram.deleteValue(tr, value3);
+            
+            double afterAllDeletes = estimator.estimateGreaterThan(tr, 50);
+            assertEquals(0.0, afterAllDeletes, 0.01, "Should have no values after all deletes");
+            
+            tr.commit().join();
+        }
     }
     
-    @Test
+    /*@Test
     void testPublicUpdateChain() {
         double value1 = 50.0;
         double value2 = 100.0;
