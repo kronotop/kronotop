@@ -176,138 +176,156 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testNegativeValuesOnly() {
-        histogram.initialize(testBucket, testField, HistogramMetadata.defaultMetadata());
-        
         // Dataset: only negative values {-1, -10, -100, -1000}  
         double[] values = {-1.0, -10.0, -100.0, -1000.0};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Values > 0: none = 0/4 = 0.0
-        assertEquals(0.0, estimator.estimateGreaterThan(0), 0.05, "P(>0) should be 0.0 as no values are positive");
-        
-        // Values > -50: values closer to zero than -50, i.e., {-1, -10} = 2/4 = 0.5
-        assertEquals(0.5, estimator.estimateGreaterThan(-50), 0.15, "P(>-50) should be approximately 0.5 (values -1, -10)");
-        
-        // Values > -2000: all values are greater = 4/4 = 1.0
-        assertEquals(1.0, estimator.estimateGreaterThan(-2000), 0.05, "P(>-2000) should be 1.0 as all values are greater than -2000");
-        
-        // Values > -5: only -1 = 1/4 = 0.25
-        assertEquals(0.25, estimator.estimateGreaterThan(-5), 0.15, "P(>-5) should be approximately 0.25 (only -1)");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Values > 0: none = 0/4 = 0.0
+            assertEquals(0.0, estimator.estimateGreaterThan(tr, 0), 0.05, "P(>0) should be 0.0 as no values are positive");
+            
+            // Values > -50: values closer to zero than -50, i.e., {-1, -10} = 2/4 = 0.5
+            assertEquals(0.5, estimator.estimateGreaterThan(tr, -50), 0.15, "P(>-50) should be approximately 0.5 (values -1, -10)");
+            
+            // Values > -2000: all values are greater = 4/4 = 1.0
+            assertEquals(1.0, estimator.estimateGreaterThan(tr, -2000), 0.05, "P(>-2000) should be 1.0 as all values are greater than -2000");
+            
+            // Values > -5: only -1 = 1/4 = 0.25
+            assertEquals(0.25, estimator.estimateGreaterThan(tr, -5), 0.15, "P(>-5) should be approximately 0.25 (only -1)");
+        }
     }
     
     @Test
     void testMixedPositiveNegativeValues() {
-        histogram.initialize(testBucket, testField, HistogramMetadata.defaultMetadata());
-        
         // Dataset: mixed values {-100, -10, -1, 1, 10, 100}
         double[] values = {-100.0, -10.0, -1.0, 1.0, 10.0, 100.0};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Values > 0: {1, 10, 100} = 3/6 = 0.5
-        assertEquals(0.5, estimator.estimateGreaterThan(0), 0.15, "P(>0) should be approximately 0.5 (3 positive out of 6 values)");
-        
-        // Values > -50: positives {1, 10, 100} + negatives closer to zero {-10, -1} = 5/6 ≈ 0.833
-        assertEquals(0.833, estimator.estimateGreaterThan(-50), 0.15, "P(>-50) should be approximately 0.833");
-        
-        // Values > 50: {100} = 1/6 ≈ 0.167
-        assertEquals(0.167, estimator.estimateGreaterThan(50), 0.15, "P(>50) should be approximately 0.167");
-        
-        // Values > -5: positives {1, 10, 100} + negatives closer to zero {-1} = 4/6 ≈ 0.667
-        assertEquals(0.667, estimator.estimateGreaterThan(-5), 0.15, "P(>-5) should be approximately 0.667");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Values > 0: {1, 10, 100} = 3/6 = 0.5
+            assertEquals(0.5, estimator.estimateGreaterThan(tr, 0), 0.15, "P(>0) should be approximately 0.5 (3 positive out of 6 values)");
+            
+            // Values > -50: positives {1, 10, 100} + negatives closer to zero {-10, -1} = 5/6 ≈ 0.833
+            assertEquals(0.833, estimator.estimateGreaterThan(tr, -50), 0.15, "P(>-50) should be approximately 0.833");
+            
+            // Values > 50: {100} = 1/6 ≈ 0.167
+            assertEquals(0.167, estimator.estimateGreaterThan(tr, 50), 0.15, "P(>50) should be approximately 0.167");
+            
+            // Values > -5: positives {1, 10, 100} + negatives closer to zero {-1} = 4/6 ≈ 0.667
+            assertEquals(0.667, estimator.estimateGreaterThan(tr, -5), 0.15, "P(>-5) should be approximately 0.667");
+        }
     }
     
     @Test
     void testZeroValues() {
-        histogram.initialize(testBucket, testField, HistogramMetadata.defaultMetadata());
-        
         // Dataset: includes zero {-10, 0, 0, 10}
         double[] values = {-10.0, 0.0, 0.0, 10.0};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Values > 0: {10} = 1/4 = 0.25
-        assertEquals(0.25, estimator.estimateGreaterThan(0), 0.15, "P(>0) should be approximately 0.25");
-        
-        // Values > -5: positives {10} + zeros {0, 0} = 3/4 = 0.75
-        assertEquals(0.75, estimator.estimateGreaterThan(-5), 0.15, "P(>-5) should be approximately 0.75");
-        
-        // Values > -20: all values = 4/4 = 1.0
-        assertEquals(1.0, estimator.estimateGreaterThan(-20), 0.05, "P(>-20) should be 1.0");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Values > 0: {10} = 1/4 = 0.25
+            assertEquals(0.25, estimator.estimateGreaterThan(tr, 0), 0.15, "P(>0) should be approximately 0.25");
+            
+            // Values > -5: positives {10} + zeros {0, 0} = 3/4 = 0.75
+            assertEquals(0.75, estimator.estimateGreaterThan(tr, -5), 0.15, "P(>-5) should be approximately 0.75");
+            
+            // Values > -20: all values = 4/4 = 1.0
+            assertEquals(1.0, estimator.estimateGreaterThan(tr, -20), 0.05, "P(>-20) should be 1.0");
+        }
     }
     
     @Test
     void testRangeEstimationWithNegatives() {
-        histogram.initialize(testBucket, testField, HistogramMetadata.defaultMetadata());
-        
         // Dataset: {-100, -50, -10, 10, 50, 100}
         double[] values = {-100.0, -50.0, -10.0, 10.0, 50.0, 100.0};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Range [-20, 20): includes {-10, 10} = 2/6 ≈ 0.333
-        assertEquals(0.333, estimator.estimateRange(-20, 20), 0.2, "P([-20,20)) should be approximately 0.333");
-        
-        // Range [0, 100): includes {10, 50} = 2/6 ≈ 0.333 (100 not included)
-        assertEquals(0.333, estimator.estimateRange(0, 100), 0.2, "P([0,100)) should be approximately 0.333");
-        
-        // Range [-200, 0): includes {-100, -50, -10} = 3/6 = 0.5 (0 not included)
-        assertEquals(0.5, estimator.estimateRange(-200, 0), 0.2, "P([-200,0)) should be approximately 0.5");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Range [-20, 20): includes {-10, 10} = 2/6 ≈ 0.333
+            assertEquals(0.333, estimator.estimateRange(tr, -20, 20), 0.2, "P([-20,20)) should be approximately 0.333");
+            
+            // Range [0, 100): includes {10, 50} = 2/6 ≈ 0.333 (100 not included)
+            assertEquals(0.333, estimator.estimateRange(tr, 0, 100), 0.2, "P([0,100)) should be approximately 0.333");
+            
+            // Range [-200, 0): includes {-100, -50, -10} = 3/6 = 0.5 (0 not included)
+            assertEquals(0.5, estimator.estimateRange(tr, -200, 0), 0.2, "P([-200,0)) should be approximately 0.5");
+        }
     }
     
     @Test
     void testDocumentationExample() {
-        histogram.initialize(testBucket, testField, HistogramMetadata.defaultMetadata());
-        
         // Example from design document: {-30, -40, -99, -123, -250, -999, -2587, -4589, -10000}
         double[] values = {-30, -40, -99, -123, -250, -999, -2587, -4589, -10000};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // P(value > -45) should match -30, -40 = 2/9 ≈ 0.222
-        assertEquals(0.222, estimator.estimateGreaterThan(-45), 0.15, "P(>-45) should be approximately 0.222 as per design doc");
-        
-        // P(value > -500) should match values closer to zero than -500: -30, -40, -99, -123, -250 = 5/9 ≈ 0.556
-        assertEquals(0.556, estimator.estimateGreaterThan(-500), 0.15, "P(>-500) should be approximately 0.556 as per design doc");
-        
-        // P(value > 200) should be 0.0 as no positive values
-        assertEquals(0.0, estimator.estimateGreaterThan(200), 0.05, "P(>200) should be 0.0 as per design doc");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // P(value > -45) should match -30, -40 = 2/9 ≈ 0.222
+            assertEquals(0.222, estimator.estimateGreaterThan(tr, -45), 0.15, "P(>-45) should be approximately 0.222 as per design doc");
+            
+            // P(value > -500) should match values closer to zero than -500: -30, -40, -99, -123, -250 = 5/9 ≈ 0.556
+            assertEquals(0.556, estimator.estimateGreaterThan(tr, -500), 0.15, "P(>-500) should be approximately 0.556 as per design doc");
+            
+            // P(value > 200) should be 0.0 as no positive values
+            assertEquals(0.0, estimator.estimateGreaterThan(tr, 200), 0.05, "P(>200) should be 0.0 as per design doc");
+        }
     }
     
-    @Test  
+    @Test
     void testEdgeCasesWithSmallValues() {
-        histogram.initialize(testBucket, testField, HistogramMetadata.defaultMetadata());
-        
         // Test with very small positive and negative values
         double[] values = {-0.001, -0.01, -0.1, 0.001, 0.01, 0.1};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Values > 0: {0.001, 0.01, 0.1} = 3/6 = 0.5
-        assertEquals(0.5, estimator.estimateGreaterThan(0), 0.15, "P(>0) should be approximately 0.5");
-        
-        // Values > -0.05: positives + negatives closer to zero {-0.01, -0.001} = 5/6 ≈ 0.833  
-        assertEquals(0.833, estimator.estimateGreaterThan(-0.05), 0.2, "P(>-0.05) should be approximately 0.833");
-    }*/
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Values > 0: {0.001, 0.01, 0.1} = 3/6 = 0.5
+            assertEquals(0.5, estimator.estimateGreaterThan(tr, 0), 0.15, "P(>0) should be approximately 0.5");
+            
+            // Values > -0.05: positives + negatives closer to zero {-0.01, -0.001} = 5/6 ≈ 0.833  
+            assertEquals(0.833, estimator.estimateGreaterThan(tr, -0.05), 0.2, "P(>-0.05) should be approximately 0.833");
+        }
+    }
 }
