@@ -385,27 +385,37 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testPublicDeleteMethod() {
         double value = 250.0;
         
-        // Insert using public method
-        histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Insert value
+            histogram.addValue(tr, value);
+            tr.commit().join();
+        }
         
-        // Verify insertion
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-        double beforeDelete = estimator.estimateGreaterThan(200);
-        assertTrue(beforeDelete > 0, "Should have positive selectivity after insert");
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Delete using public method
-        histogram.delete(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Verify insertion
+            double beforeDelete = estimator.estimateGreaterThan(tr, 200);
+            assertTrue(beforeDelete > 0, "Should have positive selectivity after insert");
+        }
         
-        // Verify deletion
-        double afterDelete = estimator.estimateGreaterThan(200);
-        assertEquals(0.0, afterDelete, 0.01, "Selectivity should be zero after delete");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Delete value
+            histogram.deleteValue(tr, value);
+            
+            // Verify deletion
+            double afterDelete = estimator.estimateGreaterThan(tr, 200);
+            assertEquals(0.0, afterDelete, 0.01, "Selectivity should be zero after delete");
+            
+            tr.commit().join();
+        }
     }
     
-    @Test
+    /*@Test
     void testPublicUpdateMethod() {
         double oldValue = 75.0;
         double newValue = 175.0;
