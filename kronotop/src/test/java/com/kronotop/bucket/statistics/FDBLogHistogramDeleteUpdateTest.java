@@ -579,34 +579,42 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testPublicMethodsWithZeroValues() {
         double zeroValue = 0.0;
         double positiveValue = 100.0;
         
-        // Test with zero values
-        histogram.add(testBucket, testField, zeroValue);
-        histogram.add(testBucket, testField, positiveValue);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Test with zero values
+            histogram.addValue(tr, zeroValue);
+            histogram.addValue(tr, positiveValue);
+            tr.commit().join();
+        }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-        double beforeDelete = estimator.estimateGreaterThan(-1);
-        assertTrue(beforeDelete > 0, "Should have values after inserts including zero");
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Delete zero value
-        histogram.delete(testBucket, testField, zeroValue);
-        double afterDeleteZero = estimator.estimateGreaterThan(-1);
-        assertTrue(afterDeleteZero > 0, "Should still have positive value after deleting zero");
-        
-        // Update positive to zero
-        histogram.update(testBucket, testField, positiveValue, zeroValue);
-        double afterUpdateToZero = estimator.estimateGreaterThan(0);
-        assertEquals(0.0, afterUpdateToZero, 0.01, "Should have no positive values after update to zero");
-        
-        double afterUpdateIncludingZero = estimator.estimateGreaterThan(-1);
-        assertTrue(afterUpdateIncludingZero > 0, "Should have zero value after update");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            double beforeDelete = estimator.estimateGreaterThan(tr, -1);
+            assertTrue(beforeDelete > 0, "Should have values after inserts including zero");
+            
+            // Delete zero value
+            histogram.deleteValue(tr, zeroValue);
+            double afterDeleteZero = estimator.estimateGreaterThan(tr, -1);
+            assertTrue(afterDeleteZero > 0, "Should still have positive value after deleting zero");
+            
+            // Update positive to zero
+            histogram.updateValue(tr, positiveValue, zeroValue);
+            double afterUpdateToZero = estimator.estimateGreaterThan(tr, 0);
+            assertEquals(0.0, afterUpdateToZero, 0.01, "Should have no positive values after update to zero");
+            
+            double afterUpdateIncludingZero = estimator.estimateGreaterThan(tr, -1);
+            assertTrue(afterUpdateIncludingZero > 0, "Should have zero value after update");
+            
+            tr.commit().join();
+        }
     }
     
-    @Test
+    /*@Test
     void testPublicUpdateNonExistentValue() {
         String newBucket = "test_nonexistent_" + System.nanoTime();
         
