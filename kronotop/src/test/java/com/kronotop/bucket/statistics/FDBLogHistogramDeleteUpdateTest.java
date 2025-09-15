@@ -37,7 +37,6 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
-    private final String testField = "price";
     private FDBLogHistogram histogram;
     private String testBucket; // Will be unique per test
 

@@ -16,117 +16,167 @@
 
 package com.kronotop.bucket.statistics;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.SortOrder;
+import com.kronotop.server.Session;
+import org.bson.BsonType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/*
+
 class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
-    
+
     private FDBLogHistogram histogram;
-    private String testBucket;
-    private final String testField = "value";
-    
+    private String testBucket; // Will be unique per test
+
+    protected void createBucket(String bucketName) {
+        // Bucket is created implicitly through BucketMetadataUtil.createOrOpen()
+        Session session = getSession();
+        BucketMetadataUtil.createOrOpen(context, session, bucketName);
+    }
+
+    protected void createIndex(String bucketName, IndexDefinition indexDefinition) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = getBucketMetadata(bucketName);
+            IndexUtil.create(tr, metadata.subspace(), indexDefinition);
+            tr.commit().join();
+        }
+    }
+
+    protected BucketMetadata createIndexesAndLoadBucketMetadata(String bucketName, IndexDefinition definition) {
+        // Create the bucket first
+        createBucket(bucketName);
+
+        createIndex(bucketName, definition);
+
+        // Load and return metadata
+        Session session = getSession();
+        return BucketMetadataUtil.createOrOpen(context, session, bucketName);
+    }
+
     @BeforeEach
     void setUp() {
-        histogram = new FDBLogHistogram(instance.getContext().getFoundationDB());
-        testBucket = "test_bucket_" + System.nanoTime();
+        testBucket = "test_bucket_" + System.nanoTime(); // Unique bucket per test
+
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata bucketMetadata = createIndexesAndLoadBucketMetadata(testBucket, ageIndex);
+        DirectorySubspace indexSubspace = bucketMetadata.indexes().getSubspace("age");
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            FDBLogHistogram.initialize(tr, indexSubspace.getPath());
+            tr.commit().join();
+        }
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            histogram = new FDBLogHistogram(tr, indexSubspace.getPath());
+        }
     }
 
     @Test
     void testEstimation() {
-        histogram.initialize(testBucket, testField, HistogramMetadata.defaultMetadata());
-
         // Dataset from design document: {-30, -40, -99, -123, -250, -999, -2587, -4589, -10000}
         double[] values = {-30, -40, -99, -123, -250, -999, -2587, -4589, -10000};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Debug the range estimation components
-        System.out.println("Dataset: " + java.util.Arrays.toString(values));
-        System.out.println("Debug range P([-1200, -40)):");
-        System.out.println("  P(field >= -1200) = " + estimator.estimateGreaterThan(-1200 - 1e-12));
-        System.out.println("  P(field >= -40) = " + estimator.estimateGreaterThan(-40 - 1e-12)); 
-        System.out.println("  P(field > -40) = " + estimator.estimateGreaterThan(-40));
-        System.out.println("  P(field > -39.999) = " + estimator.estimateGreaterThan(-39.999));
-        System.out.println("  Range estimate = " + estimator.estimateRange(-1200, -40));
-        
-        // Analysis: For negative thresholds, P(field > threshold) includes:
-        // - All positive values (none in this dataset)
-        // - All zeros (none in this dataset) 
-        // - All negatives with |v| < |threshold| (closer to zero)
-        
-        // For P(field > -40): should include values closer to zero than -40
-        // Values closer to zero than -40: {-30} = 1/9 ≈ 0.111
-        System.out.println("\nExpected P(field > -40) ≈ 0.111 (only -30 is closer to zero)");
-        
-        // For P(field > -1200): should include values closer to zero than -1200
-        // Values closer to zero than -1200: all values = 9/9 = 1.0
-        System.out.println("Expected P(field > -1200) ≈ 1.0 (all values closer to zero)");
-        
-        // So range P([-1200, -40)) = P(field >= -1200) - P(field >= -40)
-        // ≈ 1.0 - 0.111 = 0.889 (NOT 0.333!)
-        System.out.println("Expected range P([-1200, -40)) ≈ 0.889, not 0.333");
-        
-        // The confusion was: we want values IN the range [-1200, -40)
-        // But that's not the same as the probability calculation P(field >= a) - P(field >= b)
-        
-        // Test various threshold estimates
-        double estimate_neg25 = estimator.estimateGreaterThan(-25);
-        double estimate_200 = estimator.estimateGreaterThan(200);
-        double estimate_neg500 = estimator.estimateGreaterThan(-500);
-        double range_estimate = estimator.estimateRange(-1200, -40);
-        
-        System.out.println("Dataset: " + java.util.Arrays.toString(values));
-        System.out.println("Total count: " + values.length);
-        System.out.println();
-        System.out.println("P(value > -25) = " + estimate_neg25 + " (expected: values closer to zero than -25: {-30} = 0/9 = 0.0)");
-        System.out.println("P(value > 200) = " + estimate_200 + " (expected: no positive values = 0/9 = 0.0)");
-        System.out.println("P(value > -500) = " + estimate_neg500 + " (expected: values closer to zero than -500: {-30, -40, -99, -123, -250} = 5/9 ≈ 0.556)");
-        System.out.println("P([-1200, -40)) = " + range_estimate + " (log histogram approximation, calculated as P(>=−1200) − P(>=−40) = 0.667 − 0.111 = 0.556)");
-        
-        // Verify the estimates are reasonable
-        assertEquals(0.0, estimate_neg25, 0.05, "P(>-25) should be 0.0 as no values are closer to zero than -25");
-        assertEquals(0.0, estimate_200, 0.05, "P(>200) should be 0.0 as no positive values exist");
-        assertEquals(0.556, estimate_neg500, 0.15, "P(>-500) should be approximately 0.556");
-        
-        // Due to log histogram bucketing approximations, the range estimate may not be exact
-        // The important thing is that it's a reasonable estimate between 0.2 and 0.7
-        assertTrue(range_estimate >= 0.2 && range_estimate <= 0.7, 
-                "P([-1200,-40)) should be between 0.2 and 0.7, got " + range_estimate);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Debug the range estimation components
+            System.out.println("Dataset: " + java.util.Arrays.toString(values));
+            System.out.println("Debug range P([-1200, -40)):");
+            System.out.println("  P(field >= -1200) = " + estimator.estimateGreaterThan(tr, -1200 - 1e-12));
+            System.out.println("  P(field >= -40) = " + estimator.estimateGreaterThan(tr, -40 - 1e-12)); 
+            System.out.println("  P(field > -40) = " + estimator.estimateGreaterThan(tr, -40));
+            System.out.println("  P(field > -39.999) = " + estimator.estimateGreaterThan(tr, -39.999));
+            System.out.println("  Range estimate = " + estimator.estimateRange(tr, -1200, -40));
+            
+            // Analysis: For negative thresholds, P(field > threshold) includes:
+            // - All positive values (none in this dataset)
+            // - All zeros (none in this dataset) 
+            // - All negatives with |v| < |threshold| (closer to zero)
+            
+            // For P(field > -40): should include values closer to zero than -40
+            // Values closer to zero than -40: {-30} = 1/9 ≈ 0.111
+            System.out.println("\nExpected P(field > -40) ≈ 0.111 (only -30 is closer to zero)");
+            
+            // For P(field > -1200): should include values closer to zero than -1200
+            // Values closer to zero than -1200: all values = 9/9 = 1.0
+            System.out.println("Expected P(field > -1200) ≈ 1.0 (all values closer to zero)");
+            
+            // So range P([-1200, -40)) = P(field >= -1200) - P(field >= -40)
+            // ≈ 1.0 - 0.111 = 0.889 (NOT 0.333!)
+            System.out.println("Expected range P([-1200, -40)) ≈ 0.889, not 0.333");
+            
+            // The confusion was: we want values IN the range [-1200, -40)
+            // But that's not the same as the probability calculation P(field >= a) - P(field >= b)
+            
+            // Test various threshold estimates
+            double estimate_neg25 = estimator.estimateGreaterThan(tr, -25);
+            double estimate_200 = estimator.estimateGreaterThan(tr, 200);
+            double estimate_neg500 = estimator.estimateGreaterThan(tr, -500);
+            double range_estimate = estimator.estimateRange(tr, -1200, -40);
+            
+            System.out.println("Dataset: " + java.util.Arrays.toString(values));
+            System.out.println("Total count: " + values.length);
+            System.out.println();
+            System.out.println("P(value > -25) = " + estimate_neg25 + " (expected: values closer to zero than -25: {-30} = 0/9 = 0.0)");
+            System.out.println("P(value > 200) = " + estimate_200 + " (expected: no positive values = 0/9 = 0.0)");
+            System.out.println("P(value > -500) = " + estimate_neg500 + " (expected: values closer to zero than -500: {-30, -40, -99, -123, -250} = 5/9 ≈ 0.556)");
+            System.out.println("P([-1200, -40)) = " + range_estimate + " (log histogram approximation, calculated as P(>=−1200) − P(>=−40) = 0.667 − 0.111 = 0.556)");
+            
+            // Verify the estimates are reasonable
+            assertEquals(0.0, estimate_neg25, 0.05, "P(>-25) should be 0.0 as no values are closer to zero than -25");
+            assertEquals(0.0, estimate_200, 0.05, "P(>200) should be 0.0 as no positive values exist");
+            assertEquals(0.556, estimate_neg500, 0.15, "P(>-500) should be approximately 0.556");
+            
+            // Due to log histogram bucketing approximations, the range estimate may not be exact
+            // The important thing is that it's a reasonable estimate between 0.2 and 0.7
+            assertTrue(range_estimate >= 0.2 && range_estimate <= 0.7, 
+                    "P([-1200,-40)) should be between 0.2 and 0.7, got " + range_estimate);
+        }
     }
 
     @Test
     void testPositiveValuesOnly() {
-        histogram.initialize(testBucket, testField, HistogramMetadata.defaultMetadata());
-        
         // Dataset: only positive values {1, 10, 100, 1000}
         double[] values = {1.0, 10.0, 100.0, 1000.0};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Values > 50: {100, 1000} = 2/4 = 0.5
-        assertEquals(0.5, estimator.estimateGreaterThan(50), 0.15, "P(>50) should be approximately 0.5 (2 out of 4 values)");
-        
-        // Values > 0: all values = 4/4 = 1.0
-        assertEquals(1.0, estimator.estimateGreaterThan(0), 0.05, "P(>0) should be 1.0 as all values are positive");
-        
-        // Values > -10: all values = 4/4 = 1.0 
-        assertEquals(1.0, estimator.estimateGreaterThan(-10), 0.05, "P(>-10) should be 1.0 as all values are greater than -10");
-        
-        // Values > 2000: none = 0/4 = 0.0
-        assertTrue(estimator.estimateGreaterThan(2000) <= 0.15, "P(>2000) should be very small");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Values > 50: {100, 1000} = 2/4 = 0.5
+            assertEquals(0.5, estimator.estimateGreaterThan(tr, 50), 0.15, "P(>50) should be approximately 0.5 (2 out of 4 values)");
+            
+            // Values > 0: all values = 4/4 = 1.0
+            assertEquals(1.0, estimator.estimateGreaterThan(tr, 0), 0.05, "P(>0) should be 1.0 as all values are positive");
+            
+            // Values > -10: all values = 4/4 = 1.0 
+            assertEquals(1.0, estimator.estimateGreaterThan(tr, -10), 0.05, "P(>-10) should be 1.0 as all values are greater than -10");
+            
+            // Values > 2000: none = 0/4 = 0.0
+            assertTrue(estimator.estimateGreaterThan(tr, 2000) <= 0.15, "P(>2000) should be very small");
+        }
     }
     
-    @Test
+    /*@Test
     void testNegativeValuesOnly() {
         histogram.initialize(testBucket, testField, HistogramMetadata.defaultMetadata());
         
@@ -259,5 +309,5 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         
         // Values > -0.05: positives + negatives closer to zero {-0.01, -0.001} = 5/6 ≈ 0.833  
         assertEquals(0.833, estimator.estimateGreaterThan(-0.05), 0.2, "P(>-0.05) should be approximately 0.833");
-    }
-}*/
+    }*/
+}
