@@ -196,18 +196,20 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testBasicUpdateOperation() {
-        
         double oldValue = 50.0;
         double newValue = 150.0;
         
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert initial value
-            histogram.addValue(tr, testBucket, testField, oldValue, metadata);
-            
-            HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-            
+            histogram.addValue(tr, oldValue);
+            tr.commit().join();
+        }
+        
+        HistogramEstimator estimator = histogram.getEstimator();
+        
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Verify initial state
             double beforeUpdate = estimator.estimateGreaterThan(tr, 100);
             assertEquals(0.0, beforeUpdate, 0.01, "Should not have values > 100 initially");
@@ -216,7 +218,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
             assertTrue(initialCount > 0, "Should have positive values initially");
             
             // Update the value
-            histogram.updateValue(tr, testBucket, testField, oldValue, newValue, metadata);
+            histogram.updateValue(tr, oldValue, newValue);
             
             // Verify update results
             double afterUpdate = estimator.estimateGreaterThan(tr, 100);
@@ -229,7 +231,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    @Test
+    /*@Test
     void testUpdateToZero() {
         
         double oldValue = 100.0;
