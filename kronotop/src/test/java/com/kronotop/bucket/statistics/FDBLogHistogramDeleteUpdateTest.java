@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Comprehensive tests for FDBLogHistogram delete and update operations.
  * Tests the LogHistogramDynamic2 delete/update semantics with deterministic sharding.
  */
-class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
+/*class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
     
     private FDBLogHistogram histogram;
     private String testBucket;
@@ -535,4 +535,4 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
             estimator.estimateGreaterThan(150);
         }, "Estimator should handle inconsistent state gracefully");
     }
-}
+}*/

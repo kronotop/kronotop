@@ -58,13 +58,14 @@ import java.util.List;
  * meta                    -> JSON (metadata)
  */
 public class FDBLogHistogram {
-
     private final DirectorySubspace subspace;
     private final HistogramMetadata metadata;
+    private final HistogramEstimator estimator;
 
     public FDBLogHistogram(Transaction tr, List<String> root) {
         this.metadata = openMetadata(tr, root);
         this.subspace = openHistogramSubspace(tr, root, metadata);
+        this.estimator = new HistogramEstimator(metadata, subspace);
     }
 
     public static void initialize(Transaction tr, List<String> root) {
@@ -108,7 +109,7 @@ public class FDBLogHistogram {
     /**
      * Adds a value within an existing transaction following LogHistogramDynamic2
      */
-    public void addValue(Transaction tr, double value, HistogramMetadata metadata) {
+    public void addValue(Transaction tr, double value) {
         //DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
 
         if (value == 0.0) {
@@ -147,7 +148,7 @@ public class FDBLogHistogram {
     /**
      * Deletes a value using atomic ADD(-1) operations - exact inverse of insert
      */
-    public void deleteValue(Transaction tr, double value, HistogramMetadata metadata) {
+    public void deleteValue(Transaction tr, double value) {
         //DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
 
         if (value == 0.0) {
@@ -186,14 +187,14 @@ public class FDBLogHistogram {
     /**
      * Updates a value atomically (delete old + insert new in single transaction)
      */
-    public void updateValue(Transaction tr, double oldValue, double newValue, HistogramMetadata metadata) {
+    public void updateValue(Transaction tr, double oldValue, double newValue) {
         if (oldValue == newValue) {
             return; // No change needed
         }
 
         // Atomic delete old + insert new
-        deleteValue(tr, oldValue, metadata);
-        addValue(tr, newValue, metadata);
+        deleteValue(tr, oldValue);
+        addValue(tr, newValue);
     }
 
     /**
@@ -206,11 +207,8 @@ public class FDBLogHistogram {
         return (int) ((hash & 0x7fffffffL) % shardCount);
     }
 
-    /**
-     * Creates histogram estimator for selectivity calculations
-     */
-    public HistogramEstimator createEstimator() {
-        return new HistogramEstimator(metadata, subspace);
+    public HistogramEstimator getEstimator() {
+        return estimator;
     }
 
     /**

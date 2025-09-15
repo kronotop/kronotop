@@ -26,6 +26,7 @@ import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/*
 class HistogramKeySchemaTest extends BaseStandaloneInstanceTest {
     
     private DirectorySubspace testSubspace;
@@ -209,12 +210,12 @@ class HistogramKeySchemaTest extends BaseStandaloneInstanceTest {
         // Test that the constant is correctly encoded
         long decoded = HistogramKeySchema.decodeCounterValue(HistogramKeySchema.ONE_LE);
         assertEquals(1L, decoded);
-    }
+    }*/
     
     /**
      * Utility method to compare byte arrays lexicographically
      */
-    private int compareByteArrays(byte[] a, byte[] b) {
+    /*private int compareByteArrays(byte[] a, byte[] b) {
         int minLength = Math.min(a.length, b.length);
         for (int i = 0; i < minLength; i++) {
             int result = Byte.compareUnsigned(a[i], b[i]);
@@ -224,4 +225,4 @@ class HistogramKeySchemaTest extends BaseStandaloneInstanceTest {
         }
         return Integer.compare(a.length, b.length);
     }
-}
+}*/

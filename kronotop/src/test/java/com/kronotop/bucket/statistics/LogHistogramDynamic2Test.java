@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/*
 class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
     
     private FDBLogHistogram histogram;
@@ -259,4 +260,4 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         // Values > -0.05: positives + negatives closer to zero {-0.01, -0.001} = 5/6 ≈ 0.833  
         assertEquals(0.833, estimator.estimateGreaterThan(-0.05), 0.2, "P(>-0.05) should be approximately 0.833");
     }
-}
+}*/

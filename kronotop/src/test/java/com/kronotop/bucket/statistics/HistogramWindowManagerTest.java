@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/*
 class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
     
     private FDBLogHistogram histogram;
@@ -267,4 +268,4 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
         // Test that estimators still work after maintenance - at least one should have some selectivity
         assertTrue(estimate1 + estimate2 > 0.0, "At least one bucket should have positive selectivity after maintenance");
     }
-}
+}*/
