@@ -415,35 +415,42 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testPublicUpdateMethod() {
         double oldValue = 75.0;
         double newValue = 175.0;
         
-        // Insert using public method
-        histogram.add(testBucket, testField, oldValue);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Insert value
+            histogram.addValue(tr, oldValue);
+            tr.commit().join();
+        }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Verify initial state
-        double beforeUpdate = estimator.estimateGreaterThan(150);
-        assertEquals(0.0, beforeUpdate, 0.01, "Should not have values > 150 initially");
-        
-        double lowValues = estimator.estimateGreaterThan(50);
-        assertTrue(lowValues > 0, "Should have values > 50 initially");
-        
-        // Update using public method
-        histogram.update(testBucket, testField, oldValue, newValue);
-        
-        // Verify update results
-        double afterUpdate = estimator.estimateGreaterThan(150);
-        assertTrue(afterUpdate > 0, "Should have values > 150 after update");
-        
-        double stillLowValues = estimator.estimateGreaterThan(50);
-        assertTrue(stillLowValues > 0, "Should still have values > 50 after update");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Verify initial state
+            double beforeUpdate = estimator.estimateGreaterThan(tr, 150);
+            assertEquals(0.0, beforeUpdate, 0.01, "Should not have values > 150 initially");
+            
+            double lowValues = estimator.estimateGreaterThan(tr, 50);
+            assertTrue(lowValues > 0, "Should have values > 50 initially");
+            
+            // Update value
+            histogram.updateValue(tr, oldValue, newValue);
+            
+            // Verify update results
+            double afterUpdate = estimator.estimateGreaterThan(tr, 150);
+            assertTrue(afterUpdate > 0, "Should have values > 150 after update");
+            
+            double stillLowValues = estimator.estimateGreaterThan(tr, 50);
+            assertTrue(stillLowValues > 0, "Should still have values > 50 after update");
+            
+            tr.commit().join();
+        }
     }
     
-    @Test
+    /*@Test
     void testPublicDeleteNonExistentHistogram() {
         String nonExistentBucket = "non_existent_" + System.nanoTime();
         
