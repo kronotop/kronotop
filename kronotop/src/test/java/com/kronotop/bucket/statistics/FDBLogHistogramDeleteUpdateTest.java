@@ -349,29 +349,29 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testMixedOperations() {
         // Test complex scenario with inserts, deletes, and updates
         
-        
-        
-        
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
-            HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-            
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert various values
-            histogram.addValue(tr, testBucket, testField, 100.0, metadata);
-            histogram.addValue(tr, testBucket, testField, -50.0, metadata);
-            histogram.addValue(tr, testBucket, testField, 0.0, metadata);
-            
+            histogram.addValue(tr, 100.0);
+            histogram.addValue(tr, -50.0);
+            histogram.addValue(tr, 0.0);
+            tr.commit().join();
+        }
+        
+        HistogramEstimator estimator = histogram.getEstimator();
+        
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             double initialTotal = estimator.estimateGreaterThan(tr, -100);
             assertTrue(initialTotal > 0, "Should have values after initial inserts");
             
             // Update one value
-            histogram.updateValue(tr, testBucket, testField, 100.0, 200.0, metadata);
+            histogram.updateValue(tr, 100.0, 200.0);
             
             // Delete one value  
-            histogram.deleteValue(tr, testBucket, testField, -50.0, metadata);
+            histogram.deleteValue(tr, -50.0);
             
             // Should still have some values (zero and 200)
             double finalTotal = estimator.estimateGreaterThan(tr, -100);
@@ -385,7 +385,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    @Test
+    /*@Test
     void testPublicDeleteMethod() {
         double value = 250.0;
         
