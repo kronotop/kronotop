@@ -449,46 +449,42 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
     }
-    
-    /*@Test
-    void testPublicDeleteNonExistentHistogram() {
-        String nonExistentBucket = "non_existent_" + System.nanoTime();
-        
-        // Should not throw exception when deleting from non-existent histogram
-        assertDoesNotThrow(() -> {
-            histogram.delete(nonExistentBucket, testField, 100.0);
-        }, "Delete from non-existent histogram should not throw exception");
-    }
-    
+
     @Test
     void testPublicUpdateCreatesHistogramIfNeeded() {
-        String newBucket = "new_bucket_" + System.nanoTime();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // First add a value so we have something to update
+            histogram.addValue(tr, 50.0);
+            tr.commit().join();
+        }
         
-        // First add a value so we have something to update
-        histogram.add(newBucket, testField, 50.0);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Update should work on the newly created histogram
-        assertDoesNotThrow(() -> {
-            histogram.update(newBucket, testField, 50.0, 150.0);
-        }, "Update should work on histogram");
-        
-        // Verify the histogram has the updated value
-        HistogramEstimator estimator = histogram.createEstimator(newBucket, testField);
-        double result = estimator.estimateGreaterThan(100);
-        assertTrue(result > 0, "Should have values > 100 after update");
-        
-        // Should have some values in the range that includes 150
-        double highValues = estimator.estimateGreaterThan(125);
-        assertTrue(highValues > 0, "Should have values > 125 (the new value)");
-        
-        // Should not have the old value
-        double lowValues = estimator.estimateGreaterThan(25);
-        double veryLowValues = estimator.estimateGreaterThan(75);
-        // The estimate should show we have some values but they're in the higher range
-        assertTrue(lowValues > 0, "Should have some values > 25");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Update should work on the histogram
+            assertDoesNotThrow(() -> {
+                histogram.updateValue(tr, 50.0, 150.0);
+            }, "Update should work on histogram");
+            
+            // Verify the histogram has the updated value
+            double result = estimator.estimateGreaterThan(tr, 100);
+            assertTrue(result > 0, "Should have values > 100 after update");
+            
+            // Should have some values in the range that includes 150
+            double highValues = estimator.estimateGreaterThan(tr, 125);
+            assertTrue(highValues > 0, "Should have values > 125 (the new value)");
+            
+            // Should not have the old value
+            double lowValues = estimator.estimateGreaterThan(tr, 25);
+            double veryLowValues = estimator.estimateGreaterThan(tr, 75);
+            // The estimate should show we have some values but they're in the higher range
+            assertTrue(lowValues > 0, "Should have some values > 25");
+            
+            tr.commit().join();
+        }
     }
     
-    @Test
+    /*@Test
     void testPublicDeleteMultipleValues() {
         double value1 = 100.0;
         double value2 = 200.0;
