@@ -519,35 +519,42 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testPublicUpdateChain() {
         double value1 = 50.0;
         double value2 = 100.0;
         double value3 = 200.0;
         
-        // Insert initial value
-        histogram.add(testBucket, testField, value1);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Insert initial value
+            histogram.addValue(tr, value1);
+            tr.commit().join();
+        }
         
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        HistogramEstimator estimator = histogram.getEstimator();
         
-        // Chain of updates
-        histogram.update(testBucket, testField, value1, value2);
-        double afterFirstUpdate = estimator.estimateGreaterThan(75);
-        assertTrue(afterFirstUpdate > 0, "Should have values > 75 after first update");
-        
-        histogram.update(testBucket, testField, value2, value3);
-        double afterSecondUpdate = estimator.estimateGreaterThan(150);
-        assertTrue(afterSecondUpdate > 0, "Should have values > 150 after second update");
-        
-        // Should not have the intermediate values
-        double lowValues = estimator.estimateGreaterThan(25);
-        assertTrue(lowValues > 0, "Should have some values > 25");
-        
-        double midValues = estimator.estimateGreaterThan(125);
-        assertTrue(midValues > 0, "Should have values > 125 (the final value)");
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Chain of updates
+            histogram.updateValue(tr, value1, value2);
+            double afterFirstUpdate = estimator.estimateGreaterThan(tr, 75);
+            assertTrue(afterFirstUpdate > 0, "Should have values > 75 after first update");
+            
+            histogram.updateValue(tr, value2, value3);
+            double afterSecondUpdate = estimator.estimateGreaterThan(tr, 150);
+            assertTrue(afterSecondUpdate > 0, "Should have values > 150 after second update");
+            
+            // Should not have the intermediate values
+            double lowValues = estimator.estimateGreaterThan(tr, 25);
+            assertTrue(lowValues > 0, "Should have some values > 25");
+            
+            double midValues = estimator.estimateGreaterThan(tr, 125);
+            assertTrue(midValues > 0, "Should have values > 125 (the final value)");
+            
+            tr.commit().join();
+        }
     }
     
-    @Test
+    /*@Test
     void testPublicUpdateNoOpSameValue() {
         double value = 150.0;
         
