@@ -231,20 +231,22 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testUpdateToZero() {
-        
         double oldValue = 100.0;
         double newValue = 0.0;
         
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert positive value
-            histogram.addValue(tr, testBucket, testField, oldValue, metadata);
-            
+            histogram.addValue(tr, oldValue);
+            tr.commit().join();
+        }
+        
+        HistogramEstimator estimator = histogram.getEstimator();
+        
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Update to zero
-            histogram.updateValue(tr, testBucket, testField, oldValue, newValue, metadata);
-            
-            HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+            histogram.updateValue(tr, oldValue, newValue);
             
             // Should have zero positive values
             double positiveValues = estimator.estimateGreaterThan(tr, 0);
@@ -260,16 +262,18 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
     
     @Test
     void testUpdateSignFlip() {
-        
         double oldValue = -100.0;
         double newValue = 200.0;
         
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert negative value
-            histogram.addValue(tr, testBucket, testField, oldValue, metadata);
-            
-            HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-            
+            histogram.addValue(tr, oldValue);
+            tr.commit().join();
+        }
+        
+        HistogramEstimator estimator = histogram.getEstimator();
+        
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Verify initial negative value
             double initialPositive = estimator.estimateGreaterThan(tr, 0);
             assertEquals(0.0, initialPositive, 0.01, "Should have no positive values initially");
@@ -278,7 +282,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
             assertTrue(initialNegatives > 0, "Should have negative values initially");
             
             // Update from negative to positive (sign flip)
-            histogram.updateValue(tr, testBucket, testField, oldValue, newValue, metadata);
+            histogram.updateValue(tr, oldValue, newValue);
             
             // Verify sign flip results
             double finalPositive = estimator.estimateGreaterThan(tr, 0);
@@ -293,18 +297,21 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
     
     @Test
     void testNoOpUpdate() {
-        
         double value = 100.0;
         
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert value
-            histogram.addValue(tr, testBucket, testField, value, metadata);
-            
-            HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+            histogram.addValue(tr, value);
+            tr.commit().join();
+        }
+        
+        HistogramEstimator estimator = histogram.getEstimator();
+        
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             double beforeUpdate = estimator.estimateGreaterThan(tr, 50);
             
             // Update to same value (no-op)
-            histogram.updateValue(tr, testBucket, testField, value, value, metadata);
+            histogram.updateValue(tr, value, value);
             
             // Should be unchanged
             double afterUpdate = estimator.estimateGreaterThan(tr, 50);
@@ -316,19 +323,20 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
     
     @Test
     void testDeterministicSharding() {
-        
-         // Same primary key
         double value1 = 100.0;
         double value2 = 200.0;
         
-        try (Transaction tr = histogram.getDatabase().createTransaction()) {
-            // Insert with same primary key
-            histogram.addValue(tr, testBucket, testField, value1, metadata);
-            
-            // Update using same primary key should work correctly
-            histogram.updateValue(tr, testBucket, testField, value1, value2, metadata);
-            
-            HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Insert value
+            histogram.addValue(tr, value1);
+            tr.commit().join();
+        }
+        
+        HistogramEstimator estimator = histogram.getEstimator();
+        
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Update should work correctly
+            histogram.updateValue(tr, value1, value2);
             
             // Should have the new value, not the old
             double lowValues = estimator.estimateGreaterThan(tr, 50);
@@ -341,7 +349,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    @Test
+    /*@Test
     void testMixedOperations() {
         // Test complex scenario with inserts, deletes, and updates
         
