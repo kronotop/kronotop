@@ -34,7 +34,7 @@ public class PrefixHistogramUtils {
         if (bytes.length >= N) {
             return bytes;
         }
-        
+
         byte[] padded = new byte[N];
         System.arraycopy(bytes, 0, padded, 0, bytes.length);
         Arrays.fill(padded, bytes.length, N, padByte);
@@ -71,7 +71,7 @@ public class PrefixHistogramUtils {
         if (bytes == null) {
             return new byte[]{0x00};
         }
-        
+
         // Try to increment the last byte
         for (int i = bytes.length - 1; i >= 0; i--) {
             if ((bytes[i] & 0xFF) < 255) {
@@ -80,7 +80,7 @@ public class PrefixHistogramUtils {
                 return result;
             }
         }
-        
+
         // All bytes are 0xFF - append a 0x00 byte
         byte[] result = new byte[bytes.length + 1];
         System.arraycopy(bytes, 0, result, 0, bytes.length);
@@ -99,7 +99,7 @@ public class PrefixHistogramUtils {
         if (bytes.length >= length) {
             return Arrays.copyOf(bytes, length);
         }
-        
+
         byte[] padded = new byte[length];
         System.arraycopy(bytes, 0, padded, 0, bytes.length);
         Arrays.fill(padded, bytes.length, length, (byte) 0xFF);

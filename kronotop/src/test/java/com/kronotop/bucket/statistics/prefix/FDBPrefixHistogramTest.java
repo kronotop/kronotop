@@ -190,7 +190,7 @@ public class FDBPrefixHistogramTest extends BaseStandaloneInstanceTest {
         
         var result = estimator.estimateEq(testIndexSubspace, value);
         assertTrue(result.isExact());
-        assertEquals(500, result.getCount());
+        assertEquals(500, result.count());
         
         // Large set test (> PEEK_CAP) 
         for (int i = 500; i < 2000; i++) {
@@ -203,7 +203,7 @@ public class FDBPrefixHistogramTest extends BaseStandaloneInstanceTest {
         assertFalse(result.isExact());
         
         // Should be reasonably accurate (within 25% for P90)
-        double error = Math.abs(result.getCount() - 2000.0) / 2000.0;
+        double error = Math.abs(result.count() - 2000.0) / 2000.0;
         assertTrue(error < 0.5, "Error too high: " + error); // Relaxed for single test
     }
 

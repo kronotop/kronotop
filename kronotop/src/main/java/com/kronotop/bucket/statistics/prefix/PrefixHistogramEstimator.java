@@ -42,7 +42,7 @@ public class PrefixHistogramEstimator {
 
     /**
      * Estimates equality selectivity P(field = v) using peek-first approach.
-     * 
+     * <p>
      * Flow:
      * 1. Try index peek first (up to PEEK_CAP)
      * 2. If small enough → return EXACT count
@@ -67,37 +67,37 @@ public class PrefixHistogramEstimator {
         var valueSubspace = indexSubspace.subspace(Tuple.from((Object) value));
         byte[] beginKey = valueSubspace.range().begin;
         byte[] endKey = valueSubspace.range().end;
-        
+
         long peekCount = 0;
         int limit = metadata.peekCap() + 1;
-        
+
         for (var kv : tr.getRange(beginKey, endKey)) {
             peekCount++;
             if (peekCount > metadata.peekCap()) {
                 break;
             }
         }
-        
+
         // If within peek limit → EXACT
         if (peekCount <= metadata.peekCap()) {
             return new EstimateResult(peekCount, EstimateType.EXACT);
         }
-        
+
         // 2. If limit hit → estimate via histogram
         // Estimate the range [v_pad00..., v_padFF..._next)
         byte[] vPad00 = PrefixHistogramUtils.pN(value, metadata.N());
         byte[] vPadFF = PrefixHistogramUtils.padFF(value, metadata.N());
         byte[] vNext = PrefixHistogramUtils.lexSuccessor(vPadFF);
-        
+
         double estimate = estimateRange(tr, vPad00, vNext);
         return new EstimateResult(Math.round(estimate), EstimateType.APPROX);
     }
 
     /**
      * Estimates range selectivity P(a <= field < b) using histogram.
-     * 
+     * <p>
      * Algorithm:
-     * 1. Compute prefix buckets: a = pN(A), b = pN(B)  
+     * 1. Compute prefix buckets: a = pN(A), b = pN(B)
      * 2. Compute edge fractions from (N+1)th byte
      * 3. If same bucket: single bucket formula
      * 4. Else: sum contributions from edge + middle buckets
@@ -137,8 +137,8 @@ public class PrefixHistogramEstimator {
         // Multi-bucket case
         long Ta = getBucketCount(tr, subspace, a);
         long Tb = getBucketCount(tr, subspace, b);
-        long sumMid = getBucketCountRange(tr, subspace, 
-                                         PrefixHistogramKeySchema.nextFixedN(a), b);
+        long sumMid = getBucketCountRange(tr, subspace,
+                PrefixHistogramKeySchema.nextFixedN(a), b);
 
         return Ta * fracLeft + sumMid + Tb * fracRight;
     }
@@ -154,17 +154,17 @@ public class PrefixHistogramEstimator {
     /**
      * Gets sum of bucket counts in range [beginPN, endPN) - exclusive end
      */
-    private long getBucketCountRange(Transaction tr, DirectorySubspace subspace, 
-                                   byte[] beginPN, byte[] endPN) {
+    private long getBucketCountRange(Transaction tr, DirectorySubspace subspace,
+                                     byte[] beginPN, byte[] endPN) {
         long sum = 0;
-        
+
         byte[] beginKey = PrefixHistogramKeySchema.bucketCountRangeBegin(subspace, beginPN);
         byte[] endKey = PrefixHistogramKeySchema.bucketCountRangeBegin(subspace, endPN);
-        
+
         for (var kv : tr.getRange(beginKey, endKey)) {
             sum += PrefixHistogramKeySchema.decodeCounterValue(kv.getValue());
         }
-        
+
         return sum;
     }
 
@@ -176,40 +176,25 @@ public class PrefixHistogramEstimator {
     }
 
     /**
-     * Result of estimation operation
-     */
-    public static class EstimateResult {
-        private final long count;
-        private final EstimateType type;
-
-        public EstimateResult(long count, EstimateType type) {
-            this.count = count;
-            this.type = type;
-        }
-
-        public long getCount() {
-            return count;
-        }
-
-        public EstimateType getType() {
-            return type;
-        }
-
-        public boolean isExact() {
-            return type == EstimateType.EXACT;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("EstimateResult{count=%d, type=%s}", count, type);
-        }
-    }
-
-    /**
      * Type of estimate
      */
     public enum EstimateType {
         EXACT,   // Small set, peek returned exact count
         APPROX   // Large set, histogram-based approximation
     }
+
+    /**
+         * Result of estimation operation
+         */
+        public record EstimateResult(long count, EstimateType type) {
+
+        public boolean isExact() {
+                return type == EstimateType.EXACT;
+            }
+
+            @Override
+            public String toString() {
+                return String.format("EstimateResult{count=%d, type=%s}", count, type);
+            }
+        }
 }

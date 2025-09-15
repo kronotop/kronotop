@@ -35,7 +35,7 @@ public class PrefixHistogramKeySchema {
     public static final String N_PREFIX = "N";
     public static final String T_PREFIX = "T";
     public static final String METADATA_KEY = "meta";
-    
+
     // Little-endian encoded values for atomic ADD operations
     public static final byte[] ONE_LE = encodeCounterValue(1L);
     public static final byte[] NEGATIVE_ONE_LE = encodeCounterValue(-1L);

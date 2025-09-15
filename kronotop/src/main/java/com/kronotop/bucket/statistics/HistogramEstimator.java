@@ -98,14 +98,14 @@ public class HistogramEstimator {
             return 0.0;
         }
 
-            // P([a,b)) = P(field >= a) - P(field >= b)
-            // For P(field >= x), we compute 1 - P(field < x) = 1 - P(field <= x-epsilon)
-            // But it's easier to compute P(field > x-epsilon) directly
+        // P([a,b)) = P(field >= a) - P(field >= b)
+        // For P(field >= x), we compute 1 - P(field < x) = 1 - P(field <= x-epsilon)
+        // But it's easier to compute P(field > x-epsilon) directly
 
-            double eps = 1e-9;
-            double geqA = estimateGreaterThanOrEqual(tr, a);
-            double geqB = estimateGreaterThanOrEqual(tr, b);
-            return Math.max(0.0, Math.min(1.0, geqA - geqB));
+        double eps = 1e-9;
+        double geqA = estimateGreaterThanOrEqual(tr, a);
+        double geqB = estimateGreaterThanOrEqual(tr, b);
+        return Math.max(0.0, Math.min(1.0, geqA - geqB));
     }
 
     /**
