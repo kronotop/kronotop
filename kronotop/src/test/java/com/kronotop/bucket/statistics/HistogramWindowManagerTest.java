@@ -135,48 +135,59 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
         }
     }
     
-    /*@Test
+    @Test
     void testWindowMaintenanceWithinLimits() {
         // Large window (10 decades) to avoid evictions
         HistogramMetadata metadata = new HistogramMetadata(16, 4, 10, 16, 1);
-        histogram.initialize(testBucket, testField, metadata);
-        
+        FDBLogHistogram histogram = initialize(metadata);
+
+        HistogramWindowManager windowManager = histogram.getWindowManager();
+
         // Dataset: 5 values in same decade (decade 1) - won't exceed window limit
         double[] values = {10.0, 20.0, 30.0, 40.0, 50.0}; // All in decade 1
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
-        
-        HistogramWindowManager.WindowStats initialStats = windowManager.getWindowStats(testBucket, testField, metadata);
-        
-        // Should have only 1 active decade (well within limit of 10)
-        assertEquals(1, initialStats.activeDecadeCount(), "Should have exactly 1 active decade (all values in decade 1)");
-        assertTrue(initialStats.activeDecadeCount() <= metadata.windowDecades(), "Initial decades should be within window limit");
-        assertEquals(0, initialStats.underflowSum(), "Should have no underflow initially");
-        assertEquals(0, initialStats.overflowSum(), "Should have no overflow initially");
-        
-        // Perform maintenance - should be no-op since within limits
-        windowManager.maintainWindow(testBucket, testField, metadata);
-        
-        // Window should remain completely unchanged
-        HistogramWindowManager.WindowStats finalStats = windowManager.getWindowStats(testBucket, testField, metadata);
-        assertEquals(initialStats.activeDecadeCount(), finalStats.activeDecadeCount(), "Active decade count should remain unchanged");
-        assertEquals(initialStats.underflowSum(), finalStats.underflowSum(), "Underflow sum should remain unchanged (0)");
-        assertEquals(initialStats.overflowSum(), finalStats.overflowSum(), "Overflow sum should remain unchanged (0)");
-        assertEquals(initialStats.minActiveDecade(), finalStats.minActiveDecade(), "Min active decade should remain unchanged");
-        assertEquals(initialStats.maxActiveDecade(), finalStats.maxActiveDecade(), "Max active decade should remain unchanged");
-        
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            HistogramWindowManager.WindowStats initialStats = windowManager.getWindowStats(tr);
+
+            // Should have only 1 active decade (well within limit of 10)
+            assertEquals(1, initialStats.activeDecadeCount(), "Should have exactly 1 active decade (all values in decade 1)");
+            assertTrue(initialStats.activeDecadeCount() <= metadata.windowDecades(), "Initial decades should be within window limit");
+            assertEquals(0, initialStats.underflowSum(), "Should have no underflow initially");
+            assertEquals(0, initialStats.overflowSum(), "Should have no overflow initially");
+
+            // Perform maintenance - should be no-op since within limits
+            windowManager.maintainWindow(tr);
+
+            // Window should remain completely unchanged
+            HistogramWindowManager.WindowStats finalStats = windowManager.getWindowStats(tr);
+            assertEquals(initialStats.activeDecadeCount(), finalStats.activeDecadeCount(), "Active decade count should remain unchanged");
+            assertEquals(initialStats.underflowSum(), finalStats.underflowSum(), "Underflow sum should remain unchanged (0)");
+            assertEquals(initialStats.overflowSum(), finalStats.overflowSum(), "Overflow sum should remain unchanged (0)");
+            assertEquals(initialStats.minActiveDecade(), finalStats.minActiveDecade(), "Min active decade should remain unchanged");
+            assertEquals(initialStats.maxActiveDecade(), finalStats.maxActiveDecade(), "Max active decade should remain unchanged");
+
+            tr.commit().join();
+        }
+
         // Verify estimation accuracy is preserved
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-        
-        // Values > 5: all 5 values = 5/5 = 1.0
-        assertEquals(1.0, estimator.estimateGreaterThan(5), 0.05, "P(>5) should be exactly 1.0 as all values are greater than 5");
-        
-        // Values > 25: {30, 40, 50} = 3/5 = 0.6
-        assertEquals(0.6, estimator.estimateGreaterThan(25), 0.15, "P(>25) should be exactly 0.6 (3 out of 5 values)");
-        
-        // Values > 50: none = 0/5 = 0.0, but due to linear interpolation in bucket may give small estimate  
-        assertTrue(estimator.estimateGreaterThan(50) <= 0.25, "P(>50) should be very small, at most 0.25 due to bucketing approximation");
+        HistogramEstimator estimator = histogram.getEstimator();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Values > 5: all 5 values = 5/5 = 1.0
+            assertEquals(1.0, estimator.estimateGreaterThan(tr, 5), 0.05, "P(>5) should be exactly 1.0 as all values are greater than 5");
+
+            // Values > 25: {30, 40, 50} = 3/5 = 0.6
+            assertEquals(0.6, estimator.estimateGreaterThan(tr, 25), 0.15, "P(>25) should be exactly 0.6 (3 out of 5 values)");
+
+            // Values > 50: none = 0/5 = 0.0, but due to linear interpolation in bucket may give small estimate
+            assertTrue(estimator.estimateGreaterThan(tr, 50) <= 0.25, "P(>50) should be very small, at most 0.25 due to bucketing approximation");
+        }
     }
     
     /*@Test
