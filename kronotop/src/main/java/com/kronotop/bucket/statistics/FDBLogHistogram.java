@@ -69,18 +69,21 @@ public class FDBLogHistogram {
     }
 
     public static void initialize(Transaction tr, List<String> root) {
+        initialize(tr, root, HistogramMetadata.defaultMetadata());
+    }
+
+    public static void initialize(Transaction tr, List<String> root, HistogramMetadata metadata) {
         List<String> metaSubpath = new ArrayList<>(root);
         metaSubpath.addAll(Arrays.asList(
                 "statistics", "log10_hist"
         ));
         DirectorySubspace metaSubspace = DirectoryLayer.getDefault().createOrOpen(tr, metaSubpath).join();
         byte[] metaKey = HistogramKeySchema.metadataKey(metaSubspace);
-        HistogramMetadata defaultMetadata = HistogramMetadata.defaultMetadata();
-        byte[] metaValue = HistogramKeySchema.encodeMetadata(HistogramMetadata.defaultMetadata());
+        byte[] metaValue = HistogramKeySchema.encodeMetadata(metadata);
         tr.set(metaKey, metaValue);
 
         List<String> histogramSubspace = new ArrayList<>(root);
-        histogramSubspace.addAll(Arrays.asList("statistics", "log10_hist", "m", String.valueOf(defaultMetadata.m())));
+        histogramSubspace.addAll(Arrays.asList("statistics", "log10_hist", "m", String.valueOf(metadata.m())));
         DirectoryLayer.getDefault().createOrOpen(tr, histogramSubspace).join();
     }
 

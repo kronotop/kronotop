@@ -16,33 +16,77 @@
 
 package com.kronotop.bucket.statistics;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.SortOrder;
+import com.kronotop.server.Session;
+import org.bson.BsonType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/*
 class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
-    
-    private FDBLogHistogram histogram;
-    private HistogramWindowManager windowManager;
-    private String testBucket; // Will be unique per test
+
     private final String testField = "price";
-    
+    private FDBLogHistogram histogram;
+    private String testBucket; // Will be unique per test
+    private HistogramMetadata metadata;
+    private HistogramWindowManager windowManager;
+
+    protected void createBucket(String bucketName) {
+        // Bucket is created implicitly through BucketMetadataUtil.createOrOpen()
+        Session session = getSession();
+        BucketMetadataUtil.createOrOpen(context, session, bucketName);
+    }
+
+    protected void createIndex(String bucketName, IndexDefinition indexDefinition) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = getBucketMetadata(bucketName);
+            IndexUtil.create(tr, metadata.subspace(), indexDefinition);
+            tr.commit().join();
+        }
+    }
+
+    protected BucketMetadata createIndexesAndLoadBucketMetadata(String bucketName, IndexDefinition definition) {
+        // Create the bucket first
+        createBucket(bucketName);
+
+        createIndex(bucketName, definition);
+
+        // Load and return metadata
+        Session session = getSession();
+        return BucketMetadataUtil.createOrOpen(context, session, bucketName);
+    }
+
     @BeforeEach
     void setUp() {
-        histogram = new FDBLogHistogram(instance.getContext().getFoundationDB());
-        windowManager = histogram.createWindowManager();
+        // Use small window (3 decades) to force evictions
+        metadata = new HistogramMetadata(16, 4, 3, 16, 1);
+
         testBucket = "test_bucket_" + System.nanoTime(); // Unique bucket per test
+
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        BucketMetadata bucketMetadata = createIndexesAndLoadBucketMetadata(testBucket, ageIndex);
+        DirectorySubspace indexSubspace = bucketMetadata.indexes().getSubspace("age");
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            FDBLogHistogram.initialize(tr, indexSubspace.getPath(), metadata);
+            tr.commit().join();
+        }
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            histogram = new FDBLogHistogram(tr, indexSubspace.getPath());
+        }
+        windowManager = new HistogramWindowManager();
     }
     
     @Test
     void testWindowMaintenanceWithSmallWindow() {
-        // Use small window (3 decades) to force evictions
-        HistogramMetadata metadata = new HistogramMetadata(16, 4, 3, 16, 1);
-        histogram.initialize(testBucket, testField, metadata);
-        
         // Dataset: 6 values spanning decades 0-5
         // Decades: 0(1.0), 1(15.0), 2(150.0), 3(1500.0), 4(15000.0), 5(150000.0) = 6 decades total
         double[] values = {
@@ -85,7 +129,7 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
         assertTrue(highValueEstimate <= 1.0, "P(>1000) should not exceed 1.0, got " + highValueEstimate);
     }
     
-    @Test
+    /*@Test
     void testWindowMaintenanceWithinLimits() {
         // Large window (10 decades) to avoid evictions
         HistogramMetadata metadata = new HistogramMetadata(16, 4, 10, 16, 1);
@@ -267,5 +311,5 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
         
         // Test that estimators still work after maintenance - at least one should have some selectivity
         assertTrue(estimate1 + estimate2 > 0.0, "At least one bucket should have positive selectivity after maintenance");
-    }
-}*/
+    }*/
+}
