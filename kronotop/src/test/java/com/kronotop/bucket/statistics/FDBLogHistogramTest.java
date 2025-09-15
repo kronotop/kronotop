@@ -29,7 +29,7 @@ import org.bson.BsonType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
 
@@ -220,7 +220,7 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
             assertEquals(0.0, estimator.estimateRange(tr, 10, 100));
         }
     }
-    
+
     @Test
     void testLargeValueRange() {
         // Dataset: 7 values spanning many decades {1.2, 25, 678, 4589, 123456, 7.89e6, 3.45e8}
@@ -231,22 +231,22 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
             }
             tr.commit().join();
         }
-        
+
         HistogramEstimator estimator = histogram.getEstimator();
-        
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Values > 1: all 7 values = 7/7 = 1.0
             assertEquals(1.0, estimator.estimateGreaterThan(tr, 1), 0.05, "P(>1) should be 1.0 as all values are greater than 1");
-            
+
             // Values > 1000: {4589, 123456, 7.89e6, 3.45e8} = 4/7 ≈ 0.571
             assertEquals(0.571, estimator.estimateGreaterThan(tr, 1000), 0.15, "P(>1000) should be approximately 0.571 (4 out of 7 values)");
-            
+
             // Values > 1e6: {7.89e6, 3.45e8} = 2/7 ≈ 0.286
             assertEquals(0.286, estimator.estimateGreaterThan(tr, 1e6), 0.15, "P(>1e6) should be approximately 0.286 (2 out of 7 values)");
-            
+
             // Values > 1e9: none = 0/7 = 0.0 (3.45e8 < 1e9)
             assertEquals(0.0, estimator.estimateGreaterThan(tr, 1e9), 0.1, "P(>1e9) should be 0.0 as no values exceed 1 billion");
-            
+
             // Range [100, 10000): {678, 4589} = 2/7 ≈ 0.286
             assertEquals(0.286, estimator.estimateRange(tr, 100, 10000), 0.15, "P([100,10000)) should be approximately 0.286 (2 out of 7 values)");
         }
@@ -256,127 +256,91 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
     void testCustomMetadata() {
         // Test with custom parameters
         HistogramMetadata customMetadata = new HistogramMetadata(32, 8, 10, 32, 1);
-        histogram.initialize(testBucket, testField, customMetadata);
         
-        // Add some data
-        histogram.add(testBucket, testField, 123.45);
-        histogram.add(testBucket, testField, 678.90);
-        
-        // Verify metadata is preserved
-        HistogramMetadata retrieved = histogram.getMetadata(testBucket, testField);
-        assertEquals(customMetadata, retrieved);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Add some data
+            histogram.addValue(tr, 123.45);
+            histogram.addValue(tr, 678.90);
+            tr.commit().join();
+        }
         
         // Verify estimator works with custom metadata
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-        double selectivity = estimator.estimateGreaterThan(100);
-        assertTrue(selectivity > 0.0);
-    }
-    
+        HistogramEstimator estimator = histogram.getEstimator();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            double selectivity = estimator.estimateGreaterThan(tr, 100);
+            assertTrue(selectivity > 0.0);
+        }
+    }*/
+
     @Test
     void testValidationErrors() {
         // Test invalid metadata parameters
-        assertThrows(IllegalArgumentException.class, 
+        assertThrows(IllegalArgumentException.class,
                 () -> new HistogramMetadata(0, 4, 8, 16, 1)); // m <= 0
-        
-        assertThrows(IllegalArgumentException.class, 
+
+        assertThrows(IllegalArgumentException.class,
                 () -> new HistogramMetadata(16, 3, 8, 16, 1)); // m % groupSize != 0
-        
-        assertThrows(IllegalArgumentException.class, 
+
+        assertThrows(IllegalArgumentException.class,
                 () -> new HistogramMetadata(16, 4, 0, 16, 1)); // windowDecades <= 0
-        
-        assertThrows(IllegalArgumentException.class, 
+
+        assertThrows(IllegalArgumentException.class,
                 () -> new HistogramMetadata(16, 4, 8, 0, 1)); // shardCount <= 0
-        
-        assertThrows(IllegalArgumentException.class, 
+
+        assertThrows(IllegalArgumentException.class,
                 () -> new HistogramMetadata(16, 4, 8, 16, 0)); // version <= 0
     }
-    
-    @Test
-    void testMultipleFieldsInSameBucket() {
-        String field1 = "price";
-        String field2 = "quantity";
-        
-        histogram.initialize(testBucket, field1, HistogramMetadata.defaultMetadata());
-        histogram.initialize(testBucket, field2, HistogramMetadata.defaultMetadata());
-        
-        // Price field: 2 values {100, 200}
-        histogram.add(testBucket, field1, 100);
-        histogram.add(testBucket, field1, 200);
-        
-        // Quantity field: 2 values {5, 10}
-        histogram.add(testBucket, field2, 5);
-        histogram.add(testBucket, field2, 10);
-        
-        HistogramEstimator priceEstimator = histogram.createEstimator(testBucket, field1);
-        HistogramEstimator quantityEstimator = histogram.createEstimator(testBucket, field2);
-        
-        // Price field: Values > 50: {100, 200} = 2/2 = 1.0
-        assertEquals(1.0, priceEstimator.estimateGreaterThan(50), 0.05, "Price P(>50) should be 1.0 as both values are greater than 50");
-        
-        // Quantity field: Values > 50: none = 0/2 = 0.0
-        assertEquals(0.0, quantityEstimator.estimateGreaterThan(50), 0.05, "Quantity P(>50) should be 0.0 as no values are greater than 50");
-        
-        // Quantity field: Values > 1: {5, 10} = 2/2 = 1.0
-        assertEquals(1.0, quantityEstimator.estimateGreaterThan(1), 0.05, "Quantity P(>1) should be 1.0 as both values are greater than 1");
-        
-        // Price field: Values > 1: {100, 200} = 2/2 = 1.0
-        assertEquals(1.0, priceEstimator.estimateGreaterThan(1), 0.05, "Price P(>1) should be 1.0 as both values are greater than 1");
-        
-        // Cross-field validation: Values > 150
-        // Price: {200} = 1/2 = 0.5
-        assertEquals(0.5, priceEstimator.estimateGreaterThan(150), 0.15, "Price P(>150) should be 0.5 (1 out of 2 values)");
-        
-        // Quantity: none = 0/2 = 0.0
-        assertEquals(0.0, quantityEstimator.estimateGreaterThan(150), 0.05, "Quantity P(>150) should be 0.0");
-    }
-    
+
     @Test
     void testPreciseEdgeCaseEstimations() {
-        histogram.initialize(testBucket, testField, HistogramMetadata.defaultMetadata());
-        
         // Carefully chosen dataset: 10 values for precise percentage calculations
         // {1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500}
         double[] values = {1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 2500.0};
-        for (double value : values) {
-            histogram.add(testBucket, testField, value);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (double value : values) {
+                histogram.addValue(tr, value);
+            }
+            tr.commit().join();
         }
-        
-        HistogramEstimator estimator = histogram.createEstimator(testBucket, testField);
-        
-        // Test exact boundary conditions
-        // Values > 0: all 10 values = 10/10 = 1.0
-        assertEquals(1.0, estimator.estimateGreaterThan(0), 0.05, "P(>0) should be exactly 1.0");
-        
-        // Values > 1: {5,10,25,50,100,250,500,1000,2500} = 9/10 = 0.9
-        assertEquals(0.9, estimator.estimateGreaterThan(1), 0.1, "P(>1) should be exactly 0.9");
-        
-        // Values > 10: {25,50,100,250,500,1000,2500} = 7/10 = 0.7
-        // Note: Due to bucketing approximation, this may be estimated as 0.8
-        assertEquals(0.8, estimator.estimateGreaterThan(10), 0.1, "P(>10) should be approximately 0.8 due to log histogram approximation");
-        
-        // Values > 100: {250,500,1000,2500} = 4/10 = 0.4
-        assertEquals(0.4, estimator.estimateGreaterThan(100), 0.15, "P(>100) should be exactly 0.4");
-        
-        // Values > 1000: {2500} = 1/10 = 0.1
-        assertEquals(0.1, estimator.estimateGreaterThan(1000), 0.1, "P(>1000) should be exactly 0.1");
-        
-        // Values > 2500: none = 0/10 = 0.0, but due to linear interpolation within bucket may give small value
-        assertTrue(estimator.estimateGreaterThan(2500) <= 0.15, "P(>2500) should be very small, at most 0.15 due to bucketing approximation");
-        
-        // Values > 10000: none = 0/10 = 0.0
-        assertEquals(0.0, estimator.estimateGreaterThan(10000), 0.05, "P(>10000) should be exactly 0.0");
-        
-        // Precise range tests
-        // Range [5, 50): {10, 25} = 2/10 = 0.2
-        assertEquals(0.2, estimator.estimateRange(5, 50), 0.15, "P([5,50)) should be exactly 0.2");
-        
-        // Range [20, 200): {25, 50, 100} = 3/10 = 0.3
-        assertEquals(0.3, estimator.estimateRange(20, 200), 0.15, "P([20,200)) should be exactly 0.3");
-        
-        // Range [100, 1000): {250, 500} = 2/10 = 0.2
-        assertEquals(0.2, estimator.estimateRange(100, 1000), 0.15, "P([100,1000)) should be exactly 0.2");
-        
-        // Range [0.5, 3000): all values = 10/10 = 1.0
-        assertEquals(1.0, estimator.estimateRange(0.5, 3000), 0.05, "P([0.5,3000)) should be exactly 1.0");
-    }*/
+
+        HistogramEstimator estimator = histogram.getEstimator();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Test exact boundary conditions
+            // Values > 0: all 10 values = 10/10 = 1.0
+            assertEquals(1.0, estimator.estimateGreaterThan(tr, 0), 0.05, "P(>0) should be exactly 1.0");
+
+            // Values > 1: {5,10,25,50,100,250,500,1000,2500} = 9/10 = 0.9
+            assertEquals(0.9, estimator.estimateGreaterThan(tr, 1), 0.1, "P(>1) should be exactly 0.9");
+
+            // Values > 10: {25,50,100,250,500,1000,2500} = 7/10 = 0.7
+            // Note: Due to bucketing approximation, this may be estimated as 0.8
+            assertEquals(0.8, estimator.estimateGreaterThan(tr, 10), 0.1, "P(>10) should be approximately 0.8 due to log histogram approximation");
+
+            // Values > 100: {250,500,1000,2500} = 4/10 = 0.4
+            assertEquals(0.4, estimator.estimateGreaterThan(tr, 100), 0.15, "P(>100) should be exactly 0.4");
+
+            // Values > 1000: {2500} = 1/10 = 0.1
+            assertEquals(0.1, estimator.estimateGreaterThan(tr, 1000), 0.1, "P(>1000) should be exactly 0.1");
+
+            // Values > 2500: none = 0/10 = 0.0, but due to linear interpolation within bucket may give small value
+            assertTrue(estimator.estimateGreaterThan(tr, 2500) <= 0.15, "P(>2500) should be very small, at most 0.15 due to bucketing approximation");
+
+            // Values > 10000: none = 0/10 = 0.0
+            assertEquals(0.0, estimator.estimateGreaterThan(tr, 10000), 0.05, "P(>10000) should be exactly 0.0");
+
+            // Precise range tests
+            // Range [5, 50): {10, 25} = 2/10 = 0.2
+            assertEquals(0.2, estimator.estimateRange(tr, 5, 50), 0.15, "P([5,50)) should be exactly 0.2");
+
+            // Range [20, 200): {25, 50, 100} = 3/10 = 0.3
+            assertEquals(0.3, estimator.estimateRange(tr, 20, 200), 0.15, "P([20,200)) should be exactly 0.3");
+
+            // Range [100, 1000): {250, 500} = 2/10 = 0.2
+            assertEquals(0.2, estimator.estimateRange(tr, 100, 1000), 0.15, "P([100,1000)) should be exactly 0.2");
+
+            // Range [0.5, 3000): all values = 10/10 = 1.0
+            assertEquals(1.0, estimator.estimateRange(tr, 0.5, 3000), 0.05, "P([0.5,3000)) should be exactly 1.0");
+        }
+    }
 }
