@@ -104,14 +104,14 @@ public class APPHistogram {
     /**
      * Adds a byte array value to the histogram within an existing transaction.
      */
-    public void add(Transaction tr, byte[] value, String docRef) {
+    public void add(Transaction tr, byte[] value) {
         byte[] valuePad = APPHistogramKeySchema.rightPad(value, metadata.maxDepth(), (byte) 0x00);
 
         // Find the leaf that contains this value
         LeafInfo leaf = findLeaf(tr, valuePad);
 
         // Choose shard for this operation
-        int shardId = chooseShard(docRef, leaf);
+        int shardId = chooseShard(value, leaf);
 
         // Atomically increment the counter
         byte[] counterKey = APPHistogramKeySchema.leafCounterKey(subspace, leaf.lowerBound, leaf.depth, shardId);
@@ -129,14 +129,14 @@ public class APPHistogram {
     /**
      * Removes a byte array value from the histogram within an existing transaction.
      */
-    public void delete(Transaction tr, byte[] value, String docRef) {
+    public void delete(Transaction tr, byte[] value) {
         byte[] valuePad = APPHistogramKeySchema.rightPad(value, metadata.maxDepth(), (byte) 0x00);
 
         // Find the leaf that contains this value
         LeafInfo leaf = findLeaf(tr, valuePad);
 
         // Choose same shard as used for addition
-        int shardId = chooseShard(docRef, leaf);
+        int shardId = chooseShard(value, leaf);
 
         // Atomically decrement the counter
         byte[] counterKey = APPHistogramKeySchema.leafCounterKey(subspace, leaf.lowerBound, leaf.depth, shardId);
@@ -154,14 +154,14 @@ public class APPHistogram {
     /**
      * Updates a value atomically (delete old + insert new in single transaction).
      */
-    public void update(Transaction tr, byte[] oldValue, byte[] newValue, String docRef) {
+    public void update(Transaction tr, byte[] oldValue, byte[] newValue) {
         if (Arrays.equals(oldValue, newValue)) {
             return; // No change needed
         }
 
         // Atomic delete old + insert new
-        delete(tr, oldValue, docRef);
-        add(tr, newValue, docRef);
+        delete(tr, oldValue);
+        add(tr, newValue);
     }
 
     /**
@@ -233,10 +233,10 @@ public class APPHistogram {
     /**
      * Chooses the appropriate shard for a document reference.
      */
-    private int chooseShard(String docRef, LeafInfo leaf) {
+    private int chooseShard(byte[] value, LeafInfo leaf) {
         if (leaf.isHotSharded) {
             // Hash-based sharding for hot leaves
-            return Math.abs(docRef.hashCode()) % metadata.maxShardCount();
+            return Math.abs(Arrays.hashCode(value)) % metadata.maxShardCount();
         } else {
             // Default shard 0 for non-hot leaves
             return 0;

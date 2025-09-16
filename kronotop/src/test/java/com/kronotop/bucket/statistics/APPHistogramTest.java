@@ -104,14 +104,14 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
     void testBasicOperations() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Add some values
-            histogram.add(tr, "hello".getBytes(), "doc1");
-            histogram.add(tr, "world".getBytes(), "doc2");
-            histogram.add(tr, "test".getBytes(), "doc3");
+            histogram.add(tr, "hello".getBytes());
+            histogram.add(tr, "world".getBytes());
+            histogram.add(tr, "test".getBytes());
 
             // Add to index as well (for recount testing)
-            addToIndex(tr, indexSubspace, "hello".getBytes(), "doc1");
-            addToIndex(tr, indexSubspace, "world".getBytes(), "doc2");
-            addToIndex(tr, indexSubspace, "test".getBytes(), "doc3");
+            addToIndex(tr, indexSubspace, "hello".getBytes());
+            addToIndex(tr, indexSubspace, "world".getBytes());
+            addToIndex(tr, indexSubspace, "test".getBytes());
 
             tr.commit().join();
         }
@@ -120,8 +120,8 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
             APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath());
 
             // Delete a value
-            testHistogram.delete(tr, "world".getBytes(), "doc2");
-            removeFromIndex(tr, indexSubspace, "world".getBytes(), "doc2");
+            testHistogram.delete(tr, "world".getBytes());
+            removeFromIndex(tr, indexSubspace, "world".getBytes());
 
             tr.commit().join();
         }
@@ -135,13 +135,13 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
     void testUpdateOperation() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Add initial value
-            histogram.add(tr, "initial".getBytes(), "doc1");
-            addToIndex(tr, indexSubspace, "initial".getBytes(), "doc1");
+            histogram.add(tr, "initial".getBytes());
+            addToIndex(tr, indexSubspace, "initial".getBytes());
 
             // Update to new value
-            histogram.update(tr, "initial".getBytes(), "updated".getBytes(), "doc1");
-            removeFromIndex(tr, indexSubspace, "initial".getBytes(), "doc1");
-            addToIndex(tr, indexSubspace, "updated".getBytes(), "doc1");
+            histogram.update(tr, "initial".getBytes(), "updated".getBytes());
+            removeFromIndex(tr, indexSubspace, "initial".getBytes());
+            addToIndex(tr, indexSubspace, "updated".getBytes());
 
             tr.commit().join();
         }
@@ -156,10 +156,9 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
             // Add enough values to trigger split
             for (int i = 0; i < 20; i++) {
                 byte[] value = String.format("value%03d", i).getBytes();
-                String docRef = "doc" + i;
 
-                histogram.add(tr, value, docRef);
-                addToIndex(tr, indexSubspace, value, docRef);
+                histogram.add(tr, value);
+                addToIndex(tr, indexSubspace, value);
             }
 
             tr.commit().join();
@@ -180,11 +179,10 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Add each value 3 times (total = 15 entries)
-            for (int i = 0; i < testValues.length; i++) {
+            for (byte[] testValue : testValues) {
                 for (int j = 0; j < 3; j++) {
-                    String docRef = "doc" + i + "_" + j;
-                    histogram.add(tr, testValues[i], docRef);
-                    addToIndex(tr, indexSubspace, testValues[i], docRef);
+                    histogram.add(tr, testValue);
+                    addToIndex(tr, indexSubspace, testValue);
                 }
             }
 
@@ -235,10 +233,9 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
                 // Add random values
                 for (int i = 0; i < 10; i++) {
                     byte[] value = ("round" + round + "_value" + i).getBytes();
-                    String docRef = "round" + round + "_doc" + i;
 
-                    testHistogram.add(tr, value, docRef);
-                    addToIndex(tr, indexSubspace, value, docRef);
+                    testHistogram.add(tr, value);
+                    addToIndex(tr, indexSubspace, value);
                 }
 
                 tr.commit().join();
@@ -272,18 +269,18 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Test with keys longer than maxDepth
             byte[] longKey = "this_is_a_very_long_key_that_exceeds_max_depth".getBytes();
-            histogram.add(tr, longKey, "doc1");
-            addToIndex(tr, indexSubspace, longKey, "doc1");
+            histogram.add(tr, longKey);
+            addToIndex(tr, indexSubspace, longKey);
 
             // Test with very short keys
             byte[] shortKey = "x".getBytes();
-            histogram.add(tr, shortKey, "doc2");
-            addToIndex(tr, indexSubspace, shortKey, "doc2");
+            histogram.add(tr, shortKey);
+            addToIndex(tr, indexSubspace, shortKey);
 
             // Test with empty key
             byte[] emptyKey = new byte[0];
-            histogram.add(tr, emptyKey, "doc3");
-            addToIndex(tr, indexSubspace, emptyKey, "doc3");
+            histogram.add(tr, emptyKey);
+            addToIndex(tr, indexSubspace, emptyKey);
 
             tr.commit().join();
         }
@@ -294,16 +291,16 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
     /**
      * Helper method to add entries to the mock index for testing recount operations.
      */
-    private void addToIndex(Transaction tr, DirectorySubspace indexSubspace, byte[] value, String docRef) {
-        byte[] key = indexSubspace.pack(Tuple.from(value, docRef));
+    private void addToIndex(Transaction tr, DirectorySubspace indexSubspace, byte[] value) {
+        byte[] key = indexSubspace.pack(Tuple.from((Object) value));
         tr.set(key, new byte[0]); // Empty value, just presence
     }
 
     /**
      * Helper method to remove entries from the mock index.
      */
-    private void removeFromIndex(Transaction tr, DirectorySubspace indexSubspace, byte[] value, String docRef) {
-        byte[] key = indexSubspace.pack(Tuple.from(value, docRef));
+    private void removeFromIndex(Transaction tr, DirectorySubspace indexSubspace, byte[] value) {
+        byte[] key = indexSubspace.pack(Tuple.from((Object) value));
         tr.clear(key);
     }
 }
