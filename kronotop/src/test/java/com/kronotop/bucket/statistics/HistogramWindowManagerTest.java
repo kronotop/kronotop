@@ -76,7 +76,7 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
 
     @Test
     void testWindowMaintenanceWithSmallWindow() {
-        // Use small window (3 decades) to force evictions
+        // Use a small window (3 decades) to force evictions
         HistogramMetadata metadata = new HistogramMetadata(16, 4, 3, 16, 1);
         FDBLogHistogram histogram = initialize(metadata);
 
@@ -109,12 +109,12 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
             // Perform window maintenance - will keep 3 newest decades (3,4,5) and evict oldest (0,1,2)
             windowManager.maintainWindow(tr);
 
-            // Check that window was reduced to limit
+            // Check that window was reduced to the limit
             HistogramWindowManager.WindowStats finalStats = windowManager.getWindowStats(tr);
             assertEquals(3, finalStats.activeDecadeCount(), "Should have exactly 3 active decades after maintenance (the limit)");
             assertTrue(finalStats.activeDecadeCount() <= metadata.windowDecades(), "Final decades should not exceed window limit");
 
-            // Check that underflow summary was updated with evicted data
+            // Check that the underflow summary was updated with evicted data
             assertEquals(3, finalStats.underflowSum(), "Should have exactly 3 values in underflow (evicted decades 0,1,2)");
             assertEquals(0, finalStats.overflowSum(), "Should have no overflow data");
 
