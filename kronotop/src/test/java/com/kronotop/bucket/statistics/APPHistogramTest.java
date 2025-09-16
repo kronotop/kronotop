@@ -76,7 +76,7 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            histogram = new APPHistogram(tr, indexSubspace.getPath(), indexSubspace);
+            histogram = new APPHistogram(tr, indexSubspace.getPath());
         }
     }
 
@@ -85,7 +85,7 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
     void testInitialization() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Verify histogram can be opened
-            APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath(), indexSubspace);
+            APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath());
 
             assertNotNull(testHistogram.getMetadata());
             assertEquals(3, testHistogram.getMetadata().maxDepth());
@@ -117,7 +117,7 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath(), indexSubspace);
+            APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath());
 
             // Delete a value
             testHistogram.deleteValue(tr, "world".getBytes(), "doc2");
@@ -192,7 +192,7 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath(), indexSubspace);
+            APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath());
             APPHistogramEstimator estimator = testHistogram.getEstimator();
 
             // Test total count estimation - should be close to 15
@@ -230,7 +230,7 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
 
         for (int round = 0; round < 5; round++) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath(), indexSubspace);
+                APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath());
 
                 // Add random values
                 for (int i = 0; i < 10; i++) {
@@ -263,193 +263,6 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
 
             double equalityEstimate = estimator.estimateEquality(tr, new byte[]{0x15});
             assertEquals(0.0, equalityEstimate, 0.001);
-        }
-    }
-
-    @Test
-    @DisplayName("APP algorithm debug and understanding")
-    void testAPPAlgorithmDebug() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath(), indexSubspace);
-
-            // Let's understand the initial leaf structure
-            // With maxDepth=3, initial leaf at depth=1 covers range [000000, 010000)
-            // which is 256^2 = 65536 "minimal cells"
-            System.out.println("=== Initial APP Leaf Structure ===");
-            System.out.println("maxDepth = 3");
-            System.out.println("Initial leaf at depth 1:");
-            System.out.println("  Lower bound: [00, 00, 00]");
-            System.out.println("  Width: 256^(3-1) = " + testHistogram.getMetadata().leafWidth(1));
-            System.out.println("  Upper bound: [01, 00, 00]");
-
-            // Now add some data spread across this range
-            byte[][] testKeys = {
-                    {0x00, 0x10, 0x00},  // Early in range
-                    {0x00, (byte) 0x80, 0x00},  // Middle of range
-                    {0x00, (byte) 0xF0, 0x00}   // Late in range
-            };
-
-            for (int i = 0; i < testKeys.length; i++) {
-                testHistogram.addValue(tr, testKeys[i], "doc" + i);
-                addToIndex(tr, indexSubspace, testKeys[i], "doc" + i);
-            }
-
-            tr.commit().join();
-        }
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath(), indexSubspace);
-            APPHistogramEstimator estimator = testHistogram.getEstimator();
-
-            System.out.println("=== After Adding Data ===");
-            double totalCount = estimator.estimateTotalCount(tr);
-            System.out.println("Total entries: 3, Estimated total: " + totalCount);
-
-            // Test range that covers part of the leaf
-            // Range [00 20 00, 00 A0 00) should cover middle portion
-            double rangeEstimate = estimator.estimateRange(tr,
-                    new byte[]{0x00, 0x20, 0x00},
-                    new byte[]{0x00, (byte) 0xA0, 0x00});
-
-            // Calculate expected: range covers (0xA0 - 0x20) * 256 = 128 * 256 = 32768 cells
-            // Out of total leaf width 65536, so ratio = 32768/65536 = 0.5
-            // With 3 entries, estimate should be 3 * 0.5 = 1.5
-            System.out.println("Range [002000, 00A000) estimate: " + rangeEstimate + " (expected ~1.5)");
-
-            // Test smaller range [00 80 00, 00 90 00) - should cover ~1/16th
-            double smallRangeEstimate = estimator.estimateRange(tr,
-                    new byte[]{0x00, (byte) 0x80, 0x00},
-                    new byte[]{0x00, (byte) 0x90, 0x00});
-            System.out.println("Range [008000, 009000) estimate: " + smallRangeEstimate + " (expected ~0.1875)");
-        }
-    }
-
-    @Test
-    @DisplayName("APP algorithm with readable words")
-    void testAPPWithReadableWords() {
-        // Use real words to understand how APP works with string data
-        String[] words = {
-                "apple", "banana", "cherry", "date", "elderberry",
-                "fig", "grape", "honeydew", "kiwi", "lemon"
-        };
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            // Add words to histogram and index
-            for (int i = 0; i < words.length; i++) {
-                histogram.addValue(tr, words[i].getBytes(), "doc" + i);
-                addToIndex(tr, indexSubspace, words[i].getBytes(), "doc" + i);
-            }
-
-            tr.commit().join();
-        }
-
-        {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                System.out.println(">> " + histogram.getEstimator().estimateEquality(tr, "apple".getBytes()));
-            }
-        }
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath(), indexSubspace);
-            APPHistogramEstimator estimator = testHistogram.getEstimator();
-
-            System.out.println("=== APP with Real Words ===");
-
-            // Show how words get padded to maxDepth=3 bytes
-            System.out.println("Word padding examples (maxDepth=3):");
-            for (String word : new String[]{"apple", "banana", "fig"}) {
-                byte[] original = word.getBytes();
-                byte[] padded = APPHistogramKeySchema.rightPad(original, 3, (byte) 0x00);
-                System.out.printf("'%s' -> [%02X, %02X, %02X]\n",
-                        word, padded[0] & 0xFF, padded[1] & 0xFF, padded[2] & 0xFF);
-            }
-
-            // Also show the range query bounds after padding
-            System.out.println("\nRange query bounds after padding:");
-            byte[] bPadded = APPHistogramKeySchema.rightPad("b".getBytes(), 3, (byte) 0x00);
-            byte[] hPadded = APPHistogramKeySchema.rightPad("h".getBytes(), 3, (byte) 0x00);
-            System.out.printf("'b' -> [%02X, %02X, %02X]\n", bPadded[0] & 0xFF, bPadded[1] & 0xFF, bPadded[2] & 0xFF);
-            System.out.printf("'h' -> [%02X, %02X, %02X]\n", hPadded[0] & 0xFF, hPadded[1] & 0xFF, hPadded[2] & 0xFF);
-
-            // Check if 'banana' falls within ['b', 'h') range
-            byte[] bananaPadded = APPHistogramKeySchema.rightPad("banana".getBytes(), 3, (byte) 0x00);
-            System.out.printf("'banana' -> [%02X, %02X, %02X]\n", bananaPadded[0] & 0xFF, bananaPadded[1] & 0xFF, bananaPadded[2] & 0xFF);
-
-            boolean bananaInRange = APPHistogramArithmetic.compareUnsigned(bananaPadded, bPadded) >= 0 &&
-                    APPHistogramArithmetic.compareUnsigned(bananaPadded, hPadded) < 0;
-            System.out.println("Does 'banana' fall in ['b', 'h')? " + bananaInRange);
-
-            // Total count
-            double totalEstimate = estimator.estimateTotalCount(tr);
-            System.out.println("\nTotal words: " + words.length + ", Estimated: " + totalEstimate);
-
-            // Let's debug by checking what leaves exist in the histogram
-            System.out.println("\nDEBUG: Let's check the actual leaf structure...");
-
-            // First, let's scan what leaf boundaries actually exist
-            byte[] leafScanBegin = testHistogram.getSubspace().pack(Tuple.from("L"));
-            byte[] leafScanEnd = testHistogram.getSubspace().pack(Tuple.from("L", new byte[]{(byte) 0xFF}));
-            var leafBoundaries = tr.getRange(leafScanBegin, leafScanEnd).asList().join();
-            System.out.println("Found " + leafBoundaries.size() + " leaf boundaries:");
-            for (var kv : leafBoundaries) {
-                var unpacked = testHistogram.getSubspace().unpack(kv.getKey());
-                if (unpacked.size() >= 2) {
-                    byte[] leafId = (byte[]) unpacked.get(1);
-                    byte[] lowerBound = APPHistogramKeySchema.extractLowerBound(leafId);
-                    int depth = APPHistogramKeySchema.extractDepth(leafId);
-                    System.out.printf("  Leaf: lower=[%02X,%02X,%02X], depth=%d\n",
-                            lowerBound[0] & 0xFF, lowerBound[1] & 0xFF, lowerBound[2] & 0xFF, depth);
-
-                }
-            }
-
-            // Try a range that definitely covers everything - from 0x00 to 0xFF in first byte
-            double debugRange = estimator.estimateRange(tr,
-                    new byte[]{0x00, 0x00, 0x00},
-                    new byte[]{(byte) 0xFF, (byte) 0xFF, (byte) 0xFF});
-            System.out.println("Debug range [000000, FFFFFF) estimate: " + debugRange);
-
-            // Range queries with readable meanings
-            // Range from "b" to "h" should include: banana, cherry, date, elderberry, fig, grape
-            double rangeB_H = estimator.estimateRange(tr, "b".getBytes(), "h".getBytes());
-            System.out.println("Range ['b', 'h') estimate: " + rangeB_H + " (should include banana->grape)");
-
-            // Range from "a" to "d" should include: apple, banana, cherry
-            double rangeA_D = estimator.estimateRange(tr, "a".getBytes(), "d".getBytes());
-            System.out.println("Range ['a', 'd') estimate: " + rangeA_D + " (should include apple->cherry)");
-
-            // Range from "f" to "z" should include: fig, grape, honeydew, kiwi, lemon
-            double rangeF_Z = estimator.estimateRange(tr, "f".getBytes(), "z".getBytes());
-            System.out.println("Range ['f', 'z') estimate: " + rangeF_Z + " (should include fig->lemon)");
-
-            // Let's also try using the exact padded bounds to see if the issue is padding
-            System.out.println("\nUsing explicit 3-byte ranges:");
-            double rangeBH_explicit = estimator.estimateRange(tr,
-                    new byte[]{0x62, 0x00, 0x00},  // 'b' padded
-                    new byte[]{0x68, 0x00, 0x00}); // 'h' padded
-            System.out.println("Range [620000, 680000) estimate: " + rangeBH_explicit);
-
-            // Equality test for existing key
-            double equalityApple = estimator.estimateEquality(tr, "apple".getBytes());
-            System.out.println("Equality 'apple' estimate: " + equalityApple);
-
-            // Equality test for non-existent key
-            double equalityNonExistent = estimator.estimateEquality(tr, "xyz".getBytes());
-            System.out.println("Equality 'xyz' (non-existent) estimate: " + equalityNonExistent);
-
-            // Verify non-existent key has very small estimate (should be tiny since it covers minimal space)
-            assertTrue(equalityNonExistent >= 0, "Non-existent key estimate should be non-negative");
-            assertTrue(equalityNonExistent < 1.0, "Non-existent key estimate should be very small");
-
-            // Test the fundamental property: larger ranges should have >= estimates
-            assertTrue(totalEstimate >= rangeB_H, "Total should >= range estimate");
-            assertTrue(totalEstimate >= rangeA_D, "Total should >= range estimate");
-            assertTrue(totalEstimate >= rangeF_Z, "Total should >= range estimate");
-
-            // Show the key insight about how padding affects lexicographic ordering
-            System.out.println("\nKey insight: Words get truncated/padded to " +
-                    testHistogram.getMetadata().maxDepth() + " bytes,");
-            System.out.println("which determines their position in the 256^3 address space.");
         }
     }
 

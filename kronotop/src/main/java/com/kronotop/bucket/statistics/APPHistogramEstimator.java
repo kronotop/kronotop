@@ -19,14 +19,12 @@ package com.kronotop.bucket.statistics;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 
-import java.util.Arrays;
-
 /**
  * Estimator for APP (Adaptive Prefix Partitioning) histogram selectivity calculations.
- *
+ * <p>
  * Provides range selectivity estimation for predicates like =, <, <=, >, >=, BETWEEN
  * using the partial coverage ratio algorithm from the APP specification.
- *
+ * <p>
  * Algorithm:
  * 1. Canonicalize query range [A, B) to [A_pad, B_pad)
  * 2. Find first leaf overlapping with A_pad
@@ -83,15 +81,15 @@ public class APPHistogramEstimator {
 
         // 3. Iterate through all leaves that overlap [startPad, endPad)
         while (currentLeaf != null &&
-               APPHistogramArithmetic.compareUnsigned(currentLeaf.lowerBound, endPad) < 0) {
+               APPHistogramArithmetic.compareUnsigned(currentLeaf.lowerBound(), endPad) < 0) {
 
             // Calculate overlap between query range and current leaf
             long overlap = APPHistogramArithmetic.calculateOverlap(
-                    startPad, endPad, currentLeaf.lowerBound, currentLeaf.upperBound);
+                    startPad, endPad, currentLeaf.lowerBound(), currentLeaf.upperBound());
 
             if (overlap > 0) {
                 // Calculate leaf width
-                long leafWidth = metadata.leafWidth(currentLeaf.depth);
+                long leafWidth = metadata.leafWidth(currentLeaf.depth());
 
                 // Calculate coverage ratio
                 double ratio = (double) overlap / leafWidth;
@@ -213,7 +211,7 @@ public class APPHistogramEstimator {
     private APPHistogram.LeafInfo findNextLeaf(Transaction tr, APPHistogram.LeafInfo currentLeaf) {
         // Find the next boundary after the current leaf's lower bound
         byte[] searchKey = APPHistogramArithmetic.addToByteArray(
-                currentLeaf.lowerBound, java.math.BigInteger.ONE);
+                currentLeaf.lowerBound(), java.math.BigInteger.ONE);
 
         // Forward scan from current position to find next leaf
         byte[] rangeBegin = APPHistogramKeySchema.leafBoundaryKey(subspace, searchKey, 1);
@@ -252,8 +250,8 @@ public class APPHistogramEstimator {
      * Estimates the total count for a leaf by summing all its shards.
      */
     private long estimateLeafCount(Transaction tr, APPHistogram.LeafInfo leaf) {
-        byte[] rangeBegin = APPHistogramKeySchema.leafCounterRangeBegin(subspace, leaf.lowerBound, leaf.depth);
-        byte[] rangeEnd = APPHistogramKeySchema.leafCounterRangeEnd(subspace, leaf.lowerBound, leaf.depth);
+        byte[] rangeBegin = APPHistogramKeySchema.leafCounterRangeBegin(subspace, leaf.lowerBound(), leaf.depth());
+        byte[] rangeEnd = APPHistogramKeySchema.leafCounterRangeEnd(subspace, leaf.lowerBound(), leaf.depth());
 
         var keyValues = tr.getRange(rangeBegin, rangeEnd).asList().join();
 

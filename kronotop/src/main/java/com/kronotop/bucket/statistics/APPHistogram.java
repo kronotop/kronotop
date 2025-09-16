@@ -21,6 +21,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -52,14 +53,12 @@ import java.util.List;
  */
 public class APPHistogram {
     private final DirectorySubspace subspace;
-    private final DirectorySubspace indexSubspace;
     private final APPHistogramMetadata metadata;
     private final APPHistogramEstimator estimator;
 
-    public APPHistogram(Transaction tr, List<String> root, DirectorySubspace indexSubspace) {
+    public APPHistogram(Transaction tr, List<String> root) {
         this.metadata = openMetadata(tr, root);
         this.subspace = openHistogramSubspace(tr, root);
-        this.indexSubspace = indexSubspace;
         this.estimator = new APPHistogramEstimator(metadata, subspace);
     }
 
@@ -125,9 +124,6 @@ public class APPHistogram {
                 setMaintenanceFlag(tr, leaf, APPHistogramKeySchema.NEEDS_SPLIT_FLAG);
             }
         }
-
-        // Perform opportunistic maintenance if flags are set
-        performMaintenanceIfNeeded(tr, leaf);
     }
 
     /**
@@ -153,9 +149,6 @@ public class APPHistogram {
                 setMaintenanceFlag(tr, leaf, APPHistogramKeySchema.NEEDS_MERGE_FLAG);
             }
         }
-
-        // Perform opportunistic maintenance if flags are set
-        performMaintenanceIfNeeded(tr, leaf);
     }
 
     /**
@@ -196,7 +189,6 @@ public class APPHistogram {
         // Decode the found boundary
         var keyValue = keyValues.get(0);
         byte[] boundaryKey = keyValue.getKey();
-        byte[] boundaryValue = keyValue.getValue();
 
         // Extract leaf ID from the key (remove subspace prefix and LEAF_BOUNDARY_PREFIX)
         var unpacked = subspace.unpack(boundaryKey);
@@ -294,36 +286,6 @@ public class APPHistogram {
     }
 
     /**
-     * Performs split or merge maintenance if flags indicate it's needed.
-     */
-    private void performMaintenanceIfNeeded(Transaction tr, LeafInfo leaf) {
-        byte[] flagsKey = APPHistogramKeySchema.leafFlagsKey(subspace, leaf.lowerBound, leaf.depth);
-        byte[] flagsData = tr.get(flagsKey).join();
-        if (flagsData == null) {
-            return; // No flags set
-        }
-
-        int flags = APPHistogramKeySchema.decodeFlags(flagsData);
-
-        if ((flags & APPHistogramKeySchema.NEEDS_SPLIT_FLAG) != 0) {
-            try {
-                performSplit(tr, leaf);
-            } catch (Exception e) {
-                // If split fails, leave the flag for next time
-                // This handles transaction size limits or other issues
-            }
-        }
-
-        if ((flags & APPHistogramKeySchema.NEEDS_MERGE_FLAG) != 0) {
-            try {
-                performMerge(tr, leaf);
-            } catch (Exception e) {
-                // If merge fails, leave the flag for next time
-            }
-        }
-    }
-
-    /**
      * Determines if we should check for split conditions (optimization).
      */
     private boolean shouldCheckForSplit() {
@@ -351,231 +313,13 @@ public class APPHistogram {
         return subspace;
     }
 
-    public DirectorySubspace getIndexSubspace() {
-        return indexSubspace;
-    }
-
-    /**
-     * Performs quartile split of a leaf following APP specification.
-     * Single transaction:
-     * 1. Verify leaf exists (conflict control)
-     * 2. Calculate child geometry (4 children at depth d+1)
-     * 3. Recount from index with exact bucketization
-     * 4. Write children boundaries and counters
-     * 5. Remove parent leaf
-     */
-    private void performSplit(Transaction tr, LeafInfo leaf) {
-        if (metadata.isMaxDepth(leaf.depth)) {
-            // Cannot split at max depth - clear flag and return
-            clearMaintenanceFlag(tr, leaf, APPHistogramKeySchema.NEEDS_SPLIT_FLAG);
-            return;
-        }
-
-        // 1. Verify leaf exists (non-snapshot read for conflict control)
-        byte[] leafBoundaryKey = APPHistogramKeySchema.leafBoundaryKey(subspace, leaf.lowerBound, leaf.depth);
-        byte[] leafMeta = tr.get(leafBoundaryKey).join();
-        if (leafMeta == null) {
-            // Leaf vanished - someone else restructured
-            return;
-        }
-
-        // 2. Calculate child geometry
-        int childDepth = leaf.depth + 1;
-        byte[][] childLowerBounds = APPHistogramArithmetic.computeChildLowerBounds(
-                leaf.lowerBound, leaf.depth, metadata);
-
-        // 3. Recount from index with exact bucketization
-        long[] childCounts = new long[metadata.fanout()];
-        int processedEntries = recountFromIndex(tr, leaf, childLowerBounds, childCounts);
-
-        // Check if recount scan was too large for transaction
-        if (processedEntries > metadata.splitThreshold() + 1000) {
-            // Transaction might be getting too large - defer split
-            return;
-        }
-
-        // 4. Write children boundaries and counters
-        for (int i = 0; i < metadata.fanout(); i++) {
-            // Create child boundary
-            byte[] childBoundaryKey = APPHistogramKeySchema.leafBoundaryKey(subspace, childLowerBounds[i], childDepth);
-            byte[] childMeta = APPHistogramKeySchema.encodeLeafMetadata(childDepth);
-            tr.set(childBoundaryKey, childMeta);
-
-            // Create child counter (shard 0 initially - children start unsharded)
-            byte[] childCounterKey = APPHistogramKeySchema.leafCounterKey(subspace, childLowerBounds[i], childDepth, 0);
-            tr.set(childCounterKey, APPHistogramKeySchema.encodeCounterValue(childCounts[i]));
-        }
-
-        // 5. Remove parent leaf
-        removeLeaf(tr, leaf);
-    }
-
-    /**
-     * Recounts entries from the index within a leaf's range and bucketizes them into children.
-     * Returns the number of processed entries.
-     */
-    private int recountFromIndex(Transaction tr, LeafInfo leaf, byte[][] childLowerBounds, long[] childCounts) {
-        // Scan index entries within the leaf's range
-        byte[] indexRangeBegin = APPHistogramKeySchema.indexRangeBegin(indexSubspace, leaf.lowerBound);
-        byte[] indexRangeEnd = APPHistogramKeySchema.indexRangeEnd(indexSubspace, leaf.upperBound);
-
-        // Limit scan to avoid transaction size issues
-        int limit = metadata.splitThreshold() + 1000;
-        var keyValues = tr.getRange(indexRangeBegin, indexRangeEnd, limit).asList().join();
-
-        int processedEntries = 0;
-        for (var kv : keyValues) {
-            processedEntries++;
-
-            // Extract value bytes from index key
-            var unpacked = indexSubspace.unpack(kv.getKey());
-            if (unpacked.isEmpty()) {
-                continue; // Skip malformed keys
-            }
-
-            byte[] valueBytes = (byte[]) unpacked.get(0);
-            byte[] valuePad = APPHistogramKeySchema.rightPad(valueBytes, metadata.maxDepth(), (byte) 0x00);
-
-            // Determine which child this value belongs to
-            int childIndex = APPHistogramArithmetic.computeChildIndex(
-                    valuePad, leaf.lowerBound, leaf.depth, metadata);
-
-            // Clamp to valid range
-            if (childIndex >= 0 && childIndex < metadata.fanout()) {
-                childCounts[childIndex]++;
-            }
-        }
-
-        return processedEntries;
-    }
-
-    /**
-     * Removes a leaf completely (boundary, counters, flags).
-     */
-    private void removeLeaf(Transaction tr, LeafInfo leaf) {
-        // Remove boundary
-        byte[] boundaryKey = APPHistogramKeySchema.leafBoundaryKey(subspace, leaf.lowerBound, leaf.depth);
-        tr.clear(boundaryKey);
-
-        // Remove all counter shards
-        byte[] counterRangeBegin = APPHistogramKeySchema.leafCounterRangeBegin(subspace, leaf.lowerBound, leaf.depth);
-        byte[] counterRangeEnd = APPHistogramKeySchema.leafCounterRangeEnd(subspace, leaf.lowerBound, leaf.depth);
-        tr.clear(counterRangeBegin, counterRangeEnd);
-
-        // Remove flags
-        byte[] flagsKey = APPHistogramKeySchema.leafFlagsKey(subspace, leaf.lowerBound, leaf.depth);
-        tr.clear(flagsKey);
-    }
-
-    /**
-     * Clears a specific maintenance flag for a leaf.
-     */
-    private void clearMaintenanceFlag(Transaction tr, LeafInfo leaf, int flag) {
-        byte[] flagsKey = APPHistogramKeySchema.leafFlagsKey(subspace, leaf.lowerBound, leaf.depth);
-        byte[] currentFlags = tr.get(flagsKey).join();
-        if (currentFlags == null) {
-            return; // No flags to clear
-        }
-
-        int flags = APPHistogramKeySchema.decodeFlags(currentFlags);
-        flags &= ~flag; // Clear the specific flag
-
-        if (flags == 0) {
-            tr.clear(flagsKey); // Remove flags key if no flags remain
-        } else {
-            tr.set(flagsKey, APPHistogramKeySchema.encodeFlags(flags));
-        }
-    }
-
-    /**
-     * Performs merge of four sibling leaves into their parent following APP specification.
-     * Single transaction:
-     * 1. Compute parent and all four siblings
-     * 2. Verify all four siblings exist as leaves
-     * 3. Sum all sibling counters
-     * 4. If total <= T_MERGE, create parent and remove siblings
-     */
-    private void performMerge(Transaction tr, LeafInfo leaf) {
-        if (leaf.depth <= 1) {
-            // Cannot merge depth 1 leaves (no parent possible)
-            clearMaintenanceFlag(tr, leaf, APPHistogramKeySchema.NEEDS_MERGE_FLAG);
-            return;
-        }
-
-        // 1. Compute parent and all four siblings
-        byte[] parentLowerBound = APPHistogramArithmetic.computeParentLowerBound(
-                leaf.lowerBound, leaf.depth, metadata);
-        byte[][] siblingLowerBounds = APPHistogramArithmetic.computeSiblingLowerBounds(
-                parentLowerBound, leaf.depth, metadata);
-
-        // 2. Verify all four siblings exist as leaves
-        LeafInfo[] siblings = new LeafInfo[metadata.fanout()];
-        for (int i = 0; i < metadata.fanout(); i++) {
-            byte[] siblingBoundaryKey = APPHistogramKeySchema.leafBoundaryKey(
-                    subspace, siblingLowerBounds[i], leaf.depth);
-            byte[] siblingMeta = tr.get(siblingBoundaryKey).join();
-
-            if (siblingMeta == null) {
-                // Not all siblings exist as leaves - cannot merge
-                clearMaintenanceFlag(tr, leaf, APPHistogramKeySchema.NEEDS_MERGE_FLAG);
-                return;
-            }
-
-            // Create sibling leaf info (we don't need upper bound for this operation)
-            byte[] upperBound = APPHistogramArithmetic.calculateUpperBound(
-                    siblingLowerBounds[i], leaf.depth, metadata);
-            boolean isHotSharded = isLeafHotSharded(tr, siblingLowerBounds[i], leaf.depth);
-            siblings[i] = new LeafInfo(siblingLowerBounds[i], upperBound, leaf.depth, isHotSharded);
-        }
-
-        // 3. Sum all sibling counters
-        long totalCount = 0;
-        for (LeafInfo sibling : siblings) {
-            totalCount += estimateLeafCount(tr, sibling);
-        }
-
-        // 4. Check if merge condition is satisfied
-        if (totalCount > metadata.mergeThreshold()) {
-            // Total is too high for merge - clear flag
-            clearMaintenanceFlag(tr, leaf, APPHistogramKeySchema.NEEDS_MERGE_FLAG);
-            return;
-        }
-
-        // Perform the merge
-        int parentDepth = leaf.depth - 1;
-
-        // Create parent boundary
-        byte[] parentBoundaryKey = APPHistogramKeySchema.leafBoundaryKey(subspace, parentLowerBound, parentDepth);
-        byte[] parentMeta = APPHistogramKeySchema.encodeLeafMetadata(parentDepth);
-        tr.set(parentBoundaryKey, parentMeta);
-
-        // Create parent counter (shard 0 - merged leaves start unsharded)
-        byte[] parentCounterKey = APPHistogramKeySchema.leafCounterKey(subspace, parentLowerBound, parentDepth, 0);
-        tr.set(parentCounterKey, APPHistogramKeySchema.encodeCounterValue(totalCount));
-
-        // Remove all sibling leaves
-        for (LeafInfo sibling : siblings) {
-            removeLeaf(tr, sibling);
-        }
-    }
-
     /**
      * Represents information about a leaf in the histogram.
      */
-    public static class LeafInfo {
-        public final byte[] lowerBound;
-        public final byte[] upperBound;
-        public final int depth;
-        public final boolean isHotSharded;
-
-        public LeafInfo(byte[] lowerBound, byte[] upperBound, int depth, boolean isHotSharded) {
-            this.lowerBound = lowerBound;
-            this.upperBound = upperBound;
-            this.depth = depth;
-            this.isHotSharded = isHotSharded;
-        }
+    public record LeafInfo(byte[] lowerBound, byte[] upperBound, int depth, boolean isHotSharded) {
 
         @Override
+        @Nonnull
         public String toString() {
             return String.format("LeafInfo{bounds=[%s, %s), depth=%d, hotSharded=%s}",
                     Arrays.toString(lowerBound), Arrays.toString(upperBound), depth, isHotSharded);
