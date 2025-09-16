@@ -94,7 +94,7 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -144,7 +144,7 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
         double[] values = {10.0, 20.0, 30.0, 40.0, 50.0}; // All in decade 1
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -214,10 +214,10 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
 
         // Add values in different decades
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            histogram.addValue(tr, 1.5);      // decade 0
-            histogram.addValue(tr, 25.0);     // decade 1
-            histogram.addValue(tr, 350.0);    // decade 2
-            histogram.addValue(tr, 4700.0);   // decade 3
+            histogram.add(tr, 1.5);      // decade 0
+            histogram.add(tr, 25.0);     // decade 1
+            histogram.add(tr, 350.0);    // decade 2
+            histogram.add(tr, 4700.0);   // decade 3
             tr.commit().join();
         }
 
@@ -245,7 +245,7 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
         double[] values = {1.0, 10.0, 100.0, 1000.0, 10000.0};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }

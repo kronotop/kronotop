@@ -83,7 +83,7 @@ public class HistogramEstimator {
             // Negatives with |v| < |threshold| (i.e., values closer to zero than threshold)
             // This means negative values with magnitude less than |threshold|
             double thresholdMagnitude = -threshold; // |threshold|
-            long negLessThanThreshold = estimateHistogramLessThan(tr, subspace, HistogramKeySchema.NEG_HIST_PREFIX, thresholdMagnitude, metadata);
+            long negLessThanThreshold = estimateHistogramLessThan(tr, subspace, thresholdMagnitude, metadata);
             countAbove += negLessThanThreshold;
         }
 
@@ -181,18 +181,17 @@ public class HistogramEstimator {
     /**
      * Estimates count < threshold for a specific histogram (for negative magnitude calculations)
      */
-    private long estimateHistogramLessThan(Transaction tr, DirectorySubspace subspace, String histType,
-                                           double threshold, HistogramMetadata metadata) {
-        // Get total for this histogram and subtract the >= portion
-        long totalHist = getHistogramTotalCount(tr, subspace, histType);
-        long greaterEqual = estimateHistogramGreaterThan(tr, subspace, histType, threshold, metadata);
+    private long estimateHistogramLessThan(Transaction tr, DirectorySubspace subspace, double threshold, HistogramMetadata metadata) {
+        // Get the total for this histogram and subtract the >= portion
+        long totalHist = getHistogramTotalCount(tr, subspace, HistogramKeySchema.NEG_HIST_PREFIX);
+        long greaterEqual = estimateHistogramGreaterThan(tr, subspace, HistogramKeySchema.NEG_HIST_PREFIX, threshold, metadata);
 
-        // Also need to account for values exactly equal to threshold
+        // Also need to account for values exactly equal to a threshold
         double logT = Math.log10(threshold);
         int dT = (int) Math.floor(logT);
         int jT = bucketIndexWithinDecade(logT, dT, metadata.m());
 
-        byte[] bucketData = tr.get(HistogramKeySchema.bucketCountKey(subspace, histType, dT, jT)).join();
+        byte[] bucketData = tr.get(HistogramKeySchema.bucketCountKey(subspace, HistogramKeySchema.NEG_HIST_PREFIX, dT, jT)).join();
         long equalCount = 0;
         if (bucketData != null) {
             long bucketCount = HistogramKeySchema.decodeCounterValue(bucketData);

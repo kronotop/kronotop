@@ -114,9 +114,7 @@ public class FDBLogHistogram {
     /**
      * Adds a value within an existing transaction following LogHistogramDynamic2
      */
-    public void addValue(Transaction tr, double value) {
-        //DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
-
+    public void add(Transaction tr, double value) {
         if (value == 0.0) {
             // Handle zero values separately
             tr.mutate(MutationType.ADD, HistogramKeySchema.zeroCountKey(subspace), HistogramKeySchema.ONE_LE);
@@ -153,9 +151,7 @@ public class FDBLogHistogram {
     /**
      * Deletes a value using atomic ADD(-1) operations - exact inverse of insert
      */
-    public void deleteValue(Transaction tr, double value) {
-        //DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
-
+    public void delete(Transaction tr, double value) {
         if (value == 0.0) {
             // Handle zero values separately
             tr.mutate(MutationType.ADD, HistogramKeySchema.zeroCountKey(subspace), HistogramKeySchema.NEGATIVE_ONE_LE);
@@ -198,8 +194,8 @@ public class FDBLogHistogram {
         }
 
         // Atomic delete old + insert new
-        deleteValue(tr, oldValue);
-        addValue(tr, newValue);
+        delete(tr, oldValue);
+        add(tr, newValue);
     }
 
     /**
@@ -208,7 +204,7 @@ public class FDBLogHistogram {
     private int computeShardId(double value, int shardCount) {
         // Use Double.doubleToLongBits for deterministic hash of double values
         long hash = Double.doubleToLongBits(value);
-        // Apply mask to ensure positive value, then mod by shard count
+        // Apply mask to ensure a positive value, then mod by shard count
         return (int) ((hash & 0x7fffffffL) % shardCount);
     }
 

@@ -87,7 +87,7 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -95,7 +95,7 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             double[] more = {1.2, 2.5, 6.7, 8.9, 1e6, 3e7, 9e8, 4.2e9};
             for (double value : more) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -127,7 +127,7 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
             // Dataset: 6 values {30, 40, 99, 123, 250, 999}
             double[] values = {30, 40, 99, 123, 250, 999};
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -153,11 +153,11 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
     void testAddZeroAndNegativeValues() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Dataset: 5 values {0, -5, -100, 50, 100}
-            histogram.addValue(tr, 0);
-            histogram.addValue(tr, -5);
-            histogram.addValue(tr, -100);
-            histogram.addValue(tr, 50);
-            histogram.addValue(tr, 100);
+            histogram.add(tr, 0);
+            histogram.add(tr, -5);
+            histogram.add(tr, -100);
+            histogram.add(tr, 50);
+            histogram.add(tr, 100);
             tr.commit().join();
         }
 
@@ -184,7 +184,7 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
         double[] values = {10, 50, 100, 500, 1000};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -227,7 +227,7 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
         double[] values = {1.2, 25, 678, 4589, 123456, 7.89e6, 3.45e8};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -298,7 +298,7 @@ class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
         double[] values = {1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 2500.0};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }

@@ -85,7 +85,7 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         double[] values = {-30, -40, -99, -123, -250, -999, -2587, -4589, -10000};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -154,7 +154,7 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         double[] values = {1.0, 10.0, 100.0, 1000.0};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -182,7 +182,7 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         double[] values = {-1.0, -10.0, -100.0, -1000.0};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -210,7 +210,7 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         double[] values = {-100.0, -10.0, -1.0, 1.0, 10.0, 100.0};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -238,7 +238,7 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         double[] values = {-10.0, 0.0, 0.0, 10.0};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -263,7 +263,7 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         double[] values = {-100.0, -50.0, -10.0, 10.0, 50.0, 100.0};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -288,7 +288,7 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         double[] values = {-30, -40, -99, -123, -250, -999, -2587, -4589, -10000};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }
@@ -313,7 +313,7 @@ class LogHistogramDynamic2Test extends BaseStandaloneInstanceTest {
         double[] values = {-0.001, -0.01, -0.1, 0.001, 0.01, 0.1};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (double value : values) {
-                histogram.addValue(tr, value);
+                histogram.add(tr, value);
             }
             tr.commit().join();
         }

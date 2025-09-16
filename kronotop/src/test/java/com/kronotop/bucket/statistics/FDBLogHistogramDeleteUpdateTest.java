@@ -88,7 +88,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert value
-            histogram.addValue(tr, value);
+            histogram.add(tr, value);
             tr.commit().join();
         }
 
@@ -101,7 +101,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Delete the same value
-            histogram.deleteValue(tr, value);
+            histogram.delete(tr, value);
 
             // Verify deletion
             double afterDelete = estimator.estimateGreaterThan(tr, 50);
@@ -117,13 +117,13 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert zero
-            histogram.addValue(tr, value);
+            histogram.add(tr, value);
             tr.commit().join();
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Delete zero
-            histogram.deleteValue(tr, value);
+            histogram.delete(tr, value);
 
             // Verify zero count is back to zero
             HistogramEstimator estimator = histogram.getEstimator();
@@ -140,13 +140,13 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert negative value
-            histogram.addValue(tr, value);
+            histogram.add(tr, value);
             tr.commit().join();
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Delete negative value
-            histogram.deleteValue(tr, value);
+            histogram.delete(tr, value);
 
             // Verify deletion
             HistogramEstimator estimator = histogram.getEstimator();
@@ -163,9 +163,9 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert same value multiple times
-            histogram.addValue(tr, value);
-            histogram.addValue(tr, value);
-            histogram.addValue(tr, value);
+            histogram.add(tr, value);
+            histogram.add(tr, value);
+            histogram.add(tr, value);
             tr.commit().join();
         }
 
@@ -176,15 +176,15 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
             assertTrue(beforeDelete > 0, "Should have positive selectivity with 3 values");
 
             // Delete one instance
-            histogram.deleteValue(tr, value);
+            histogram.delete(tr, value);
 
             // Should still have values (but fewer)
             double afterOneDelete = estimator.estimateGreaterThan(tr, 50);
             assertTrue(afterOneDelete > 0, "Should still have positive selectivity after one delete");
 
             // Delete remaining instances
-            histogram.deleteValue(tr, value);
-            histogram.deleteValue(tr, value);
+            histogram.delete(tr, value);
+            histogram.delete(tr, value);
 
             // Now should be zero
             double afterAllDeletes = estimator.estimateGreaterThan(tr, 50);
@@ -201,7 +201,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert initial value
-            histogram.addValue(tr, oldValue);
+            histogram.add(tr, oldValue);
             tr.commit().join();
         }
 
@@ -236,7 +236,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert positive value
-            histogram.addValue(tr, oldValue);
+            histogram.add(tr, oldValue);
             tr.commit().join();
         }
 
@@ -265,7 +265,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert negative value
-            histogram.addValue(tr, oldValue);
+            histogram.add(tr, oldValue);
             tr.commit().join();
         }
 
@@ -299,7 +299,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert value
-            histogram.addValue(tr, value);
+            histogram.add(tr, value);
             tr.commit().join();
         }
 
@@ -326,7 +326,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert value
-            histogram.addValue(tr, value1);
+            histogram.add(tr, value1);
             tr.commit().join();
         }
 
@@ -353,9 +353,9 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert various values
-            histogram.addValue(tr, 100.0);
-            histogram.addValue(tr, -50.0);
-            histogram.addValue(tr, 0.0);
+            histogram.add(tr, 100.0);
+            histogram.add(tr, -50.0);
+            histogram.add(tr, 0.0);
             tr.commit().join();
         }
 
@@ -369,7 +369,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
             histogram.updateValue(tr, 100.0, 200.0);
 
             // Delete one value  
-            histogram.deleteValue(tr, -50.0);
+            histogram.delete(tr, -50.0);
 
             // Should still have some values (zero and 200)
             double finalTotal = estimator.estimateGreaterThan(tr, -100);
@@ -389,7 +389,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert value
-            histogram.addValue(tr, value);
+            histogram.add(tr, value);
             tr.commit().join();
         }
 
@@ -403,7 +403,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Delete value
-            histogram.deleteValue(tr, value);
+            histogram.delete(tr, value);
 
             // Verify deletion
             double afterDelete = estimator.estimateGreaterThan(tr, 200);
@@ -420,7 +420,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert value
-            histogram.addValue(tr, oldValue);
+            histogram.add(tr, oldValue);
             tr.commit().join();
         }
 
@@ -452,7 +452,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
     void testPublicUpdateCreatesHistogramIfNeeded() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // First add a value so we have something to update
-            histogram.addValue(tr, 50.0);
+            histogram.add(tr, 50.0);
             tr.commit().join();
         }
 
@@ -490,9 +490,9 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert multiple values
-            histogram.addValue(tr, value1);
-            histogram.addValue(tr, value2);
-            histogram.addValue(tr, value3);
+            histogram.add(tr, value1);
+            histogram.add(tr, value2);
+            histogram.add(tr, value3);
             tr.commit().join();
         }
 
@@ -503,12 +503,12 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
             assertTrue(initialCount > 0, "Should have values after inserts");
 
             // Delete values one by one
-            histogram.deleteValue(tr, value2);
+            histogram.delete(tr, value2);
             double afterFirstDelete = estimator.estimateGreaterThan(tr, 50);
             assertTrue(afterFirstDelete > 0, "Should still have values after first delete");
 
-            histogram.deleteValue(tr, value1);
-            histogram.deleteValue(tr, value3);
+            histogram.delete(tr, value1);
+            histogram.delete(tr, value3);
 
             double afterAllDeletes = estimator.estimateGreaterThan(tr, 50);
             assertEquals(0.0, afterAllDeletes, 0.01, "Should have no values after all deletes");
@@ -525,7 +525,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert initial value
-            histogram.addValue(tr, value1);
+            histogram.add(tr, value1);
             tr.commit().join();
         }
 
@@ -558,7 +558,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Insert value
-            histogram.addValue(tr, value);
+            histogram.add(tr, value);
             tr.commit().join();
         }
 
@@ -584,8 +584,8 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Test with zero values
-            histogram.addValue(tr, zeroValue);
-            histogram.addValue(tr, positiveValue);
+            histogram.add(tr, zeroValue);
+            histogram.add(tr, positiveValue);
             tr.commit().join();
         }
 
@@ -596,7 +596,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStandaloneInstanceTest {
             assertTrue(beforeDelete > 0, "Should have values after inserts including zero");
 
             // Delete zero value
-            histogram.deleteValue(tr, zeroValue);
+            histogram.delete(tr, zeroValue);
             double afterDeleteZero = estimator.estimateGreaterThan(tr, -1);
             assertTrue(afterDeleteZero > 0, "Should still have positive value after deleting zero");
 
