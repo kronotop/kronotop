@@ -104,7 +104,7 @@ public class APPHistogram {
     /**
      * Adds a byte array value to the histogram within an existing transaction.
      */
-    public void addValue(Transaction tr, byte[] value, String docRef) {
+    public void add(Transaction tr, byte[] value, String docRef) {
         byte[] valuePad = APPHistogramKeySchema.rightPad(value, metadata.maxDepth(), (byte) 0x00);
 
         // Find the leaf that contains this value
@@ -129,7 +129,7 @@ public class APPHistogram {
     /**
      * Removes a byte array value from the histogram within an existing transaction.
      */
-    public void deleteValue(Transaction tr, byte[] value, String docRef) {
+    public void delete(Transaction tr, byte[] value, String docRef) {
         byte[] valuePad = APPHistogramKeySchema.rightPad(value, metadata.maxDepth(), (byte) 0x00);
 
         // Find the leaf that contains this value
@@ -154,14 +154,14 @@ public class APPHistogram {
     /**
      * Updates a value atomically (delete old + insert new in single transaction).
      */
-    public void updateValue(Transaction tr, byte[] oldValue, byte[] newValue, String docRef) {
+    public void update(Transaction tr, byte[] oldValue, byte[] newValue, String docRef) {
         if (Arrays.equals(oldValue, newValue)) {
             return; // No change needed
         }
 
         // Atomic delete old + insert new
-        deleteValue(tr, oldValue, docRef);
-        addValue(tr, newValue, docRef);
+        delete(tr, oldValue, docRef);
+        add(tr, newValue, docRef);
     }
 
     /**

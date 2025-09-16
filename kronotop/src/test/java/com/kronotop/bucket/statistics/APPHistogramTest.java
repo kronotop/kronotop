@@ -104,9 +104,9 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
     void testBasicOperations() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Add some values
-            histogram.addValue(tr, "hello".getBytes(), "doc1");
-            histogram.addValue(tr, "world".getBytes(), "doc2");
-            histogram.addValue(tr, "test".getBytes(), "doc3");
+            histogram.add(tr, "hello".getBytes(), "doc1");
+            histogram.add(tr, "world".getBytes(), "doc2");
+            histogram.add(tr, "test".getBytes(), "doc3");
 
             // Add to index as well (for recount testing)
             addToIndex(tr, indexSubspace, "hello".getBytes(), "doc1");
@@ -120,7 +120,7 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
             APPHistogram testHistogram = new APPHistogram(tr, indexSubspace.getPath());
 
             // Delete a value
-            testHistogram.deleteValue(tr, "world".getBytes(), "doc2");
+            testHistogram.delete(tr, "world".getBytes(), "doc2");
             removeFromIndex(tr, indexSubspace, "world".getBytes(), "doc2");
 
             tr.commit().join();
@@ -135,11 +135,11 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
     void testUpdateOperation() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Add initial value
-            histogram.addValue(tr, "initial".getBytes(), "doc1");
+            histogram.add(tr, "initial".getBytes(), "doc1");
             addToIndex(tr, indexSubspace, "initial".getBytes(), "doc1");
 
             // Update to new value
-            histogram.updateValue(tr, "initial".getBytes(), "updated".getBytes(), "doc1");
+            histogram.update(tr, "initial".getBytes(), "updated".getBytes(), "doc1");
             removeFromIndex(tr, indexSubspace, "initial".getBytes(), "doc1");
             addToIndex(tr, indexSubspace, "updated".getBytes(), "doc1");
 
@@ -158,7 +158,7 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
                 byte[] value = String.format("value%03d", i).getBytes();
                 String docRef = "doc" + i;
 
-                histogram.addValue(tr, value, docRef);
+                histogram.add(tr, value, docRef);
                 addToIndex(tr, indexSubspace, value, docRef);
             }
 
@@ -183,7 +183,7 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
             for (int i = 0; i < testValues.length; i++) {
                 for (int j = 0; j < 3; j++) {
                     String docRef = "doc" + i + "_" + j;
-                    histogram.addValue(tr, testValues[i], docRef);
+                    histogram.add(tr, testValues[i], docRef);
                     addToIndex(tr, indexSubspace, testValues[i], docRef);
                 }
             }
@@ -237,7 +237,7 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
                     byte[] value = ("round" + round + "_value" + i).getBytes();
                     String docRef = "round" + round + "_doc" + i;
 
-                    testHistogram.addValue(tr, value, docRef);
+                    testHistogram.add(tr, value, docRef);
                     addToIndex(tr, indexSubspace, value, docRef);
                 }
 
@@ -272,17 +272,17 @@ class APPHistogramTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Test with keys longer than maxDepth
             byte[] longKey = "this_is_a_very_long_key_that_exceeds_max_depth".getBytes();
-            histogram.addValue(tr, longKey, "doc1");
+            histogram.add(tr, longKey, "doc1");
             addToIndex(tr, indexSubspace, longKey, "doc1");
 
             // Test with very short keys
             byte[] shortKey = "x".getBytes();
-            histogram.addValue(tr, shortKey, "doc2");
+            histogram.add(tr, shortKey, "doc2");
             addToIndex(tr, indexSubspace, shortKey, "doc2");
 
             // Test with empty key
             byte[] emptyKey = new byte[0];
-            histogram.addValue(tr, emptyKey, "doc3");
+            histogram.add(tr, emptyKey, "doc3");
             addToIndex(tr, indexSubspace, emptyKey, "doc3");
 
             tr.commit().join();
