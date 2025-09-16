@@ -17,71 +17,14 @@
 package com.kronotop.bucket.statistics;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.bucket.index.SortOrder;
-import com.kronotop.server.Session;
-import org.bson.BsonType;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class FDBLogHistogramTest extends BaseStandaloneInstanceTest {
-
-    private final String testField = "price";
-    private FDBLogHistogram histogram;
-    private String testBucket; // Will be unique per test
-
-    protected void createBucket(String bucketName) {
-        // Bucket is created implicitly through BucketMetadataUtil.createOrOpen()
-        Session session = getSession();
-        BucketMetadataUtil.createOrOpen(context, session, bucketName);
-    }
-
-    protected void createIndex(String bucketName, IndexDefinition indexDefinition) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = getBucketMetadata(bucketName);
-            IndexUtil.create(tr, metadata.subspace(), indexDefinition);
-            tr.commit().join();
-        }
-    }
-
-    protected BucketMetadata createIndexesAndLoadBucketMetadata(String bucketName, IndexDefinition definition) {
-        // Create the bucket first
-        createBucket(bucketName);
-
-        createIndex(bucketName, definition);
-
-        // Load and return metadata
-        Session session = getSession();
-        return BucketMetadataUtil.createOrOpen(context, session, bucketName);
-    }
-
-    @BeforeEach
-    void setUp() {
-        testBucket = "test_bucket_" + System.nanoTime(); // Unique bucket per test
-
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        BucketMetadata bucketMetadata = createIndexesAndLoadBucketMetadata(testBucket, ageIndex);
-        DirectorySubspace indexSubspace = bucketMetadata.indexes().getSubspace("age");
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            FDBLogHistogram.initialize(tr, indexSubspace.getPath());
-            tr.commit().join();
-        }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            histogram = new FDBLogHistogram(tr, indexSubspace.getPath());
-        }
-    }
+class FDBLogHistogramTest extends BaseStatisticsTest {
 
     @Test
     void testPreciseSelectivityEstimation() {
-
         // Known dataset: 17 values total
         double[] values = {30, 40, 99, 123, 250, 999, 2587, 4589, 10000};
 
