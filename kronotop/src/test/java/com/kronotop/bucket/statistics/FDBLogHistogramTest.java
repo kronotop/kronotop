@@ -194,26 +194,6 @@ class FDBLogHistogramTest extends BaseStatisticsTest {
             assertEquals(0.286, estimator.estimateRange(tr, 100, 10000), 0.15, "P([100,10000)) should be approximately 0.286 (2 out of 7 values)");
         }
     }
-    
-    /*@Test
-    void testCustomMetadata() {
-        // Test with custom parameters
-        HistogramMetadata customMetadata = new HistogramMetadata(32, 8, 10, 32, 1);
-        
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            // Add some data
-            histogram.addValue(tr, 123.45);
-            histogram.addValue(tr, 678.90);
-            tr.commit().join();
-        }
-        
-        // Verify estimator works with custom metadata
-        HistogramEstimator estimator = histogram.getEstimator();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            double selectivity = estimator.estimateGreaterThan(tr, 100);
-            assertTrue(selectivity > 0.0);
-        }
-    }*/
 
     @Test
     void testValidationErrors() {
