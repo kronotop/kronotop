@@ -121,31 +121,13 @@ public class FDBLogHistogram {
             return;
         }
 
-        // Determine histogram type and magnitude
-        String histType;
-        double magnitude;
-        if (value > 0) {
-            histType = HistogramKeySchema.POS_HIST_PREFIX;
-            magnitude = value;
-        } else {
-            histType = HistogramKeySchema.NEG_HIST_PREFIX;
-            magnitude = -value; // Use absolute value for negatives
-        }
-
-        // Calculate decade and sub-bucket using log10 of magnitude
-        double log = Math.log10(magnitude);
-        int decade = (int) Math.floor(log);
-        int subBucket = bucketIndexWithinDecade(log, decade, metadata.m());
-        int group = subBucket / metadata.groupSize();
-
-        // Deterministic shard based on value
-        int shard = computeShardId(value, metadata.shardCount());
+        var bucketParams = calculateBucketParameters(value);
 
         // Atomic ADD operations (no reads required)
-        tr.mutate(MutationType.ADD, HistogramKeySchema.bucketCountKey(subspace, histType, decade, subBucket), HistogramKeySchema.ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.decadeSumKey(subspace, histType, decade), HistogramKeySchema.ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.groupSumKey(subspace, histType, decade, group), HistogramKeySchema.ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, histType, shard), HistogramKeySchema.ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.bucketCountKey(subspace, bucketParams.histType, bucketParams.decade, bucketParams.subBucket), HistogramKeySchema.ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.decadeSumKey(subspace, bucketParams.histType, bucketParams.decade), HistogramKeySchema.ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.groupSumKey(subspace, bucketParams.histType, bucketParams.decade, bucketParams.group), HistogramKeySchema.ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, bucketParams.histType, bucketParams.shard), HistogramKeySchema.ONE_LE);
     }
 
     /**
@@ -158,31 +140,13 @@ public class FDBLogHistogram {
             return;
         }
 
-        // Determine histogram type and magnitude
-        String histType;
-        double magnitude;
-        if (value > 0) {
-            histType = HistogramKeySchema.POS_HIST_PREFIX;
-            magnitude = value;
-        } else {
-            histType = HistogramKeySchema.NEG_HIST_PREFIX;
-            magnitude = -value; // Use absolute value for negatives
-        }
-
-        // Calculate decade and sub-bucket using log10 of magnitude
-        double log = Math.log10(magnitude);
-        int decade = (int) Math.floor(log);
-        int subBucket = bucketIndexWithinDecade(log, decade, metadata.m());
-        int group = subBucket / metadata.groupSize();
-
-        // Deterministic shard based on value
-        int shard = computeShardId(value, metadata.shardCount());
+        var bucketParams = calculateBucketParameters(value);
 
         // Atomic ADD(-1) operations - exact inverse of insert
-        tr.mutate(MutationType.ADD, HistogramKeySchema.bucketCountKey(subspace, histType, decade, subBucket), HistogramKeySchema.NEGATIVE_ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.decadeSumKey(subspace, histType, decade), HistogramKeySchema.NEGATIVE_ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.groupSumKey(subspace, histType, decade, group), HistogramKeySchema.NEGATIVE_ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, histType, shard), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.bucketCountKey(subspace, bucketParams.histType, bucketParams.decade, bucketParams.subBucket), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.decadeSumKey(subspace, bucketParams.histType, bucketParams.decade), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.groupSumKey(subspace, bucketParams.histType, bucketParams.decade, bucketParams.group), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, bucketParams.histType, bucketParams.shard), HistogramKeySchema.NEGATIVE_ONE_LE);
     }
 
     /**
@@ -208,12 +172,54 @@ public class FDBLogHistogram {
         return (int) ((hash & 0x7fffffffL) % shardCount);
     }
 
+    /**
+     * Retrieves the `HistogramEstimator` instance associated with this histogram.
+     *
+     * @return the `HistogramEstimator` responsible for estimating histogram properties.
+     */
     public HistogramEstimator getEstimator() {
         return estimator;
     }
 
+    /**
+     * Retrieves the HistogramWindowManager instance managing histogram window operations.
+     *
+     * @return the HistogramWindowManager instance associated with this histogram.
+     */
     public HistogramWindowManager getWindowManager() {
         return windowManager;
+    }
+
+    /**
+     * Bucket parameters for a histogram value
+     */
+    private record BucketParameters(String histType, int decade, int subBucket, int group, int shard) {}
+
+    /**
+     * Calculates bucket parameters for a given value (extracted to eliminate code duplication)
+     */
+    private BucketParameters calculateBucketParameters(double value) {
+        // Determine histogram type and magnitude
+        String histType;
+        double magnitude;
+        if (value > 0) {
+            histType = HistogramKeySchema.POS_HIST_PREFIX;
+            magnitude = value;
+        } else {
+            histType = HistogramKeySchema.NEG_HIST_PREFIX;
+            magnitude = -value; // Use absolute value for negatives
+        }
+
+        // Calculate decade and sub-bucket using log10 of magnitude
+        double log = Math.log10(magnitude);
+        int decade = (int) Math.floor(log);
+        int subBucket = bucketIndexWithinDecade(log, decade, metadata.m());
+        int group = subBucket / metadata.groupSize();
+
+        // Deterministic shard based on value
+        int shard = computeShardId(value, metadata.shardCount());
+
+        return new BucketParameters(histType, decade, subBucket, group, shard);
     }
 
     /**
