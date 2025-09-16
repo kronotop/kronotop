@@ -28,7 +28,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
  * For P(field > threshold):
  * - If threshold > 0: use posHist.estimateGreaterThan(threshold) / totalCount
  * - If threshold = 0: count all positive values
- * - If threshold < 0: count all positives + negatives with |v| < |threshold|
+ * - If threshold < 0: count all positives plus negatives with |v| < |threshold|
  * <p>
  * For P(a <= field < b): computed as P(field >= a) - P(field >= b)
  * <p>
@@ -39,7 +39,7 @@ public class HistogramEstimator {
     private final DirectorySubspace subspace;
     private final HistogramMetadata metadata;
 
-    public HistogramEstimator(HistogramMetadata metadata, DirectorySubspace subspace) {
+    HistogramEstimator(HistogramMetadata metadata, DirectorySubspace subspace) {
         this.subspace = subspace;
         this.metadata = metadata;
     }
@@ -52,7 +52,7 @@ public class HistogramEstimator {
             return 0.0; // No data
         }
 
-        // Get total count across all histograms
+        // Get a total count across all histograms
         long totalCount = getTotalCount(tr, subspace, metadata.shardCount());
         if (totalCount == 0) {
             return 0.0;
@@ -61,7 +61,7 @@ public class HistogramEstimator {
         long countAbove = 0;
 
         if (threshold > 0) {
-            // Case 1: threshold > 0 - count positives greater than threshold
+            // Case 1: threshold > 0 - count positives greater than the threshold
             countAbove = estimateHistogramGreaterThan(tr, subspace, HistogramKeySchema.POS_HIST_PREFIX, threshold, metadata);
 
         } else if (threshold == 0) {
@@ -80,7 +80,7 @@ public class HistogramEstimator {
                 countAbove += HistogramKeySchema.decodeCounterValue(zeroData);
             }
 
-            // Negatives with |v| < |threshold| (i.e., values closer to zero than threshold)
+            // Negatives with |v| < |threshold| (i.e., values closer to zero than the threshold)
             // This means negative values with magnitude less than |threshold|
             double thresholdMagnitude = -threshold; // |threshold|
             long negLessThanThreshold = estimateHistogramLessThan(tr, subspace, thresholdMagnitude, metadata);
@@ -102,7 +102,7 @@ public class HistogramEstimator {
         // For P(field >= x), we compute 1 - P(field < x) = 1 - P(field <= x-epsilon)
         // But it's easier to compute P(field > x-epsilon) directly
 
-        double eps = 1e-9;
+        // double eps = 1e-9;
         double geqA = estimateGreaterThanOrEqual(tr, a);
         double geqB = estimateGreaterThanOrEqual(tr, b);
         return Math.max(0.0, Math.min(1.0, geqA - geqB));
@@ -151,7 +151,7 @@ public class HistogramEstimator {
             }
         }
 
-        // 4. Add individual buckets for same group, j > jT
+        // 4. Add individual buckets for the same group, j > jT
         int groupStart = gT * metadata.groupSize();
         int groupEnd = Math.min(groupStart + metadata.groupSize() - 1, metadata.m() - 1);
 
@@ -179,7 +179,7 @@ public class HistogramEstimator {
     }
 
     /**
-     * Estimates count < threshold for a specific histogram (for negative magnitude calculations)
+     * Estimates "count < threshold" for a specific histogram (for negative magnitude calculations)
      */
     private long estimateHistogramLessThan(Transaction tr, DirectorySubspace subspace, double threshold, HistogramMetadata metadata) {
         // Get the total for this histogram and subtract the >= portion
@@ -257,7 +257,7 @@ public class HistogramEstimator {
             }
         }
 
-        // Add zero count
+        // Add zero counts
         byte[] zeroData = tr.get(HistogramKeySchema.zeroCountKey(subspace)).join();
         if (zeroData != null) {
             total += HistogramKeySchema.decodeCounterValue(zeroData);

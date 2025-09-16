@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests the LogHistogramDynamic2 delete/update semantics with deterministic sharding.
  */
 class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
-    
+
     @Test
     void testBasicDeleteOperation() {
         double value = 100.0;
@@ -161,7 +161,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
             assertTrue(initialCount > 0, "Should have positive values initially");
 
             // Update the value
-            histogram.updateValue(tr, oldValue, newValue);
+            histogram.update(tr, oldValue, newValue);
 
             // Verify update results
             double afterUpdate = estimator.estimateGreaterThan(tr, 100);
@@ -189,7 +189,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Update to zero
-            histogram.updateValue(tr, oldValue, newValue);
+            histogram.update(tr, oldValue, newValue);
 
             // Should have zero positive values
             double positiveValues = estimator.estimateGreaterThan(tr, 0);
@@ -225,7 +225,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
             assertTrue(initialNegatives > 0, "Should have negative values initially");
 
             // Update from negative to positive (sign flip)
-            histogram.updateValue(tr, oldValue, newValue);
+            histogram.update(tr, oldValue, newValue);
 
             // Verify sign flip results
             double finalPositive = estimator.estimateGreaterThan(tr, 0);
@@ -254,7 +254,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
             double beforeUpdate = estimator.estimateGreaterThan(tr, 50);
 
             // Update to same value (no-op)
-            histogram.updateValue(tr, value, value);
+            histogram.update(tr, value, value);
 
             // Should be unchanged
             double afterUpdate = estimator.estimateGreaterThan(tr, 50);
@@ -279,7 +279,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Update should work correctly
-            histogram.updateValue(tr, value1, value2);
+            histogram.update(tr, value1, value2);
 
             // Should have the new value, not the old
             double lowValues = estimator.estimateGreaterThan(tr, 50);
@@ -311,7 +311,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
             assertTrue(initialTotal > 0, "Should have values after initial inserts");
 
             // Update one value
-            histogram.updateValue(tr, 100.0, 200.0);
+            histogram.update(tr, 100.0, 200.0);
 
             // Delete one value  
             histogram.delete(tr, -50.0);
@@ -380,7 +380,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
             assertTrue(lowValues > 0, "Should have values > 50 initially");
 
             // Update value
-            histogram.updateValue(tr, oldValue, newValue);
+            histogram.update(tr, oldValue, newValue);
 
             // Verify update results
             double afterUpdate = estimator.estimateGreaterThan(tr, 150);
@@ -406,7 +406,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Update should work on the histogram
             assertDoesNotThrow(() -> {
-                histogram.updateValue(tr, 50.0, 150.0);
+                histogram.update(tr, 50.0, 150.0);
             }, "Update should work on histogram");
 
             // Verify the histogram has the updated value
@@ -478,11 +478,11 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Chain of updates
-            histogram.updateValue(tr, value1, value2);
+            histogram.update(tr, value1, value2);
             double afterFirstUpdate = estimator.estimateGreaterThan(tr, 75);
             assertTrue(afterFirstUpdate > 0, "Should have values > 75 after first update");
 
-            histogram.updateValue(tr, value2, value3);
+            histogram.update(tr, value2, value3);
             double afterSecondUpdate = estimator.estimateGreaterThan(tr, 150);
             assertTrue(afterSecondUpdate > 0, "Should have values > 150 after second update");
 
@@ -513,7 +513,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
             double beforeUpdate = estimator.estimateGreaterThan(tr, 100);
 
             // Update to same value (should be no-op)
-            histogram.updateValue(tr, value, value);
+            histogram.update(tr, value, value);
 
             double afterUpdate = estimator.estimateGreaterThan(tr, 100);
             assertEquals(beforeUpdate, afterUpdate, 0.01, "No-op update should not change selectivity");
@@ -546,7 +546,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
             assertTrue(afterDeleteZero > 0, "Should still have positive value after deleting zero");
 
             // Update positive to zero
-            histogram.updateValue(tr, positiveValue, zeroValue);
+            histogram.update(tr, positiveValue, zeroValue);
             double afterUpdateToZero = estimator.estimateGreaterThan(tr, 0);
             assertEquals(0.0, afterUpdateToZero, 0.01, "Should have no positive values after update to zero");
 
@@ -565,7 +565,7 @@ class FDBLogHistogramDeleteUpdateTest extends BaseStatisticsTest {
             // Try to update a value that doesn't exist
             // This effectively does: delete(nonexistent) + add(new)
             // The delete of nonexistent creates negative counts, so the result may be unpredictable
-            histogram.updateValue(tr, 100.0, 200.0);
+            histogram.update(tr, 100.0, 200.0);
 
             // The behavior is that delete(-1) + add(+1) may not result in a clean state
             // This test documents the current behavior rather than asserting what should happen

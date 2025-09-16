@@ -150,9 +150,9 @@ public class FDBLogHistogram {
     }
 
     /**
-     * Updates a value atomically (delete old + insert new in single transaction)
+     * Updates a value atomically (delete old + insert new in a single transaction)
      */
-    public void updateValue(Transaction tr, double oldValue, double newValue) {
+    public void update(Transaction tr, double oldValue, double newValue) {
         if (oldValue == newValue) {
             return; // No change needed
         }
@@ -191,11 +191,6 @@ public class FDBLogHistogram {
     }
 
     /**
-     * Bucket parameters for a histogram value
-     */
-    private record BucketParameters(String histType, int decade, int subBucket, int group, int shard) {}
-
-    /**
      * Calculates bucket parameters for a given value (extracted to eliminate code duplication)
      */
     private BucketParameters calculateBucketParameters(double value) {
@@ -231,5 +226,11 @@ public class FDBLogHistogram {
         if (j < 0) j = 0;
         if (j >= m) j = m - 1;
         return j;
+    }
+
+    /**
+     * Bucket parameters for a histogram value
+     */
+    private record BucketParameters(String histType, int decade, int subBucket, int group, int shard) {
     }
 }
