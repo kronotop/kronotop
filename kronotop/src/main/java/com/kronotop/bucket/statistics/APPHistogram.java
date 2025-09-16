@@ -27,7 +27,7 @@ import java.util.List;
 
 /**
  * Adaptive Prefix Partitioning (APP) histogram implementation for byte arrays on FoundationDB.
- *
+ * <p>
  * This implementation provides a lexicographic histogram for byte arrays with:
  * - Online split/merge maintenance (no background workers)
  * - Equal-width geometry with quartile splits (fanout=4)
@@ -35,14 +35,14 @@ import java.util.List;
  * - Hysteresis split/merge thresholds to avoid oscillation
  * - Sharded counters for hotspot mitigation
  * - ACID transactional consistency
- *
+ * <p>
  * Key benefits:
  * - O(1) write operations using atomic ADD mutations
  * - Logarithmic depth tree structure
  * - Accurate range selectivity estimation
  * - No background maintenance threads required
  * - Deterministic geometry for predictable performance
- *
+ * <p>
  * Key Schema:
  * /stats/{bucketName}/{fieldName}/app_hist/
  * ├── L/<lowerPad><depthByte>                -> meta (leaf boundary record)
@@ -172,32 +172,9 @@ public class APPHistogram {
     }
 
     /**
-     * Represents information about a leaf in the histogram.
-     */
-    public static class LeafInfo {
-        public final byte[] lowerBound;
-        public final byte[] upperBound;
-        public final int depth;
-        public final boolean isHotSharded;
-
-        public LeafInfo(byte[] lowerBound, byte[] upperBound, int depth, boolean isHotSharded) {
-            this.lowerBound = lowerBound;
-            this.upperBound = upperBound;
-            this.depth = depth;
-            this.isHotSharded = isHotSharded;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("LeafInfo{bounds=[%s, %s), depth=%d, hotSharded=%s}",
-                    Arrays.toString(lowerBound), Arrays.toString(upperBound), depth, isHotSharded);
-        }
-    }
-
-    /**
      * Finds the leaf that contains the given padded key using reverse scan.
      * Implementation of the findLeaf algorithm from APP specification.
-     *
+     * <p>
      * Algorithm:
      * 1. Compute K_pad (already done by caller)
      * 2. Reverse scan one boundary ≤ K_pad
@@ -209,7 +186,7 @@ public class APPHistogram {
         byte[] rangeBegin = APPHistogramKeySchema.leafBoundaryRangeBegin(subspace, keyPad);
         byte[] rangeEnd = APPHistogramKeySchema.leafBoundaryRangeEnd(subspace);
 
-        // Perform reverse scan with limit 1
+        // Perform a reverse scan with limit 1
         var keyValues = tr.getRange(rangeEnd, rangeBegin, 1, true).asList().join();
 
         if (keyValues.isEmpty()) {
@@ -452,7 +429,7 @@ public class APPHistogram {
 
             // Extract value bytes from index key
             var unpacked = indexSubspace.unpack(kv.getKey());
-            if (unpacked.size() < 1) {
+            if (unpacked.isEmpty()) {
                 continue; // Skip malformed keys
             }
 
@@ -579,6 +556,29 @@ public class APPHistogram {
         // Remove all sibling leaves
         for (LeafInfo sibling : siblings) {
             removeLeaf(tr, sibling);
+        }
+    }
+
+    /**
+     * Represents information about a leaf in the histogram.
+     */
+    public static class LeafInfo {
+        public final byte[] lowerBound;
+        public final byte[] upperBound;
+        public final int depth;
+        public final boolean isHotSharded;
+
+        public LeafInfo(byte[] lowerBound, byte[] upperBound, int depth, boolean isHotSharded) {
+            this.lowerBound = lowerBound;
+            this.upperBound = upperBound;
+            this.depth = depth;
+            this.isHotSharded = isHotSharded;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("LeafInfo{bounds=[%s, %s), depth=%d, hotSharded=%s}",
+                    Arrays.toString(lowerBound), Arrays.toString(upperBound), depth, isHotSharded);
         }
     }
 }

@@ -27,7 +27,7 @@ import java.util.Arrays;
 /**
  * Utility class for encoding/decoding APP histogram keys and values in FoundationDB.
  * Implements the key schema design for Adaptive Prefix Partitioning histogram storage.
- *
+ * <p>
  * Key Schema:
  * HIST/<indexId>/L/<lowerPad><depthByte>                = <meta>   # leaf boundary record
  * HIST/<indexId>/C/<lowerPad><depthByte>/<shardId>      = <i64>    # leaf counter shards
@@ -62,10 +62,7 @@ public class APPHistogramKeySchema {
      * Decodes a little-endian long value from FoundationDB
      */
     public static long decodeCounterValue(byte[] data) {
-        if (data == null || data.length != 8) {
-            return 0;
-        }
-        return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
+        return HistogramKeySchema.decodeCounterValue(data);
     }
 
     /**
@@ -207,14 +204,14 @@ public class APPHistogramKeySchema {
      * Creates range begin key for index entries within a leaf's range
      */
     public static byte[] indexRangeBegin(DirectorySubspace indexSubspace, byte[] lowerPad) {
-        return indexSubspace.pack(Tuple.from(lowerPad));
+        return indexSubspace.pack(Tuple.from((Object) lowerPad));
     }
 
     /**
      * Creates range end key for index entries within a leaf's range (exclusive)
      */
     public static byte[] indexRangeEnd(DirectorySubspace indexSubspace, byte[] upperPad) {
-        return indexSubspace.pack(Tuple.from(upperPad));
+        return indexSubspace.pack(Tuple.from((Object) upperPad));
     }
 
     /**
