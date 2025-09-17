@@ -2,146 +2,112 @@
 
 ## Overview
 
-We define a **prefix-based histogram** over arbitrary byte arrays (string or binary keys).
+A lightweight histogram structure for **approximate range selectivity estimation** over string or binary keys in FoundationDB-like systems.
 
-* Each histogram node corresponds to a prefix of length *d* (1 ≤ *d* ≤ `MAX_DEPTH`).
-* Each node stores a counter of how many keys share that prefix.
-* A key contributes to all its prefixes up to `MAX_DEPTH`.
-* At query time, selectivity is estimated using counters from the coarsest sufficient level, ensuring **bounded read cost**.
-
-This approach requires no background workers, split/merge logic, or dynamic rebalancing. All updates are handled by atomic increments.
+* Each **depth** corresponds to one byte of the input key (max 8 bytes).
+* Each **bin** is identified by `(depth, byteValue)`.
+* Writes increment counters along the path of the key.
+* Reads use these counters to approximate selectivity for range predicates.
+* **Equality (`= v`) is not estimated here** — handled by the secondary index directly.
 
 ---
 
 ## Parameters
 
-* **BUCKET\_SIZE:** 1 byte (each prefix level adds one byte)
-* **MAX\_DEPTH:** 8 (maximum prefix length considered)
+* **Bin size**: 1 byte per depth
+* **Max depth**: 8
+* **Value padding**: if the key is shorter than `depth`, pad with `0x00`.
 
 ---
 
-## FoundationDB Schema
+## Data Layout
+
+For each depth `d` and byte value `b`:
 
 ```
-HIST/<depth>/<prefix> = <i64 counter>
+HIST/<index>/D/<d>/B/<b> = <i64 counter>
 ```
 
-* `<depth>`: integer in \[1, MAX\_DEPTH]
-* `<prefix>`: the first `depth` bytes of the key
-* Counter encoding: little-endian `i64` (compatible with FDB atomic ADD)
+* Incremented for every key whose prefix at `d` equals `b`.
+* Atomic adds ensure no write conflicts.
 
 ---
 
 ## Write Path
 
-For key `k` of length `ℓ`:
+### Insert(key)
 
-1. For each depth `d = 1 .. min(ℓ, MAX_DEPTH)`
+For `d = 1..min(len(key), MAX_DEPTH)`:
 
-    * `prefix = k[0..d-1]`
-    * `tr.mutate(ADD, HIST/d/prefix, +1)`
+1. `b = key[d-1] if d <= len(key) else 0x00` => 1 byte
+2. `ADD(HIST/D/d/B/b, +1)`
 
-2. Delete = same loop with `-1`
+### Delete(key)
 
-3. Update = delete(oldKey) + insert(newKey) in the same transaction
-
-👉 Complexity: ≤ 8 atomic increments per key (bounded)
+Same as insert, but `-1`.
 
 ---
 
-## Equality Estimation (`= v`)
+## Estimation Primitives
 
-1. Let `depth = min(len(v), MAX_DEPTH)`
-2. Read counter `HIST/depth/prefix(v)`
-3. Estimate:
-
-   ```
-   est = count(prefix(v)) / totalDocs
-   ```
-
----
-
-## Range Estimation `[A,B)`
-
-1. **Root-level counters**
-
-    * Retrieve all depth=1 counters with a single `getRange(HIST/1, HIST/2)`
-    * At most 256 counters returned
-
-2. **Decompose the range**
-
-    * **Left edge**: use `count(prefix(A)) * fracLeft(A)`
-    * **Right edge**: use `count(prefix(B)) * fracRight(B)`
-    * **Middle bins**: sum all fully covered root-level bins between prefix(A) and prefix(B)
-
-3. **Optional refinement**
-
-    * If needed, read deeper prefix levels for edge bins only (depth up to 8)
-
----
-
-## Estimation Formula
+The core operation is:
 
 ```
-est = count(prefix(A)) * fracLeft(A)
-    + Σ count(middleBins)
-    + count(prefix(B)) * fracRight(B)
+estimateRange(A, B) → approximate count of keys ∈ [A, B)
 ```
 
-* `fracLeft(A)` = portion of values in prefix(A) greater than A (uniform assumption)
-* `fracRight(B)` = portion of values in prefix(B) less than B (uniform assumption)
+* **If A is null** → `(−∞, B)`
+* **If B is null** → `[A, ∞)`
+* **If both null** → total count
+
+### Algorithm (high-level)
+
+1. Compare first differing byte of A and B.
+2. If they differ:
+
+    * Use counters at that depth:
+
+        * Partial contribution from `A` bin (fraction above A).
+        * Full counts from middle bins.
+        * Partial contribution from `B` bin (fraction below B).
+3. If identical at this depth:
+
+    * Recurse into deeper depth (up to max depth).
+4. If depth > max → stop (approximate as 0).
+
+Fractions are computed as:
+
+* **Left fraction**: `(256 − nextByte(A)) / 256`
+* **Right fraction**: `nextByte(B) / 256`
 
 ---
 
-## Example Walkthrough
+## Derived Predicates
 
-### Query: `> "burak"`
+All inequalities are defined via `estimateRange`:
 
-1. **Root-level read**
+* `< v` = `estimateRange(null, v)`
+* `<= v` = `estimateRange(null, incrementKey(v))`
+* `> v` = `estimateRange(incrementKey(v), null)`
+* `>= v` = `estimateRange(v, null)`
 
-    * Call `getRange(HIST/1, HIST/2)` → retrieve all 256 one-byte counters.
+**Note:**
 
-2. **Left edge**
-
-    * The relevant root bin is `"b"`.
-    * From `count("b")`, we need only the fraction greater than `"burak"`.
-    * If resolution is insufficient, descend to deeper prefix:
-
-        * Read `HIST/2/bu`, `HIST/3/bur`, … up to `HIST/5/burak`.
-        * Estimate how many values in `"bur*"` are strictly greater than `"burak"`.
-
-3. **Middle bins**
-
-    * Add counts for `"c" .. "z"` root-level bins (fully included in the range).
-
-4. **Result**
-
-    * Final estimate = (fraction of `"bur*"` above `"burak"`) + (sum of `"c".."z"` bins).
-
-👉 Complexity:
-
-* **Typical case:** 1 `getRange` (256 counters).
-* **If refinement is needed:** +1 `getRange` for the `"bur*"` subtree.
-* Still bounded (≤ 2 round-trips).
+* `Eq(v)` is *not* estimated here; use the index.
+* `>= v` = `Eq(v)` (from index) + `> v` (from histogram).
 
 ---
 
-## Properties
+## Complexity
 
-* **Bounded write cost:** ≤ 8 atomic increments per insert/delete
-* **Bounded read cost:** root-level query = ≤ 256 counters in one `getRange`
-* **No background workers:** structure is static, prefix assignment deterministic
-* **Adaptive resolution:** refine edges at deeper levels if needed
-
----
-
-## Limitations
-
-* **Uniformity assumption** inside each bucket may cause error under skew
-* **Write amplification:** up to 8 increments per insert
+* **Insert/Delete**: O(depth) ≤ 8 atomic adds.
+* **Estimate**: O(depth + number of bins in range). In practice, ≤ 8 levels scanned.
+* **FDB round trips**: one `getRange` per level.
 
 ---
 
-✅ This is the finalized version: a **fixed-depth prefix histogram** with 1-byte buckets, maximum depth 8, atomic increments for writes, and bounded-cost range/equality estimation.
+## Accuracy
 
----
+* Uniform distributions → low error (<1% typical).
+* Skewed distributions (e.g., Zipf) → error can be large without MCV/hints.
+* Histogram is best effort; for hot values, fall back to **MCV tables** or **index**.
