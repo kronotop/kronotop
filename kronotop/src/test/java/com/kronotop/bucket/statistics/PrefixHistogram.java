@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PrefixHistogram {
     private static final int MAX_DEPTH = 8;
 
-    // Tek byte + depth
+    // Bin = (depth, byte)
     private static class PrefixKey {
         final int depth;
         final byte value;
@@ -34,8 +34,8 @@ public class PrefixHistogram {
     private long totalDocs = 0;
 
     private PrefixKey makePrefixKey(byte[] key, int depth) {
-        byte b = (depth <= key.length) ? key[depth - 1] : 0x00;
-        return new PrefixKey(depth, b);
+        if (depth > key.length) return null;
+        return new PrefixKey(depth, key[depth - 1]);
     }
 
     // === Write path ===
@@ -65,7 +65,7 @@ public class PrefixHistogram {
         return counters.getOrDefault(new PrefixKey(depth, (byte) value), 0L);
     }
 
-    // === Predicates (all via range) ===
+    // === Predicates ===
     public long estimateLt(byte[] v) {
         return estimateRange(null, v); // (-∞, v)
     }
@@ -85,75 +85,50 @@ public class PrefixHistogram {
     // === Range [A,B) ===
     public long estimateRange(byte[] A, byte[] B) {
         if (A == null && B == null) return totalDocs;
-
-        int a0 = (A != null && A.length > 0) ? (A[0] & 0xFF) : -1;
-        int b0 = (B != null && B.length > 0) ? (B[0] & 0xFF) : 256;
-
-        long result = 0;
-
-        if (A == null) {
-            // (-∞, B)
-            for (int i = 0; i < b0; i++) result += count(1, i);
-            if (b0 < 256) {
-                long countB = count(1, b0);
-                double fracRight = ((B.length > 1) ? (B[1] & 0xFF) : 0) / 256.0;
-                result += Math.round(countB * fracRight);
-            }
-        } else if (B == null) {
-            // (A, ∞)
-            long countA = count(1, a0);
-            double fracLeft = (256.0 - ((A.length > 1) ? (A[1] & 0xFF) : 0)) / 256.0;
-            result += Math.round(countA * fracLeft);
-            for (int i = a0 + 1; i < 256; i++) result += count(1, i);
-        } else {
-            // [A,B)
-            if (a0 == b0) {
-                result += refineRange(A, B, 2);
-            } else {
-                long countA = count(1, a0);
-                double fracLeft = (256.0 - ((A.length > 1) ? (A[1] & 0xFF) : 0)) / 256.0;
-                result += Math.round(countA * fracLeft);
-
-                for (int mid = a0 + 1; mid < b0; mid++) {
-                    result += count(1, mid);
-                }
-
-                if (b0 < 256) {
-                    long countB = count(1, b0);
-                    double fracRight = ((B.length > 1) ? (B[1] & 0xFF) : 0) / 256.0;
-                    result += Math.round(countB * fracRight);
-                }
-            }
-        }
-
-        return result;
+        return estimateRangeRec(A, B, 1);
     }
 
-    private long refineRange(byte[] A, byte[] B, int depth) {
+    private long estimateRangeRec(byte[] A, byte[] B, int depth) {
         if (depth > MAX_DEPTH) return 0;
 
-        int aByte = (A.length >= depth) ? (A[depth - 1] & 0xFF) : 0;
-        int bByte = (B.length >= depth) ? (B[depth - 1] & 0xFF) : 0;
+        int aByte = (A != null && A.length >= depth) ? (A[depth - 1] & 0xFF) : -1;
+        int bByte = (B != null && B.length >= depth) ? (B[depth - 1] & 0xFF) : 256;
 
-        long result = 0;
-
-        if (aByte != bByte) {
-            long countA = count(depth, aByte);
-            double fracLeft = (256.0 - aByte - 1) / 256.0;
-            result += Math.round(countA * fracLeft);
-
-            for (int mid = aByte + 1; mid < bByte; mid++) {
-                result += count(depth, mid);
+        if (A == null) { // (-∞, B)
+            long sum = 0;
+            for (int i = 0; i < bByte; i++) sum += count(depth, i);
+            if (B != null && B.length > depth) {
+                sum += estimateRangeRec(null, B, depth + 1); // refine only B-bin
             }
-
-            long countB = count(depth, bByte);
-            double fracRight = bByte / 256.0;
-            result += Math.round(countB * fracRight);
-        } else {
-            result += refineRange(A, B, depth + 1);
+            return sum;
         }
 
-        return result;
+        if (B == null) { // [A, ∞)
+            long sum = 0;
+            for (int i = aByte + 1; i < 256; i++) sum += count(depth, i);
+            if (A.length > depth) {
+                sum += estimateRangeRec(A, null, depth + 1); // refine only A-bin
+            }
+            return sum;
+        }
+
+        // [A,B)
+        if (aByte == bByte) {
+            return estimateRangeRec(A, B, depth + 1);
+        } else {
+            long sum = 0;
+            // tail of A-bin
+            if (A.length > depth) {
+                sum += estimateRangeRec(A, null, depth + 1);
+            }
+            // middle bins
+            for (int i = aByte + 1; i < bByte; i++) sum += count(depth, i);
+            // head of B-bin
+            if (B.length > depth) {
+                sum += estimateRangeRec(null, B, depth + 1);
+            }
+            return sum;
+        }
     }
 
     private byte[] incrementKey(byte[] key) {

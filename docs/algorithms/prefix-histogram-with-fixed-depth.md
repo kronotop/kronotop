@@ -14,9 +14,8 @@ A lightweight histogram structure for **approximate range selectivity estimation
 
 ## Parameters
 
-* **Bin size**: 1 byte per depth
-* **Max depth**: 8
-* **Value padding**: if the key is shorter than `depth`, pad with `0x00`.
+* **Bin size:** 1 byte per depth
+* **Max depth:** 8
 
 ---
 
@@ -39,12 +38,12 @@ HIST/<index>/D/<d>/B/<b> = <i64 counter>
 
 For `d = 1..min(len(key), MAX_DEPTH)`:
 
-1. `b = key[d-1] if d <= len(key) else 0x00` => 1 byte
+1. `b = key[d−1]` (one byte) sample input [256, 23, 123] depth is 3 here. first bin: 256, second bin: 23, third bin: 123.
 2. `ADD(HIST/D/d/B/b, +1)`
 
 ### Delete(key)
 
-Same as insert, but `-1`.
+Same as insert, but `−1`.
 
 ---
 
@@ -60,6 +59,8 @@ estimateRange(A, B) → approximate count of keys ∈ [A, B)
 * **If B is null** → `[A, ∞)`
 * **If both null** → total count
 
+---
+
 ### Algorithm (high-level)
 
 1. Compare first differing byte of A and B.
@@ -67,18 +68,13 @@ estimateRange(A, B) → approximate count of keys ∈ [A, B)
 
     * Use counters at that depth:
 
-        * Partial contribution from `A` bin (fraction above A).
+        * Tail of A-bin → recurse downwards.
         * Full counts from middle bins.
-        * Partial contribution from `B` bin (fraction below B).
+        * Head of B-bin → recurse downwards.
 3. If identical at this depth:
 
     * Recurse into deeper depth (up to max depth).
 4. If depth > max → stop (approximate as 0).
-
-Fractions are computed as:
-
-* **Left fraction**: `(256 − nextByte(A)) / 256`
-* **Right fraction**: `nextByte(B) / 256`
 
 ---
 
@@ -91,23 +87,24 @@ All inequalities are defined via `estimateRange`:
 * `> v` = `estimateRange(incrementKey(v), null)`
 * `>= v` = `estimateRange(v, null)`
 
-**Note:**
+**Notes:**
 
 * `Eq(v)` is *not* estimated here; use the index.
-* `>= v` = `Eq(v)` (from index) + `> v` (from histogram).
+* `>= v` can be computed as `Eq(v)` (from index) + `> v` (from histogram).
 
 ---
 
 ## Complexity
 
-* **Insert/Delete**: O(depth) ≤ 8 atomic adds.
-* **Estimate**: O(depth + number of bins in range). In practice, ≤ 8 levels scanned.
-* **FDB round trips**: one `getRange` per level.
+* **Insert/Delete:** O(depth) ≤ 8 atomic adds.
+* **Estimate:** O(depth + number of bins in range). In practice, ≤ 8 levels scanned.
+* **FDB round trips:** one `getRange` per level.
 
 ---
 
 ## Accuracy
 
-* Uniform distributions → low error (<1% typical).
-* Skewed distributions (e.g., Zipf) → error can be large without MCV/hints.
-* Histogram is best effort; for hot values, fall back to **MCV tables** or **index**.
+* Uniform distributions → error typically <1%.
+* Skewed distributions (e.g., Zipf) → error may be high without MCV or type hints.
+* Histogram is best-effort; heavy hitters should be handled separately.
+
