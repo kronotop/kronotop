@@ -160,15 +160,12 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
      *                               generate index entries and update metadata for unaffected indexes
      */
     private void updateUnaffectedIndexes(QueryContext ctx, Transaction tr, Map<Versionstamp, UpdateResultContainer> updateResultContainers) {
-        for (String selector : ctx.metadata().indexes().getSelectors()) {
+        for (Index index : ctx.metadata().indexes().getIndexes()) {
+            String selector = index.definition().selector();
             if (ctx.options().update().setOps().containsKey(selector) || ctx.options().update().unsetOps().contains(selector)) {
                 continue;
             }
             for (Map.Entry<Versionstamp, UpdateResultContainer> entry : updateResultContainers.entrySet()) {
-                Index index = ctx.metadata().indexes().getIndex(selector);
-                if (index == null) {
-                    continue;
-                }
                 DirectorySubspace unaffectedIndexSubspace = index.subspace();
                 Versionstamp versionstamp = entry.getKey();
                 UpdateResultContainer updateResultContainer = entry.getValue();

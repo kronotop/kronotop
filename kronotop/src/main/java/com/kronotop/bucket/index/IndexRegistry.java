@@ -21,7 +21,10 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.CachedTimeService;
 import com.kronotop.Context;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The IndexRegistry class is responsible for managing and organizing index-related operations
@@ -31,7 +34,6 @@ import java.util.*;
 public class IndexRegistry {
     private final CachedTimeService cachedTime;
     private final Map<String, Index> indexesBySelectors = new HashMap<>();
-    private Set<String> selectors = new HashSet<>();
     private volatile Map<Long, IndexStatistics> statistics;
     private volatile long statsLastRefreshedAt;
 
@@ -42,7 +44,6 @@ public class IndexRegistry {
     public void register(IndexDefinition definition, DirectorySubspace subspace) {
         Index bundle = new Index(definition, subspace);
         indexesBySelectors.put(definition.selector(), bundle);
-        selectors = Collections.unmodifiableSet(indexesBySelectors.keySet());
     }
 
     public Index getIndex(String selector) {
@@ -53,21 +54,9 @@ public class IndexRegistry {
         return Collections.unmodifiableCollection(indexesBySelectors.values());
     }
 
-    public IndexDefinition getIndexBySelector(String selector) {
-        Index index = indexesBySelectors.get(selector);
-        if (index == null) {
-            return null;
-        }
-        return index.definition();
-    }
-
     public void updateStatistics(Map<Long, IndexStatistics> statistics) {
         this.statistics = statistics;
         this.statsLastRefreshedAt = cachedTime.getCurrentTimeInMilliseconds();
-    }
-
-    public Set<String> getSelectors() {
-        return selectors;
     }
 
     public IndexStatistics getStatistics(long id) {

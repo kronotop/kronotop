@@ -22,6 +22,7 @@ import com.kronotop.CommitHook;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.internal.TransactionUtils;
@@ -193,16 +194,25 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                 ByteBuffer entry = pack.entries[i];
                 entry.rewind();
 
-                for (String selector : metadata.indexes().getSelectors()) {
-                    IndexDefinition definition = metadata.indexes().getIndexBySelector(selector);
-
+                for (Index index : metadata.indexes().getIndexes()) {
                     // Skip the default ID index as it's already handled above
-                    if (definition.equals(DefaultIndexDefinition.ID)) {
+                    if (index.definition().equals(DefaultIndexDefinition.ID)) {
                         continue;
                     }
 
-                    Object indexValue = extractFieldValueFromBsonDocument(entry, selector, definition.bsonType());
-                    IndexBuilder.setIndexEntry(tr, definition, shard.id(), metadata, indexValue, appendedEntry);
+                    Object indexValue = extractFieldValueFromBsonDocument(
+                            entry,
+                            index.definition().selector(),
+                            index.definition().bsonType()
+                    );
+                    IndexBuilder.setIndexEntry(
+                            tr,
+                            index.definition(),
+                            shard.id(),
+                            metadata,
+                            indexValue,
+                            appendedEntry
+                    );
                 }
             }
 

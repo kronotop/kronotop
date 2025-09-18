@@ -391,20 +391,17 @@ class ExecutionHandlers {
         }
 
         String selector = filter.selector();
-        IndexDefinition definition = config.getMetadata().indexes().getIndexBySelector(selector);
-        if (definition == null) {
+        Index index = config.getMetadata().indexes().getIndex(selector);
+        if (index == null) {
             // No index for this field
             throw new IllegalStateException("Index not found for selector: " + selector);
         }
 
         // Validate that the operand type matches the index type
-        validateIndexOperandType(definition, filter.operand());
+        validateIndexOperandType(index.definition(), filter.operand());
 
-        Index index = config.getMetadata().indexes().getIndex(selector);
-        if (index == null) {
-            throw new IllegalStateException("Index not found for selector: " + selector);
-        }
         DirectorySubspace indexSubspace = index.subspace();
+        IndexDefinition definition = index.definition();
 
         // Continue scanning until we find results or exhaust the index
         while (true) {
@@ -1107,8 +1104,8 @@ class ExecutionHandlers {
             case PhysicalFilter filter -> {
                 // Check if there's an index for this field
                 String selector = filter.selector();
-                IndexDefinition definition = config.getMetadata().indexes().getIndexBySelector(selector);
-                yield definition != null;
+                Index index = config.getMetadata().indexes().getIndex(selector);
+                yield index != null;
             }
             case PhysicalFullScan fullScan -> // Check if the nested node can use an index
                     isIndexBasedPlan(fullScan.node());
