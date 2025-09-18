@@ -59,7 +59,7 @@ class BucketDropIndexHandlerTest extends BaseIndexHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(BUCKET_NAME, "{\"username\": {\"name\": \"test-index\", \"bson_type\": \"string\", \"sort_order\": \"desc\"}}").encode(buf);
+            cmd.createIndex(BUCKET_NAME, "{\"username\": {\"name\": \"test-index\", \"bson_type\": \"string\"}}").encode(buf);
             Object msg = runCommand(channel, buf);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertNotNull(actualMessage);

@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
@@ -56,9 +55,6 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
         for (Map.Entry<String, BucketCreateIndexMessage.IndexDefinition> entry : definitions.entrySet()) {
             if (entry.getValue().getBsonType() == null) {
                 throw new KronotopException("'bson_type' cannot be null");
-            }
-            if (entry.getValue().getSortOrder() == null) {
-                throw new KronotopException("'sort_order' cannot be null");
             }
         }
     }
@@ -110,20 +106,10 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
         @JsonDeserialize(using = BsonTypeDeserializer.class)
         private BsonType bsonType;
 
-        @JsonProperty("sort_order")
-        @JsonDeserialize(using = SortOrderDeserializer.class)
-        private SortOrder sortOrder;
 
         IndexDefinition() {
         }
 
-        public SortOrder getSortOrder() {
-            return sortOrder;
-        }
-
-        public void setSortOrder(SortOrder sortOrder) {
-            this.sortOrder = sortOrder;
-        }
 
         public BsonType getBsonType() {
             return bsonType;
@@ -161,15 +147,4 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
         }
     }
 
-    private static class SortOrderDeserializer extends JsonDeserializer<SortOrder> {
-        @Override
-        public SortOrder deserialize(JsonParser p, DeserializationContext ignored) throws IOException {
-            String sortOrder = p.getValueAsString().toLowerCase();
-            return switch (sortOrder) {
-                case "asc", "ascending" -> SortOrder.ASCENDING;
-                case "desc", "descending" -> SortOrder.DESCENDING;
-                default -> throw new IllegalArgumentException("Unknown SortOrder: " + sortOrder);
-            };
-        }
-    }
 }

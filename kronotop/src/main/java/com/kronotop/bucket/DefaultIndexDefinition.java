@@ -17,9 +17,8 @@
 package com.kronotop.bucket;
 
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 
 public class DefaultIndexDefinition {
-    public static IndexDefinition ID = IndexDefinition.create("_id", BsonType.BINARY, SortOrder.ASCENDING);
+    public static IndexDefinition ID = IndexDefinition.create("_id", BsonType.BINARY);
 }

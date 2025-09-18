@@ -5,7 +5,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
@@ -23,7 +22,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-batching-200-docs";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 200 documents with ages 1-200
@@ -95,7 +94,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input-with-limit-and-reverse";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(

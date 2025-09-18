@@ -5,7 +5,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.internal.VersionstampUtil;
 import org.bson.BsonBoolean;
 import org.bson.BsonString;
@@ -23,7 +22,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void testUpdateWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -75,7 +74,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void testUpdateWithGreaterThanFilterWithLimit() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-limit";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -118,7 +117,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void testUpdateWithGreaterThanFilterWithLimitReverse() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-limit-reverse";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -170,8 +169,8 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void testUpdateWithGreaterThanFilterWithDoubleIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-double-index-update";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -230,7 +229,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void testUnsetFieldWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-unset-field-scan";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -281,7 +280,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void testUnsetAndSetFieldsWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-unset-set-fields-scan";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(

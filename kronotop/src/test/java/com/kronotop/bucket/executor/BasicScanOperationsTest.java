@@ -29,7 +29,6 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.optimizer.Optimizer;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import com.kronotop.bucket.planner.physical.PhysicalPlanner;
@@ -163,7 +162,7 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-full-scan-logic";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -201,7 +200,7 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -239,7 +238,7 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-debug";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert one simple document
@@ -270,7 +269,7 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-operations";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert test documents
@@ -351,7 +350,7 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-simple-" + fieldName;
 
         // Create index for the field
-        IndexDefinition fieldIndex = IndexDefinition.create(fieldName + "-index", fieldName, bsonType, SortOrder.ASCENDING);
+        IndexDefinition fieldIndex = IndexDefinition.create(fieldName + "-index", fieldName, bsonType);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, fieldIndex);
 
         // Insert test documents
@@ -383,7 +382,7 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-edge-" + fieldName;
 
         // Create index for the field
-        IndexDefinition fieldIndex = IndexDefinition.create(fieldName + "-index", fieldName, bsonType, SortOrder.ASCENDING);
+        IndexDefinition fieldIndex = IndexDefinition.create(fieldName + "-index", fieldName, bsonType);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, fieldIndex);
 
         // Insert test documents
@@ -749,7 +748,7 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-reverse-" + fieldName + "-" + isReverse;
 
         // Create an index for the field
-        IndexDefinition fieldIndex = IndexDefinition.create(fieldName + "-index", fieldName, bsonType, SortOrder.ASCENDING);
+        IndexDefinition fieldIndex = IndexDefinition.create(fieldName + "-index", fieldName, bsonType);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, fieldIndex);
 
         // Insert test documents

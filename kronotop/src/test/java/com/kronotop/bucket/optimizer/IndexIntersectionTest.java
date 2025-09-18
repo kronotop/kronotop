@@ -17,7 +17,6 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -33,8 +32,8 @@ class IndexIntersectionTest extends BaseOptimizerTest {
     @Test
     void shouldCreateIndexIntersection() {
         // Create indexes for name and age fields
-        IndexDefinition nameIndex = IndexDefinition.create("name_index", "name", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition ageIndex = IndexDefinition.create("age_index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition nameIndex = IndexDefinition.create("name_index", "name", BsonType.STRING);
+        IndexDefinition ageIndex = IndexDefinition.create("age_index", "age", BsonType.INT32);
         createIndexes(nameIndex, ageIndex);
 
         // Create: AND(name="john", age=25)
@@ -56,9 +55,9 @@ class IndexIntersectionTest extends BaseOptimizerTest {
     @Test
     void shouldCreateIndexIntersectionWithThreeIndexes() {
         // Create indexes for name, age, and status fields
-        IndexDefinition nameIndex = IndexDefinition.create("name_index", "name", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition ageIndex = IndexDefinition.create("age_index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition statusIndex = IndexDefinition.create("status_index", "status", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition nameIndex = IndexDefinition.create("name_index", "name", BsonType.STRING);
+        IndexDefinition ageIndex = IndexDefinition.create("age_index", "age", BsonType.INT32);
+        IndexDefinition statusIndex = IndexDefinition.create("status_index", "status", BsonType.STRING);
         createIndexes(nameIndex, ageIndex, statusIndex);
 
         // Create: AND(name="john", age=25, status="active")
@@ -82,7 +81,7 @@ class IndexIntersectionTest extends BaseOptimizerTest {
     @Test
     void shouldNotCreateIntersectionWithSingleIndex() {
         // Create index for name field only
-        IndexDefinition nameIndex = IndexDefinition.create("name_index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition nameIndex = IndexDefinition.create("name_index", "name", BsonType.STRING);
         createIndex(nameIndex);
 
         // Create: name="john" (single condition, no AND needed)
@@ -98,8 +97,8 @@ class IndexIntersectionTest extends BaseOptimizerTest {
     @Test
     void shouldNotCreateIntersectionWithNonEqualityOperators() {
         // Create indexes for name and age fields
-        IndexDefinition nameIndex = IndexDefinition.create("name_index", "name", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition ageIndex = IndexDefinition.create("age_index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition nameIndex = IndexDefinition.create("name_index", "name", BsonType.STRING);
+        IndexDefinition ageIndex = IndexDefinition.create("age_index", "age", BsonType.INT32);
         createIndexes(nameIndex, ageIndex);
 
         // Create: AND(name="john", age>25) - mixed operators
@@ -120,8 +119,8 @@ class IndexIntersectionTest extends BaseOptimizerTest {
     @Test
     void shouldMixIntersectionWithOtherNodes() {
         // Create indexes for name and age fields
-        IndexDefinition nameIndex = IndexDefinition.create("name_index", "name", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition ageIndex = IndexDefinition.create("age_index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition nameIndex = IndexDefinition.create("name_index", "name", BsonType.STRING);
+        IndexDefinition ageIndex = IndexDefinition.create("age_index", "age", BsonType.INT32);
         createIndexes(nameIndex, ageIndex);
 
         // Create: AND(name="john", age=25, score>90) - mix of indexed and non-indexed

@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -42,8 +41,8 @@ class CursorCoordinationBenchmarkTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-benchmark-mixed-vs-pure";
 
         // Create indexes for benchmark
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition statusIndex = IndexDefinition.create("status-index", "status", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
+        IndexDefinition statusIndex = IndexDefinition.create("status-index", "status", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex, statusIndex);
 
         // Insert benchmark data
@@ -98,7 +97,7 @@ class CursorCoordinationBenchmarkTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-cursor-coordination-overhead";
 
         // Create indexes
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex);
 
         // Insert test data

@@ -24,7 +24,6 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.server.Session;
 import org.bson.BsonType;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +54,7 @@ public class BaseStatisticsTest extends BaseStandaloneInstanceTest {
 
     @BeforeEach
     void setUp() {
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata bucketMetadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
         Index index = bucketMetadata.indexes().getIndex("age");
         if (index == null) {

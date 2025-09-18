@@ -231,7 +231,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @MethodSource("indexCreationTestData")
     void shouldCreateIndexEntriesDuringDocumentInsertion(String fieldName, BsonType bsonType, String jsonDocument, Object expectedIndexValue) {
         // Create an index for the field
-        IndexDefinition indexDefinition = IndexDefinition.create(fieldName + "-index", fieldName, bsonType, SortOrder.ASCENDING);
+        IndexDefinition indexDefinition = IndexDefinition.create(fieldName + "-index", fieldName, bsonType);
 
         // Create bucket metadata and register the index
         BucketMetadata metadata;
@@ -295,8 +295,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Disabled
     void shouldIgnoreMissingFieldsInDocument() {
         // Create indexes for fields that don't exist in the document
-        IndexDefinition nameIndexDefinition = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition nameIndexDefinition = IndexDefinition.create("name-index", "name", BsonType.STRING);
+        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
 
         // Create bucket metadata and register the indexes
         BucketMetadata metadata;
@@ -353,7 +353,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Disabled
     void shouldIgnoreTypeMismatchedFields() {
         // Create an index expecting INT32 for 'age' field
-        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
 
         // Create bucket metadata and register the index
         BucketMetadata metadata;
@@ -396,9 +396,9 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldCreateMultipleIndexEntriesForSingleDocument() {
         // Create multiple indexes
-        IndexDefinition nameIndexDefinition = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition activeIndexDefinition = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN, SortOrder.ASCENDING);
+        IndexDefinition nameIndexDefinition = IndexDefinition.create("name-index", "name", BsonType.STRING);
+        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition activeIndexDefinition = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
 
         // Create bucket metadata and register the indexes
         BucketMetadata metadata;
@@ -475,7 +475,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldUpdateIndexCardinalityAfterInsertion() {
         // Create an INT32 index for 'age' field
-        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
 
         // Create bucket metadata and register the index
         BucketMetadata metadata;

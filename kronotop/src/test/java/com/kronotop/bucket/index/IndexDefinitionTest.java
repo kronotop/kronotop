@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class IndexDefinitionTest {
     @Test
     void shouldEncodeDecode() {
-        IndexDefinition index = IndexDefinition.create("index-name", "_id", BsonType.BINARY, SortOrder.ASCENDING);
+        IndexDefinition index = IndexDefinition.create("index-name", "_id", BsonType.BINARY);
         byte[] data = JSONUtil.writeValueAsBytes(index);
 
         IndexDefinition decoded = JSONUtil.readValue(data, IndexDefinition.class);
@@ -33,7 +33,6 @@ class IndexDefinitionTest {
         assertEquals(index.id(), decoded.id());
         assertEquals(index.name(), decoded.name());
         assertEquals(index.selector(), decoded.selector());
-        assertEquals(index.sortOrder(), decoded.sortOrder());
         assertEquals(index.bsonType(), decoded.bsonType());
     }
 }

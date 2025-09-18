@@ -8,7 +8,6 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +24,7 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
     void testDeleteWithRangeFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-range-delete";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -69,7 +68,7 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
     void testLimitedBatchDeleteWithPagination() {
         final String TEST_BUCKET_NAME = "test-bucket-range-batch-delete";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(

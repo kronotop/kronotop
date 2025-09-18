@@ -34,27 +34,26 @@ import static com.google.common.hash.Hashing.sipHash24;
  * - id: A unique identifier for the index, derived from the hash of the index name.
  * - name: The name of the index.
  * - selector: The selector associated with the index.
- * - sortOrder: The sort order (e.g., ascending or descending) of the index.
  * - bsonType: The BSON type of the selector being indexed.
  * <p>
  * The main usage scenarios include defining new indexes for a database and providing sufficient
  * metadata for index-related operations.
  */
-public record IndexDefinition(long id, String name, String selector, SortOrder sortOrder, BsonType bsonType) {
+public record IndexDefinition(long id, String name, String selector, BsonType bsonType) {
 
-    public static IndexDefinition create(String name, String selector, BsonType bsonType, SortOrder sortOrder) {
+    public static IndexDefinition create(String name, String selector, BsonType bsonType) {
         long id = sipHash24().hashBytes(name.getBytes()).asLong();
-        return new IndexDefinition(id, name, selector, sortOrder, bsonType);
+        return new IndexDefinition(id, name, selector, bsonType);
     }
 
-    public static IndexDefinition create(String selector, BsonType bsonType, SortOrder sortOrder) {
-        String name = IndexNameGenerator.generate(selector, bsonType, sortOrder);
-        return create(name, selector, bsonType, sortOrder);
+    public static IndexDefinition create(String selector, BsonType bsonType) {
+        String name = IndexNameGenerator.generate(selector, bsonType);
+        return create(name, selector, bsonType);
     }
 
     @Override
     @Nonnull
     public String toString() {
-        return "IndexDefinition { name=" + name + ", selector=" + selector + ", bsonType=" + bsonType + ", sortOrder=" + sortOrder + " }";
+        return "IndexDefinition { name=" + name + ", selector=" + selector + ", bsonType=" + bsonType + " }";
     }
 }

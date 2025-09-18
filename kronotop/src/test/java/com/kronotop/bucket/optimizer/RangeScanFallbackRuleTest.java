@@ -139,7 +139,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     void testRangeScanWithValidIndexNotConverted() {
         // Create a mock index for this test
         IndexDefinition mockIndex = IndexDefinition.create(
-                "age-index", "age", org.bson.BsonType.INT32, com.kronotop.bucket.index.SortOrder.ASCENDING
+                "age-index", "age", org.bson.BsonType.INT32
         );
         
         // Create a range scan with a valid index (should not be converted)
@@ -209,7 +209,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     void testCanApplyWithRangeScanValidIndex() {
         // Create a mock index for this test
         IndexDefinition mockIndex = IndexDefinition.create(
-                "age-index", "age", org.bson.BsonType.INT32, com.kronotop.bucket.index.SortOrder.ASCENDING
+                "age-index", "age", org.bson.BsonType.INT32
         );
         
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(

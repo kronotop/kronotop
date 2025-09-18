@@ -4,7 +4,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -135,7 +134,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     void testIndexScanNodeWithNullValues_EQ() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -169,7 +168,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     void testIndexScanNodeWithNullValues_NE() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -207,7 +206,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     void testRangeScanNodeWithNullValues_NULL_Boundaries() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -235,7 +234,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     void testRangeScanNodeNonsenseQuery() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -263,7 +262,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     void testContradictionShouldReturnEmptyResult() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
-        IndexDefinition ageIndex = IndexDefinition.create("name-index", "name", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("name-index", "name", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(

@@ -17,7 +17,6 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -97,8 +96,8 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         void shouldOrderAndConditionsFromMostToLeastSelective() {
             // Create indexes to make some conditions more selective
             createIndexes(
-                    IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("email-index", "email", BsonType.STRING, SortOrder.ASCENDING)
+                    IndexDefinition.create("name-index", "name", BsonType.STRING),
+                    IndexDefinition.create("email-index", "email", BsonType.STRING)
             );
 
             // Create conditions with different selectivity:
@@ -129,7 +128,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @DisplayName("Should handle mixed node types in AND operations")
         void shouldHandleMixedNodeTypesInAndOperations() {
             // Create different types of nodes with varying selectivity
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING));
+            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
 
             PhysicalFilter simpleFilter = createFilter("category", Operator.EQ, "books");
             PhysicalIndexScan indexScan = createIndexScan(createFilter("name", Operator.EQ, "john"));
@@ -148,7 +147,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should handle AND with nested structures")
         void shouldHandleAndWithNestedStructures() {
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING));
+            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
 
             // Create nested OR (less selective than individual conditions)
             PhysicalFilter filter1 = createFilter("status", Operator.EQ, "active");
@@ -177,7 +176,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should order OR conditions from least to most selective")
         void shouldOrderOrConditionsFromLeastToMostSelective() {
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING));
+            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
 
             // Create conditions with different selectivity
             PhysicalIndexScan indexScan = createIndexScan(createFilter("name", Operator.EQ, "john")); // Most selective
@@ -205,7 +204,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should handle OR with equality vs range operators")
         void shouldHandleOrWithEqualityVsRangeOperators() {
-            createIndex(IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING));
+            createIndex(IndexDefinition.create("age-index", "age", BsonType.INT32));
 
             // Equality is more selective than range
             PhysicalIndexScan eqScan = createIndexScan(createFilter("age", Operator.EQ, 25));
@@ -236,8 +235,8 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @DisplayName("Should handle nested AND/OR combinations")
         void shouldHandleNestedAndOrCombinations() {
             createIndexes(
-                    IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING)
+                    IndexDefinition.create("name-index", "name", BsonType.STRING),
+                    IndexDefinition.create("age-index", "age", BsonType.INT32)
             );
 
             // Create complex nested structure
@@ -263,7 +262,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should recursively optimize nested structures")
         void shouldRecursivelyOptimizeNestedStructures() {
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING));
+            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
 
             // Create deeply nested structure that needs recursive optimization
             PhysicalFilter rangeFilter = createFilter("desc", Operator.GT, 100);
@@ -347,7 +346,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should prefer indexed conditions over regular filters")
         void shouldPreferIndexedConditionsOverRegularFilters() {
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING));
+            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
 
             PhysicalIndexScan indexScan = createIndexScan(createFilter("name", Operator.EQ, "john"));
             PhysicalFilter regularFilter = createFilter("description", Operator.EQ, "test");
@@ -366,7 +365,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should prefer equality over range operations")
         void shouldPreferEqualityOverRangeOperations() {
-            createIndex(IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING));
+            createIndex(IndexDefinition.create("age-index", "age", BsonType.INT32));
 
             PhysicalIndexScan rangeScan = createIndexScan(createFilter("age", Operator.GT, 18));
             PhysicalIndexScan eqScan = createIndexScan(createFilter("age", Operator.EQ, 25));

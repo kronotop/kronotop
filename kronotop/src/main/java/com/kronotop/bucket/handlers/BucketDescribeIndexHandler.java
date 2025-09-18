@@ -57,10 +57,6 @@ public class BucketDescribeIndexHandler extends BaseBucketHandler implements Han
                 new SimpleStringRedisMessage("bson_type"),
                 new SimpleStringRedisMessage(definition.bsonType().name())
         );
-        description.put(
-                new SimpleStringRedisMessage("sort_order"),
-                new SimpleStringRedisMessage(definition.sortOrder().name())
-        );
 
         Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();
         stats.put(new SimpleStringRedisMessage("cardinality"), new IntegerRedisMessage(statistics.cardinality()));

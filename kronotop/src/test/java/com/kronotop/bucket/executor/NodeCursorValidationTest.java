@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -42,8 +41,8 @@ class NodeCursorValidationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-node-cursor-isolation";
 
         // Create indexes for category and priority, but not for price and description
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition priorityIndex = IndexDefinition.create("priority-index", "priority", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
+        IndexDefinition priorityIndex = IndexDefinition.create("priority-index", "priority", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex, priorityIndex);
 
         // Insert comprehensive test data
@@ -128,7 +127,7 @@ class NodeCursorValidationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-cursor-advancement-independence";
 
         // Create indexes
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex);
 
         // Insert test data with mix of indexed and non-indexed conditions
@@ -190,8 +189,8 @@ class NodeCursorValidationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-partial-node-exhaustion";
 
         // Create indexes
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition priorityIndex = IndexDefinition.create("priority-index", "priority", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
+        IndexDefinition priorityIndex = IndexDefinition.create("priority-index", "priority", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex, priorityIndex);
 
         // Insert data where one condition has few results, other has many

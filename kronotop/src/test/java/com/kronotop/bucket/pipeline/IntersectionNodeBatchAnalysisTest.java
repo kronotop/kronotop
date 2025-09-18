@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -42,8 +41,8 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-intersection-50-docs";
         
         // Create indexes for price and quantity
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
         
         // Generate and insert 50 documents
@@ -121,8 +120,8 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-intersection-350-docs";
         
         // Create indexes for price and quantity
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
         
         // Generate and insert 350 documents

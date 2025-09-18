@@ -4,7 +4,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonReader;
 import org.bson.BsonType;
@@ -25,8 +24,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     void testAndOperatorWithTwoIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-and-index-scan";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         // Insert multiple documents with different field types and values
@@ -86,8 +85,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-with-different-index-types";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert multiple documents with different field types and values
@@ -162,8 +161,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-equality-with-multiple-documents";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert documents where exactly 3 match the AND condition (age > 22 AND name == 'John')
@@ -239,8 +238,8 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     void testAndOperatorWithPriceQuantityRelation() {
         final String TEST_BUCKET_NAME = "test-bucket-price-quantity-relation";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         // Insert 350 documents with pattern {'price': $price, 'quantity': $price*20}

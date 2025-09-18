@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -41,8 +40,8 @@ class CursorBehaviorStressTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-large-dataset-mixed-queries";
 
         // Create multiple indexes for stress testing
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition statusIndex = IndexDefinition.create("status-index", "status", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
+        IndexDefinition statusIndex = IndexDefinition.create("status-index", "status", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex, statusIndex);
 
         // Insert larger dataset for stress testing
@@ -140,8 +139,8 @@ class CursorBehaviorStressTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-partial-node-exhaustion-stress";
 
         // Create indexes
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition priorityIndex = IndexDefinition.create("priority-index", "priority", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
+        IndexDefinition priorityIndex = IndexDefinition.create("priority-index", "priority", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex, priorityIndex);
 
         // Insert data where one condition has few results, other has many

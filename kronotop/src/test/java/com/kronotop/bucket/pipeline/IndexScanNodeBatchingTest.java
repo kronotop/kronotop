@@ -4,7 +4,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +21,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 21 documents with age > 22 (ages 23-43)
@@ -103,7 +102,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gte";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 21 documents with ages 23-43
@@ -188,7 +187,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gte-reverse";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 21 documents with ages 23-43
@@ -285,7 +284,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-200-docs";
 
         // Create an age index for this test (this is the key difference from FullScanNodeTest)
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 200 documents with ages 0-199
@@ -384,7 +383,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-200-docs-reverse";
 
         // Create an age index for this test (this is the key difference from FullScanNodeTest)
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 200 documents with ages 0-199

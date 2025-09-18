@@ -52,14 +52,14 @@ class BucketListIndexesHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(BUCKET_NAME, "{\"selector\": {\"bson_type\": \"int32\", \"sort_order\": \"asc\"}, \"username\": {\"bson_type\": \"string\", \"sort_order\": \"desc\"}}").encode(buf);
+            cmd.createIndex(BUCKET_NAME, "{\"selector\": {\"bson_type\": \"int32\"}, \"username\": {\"bson_type\": \"string\"}}").encode(buf);
             runCommand(channel, buf);
         }
 
         List<String> expectedNames = List.of(
-                "selector:_id.bsonType:BINARY.sortOrder:ASCENDING",
-                "selector:selector.bsonType:INT32.sortOrder:ASCENDING",
-                "selector:username.bsonType:STRING.sortOrder:DESCENDING"
+                "selector:_id.bsonType:BINARY",
+                "selector:selector.bsonType:INT32",
+                "selector:username.bsonType:STRING"
         );
 
         ByteBuf buf = Unpooled.buffer();

@@ -38,8 +38,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
     final IndexDefinition definition = IndexDefinition.create(
             "numeric-index",
             "numeric-selector",
-            BsonType.INT32,
-            SortOrder.ASCENDING
+            BsonType.INT32
     );
 
     @Test

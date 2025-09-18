@@ -22,7 +22,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -38,8 +37,8 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-logic";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert multiple documents with different field types and values
@@ -129,7 +128,7 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-mixed";
 
         // Create index only for quantity (price is not indexed)
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex);
 
         // Insert multiple documents with different field types and values
@@ -219,7 +218,7 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-cursor";
 
         // Create index only for quantity (price is not indexed)
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex);
 
         // Insert 20 documents with exactly 15 matching the OR condition:
@@ -309,8 +308,8 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-both-indexed-cursor";
 
         // Create indexes for both quantity and price (unlike mixed test which only indexes quantity)
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with exactly 15 matching the OR condition:
@@ -400,8 +399,8 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-eq-cursor";
 
         // Create indexes for both quantity and price (both indexed OR)
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with exactly 15 matching the OR condition:
@@ -493,8 +492,8 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-gt-cursor";
 
         // Create indexes for both quantity and price (both indexed OR)
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with exactly 15 matching the OR condition:
@@ -585,8 +584,8 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-gte-cursor";
 
         // Create indexes for both quantity and price (both indexed OR)
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with exactly 15 matching the OR condition:
@@ -677,8 +676,8 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-lte-cursor";
 
         // Create indexes for both quantity and price (both indexed OR)
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with exactly 15 matching the OR condition:
@@ -769,8 +768,8 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-ne-gte-cursor";
 
         // Create indexes for both quantity and price (NE will require full scan + filter, GTE can use index)
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with exactly 15 matching the OR condition:
@@ -871,8 +870,8 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-logic-reverse";
 
         // Create indexes for quantity and price
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert multiple documents with different field types and values
@@ -979,7 +978,7 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-mixed-reverse";
 
         // Create index only for quantity (price is not indexed)
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex);
 
         // Insert multiple documents with different field types and values
@@ -1206,9 +1205,9 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-and-scenario";
 
         // Create indexes for quantity, price, and category fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex, categoryIndex);
 
         // Create exactly 20 documents: 5 electronics, 2 books, 13 others
@@ -1348,9 +1347,9 @@ class OrOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-and-scenario-reverse";
 
         // Create indexes for quantity, price, and category fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex, categoryIndex);
 
         // Create exactly 20 documents: 5 electronics, 2 books, 13 others (identical data to forward test)

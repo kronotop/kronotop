@@ -21,7 +21,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonReader;
 import org.bson.BsonType;
@@ -43,7 +42,7 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-price-gt";
 
         // Create index on price field
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         // Insert 20 documents with sequential prices (1-20)
@@ -81,7 +80,7 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-price-gt-reverse";
 
         // Create index on price field
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         // Insert 20 documents with sequential prices (1-20)
@@ -119,7 +118,7 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-price-edge";
 
         // Create index on price field
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         // Insert documents with edge case prices
@@ -157,7 +156,7 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-price-pagination";
 
         // Create index on price field
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         // Insert 50 documents to test pagination
@@ -205,7 +204,7 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-username-gt";
 
         // Create index on username field
-        IndexDefinition usernameIndex = IndexDefinition.create("username-index", "username", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition usernameIndex = IndexDefinition.create("username-index", "username", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, usernameIndex);
 
         // Insert 20 documents with sequential usernames (user01-user20)
@@ -243,7 +242,7 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-username-gt-reverse";
 
         // Create index on username field
-        IndexDefinition usernameIndex = IndexDefinition.create("username-index", "username", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition usernameIndex = IndexDefinition.create("username-index", "username", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, usernameIndex);
 
         // Insert 20 documents with sequential usernames (user01-user20)
@@ -281,7 +280,7 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-price-batch-control";
 
         // Create index on price field
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         // Insert 10 documents with sequential prices (1-10)
@@ -364,7 +363,7 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-price-batch-control-reverse";
 
         // Create index on price field
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         // Insert 10 documents with sequential prices (1-10)
@@ -494,8 +493,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-query";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with various quantity and price combinations
@@ -618,8 +617,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-query-reverse";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with various quantity and price combinations
@@ -694,8 +693,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-batch-forward";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with quantity and price combinations
@@ -805,8 +804,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-batch-reverse";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with quantity and price combinations
@@ -926,8 +925,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-query";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with various quantity and price combinations
@@ -997,8 +996,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-reverse";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with various quantity and price combinations
@@ -1080,8 +1079,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-reverse-pagination";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with various quantity and price combinations
@@ -1209,8 +1208,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-batch";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with quantity and price combinations
@@ -1350,8 +1349,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-gte-lte";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with sequential quantities (1-20) and prices (2-40)
@@ -1444,8 +1443,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-gte-gte";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with sequential quantities (1-20) and prices (2-40)
@@ -1549,8 +1548,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-gte-gte-reverse";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with sequential quantities (1-20) and prices (2-40)
@@ -1661,8 +1660,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-gte-gte-pagination";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with sequential quantities (1-20) and prices (2-40)
@@ -1827,8 +1826,8 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-gte-gte-reverse-pagination";
 
         // Create indexes on both quantity and price fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex);
 
         // Insert 20 documents with sequential quantities (1-20) and prices (2-40)
@@ -2010,9 +2009,9 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-three-indexed";
 
         // Create indexes on quantity, price, and category fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex, categoryIndex);
 
         // Create 20 documents where only 9 will satisfy: quantity > 5 AND price > 15 AND category = 'electronics'
@@ -2161,9 +2160,9 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-non-existing-category";
 
         // Create indexes on quantity, price, and category fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex, categoryIndex);
 
         // Create 20 documents with existing categories, none will match the non-existing category
@@ -2253,9 +2252,9 @@ class ExecutorIntegrationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-or-non-existing-category";
 
         // Create indexes on quantity, price, and category fields
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, quantityIndex, priceIndex, categoryIndex);
 
         // Create 20 documents with strategic values to test OR logic

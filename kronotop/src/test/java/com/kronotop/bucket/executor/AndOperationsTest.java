@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonReader;
 import org.bson.BsonType;
@@ -41,8 +40,8 @@ class AndOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-logic";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert multiple documents with different field types and values
@@ -114,8 +113,8 @@ class AndOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-multiple";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert documents where exactly 3 match the AND condition (age > 22 AND name == 'Burhan')
@@ -189,8 +188,8 @@ class AndOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-multiple-reverse";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert documents where exactly 3 match the AND condition (age > 22 AND name == 'Burhan')
@@ -282,8 +281,8 @@ class AndOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-mixed-index-fullscan";
 
         // Create indexes for age and name, but not for status
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // This tests the mixed execution: age filter uses index, name filter uses full scan
@@ -359,8 +358,8 @@ class AndOperationsTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-and-logic-reverse";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert multiple documents - modify to have multiple matches for AND condition

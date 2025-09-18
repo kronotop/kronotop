@@ -54,7 +54,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     void testRangeScanWithIndexRemainsUnchanged() {
         // Create an index for this test
         IndexDefinition ageIndex = IndexDefinition.create(
-                "age-index", "age", org.bson.BsonType.INT32, com.kronotop.bucket.index.SortOrder.ASCENDING
+                "age-index", "age", org.bson.BsonType.INT32
         );
         createIndex(ageIndex);
 
@@ -78,7 +78,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     void testComplexPlanWithMixedRangeScans() {
         // Create an index for one field but not another
         IndexDefinition ageIndex = IndexDefinition.create(
-                "age-index", "age", org.bson.BsonType.INT32, com.kronotop.bucket.index.SortOrder.ASCENDING
+                "age-index", "age", org.bson.BsonType.INT32
         );
         createIndex(ageIndex);
 

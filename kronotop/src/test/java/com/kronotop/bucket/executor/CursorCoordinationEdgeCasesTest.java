@@ -20,7 +20,6 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -42,7 +41,7 @@ class CursorCoordinationEdgeCasesTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-empty-indexed-results";
 
         // Create index
-        IndexDefinition indexedIndex = IndexDefinition.create("indexed-field-index", "indexed_field", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition indexedIndex = IndexDefinition.create("indexed-field-index", "indexed_field", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, indexedIndex);
 
         // Insert test data
@@ -95,7 +94,7 @@ class CursorCoordinationEdgeCasesTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-empty-non-indexed-results";
 
         // Create index
-        IndexDefinition indexedIndex = IndexDefinition.create("indexed-field-index", "indexed_field", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition indexedIndex = IndexDefinition.create("indexed-field-index", "indexed_field", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, indexedIndex);
 
         // Insert test data
@@ -147,7 +146,7 @@ class CursorCoordinationEdgeCasesTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-both-portions-empty";
 
         // Create index
-        IndexDefinition indexedIndex = IndexDefinition.create("indexed-field-index", "indexed_field", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition indexedIndex = IndexDefinition.create("indexed-field-index", "indexed_field", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, indexedIndex);
 
         // Insert test data
@@ -174,7 +173,7 @@ class CursorCoordinationEdgeCasesTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-overlapping-results";
 
         // Create index
-        IndexDefinition indexedIndex = IndexDefinition.create("indexed-field-index", "indexed_field", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition indexedIndex = IndexDefinition.create("indexed-field-index", "indexed_field", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, indexedIndex);
 
         // Insert documents that match both conditions

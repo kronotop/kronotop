@@ -141,8 +141,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         final IndexDefinition numericIndexDefinition = IndexDefinition.create(
                 "numeric-index",
                 "numeric-selector",
-                BsonType.INT32,
-                SortOrder.ASCENDING
+                BsonType.INT32
         );
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {

@@ -24,7 +24,6 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.server.Session;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -61,7 +60,7 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
     FDBLogHistogram initialize(HistogramMetadata metadata) {
         String testBucket = "test_bucket_" + System.nanoTime(); // Unique bucket per test
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata bucketMetadata = createIndexesAndLoadBucketMetadata(testBucket, ageIndex);
         Index index = bucketMetadata.indexes().getIndex("age");
         if (index == null) {

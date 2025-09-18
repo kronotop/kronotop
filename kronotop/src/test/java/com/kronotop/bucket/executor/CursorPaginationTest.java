@@ -21,7 +21,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -80,7 +79,7 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-cursor";
 
         // Create an age index
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert documents with ages creating gaps: 10, 12, 14, 16, 18, 20, 25, 30, 35, 40, 45, 50
@@ -158,7 +157,7 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-cursor-reverse";
 
         // Create an age index
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert documents with ages creating gaps: 10, 12, 14, 16, 18, 20, 25, 30, 35, 40, 45, 50
@@ -250,8 +249,8 @@ class CursorPaginationTest extends BasePlanExecutorTest {
             documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'price': %d, 'category': 'electronics'}", i)));
         }
         // Create indexes for both fields
-        IndexDefinition priceIndex = IndexDefinition.create("price_index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition categoryIndex = IndexDefinition.create("category_index", "category", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price_index", "price", BsonType.INT32);
+        IndexDefinition categoryIndex = IndexDefinition.create("category_index", "category", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, categoryIndex);
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -334,7 +333,7 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-non-indexed";
 
         // Create only an age index - 'status' will be non-indexed
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert test documents - mixed ages and statuses
@@ -422,7 +421,7 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-non-indexed-eq-reverse";
 
         // Create only an age index - 'status' field will be non-indexed
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert documents where some have matching 'status' values (non-indexed field)
@@ -516,7 +515,7 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-non-indexed-ne-reverse";
 
         // Create only an age index - 'status' field will be non-indexed
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert documents where most do NOT match the exclusion criteria (non-indexed field)
@@ -624,8 +623,8 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-mixed-indexed";
 
         // Create indexes for age and name, but not for status
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // This tests the mixed execution: age filter uses index, name filter uses full scan
@@ -701,8 +700,8 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-mixed-indexed-lt";
 
         // Create indexes for age and name, but not for status
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // This tests the mixed execution: age filter uses index, name filter uses full scan
@@ -815,8 +814,8 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-mixed-indexed-eq";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // This tests the mixed execution: age filter uses index, name filter uses full scan
@@ -929,8 +928,8 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-mixed-indexed-ne";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // This tests the mixed execution: age filter uses index, name filter uses full scan
@@ -1043,8 +1042,8 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-mixed-indexed-gte";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // This tests the mixed execution: age filter uses index, name filter uses full scan
@@ -1156,8 +1155,8 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-mixed-indexed-lte";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // This tests the mixed execution: age filter uses index, name filter uses full scan
@@ -1272,7 +1271,7 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-cursor-" + testName.replaceAll("[^a-zA-Z0-9]", "-").toLowerCase();
 
         // Create an age index
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 20 documents: ages 10-14 (5 docs) and ages 23-37 (15 docs)
@@ -1359,7 +1358,7 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-cursor-complex";
 
         // Create an age index
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert documents with ages: 10, 16, 18, 20, 25, 30, 35, 40
@@ -1790,7 +1789,7 @@ class CursorPaginationTest extends BasePlanExecutorTest {
         final String TEST_BUCKET_NAME = "test-bucket-duplicate-price";
 
         // Create an index for price only
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         // Create 20 documents with the SAME price but different categories

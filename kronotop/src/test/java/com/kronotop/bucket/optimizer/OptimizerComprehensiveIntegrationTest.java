@@ -17,7 +17,6 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -160,11 +159,11 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         void shouldApplyAllOptimizationsToComplexEcommerceQuery() {
             // Setup indexes for an e-commerce scenario
             createIndexes(
-                    IndexDefinition.create("product-name-index", "product.name", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("price-index", "price", BsonType.DOUBLE, SortOrder.ASCENDING),
-                    IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("brand-index", "brand", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("status-index", "status", BsonType.STRING, SortOrder.ASCENDING)
+                    IndexDefinition.create("product-name-index", "product.name", BsonType.STRING),
+                    IndexDefinition.create("price-index", "price", BsonType.DOUBLE),
+                    IndexDefinition.create("category-index", "category", BsonType.STRING),
+                    IndexDefinition.create("brand-index", "brand", BsonType.STRING),
+                    IndexDefinition.create("status-index", "status", BsonType.STRING)
             );
 
             // Complex e-commerce query with multiple optimization opportunities:
@@ -213,10 +212,10 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         void shouldOptimizeSocialMediaUserQueryWithAllRules() {
             // Setup indexes for social media scenario
             createIndexes(
-                    IndexDefinition.create("username-index", "username", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING),
-                    IndexDefinition.create("country-index", "location.country", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("verified-index", "verified", BsonType.BOOLEAN, SortOrder.ASCENDING)
+                    IndexDefinition.create("username-index", "username", BsonType.STRING),
+                    IndexDefinition.create("age-index", "age", BsonType.INT32),
+                    IndexDefinition.create("country-index", "location.country", BsonType.STRING),
+                    IndexDefinition.create("verified-index", "verified", BsonType.BOOLEAN)
             );
 
             // Build complex query manually to test all optimizations
@@ -298,9 +297,9 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should optimize complex OR-heavy query with all rules")
         void shouldOptimizeComplexOrHeavyQueryWithAllRules() {
             createIndexes(
-                    IndexDefinition.create("type-index", "type", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("priority-index", "priority", BsonType.INT32, SortOrder.ASCENDING),
-                    IndexDefinition.create("status-index", "status", BsonType.STRING, SortOrder.ASCENDING)
+                    IndexDefinition.create("type-index", "type", BsonType.STRING),
+                    IndexDefinition.create("priority-index", "priority", BsonType.INT32),
+                    IndexDefinition.create("status-index", "status", BsonType.STRING)
             );
 
             // Create OR-heavy structure with optimization opportunities
@@ -351,9 +350,9 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should integrate selectivity ordering with other optimizations")
         void shouldIntegrateSelectivityOrderingWithOtherOptimizations() {
             createIndexes(
-                    IndexDefinition.create("id-index", "id", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("timestamp-index", "timestamp", BsonType.DATE_TIME, SortOrder.ASCENDING),
-                    IndexDefinition.create("user-index", "userId", BsonType.STRING, SortOrder.ASCENDING)
+                    IndexDefinition.create("id-index", "id", BsonType.STRING),
+                    IndexDefinition.create("timestamp-index", "timestamp", BsonType.DATE_TIME),
+                    IndexDefinition.create("user-index", "userId", BsonType.STRING)
             );
 
             // Create query that benefits from multiple optimizations
@@ -391,8 +390,8 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should order complex nested structures by selectivity after other optimizations")
         void shouldOrderComplexNestedStructuresBySelectivityAfterOtherOptimizations() {
             createIndexes(
-                    IndexDefinition.create("level-index", "level", BsonType.INT32, SortOrder.ASCENDING),
-                    IndexDefinition.create("module-index", "module", BsonType.STRING, SortOrder.ASCENDING)
+                    IndexDefinition.create("level-index", "level", BsonType.INT32),
+                    IndexDefinition.create("module-index", "module", BsonType.STRING)
             );
 
             // Create nested structure with various selectivities
@@ -446,8 +445,8 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should reduce total node count through optimizations")
         void shouldReduceTotalNodeCountThroughOptimizations() {
             createIndexes(
-                    IndexDefinition.create("field1-index", "field1", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("field2-index", "field2", BsonType.INT32, SortOrder.ASCENDING)
+                    IndexDefinition.create("field1-index", "field1", BsonType.STRING),
+                    IndexDefinition.create("field2-index", "field2", BsonType.INT32)
             );
 
             // Query with redundancy and inefficiencies
@@ -474,9 +473,9 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should create efficient execution plan for complex queries")
         void shouldCreateEfficientExecutionPlanForComplexQueries() {
             createIndexes(
-                    IndexDefinition.create("pk-index", "pk", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("sk-index", "sk", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("gsi1pk-index", "gsi1pk", BsonType.STRING, SortOrder.ASCENDING)
+                    IndexDefinition.create("pk-index", "pk", BsonType.STRING),
+                    IndexDefinition.create("sk-index", "sk", BsonType.STRING),
+                    IndexDefinition.create("gsi1pk-index", "gsi1pk", BsonType.STRING)
             );
 
             // DynamoDB-style query pattern
