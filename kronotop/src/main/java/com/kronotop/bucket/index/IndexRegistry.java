@@ -45,6 +45,10 @@ public class IndexRegistry {
         selectors = Collections.unmodifiableSet(indexesBySelectors.keySet());
     }
 
+    public Index getIndex(String selector) {
+        return indexesBySelectors.get(selector);
+    }
+
     public DirectorySubspace getSubspace(String selector) {
         Index index = indexesBySelectors.get(selector);
         if (index == null) {
