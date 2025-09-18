@@ -111,11 +111,11 @@ public class PlanExecutorConfig {
         this.reverse = reverse;
     }
 
-    public void setSortByField(String sortByField) {
-        this.sortByField = sortByField;
-    }
-
     public String getSortByField() {
         return sortByField;
+    }
+
+    public void setSortByField(String sortByField) {
+        this.sortByField = sortByField;
     }
 }

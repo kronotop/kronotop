@@ -24,7 +24,7 @@ public record PhysicalAnd(int id, List<PhysicalNode> children) implements Physic
     public <R> R accept(PhysicalPlanVisitor<R> visitor) {
         return visitor.visitAnd(this);
     }
-    
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
@@ -32,7 +32,7 @@ public record PhysicalAnd(int id, List<PhysicalNode> children) implements Physic
         return Objects.equals(children, other.children);
         // Note: id is intentionally excluded from comparison
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(children);

@@ -39,22 +39,6 @@ public record CompositeQueryContext(
 ) {
 
     /**
-     * Type of query being executed, which affects cursor management strategy.
-     */
-    public enum CompositeQueryType {
-        /** Multiple index intersection (AND) - use the most restrictive cursor */
-        MULTI_INDEX_AND,
-        /** Multiple index union (OR) - use least restrictive cursor */
-        MULTI_INDEX_OR,
-        /** Mixed indexed and non-indexed conditions - use aggregated approach */
-        MIXED_QUERY,
-        /** Full bucket scan - use aggregated cursor for pagination */
-        FULL_BUCKET_SCAN,
-        /** Range scan on a single index. Use a specific node cursor */
-        RANGE_SCAN
-    }
-
-    /**
      * Creates a context for multi-index AND operations.
      */
     public static CompositeQueryContext multiIndexAnd(List<IndexDefinition> indexes, Set<Integer> nodeIds, PhysicalNode plan) {
@@ -132,5 +116,31 @@ public record CompositeQueryContext(
                 Set.of(),
                 null
         );
+    }
+
+    /**
+     * Type of query being executed, which affects cursor management strategy.
+     */
+    public enum CompositeQueryType {
+        /**
+         * Multiple index intersection (AND) - use the most restrictive cursor
+         */
+        MULTI_INDEX_AND,
+        /**
+         * Multiple index union (OR) - use least restrictive cursor
+         */
+        MULTI_INDEX_OR,
+        /**
+         * Mixed indexed and non-indexed conditions - use aggregated approach
+         */
+        MIXED_QUERY,
+        /**
+         * Full bucket scan - use aggregated cursor for pagination
+         */
+        FULL_BUCKET_SCAN,
+        /**
+         * Range scan on a single index. Use a specific node cursor
+         */
+        RANGE_SCAN
     }
 }

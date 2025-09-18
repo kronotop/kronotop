@@ -198,10 +198,10 @@ public class IndexBuilder {
      * This method sets both the index entry and back pointer directly using the given versionstamp,
      * rather than relying on FoundationDB's versionstamp generation.
      *
-     * @param tr          The transaction object used to perform mutations against the database.
+     * @param tr           The transaction object used to perform mutations against the database.
      * @param versionstamp The versionstamp to be used as part of both the index entry key and back pointer key.
-     * @param container   The container object holding necessary metadata, index value, subspaces, shard ID,
-     *                    and entry metadata required for constructing and storing the index entry and back pointer.
+     * @param container    The container object holding necessary metadata, index value, subspaces, shard ID,
+     *                     and entry metadata required for constructing and storing the index entry and back pointer.
      */
     public static void setIndexEntryByVersionstamp(Transaction tr, Versionstamp versionstamp, IndexEntryContainer container) {
         Tuple indexKeyTuple = Tuple.from(

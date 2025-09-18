@@ -63,6 +63,32 @@ public class IndexUtils {
     }
 
     /**
+     * Constructs a {@link KeySelector} based on the specified bound and its value.
+     * The method computes a key for index navigation and determines the appropriate selector
+     * for the provided bound operator (GT, GTE, LT, LTE).
+     *
+     * @param indexSubspace the {@link DirectorySubspace} representing the index subspace
+     * @param bound         a {@link Bound} object representing the cursor's boundary operator and value
+     * @param boundValue    the value used to construct the boundary key for the index
+     * @return a {@link KeySelector} configured for the specified boundary and operator
+     * @throws IllegalStateException if the {@link Bound#operator()} is unsupported
+     */
+    static KeySelector getKeySelector(DirectorySubspace indexSubspace, Bound bound, Object boundValue) {
+        Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), boundValue);
+        byte[] boundKey = indexSubspace.pack(tuple);
+
+        return getKeySelector(bound, boundKey);
+    }
+
+    private static KeySelector getKeySelector(Bound bound, byte[] boundKey) {
+        return switch (bound.operator()) {
+            case GT, LTE -> KeySelector.firstGreaterThan(boundKey);
+            case GTE, LT -> KeySelector.firstGreaterOrEqual(boundKey);
+            default -> throw new IllegalStateException("Unsupported cursor operator: " + bound.operator());
+        };
+    }
+
+    /**
      * Creates index entries prefix for scanning.
      */
     byte[] createIndexEntriesPrefix(DirectorySubspace indexSubspace) {
@@ -165,24 +191,6 @@ public class IndexUtils {
     }
 
     /**
-     * Constructs a {@link KeySelector} based on the specified bound and its value.
-     * The method computes a key for index navigation and determines the appropriate selector
-     * for the provided bound operator (GT, GTE, LT, LTE).
-     *
-     * @param indexSubspace the {@link DirectorySubspace} representing the index subspace
-     * @param bound         a {@link Bound} object representing the cursor's boundary operator and value
-     * @param boundValue    the value used to construct the boundary key for the index
-     * @return a {@link KeySelector} configured for the specified boundary and operator
-     * @throws IllegalStateException if the {@link Bound#operator()} is unsupported
-     */
-    static KeySelector getKeySelector(DirectorySubspace indexSubspace, Bound bound, Object boundValue) {
-        Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), boundValue);
-        byte[] boundKey = indexSubspace.pack(tuple);
-
-        return getKeySelector(bound, boundKey);
-    }
-
-    /**
      * Creates a KeySelector from a cursor bound for index pagination.
      */
     KeySelector createIndexSelectorFromBound(DirectorySubspace indexSubspace, Bound bound) {
@@ -203,13 +211,5 @@ public class IndexUtils {
             Object boundValue = extractBoundValue(bound);
             return getKeySelector(indexSubspace, bound, boundValue);
         }
-    }
-
-    private static KeySelector getKeySelector(Bound bound, byte[] boundKey) {
-        return switch (bound.operator()) {
-            case GT, LTE -> KeySelector.firstGreaterThan(boundKey);
-            case GTE, LT -> KeySelector.firstGreaterOrEqual(boundKey);
-            default -> throw new IllegalStateException("Unsupported cursor operator: " + bound.operator());
-        };
     }
 }

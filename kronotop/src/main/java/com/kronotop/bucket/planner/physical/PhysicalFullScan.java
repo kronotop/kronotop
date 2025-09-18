@@ -23,7 +23,7 @@ public record PhysicalFullScan(int id, PhysicalNode node) implements PhysicalNod
     public <R> R accept(PhysicalPlanVisitor<R> visitor) {
         return visitor.visitFullScan(this);
     }
-    
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
@@ -31,7 +31,7 @@ public record PhysicalFullScan(int id, PhysicalNode node) implements PhysicalNod
         return Objects.equals(node, other.node);
         // Note: id is intentionally excluded from comparison
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(node);

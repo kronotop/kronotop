@@ -177,7 +177,7 @@ public class PipelineRewriter {
      *
      * @param children the list of {@link PipelineNode} instances to analyze
      * @return {@code true} if there are more than one {@link FullScanNode} in the list,
-     *         otherwise {@code false}
+     * otherwise {@code false}
      */
     private static boolean hasManyFullScanNodes(List<PipelineNode> children) {
         int numberOfFullScans = 0;

@@ -18,6 +18,7 @@ package com.kronotop.bucket.executor;
 
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.index.IndexDefinition;
@@ -25,15 +26,14 @@ import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PhysicalFilter;
 import com.kronotop.bucket.planner.physical.PhysicalRangeScan;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
 
 /**
  * Unified selector calculator for all types of index scans in the execution engine.
- * 
- * <p>This class centralizes the complex logic of determining KeySelector pairs for FoundationDB 
- * range queries across different scan types, cursor states, and scan directions. It ensures 
+ *
+ * <p>This class centralizes the complex logic of determining KeySelector pairs for FoundationDB
+ * range queries across different scan types, cursor states, and scan directions. It ensures
  * consistent selector calculation behavior throughout the query execution pipeline.</p>
- * 
+ *
  * <h2>Key Concepts</h2>
  * <ul>
  *   <li><strong>KeySelector</strong>: FoundationDB's mechanism for specifying range boundaries</li>
@@ -41,13 +41,13 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
  *   <li><strong>Index Subspace</strong>: FoundationDB directory containing index entries</li>
  *   <li><strong>Scan Direction</strong>: Forward (ascending) vs Reverse (descending) iteration</li>
  * </ul>
- * 
+ *
  * <h2>Index Key Structure</h2>
  * <ul>
  *   <li><strong>Primary Index</strong>: {@code [ENTRIES_MAGIC, versionstamp]}</li>
  *   <li><strong>Secondary Index</strong>: {@code [ENTRIES_MAGIC, indexed_value, versionstamp]}</li>
  * </ul>
- * 
+ *
  * <h2>Supported Scan Types</h2>
  * <ul>
  *   <li><strong>ID Index Scans</strong>: Full bucket scans and OR operations on primary index</li>
@@ -55,17 +55,17 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
  *   <li><strong>Range Scans</strong>: Complex range queries with upper/lower bounds</li>
  *   <li><strong>Secondary Index Scans</strong>: Index-based AND operations</li>
  * </ul>
- * 
+ *
  * <h2>Cursor Pagination</h2>
  * <p>The calculator handles two types of cursor positioning:</p>
  * <ul>
  *   <li><strong>Precise Cursors</strong>: Include both index value and versionstamp for exact positioning</li>
  *   <li><strong>Bound Cursors</strong>: Use operator bounds (GT, GTE, LT, LTE) for approximate positioning</li>
  * </ul>
- * 
+ *
  * <h2>Thread Safety</h2>
  * <p>This class is thread-safe and can be shared across multiple query executions.</p>
- * 
+ *
  * @see ScanContext
  * @see SelectorPair
  * @see IndexUtils
@@ -77,8 +77,8 @@ public class SelectorCalculator {
 
     /**
      * Creates a new SelectorCalculator with the required dependencies.
-     * 
-     * @param indexUtils utility class for index operations and key construction
+     *
+     * @param indexUtils    utility class for index operations and key construction
      * @param cursorManager manages cursor state and pagination positioning
      */
     SelectorCalculator(IndexUtils indexUtils, CursorManager cursorManager) {
@@ -88,15 +88,14 @@ public class SelectorCalculator {
 
     /**
      * Main entry point for calculating KeySelector pairs based on scan context type.
-     * 
+     *
      * <p>This method dispatches to the appropriate specialized calculation method based on the
      * provided scan context. Each context type encapsulates the necessary information for
      * computing proper FoundationDB range selectors.</p>
-     * 
+     *
      * @param context the scan context containing index subspace, bounds, and scan-specific parameters
      * @return a SelectorPair containing begin and end KeySelectors for the FoundationDB range query
      * @throws IllegalArgumentException if the scan context type is not supported
-     * 
      * @see IdIndexScanContext
      * @see FilterScanContext
      * @see RangeScanContext
@@ -114,7 +113,7 @@ public class SelectorCalculator {
 
     /**
      * Calculates selectors for ID index scans (primary index).
-     * 
+     *
      * <p>ID index scans operate on the primary index which uses versionstamps as keys.
      * These scans are used for:</p>
      * <ul>
@@ -122,9 +121,9 @@ public class SelectorCalculator {
      *   <li>OR operations that combine results from multiple conditions</li>
      *   <li>Fallback scans when no suitable secondary index is available</li>
      * </ul>
-     * 
+     *
      * <p><strong>Key Structure:</strong> {@code [ENTRIES_MAGIC, versionstamp]}</p>
-     * 
+     *
      * @param context the ID index scan context containing subspace and cursor bounds
      * @return selector pair for scanning the primary index range
      */
@@ -142,7 +141,7 @@ public class SelectorCalculator {
             // Reverse scan: FoundationDB reverses the iteration direction internally
             // We still specify selectors in logical order (begin < end)
             beginSelector = KeySelector.firstGreaterOrEqual(basePrefix);
-            
+
             if (bounds == null) {
                 // No cursor - scan entire bucket from end to beginning
                 endSelector = KeySelector.firstGreaterOrEqual(indexUtils.createIndexEntriesBoundary(indexSubspace));
@@ -174,10 +173,10 @@ public class SelectorCalculator {
 
     /**
      * Calculates selectors for filter-based index scans.
-     * 
+     *
      * <p>Filter scans apply single conditions to secondary indexes using specific operators.
      * This method handles both fresh scans (no cursor) and cursor continuation scans.</p>
-     * 
+     *
      * <p><strong>Supported Operators:</strong></p>
      * <ul>
      *   <li><strong>EQ</strong>: Equality - scans all entries with exact value match</li>
@@ -187,12 +186,12 @@ public class SelectorCalculator {
      *   <li><strong>LTE</strong>: Less than or equal - inclusive upper bound</li>
      *   <li><strong>NE</strong>: Not equal - requires full scan with manual filtering</li>
      * </ul>
-     * 
+     *
      * <p><strong>Key Structure:</strong> {@code [ENTRIES_MAGIC, indexed_value, versionstamp]}</p>
-     * 
+     *
      * <p><strong>Cursor Handling:</strong> When bounds are present, the method combines original
      * filter bounds with cursor bounds to ensure proper continuation from the last processed position.</p>
-     * 
+     *
      * @param context the filter scan context containing filter, index definition, and cursor bounds
      * @return selector pair for the filtered index scan range
      */
@@ -273,14 +272,14 @@ public class SelectorCalculator {
 
     /**
      * Calculates selectors for range scan operations.
-     * 
+     *
      * <p>Range scans handle queries with both upper and lower bounds, such as:</p>
      * <ul>
      *   <li>{@code age >= 16 AND age <= 40} (inclusive bounds)</li>
      *   <li>{@code price > 10 AND price < 100} (exclusive bounds)</li>
      *   <li>{@code date >= '2023-01-01' AND date < '2024-01-01'} (mixed bounds)</li>
      * </ul>
-     * 
+     *
      * <p><strong>Boundary Handling:</strong></p>
      * <ul>
      *   <li><strong>includeLower=true (GTE)</strong>: Include documents with exact lower bound value</li>
@@ -288,13 +287,13 @@ public class SelectorCalculator {
      *   <li><strong>includeUpper=true (LTE)</strong>: Include documents with exact upper bound value</li>
      *   <li><strong>includeUpper=false (LT)</strong>: Exclude documents with exact upper bound value</li>
      * </ul>
-     * 
+     *
      * <p><strong>Key Structure:</strong> {@code [ENTRIES_MAGIC, indexed_value, versionstamp]}</p>
-     * 
+     *
      * <p><strong>Cursor Interaction:</strong> When cursor bounds are present, this method combines
      * them with the original range bounds to ensure proper continuation while respecting the
      * original query constraints.</p>
-     * 
+     *
      * @param context the range scan context containing range bounds, index definition, and cursor state
      * @return selector pair for the range scan boundaries
      */
@@ -382,7 +381,7 @@ public class SelectorCalculator {
 
     /**
      * Creates cursor-aware scan range selectors for general scanning operations.
-     * 
+     *
      * <p>This method provides a general-purpose selector calculation that handles cursor
      * continuation for operations that don't have specific filter or range constraints.
      * It's primarily used by:</p>
@@ -391,17 +390,17 @@ public class SelectorCalculator {
      *   <li>Mixed operations combining different scan types</li>
      *   <li>Secondary index scans without specific conditions</li>
      * </ul>
-     * 
+     *
      * <p>The method creates a range from the cursor's lower bound (if present) to the
      * end of the index subspace, ensuring complete coverage while respecting cursor state.</p>
-     * 
+     *
      * @param indexSubspace the index subspace (typically primary index) to scan
-     * @param bounds cursor bounds containing lower bound positioning information, may be null
+     * @param bounds        cursor bounds containing lower bound positioning information, may be null
      * @return selector pair for cursor-aware general scanning
      */
     SelectorPair calculateCursorAwareScanRange(DirectorySubspace indexSubspace, Bounds bounds) {
         KeySelector beginSelector;
-        
+
         // Determine start position based on cursor bounds
         if (bounds != null) {
             Bound cursorLowerBound = bounds.lower();
@@ -433,10 +432,10 @@ public class SelectorCalculator {
 
     /**
      * Constructs KeySelector array for range scan operations.
-     * 
+     *
      * <p>This method creates begin and end selectors based on the range scan's upper and lower bounds.
      * It handles both inclusive and exclusive boundaries correctly using FoundationDB's KeySelector API.</p>
-     * 
+     *
      * <p><strong>Boundary Logic:</strong></p>
      * <ul>
      *   <li><strong>Lower Bound (includeLower=true)</strong>: Use firstGreaterOrEqual to include the boundary</li>
@@ -444,9 +443,9 @@ public class SelectorCalculator {
      *   <li><strong>Upper Bound (includeUpper=true)</strong>: Use strinc + firstGreaterOrEqual to include all entries with the boundary value</li>
      *   <li><strong>Upper Bound (includeUpper=false)</strong>: Use firstGreaterOrEqual to exclude the boundary</li>
      * </ul>
-     * 
+     *
      * @param indexSubspace the index subspace to construct selectors for
-     * @param rangeScan the range scan containing upper/lower bounds and inclusion flags
+     * @param rangeScan     the range scan containing upper/lower bounds and inclusion flags
      * @return array with [beginSelector, endSelector] for the range
      */
     private KeySelector[] constructRangeScanSelectors(DirectorySubspace indexSubspace, PhysicalRangeScan rangeScan) {
@@ -578,18 +577,18 @@ public class SelectorCalculator {
 
     /**
      * Extracts the original lower bound from a filter condition.
-     * 
+     *
      * <p>This method determines if a filter condition imposes a lower bound constraint
      * and creates the appropriate Bound object. Only GT and GTE operators create
      * lower bounds - other operators either create upper bounds or require full scans.</p>
-     * 
+     *
      * <p><strong>Operator Mapping:</strong></p>
      * <ul>
      *   <li><strong>GT</strong>: Creates exclusive lower bound (value must be greater than operand)</li>
      *   <li><strong>GTE</strong>: Creates inclusive lower bound (value must be greater than or equal to operand)</li>
      *   <li><strong>LT, LTE, EQ, NE</strong>: No lower bound (returns null)</li>
      * </ul>
-     * 
+     *
      * @param filter the physical filter to analyze
      * @return Bound object representing the lower bound, or null if no lower bound exists
      */
@@ -605,23 +604,23 @@ public class SelectorCalculator {
 
     /**
      * Creates a KeySelector from a lower bound constraint.
-     * 
+     *
      * <p>This method converts a Bound object (containing operator and value) into the appropriate
      * FoundationDB KeySelector for range scanning. The implementation ensures consistency with
      * the IndexUtils.constructIndexRangeSelectors logic.</p>
-     * 
+     *
      * <p><strong>Critical Implementation Details:</strong></p>
      * <ul>
-     *   <li><strong>GT (Greater Than)</strong>: Uses ByteArrayUtil.strinc to position after all entries 
+     *   <li><strong>GT (Greater Than)</strong>: Uses ByteArrayUtil.strinc to position after all entries
      *       with the boundary value. This ensures documents with exact boundary value are excluded.</li>
-     *   <li><strong>GTE (Greater Than or Equal)</strong>: Uses firstGreaterOrEqual to include documents 
+     *   <li><strong>GTE (Greater Than or Equal)</strong>: Uses firstGreaterOrEqual to include documents
      *       with exact boundary value.</li>
      * </ul>
-     * 
+     *
      * <p><strong>Bug Fix Note:</strong> The GT implementation was fixed to use strinc + firstGreaterOrEqual
      * instead of firstGreaterThan to match IndexUtils behavior and ensure correct boundary exclusion.</p>
-     * 
-     * @param indexSubspace the index subspace for key construction
+     *
+     * @param indexSubspace       the index subspace for key construction
      * @param effectiveLowerBound the bound containing operator and value information
      * @return KeySelector positioned at the appropriate lower boundary
      * @throws IllegalArgumentException if the bound operator is not GT or GTE

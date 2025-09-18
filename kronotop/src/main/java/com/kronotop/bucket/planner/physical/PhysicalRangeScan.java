@@ -17,6 +17,7 @@
 package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.index.IndexDefinition;
+
 import java.util.Objects;
 
 /**
@@ -41,20 +42,20 @@ public record PhysicalRangeScan(
     public <R> R accept(PhysicalPlanVisitor<R> visitor) {
         return visitor.visitRangeScan(this);
     }
-    
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (!(obj instanceof PhysicalRangeScan other)) return false;
         return Objects.equals(selector, other.selector) &&
-               Objects.equals(lowerBound, other.lowerBound) &&
-               Objects.equals(upperBound, other.upperBound) &&
-               includeLower == other.includeLower &&
-               includeUpper == other.includeUpper &&
-               Objects.equals(index, other.index);
+                Objects.equals(lowerBound, other.lowerBound) &&
+                Objects.equals(upperBound, other.upperBound) &&
+                includeLower == other.includeLower &&
+                includeUpper == other.includeUpper &&
+                Objects.equals(index, other.index);
         // Note: id is intentionally excluded from comparison
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(selector, lowerBound, upperBound, includeLower, includeUpper, index);

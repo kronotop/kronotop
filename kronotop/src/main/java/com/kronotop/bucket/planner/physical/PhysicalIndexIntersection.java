@@ -17,8 +17,9 @@
 package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.index.IndexDefinition;
-import java.util.Objects;
+
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Physical node representing an index intersection operation.
@@ -39,16 +40,16 @@ public record PhysicalIndexIntersection(
     public <R> R accept(PhysicalPlanVisitor<R> visitor) {
         return visitor.visitIndexIntersection(this);
     }
-    
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (!(obj instanceof PhysicalIndexIntersection other)) return false;
         return Objects.equals(indexes, other.indexes) &&
-               Objects.equals(filters, other.filters);
+                Objects.equals(filters, other.filters);
         // Note: id is intentionally excluded from comparison
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(indexes, filters);

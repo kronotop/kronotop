@@ -411,22 +411,21 @@ public class CursorManager {
     }
 
 
-
     /**
      * Sets cursor from mixed query results using node ID tracking.
      * This sets cursors for both indexed and non-indexed portions based on their node IDs.
      *
-     * @param config               the plan executor configuration
-     * @param indexedNodeId        the indexed portion node ID
-     * @param nonIndexedNodeId     the non-indexed portion node ID
-     * @param indexResults         results from indexed portion
-     * @param nonIndexResults      results from non-indexed portion
+     * @param config           the plan executor configuration
+     * @param indexedNodeId    the indexed portion node ID
+     * @param nonIndexedNodeId the non-indexed portion node ID
+     * @param indexResults     results from indexed portion
+     * @param nonIndexResults  results from non-indexed portion
      */
     void setMixedQueryCursor(PlanExecutorConfig config,
-                            int indexedNodeId,
-                            int nonIndexedNodeId,
-                            Map<Versionstamp, ByteBuffer> indexResults,
-                            Map<Versionstamp, ByteBuffer> nonIndexResults) {
+                             int indexedNodeId,
+                             int nonIndexedNodeId,
+                             Map<Versionstamp, ByteBuffer> indexResults,
+                             Map<Versionstamp, ByteBuffer> nonIndexResults) {
 
         // Set cursor for indexed node if it has results
         if (!indexResults.isEmpty()) {
@@ -450,7 +449,7 @@ public class CursorManager {
      *
      * @param config                  the plan executor configuration
      * @param currentIterationResults results from the current iteration
-     * @param nodeStates             map of node states for coordination
+     * @param nodeStates              map of node states for coordination
      */
     @SuppressWarnings("unchecked")
     public void advanceMixedQueryCursors(PlanExecutorConfig config,
@@ -470,7 +469,7 @@ public class CursorManager {
         for (Map.Entry<Integer, NodeExecutionState> entry : nodeStates.entrySet()) {
             int nodeId = entry.getKey();
             NodeExecutionState state = entry.getValue();
-            
+
             if (state != null && state.hasResults()) {
                 // This node contributed results, advance its cursor
                 setCursorBoundaries(config, nodeId, (Map<Versionstamp, ByteBuffer>) state.results());
@@ -494,7 +493,6 @@ public class CursorManager {
     // ========================================
     // Enhanced Cursor Coordination for Mixed Queries
     // ========================================
-
 
 
     /**

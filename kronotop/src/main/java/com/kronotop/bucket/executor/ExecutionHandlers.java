@@ -1487,7 +1487,7 @@ class ExecutionHandlers {
         // Convert the PhysicalIndexIntersection to the format expected by executeIndexBasedAnd
         List<PhysicalFilter> filters = indexIntersection.filters();
         List<IndexDefinition> indexes = indexIntersection.indexes();
-        
+
         List<PhysicalNode> indexBasedPlans = new ArrayList<>();
         for (int i = 0; i < filters.size(); i++) {
             PhysicalFilter filter = filters.get(i);

@@ -27,21 +27,20 @@ import java.util.List;
  * Optimization rule that converts PhysicalRangeScan nodes with null indexes
  * to PhysicalFullScan nodes with composite filters.
  * <p>
- * This rule handles the fallback scenario where no suitable index is available 
- * for a range scan operation. Instead of failing, it converts the range scan 
+ * This rule handles the fallback scenario where no suitable index is available
+ * for a range scan operation. Instead of failing, it converts the range scan
  * to a full bucket scan with appropriate filter conditions.
  * <p>
  * Example:
- * - PhysicalRangeScan("age", 18, 65, true, false, null) 
- *   → PhysicalFullScan(PhysicalAnd([age >= 18, age < 65]))
+ * - PhysicalRangeScan("age", 18, 65, true, false, null)
+ * → PhysicalFullScan(PhysicalAnd([age >= 18, age < 65]))
  */
 public class RangeScanFallbackRule implements PhysicalOptimizationRule {
 
     @Override
     public PhysicalNode apply(PhysicalNode node, BucketMetadata metadata, PlannerContext context) {
         return switch (node) {
-            case PhysicalRangeScan rangeScan when rangeScan.index() == null -> 
-                convertToFullScan(rangeScan, context);
+            case PhysicalRangeScan rangeScan when rangeScan.index() == null -> convertToFullScan(rangeScan, context);
             case PhysicalAnd and -> new PhysicalAnd(
                     context.nextId(),
                     and.children().stream()
@@ -75,8 +74,8 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
             Operator lowerOp = rangeScan.includeLower() ? Operator.GTE : Operator.GT;
             filters.add(new PhysicalFilter(
                     context.nextId(),
-                    rangeScan.selector(), 
-                    lowerOp, 
+                    rangeScan.selector(),
+                    lowerOp,
                     rangeScan.lowerBound()
             ));
         }
@@ -85,8 +84,8 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
             Operator upperOp = rangeScan.includeUpper() ? Operator.LTE : Operator.LT;
             filters.add(new PhysicalFilter(
                     context.nextId(),
-                    rangeScan.selector(), 
-                    upperOp, 
+                    rangeScan.selector(),
+                    upperOp,
                     rangeScan.upperBound()
             ));
         }

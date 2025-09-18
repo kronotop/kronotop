@@ -24,7 +24,6 @@ import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
-import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
@@ -98,7 +97,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                     if (actualBsonType != expectedBsonType) {
                         // Int64 covers Int32 values
                         if (!(expectedBsonType.equals(BsonType.INT64) && actualBsonType.equals(BsonType.INT32))) {
-                            throw new KronotopException("Type mismatch for '" + selector + "'. Expected BsonType="+expectedBsonType);
+                            throw new KronotopException("Type mismatch for '" + selector + "'. Expected BsonType=" + expectedBsonType);
                         }
                     }
 

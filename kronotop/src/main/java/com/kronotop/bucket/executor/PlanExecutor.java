@@ -79,7 +79,7 @@ public class PlanExecutor {
             default ->
                     throw new UnsupportedOperationException("Physical plan type not implemented: " + config.getPlan().getClass().getSimpleName());
         };
-        
+
         // Apply final sorting once, only if reverse is enabled
         if (config.isReverse()) {
             return sortResultsDescending(results);

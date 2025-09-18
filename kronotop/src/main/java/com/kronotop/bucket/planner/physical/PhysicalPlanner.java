@@ -16,10 +16,8 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.planner.logical.*;
 
 import java.util.ArrayList;
@@ -45,7 +43,8 @@ public class PhysicalPlanner {
             case LogicalFilter filter -> transposeFilter(metadata, filter, context);
 
             // Efficient list transformation - reuse child structure
-            case LogicalAnd and -> new PhysicalAnd(context.nextId(), transposeChildren(metadata, and.children(), context));
+            case LogicalAnd and ->
+                    new PhysicalAnd(context.nextId(), transposeChildren(metadata, and.children(), context));
             case LogicalOr or -> new PhysicalOr(context.nextId(), transposeChildren(metadata, or.children(), context));
 
             // Single child transposition

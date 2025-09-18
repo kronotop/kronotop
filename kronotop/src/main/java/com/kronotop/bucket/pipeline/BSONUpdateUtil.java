@@ -64,6 +64,7 @@ public final class BSONUpdateUtil {
      * @param document  The updated BSON document as ByteBuffer
      * @param newValues Map of field names to their new BSON values that were set (both new and updated fields)
      */
-    public record DocumentUpdateResult(ByteBuffer document, Map<String, BsonValue> newValues, Set<String> droppedSelectors) {
+    public record DocumentUpdateResult(ByteBuffer document, Map<String, BsonValue> newValues,
+                                       Set<String> droppedSelectors) {
     }
 }

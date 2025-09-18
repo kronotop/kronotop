@@ -24,7 +24,7 @@ public record PhysicalOr(int id, List<PhysicalNode> children) implements Physica
     public <R> R accept(PhysicalPlanVisitor<R> visitor) {
         return visitor.visitOr(this);
     }
-    
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
@@ -32,7 +32,7 @@ public record PhysicalOr(int id, List<PhysicalNode> children) implements Physica
         return Objects.equals(children, other.children);
         // Note: id is intentionally excluded from comparison
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(children);
