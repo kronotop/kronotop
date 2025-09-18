@@ -142,24 +142,14 @@ public class IndexUtil {
         }
     }
 
-    /**
-     * Generates a tuple representing the header, index statistics, index cardinality,
-     * and a given identifier. This tuple is typically used for indexing metadata operations.
-     *
-     * @param id the unique identifier of the index whose cardinality tuple is being generated
-     * @return a tuple containing the header, index statistics, index cardinality, and the provided identifier
-     */
-    private static Tuple getIndexCardinalityTuple(long id) {
-        return Tuple.from(
+    private static byte[] getCardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
+        Tuple tuple = Tuple.from(
                 BucketMetadataMagic.HEADER.getValue(),
                 BucketMetadataMagic.INDEX_STATISTICS.getValue(),
                 BucketMetadataMagic.INDEX_CARDINALITY.getValue(),
-                id
+                indexId
         );
-    }
-
-    private static byte[] getCardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
-        return bucketMetadataSubspace.pack(getIndexCardinalityTuple(indexId));
+        return bucketMetadataSubspace.pack(tuple);
     }
 
     /**
@@ -171,39 +161,30 @@ public class IndexUtil {
      * @param indexId                the unique identifier of the index whose cardinality is being updated
      * @param delta                  the byte array representing the delta to be applied (positive or negative)
      */
-    private static void cardinalityCommon(Transaction tr, DirectorySubspace bucketMetadataSubspace, long indexId, byte[] delta) {
+    private static void mutateCardinality(Transaction tr, DirectorySubspace bucketMetadataSubspace, long indexId, byte[] delta) {
         byte[] key = getCardinalityKey(bucketMetadataSubspace, indexId);
         tr.mutate(MutationType.ADD, key, delta);
     }
 
-    public static void cardinalityCommon(Transaction tr, DirectorySubspace bucketMetadataSubspace, long indexId, long delta) {
-        byte[] key = getCardinalityKey(bucketMetadataSubspace, indexId);
-        byte[] param = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(delta).array();
-        tr.mutate(MutationType.ADD, key, param);
-    }
-
     /**
-     * Increases the cardinality of the specified index within the given bucket metadata subspace.
-     * This method modifies the cardinality metadata in the database, incrementing it by a predefined positive delta.
+     * Updates the cardinality value of a specified index within the given bucket metadata subspace.
+     * This method determines the appropriate delta value based on the input and modifies the
+     * cardinality metadata in the database accordingly.
      *
      * @param tr                     the transaction instance used to interact with the database
      * @param bucketMetadataSubspace the directory subspace representing the bucket's metadata
-     * @param indexId                the unique identifier of the index whose cardinality is to be increased
+     * @param indexId                the unique identifier of the index whose cardinality is being updated
+     * @param delta                  the change in cardinality value, expressed as a long (positive or negative)
      */
-    public static void increaseCardinality(Transaction tr, DirectorySubspace bucketMetadataSubspace, long indexId) {
-        cardinalityCommon(tr, bucketMetadataSubspace, indexId, POSITIVE_DELTA_ONE);
-    }
-
-    /**
-     * Decreases the cardinality of the specified index within the given bucket metadata subspace.
-     * This method modifies the cardinality metadata in the database, decrementing it by a predefined negative delta.
-     *
-     * @param tr                     the transaction instance used to interact with the database
-     * @param bucketMetadataSubspace the directory subspace representing the bucket's metadata
-     * @param indexId                the unique identifier of the index whose cardinality is to be decreased
-     */
-    public static void decreaseCardinality(Transaction tr, DirectorySubspace bucketMetadataSubspace, long indexId) {
-        cardinalityCommon(tr, bucketMetadataSubspace, indexId, NEGATIVE_DELTA_ONE);
+    public static void mutateCardinality(Transaction tr, DirectorySubspace bucketMetadataSubspace, long indexId, long delta) {
+        if (delta == 1) {
+            mutateCardinality(tr, bucketMetadataSubspace, indexId, POSITIVE_DELTA_ONE);
+        } else if (delta == -1) {
+            mutateCardinality(tr, bucketMetadataSubspace, indexId, NEGATIVE_DELTA_ONE);
+        } else {
+            byte[] param = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(delta).array();
+            mutateCardinality(tr, bucketMetadataSubspace, indexId, param);
+        }
     }
 
     /**

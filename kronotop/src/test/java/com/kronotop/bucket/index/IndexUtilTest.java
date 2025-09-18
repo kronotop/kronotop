@@ -130,14 +130,14 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
         assertDoesNotThrow(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexUtil.increaseCardinality(tr, metadata.subspace(), definition.id());
+                IndexUtil.mutateCardinality(tr, metadata.subspace(), definition.id(), 1);
                 tr.commit().join();
             }
         });
 
         assertDoesNotThrow(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexUtil.decreaseCardinality(tr, metadata.subspace(), definition.id());
+                IndexUtil.mutateCardinality(tr, metadata.subspace(), definition.id(), -1);
                 tr.commit().join();
             }
         });

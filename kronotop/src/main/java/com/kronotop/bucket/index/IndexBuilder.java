@@ -48,7 +48,7 @@ public class IndexBuilder {
         byte[] value = indexEntry.encode();
 
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value);
-        IndexUtil.increaseCardinality(tr, metadata.subspace(), definition.id());
+        IndexUtil.mutateCardinality(tr, metadata.subspace(), definition.id(), 1);
     }
 
     /**
@@ -124,7 +124,7 @@ public class IndexBuilder {
         Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), versionstamp);
         byte[] key = indexSubspace.pack(tuple);
         tr.clear(key);
-        IndexUtil.decreaseCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
+        IndexUtil.mutateCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id(), -1);
     }
 
     public static void dropIndexEntry(
@@ -148,7 +148,7 @@ public class IndexBuilder {
             tr.clear(indexKey);
             total--;
         }
-        IndexUtil.cardinalityCommon(tr, metadataSubspace, definition.id(), total);
+        IndexUtil.mutateCardinality(tr, metadataSubspace, definition.id(), total);
         // Drop the back pointers
         tr.clear(begin.getKey(), end.getKey());
     }
