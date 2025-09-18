@@ -26,6 +26,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeTestUtil;
 import org.bson.BsonType;
@@ -140,8 +141,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entries[0]);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
-        assertNotNull(indexSubspace, "Index subspace should exist for " + bsonType);
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist for " + bsonType);
+        DirectorySubspace indexSubspace = index.subspace();
 
         byte[] expectedEntryMetadata = getEncodedEntryMetadata();
         verifyIndexEntry(indexSubspace, expectedStoredValue, expectedEntryMetadata);
@@ -168,7 +170,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        DirectorySubspace idIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+        Index idIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        assertNotNull(idIndex, "Index should exist");
+        DirectorySubspace idIndexSubspace = idIndex.subspace();
         byte[] prefix = idIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
@@ -202,7 +206,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         // First set the index entry
         setIndexEntryAndCommit(definition, metadata, indexValue, entries[0]);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Get the actual versionstamp from the committed index entry
@@ -264,7 +270,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         // Set the index entry
         setIndexEntryAndCommit(definition, metadata, inputValue, entries[0]);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Retrieve the actual versionstamp from the committed index entry
@@ -326,8 +334,12 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         setIndexEntryAndCommit(stringIndex, metadata, stringValue, entries[0]);
         setIndexEntryAndCommit(intIndex, metadata, intValue, entries[0]);
 
-        DirectorySubspace stringIndexSubspace = metadata.indexes().getSubspace(stringIndex.selector());
-        DirectorySubspace intIndexSubspace = metadata.indexes().getSubspace(intIndex.selector());
+        Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector());
+        assertNotNull(stringIndexObj, "String index should exist");
+        DirectorySubspace stringIndexSubspace = stringIndexObj.subspace();
+        Index intIndexObj = metadata.indexes().getIndex(intIndex.selector());
+        assertNotNull(intIndexObj, "Int index should exist");
+        DirectorySubspace intIndexSubspace = intIndexObj.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Verify both entries exist
@@ -405,7 +417,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Try to drop entry for non-existent versionstamp
@@ -429,7 +443,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         setIndexEntryAndCommit(definition, metadata, "value2", entries[1]);
         setIndexEntryAndCommit(definition, metadata, "value3", entries[2]);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Verify all entries exist
@@ -506,7 +522,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, indexValue, entry);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         // Get the actual versionstamp from the committed entry
         Versionstamp actualVersionstamp;
@@ -559,7 +577,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             setIndexEntryAndCommit(definition, metadata, value, entry);
         }
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         // Get the actual versionstamp from one of the committed entries
         Versionstamp actualVersionstamp;
@@ -605,7 +625,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         IndexDefinition definition = IndexDefinition.create("empty-index", "value", BsonType.STRING, SortOrder.ASCENDING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         Versionstamp nonExistentVersionstamp = Versionstamp.complete(new byte[10], 999);
         byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 0, 1, "test").encode().array();
 
@@ -638,7 +660,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entry);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         // Get the actual versionstamp
         Versionstamp actualVersionstamp;
@@ -687,7 +711,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        DirectorySubspace primaryIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        assertNotNull(primaryIndex, "Primary index should exist");
+        DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
         // Get the actual versionstamp from one of the committed entries
         Versionstamp actualVersionstamp;
@@ -739,7 +765,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        DirectorySubspace primaryIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        assertNotNull(primaryIndex, "Primary index should exist");
+        DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
         // Get the actual versionstamp from one of the committed entries
         Versionstamp actualVersionstamp;
@@ -799,7 +827,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         Versionstamp versionstamp = generateVersionstamp(userVersion);
         byte[] entryMetadata = getEncodedEntryMetadata();
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         IndexEntryContainer container = new IndexEntryContainer(
                 metadata,

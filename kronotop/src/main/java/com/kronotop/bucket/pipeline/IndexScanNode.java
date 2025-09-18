@@ -7,6 +7,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.BqlValue;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 
 public class IndexScanNode extends AbstractScanNode implements ScanNode {
@@ -25,7 +26,11 @@ public class IndexScanNode extends AbstractScanNode implements ScanNode {
 
     @Override
     public void execute(QueryContext ctx, Transaction tr) {
-        DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(index.selector());
+        Index indexRecord = ctx.metadata().indexes().getIndex(index.selector());
+        if (indexRecord == null) {
+            throw new IllegalStateException("Index not found for selector: " + index.selector());
+        }
+        DirectorySubspace indexSubspace = indexRecord.subspace();
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
         IndexScanContext indexScanCtx = new IndexScanContext(

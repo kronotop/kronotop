@@ -19,10 +19,7 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.CachedTimeService;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexStatistics;
-import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.bucket.index.SortOrder;
+import com.kronotop.bucket.index.*;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.server.Session;
@@ -51,7 +48,9 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         assertEquals(testBucketName, metadata.name());
         assertNotNull(metadata.subspace());
         assertNotNull(metadata.volumePrefix());
-        assertNotNull(metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector()));
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        assertNotNull(index);
+        assertNotNull(index.subspace());
         assertTrue(metadata.version() > 0);
     }
 

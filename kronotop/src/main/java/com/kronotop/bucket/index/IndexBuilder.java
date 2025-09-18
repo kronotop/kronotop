@@ -62,10 +62,11 @@ public class IndexBuilder {
      * @throws KronotopException if the required ID index subspace cannot be found in the metadata indexes.
      */
     public static void setPrimaryIndexEntry(Transaction tr, int shardId, BucketMetadata metadata, AppendedEntry[] entries) {
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
-        if (indexSubspace == null) {
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }
+        DirectorySubspace indexSubspace = index.subspace();
 
         for (AppendedEntry entry : entries) {
             Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), Versionstamp.incomplete(entry.userVersion()));
@@ -94,10 +95,11 @@ public class IndexBuilder {
             Object indexValue,
             AppendedEntry entry
     ) {
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
-        if (indexSubspace == null) {
+        Index index = metadata.indexes().getIndex(definition.selector());
+        if (index == null) {
             throw new KronotopException("Index '" + definition.name() + "' not found");
         }
+        DirectorySubspace indexSubspace = index.subspace();
 
         Tuple entryKeyTuple = Tuple.from(
                 IndexSubspaceMagic.ENTRIES.getValue(),
@@ -117,10 +119,11 @@ public class IndexBuilder {
     }
 
     public static void dropPrimaryIndex(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
-        if (indexSubspace == null) {
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }
+        DirectorySubspace indexSubspace = index.subspace();
         Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), versionstamp);
         byte[] key = indexSubspace.pack(tuple);
         tr.clear(key);
@@ -179,10 +182,11 @@ public class IndexBuilder {
             int shardId,
             byte[] entryMetadata
     ) {
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
-        if (indexSubspace == null) {
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }
+        DirectorySubspace indexSubspace = index.subspace();
         Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), versionstamp);
         byte[] key = indexSubspace.pack(tuple);
         IndexEntry indexEntry = new IndexEntry(shardId, entryMetadata);

@@ -6,6 +6,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
@@ -17,6 +18,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class IndexScanNodeDeleteTest extends BasePipelineTest {
 
@@ -53,7 +55,9 @@ class IndexScanNodeDeleteTest extends BasePipelineTest {
             assertEquals(0, results.size());
         }
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(ageIndex.selector());
+        Index index = metadata.indexes().getIndex(ageIndex.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         List<KeyValue> entries = fetchAllIndexedEntries(indexSubspace);
         assertEquals(1, entries.size());
@@ -115,7 +119,9 @@ class IndexScanNodeDeleteTest extends BasePipelineTest {
             assertEquals(0, results.size());
         }
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(ageIndex.selector());
+        Index index = metadata.indexes().getIndex(ageIndex.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         List<KeyValue> entries = fetchAllIndexedEntries(indexSubspace);
         assertEquals(2, entries.size());

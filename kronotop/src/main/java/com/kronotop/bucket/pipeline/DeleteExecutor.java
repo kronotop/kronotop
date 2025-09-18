@@ -1,12 +1,11 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.bucket.BucketShard;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
-import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.volume.DeleteResult;
 import com.kronotop.volume.VolumeSession;
 
@@ -99,10 +98,12 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
 
             // TODO: This code will be removed when we refactor how we store indexes in BucketMetadata
             for (String selector : ctx.metadata().indexes().getSelectors()) {
+                Index index = ctx.metadata().indexes().getIndex(selector);
+                if (index == null) {
+                    continue;
+                }
                 for (Versionstamp versionstamp : versionstamps) {
-                    IndexDefinition definition = ctx.metadata().indexes().getIndexBySelector(selector);
-                    DirectorySubspace indexSubspace = ctx.metadata().indexes().getSubspace(selector);
-                    IndexBuilder.dropIndexEntry(tr, versionstamp, definition, indexSubspace, ctx.metadata().subspace());
+                    IndexBuilder.dropIndexEntry(tr, versionstamp, index.definition(), index.subspace(), ctx.metadata().subspace());
                 }
             }
 

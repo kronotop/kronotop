@@ -21,6 +21,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.index.SortOrder;
@@ -62,7 +63,11 @@ class HistogramWindowManagerTest extends BaseStandaloneInstanceTest {
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
         BucketMetadata bucketMetadata = createIndexesAndLoadBucketMetadata(testBucket, ageIndex);
-        DirectorySubspace indexSubspace = bucketMetadata.indexes().getSubspace("age");
+        Index index = bucketMetadata.indexes().getIndex("age");
+        if (index == null) {
+            throw new IllegalStateException("Age index not found");
+        }
+        DirectorySubspace indexSubspace = index.subspace();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             FDBLogHistogram.initialize(tr, indexSubspace.getPath(), metadata);

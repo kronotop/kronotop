@@ -49,13 +49,6 @@ public class IndexRegistry {
         return indexesBySelectors.get(selector);
     }
 
-    public DirectorySubspace getSubspace(String selector) {
-        Index index = indexesBySelectors.get(selector);
-        if (index == null) {
-            return null;
-        }
-        return index.subspace();
-    }
 
     public IndexDefinition getIndexBySelector(String selector) {
         Index index = indexesBySelectors.get(selector);

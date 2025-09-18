@@ -25,6 +25,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeTestUtil;
 import org.bson.BsonType;
@@ -161,8 +162,9 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entry);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
-        assertNotNull(indexSubspace, "Index subspace should exist for " + bsonType);
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist for " + bsonType);
+        DirectorySubspace indexSubspace = index.subspace();
 
         verifyBackPointer(indexSubspace, expectedStoredValue, 0);
     }
@@ -176,7 +178,9 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, indexValue, entry);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
@@ -209,7 +213,9 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, indexValue, entry);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         List<Object> indexValues = getAllIndexValuesForVersionstamp(indexSubspace, 100);
 
         assertEquals(1, indexValues.size(), "Should find one index value");
@@ -230,8 +236,12 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
         setIndexEntryAndCommit(stringIndex, metadata, stringValue, entry);
         setIndexEntryAndCommit(intIndex, metadata, intValue, entry);
 
-        DirectorySubspace stringIndexSubspace = metadata.indexes().getSubspace(stringIndex.selector());
-        DirectorySubspace intIndexSubspace = metadata.indexes().getSubspace(intIndex.selector());
+        Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector());
+        assertNotNull(stringIndexObj, "String index should exist");
+        DirectorySubspace stringIndexSubspace = stringIndexObj.subspace();
+        Index intIndexObj = metadata.indexes().getIndex(intIndex.selector());
+        assertNotNull(intIndexObj, "Int index should exist");
+        DirectorySubspace intIndexSubspace = intIndexObj.subspace();
 
         verifyBackPointer(stringIndexSubspace, stringValue, 200);
         verifyBackPointer(intIndexSubspace, intValue, 200);
@@ -254,9 +264,15 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
         setIndexEntryAndCommit(intIndex, metadata, intValue, entry);
         setIndexEntryAndCommit(doubleIndex, metadata, doubleValue, entry);
 
-        DirectorySubspace stringIndexSubspace = metadata.indexes().getSubspace(stringIndex.selector());
-        DirectorySubspace intIndexSubspace = metadata.indexes().getSubspace(intIndex.selector());
-        DirectorySubspace doubleIndexSubspace = metadata.indexes().getSubspace(doubleIndex.selector());
+        Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector());
+        assertNotNull(stringIndexObj, "String index should exist");
+        DirectorySubspace stringIndexSubspace = stringIndexObj.subspace();
+        Index intIndexObj = metadata.indexes().getIndex(intIndex.selector());
+        assertNotNull(intIndexObj, "Int index should exist");
+        DirectorySubspace intIndexSubspace = intIndexObj.subspace();
+        Index doubleIndexObj = metadata.indexes().getIndex(doubleIndex.selector());
+        assertNotNull(doubleIndexObj, "Double index should exist");
+        DirectorySubspace doubleIndexSubspace = doubleIndexObj.subspace();
 
         List<Object> stringIndexValues = getAllIndexValuesForVersionstamp(stringIndexSubspace, 300);
         List<Object> intIndexValues = getAllIndexValuesForVersionstamp(intIndexSubspace, 300);
@@ -284,7 +300,9 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
             setIndexEntryAndCommit(definition, metadata, value, entry);
         }
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         List<Object> retrievedValues = getAllIndexValuesForVersionstamp(indexSubspace, userVersion);
 
         assertEquals(expectedValues.size(), retrievedValues.size(), "Should retrieve all values for the versionstamp");
@@ -301,7 +319,9 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, null, entry);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         verifyBackPointer(indexSubspace, null, 500);
     }
 }

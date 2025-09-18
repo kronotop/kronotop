@@ -21,10 +21,12 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexEntry;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.volume.EntryMetadata;
@@ -143,14 +145,14 @@ public class DocumentRetriever {
      *
      * @param metadata the bucket metadata
      * @return the directory subspace for the ID index
-     * @throws RuntimeException if the ID index is not found
+     * @throws KronotopException if the ID index is not found
      */
     private DirectorySubspace getIdIndexSubspace(BucketMetadata metadata) {
-        DirectorySubspace idIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
-        if (idIndexSubspace == null) {
-            throw new RuntimeException("ID index not found for bucket: " + metadata.name());
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        if (index == null) {
+            throw new KronotopException("ID index not found for bucket: " + metadata.name());
         }
-        return idIndexSubspace;
+        return index.subspace();
     }
 
     /**

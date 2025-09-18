@@ -256,8 +256,9 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify the index entry was created
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(indexDefinition.selector());
-        assertNotNull(indexSubspace, "Index subspace should exist for " + fieldName);
+        Index index = metadata.indexes().getIndex(indexDefinition.selector());
+        assertNotNull(index, "Index should exist for " + fieldName);
+        DirectorySubspace indexSubspace = index.subspace();
 
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
@@ -322,8 +323,12 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify only the 'name' index entry was created
-        DirectorySubspace nameIndexSubspace = metadata.indexes().getSubspace("name");
-        DirectorySubspace ageIndexSubspace = metadata.indexes().getSubspace("age");
+        Index nameIndex = metadata.indexes().getIndex("name");
+        Index ageIndex = metadata.indexes().getIndex("age");
+        assertNotNull(nameIndex, "Name index should exist");
+        assertNotNull(ageIndex, "Age index should exist");
+        DirectorySubspace nameIndexSubspace = nameIndex.subspace();
+        DirectorySubspace ageIndexSubspace = ageIndex.subspace();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Check name index - should have entry
@@ -374,7 +379,9 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify no index entry was created due to type mismatch
-        DirectorySubspace ageIndexSubspace = metadata.indexes().getSubspace("age");
+        Index ageIndex = metadata.indexes().getIndex("age");
+        assertNotNull(ageIndex, "Age index should exist");
+        DirectorySubspace ageIndexSubspace = ageIndex.subspace();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] agePrefix = ageIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -421,7 +428,9 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         // Verify all three index entries were created
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Check name index
-            DirectorySubspace nameIndexSubspace = metadata.indexes().getSubspace("name");
+            Index nameIndex = metadata.indexes().getIndex("name");
+            assertNotNull(nameIndex, "Name index should exist");
+            DirectorySubspace nameIndexSubspace = nameIndex.subspace();
             byte[] namePrefix = nameIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> nameEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(namePrefix),
@@ -430,7 +439,9 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(1, nameEntries.size(), "Should have one entry for name index");
 
             // Check age index
-            DirectorySubspace ageIndexSubspace = metadata.indexes().getSubspace("age");
+            Index ageIndex = metadata.indexes().getIndex("age");
+            assertNotNull(ageIndex, "Age index should exist");
+            DirectorySubspace ageIndexSubspace = ageIndex.subspace();
             byte[] agePrefix = ageIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> ageEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(agePrefix),
@@ -439,7 +450,9 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(1, ageEntries.size(), "Should have one entry for age index");
 
             // Check active index
-            DirectorySubspace activeIndexSubspace = metadata.indexes().getSubspace("active");
+            Index activeIndex = metadata.indexes().getIndex("active");
+            assertNotNull(activeIndex, "Active index should exist");
+            DirectorySubspace activeIndexSubspace = activeIndex.subspace();
             byte[] activePrefix = activeIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> activeEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(activePrefix),

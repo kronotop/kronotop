@@ -30,6 +30,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.bql.ast.*;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexEntry;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
@@ -399,10 +400,11 @@ class ExecutionHandlers {
         // Validate that the operand type matches the index type
         validateIndexOperandType(definition, filter.operand());
 
-        DirectorySubspace indexSubspace = config.getMetadata().indexes().getSubspace(selector);
-        if (indexSubspace == null) {
-            throw new IllegalStateException("Index subspace not found for selector: " + selector);
+        Index index = config.getMetadata().indexes().getIndex(selector);
+        if (index == null) {
+            throw new IllegalStateException("Index not found for selector: " + selector);
         }
+        DirectorySubspace indexSubspace = index.subspace();
 
         // Continue scanning until we find results or exhaust the index
         while (true) {
@@ -1067,11 +1069,11 @@ class ExecutionHandlers {
     }
 
     private DirectorySubspace getIdIndexSubspace(BucketMetadata metadata) {
-        DirectorySubspace idIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
-        if (idIndexSubspace == null) {
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        if (index == null) {
             throw new RuntimeException("ID index not found for bucket: " + metadata.name());
         }
-        return idIndexSubspace;
+        return index.subspace();
     }
 
     /**
@@ -1652,23 +1654,17 @@ class ExecutionHandlers {
             case PhysicalIndexScan indexScan -> {
                 PhysicalNode node = indexScan.node();
                 if (node instanceof PhysicalFilter filter) {
-                    IndexDefinition definition = config.getMetadata().indexes().getIndexBySelector(filter.selector());
-                    if (definition != null) {
-                        DirectorySubspace indexSubspace = config.getMetadata().indexes().getSubspace(filter.selector());
-                        if (indexSubspace != null) {
-                            yield new IndexScannerExtracted(tr, indexSubspace, definition, filter, config.isReverse(), cursorManager, indexUtils);
-                        }
+                    Index index = config.getMetadata().indexes().getIndex(filter.selector());
+                    if (index != null) {
+                        yield new IndexScannerExtracted(tr, index.subspace(), index.definition(), filter, config.isReverse(), cursorManager, indexUtils);
                     }
                 }
                 yield null;
             }
             case PhysicalFilter filter -> {
-                IndexDefinition definition = config.getMetadata().indexes().getIndexBySelector(filter.selector());
-                if (definition != null) {
-                    DirectorySubspace indexSubspace = config.getMetadata().indexes().getSubspace(filter.selector());
-                    if (indexSubspace != null) {
-                        yield new IndexScannerExtracted(tr, indexSubspace, definition, filter, config.isReverse(), cursorManager, indexUtils);
-                    }
+                Index index = config.getMetadata().indexes().getIndex(filter.selector());
+                if (index != null) {
+                    yield new IndexScannerExtracted(tr, index.subspace(), index.definition(), filter, config.isReverse(), cursorManager, indexUtils);
                 }
                 yield null;
             }
@@ -1715,10 +1711,11 @@ class ExecutionHandlers {
         }
 
         // Get the index subspace
-        DirectorySubspace indexSubspace = config.getMetadata().indexes().getSubspace(rangeScan.selector());
-        if (indexSubspace == null) {
-            throw new IllegalStateException("Index subspace not found for selector: " + rangeScan.selector());
+        Index index = config.getMetadata().indexes().getIndex(rangeScan.selector());
+        if (index == null) {
+            throw new IllegalStateException("Index not found for selector: " + rangeScan.selector());
         }
+        DirectorySubspace indexSubspace = index.subspace();
 
         // Continue scanning until we find results or exhaust the index
         while (true) {

@@ -26,6 +26,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.SortOrder;
@@ -435,7 +436,7 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         // Create bucket metadata without any additional indexes (only default _id index)
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
 
-        // Insert 5 test documents  
+        // Insert 5 test documents
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Document 1', 'value': 10}"),
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Document 2', 'value': 20}"),
@@ -453,8 +454,9 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         // Debug: Check if the _id index is properly configured
         System.out.println("=== DEBUG: Index Configuration ===");
         System.out.println("Bucket metadata indexes: " + metadata.indexes());
-        DirectorySubspace idIndexSubspace = metadata.indexes().getSubspace("_id");
-        System.out.println("_id index subspace: " + (idIndexSubspace != null ? "EXISTS" : "NULL"));
+        Index idIndex = metadata.indexes().getIndex("_id");
+        System.out.println("_id index: " + (idIndex != null ? "EXISTS" : "NULL"));
+        DirectorySubspace idIndexSubspace = idIndex != null ? idIndex.subspace() : null;
 
         // Get the first document's versionstamp and encode it for the query
         Versionstamp firstVersionstamp = insertedVersionstamps.get(0);
@@ -477,7 +479,8 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Debug: Check if documents exist in the _id index by doing a raw scan
             System.out.println("=== DEBUG: Raw _id Index Scan ===");
-            DirectorySubspace rawIdIndexSubspace = metadata.indexes().getSubspace("_id");
+            Index rawIdIndex = metadata.indexes().getIndex("_id");
+            DirectorySubspace rawIdIndexSubspace = rawIdIndex != null ? rawIdIndex.subspace() : null;
             if (rawIdIndexSubspace != null) {
                 byte[] prefix = rawIdIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
                 AsyncIterable<KeyValue> entries = tr.getRange(KeySelector.firstGreaterOrEqual(prefix), KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix)), 20);
@@ -555,8 +558,9 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         // Debug: Check if the _id index is properly configured
         System.out.println("=== DEBUG: Index Configuration ===");
         System.out.println("Bucket metadata indexes: " + metadata.indexes());
-        DirectorySubspace idIndexSubspace = metadata.indexes().getSubspace("_id");
-        System.out.println("_id index subspace: " + (idIndexSubspace != null ? "EXISTS" : "NULL"));
+        Index idIndex = metadata.indexes().getIndex("_id");
+        System.out.println("_id index: " + (idIndex != null ? "EXISTS" : "NULL"));
+        DirectorySubspace idIndexSubspace = idIndex != null ? idIndex.subspace() : null;
 
         // Get the first document's versionstamp and encode it for the query
         Versionstamp firstVersionstamp = insertedVersionstamps.get(0);
@@ -579,7 +583,8 @@ class BasicScanOperationsTest extends BasePlanExecutorTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Debug: Check if documents exist in the _id index by doing a raw scan
             System.out.println("=== DEBUG: Raw _id Index Scan ===");
-            DirectorySubspace rawIdIndexSubspace = metadata.indexes().getSubspace("_id");
+            Index rawIdIndex = metadata.indexes().getIndex("_id");
+            DirectorySubspace rawIdIndexSubspace = rawIdIndex != null ? rawIdIndex.subspace() : null;
             if (rawIdIndexSubspace != null) {
                 byte[] prefix = rawIdIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
                 AsyncIterable<KeyValue> entries = tr.getRange(KeySelector.firstGreaterOrEqual(prefix), KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix)), 20);
