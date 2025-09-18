@@ -27,9 +27,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadataMagic;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.statistics.prefix.FDBPrefixHistogram;
 import com.kronotop.internal.JSONUtil;
-import org.bson.BsonType;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

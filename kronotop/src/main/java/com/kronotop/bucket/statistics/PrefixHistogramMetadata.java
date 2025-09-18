@@ -14,28 +14,23 @@
  * limitations under the License.
  */
 
-package com.kronotop.bucket.statistics.prefix;
+package com.kronotop.bucket.statistics;
 
 /**
- * Immutable metadata for Fixed N-Byte Prefix Histogram.
- * Simple configuration without sharding complexity.
+ * Immutable metadata for prefix-based histograms with fixed depth.
+ * Used for approximate range selectivity estimation over string or binary keys.
  */
 public record PrefixHistogramMetadata(
-        int N,           // Number of prefix bytes (2 or 3)
-        int peekCap,     // Maximum KV to read for equality peek
-        int version      // Schema version
+        int maxDepth,          // maximum depth (bytes) to analyze (default: 8)
+        int version            // versioning for schema changes
 ) {
 
-    public static final int DEFAULT_N = 2;
-    public static final int DEFAULT_PEEK_CAP = 1024;
+    public static final int DEFAULT_MAX_DEPTH = 8;
     public static final int CURRENT_VERSION = 1;
 
     public PrefixHistogramMetadata {
-        if (N <= 0) {
-            throw new IllegalArgumentException("N must be > 0");
-        }
-        if (peekCap <= 0) {
-            throw new IllegalArgumentException("peekCap must be > 0");
+        if (maxDepth <= 0 || maxDepth > 8) {
+            throw new IllegalArgumentException("maxDepth must be between 1 and 8");
         }
         if (version <= 0) {
             throw new IllegalArgumentException("version must be > 0");
@@ -46,13 +41,9 @@ public record PrefixHistogramMetadata(
      * Creates default prefix histogram metadata
      */
     public static PrefixHistogramMetadata defaultMetadata() {
-        return new PrefixHistogramMetadata(DEFAULT_N, DEFAULT_PEEK_CAP, CURRENT_VERSION);
-    }
-
-    /**
-     * Creates metadata with custom N value
-     */
-    public static PrefixHistogramMetadata withN(int N) {
-        return new PrefixHistogramMetadata(N, DEFAULT_PEEK_CAP, CURRENT_VERSION);
+        return new PrefixHistogramMetadata(
+                DEFAULT_MAX_DEPTH,
+                CURRENT_VERSION
+        );
     }
 }

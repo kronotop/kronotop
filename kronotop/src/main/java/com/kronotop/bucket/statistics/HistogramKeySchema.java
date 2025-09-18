@@ -45,7 +45,7 @@ public class HistogramKeySchema {
     public static final byte[] NEGATIVE_ONE_LE = encodeCounterValue(-1L);
 
     /**
-     * Encodes a long value in little-endian format for FoundationDB counter mutations
+     * Encodes a long value in little-endian format for FoundationDB counter-mutations
      */
     public static byte[] encodeCounterValue(long value) {
         return ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(value).array();
@@ -93,14 +93,14 @@ public class HistogramKeySchema {
     }
 
     /**
-     * Creates key for group sum: {histType}/d/{decade}/g/{group}
+     * Creates a key for a group sum: {histType}/d/{decade}/g/{group}
      */
     public static byte[] groupSumKey(DirectorySubspace subspace, String histType, int decade, int group) {
         return subspace.pack(Tuple.from(histType, COUNTS_PREFIX, decade, GROUP_SUM_PREFIX, group));
     }
 
     /**
-     * Creates key for histogram-specific total shard: {histType}/total/{shardId}
+     * Creates a key for histogram-specific total shard: {histType}/total/{shardId}
      */
     public static byte[] totalShardKey(DirectorySubspace subspace, String histType, int shardId) {
         return subspace.pack(Tuple.from(histType, TOTAL_PREFIX, shardId));
@@ -114,14 +114,14 @@ public class HistogramKeySchema {
     }
 
     /**
-     * Creates key for overflow summary: {histType}/overflow_sum
+     * Creates a key for overflow summary: {histType}/overflow_sum
      */
     public static byte[] overflowSumKey(DirectorySubspace subspace, String histType) {
         return subspace.pack(Tuple.from(histType, OVERFLOW_KEY));
     }
 
     /**
-     * Creates key for zero count
+     * Creates a key for zero counts
      */
     public static byte[] zeroCountKey(DirectorySubspace subspace) {
         return subspace.pack(Tuple.from(ZERO_COUNT_KEY));
@@ -142,7 +142,7 @@ public class HistogramKeySchema {
     }
 
     /**
-     * Creates range end key for all histogram entries of a given type (exclusive)
+     * Creates a range end key for all histogram entries of a given type (exclusive)
      */
     public static byte[] histogramTypeRangeEnd(DirectorySubspace subspace, String histType) {
         return subspace.pack(Tuple.from(histType + "\u0000"));

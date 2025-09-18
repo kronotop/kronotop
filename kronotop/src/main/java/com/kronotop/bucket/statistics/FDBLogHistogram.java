@@ -16,13 +16,14 @@
 
 package com.kronotop.bucket.statistics;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * FoundationDB-based log10 histogram implementation following LogHistogramDynamic2 design.
@@ -57,174 +58,108 @@ import java.util.Arrays;
  * meta                    -> JSON (metadata)
  */
 public class FDBLogHistogram {
-    private final Database database;
-    private final DirectoryLayer directoryLayer;
+    private final DirectorySubspace subspace;
+    private final HistogramMetadata metadata;
+    private final HistogramEstimator estimator;
+    private final HistogramWindowManager windowManager;
 
-    public FDBLogHistogram(Database database) {
-        this(database, DirectoryLayer.getDefault());
+    public FDBLogHistogram(Transaction tr, List<String> root) {
+        this.metadata = openMetadata(tr, root);
+        this.subspace = openHistogramSubspace(tr, root, metadata);
+        this.estimator = new HistogramEstimator(metadata, subspace);
+        this.windowManager = new HistogramWindowManager(metadata, subspace);
     }
 
-    public FDBLogHistogram(Database database, DirectoryLayer directoryLayer) {
-        this.database = database;
-        this.directoryLayer = directoryLayer;
+    public static void initialize(Transaction tr, List<String> root) {
+        initialize(tr, root, HistogramMetadata.defaultMetadata());
     }
 
-    /**
-     * Initializes a histogram for the given bucket and field with specified metadata.
-     * This should be called once during bucket/field setup.
-     */
-    public void initialize(String bucketName, String fieldName, HistogramMetadata metadata) {
-        try (Transaction tr = database.createTransaction()) {
-            // Store metadata at a path that doesn't depend on m value
-            DirectorySubspace metaSubspace = getHistogramMetaSubspace(tr, bucketName, fieldName);
-            byte[] metaKey = HistogramKeySchema.metadataKey(metaSubspace);
-            byte[] metaValue = HistogramKeySchema.encodeMetadata(metadata);
-            tr.set(metaKey, metaValue);
+    public static void initialize(Transaction tr, List<String> root, HistogramMetadata metadata) {
+        List<String> metaSubpath = new ArrayList<>(root);
+        metaSubpath.addAll(Arrays.asList(
+                "statistics", "log10_hist"
+        ));
+        DirectorySubspace metaSubspace = DirectoryLayer.getDefault().createOrOpen(tr, metaSubpath).join();
+        byte[] metaKey = HistogramKeySchema.metadataKey(metaSubspace);
+        byte[] metaValue = HistogramKeySchema.encodeMetadata(metadata);
+        tr.set(metaKey, metaValue);
 
-            tr.commit().join();
-        }
+        List<String> histogramSubspace = new ArrayList<>(root);
+        histogramSubspace.addAll(Arrays.asList("statistics", "log10_hist", "m", String.valueOf(metadata.m())));
+        DirectoryLayer.getDefault().createOrOpen(tr, histogramSubspace).join();
     }
 
-    /**
-     * Adds a value to the histogram using atomic mutations (O(1), read-free).
-     */
-    public void add(String bucketName, String fieldName, double value) {
-        HistogramMetadata metadata = getMetadata(bucketName, fieldName);
-        if (metadata == null) {
-            metadata = HistogramMetadata.defaultMetadata();
-            initialize(bucketName, fieldName, metadata);
-        }
+    private HistogramMetadata openMetadata(Transaction tr, List<String> root) {
+        DirectorySubspace metaSubspace = openHistogramMetaSubspace(tr, root);
+        byte[] metaData = tr.get(HistogramKeySchema.metadataKey(metaSubspace)).join();
+        return HistogramKeySchema.decodeMetadata(metaData);
+    }
 
-        try (Transaction tr = database.createTransaction()) {
-            addValue(tr, bucketName, fieldName, value, metadata);
-            tr.commit().join();
-        }
+    private DirectorySubspace openHistogramMetaSubspace(Transaction tr, List<String> root) {
+        List<String> subpath = new ArrayList<>(root);
+        subpath.addAll(Arrays.asList(
+                "statistics", "log10_hist"
+        ));
+        return DirectoryLayer.getDefault().open(tr, subpath).join();
+    }
+
+    private DirectorySubspace openHistogramSubspace(Transaction tr, List<String> root, HistogramMetadata metadata) {
+        List<String> subpath = new ArrayList<>(root);
+        subpath.addAll(Arrays.asList(
+                "statistics", "log10_hist", "m", String.valueOf(metadata.m())
+        ));
+        return DirectoryLayer.getDefault().open(tr, subpath).join();
     }
 
     /**
      * Adds a value within an existing transaction following LogHistogramDynamic2
      */
-    public void addValue(Transaction tr, String bucketName, String fieldName, double value, HistogramMetadata metadata) {
-        DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
-
+    public void add(Transaction tr, double value) {
         if (value == 0.0) {
             // Handle zero values separately
             tr.mutate(MutationType.ADD, HistogramKeySchema.zeroCountKey(subspace), HistogramKeySchema.ONE_LE);
             return;
         }
 
-        // Determine histogram type and magnitude
-        String histType;
-        double magnitude;
-        if (value > 0) {
-            histType = HistogramKeySchema.POS_HIST_PREFIX;
-            magnitude = value;
-        } else {
-            histType = HistogramKeySchema.NEG_HIST_PREFIX;
-            magnitude = -value; // Use absolute value for negatives
-        }
-
-        // Calculate decade and sub-bucket using log10 of magnitude
-        double log = Math.log10(magnitude);
-        int decade = (int) Math.floor(log);
-        int subBucket = bucketIndexWithinDecade(log, decade, metadata.m());
-        int group = subBucket / metadata.groupSize();
-
-        // Deterministic shard based on value
-        int shard = computeShardId(value, metadata.shardCount());
+        var bucketParams = calculateBucketParameters(value);
 
         // Atomic ADD operations (no reads required)
-        tr.mutate(MutationType.ADD, HistogramKeySchema.bucketCountKey(subspace, histType, decade, subBucket), HistogramKeySchema.ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.decadeSumKey(subspace, histType, decade), HistogramKeySchema.ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.groupSumKey(subspace, histType, decade, group), HistogramKeySchema.ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, histType, shard), HistogramKeySchema.ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.bucketCountKey(subspace, bucketParams.histType, bucketParams.decade, bucketParams.subBucket), HistogramKeySchema.ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.decadeSumKey(subspace, bucketParams.histType, bucketParams.decade), HistogramKeySchema.ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.groupSumKey(subspace, bucketParams.histType, bucketParams.decade, bucketParams.group), HistogramKeySchema.ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, bucketParams.histType, bucketParams.shard), HistogramKeySchema.ONE_LE);
     }
 
     /**
      * Deletes a value using atomic ADD(-1) operations - exact inverse of insert
      */
-    public void deleteValue(Transaction tr, String bucketName, String fieldName, double value, HistogramMetadata metadata) {
-        DirectorySubspace subspace = getHistogramSubspace(tr, bucketName, fieldName, metadata.m());
-
+    public void delete(Transaction tr, double value) {
         if (value == 0.0) {
             // Handle zero values separately
             tr.mutate(MutationType.ADD, HistogramKeySchema.zeroCountKey(subspace), HistogramKeySchema.NEGATIVE_ONE_LE);
             return;
         }
 
-        // Determine histogram type and magnitude
-        String histType;
-        double magnitude;
-        if (value > 0) {
-            histType = HistogramKeySchema.POS_HIST_PREFIX;
-            magnitude = value;
-        } else {
-            histType = HistogramKeySchema.NEG_HIST_PREFIX;
-            magnitude = -value; // Use absolute value for negatives
-        }
-
-        // Calculate decade and sub-bucket using log10 of magnitude
-        double log = Math.log10(magnitude);
-        int decade = (int) Math.floor(log);
-        int subBucket = bucketIndexWithinDecade(log, decade, metadata.m());
-        int group = subBucket / metadata.groupSize();
-
-        // Deterministic shard based on value
-        int shard = computeShardId(value, metadata.shardCount());
+        var bucketParams = calculateBucketParameters(value);
 
         // Atomic ADD(-1) operations - exact inverse of insert
-        tr.mutate(MutationType.ADD, HistogramKeySchema.bucketCountKey(subspace, histType, decade, subBucket), HistogramKeySchema.NEGATIVE_ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.decadeSumKey(subspace, histType, decade), HistogramKeySchema.NEGATIVE_ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.groupSumKey(subspace, histType, decade, group), HistogramKeySchema.NEGATIVE_ONE_LE);
-        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, histType, shard), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.bucketCountKey(subspace, bucketParams.histType, bucketParams.decade, bucketParams.subBucket), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.decadeSumKey(subspace, bucketParams.histType, bucketParams.decade), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.groupSumKey(subspace, bucketParams.histType, bucketParams.decade, bucketParams.group), HistogramKeySchema.NEGATIVE_ONE_LE);
+        tr.mutate(MutationType.ADD, HistogramKeySchema.totalShardKey(subspace, bucketParams.histType, bucketParams.shard), HistogramKeySchema.NEGATIVE_ONE_LE);
     }
 
     /**
-     * Updates a value atomically (delete old + insert new in single transaction)
+     * Updates a value atomically (delete old + insert new in a single transaction)
      */
-    public void updateValue(Transaction tr, String bucketName, String fieldName, double oldValue, double newValue, HistogramMetadata metadata) {
+    public void update(Transaction tr, double oldValue, double newValue) {
         if (oldValue == newValue) {
             return; // No change needed
         }
 
         // Atomic delete old + insert new
-        deleteValue(tr, bucketName, fieldName, oldValue, metadata);
-        addValue(tr, bucketName, fieldName, newValue, metadata);
-    }
-
-    /**
-     * Deletes a value from the histogram.
-     */
-    public void delete(String bucketName, String fieldName, double value) {
-        HistogramMetadata metadata = getMetadata(bucketName, fieldName);
-        if (metadata == null) {
-            return; // Nothing to delete if histogram doesn't exist
-        }
-
-        try (Transaction tr = database.createTransaction()) {
-            deleteValue(tr, bucketName, fieldName, value, metadata);
-            tr.commit().join();
-        }
-    }
-
-    /**
-     * Updates a value in the histogram.
-     */
-    public void update(String bucketName, String fieldName, double oldValue, double newValue) {
-        if (oldValue == newValue) {
-            return; // No change needed
-        }
-
-        HistogramMetadata metadata = getMetadata(bucketName, fieldName);
-        if (metadata == null) {
-            metadata = HistogramMetadata.defaultMetadata();
-            initialize(bucketName, fieldName, metadata);
-        }
-
-        try (Transaction tr = database.createTransaction()) {
-            updateValue(tr, bucketName, fieldName, oldValue, newValue, metadata);
-            tr.commit().join();
-        }
+        delete(tr, oldValue);
+        add(tr, newValue);
     }
 
     /**
@@ -233,65 +168,53 @@ public class FDBLogHistogram {
     private int computeShardId(double value, int shardCount) {
         // Use Double.doubleToLongBits for deterministic hash of double values
         long hash = Double.doubleToLongBits(value);
-        // Apply mask to ensure positive value, then mod by shard count
+        // Apply mask to ensure a positive value, then mod by shard count
         return (int) ((hash & 0x7fffffffL) % shardCount);
     }
 
     /**
-     * Gets histogram metadata, returning null if not found
+     * Retrieves the `HistogramEstimator` instance associated with this histogram.
+     *
+     * @return the `HistogramEstimator` responsible for estimating histogram properties.
      */
-    public HistogramMetadata getMetadata(String bucketName, String fieldName) {
-        try (Transaction tr = database.createTransaction()) {
-            DirectorySubspace metaSubspace = getHistogramMetaSubspace(tr, bucketName, fieldName);
-            byte[] metaData = tr.get(HistogramKeySchema.metadataKey(metaSubspace)).join();
-            return HistogramKeySchema.decodeMetadata(metaData);
+    public HistogramEstimator getEstimator() {
+        return estimator;
+    }
+
+    /**
+     * Retrieves the HistogramWindowManager instance managing histogram window operations.
+     *
+     * @return the HistogramWindowManager instance associated with this histogram.
+     */
+    public HistogramWindowManager getWindowManager() {
+        return windowManager;
+    }
+
+    /**
+     * Calculates bucket parameters for a given value (extracted to eliminate code duplication)
+     */
+    private BucketParameters calculateBucketParameters(double value) {
+        // Determine histogram type and magnitude
+        String histType;
+        double magnitude;
+        if (value > 0) {
+            histType = HistogramKeySchema.POS_HIST_PREFIX;
+            magnitude = value;
+        } else {
+            histType = HistogramKeySchema.NEG_HIST_PREFIX;
+            magnitude = -value; // Use absolute value for negatives
         }
-    }
 
-    /**
-     * Creates histogram estimator for selectivity calculations
-     */
-    public HistogramEstimator createEstimator(String bucketName, String fieldName) {
-        return new HistogramEstimator(this, bucketName, fieldName);
-    }
+        // Calculate decade and sub-bucket using log10 of magnitude
+        double log = Math.log10(magnitude);
+        int decade = (int) Math.floor(log);
+        int subBucket = bucketIndexWithinDecade(log, decade, metadata.m());
+        int group = subBucket / metadata.groupSize();
 
-    /**
-     * Creates window manager for background maintenance
-     */
-    public HistogramWindowManager createWindowManager() {
-        return new HistogramWindowManager(database, directoryLayer);
-    }
+        // Deterministic shard based on value
+        int shard = computeShardId(value, metadata.shardCount());
 
-    /**
-     * Gets the FoundationDB database instance
-     */
-    public Database getDatabase() {
-        return database;
-    }
-
-    /**
-     * Gets the directory layer instance
-     */
-    public DirectoryLayer getDirectoryLayer() {
-        return directoryLayer;
-    }
-
-    /**
-     * Gets or creates the histogram subspace for given parameters
-     */
-    public DirectorySubspace getHistogramSubspace(Transaction tr, String bucketName, String fieldName, int m) {
-        return directoryLayer.createOrOpen(tr, Arrays.asList(
-                "stats", bucketName, fieldName, "log10_hist", "m", String.valueOf(m)
-        )).join();
-    }
-
-    /**
-     * Gets or creates the histogram metadata subspace (independent of m parameter)
-     */
-    public DirectorySubspace getHistogramMetaSubspace(Transaction tr, String bucketName, String fieldName) {
-        return directoryLayer.createOrOpen(tr, Arrays.asList(
-                "stats", bucketName, fieldName, "log10_hist"
-        )).join();
+        return new BucketParameters(histType, decade, subBucket, group, shard);
     }
 
     /**
@@ -303,5 +226,11 @@ public class FDBLogHistogram {
         if (j < 0) j = 0;
         if (j >= m) j = m - 1;
         return j;
+    }
+
+    /**
+     * Bucket parameters for a histogram value
+     */
+    private record BucketParameters(String histType, int decade, int subBucket, int group, int shard) {
     }
 }
