@@ -30,7 +30,7 @@ import java.util.*;
  */
 public class IndexRegistry {
     private final CachedTimeService cachedTime;
-    private final Map<String, IndexBundle> indexBundleBySelectors = new HashMap<>();
+    private final Map<String, Index> indexesBySelectors = new HashMap<>();
     private Set<String> selectors = new HashSet<>();
     private volatile Map<Long, IndexStatistics> statistics;
     private volatile long statsLastRefreshedAt;
@@ -40,25 +40,25 @@ public class IndexRegistry {
     }
 
     public void register(IndexDefinition definition, DirectorySubspace subspace) {
-        IndexBundle bundle = new IndexBundle(definition, subspace);
-        indexBundleBySelectors.put(definition.selector(), bundle);
-        selectors = Collections.unmodifiableSet(indexBundleBySelectors.keySet());
+        Index bundle = new Index(definition, subspace);
+        indexesBySelectors.put(definition.selector(), bundle);
+        selectors = Collections.unmodifiableSet(indexesBySelectors.keySet());
     }
 
     public DirectorySubspace getSubspace(String selector) {
-        IndexBundle bundle = indexBundleBySelectors.get(selector);
-        if (bundle == null) {
+        Index index = indexesBySelectors.get(selector);
+        if (index == null) {
             return null;
         }
-        return bundle.subspace;
+        return index.subspace();
     }
 
     public IndexDefinition getIndexBySelector(String selector) {
-        IndexBundle bundle = indexBundleBySelectors.get(selector);
-        if (bundle == null) {
+        Index index = indexesBySelectors.get(selector);
+        if (index == null) {
             return null;
         }
-        return bundle.definition;
+        return index.definition();
     }
 
     public void updateStatistics(Map<Long, IndexStatistics> statistics) {
@@ -76,8 +76,5 @@ public class IndexRegistry {
 
     public long getStatsLastRefreshedAt() {
         return statsLastRefreshedAt;
-    }
-
-    record IndexBundle(IndexDefinition definition, DirectorySubspace subspace) {
     }
 }
