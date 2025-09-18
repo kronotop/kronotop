@@ -49,6 +49,9 @@ public class IndexRegistry {
         return indexesBySelectors.get(selector);
     }
 
+    public Collection<Index> getIndexes() {
+        return Collections.unmodifiableCollection(indexesBySelectors.values());
+    }
 
     public IndexDefinition getIndexBySelector(String selector) {
         Index index = indexesBySelectors.get(selector);

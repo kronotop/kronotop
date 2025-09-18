@@ -96,12 +96,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                 ctx.registerPostCommitHook(postCommitHook);
             }
 
-            // TODO: This code will be removed when we refactor how we store indexes in BucketMetadata
-            for (String selector : ctx.metadata().indexes().getSelectors()) {
-                Index index = ctx.metadata().indexes().getIndex(selector);
-                if (index == null) {
-                    continue;
-                }
+            for (Index index : ctx.metadata().indexes().getIndexes()) {
                 for (Versionstamp versionstamp : versionstamps) {
                     IndexBuilder.dropIndexEntry(tr, versionstamp, index.definition(), index.subspace(), ctx.metadata().subspace());
                 }
