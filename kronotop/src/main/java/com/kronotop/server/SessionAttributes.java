@@ -19,6 +19,7 @@ package com.kronotop.server;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.CommitHook;
 import com.kronotop.bucket.QueryExecutorConfig;
+import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.foundationdb.namespace.Namespace;
 import io.netty.util.AttributeKey;
 
@@ -78,4 +79,6 @@ public class SessionAttributes {
     public static final AttributeKey<QueryExecutorConfig> BUCKET_QUERY_EXECUTOR_CONFIG = AttributeKey.valueOf("bucket_query_executor_config");
 
     public static final AttributeKey<Boolean> PIN_READ_VERSION = AttributeKey.valueOf("pin_read_version");
+
+    public static final AttributeKey<Map<Integer, QueryContext>> AVAILABLE_BUCKET_CURSORS = AttributeKey.valueOf("available_bucket_cursors");
 }

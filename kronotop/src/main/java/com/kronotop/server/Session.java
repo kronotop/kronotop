@@ -43,6 +43,7 @@ public class Session {
     private final ChannelHandlerContext ctx;
     private final Channel channel;
     private final Context context;
+    private final AtomicInteger cursorId = new AtomicInteger(1);
     private volatile RESPVersion protocolVersion;
 
     private Session(Context context, ChannelHandlerContext ctx) {
@@ -51,6 +52,16 @@ public class Session {
         this.channel = ctx.channel();
 
         initialize();
+    }
+
+    /**
+     * Generates and returns the next unique cursor identifier for the session.
+     * The value is incremented atomically, ensuring thread-safe operations.
+     *
+     * @return the next integer value representing the cursor identifier
+     */
+    public int nextCursorId() {
+        return cursorId.getAndIncrement();
     }
 
     /**
