@@ -16,50 +16,53 @@
 
 package com.kronotop.bucket;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.Context;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.BqlExpr;
-import com.kronotop.bucket.executor.PlanExecutor;
-import com.kronotop.bucket.executor.PlanExecutorConfig;
 import com.kronotop.bucket.optimizer.Optimizer;
+import com.kronotop.bucket.pipeline.*;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.bucket.planner.physical.PhysicalPlanner;
 import com.kronotop.bucket.planner.physical.PlannerContext;
 
-import java.nio.ByteBuffer;
-import java.util.Map;
-
 public class QueryExecutor {
-    private static final LogicalPlanner logicalPlanner = new LogicalPlanner();
-    private static final PhysicalPlanner physicalPlanner = new PhysicalPlanner();
-    private static final Optimizer optimizer = new Optimizer();
+    private final LogicalPlanner logicalPlanner = new LogicalPlanner();
+    private final PhysicalPlanner physicalPlanner = new PhysicalPlanner();
+    private final Optimizer optimizer = new Optimizer();
+    private final ReadExecutor readExecutor;
+    private final DeleteExecutor deleteExecutor;
+    private final UpdateExecutor updateExecutor;
 
-    public static Map<Versionstamp, ByteBuffer> execute(Context context, Transaction tr, QueryExecutorConfig config) {
-        BqlExpr parsedQuery = BqlParser.parse(config.getQuery());
+    public QueryExecutor(BucketService service) {
+
+        DocumentRetriever documentRetriever = new DocumentRetriever(service);
+        CursorManager cursorManager = new CursorManager();
+        PipelineEnv env = new PipelineEnv(service, documentRetriever, cursorManager);
+        PipelineExecutor executor = new PipelineExecutor(env);
+        readExecutor = new ReadExecutor(executor);
+        deleteExecutor = new DeleteExecutor(executor);
+        updateExecutor = new UpdateExecutor(executor);
+    }
+
+    public ReadExecutor readExecutor() {
+        return readExecutor;
+    }
+
+    public DeleteExecutor deleteExecutor() {
+        return deleteExecutor;
+    }
+
+    public UpdateExecutor updateExecutor() {
+        return updateExecutor;
+    }
+
+    protected PipelineNode preparePlan(BucketMetadata metadata, String query) {
+        PlannerContext plannerCtx = new PlannerContext();
+        BqlExpr parsedQuery = BqlParser.parse(query);
         LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
-        PlannerContext plannerContext = new PlannerContext();
-        PhysicalNode physicalPlan = physicalPlanner.plan(config.getMetadata(), logicalPlan, plannerContext);
-        PhysicalNode optimizedPlan = optimizer.optimize(config.getMetadata(), physicalPlan, plannerContext);
-
-        PlanExecutorConfig planExecutorConfig = new PlanExecutorConfig(config.getMetadata(), optimizedPlan, plannerContext);
-        planExecutorConfig.setLimit(config.getLimit());
-        planExecutorConfig.setReverse(config.isReverse());
-        planExecutorConfig.setPinReadVersion(config.getPinReadVersion());
-        planExecutorConfig.setReadVersion(config.getReadVersion());
-
-        // Use the cursor from the QueryExecutorConfig to maintain state across BUCKET.ADVANCE calls
-        planExecutorConfig.cursor().copyStatesFrom(config.getCursor());
-
-        PlanExecutor executor = new PlanExecutor(context, planExecutorConfig);
-        Map<Versionstamp, ByteBuffer> results = executor.execute(tr);
-
-        // Copy updated cursor state back to the QueryExecutorConfig for future BUCKET.ADVANCE calls
-        config.getCursor().copyStatesFrom(planExecutorConfig.cursor());
-
-        return results;
+        PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, plannerCtx);
+        PhysicalNode optimizedPlan = optimizer.optimize(metadata, physicalPlan, plannerCtx);
+        return PipelineRewriter.rewrite(plannerCtx, optimizedPlan);
     }
 }
