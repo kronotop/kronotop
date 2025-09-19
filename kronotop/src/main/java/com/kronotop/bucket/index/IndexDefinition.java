@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.index;
 
+import com.kronotop.NotImplementedException;
 import org.bson.BsonType;
 
 import javax.annotation.Nonnull;
@@ -42,6 +43,9 @@ import static com.google.common.hash.Hashing.sipHash24;
 public record IndexDefinition(long id, String name, String selector, BsonType bsonType) {
 
     public static IndexDefinition create(String name, String selector, BsonType bsonType) {
+        if (bsonType.equals(BsonType.DECIMAL128)) {
+            throw new NotImplementedException("Creating indexes on DECIMAL128 fields not implemented yet");
+        }
         long id = sipHash24().hashBytes(name.getBytes()).asLong();
         return new IndexDefinition(id, name, selector, bsonType);
     }

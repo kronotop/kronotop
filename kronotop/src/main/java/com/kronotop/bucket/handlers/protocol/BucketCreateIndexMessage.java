@@ -110,7 +110,6 @@ public class BucketCreateIndexMessage extends BaseBucketMessage implements Proto
         IndexDefinition() {
         }
 
-
         public BsonType getBsonType() {
             return bsonType;
         }
