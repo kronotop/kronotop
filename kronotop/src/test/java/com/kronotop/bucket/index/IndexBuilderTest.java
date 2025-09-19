@@ -147,6 +147,12 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         byte[] expectedEntryMetadata = getEncodedEntryMetadata();
         verifyIndexEntry(indexSubspace, expectedStoredValue, expectedEntryMetadata);
+
+        // Verify cardinality was incremented
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after setting one entry for " + bsonType);
+        }
     }
 
     @Test
@@ -157,6 +163,12 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuilder.setPrimaryIndexEntry(tr, SHARD_ID, metadata, entries);
                 tr.commit().join();
+            }
+
+            // Verify cardinality was set correctly
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
+                assertEquals(entries.length, statistics.cardinality(), "Primary index cardinality should equal number of entries set");
             }
         });
     }
