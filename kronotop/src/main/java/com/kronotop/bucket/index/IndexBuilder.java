@@ -223,5 +223,7 @@ public class IndexBuilder {
 
         byte[] backPointer = container.indexSubspace().pack(backPointerTuple);
         tr.set(backPointer, NULL_VALUE);
+
+        IndexUtil.mutateCardinality(tr, container.metadata().subspace(), container.indexDefinition().id(), 1);
     }
 }

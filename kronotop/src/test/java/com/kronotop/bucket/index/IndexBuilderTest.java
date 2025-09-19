@@ -25,8 +25,8 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
-import com.kronotop.bucket.index.Index;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeTestUtil;
 import org.bson.BsonType;
@@ -257,6 +257,10 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix))
             ).asList().join();
             assertEquals(0, afterBackPointers.size(), "Should have no back pointers after dropping");
+
+            // Verify the cardinality was decremented
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(0, statistics.cardinality(), "Index cardinality should be 0 after dropping the entry");
         }
     }
 
@@ -309,6 +313,10 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix))
             ).asList().join();
             assertEquals(0, backPointers.size(), "Should have no back pointers after dropping for " + bsonType);
+
+            // Verify the cardinality was decremented
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(0, statistics.cardinality(), "Index cardinality should be 0 after dropping the entry for " + bsonType);
         }
     }
 
@@ -409,6 +417,13 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(intPrefix))
             ).asList().join();
             assertEquals(0, intEntries.size(), "Should have no int index entries");
+
+            // Verify cardinality was decremented for both indexes
+            IndexStatistics stringStats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), stringIndex.id());
+            assertEquals(0, stringStats.cardinality(), "String index cardinality should be 0 after dropping the entry");
+
+            IndexStatistics intStats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), intIndex.id());
+            assertEquals(0, intStats.cardinality(), "Int index cardinality should be 0 after dropping the entry");
         }
     }
 
@@ -429,6 +444,12 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                 IndexBuilder.dropIndexEntry(tr, nonExistentVersionstamp, definition, indexSubspace, metadataSubspace);
                 tr.commit().join();
             }, "Should not throw exception for non-existent versionstamp");
+        }
+
+        // Verify cardinality remains 0 (no entry was actually dropped)
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(0, statistics.cardinality(), "Index cardinality should remain 0 when dropping non-existent entry");
         }
     }
 
@@ -509,6 +530,10 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             }
             assertTrue(foundEntry0, "Entry 0 should still exist");
             assertTrue(foundEntry2, "Entry 2 should still exist");
+
+            // Verify cardinality was decremented from 3 to 2
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(2, statistics.cardinality(), "Index cardinality should be 2 after dropping 1 out of 3 entries");
         }
     }
 
@@ -888,6 +913,12 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             assertEquals(indexValue, unpackedBackPointer.get(2), "Back pointer index value should match");
 
             assertArrayEquals(IndexBuilder.NULL_VALUE, backPointer.getValue(), "Back pointer value should be NULL_VALUE");
+        }
+
+        // Verify the cardinality was updated
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after adding one entry");
         }
     }
 }
