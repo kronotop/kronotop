@@ -776,6 +776,10 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                 }
             }
             assertFalse(found, "Dropped versionstamp should not be found in remaining entries");
+
+            // Verify cardinality was decremented
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
+            assertEquals(entries.length - 1, statistics.cardinality(), "Primary index cardinality should be decremented by 1");
         }
     }
 
