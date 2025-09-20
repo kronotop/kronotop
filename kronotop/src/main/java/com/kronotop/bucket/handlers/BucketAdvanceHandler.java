@@ -16,19 +16,10 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.apple.foundationdb.Transaction;
-import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.QueryExecutorConfig;
 import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
-import com.kronotop.bucket.pipeline.QueryContext;
-import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-
-import java.util.Objects;
-
-import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketAdvanceMessage.COMMAND)
 public class BucketAdvanceHandler extends BaseBucketHandler {
