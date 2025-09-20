@@ -65,6 +65,7 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             QueryOptions options = builder.build();
             PipelineNode plan = service.getPlanner().plan(metadata, message.getQuery());
             QueryContext ctx = new QueryContext(metadata, options, plan);
+            session.attr(SessionAttributes.BUCKET_QUERY_CONTEXTS).get().put(session.nextCursorId(), ctx);
             return service.getQueryExecutor().read(tr, ctx);
         }, (entries) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
