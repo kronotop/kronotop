@@ -73,21 +73,17 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
     }
 
-    public final Command<K, V, List<String>> query(String bucket, String query) {
+    public final Command<K, V, Map<K, V>> query(String bucket, String query) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
-        return createCommand(CommandType.QUERY, new StringListOutput<>(codec), args);
+        return createCommand(CommandType.QUERY, new MapOutput<>(codec), args);
     }
 
-    public final Command<K, V, List<String>> query(String bucket, String query, BucketQueryArgs bucketQueryArgs) {
+    public final Command<K, V, Map<K, V>> query(String bucket, String query, BucketQueryArgs bucketQueryArgs) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
         if (bucketQueryArgs != null) {
             bucketQueryArgs.build(args);
         }
-        return createCommand(CommandType.QUERY, new StringListOutput<>(codec), args);
-    }
-
-    public final Command<K, V, List<String>> advance() {
-        return createCommand(CommandType.BUCKET_ADVANCE, new StringListOutput<>(codec));
+        return createCommand(CommandType.QUERY, new MapOutput<>(codec), args);
     }
 
     public final Command<K, V, Map<K, V>> advanceRead(int cursorId) {
