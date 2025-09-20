@@ -17,7 +17,6 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
@@ -30,9 +29,6 @@ import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
-
-import java.nio.ByteBuffer;
-import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
@@ -66,13 +62,7 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             }
             builder.reverse(message.getArguments().reverse());
 
-            //boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();
-            //builder.pinReadVersion(pinReadVersion);
-            //tr.getReadVersion().thenAccept(builder::readVersion);
-
             QueryOptions options = builder.build();
-            //session.attr(SessionAttributes.BUCKET_QUERY_EXECUTOR_OPTIONS).set(options);
-
             PipelineNode plan = service.getPlanner().plan(metadata, message.getQuery());
             QueryContext ctx = new QueryContext(metadata, options, plan);
             return service.getQueryExecutor().read(tr, ctx);
