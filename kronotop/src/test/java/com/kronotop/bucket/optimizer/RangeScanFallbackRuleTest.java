@@ -51,23 +51,21 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
         // Apply the rule
         PhysicalNode result = rule.apply(rangeScan, metadata, context);
 
-        // Should be converted to PhysicalFullScan with PhysicalAnd
-        assertTrue(result instanceof PhysicalFullScan);
-        PhysicalFullScan fullScan = (PhysicalFullScan) result;
-        
-        assertTrue(fullScan.node() instanceof PhysicalAnd);
-        PhysicalAnd and = (PhysicalAnd) fullScan.node();
-        
+        assertInstanceOf(PhysicalAnd.class, result);
+        PhysicalAnd and = (PhysicalAnd) result;
+
         assertEquals(2, and.children().size());
-        
-        // Check first condition: age >= 18
-        PhysicalFilter filter1 = (PhysicalFilter) and.children().get(0);
+
+        // First child: PhysicalFullScan with age >= 18 filter
+        PhysicalFullScan fullScan1 = (PhysicalFullScan) and.children().get(0);
+        PhysicalFilter filter1 = (PhysicalFilter) fullScan1.node();
         assertEquals("age", filter1.selector());
         assertEquals(Operator.GTE, filter1.op());
         assertEquals(18, filter1.operand());
-        
-        // Check second condition: age < 65
-        PhysicalFilter filter2 = (PhysicalFilter) and.children().get(1);
+
+        // Second child: PhysicalFullScan with age < 65 filter
+        PhysicalFullScan fullScan2 = (PhysicalFullScan) and.children().get(1);
+        PhysicalFilter filter2 = (PhysicalFilter) fullScan2.node();
         assertEquals("age", filter2.selector());
         assertEquals(Operator.LT, filter2.op());
         assertEquals(65, filter2.operand());
