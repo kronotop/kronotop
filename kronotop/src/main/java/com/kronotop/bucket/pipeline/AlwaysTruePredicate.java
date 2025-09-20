@@ -18,6 +18,16 @@ package com.kronotop.bucket.pipeline;
 
 import java.nio.ByteBuffer;
 
-public interface ResidualPredicateNode {
-    boolean test(ByteBuffer document);
+/**
+ * A predicate that always returns true for any document.
+ * <p>
+ * This implementation is used as a default or no-op predicate in query processing
+ * when no filtering conditions need to be applied. It accepts all documents
+ * without performing any evaluation.
+ */
+public record AlwaysTruePredicate() implements ResidualPredicateNode {
+    @Override
+    public boolean test(ByteBuffer document) {
+        return true;
+    }
 }

@@ -26,7 +26,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import org.bson.Document;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -36,7 +35,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     @Test
-    @Disabled
     void shouldDoPhysicalFullScanWithoutOperator() {
         Map<String, byte[]> expectedDocument = insertDocuments(List.of(DOCUMENT));
 
@@ -64,7 +62,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoPhysicalFullScanWithoutOperator_RESP2() {
         Map<String, byte[]> expectedDocument = insertDocuments(List.of(DOCUMENT));
 
