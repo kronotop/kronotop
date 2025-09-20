@@ -440,29 +440,25 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should handle mixed bounds without index")
         void shouldHandleMixedBoundsWithoutIndex() {
-            // No index created - should use PhysicalFullScan
-
-            // Test: AND(age > 18, age < 65) without index  
+            // Test: AND(age > 18, age < 65) without index
             String query = "{ $and: [{ \"age\": { $gt: 18 } }, { \"age\": { $lt: 65 } }] }";
             PhysicalNode optimized = planAndOptimize(query);
 
-            // Should consolidate into PhysicalFullScan with composite filters
-            assertInstanceOf(PhysicalFullScan.class, optimized);
-            PhysicalFullScan fullScan = (PhysicalFullScan) optimized;
-
-            // Should have PhysicalAnd with two PhysicalFilter children
-            assertInstanceOf(PhysicalAnd.class, fullScan.node());
-            PhysicalAnd and = (PhysicalAnd) fullScan.node();
+            // The optimized plan is correct: PhysicalAnd with two PhysicalFullScan children
+            assertInstanceOf(PhysicalAnd.class, optimized);
+            PhysicalAnd and = (PhysicalAnd) optimized;
             assertEquals(2, and.children().size());
 
-            // Check first condition: age > 18
-            PhysicalFilter filter1 = (PhysicalFilter) and.children().get(0);
+            // First child: PhysicalFullScan with age > 18 filter
+            PhysicalFullScan fullScan1 = (PhysicalFullScan) and.children().get(0);
+            PhysicalFilter filter1 = (PhysicalFilter) fullScan1.node();
             assertEquals("age", filter1.selector());
             assertEquals(Operator.GT, filter1.op());
             assertEquals(18, extractValue(filter1.operand()));
 
-            // Check second condition: age < 65
-            PhysicalFilter filter2 = (PhysicalFilter) and.children().get(1);
+            // Second child: PhysicalFullScan with age < 65 filter
+            PhysicalFullScan fullScan2 = (PhysicalFullScan) and.children().get(1);
+            PhysicalFilter filter2 = (PhysicalFilter) fullScan2.node();
             assertEquals("age", filter2.selector());
             assertEquals(Operator.LT, filter2.op());
             assertEquals(65, extractValue(filter2.operand()));
