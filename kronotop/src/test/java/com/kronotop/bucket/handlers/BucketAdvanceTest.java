@@ -143,6 +143,7 @@ class BucketAdvanceTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
+        int cursorId;
         // BUCKET.QUERY - Filter for type A with limit of 1
         Map<String, Document> allResults = new LinkedHashMap<>();
         {
@@ -151,9 +152,16 @@ class BucketAdvanceTest extends BaseBucketHandlerTest {
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
-            // May return 0 or 1 depending on cursor behavior
-            assertTrue(mapRedisMessage.children().size() <= 1, "Should return at most 1 document");
-            appendDocumentData(mapRedisMessage, allResults);
+            assertEquals(2, mapRedisMessage.children().size());
+
+            RedisMessage rawCursorId = findInMapMessage(mapRedisMessage, "cursor_id");
+            assertNotNull(rawCursorId);
+            cursorId = Math.toIntExact(((IntegerRedisMessage) rawCursorId).value());
+
+            RedisMessage entries = findInMapMessage(mapRedisMessage, "entries");
+            assertNotNull(entries);
+            assertInstanceOf(MapRedisMessage.class, entries);
+            appendDocumentData((MapRedisMessage) entries, allResults);
         }
 
         // BUCKET.ADVANCE - Continue until we get all type A docs or reasonable limit
@@ -161,17 +169,23 @@ class BucketAdvanceTest extends BaseBucketHandlerTest {
         int advanceCalls = 0;
         while (advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.advance().encode(buf);
+            cmd.advanceRead(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
 
-            if (mapRedisMessage.children().isEmpty()) {
+            RedisMessage rawEntries = findInMapMessage(mapRedisMessage, "entries");
+            assertNotNull(rawEntries);
+            assertInstanceOf(MapRedisMessage.class, rawEntries);
+            MapRedisMessage entries = (MapRedisMessage) rawEntries;
+
+            if (entries.children().isEmpty()) {
                 break; // Normal termination
             }
 
-            assertTrue(mapRedisMessage.children().size() <= 1, "Each batch should have at most 1 document");
-            appendDocumentData(mapRedisMessage, allResults);
+            assertTrue(entries.children().size() <= 1, "Each batch should have at most 1 document");
+
+            appendDocumentData(entries, allResults);
             advanceCalls++;
         }
 
