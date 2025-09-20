@@ -40,13 +40,9 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         // Run through the optimizer
         PhysicalNode optimized = optimizer.optimize(metadata, rangeScan, context);
 
-        // Should be converted to PhysicalFullScan
-        assertTrue(optimized instanceof PhysicalFullScan);
-        PhysicalFullScan fullScan = (PhysicalFullScan) optimized;
-        
         // Should contain the composite filter
-        assertTrue(fullScan.node() instanceof PhysicalAnd);
-        PhysicalAnd and = (PhysicalAnd) fullScan.node();
+        assertInstanceOf(PhysicalAnd.class, optimized);
+        PhysicalAnd and = (PhysicalAnd) optimized;
         assertEquals(2, and.children().size());
     }
 
