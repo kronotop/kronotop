@@ -67,7 +67,7 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             QueryContext ctx = new QueryContext(metadata, options, plan);
 
             int cursorId = session.nextCursorId();
-            session.attr(SessionAttributes.BUCKET_QUERY_CONTEXTS).get().put(cursorId, ctx);
+            session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
             return new BucketReadResponse(cursorId, service.getQueryExecutor().read(tr, ctx));
         }, (readResponse) -> {

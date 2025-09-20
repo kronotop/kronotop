@@ -46,7 +46,7 @@ public class BucketAdvanceHandler extends BaseBucketHandler {
         supplyAsync(context, response, () -> {
             BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
             Session session = request.getSession();
-            Map<Integer, QueryContext> contexts = session.attr(SessionAttributes.BUCKET_QUERY_CONTEXTS).get();
+            Map<Integer, QueryContext> contexts = session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
             QueryContext ctx = contexts.get(message.getCursorId());
             if (Objects.isNull(ctx)) {
                 throw new KronotopException("No previous query context found with the given cursor id");

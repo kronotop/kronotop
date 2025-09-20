@@ -77,5 +77,11 @@ public class SessionAttributes {
 
     public static final AttributeKey<Boolean> PIN_READ_VERSION = AttributeKey.valueOf("pin_read_version");
 
-    public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_query_contexts");
+    public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_READ_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_read_query_contexts");
+
+    public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_DELETE_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_delete_query_contexts");
+
+    public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_UPDATE_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_update_query_contexts");
+
+
 }

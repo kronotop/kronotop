@@ -104,7 +104,9 @@ public class Session {
         channel.attr(SessionAttributes.OPEN_NAMESPACES).set(new HashMap<>());
         channel.attr(SessionAttributes.CURRENT_NAMESPACE).set(context.getDefaultNamespace());
         channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
-        channel.attr(SessionAttributes.BUCKET_QUERY_CONTEXTS).set(new HashMap<>());
+        channel.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).set(new HashMap<>());
+        channel.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).set(new HashMap<>());
+        channel.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).set(new HashMap<>());
         channel.attr(SessionAttributes.READONLY).set(false);
         channel.attr(SessionAttributes.QUEUED_COMMANDS).set(new LinkedList<>());
         channel.attr(SessionAttributes.MULTI).set(false);
