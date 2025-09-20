@@ -47,7 +47,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
     void shouldCreateIndexWithMultipleFields() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"selector\": {\"bson_type\": \"int32\"}, \"username\": {\"bson_type\": \"string\"}}").encode(buf);
+        cmd.createIndex(BUCKET_NAME, "{\"selector-one\": {\"bson_type\": \"int32\"}, \"selector-two\": {\"bson_type\": \"string\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertNotNull(actualMessage);

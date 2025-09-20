@@ -17,13 +17,22 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.*;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
+import com.kronotop.bucket.pipeline.PipelineNode;
+import com.kronotop.bucket.pipeline.QueryContext;
+import com.kronotop.bucket.pipeline.QueryOptions;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
+
+import java.nio.ByteBuffer;
+import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
@@ -49,19 +58,26 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
             BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, message.getBucket());
 
-            QueryExecutorConfig config = new QueryExecutorConfig(metadata, message.getQuery());
+            QueryOptions.Builder builder = QueryOptions.builder();
             if (message.getArguments().limit() == 0) {
-                config.setLimit(session.attr(SessionAttributes.LIMIT).get());
+                builder.limit(session.attr(SessionAttributes.LIMIT).get());
             } else {
-                config.setLimit(message.getArguments().limit());
+                builder.limit(message.getArguments().limit());
             }
-            config.setReverse(message.getArguments().reverse());
-            boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();
-            config.setPinReadVersion(pinReadVersion);
-            tr.getReadVersion().thenAccept(config::setReadVersion);
+            builder.reverse(message.getArguments().reverse());
 
-            session.attr(SessionAttributes.BUCKET_QUERY_EXECUTOR_CONFIG).set(config);
-            return QueryExecutor.execute(context, tr, config);
+            //boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();
+            //builder.pinReadVersion(pinReadVersion);
+            //tr.getReadVersion().thenAccept(builder::readVersion);
+
+            QueryOptions options = builder.build();
+            //session.attr(SessionAttributes.BUCKET_QUERY_EXECUTOR_OPTIONS).set(options);
+
+            PipelineNode plan = service.getPlanner().plan(metadata, message.getQuery());
+            QueryContext ctx = new QueryContext(metadata, options, plan);
+            Map<Versionstamp, ByteBuffer> result = service.getQueryExecutor().read(tr, ctx);
+            System.out.println(result);
+            return result;
         }, (entries) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {

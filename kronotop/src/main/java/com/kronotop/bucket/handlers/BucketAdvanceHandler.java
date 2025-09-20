@@ -19,9 +19,9 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.QueryExecutor;
 import com.kronotop.bucket.QueryExecutorConfig;
 import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
+import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -43,14 +43,15 @@ public class BucketAdvanceHandler extends BaseBucketHandler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        supplyAsync(context, response, () -> {
+        response.writeOK();
+        /*supplyAsync(context, response, () -> {
             Session session = request.getSession();
-            QueryExecutorConfig config = session.attr(SessionAttributes.BUCKET_QUERY_EXECUTOR_CONFIG).get();
+            QueryContext ctx = session.attr(SessionAttributes.BUCKET_QUERY_EXECUTOR_OPTIONS).get();
             if (Objects.isNull(config)) {
                 throw new KronotopException("No previous query state found in this session");
             }
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            return QueryExecutor.execute(context, tr, config);
+            //return QueryExecutor.execute(context, tr, config);
         }, (entries) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
@@ -60,6 +61,6 @@ public class BucketAdvanceHandler extends BaseBucketHandler {
             } else {
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }
-        });
+        });*/
     }
 }

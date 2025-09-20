@@ -19,6 +19,11 @@ package com.kronotop.bucket.planner.physical;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PlannerContext {
+    // Note: AtomicInteger uses a 32-bit signed int under the hood.
+    // When incrementing past Integer.MAX_VALUE (2_147_483_647),
+    // the value wraps around to Integer.MIN_VALUE (-2_147_483_648)
+    // and continues from there. No exception is thrown — standard
+    // Java int overflow semantics apply.
     private final AtomicInteger nextId = new AtomicInteger(1);
 
     public int nextId() {

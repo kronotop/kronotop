@@ -16,53 +16,38 @@
 
 package com.kronotop.bucket;
 
-import com.kronotop.bucket.bql.BqlParser;
-import com.kronotop.bucket.bql.ast.BqlExpr;
-import com.kronotop.bucket.optimizer.Optimizer;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.pipeline.*;
-import com.kronotop.bucket.planner.logical.LogicalNode;
-import com.kronotop.bucket.planner.logical.LogicalPlanner;
-import com.kronotop.bucket.planner.physical.PhysicalNode;
-import com.kronotop.bucket.planner.physical.PhysicalPlanner;
-import com.kronotop.bucket.planner.physical.PlannerContext;
+
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
 
 public class QueryExecutor {
-    private final LogicalPlanner logicalPlanner = new LogicalPlanner();
-    private final PhysicalPlanner physicalPlanner = new PhysicalPlanner();
-    private final Optimizer optimizer = new Optimizer();
     private final ReadExecutor readExecutor;
     private final DeleteExecutor deleteExecutor;
     private final UpdateExecutor updateExecutor;
 
     public QueryExecutor(BucketService service) {
-
         DocumentRetriever documentRetriever = new DocumentRetriever(service);
         CursorManager cursorManager = new CursorManager();
         PipelineEnv env = new PipelineEnv(service, documentRetriever, cursorManager);
         PipelineExecutor executor = new PipelineExecutor(env);
-        readExecutor = new ReadExecutor(executor);
-        deleteExecutor = new DeleteExecutor(executor);
-        updateExecutor = new UpdateExecutor(executor);
+        this.readExecutor = new ReadExecutor(executor);
+        this.deleteExecutor = new DeleteExecutor(executor);
+        this.updateExecutor = new UpdateExecutor(executor);
     }
 
-    public ReadExecutor readExecutor() {
-        return readExecutor;
+    public Map<Versionstamp, ByteBuffer> read(Transaction tr, QueryContext ctx) {
+        return readExecutor.execute(tr, ctx);
     }
 
-    public DeleteExecutor deleteExecutor() {
-        return deleteExecutor;
+    public List<Versionstamp> delete(Transaction tr, QueryContext ctx) {
+        return deleteExecutor.execute(tr, ctx);
     }
 
-    public UpdateExecutor updateExecutor() {
-        return updateExecutor;
-    }
-
-    protected PipelineNode preparePlan(BucketMetadata metadata, String query) {
-        PlannerContext plannerCtx = new PlannerContext();
-        BqlExpr parsedQuery = BqlParser.parse(query);
-        LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
-        PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, plannerCtx);
-        PhysicalNode optimizedPlan = optimizer.optimize(metadata, physicalPlan, plannerCtx);
-        return PipelineRewriter.rewrite(plannerCtx, optimizedPlan);
+    public List<Versionstamp> update(Transaction tr, QueryContext ctx) {
+        return updateExecutor.execute(tr, ctx);
     }
 }
