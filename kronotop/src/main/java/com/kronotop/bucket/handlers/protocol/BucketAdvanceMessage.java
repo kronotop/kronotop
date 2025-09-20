@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -24,7 +25,7 @@ import java.util.List;
 public class BucketAdvanceMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.ADVANCE";
     private final Request request;
-    private QueryArguments arguments;
+    private int cursorId;
 
     public BucketAdvanceMessage(Request request) {
         this.request = request;
@@ -32,11 +33,11 @@ public class BucketAdvanceMessage extends BaseBucketMessage implements ProtocolM
     }
 
     private void parse() {
-        arguments = parseCommonQueryArguments(request, 0);
+        cursorId = ProtocolMessageUtil.readAsInteger(request.getParams().get(0));
     }
 
-    public QueryArguments getArguments() {
-        return arguments;
+    public int getCursorId() {
+        return cursorId;
     }
 
     @Override

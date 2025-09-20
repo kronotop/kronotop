@@ -25,10 +25,7 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import org.bson.Document;
@@ -38,6 +35,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public abstract class BaseBucketHandler implements Handler {
+    private final static RedisMessage CURSOR_ID_MESSAGE_KEY = new SimpleStringRedisMessage("cursor_id");
+    private final static RedisMessage ENTRIES_MESSAGE_KEY = new SimpleStringRedisMessage("entries");
     protected final BucketService service;
     protected final Context context;
 
@@ -99,54 +98,62 @@ public abstract class BaseBucketHandler implements Handler {
     }
 
     /**
-     * Processes and writes a RESP3-compliant response to the client based on the provided entries.
-     * Converts the provided map of {@code Versionstamp} to {@code ByteBuffer} into a Redis-compatible
-     * map format and writes the resulting data to the client.
+     * Processes and writes a RESP3-compliant response to the client based on the provided {@code ReadResponse}.
+     * Converts the supplied {@code ReadResponse} into a Redis-compatible data format and sends the resulting
+     * data structure to the client using the {@code Response} object. Handles both scenarios where the response
+     * contains entries and where it is empty.
      *
-     * @param request  the {@code Request} object containing the session and command information
-     * @param response the {@code Response} object used to send the result back to the client
-     * @param entries  a map where the keys are {@code Versionstamp} objects and the values are
-     *                 {@code ByteBuffer} objects representing the data to be converted and sent
+     * @param request      the {@code Request} object containing session and command-related information
+     * @param response     the {@code Response} object used to send the processed results back to the client
+     * @param readResponse the {@code ReadResponse} object containing the cursor ID and entries to be converted
+     *                     into a Redis-compliant map response
      */
-    protected void resp3Response(Request request, Response response, Map<Versionstamp, ByteBuffer> entries) {
-        if (entries == null || entries.isEmpty()) {
-            response.writeMap(MapRedisMessage.EMPTY_INSTANCE.children());
+    protected void resp3Response(Request request, Response response, BucketReadResponse readResponse) {
+        Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
+        root.put(CURSOR_ID_MESSAGE_KEY, new IntegerRedisMessage(readResponse.cursorId()));
+        if (readResponse.entries() == null || readResponse.entries().isEmpty()) {
+            root.put(ENTRIES_MESSAGE_KEY, MapRedisMessage.EMPTY_INSTANCE);
+            response.writeMap(root);
             return;
         }
-        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-        for (Map.Entry<Versionstamp, ByteBuffer> entry : entries.entrySet()) {
+        Map<RedisMessage, RedisMessage> entries = new LinkedHashMap<>();
+        for (Map.Entry<Versionstamp, ByteBuffer> entry : readResponse.entries().entrySet()) {
             ByteBuf value = prepareValue(request, entry);
-            result.put(
+            entries.put(
                     new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(entry.getKey())),
                     new FullBulkStringRedisMessage(value)
             );
         }
-        response.writeMap(result);
+        root.put(ENTRIES_MESSAGE_KEY, new MapRedisMessage(entries));
+        response.writeMap(root);
     }
 
     /**
-     * Processes and writes a RESP2-compliant response to the client based on the provided entries.
-     * Converts the provided map of {@code Versionstamp} to {@code ByteBuffer} into a Redis-compatible
-     * list format by iterating through the map entries, preparing their values, and sending the
-     * resulting data to the client.
+     * Processes and writes a RESP2-compliant response to the client based on the given {@code ReadResponse}.
+     * Converts the provided {@code ReadResponse} into a Redis-compatible data format and sends the resulting
+     * data structure to the client using the {@code Response} object.
      *
-     * @param request  the {@code Request} object containing the session and command information
-     * @param response the {@code Response} object used to send the result back to the client
-     * @param entries  a map where the keys are {@code Versionstamp} objects and the values are
-     *                 {@code ByteBuffer} objects representing the data to be converted and sent
+     * @param request      the {@code Request} object containing the session and command information
+     * @param response     the {@code Response} object used to send the result back to the client
+     * @param readResponse the {@code ReadResponse} object containing the cursor ID and entries
+     *                     to be processed and sent as a Redis-compliant response
      */
-    protected void resp2Response(Request request, Response response, Map<Versionstamp, ByteBuffer> entries) {
-        if (entries == null || entries.isEmpty()) {
-            response.writeArray(List.of());
+    protected void resp2Response(Request request, Response response, BucketReadResponse readResponse) {
+        List<RedisMessage> root = new LinkedList<>();
+        root.add(new IntegerRedisMessage(readResponse.cursorId()));
+        if (readResponse.entries() == null || readResponse.entries().isEmpty()) {
+            root.add(ArrayRedisMessage.EMPTY_INSTANCE);
+            response.writeArray(root);
             return;
         }
         List<RedisMessage> result = new LinkedList<>();
-        for (Map.Entry<Versionstamp, ByteBuffer> entry : entries.entrySet()) {
+        for (Map.Entry<Versionstamp, ByteBuffer> entry : readResponse.entries().entrySet()) {
             ByteBuf value = prepareValue(request, entry);
             result.add(new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(entry.getKey())));
             result.add(new FullBulkStringRedisMessage(value));
         }
-        response.writeArray(result);
+        root.add(new ArrayRedisMessage(result));
+        response.writeArray(root);
     }
 
     /**

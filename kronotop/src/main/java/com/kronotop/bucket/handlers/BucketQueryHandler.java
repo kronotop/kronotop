@@ -65,14 +65,17 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
             QueryOptions options = builder.build();
             PipelineNode plan = service.getPlanner().plan(metadata, message.getQuery());
             QueryContext ctx = new QueryContext(metadata, options, plan);
-            session.attr(SessionAttributes.BUCKET_QUERY_CONTEXTS).get().put(session.nextCursorId(), ctx);
-            return service.getQueryExecutor().read(tr, ctx);
-        }, (entries) -> {
+
+            int cursorId = session.nextCursorId();
+            session.attr(SessionAttributes.BUCKET_QUERY_CONTEXTS).get().put(cursorId, ctx);
+
+            return new BucketReadResponse(cursorId, service.getQueryExecutor().read(tr, ctx));
+        }, (readResponse) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
-                resp3Response(request, response, entries);
+                resp3Response(request, response, readResponse);
             } else if (protoVer.equals(RESPVersion.RESP2)) {
-                resp2Response(request, response, entries);
+                resp2Response(request, response, readResponse);
             } else {
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }
