@@ -26,7 +26,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import org.bson.Document;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -63,7 +62,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoPhysicalFullScanWithoutOperator_RESP2() {
         Map<String, byte[]> expectedDocument = insertDocuments(List.of(DOCUMENT));
 
@@ -75,7 +73,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
-        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) ((ArrayRedisMessage) msg).children().get(1);
         int index = 0;
         String latestId = "";
         for (RedisMessage entry : actualMessage.children()) {
