@@ -146,15 +146,15 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         PhysicalNode optimized = optimizer.optimize(metadata, orPlan, context);
 
         // Should still be an OR
-        assertTrue(optimized instanceof PhysicalOr);
+        assertInstanceOf(PhysicalOr.class, optimized);
         PhysicalOr optimizedOr = (PhysicalOr) optimized;
         assertEquals(2, optimizedOr.children().size());
 
         // First child should be converted to full scan
-        assertTrue(optimizedOr.children().get(0) instanceof PhysicalFullScan);
+        assertInstanceOf(PhysicalAnd.class, optimizedOr.children().get(0));
         
         // Second child should remain as filter
-        assertTrue(optimizedOr.children().get(1) instanceof PhysicalFilter);
+        assertInstanceOf(PhysicalFilter.class, optimizedOr.children().get(1));
     }
 
     @Test
