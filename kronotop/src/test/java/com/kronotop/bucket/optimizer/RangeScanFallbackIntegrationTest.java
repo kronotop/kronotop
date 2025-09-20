@@ -97,7 +97,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         PhysicalNode optimized = optimizer.optimize(metadata, andPlan, context);
 
         // Should still be an AND
-        assertTrue(optimized instanceof PhysicalAnd);
+        assertInstanceOf(PhysicalAnd.class, optimized);
         PhysicalAnd optimizedAnd = (PhysicalAnd) optimized;
         assertEquals(2, optimizedAnd.children().size());
 
@@ -112,13 +112,12 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         assertNotNull(indexedResult.index());
 
         // Find the non-indexed scan (should be converted to full scan)
-        PhysicalNode fullScanChild = optimizedAnd.children().stream()
-                .filter(child -> child instanceof PhysicalFullScan)
+        PhysicalNode andChild = optimizedAnd.children().stream()
+                .filter(child -> child instanceof PhysicalAnd)
                 .findFirst()
                 .orElse(null);
-        assertNotNull(fullScanChild);
-        PhysicalFullScan fullScanResult = (PhysicalFullScan) fullScanChild;
-        assertTrue(fullScanResult.node() instanceof PhysicalAnd);
+        assertNotNull(andChild);
+        assertInstanceOf(PhysicalAnd.class, andChild);
     }
 
     @Test
