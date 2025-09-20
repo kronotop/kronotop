@@ -37,7 +37,9 @@ public class Planner {
         BqlExpr parsedQuery = BqlParser.parse(query);
         LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
         PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, plannerCtx);
+        System.out.println("Physical ==> " + physicalPlan);
         PhysicalNode optimizedPlan = optimizer.optimize(metadata, physicalPlan, plannerCtx);
+        System.out.println("Optimized ==> " + optimizedPlan);
         return PipelineRewriter.rewrite(plannerCtx, optimizedPlan);
     }
 }

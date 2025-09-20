@@ -94,16 +94,12 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
             throw new IllegalStateException("Range scan must have at least one bound");
         }
 
-        // Create the composite filter
-        PhysicalNode compositeFilter;
         if (filters.size() == 1) {
-            compositeFilter = filters.get(0);
-        } else {
-            compositeFilter = new PhysicalAnd(context.nextId(), filters);
+            return new PhysicalFullScan(context.nextId(), filters.get(0));
         }
 
-        // Return a full scan with the composite filter
-        return new PhysicalFullScan(context.nextId(), compositeFilter);
+        filters.replaceAll(physicalNode -> new PhysicalFullScan(context.nextId(), physicalNode));
+        return new PhysicalAnd(context.nextId(), filters);
     }
 
     @Override

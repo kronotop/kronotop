@@ -75,9 +75,7 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
 
             PipelineNode plan = service.getPlanner().plan(metadata, message.getQuery());
             QueryContext ctx = new QueryContext(metadata, options, plan);
-            Map<Versionstamp, ByteBuffer> result = service.getQueryExecutor().read(tr, ctx);
-            System.out.println(result);
-            return result;
+            return service.getQueryExecutor().read(tr, ctx);
         }, (entries) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
