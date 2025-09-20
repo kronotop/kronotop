@@ -18,10 +18,7 @@ package com.kronotop.commandbuilder.kronotop;
 
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.output.GenericMapOutput;
-import io.lettuce.core.output.ListOfGenericMapsOutput;
-import io.lettuce.core.output.StatusOutput;
-import io.lettuce.core.output.StringListOutput;
+import io.lettuce.core.output.*;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 import io.lettuce.core.protocol.ProtocolKeyword;
@@ -91,6 +88,21 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
 
     public final Command<K, V, List<String>> advance() {
         return createCommand(CommandType.BUCKET_ADVANCE, new StringListOutput<>(codec));
+    }
+
+    public final Command<K, V, Map<K, V>> advanceRead(int cursorId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add("READ").add(cursorId);
+        return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
+    }
+
+    public final Command<K, V, List<K>> advanceDelete(int cursorId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add("DELETE").add(cursorId);
+        return createCommand(CommandType.BUCKET_ADVANCE, new KeyListOutput<>(codec), args);
+    }
+
+    public final Command<K, V, List<K>> advanceUpdate(int cursorId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add("UPDATE").add(cursorId);
+        return createCommand(CommandType.BUCKET_ADVANCE, new KeyListOutput<>(codec), args);
     }
 
     public Command<String, String, Map<String, Object>> hello(int protocolVersion) {

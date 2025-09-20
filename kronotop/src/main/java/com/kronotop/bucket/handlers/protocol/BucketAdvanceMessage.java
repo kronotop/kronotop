@@ -17,6 +17,7 @@
 package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -24,7 +25,10 @@ import java.util.List;
 
 public class BucketAdvanceMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.ADVANCE";
+    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;
+    private Action action;
     private int cursorId;
 
     public BucketAdvanceMessage(Request request) {
@@ -33,7 +37,17 @@ public class BucketAdvanceMessage extends BaseBucketMessage implements ProtocolM
     }
 
     private void parse() {
-        cursorId = ProtocolMessageUtil.readAsInteger(request.getParams().get(0));
+        String rawAction = ProtocolMessageUtil.readAsString(request.getParams().get(0));
+        try {
+            action = Action.valueOf(rawAction.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalCommandArgumentException(String.format("Unknown '%s' action", rawAction));
+        }
+        cursorId = ProtocolMessageUtil.readAsInteger(request.getParams().get(1));
+    }
+
+    public Action getAction() {
+        return action;
     }
 
     public int getCursorId() {
@@ -48,5 +62,11 @@ public class BucketAdvanceMessage extends BaseBucketMessage implements ProtocolM
     @Override
     public List<Void> getKeys() {
         return List.of();
+    }
+
+    public enum Action {
+        READ,
+        DELETE,
+        UPDATE
     }
 }

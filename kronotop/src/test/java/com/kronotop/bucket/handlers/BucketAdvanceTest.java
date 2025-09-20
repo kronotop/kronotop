@@ -20,10 +20,7 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -68,6 +65,7 @@ class BucketAdvanceTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
+        int cursorId;
         // BUCKET.QUERY - Full scan (empty filter) with limit of 2
         List<String> result = new ArrayList<>();
         {
@@ -77,25 +75,40 @@ class BucketAdvanceTest extends BaseBucketHandlerTest {
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
             assertEquals(2, mapRedisMessage.children().size());
-            appendIds(mapRedisMessage, result);
+
+            RedisMessage rawCursorId = findInMapMessage(mapRedisMessage, "cursor_id");
+            assertNotNull(rawCursorId);
+            cursorId = Math.toIntExact(((IntegerRedisMessage) rawCursorId).value());
+
+            RedisMessage entries = findInMapMessage(mapRedisMessage, "entries");
+            assertNotNull(entries);
+            assertInstanceOf(MapRedisMessage.class, entries);
+            appendIds((MapRedisMessage) entries, result);
         }
+
 
         // BUCKET.ADVANCE - Continue pagination until we get all documents or hit limit
         int maxAdvanceCalls = 10; // Allow reasonable number of calls
         int advanceCalls = 0;
         while (advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.advance().encode(buf);
+            cmd.advanceRead(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
 
-            if (mapRedisMessage.children().isEmpty()) {
+            RedisMessage rawEntries = findInMapMessage(mapRedisMessage, "entries");
+            assertNotNull(rawEntries);
+            assertInstanceOf(MapRedisMessage.class, rawEntries);
+            MapRedisMessage entries = (MapRedisMessage) rawEntries;
+
+            if (entries.children().isEmpty()) {
                 break; // Normal termination
             }
 
-            assertTrue(mapRedisMessage.children().size() <= 2, "Each batch should have at most 2 documents");
-            appendIds(mapRedisMessage, result);
+            assertTrue(entries.children().size() <= 2, "Each batch should have at most 2 documents");
+
+            appendIds(entries, result);
             advanceCalls++;
         }
 

@@ -24,6 +24,8 @@ import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.Map;
 import java.util.Objects;
@@ -31,6 +33,8 @@ import java.util.Objects;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketAdvanceMessage.COMMAND)
+@MaximumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
 public class BucketAdvanceHandler extends BaseBucketHandler {
     public BucketAdvanceHandler(BucketService service) {
         super(service);
@@ -41,15 +45,24 @@ public class BucketAdvanceHandler extends BaseBucketHandler {
         request.attr(MessageTypes.BUCKETADVANCE).set(new BucketAdvanceMessage(request));
     }
 
+    private Map<Integer, QueryContext> findQueryContext(Session session, BucketAdvanceMessage.Action action) {
+        return switch (action) {
+            case READ -> session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
+            case DELETE -> session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get();
+            case UPDATE -> session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get();
+        };
+    }
+
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
             Session session = request.getSession();
-            Map<Integer, QueryContext> contexts = session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
+            Map<Integer, QueryContext> contexts = findQueryContext(session, message.getAction());
             QueryContext ctx = contexts.get(message.getCursorId());
             if (Objects.isNull(ctx)) {
-                throw new KronotopException("No previous query context found with the given cursor id");
+                throw new KronotopException("No previous query context found for '" +
+                        message.getAction().name().toLowerCase() + "' action with the given cursor id");
             }
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
             return new BucketReadResponse(message.getCursorId(), service.getQueryExecutor().read(tr, ctx));
