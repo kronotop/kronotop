@@ -69,7 +69,8 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
     @Test
     void shouldCreateIndexForValidTypes() {
         String template = "{\"selector\": {\"bson_type\": \"%s\"}}";
-        List<String> validTypes = List.of("int32", "string", "double", "binary", "boolean", "datetime", "timestamp", "int64", "decimal128");
+        List<String> validTypes = List.of("int32", "string", "double", "binary", "boolean", "datetime", "timestamp", "int64");
+        // TODO: Enable this when we implement decimal128 indexes - "decimal128");
         for (String validType : validTypes) {
             BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             ByteBuf buf = Unpooled.buffer();
