@@ -153,4 +153,11 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         }
         return null;
     }
+
+    MapRedisMessage extractEntriesMap(Object response) {
+        assertInstanceOf(MapRedisMessage.class, response);
+        RedisMessage msg = findInMapMessage((MapRedisMessage) response, "entries");
+        assertInstanceOf(MapRedisMessage.class, msg);
+        return (MapRedisMessage) msg;
+    }
 }
