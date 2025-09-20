@@ -122,15 +122,24 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
 
         PhysicalNode result = rule.apply(rangeScan, metadata, context);
 
-        PhysicalFullScan fullScan = (PhysicalFullScan) result;
-        PhysicalAnd and = (PhysicalAnd) fullScan.node();
-        
-        // Check inclusive operators
-        PhysicalFilter filter1 = (PhysicalFilter) and.children().get(0);
+        // Result should be PhysicalAnd with two PhysicalFullScan children
+        assertInstanceOf(PhysicalAnd.class, result);
+        PhysicalAnd and = (PhysicalAnd) result;
+        assertEquals(2, and.children().size());
+
+        // First child: PhysicalFullScan with rating >= 1 filter
+        PhysicalFullScan fullScan1 = (PhysicalFullScan) and.children().get(0);
+        PhysicalFilter filter1 = (PhysicalFilter) fullScan1.node();
+        assertEquals("rating", filter1.selector());
         assertEquals(Operator.GTE, filter1.op());
-        
-        PhysicalFilter filter2 = (PhysicalFilter) and.children().get(1);
+        assertEquals(1, filter1.operand());
+
+        // Second child: PhysicalFullScan with rating <= 5 filter
+        PhysicalFullScan fullScan2 = (PhysicalFullScan) and.children().get(1);
+        PhysicalFilter filter2 = (PhysicalFilter) fullScan2.node();
+        assertEquals("rating", filter2.selector());
         assertEquals(Operator.LTE, filter2.op());
+        assertEquals(5, filter2.operand());
     }
 
     @Test
@@ -162,19 +171,34 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
 
         PhysicalNode result = rule.apply(and, metadata, context);
 
-        // Should convert the range scan within the AND
-        assertTrue(result instanceof PhysicalAnd);
+        // Should convert to nested structure: PhysicalAnd[PhysicalAnd[2 PhysicalFullScans], PhysicalFilter]
+        assertInstanceOf(PhysicalAnd.class, result);
         PhysicalAnd resultAnd = (PhysicalAnd) result;
-        
         assertEquals(2, resultAnd.children().size());
-        
-        // First child should be the converted full scan
-        assertTrue(resultAnd.children().get(0) instanceof PhysicalFullScan);
-        
-        // Second child should be the regular filter
-        assertTrue(resultAnd.children().get(1) instanceof PhysicalFilter);
-        PhysicalFilter filter = (PhysicalFilter) resultAnd.children().get(1);
-        assertEquals("name", filter.selector());
+
+        // First child: PhysicalAnd containing two PhysicalFullScan children (from range scan conversion)
+        PhysicalAnd nestedAnd = (PhysicalAnd) resultAnd.children().get(0);
+        assertEquals(2, nestedAnd.children().size());
+
+        // First nested child: PhysicalFullScan with age >= 18 filter
+        PhysicalFullScan fullScan1 = (PhysicalFullScan) nestedAnd.children().get(0);
+        PhysicalFilter filter1 = (PhysicalFilter) fullScan1.node();
+        assertEquals("age", filter1.selector());
+        assertEquals(Operator.GTE, filter1.op());
+        assertEquals(18, filter1.operand());
+
+        // Second nested child: PhysicalFullScan with age < 65 filter
+        PhysicalFullScan fullScan2 = (PhysicalFullScan) nestedAnd.children().get(1);
+        PhysicalFilter filter2 = (PhysicalFilter) fullScan2.node();
+        assertEquals("age", filter2.selector());
+        assertEquals(Operator.LT, filter2.op());
+        assertEquals(65, filter2.operand());
+
+        // Second child: Original PhysicalFilter for name
+        PhysicalFilter nameFilter = (PhysicalFilter) resultAnd.children().get(1);
+        assertEquals("name", nameFilter.selector());
+        assertEquals(Operator.EQ, nameFilter.op());
+        assertEquals("John", nameFilter.operand());
     }
 
     @Test
