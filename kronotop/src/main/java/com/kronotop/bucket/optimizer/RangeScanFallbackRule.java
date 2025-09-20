@@ -25,15 +25,21 @@ import java.util.List;
 
 /**
  * Optimization rule that converts PhysicalRangeScan nodes with null indexes
- * to PhysicalFullScan nodes with composite filters.
+ * to PhysicalAnd or PhysicalFullScan nodes with appropriate filter conditions.
  * <p>
  * This rule handles the fallback scenario where no suitable index is available
  * for a range scan operation. Instead of failing, it converts the range scan
  * to a full bucket scan with appropriate filter conditions.
  * <p>
- * Example:
+ * The convertToFullScan method behavior:
+ * - Single bound: converts to PhysicalFullScan with one filter
+ * - Multiple bounds: converts to PhysicalAnd with PhysicalFullScan children
+ * <p>
+ * Examples:
+ * - PhysicalRangeScan("age", 18, null, true, false, null)
+ * → PhysicalFullScan(age >= 18)
  * - PhysicalRangeScan("age", 18, 65, true, false, null)
- * → PhysicalFullScan(PhysicalAnd([age >= 18, age < 65]))
+ * → PhysicalAnd([PhysicalFullScan(age >= 18), PhysicalFullScan(age < 65)])
  */
 public class RangeScanFallbackRule implements PhysicalOptimizationRule {
 
