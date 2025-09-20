@@ -212,6 +212,7 @@ class BucketAdvanceTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
+        int cursorId;
         // BUCKET.QUERY - Filter for non-existent category
         {
             ByteBuf buf = Unpooled.buffer();
@@ -219,17 +220,32 @@ class BucketAdvanceTest extends BaseBucketHandlerTest {
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
-            assertEquals(0, mapRedisMessage.children().size(), "No documents should match the filter");
+            assertEquals(2, mapRedisMessage.children().size());
+
+            RedisMessage rawCursorId = findInMapMessage(mapRedisMessage, "cursor_id");
+            assertNotNull(rawCursorId);
+            cursorId = Math.toIntExact(((IntegerRedisMessage) rawCursorId).value());
+
+            RedisMessage entries = findInMapMessage(mapRedisMessage, "entries");
+            assertNotNull(entries);
+            assertInstanceOf(MapRedisMessage.class, entries);
+            MapRedisMessage entriesMap = (MapRedisMessage) entries;
+            assertEquals(0, entriesMap.children().size(), "No documents should match the filter");
         }
 
         // BUCKET.ADVANCE - Should return empty since no documents match
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.advance().encode(buf);
+            cmd.advanceRead(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
-            assertEquals(0, mapRedisMessage.children().size(), "Advance should return empty when no matches");
+
+            RedisMessage rawEntries = findInMapMessage(mapRedisMessage, "entries");
+            assertNotNull(rawEntries);
+            assertInstanceOf(MapRedisMessage.class, rawEntries);
+            MapRedisMessage entries = (MapRedisMessage) rawEntries;
+            assertEquals(0, entries.children().size(), "Advance should return empty when no matches");
         }
     }
 }
