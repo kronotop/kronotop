@@ -32,7 +32,7 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class BucketAdvanceTest extends BaseBucketHandlerTest {
+class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
     private void appendIds(MapRedisMessage mapRedisMessage, List<String> result) {
         for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
