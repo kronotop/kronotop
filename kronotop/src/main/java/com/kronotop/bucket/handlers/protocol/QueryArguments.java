@@ -16,5 +16,5 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-public record QueryArguments(int shard, int limit, boolean reverse) {
+public record QueryArguments(int limit, boolean reverse) {
 }

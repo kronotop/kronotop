@@ -46,7 +46,6 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
 
     protected QueryArguments parseCommonQueryArguments(Request request, int index) {
         int limit = 0;
-        int shard = -1;
         boolean reverse = false;
         for (int i = index; i < request.getParams().size(); i++) {
             String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
@@ -62,21 +61,11 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                     }
                     i++;
                 }
-                case SHARD -> {
-                    if (request.getParams().size() <= i + 1) {
-                        throw new IllegalCommandArgumentException("SHARD argument must be followed by a positive integer");
-                    }
-                    shard = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
-                    if (shard < 0) {
-                        throw new IllegalCommandArgumentException("SHARD argument must be a non-negative integer");
-                    }
-                    i++;
-                }
                 case REVERSE -> {
                     reverse = true;
                 }
             }
         }
-        return new QueryArguments(shard, limit, reverse);
+        return new QueryArguments(limit, reverse);
     }
 }

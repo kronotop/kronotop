@@ -62,7 +62,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         Set<String> deletedVersionstamps = new HashSet<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.delete(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+            cmd.delete(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}").encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -100,7 +100,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         Map<String, Document> actualRemainingDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+            cmd.query(BUCKET_NAME, "{}").encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -161,7 +161,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // Try to delete documents with age > 50 (should match none)
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.delete(BUCKET_NAME, "{\"age\": {\"$gt\": 50}}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+            cmd.delete(BUCKET_NAME, "{\"age\": {\"$gt\": 50}}").encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -179,7 +179,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // Verify all documents still exist
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+            cmd.query(BUCKET_NAME, "{}").encode(buf);
             Object msg = runCommand(channel, buf);
 
             MapRedisMessage queryResponse = extractEntriesMap(msg);
@@ -207,7 +207,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         Set<String> deletedVersionstamps = new HashSet<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.delete(BUCKET_NAME, "{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+            cmd.delete(BUCKET_NAME, "{}").encode(buf);
             Object msg = runCommand(channel, buf);
 
             MapRedisMessage deleteResponse = (MapRedisMessage) msg;
@@ -229,7 +229,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // Verify the bucket is empty
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+            cmd.query(BUCKET_NAME, "{}").encode(buf);
             Object msg = runCommand(channel, buf);
 
             MapRedisMessage queryResponse = extractEntriesMap(msg);
@@ -276,7 +276,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.DELETE within transaction
         {
             ByteBuf buf = Unpooled.buffer();
-            bucketCmd.delete(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+            bucketCmd.delete(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}").encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -321,7 +321,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         Map<String, Document> actualRemainingDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            bucketCmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+            bucketCmd.query(BUCKET_NAME, "{}").encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 

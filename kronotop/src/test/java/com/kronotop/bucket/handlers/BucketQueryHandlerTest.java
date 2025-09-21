@@ -42,7 +42,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -69,7 +69,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP2);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
@@ -105,7 +105,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, String.format("{_id: {$eq: \"%s\"}}", expectedKey), BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$eq: \"%s\"}}", expectedKey)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -137,7 +137,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, String.format("{_id: {$gte: \"%s\"}}", key), BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$gte: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -171,7 +171,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, String.format("{_id: {$gt: \"%s\"}}", key), BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$gt: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -207,7 +207,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Query should retrieve the first two documents we inserted
-        cmd.query(BUCKET_NAME, String.format("{_id: {$lt: \"%s\"}}", key), BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$lt: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -246,7 +246,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Query should retrieve the first two documents we inserted
-        cmd.query(BUCKET_NAME, String.format("{_id: {$lte: \"%s\"}}", key), BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$lte: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -289,7 +289,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"name\": {\"$eq\": \"Alice\"}}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"name\": {\"$eq\": \"Alice\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -325,7 +325,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"age\": {\"$gte\": 30}}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"age\": {\"$gte\": 30}}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -367,7 +367,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"category\": \"SPECIAL\"}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"category\": \"SPECIAL\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -401,7 +401,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"active\": true}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"active\": true}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -440,8 +440,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Range query: 70 <= score <= 90
-        cmd.query(BUCKET_NAME, "{\"$and\": [{\"score\": {\"$gte\": 70}}, {\"score\": {\"$lte\": 90}}]}",
-                BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"$and\": [{\"score\": {\"$gte\": 70}}, {\"score\": {\"$lte\": 90}}]}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -479,7 +478,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"category\": \"NONEXISTENT_TYPE\"}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"category\": \"NONEXISTENT_TYPE\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -501,7 +500,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"status\": \"active\"}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"status\": \"active\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -539,7 +538,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"priority\": 1}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"priority\": 1}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -579,7 +578,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"tier\": \"GOLD\"}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"tier\": \"GOLD\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
