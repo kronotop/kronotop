@@ -24,7 +24,7 @@ import com.kronotop.server.Request;
 import java.util.LinkedList;
 import java.util.List;
 
-public class BucketInsertMessage implements ProtocolMessage<Void> {
+public class BucketInsertMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.INSERT";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;
@@ -83,15 +83,5 @@ public class BucketInsertMessage implements ProtocolMessage<Void> {
 
     public String getBucket() {
         return bucket;
-    }
-
-    @Override
-    public Void getKey() {
-        return null;
-    }
-
-    @Override
-    public List<Void> getKeys() {
-        return List.of();
     }
 }

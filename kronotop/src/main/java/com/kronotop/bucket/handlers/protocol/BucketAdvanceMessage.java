@@ -54,16 +54,6 @@ public class BucketAdvanceMessage extends AbstractBucketMessage implements Proto
         return cursorId;
     }
 
-    @Override
-    public Void getKey() {
-        return null;
-    }
-
-    @Override
-    public List<Void> getKeys() {
-        return List.of();
-    }
-
     public enum Action {
         QUERY,
         DELETE,

@@ -32,7 +32,6 @@ import org.bson.BsonType;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class BucketCreateIndexMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
@@ -82,16 +81,6 @@ public class BucketCreateIndexMessage extends AbstractBucketMessage implements P
 
     public String getBucket() {
         return bucket;
-    }
-
-    @Override
-    public Void getKey() {
-        return null;
-    }
-
-    @Override
-    public List<Void> getKeys() {
-        return List.of();
     }
 
     public static class IndexDefinitions extends HashMap<String, IndexDefinition> {

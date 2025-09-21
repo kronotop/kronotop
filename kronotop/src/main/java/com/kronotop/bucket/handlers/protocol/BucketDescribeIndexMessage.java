@@ -20,8 +20,6 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
-import java.util.List;
-
 public class BucketDescribeIndexMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.DESCRIBE-INDEX";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
@@ -38,16 +36,6 @@ public class BucketDescribeIndexMessage extends AbstractBucketMessage implements
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
         index = ProtocolMessageUtil.readAsString(request.getParams().get(1));
-    }
-
-    @Override
-    public Void getKey() {
-        return null;
-    }
-
-    @Override
-    public List<Void> getKeys() {
-        return List.of();
     }
 
     public String getBucket() {
