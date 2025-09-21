@@ -1087,4 +1087,22 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         assertEquals(expected, result);
     }
+
+    @Test
+    void test_volume_initialization_sets_non_zero_id() {
+        // Test that volume initialization correctly sets a non-zero ID in VolumeMetadata
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeMetadata metadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+
+            // The initialize() method should have set a non-zero ID during volume construction
+            assertNotEquals(0, metadata.getId(), "Volume ID should not be 0 after initialization");
+
+            // Verify the ID is actually a valid integer (not zero)
+            assertTrue(metadata.getId() != 0, "Volume ID must be set to a non-zero value");
+
+            // Test that the ID persists across metadata loads
+            VolumeMetadata reloadedMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+            assertEquals(metadata.getId(), reloadedMetadata.getId(), "Volume ID should be consistent across loads");
+        }
+    }
 }
