@@ -20,13 +20,9 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketDeleteResponse;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketDeleteMessage;
-import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
-import com.kronotop.bucket.pipeline.QueryOptions;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -63,12 +59,8 @@ public class BucketDeleteHandler extends AbstractBucketHandler implements Handle
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
             List<Versionstamp> versionstamps = service.getQueryExecutor().delete(tr, ctx);
 
-            boolean autoCommit = TransactionUtils.getAutoCommit(request.getSession());
             TransactionUtils.addPostCommitHook(new QueryContextCommitHook(ctx), request.getSession());
             TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
-            if (autoCommit) {
-                ctx.runPostCommitHooks();
-            }
             return new BucketDeleteResponse(cursorId, versionstamps);
         }, (deleteResponse) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
