@@ -128,9 +128,23 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_DROP_INDEX, new StatusOutput<>(codec), args);
     }
 
+    public final Command<K, V, Map<K, V>> delete(String bucket, String query) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
+        return createCommand(CommandType.BUCKET_DELETE, new MapOutput<>(codec), args);
+    }
+
+    public final Command<K, V, Map<K, V>> delete(String bucket, String query, BucketQueryArgs bucketQueryArgs) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
+        if (bucketQueryArgs != null) {
+            bucketQueryArgs.build(args);
+        }
+        return createCommand(CommandType.BUCKET_DELETE, new MapOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         BUCKET_INSERT("BUCKET.INSERT"),
         BUCKET_QUERY("BUCKET.QUERY"),
+        BUCKET_DELETE("BUCKET.DELETE"),
         QUERY("QUERY"),
         BUCKET_ADVANCE("BUCKET.ADVANCE"),
         BUCKET_CREATE_INDEX("BUCKET.CREATE-INDEX"),
