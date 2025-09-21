@@ -143,4 +143,21 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         }
         return ids;
     }
+
+    RedisMessage findInMapMessage(MapRedisMessage mapRedisMessage, String key) {
+        for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
+            SimpleStringRedisMessage keyMessage = (SimpleStringRedisMessage) entry.getKey();
+            if (keyMessage.content().equals(key)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    MapRedisMessage extractEntriesMap(Object response) {
+        assertInstanceOf(MapRedisMessage.class, response);
+        RedisMessage msg = findInMapMessage((MapRedisMessage) response, "entries");
+        assertInstanceOf(MapRedisMessage.class, msg);
+        return (MapRedisMessage) msg;
+    }
 }

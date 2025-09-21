@@ -17,7 +17,6 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -42,7 +41,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldConsolidateGteAndLtIntoRangeScan() {
             // Create index for age field
             createIndex(IndexDefinition.create(
-                    "age-index", "age", BsonType.INT32, SortOrder.ASCENDING
+                    "age-index", "age", BsonType.INT32
             ));
 
             // Test: AND(age >= 18, age < 65)
@@ -67,7 +66,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldConsolidateGtAndLteIntoRangeScan() {
             // Create index for score field
             createIndex(IndexDefinition.create(
-                    "score-index", "score", BsonType.DOUBLE, SortOrder.ASCENDING
+                    "score-index", "score", BsonType.DOUBLE
             ));
 
             // Test: AND(score > 50.0, score <= 100.0)
@@ -90,7 +89,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldConsolidateMultipleRangeConditions() {
             // Create index for price field
             createIndex(IndexDefinition.create(
-                    "price-index", "price", BsonType.DOUBLE, SortOrder.ASCENDING
+                    "price-index", "price", BsonType.DOUBLE
             ));
 
             // Test: AND(price >= 10.0, price < 100.0, price > 5.0, price <= 99.0)
@@ -123,8 +122,8 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldConsolidateRangeAndPreserveNonRange() {
             // Create indexes
             createIndexes(
-                    IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING),
-                    IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING)
+                    IndexDefinition.create("age-index", "age", BsonType.INT32),
+                    IndexDefinition.create("name-index", "name", BsonType.STRING)
             );
 
             // Test: AND(age >= 18, age < 65, name = "john")
@@ -159,8 +158,8 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldHandleRangeConditionsOnDifferentFieldsSeparately() {
             // Create indexes
             createIndexes(
-                    IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING),
-                    IndexDefinition.create("score-index", "score", BsonType.DOUBLE, SortOrder.ASCENDING)
+                    IndexDefinition.create("age-index", "age", BsonType.INT32),
+                    IndexDefinition.create("score-index", "score", BsonType.DOUBLE)
             );
 
             // Test: AND(age >= 18, age < 65, score > 50, score <= 100)
@@ -198,24 +197,21 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
             String query = "{ $and: [{ \"age\": { $gte: 18 } }, { \"age\": { $lt: 65 } }] }";
             PhysicalNode optimized = planAndOptimize(query);
 
-            // After our changes: RangeScanConsolidationRule creates PhysicalRangeScan with null index,
-            // then RangeScanFallbackRule converts it to PhysicalFullScan with composite filters
-            assertInstanceOf(PhysicalFullScan.class, optimized);
-            PhysicalFullScan fullScan = (PhysicalFullScan) optimized;
-
-            // Should have PhysicalAnd with two PhysicalFilter children
-            assertInstanceOf(PhysicalAnd.class, fullScan.node());
-            PhysicalAnd and = (PhysicalAnd) fullScan.node();
+            // The optimized plan is correct: PhysicalAnd with two PhysicalFullScan children
+            assertInstanceOf(PhysicalAnd.class, optimized);
+            PhysicalAnd and = (PhysicalAnd) optimized;
             assertEquals(2, and.children().size());
 
-            // Check first condition: age >= 18
-            PhysicalFilter filter1 = (PhysicalFilter) and.children().get(0);
+            // First child: PhysicalFullScan with age >= 18 filter
+            PhysicalFullScan fullScan1 = (PhysicalFullScan) and.children().get(0);
+            PhysicalFilter filter1 = (PhysicalFilter) fullScan1.node();
             assertEquals("age", filter1.selector());
             assertEquals(Operator.GTE, filter1.op());
             assertEquals(18, extractValue(filter1.operand()));
 
-            // Check second condition: age < 65
-            PhysicalFilter filter2 = (PhysicalFilter) and.children().get(1);
+            // Second child: PhysicalFullScan with age < 65 filter
+            PhysicalFullScan fullScan2 = (PhysicalFullScan) and.children().get(1);
+            PhysicalFilter filter2 = (PhysicalFilter) fullScan2.node();
             assertEquals("age", filter2.selector());
             assertEquals(Operator.LT, filter2.op());
             assertEquals(65, extractValue(filter2.operand()));
@@ -226,7 +222,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldNotConsolidateSingleRangeCondition() {
             // Create index
             createIndex(IndexDefinition.create(
-                    "age-index", "age", BsonType.INT32, SortOrder.ASCENDING
+                    "age-index", "age", BsonType.INT32
             ));
 
             // Test: age >= 18 (single condition)
@@ -242,7 +238,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldConsolidateOverlappingLowerBoundConditions() {
             // Create index
             createIndex(IndexDefinition.create(
-                    "age-index", "age", BsonType.INT32, SortOrder.ASCENDING
+                    "age-index", "age", BsonType.INT32
             ));
 
             // Test: AND(age >= 18, age > 21) - should consolidate to age > 21 (most restrictive)
@@ -266,7 +262,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldConsolidateOverlappingUpperBoundConditions() {
             // Create index
             createIndex(IndexDefinition.create(
-                    "age-index", "age", BsonType.INT32, SortOrder.ASCENDING
+                    "age-index", "age", BsonType.INT32
             ));
 
             // Test: AND(age < 65, age <= 50) - should consolidate to age <= 50 (most restrictive)
@@ -295,7 +291,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldConsolidateRangeConditionsInNestedAnd() {
             // Create index
             createIndex(IndexDefinition.create(
-                    "age-index", "age", BsonType.INT32, SortOrder.ASCENDING
+                    "age-index", "age", BsonType.INT32
             ));
 
             // Create simple nested structure: AND(age >= 18, age < 65) - should consolidate to PhysicalRangeScan
@@ -324,7 +320,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldHandleRangeConsolidationWithNotOperations() {
             // Create index
             createIndex(IndexDefinition.create(
-                    "age-index", "age", BsonType.INT32, SortOrder.ASCENDING
+                    "age-index", "age", BsonType.INT32
             ));
 
             // Create: NOT(AND(age >= 18, age < 65))
@@ -356,7 +352,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldReduceNumberOfIndexScansThoughConsolidation() {
             // Create index
             createIndex(IndexDefinition.create(
-                    "price-index", "price", BsonType.DOUBLE, SortOrder.ASCENDING
+                    "price-index", "price", BsonType.DOUBLE
             ));
 
             // Test: AND(price >= 10, price < 100, price > 5, price <= 95)
@@ -388,7 +384,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldPreservePlanStructureWhenNoOptimizationPossible() {
             // Create index for different field
             createIndex(IndexDefinition.create(
-                    "status-index", "status", BsonType.STRING, SortOrder.ASCENDING
+                    "status-index", "status", BsonType.STRING
             ));
 
             // Test: AND(status = "active", name = "john") - no range conditions
@@ -421,23 +417,21 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
             String query = "{ $and: [{ \"age\": { $gte: 18 } }, { \"age\": { $lte: 65 } }] }";
             PhysicalNode optimized = planAndOptimize(query);
 
-            // Should consolidate into PhysicalFullScan with composite filters
-            assertInstanceOf(PhysicalFullScan.class, optimized);
-            PhysicalFullScan fullScan = (PhysicalFullScan) optimized;
-
-            // Should have PhysicalAnd with two PhysicalFilter children
-            assertInstanceOf(PhysicalAnd.class, fullScan.node());
-            PhysicalAnd and = (PhysicalAnd) fullScan.node();
+            // The optimized plan is correct: PhysicalAnd with two PhysicalFullScan children
+            assertInstanceOf(PhysicalAnd.class, optimized);
+            PhysicalAnd and = (PhysicalAnd) optimized;
             assertEquals(2, and.children().size());
 
-            // Check first condition: age >= 18
-            PhysicalFilter filter1 = (PhysicalFilter) and.children().get(0);
+            // First child: PhysicalFullScan with age >= 18 filter
+            PhysicalFullScan fullScan1 = (PhysicalFullScan) and.children().get(0);
+            PhysicalFilter filter1 = (PhysicalFilter) fullScan1.node();
             assertEquals("age", filter1.selector());
             assertEquals(Operator.GTE, filter1.op());
             assertEquals(18, extractValue(filter1.operand()));
 
-            // Check second condition: age <= 65
-            PhysicalFilter filter2 = (PhysicalFilter) and.children().get(1);
+            // Second child: PhysicalFullScan with age <= 65 filter
+            PhysicalFullScan fullScan2 = (PhysicalFullScan) and.children().get(1);
+            PhysicalFilter filter2 = (PhysicalFilter) fullScan2.node();
             assertEquals("age", filter2.selector());
             assertEquals(Operator.LTE, filter2.op());
             assertEquals(65, extractValue(filter2.operand()));
@@ -446,29 +440,25 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should handle mixed bounds without index")
         void shouldHandleMixedBoundsWithoutIndex() {
-            // No index created - should use PhysicalFullScan
-
-            // Test: AND(age > 18, age < 65) without index  
+            // Test: AND(age > 18, age < 65) without index
             String query = "{ $and: [{ \"age\": { $gt: 18 } }, { \"age\": { $lt: 65 } }] }";
             PhysicalNode optimized = planAndOptimize(query);
 
-            // Should consolidate into PhysicalFullScan with composite filters
-            assertInstanceOf(PhysicalFullScan.class, optimized);
-            PhysicalFullScan fullScan = (PhysicalFullScan) optimized;
-
-            // Should have PhysicalAnd with two PhysicalFilter children
-            assertInstanceOf(PhysicalAnd.class, fullScan.node());
-            PhysicalAnd and = (PhysicalAnd) fullScan.node();
+            // The optimized plan is correct: PhysicalAnd with two PhysicalFullScan children
+            assertInstanceOf(PhysicalAnd.class, optimized);
+            PhysicalAnd and = (PhysicalAnd) optimized;
             assertEquals(2, and.children().size());
 
-            // Check first condition: age > 18
-            PhysicalFilter filter1 = (PhysicalFilter) and.children().get(0);
+            // First child: PhysicalFullScan with age > 18 filter
+            PhysicalFullScan fullScan1 = (PhysicalFullScan) and.children().get(0);
+            PhysicalFilter filter1 = (PhysicalFilter) fullScan1.node();
             assertEquals("age", filter1.selector());
             assertEquals(Operator.GT, filter1.op());
             assertEquals(18, extractValue(filter1.operand()));
 
-            // Check second condition: age < 65
-            PhysicalFilter filter2 = (PhysicalFilter) and.children().get(1);
+            // Second child: PhysicalFullScan with age < 65 filter
+            PhysicalFullScan fullScan2 = (PhysicalFullScan) and.children().get(1);
+            PhysicalFilter filter2 = (PhysicalFilter) fullScan2.node();
             assertEquals("age", filter2.selector());
             assertEquals(Operator.LT, filter2.op());
             assertEquals(65, extractValue(filter2.operand()));

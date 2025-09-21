@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2023-2025 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.KeyValue;
@@ -6,8 +22,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class RangeScanNodeDeleteTest extends BasePipelineTest {
 
@@ -23,7 +40,7 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
     void testDeleteWithRangeFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-range-delete";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -52,7 +69,9 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
             assertEquals(0, results.size());
         }
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(ageIndex.selector());
+        Index index = metadata.indexes().getIndex(ageIndex.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         List<KeyValue> entries = fetchAllIndexedEntries(indexSubspace);
         assertEquals(2, entries.size());
@@ -65,7 +84,7 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
     void testLimitedBatchDeleteWithPagination() {
         final String TEST_BUCKET_NAME = "test-bucket-range-batch-delete";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -115,7 +134,9 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
             assertEquals(0, results.size());
         }
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(ageIndex.selector());
+        Index index = metadata.indexes().getIndex(ageIndex.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         List<KeyValue> entries = fetchAllIndexedEntries(indexSubspace);
         assertEquals(3, entries.size());

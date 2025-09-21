@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2023-2025 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
@@ -10,11 +26,45 @@ import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class FullScanNodeTest extends BasePipelineTest {
+
+    @Test
+    void testFullScan() {
+        final String TEST_BUCKET_NAME = "test-bucket-full-scan";
+
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
+        );
+
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+
+        PipelineNode plan = createExecutionPlan(metadata, "{}");
+        QueryOptions config = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(metadata, config, plan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+
+            assertEquals(4, results.size(), "Should return exactly 3 documents with age > 22");
+
+            // Verify the content of each returned document
+            assertEquals(Set.of("John", "Alice", "George", "Claire"), extractNamesFromResults(results));
+            assertEquals(Set.of(20, 23, 25, 35), extractIntegerFieldFromResults(results, "age"));
+        }
+    }
 
     @Test
     void testNeOperatorOnPrimaryIndex() {

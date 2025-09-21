@@ -32,7 +32,7 @@ public record PhysicalFalse(int id) implements PhysicalNode {
         // All PhysicalFalse instances are equal regardless of id
         return obj instanceof PhysicalFalse;
     }
-    
+
     @Override
     public int hashCode() {
         // All PhysicalFalse instances have the same hash

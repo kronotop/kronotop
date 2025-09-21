@@ -1,7 +1,5 @@
 package com.kronotop.bucket.pipeline;
 
-import com.kronotop.bucket.BSONUtil;
-
 import java.nio.ByteBuffer;
 
 public class TransformWithResidualPredicateNode extends AbstractPipelineNode implements TransformationNode {

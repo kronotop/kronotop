@@ -20,6 +20,8 @@ import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class DateTimeValIntegrationTest {
@@ -176,7 +178,7 @@ class DateTimeValIntegrationTest {
         // Test DateTimeVal in $nin operator
         long excludedTime = 946684800000L; // 2000-01-01 00:00:00 UTC (Y2K)
 
-        BqlExpr query = new BqlNin("birthday", java.util.Arrays.asList(
+        BqlExpr query = new BqlNin("birthday", List.of(
                 new DateTimeVal(excludedTime)
         ));
 

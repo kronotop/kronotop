@@ -46,10 +46,12 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
 
+import static com.google.common.hash.Hashing.sipHash24;
 import static com.kronotop.volume.EntryMetadata.*;
 import static com.kronotop.volume.Subspaces.*;
 import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
@@ -64,6 +66,7 @@ public class Volume {
     private static final int SEGMENT_VACUUM_BATCH_SIZE = 100;
 
     private final Context context;
+    private final int id;
     private final VolumeConfig config;
     private final VolumeSubspace subspace;
     private final EntryMetadataCache entryMetadataCache;
@@ -83,10 +86,90 @@ public class Volume {
     public Volume(Context context, VolumeConfig config) throws IOException {
         this.context = context;
         this.config = config;
+
+        initialize();
+
+        VolumeMetadata metadata = loadVolumeMetadata();
+        this.id = metadata.getId();
+        this.status = metadata.getStatus();
         this.subspace = new VolumeSubspace(config.subspace());
-        this.status = loadStatusFromMetadata();
         this.entryMetadataCache = new EntryMetadataCache(context, subspace);
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
+
+        openSegments(metadata.getSegments());
+    }
+
+    /**
+     * Initializes the volume by ensuring it has a unique ID in FoundationDB metadata.
+     * If the volume does not have an ID (ID is 0), generates a new random ID using
+     * SipHash24 and persists it in the volume metadata.
+     *
+     * <p>This method handles FoundationDB transaction conflicts and retries automatically:
+     * <ul>
+     *   <li>Error code 1007: Transaction is too old to perform reads or be committed</li>
+     *   <li>Error code 1020: Transaction not committed due to conflict with another transaction</li>
+     * </ul>
+     *
+     * <p>The method uses an atomic boolean to track if any modifications were made
+     * and only commits the transaction if changes occurred, avoiding unnecessary commits.
+     *
+     * @throws CompletionException if FoundationDB errors occur that cannot be retried
+     */
+    private void initialize() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            AtomicBoolean modified = new AtomicBoolean(false);
+            VolumeMetadata.compute(tr, config.subspace(), (metadata) -> {
+                if (metadata.getId() == 0) {
+                    String random = UUID.randomUUID().toString();
+                    int id = sipHash24().hashBytes(random.getBytes()).asInt();
+                    metadata.setId(id);
+                    modified.set(true);
+                }
+            });
+            if (modified.get()) {
+                tr.commit().join();
+            }
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException fdbException) {
+                int errorCode = fdbException.getCode();
+                if (errorCode == 1007 || errorCode == 1020) {
+                    LOGGER.error("Retrying to initialize the volume named '{}' due to error code: {}", config.name(), errorCode);
+                    // 1007 -> Transaction is too old to perform reads or be committed
+                    // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                    initialize();
+                }
+            }
+        }
+    }
+
+    /**
+     * Opens multiple segments during volume initialization by iterating through the provided segment IDs.
+     * For each segment ID, this method generates the segment name, determines its current position,
+     * opens the segment, and adds it to the volume's segment collection.
+     *
+     * <p>This method is called during volume construction to restore all existing segments
+     * that are recorded in the volume metadata. Each segment is opened with its correct
+     * position determined by scanning the entry metadata in FoundationDB.
+     *
+     * <p>The segments are stored in a TreeMap to maintain ordered access by segment name,
+     * which is important for efficient segment management operations.
+     *
+     * @param segmentIds a list of segment IDs to open, typically retrieved from volume metadata
+     * @throws IOException if an I/O error occurs while opening any segment
+     */
+    private void openSegments(List<Long> segmentIds) throws IOException {
+        for (long segmentId : segmentIds) {
+            String name = Segment.generateName(segmentId);
+            long position = findSegmentPosition(name);
+            SegmentContainer container = openSegment(segmentId, position);
+            segments.put(name, container);
+        }
+    }
+
+    private VolumeMetadata loadVolumeMetadata() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return VolumeMetadata.load(tr, config.subspace());
+        }
     }
 
     private SegmentContainer getSegmentContainer(String segmentName) {
@@ -95,18 +178,6 @@ public class Volume {
             return segments.get(segmentName);
         } finally {
             segmentsLock.unlockRead(stamp);
-        }
-    }
-
-    /**
-     * Loads the status of the volume from the metadata stored in the Volume's subspace.
-     * The method creates a transaction to read the metadata and retrieves the volume status.
-     *
-     * @return the status of the volume as retrieved from the metadata
-     */
-    private VolumeStatus loadStatusFromMetadata() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return VolumeMetadata.load(tr, config.subspace()).getStatus();
         }
     }
 
@@ -233,23 +304,23 @@ public class Volume {
     }
 
     /**
-     * Opens and initializes a new segment with the specified segment ID and position.
-     * The method creates a new segment, segment log, and segment metadata,
-     * then stores them in a segment container protected by the `segmentsLock`.
+     * Opens a segment using the provided segment ID and position.
+     * This method initializes the segment, its associated log, and metadata,
+     * and wraps them into a {@link SegmentContainer}.
+     * Note: This method must be protected by the `segmentsLock`.
      *
-     * @param segmentId the unique identifier for the segment to be opened
-     * @param position  the initial position within the segment
-     * @return the initialized Segment instance
-     * @throws IOException if an I/O error occurs during segment initialization
+     * @param segmentId the unique identifier of the segment to open
+     * @param position  the starting position in the segment
+     * @return a {@link SegmentContainer} containing the opened segment, log, and metadata
+     * @throws IOException if an I/O error occurs while opening the segment
      */
-    private Segment openSegment(long segmentId, long position) throws IOException {
+    private SegmentContainer openSegment(long segmentId, long position) throws IOException {
         // NOTE: must be protected by segmentsLock
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
         Segment segment = new Segment(segmentConfig, position);
         SegmentLog segmentLog = new SegmentLog(segment.getName(), config.subspace());
         SegmentMetadata segmentMetadata = new SegmentMetadata(subspace, segment.getName());
-        segments.put(segment.getName(), new SegmentContainer(segment, segmentLog, segmentMetadata));
-        return segment;
+        return new SegmentContainer(segment, segmentLog, segmentMetadata);
     }
 
     /**
@@ -369,8 +440,8 @@ public class Volume {
             Segment segment = getWritableSegment(size);
             try {
                 SegmentAppendResult result = segment.append(entry);
-                int id = EntryMetadataIdGenerator.generate(segment.getConfig().id(), result.position());
-                return new EntryMetadata(segment.getName(), prefix.asBytes(), result.position(), result.length(), id);
+                int entryMetadataId = EntryMetadataIdGenerator.generate(id, segment.getConfig().id(), result.position());
+                return new EntryMetadata(segment.getName(), prefix.asBytes(), result.position(), result.length(), entryMetadataId);
             } catch (NotEnoughSpaceException e) {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("Trying to find a new segment with length {}", size);
@@ -575,7 +646,9 @@ public class Volume {
                 }
 
                 long position = findSegmentPosition(name);
-                return openSegment(segmentId, position);
+                SegmentContainer container = openSegment(segmentId, position);
+                segments.put(name, container);
+                return container.segment();
             }
         } finally {
             segmentsLock.unlockWrite(writeStamp);
@@ -1170,8 +1243,8 @@ public class Volume {
     private void clearSegmentsByPrefix(VolumeSession session) {
         assert session.transaction() != null;
         VolumeMetadata volumeMetadata = VolumeMetadata.load(session.transaction(), config.subspace());
-        for (long id : volumeMetadata.getSegments()) {
-            String segmentName = Segment.generateName(id);
+        for (long segmentId : volumeMetadata.getSegments()) {
+            String segmentName = Segment.generateName(segmentId);
 
             int capacity = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE;
             ByteBuffer buffer = ByteBuffer.

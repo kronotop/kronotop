@@ -34,6 +34,71 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class IndexScanPredicateTest {
 
+    static Stream<Arguments> provideBqlValueTestCases() {
+        return Stream.of(
+                // StringVal
+                Arguments.of(
+                        new StringVal("test"),
+                        new StringVal("test"),
+                        new StringVal("different")
+                ),
+                // Int32Val
+                Arguments.of(
+                        new Int32Val(42),
+                        new Int32Val(42),
+                        new Int32Val(24)
+                ),
+                // Int64Val
+                Arguments.of(
+                        new Int64Val(42L),
+                        new Int64Val(42L),
+                        new Int64Val(24L)
+                ),
+                // DoubleVal
+                Arguments.of(
+                        new DoubleVal(42.5),
+                        new DoubleVal(42.5),
+                        new DoubleVal(24.5)
+                ),
+                // Decimal128Val
+                Arguments.of(
+                        new Decimal128Val(new BigDecimal("42.5")),
+                        new Decimal128Val(new BigDecimal("42.5")),
+                        new Decimal128Val(new BigDecimal("24.5"))
+                ),
+                // BooleanVal
+                Arguments.of(
+                        new BooleanVal(true),
+                        new BooleanVal(true),
+                        new BooleanVal(false)
+                ),
+                // BinaryVal
+                Arguments.of(
+                        new BinaryVal(new byte[]{1, 2, 3}),
+                        new BinaryVal(new byte[]{1, 2, 3}),
+                        new BinaryVal(new byte[]{4, 5, 6})
+                ),
+                // TimestampVal
+                Arguments.of(
+                        new TimestampVal(1234567890L),
+                        new TimestampVal(1234567890L),
+                        new TimestampVal(9876543210L)
+                ),
+                // DateTimeVal
+                Arguments.of(
+                        new DateTimeVal(1234567890L),
+                        new DateTimeVal(1234567890L),
+                        new DateTimeVal(9876543210L)
+                ),
+                // VersionstampVal
+                Arguments.of(
+                        new VersionstampVal(Versionstamp.incomplete(1)),
+                        new VersionstampVal(Versionstamp.incomplete(1)),
+                        new VersionstampVal(Versionstamp.incomplete(2))
+                )
+        );
+    }
+
     @ParameterizedTest
     @EnumSource(value = Operator.class, names = {"EQ", "GT", "GTE", "LT", "LTE"})
     void testNonNeOperatorsReturnTrue(Operator operator) {
@@ -116,70 +181,5 @@ class IndexScanPredicateTest {
         // When & Then
         assertThrows(IllegalStateException.class, () -> predicate.test(new StringVal("test")),
                 "Should throw IllegalStateException for unsupported operand types");
-    }
-
-    static Stream<Arguments> provideBqlValueTestCases() {
-        return Stream.of(
-                // StringVal
-                Arguments.of(
-                        new StringVal("test"),
-                        new StringVal("test"),
-                        new StringVal("different")
-                ),
-                // Int32Val
-                Arguments.of(
-                        new Int32Val(42),
-                        new Int32Val(42),
-                        new Int32Val(24)
-                ),
-                // Int64Val
-                Arguments.of(
-                        new Int64Val(42L),
-                        new Int64Val(42L),
-                        new Int64Val(24L)
-                ),
-                // DoubleVal
-                Arguments.of(
-                        new DoubleVal(42.5),
-                        new DoubleVal(42.5),
-                        new DoubleVal(24.5)
-                ),
-                // Decimal128Val
-                Arguments.of(
-                        new Decimal128Val(new BigDecimal("42.5")),
-                        new Decimal128Val(new BigDecimal("42.5")),
-                        new Decimal128Val(new BigDecimal("24.5"))
-                ),
-                // BooleanVal
-                Arguments.of(
-                        new BooleanVal(true),
-                        new BooleanVal(true),
-                        new BooleanVal(false)
-                ),
-                // BinaryVal
-                Arguments.of(
-                        new BinaryVal(new byte[]{1, 2, 3}),
-                        new BinaryVal(new byte[]{1, 2, 3}),
-                        new BinaryVal(new byte[]{4, 5, 6})
-                ),
-                // TimestampVal
-                Arguments.of(
-                        new TimestampVal(1234567890L),
-                        new TimestampVal(1234567890L),
-                        new TimestampVal(9876543210L)
-                ),
-                // DateTimeVal
-                Arguments.of(
-                        new DateTimeVal(1234567890L),
-                        new DateTimeVal(1234567890L),
-                        new DateTimeVal(9876543210L)
-                ),
-                // VersionstampVal
-                Arguments.of(
-                        new VersionstampVal(Versionstamp.incomplete(1)),
-                        new VersionstampVal(Versionstamp.incomplete(1)),
-                        new VersionstampVal(Versionstamp.incomplete(2))
-                )
-        );
     }
 }

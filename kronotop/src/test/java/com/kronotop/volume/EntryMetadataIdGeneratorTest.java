@@ -23,6 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 class EntryMetadataIdGeneratorTest {
     @Test
     void test_generate() {
-        assertDoesNotThrow(() -> EntryMetadataIdGenerator.generate(10, 1234));
+        assertDoesNotThrow(() -> EntryMetadataIdGenerator.generate(11, 10, 1234));
     }
 }

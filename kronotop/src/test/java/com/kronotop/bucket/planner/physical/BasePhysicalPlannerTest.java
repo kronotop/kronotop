@@ -64,18 +64,18 @@ class BasePhysicalPlannerTest extends BaseStandaloneInstanceTest {
             return value;
         } else if (operand instanceof Int64Val(long value)) {
             return value;
-        } else if (operand instanceof Decimal128Val decimal128Val) {
-            return decimal128Val.value();
+        } else if (operand instanceof Decimal128Val(java.math.BigDecimal value)) {
+            return value;
         } else if (operand instanceof DoubleVal(double value)) {
             return value;
         } else if (operand instanceof BooleanVal(boolean value)) {
             return value;
         } else if (operand instanceof NullVal) {
             return null;
-        } else if (operand instanceof BinaryVal binaryVal) {
-            return binaryVal.value();
-        } else if (operand instanceof DateTimeVal dateTimeVal) {
-            return dateTimeVal.value();
+        } else if (operand instanceof BinaryVal(byte[] value)) {
+            return value;
+        } else if (operand instanceof DateTimeVal(long value)) {
+            return value;
         } else if (operand instanceof List<?> list) {
             return list.stream()
                     .map(this::extractValue)

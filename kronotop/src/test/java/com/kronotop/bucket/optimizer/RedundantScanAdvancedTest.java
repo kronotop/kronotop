@@ -17,7 +17,6 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PhysicalFilter;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
@@ -36,7 +35,7 @@ class RedundantScanAdvancedTest extends BaseOptimizerTest {
     void shouldHandleDeeplyNestedRedundantStructures() {
         // Create index for name
         IndexDefinition nameIndex = IndexDefinition.create(
-                "name-index", "name", BsonType.STRING, SortOrder.ASCENDING
+                "name-index", "name", BsonType.STRING
         );
         createIndex(nameIndex);
 
@@ -53,7 +52,7 @@ class RedundantScanAdvancedTest extends BaseOptimizerTest {
         // Should be reduced to single index scan regardless of nesting depth
         assertInstanceOf(PhysicalIndexScan.class, optimized);
         PhysicalIndexScan indexScan = (PhysicalIndexScan) optimized;
-        assertTrue(indexScan.node() instanceof PhysicalFilter);
+        assertInstanceOf(PhysicalFilter.class, indexScan.node());
         PhysicalFilter filter = (PhysicalFilter) indexScan.node();
         assertEquals("name", filter.selector());
         assertEquals(Operator.EQ, filter.op());
@@ -64,7 +63,7 @@ class RedundantScanAdvancedTest extends BaseOptimizerTest {
     void shouldEliminateRedundancyInNestedStructures() {
         // Create index for status
         IndexDefinition statusIndex = IndexDefinition.create(
-                "status-index", "status", BsonType.STRING, SortOrder.ASCENDING
+                "status-index", "status", BsonType.STRING
         );
         createIndex(statusIndex);
 
@@ -78,7 +77,7 @@ class RedundantScanAdvancedTest extends BaseOptimizerTest {
         // Should be reduced to single index scan
         assertInstanceOf(PhysicalIndexScan.class, optimized);
         PhysicalIndexScan indexScan = (PhysicalIndexScan) optimized;
-        assertTrue(indexScan.node() instanceof PhysicalFilter);
+        assertInstanceOf(PhysicalFilter.class, indexScan.node());
         PhysicalFilter filter = (PhysicalFilter) indexScan.node();
         assertEquals("status", filter.selector());
         assertEquals(Operator.EQ, filter.op());

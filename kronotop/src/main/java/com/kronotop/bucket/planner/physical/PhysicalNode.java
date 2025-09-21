@@ -18,5 +18,6 @@ package com.kronotop.bucket.planner.physical;
 
 public sealed interface PhysicalNode permits PhysicalFullScan, PhysicalIndexScan, PhysicalFilter, PhysicalAnd, PhysicalOr, PhysicalNot, PhysicalElemMatch, PhysicalTrue, PhysicalFalse, PhysicalRangeScan, PhysicalIndexIntersection {
     int id();
+
     <R> R accept(PhysicalPlanVisitor<R> visitor);
 }

@@ -20,9 +20,7 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
-import java.util.List;
-
-public class BucketQueryMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
+public class BucketQueryMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.QUERY";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;
@@ -51,15 +49,5 @@ public class BucketQueryMessage extends BaseBucketMessage implements ProtocolMes
 
     public String getBucket() {
         return bucket;
-    }
-
-    @Override
-    public Void getKey() {
-        return null;
-    }
-
-    @Override
-    public List<Void> getKeys() {
-        return List.of();
     }
 }

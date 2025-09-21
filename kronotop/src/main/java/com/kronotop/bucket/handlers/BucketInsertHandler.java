@@ -22,8 +22,8 @@ import com.kronotop.CommitHook;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
-import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
@@ -51,7 +51,7 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketInsertMessage.COMMAND)
 @MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)
-public class BucketInsertHandler extends BaseBucketHandler implements Handler {
+public class BucketInsertHandler extends AbstractBucketHandler implements Handler {
 
     public BucketInsertHandler(BucketService service) {
         super(service);
@@ -97,7 +97,7 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                     if (actualBsonType != expectedBsonType) {
                         // Int64 covers Int32 values
                         if (!(expectedBsonType.equals(BsonType.INT64) && actualBsonType.equals(BsonType.INT32))) {
-                            throw new KronotopException("Type mismatch for '" + selector + "'. Expected BsonType="+expectedBsonType);
+                            throw new KronotopException("Type mismatch for '" + selector + "'. Expected BsonType=" + expectedBsonType);
                         }
                     }
 
@@ -193,16 +193,25 @@ public class BucketInsertHandler extends BaseBucketHandler implements Handler {
                 ByteBuffer entry = pack.entries[i];
                 entry.rewind();
 
-                for (String selector : metadata.indexes().getSelectors()) {
-                    IndexDefinition definition = metadata.indexes().getIndexBySelector(selector);
-
+                for (Index index : metadata.indexes().getIndexes()) {
                     // Skip the default ID index as it's already handled above
-                    if (definition.equals(DefaultIndexDefinition.ID)) {
+                    if (index.definition().equals(DefaultIndexDefinition.ID)) {
                         continue;
                     }
 
-                    Object indexValue = extractFieldValueFromBsonDocument(entry, selector, definition.bsonType());
-                    IndexBuilder.setIndexEntry(tr, definition, shard.id(), metadata, indexValue, appendedEntry);
+                    Object indexValue = extractFieldValueFromBsonDocument(
+                            entry,
+                            index.definition().selector(),
+                            index.definition().bsonType()
+                    );
+                    IndexBuilder.setIndexEntry(
+                            tr,
+                            index.definition(),
+                            shard.id(),
+                            metadata,
+                            indexValue,
+                            appendedEntry
+                    );
                 }
             }
 

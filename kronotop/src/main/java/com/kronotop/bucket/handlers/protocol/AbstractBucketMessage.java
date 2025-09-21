@@ -19,9 +19,22 @@ package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
-public class BaseBucketMessage {
+import java.util.List;
+
+public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
+
+    @Override
+    public Void getKey() {
+        return null;
+    }
+
+    @Override
+    public List<Void> getKeys() {
+        return List.of();
+    }
 
     private QueryArgumentKey valueOfArgument(String raw) {
         try {
@@ -33,7 +46,6 @@ public class BaseBucketMessage {
 
     protected QueryArguments parseCommonQueryArguments(Request request, int index) {
         int limit = 0;
-        int shard = -1;
         boolean reverse = false;
         for (int i = index; i < request.getParams().size(); i++) {
             String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
@@ -49,21 +61,11 @@ public class BaseBucketMessage {
                     }
                     i++;
                 }
-                case SHARD -> {
-                    if (request.getParams().size() <= i + 1) {
-                        throw new IllegalCommandArgumentException("SHARD argument must be followed by a positive integer");
-                    }
-                    shard = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
-                    if (shard < 0) {
-                        throw new IllegalCommandArgumentException("SHARD argument must be a non-negative integer");
-                    }
-                    i++;
-                }
                 case REVERSE -> {
                     reverse = true;
                 }
             }
         }
-        return new QueryArguments(shard, limit, reverse);
+        return new QueryArguments(limit, reverse);
     }
 }

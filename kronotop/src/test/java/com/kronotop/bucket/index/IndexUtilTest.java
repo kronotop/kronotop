@@ -38,8 +38,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
     final IndexDefinition definition = IndexDefinition.create(
             "numeric-index",
             "numeric-selector",
-            BsonType.INT32,
-            SortOrder.ASCENDING
+            BsonType.INT32
     );
 
     @Test
@@ -130,14 +129,14 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
         assertDoesNotThrow(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexUtil.increaseCardinality(tr, metadata.subspace(), definition.id());
+                IndexUtil.mutateCardinality(tr, metadata.subspace(), definition.id(), 1);
                 tr.commit().join();
             }
         });
 
         assertDoesNotThrow(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexUtil.decreaseCardinality(tr, metadata.subspace(), definition.id());
+                IndexUtil.mutateCardinality(tr, metadata.subspace(), definition.id(), -1);
                 tr.commit().join();
             }
         });

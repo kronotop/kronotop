@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2023-2025 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
@@ -5,7 +21,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -22,8 +37,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testOrQueryWithMultipleIndexes() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-multi-index";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -61,8 +76,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testOrQueryWithAllDocumentsMatching() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-all-match";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -100,8 +115,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testOrQueryWithLimitAndPagination() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-limit-pagination";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -148,8 +163,8 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testOrQueryWithRangeScanAndComparison() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-range-scan";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
+        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -188,7 +203,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testOrQueryWithIndexedAndNonIndexedFields() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-mixed-strategy";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -226,7 +241,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testOrQueryWithNonIndexedFieldReturningEmpty() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-empty-branch";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -260,7 +275,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testThreeWayOrQueryWithMixedIndexing() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-three-way-mixed";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -301,7 +316,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testThreeWayOrQueryReturningEmptyFromAllBranches() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-all-empty-branches";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(

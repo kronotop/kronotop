@@ -38,7 +38,7 @@ import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 @Command(BucketCreateIndexMessage.COMMAND)
 @MinimumParameterCount(BucketCreateIndexMessage.MINIMUM_PARAMETER_COUNT)
-public class BucketCreateIndexHandler extends BaseBucketHandler implements Handler {
+public class BucketCreateIndexHandler extends AbstractBucketHandler implements Handler {
     public BucketCreateIndexHandler(BucketService service) {
         super(service);
     }
@@ -58,13 +58,12 @@ public class BucketCreateIndexHandler extends BaseBucketHandler implements Handl
                     BucketCreateIndexMessage.IndexDefinition definition = entry.getValue();
                     String name = definition.getName();
                     if (name == null) {
-                        name = IndexNameGenerator.generate(entry.getKey(), definition.getBsonType(), definition.getSortOrder());
+                        name = IndexNameGenerator.generate(entry.getKey(), definition.getBsonType());
                     }
                     IndexDefinition indexDefinition = IndexDefinition.create(
                             name,
                             entry.getKey(),
-                            definition.getBsonType(),
-                            definition.getSortOrder()
+                            definition.getBsonType()
                     );
                     IndexUtil.create(tr, metadata.subspace(), indexDefinition);
                 }

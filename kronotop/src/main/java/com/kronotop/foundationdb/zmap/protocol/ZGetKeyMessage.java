@@ -16,6 +16,7 @@
 
 package com.kronotop.foundationdb.zmap.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
@@ -38,21 +39,15 @@ public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
         parse();
     }
 
-    private String readStringFromByteBuf(ByteBuf buf) {
-        byte[] rawItem = new byte[buf.readableBytes()];
-        buf.readBytes(rawItem);
-        return new String(rawItem);
-    }
-
     private void parse() {
         key = new byte[request.getParams().getFirst().readableBytes()];
         request.getParams().getFirst().readBytes(key);
 
         if (request.getParams().size() > 1) {
             for (int i = 1; i < request.getParams().size(); i++) {
-                String keyword = readStringFromByteBuf(request.getParams().get(i));
+                String keyword = ProtocolMessageUtil.readAsString(request.getParams().get(i));
                 if (keyword.equalsIgnoreCase(KEY_SELECTOR_KEYWORD)) {
-                    String enumVal = readStringFromByteBuf(request.getParams().get(i + 1));
+                    String enumVal = ProtocolMessageUtil.readAsString(request.getParams().get(i + 1));
                     keySelector = RangeKeySelector.valueOf(enumVal.toUpperCase());
                     i++;
                 }

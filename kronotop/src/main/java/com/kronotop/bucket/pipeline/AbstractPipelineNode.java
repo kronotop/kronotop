@@ -18,7 +18,7 @@ public abstract class AbstractPipelineNode {
 
     public void connectNext(PipelineNode node) {
         if (next != null) {
-            throw new IllegalStateException("next node has already been set for id=" +id);
+            throw new IllegalStateException("next node has already been set for id=" + id);
         }
         next = node;
     }

@@ -32,8 +32,8 @@ import java.util.function.Consumer;
 public class VolumeMetadata {
     @JsonIgnore
     private static final String VOLUME_METADATA_KEY = "volume-metadata";
-
     private final List<Long> segments = new ArrayList<>();
+    private int id;
     private VolumeStatus status = VolumeStatus.READWRITE; // Default status is readwrite
 
     public static VolumeMetadata load(Transaction tr, DirectorySubspace subspace) {
@@ -89,6 +89,14 @@ public class VolumeMetadata {
 
     public void setStatus(VolumeStatus status) {
         this.status = status;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public byte[] toByte() {

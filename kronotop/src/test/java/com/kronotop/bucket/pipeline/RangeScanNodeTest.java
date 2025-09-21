@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2023-2025 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
@@ -5,7 +21,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.internal.VersionstampUtil;
 import org.bson.BsonType;
 import org.bson.Document;
@@ -81,7 +96,7 @@ class RangeScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-id-range-scan-logic-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -119,7 +134,7 @@ class RangeScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -153,7 +168,7 @@ class RangeScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-range-scan-empty-result-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert documents with ages all below the query threshold
@@ -186,7 +201,7 @@ class RangeScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-range-" + fieldName + "-" + bsonType.name().toLowerCase();
 
         // Create index for the test field
-        IndexDefinition index = IndexDefinition.create(fieldName + "-index", fieldName, bsonType, SortOrder.ASCENDING);
+        IndexDefinition index = IndexDefinition.create(fieldName + "-index", fieldName, bsonType);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         // Insert test documents
@@ -231,7 +246,7 @@ class RangeScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-range-reverse-" + fieldName + "-" + bsonType.name().toLowerCase();
 
         // Create index for the test field
-        IndexDefinition index = IndexDefinition.create(fieldName + "-index", fieldName, bsonType, SortOrder.ASCENDING);
+        IndexDefinition index = IndexDefinition.create(fieldName + "-index", fieldName, bsonType);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         // Insert test documents
@@ -398,7 +413,7 @@ class RangeScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(

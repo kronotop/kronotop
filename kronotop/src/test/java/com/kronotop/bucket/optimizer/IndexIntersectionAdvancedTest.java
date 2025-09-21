@@ -17,7 +17,6 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PhysicalFilter;
 import com.kronotop.bucket.planner.physical.PhysicalIndexIntersection;
@@ -37,10 +36,10 @@ class IndexIntersectionAdvancedTest extends BaseOptimizerTest {
     void shouldCreateIntersectionInNestedAndOperations() {
         // Create indexes for name and age
         IndexDefinition nameIndex = IndexDefinition.create(
-                "name-index", "name", BsonType.STRING, SortOrder.ASCENDING
+                "name-index", "name", BsonType.STRING
         );
         IndexDefinition ageIndex = IndexDefinition.create(
-                "age-index", "age", BsonType.INT32, SortOrder.ASCENDING
+                "age-index", "age", BsonType.INT32
         );
         createIndexes(nameIndex, ageIndex);
 
@@ -59,7 +58,7 @@ class IndexIntersectionAdvancedTest extends BaseOptimizerTest {
     void shouldHandleSingleChildGracefully() {
         // Create index for name
         IndexDefinition nameIndex = IndexDefinition.create(
-                "name-index", "name", BsonType.STRING, SortOrder.ASCENDING
+                "name-index", "name", BsonType.STRING
         );
         createIndex(nameIndex);
 
@@ -70,7 +69,7 @@ class IndexIntersectionAdvancedTest extends BaseOptimizerTest {
         // Should be simplified to just the index scan
         assertInstanceOf(PhysicalIndexScan.class, optimized);
         PhysicalIndexScan indexScan = (PhysicalIndexScan) optimized;
-        assertTrue(indexScan.node() instanceof PhysicalFilter);
+        assertInstanceOf(PhysicalFilter.class, indexScan.node());
         PhysicalFilter filter = (PhysicalFilter) indexScan.node();
         assertEquals("name", filter.selector());
         assertEquals(Operator.EQ, filter.op());

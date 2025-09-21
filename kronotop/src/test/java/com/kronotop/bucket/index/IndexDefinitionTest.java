@@ -16,16 +16,18 @@
 
 package com.kronotop.bucket.index;
 
+import com.kronotop.NotImplementedException;
 import com.kronotop.internal.JSONUtil;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class IndexDefinitionTest {
     @Test
     void shouldEncodeDecode() {
-        IndexDefinition index = IndexDefinition.create("index-name", "_id", BsonType.BINARY, SortOrder.ASCENDING);
+        IndexDefinition index = IndexDefinition.create("index-name", "_id", BsonType.BINARY);
         byte[] data = JSONUtil.writeValueAsBytes(index);
 
         IndexDefinition decoded = JSONUtil.readValue(data, IndexDefinition.class);
@@ -33,7 +35,11 @@ class IndexDefinitionTest {
         assertEquals(index.id(), decoded.id());
         assertEquals(index.name(), decoded.name());
         assertEquals(index.selector(), decoded.selector());
-        assertEquals(index.sortOrder(), decoded.sortOrder());
         assertEquals(index.bsonType(), decoded.bsonType());
+    }
+
+    @Test
+    void DECIMAL128NotImplementedYet() {
+        assertThrows(NotImplementedException.class, () -> IndexDefinition.create("index-name", "_id", BsonType.DECIMAL128));
     }
 }

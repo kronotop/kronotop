@@ -23,16 +23,16 @@ public record PhysicalElemMatch(int id, String selector, PhysicalNode subPlan) i
     public <R> R accept(PhysicalPlanVisitor<R> visitor) {
         return visitor.visitElemMatch(this);
     }
-    
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (!(obj instanceof PhysicalElemMatch other)) return false;
-        return Objects.equals(selector, other.selector) && 
-               Objects.equals(subPlan, other.subPlan);
+        return Objects.equals(selector, other.selector) &&
+                Objects.equals(subPlan, other.subPlan);
         // Note: id is intentionally excluded from comparison
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(selector, subPlan);

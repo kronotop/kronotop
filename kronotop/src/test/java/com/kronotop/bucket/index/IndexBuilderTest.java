@@ -25,6 +25,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeTestUtil;
@@ -56,13 +57,13 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                 Arguments.of("boolean-index", "active", BsonType.BOOLEAN, true, true),
                 Arguments.of("binary-index", "data", BsonType.BINARY, new byte[]{1, 2, 3, 4}, new byte[]{1, 2, 3, 4}),
                 Arguments.of("datetime-index", "created", BsonType.DATE_TIME, 1640995200000L, 1640995200000L),
-                Arguments.of("decimal128-index", "price", BsonType.DECIMAL128, "99.99", "99.99"),
+                // TODO: Enable this when we implement decimal128 indexes - Arguments.of("decimal128-index", "price", BsonType.DECIMAL128, "99.99", "99.99"),
                 Arguments.of("null-index", "nullable", BsonType.NULL, null, null)
         );
     }
 
     byte[] getEncodedEntryMetadata() {
-        return VolumeTestUtil.generateEntryMetadata(1, 0, 1, "test").encode().array();
+        return VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode().array();
     }
 
     private AppendedEntry[] getAppendedEntries() {
@@ -134,17 +135,24 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @ParameterizedTest
     @MethodSource("indexValueTestData")
     void shouldSetIndexValueForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
-        IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType, SortOrder.ASCENDING);
+        IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
         AppendedEntry[] entries = getAppendedEntries();
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entries[0]);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
-        assertNotNull(indexSubspace, "Index subspace should exist for " + bsonType);
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist for " + bsonType);
+        DirectorySubspace indexSubspace = index.subspace();
 
         byte[] expectedEntryMetadata = getEncodedEntryMetadata();
         verifyIndexEntry(indexSubspace, expectedStoredValue, expectedEntryMetadata);
+
+        // Verify cardinality was incremented
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after setting one entry for " + bsonType);
+        }
     }
 
     @Test
@@ -155,6 +163,12 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuilder.setPrimaryIndexEntry(tr, SHARD_ID, metadata, entries);
                 tr.commit().join();
+            }
+
+            // Verify cardinality was set correctly
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
+                assertEquals(entries.length, statistics.cardinality(), "Primary index cardinality should equal number of entries set");
             }
         });
     }
@@ -168,7 +182,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        DirectorySubspace idIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+        Index idIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        assertNotNull(idIndex, "Index should exist");
+        DirectorySubspace idIndexSubspace = idIndex.subspace();
         byte[] prefix = idIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
@@ -194,7 +210,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldDropIndexEntry() {
-        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
         AppendedEntry[] entries = getAppendedEntries();
         String indexValue = "test-value";
@@ -202,7 +218,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         // First set the index entry
         setIndexEntryAndCommit(definition, metadata, indexValue, entries[0]);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Get the actual versionstamp from the committed index entry
@@ -251,20 +269,26 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix))
             ).asList().join();
             assertEquals(0, afterBackPointers.size(), "Should have no back pointers after dropping");
+
+            // Verify the cardinality was decremented
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(0, statistics.cardinality(), "Index cardinality should be 0 after dropping the entry");
         }
     }
 
     @ParameterizedTest
     @MethodSource("indexValueTestData")
     void shouldDropIndexEntryForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
-        IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType, SortOrder.ASCENDING);
+        IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
         AppendedEntry[] entries = getAppendedEntries();
 
         // Set the index entry
         setIndexEntryAndCommit(definition, metadata, inputValue, entries[0]);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Retrieve the actual versionstamp from the committed index entry
@@ -301,13 +325,17 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix))
             ).asList().join();
             assertEquals(0, backPointers.size(), "Should have no back pointers after dropping for " + bsonType);
+
+            // Verify the cardinality was decremented
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(0, statistics.cardinality(), "Index cardinality should be 0 after dropping the entry for " + bsonType);
         }
     }
 
     @Test
     void shouldDropMultipleIndexEntriesForSameVersionstamp() {
-        IndexDefinition stringIndex = IndexDefinition.create("string-index", "name", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition stringIndex = IndexDefinition.create("string-index", "name", BsonType.STRING);
+        IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32);
 
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(stringIndex, testBucketName);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -326,8 +354,12 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         setIndexEntryAndCommit(stringIndex, metadata, stringValue, entries[0]);
         setIndexEntryAndCommit(intIndex, metadata, intValue, entries[0]);
 
-        DirectorySubspace stringIndexSubspace = metadata.indexes().getSubspace(stringIndex.selector());
-        DirectorySubspace intIndexSubspace = metadata.indexes().getSubspace(intIndex.selector());
+        Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector());
+        assertNotNull(stringIndexObj, "String index should exist");
+        DirectorySubspace stringIndexSubspace = stringIndexObj.subspace();
+        Index intIndexObj = metadata.indexes().getIndex(intIndex.selector());
+        assertNotNull(intIndexObj, "Int index should exist");
+        DirectorySubspace intIndexSubspace = intIndexObj.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Verify both entries exist
@@ -397,15 +429,24 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(intPrefix))
             ).asList().join();
             assertEquals(0, intEntries.size(), "Should have no int index entries");
+
+            // Verify cardinality was decremented for both indexes
+            IndexStatistics stringStats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), stringIndex.id());
+            assertEquals(0, stringStats.cardinality(), "String index cardinality should be 0 after dropping the entry");
+
+            IndexStatistics intStats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), intIndex.id());
+            assertEquals(0, intStats.cardinality(), "Int index cardinality should be 0 after dropping the entry");
         }
     }
 
     @Test
     void shouldHandleDropIndexEntryForNonExistentVersionstamp() {
-        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Try to drop entry for non-existent versionstamp
@@ -416,11 +457,17 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                 tr.commit().join();
             }, "Should not throw exception for non-existent versionstamp");
         }
+
+        // Verify cardinality remains 0 (no entry was actually dropped)
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(0, statistics.cardinality(), "Index cardinality should remain 0 when dropping non-existent entry");
+        }
     }
 
     @Test
     void shouldDropOnlySpecificVersionstampEntries() {
-        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
         AppendedEntry[] entries = getAppendedEntries();
 
@@ -429,7 +476,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         setIndexEntryAndCommit(definition, metadata, "value2", entries[1]);
         setIndexEntryAndCommit(definition, metadata, "value3", entries[2]);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Verify all entries exist
@@ -493,12 +542,16 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             }
             assertTrue(foundEntry0, "Entry 0 should still exist");
             assertTrue(foundEntry2, "Entry 2 should still exist");
+
+            // Verify cardinality was decremented from 3 to 2
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(2, statistics.cardinality(), "Index cardinality should be 2 after dropping 1 out of 3 entries");
         }
     }
 
     @Test
     void shouldUpdateEntryMetadata() {
-        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
         AppendedEntry[] entries = getAppendedEntries();
         AppendedEntry entry = entries[0];
@@ -506,7 +559,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, indexValue, entry);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         // Get the actual versionstamp from the committed entry
         Versionstamp actualVersionstamp;
@@ -525,7 +580,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         }
 
         // Create new metadata
-        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(2, 1, 2, "updated").encode().array();
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated").encode().array();
         assertFalse(Arrays.equals(originalMetadata, newMetadata), "New metadata should be different from original");
 
         // Update entry metadata
@@ -547,7 +602,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldUpdateEntryMetadataForMultipleIndexValues() {
-        IndexDefinition definition = IndexDefinition.create("multi-value-index", "tag", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition definition = IndexDefinition.create("multi-value-index", "tag", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
 
         AppendedEntry[] entries = getAppendedEntries();
@@ -559,7 +614,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             setIndexEntryAndCommit(definition, metadata, value, entry);
         }
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         // Get the actual versionstamp from one of the committed entries
         Versionstamp actualVersionstamp;
@@ -576,7 +633,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         }
 
         // Create new metadata
-        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(3, 2, 3, "multi-updated").encode().array();
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 3, 2, 3, "multi-updated").encode().array();
 
         // Update entry metadata for all entries with this versionstamp
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -602,12 +659,14 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldHandleUpdateEntryMetadataForNonExistentVersionstamp() {
-        IndexDefinition definition = IndexDefinition.create("empty-index", "value", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition definition = IndexDefinition.create("empty-index", "value", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
         Versionstamp nonExistentVersionstamp = Versionstamp.complete(new byte[10], 999);
-        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 0, 1, "test").encode().array();
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode().array();
 
         // Should not throw exception for a non-existent versionstamp
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -631,14 +690,16 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @ParameterizedTest
     @MethodSource("indexValueTestData")
     void shouldUpdateEntryMetadataForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
-        IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType, SortOrder.ASCENDING);
+        IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
         AppendedEntry[] entries = getAppendedEntries();
         AppendedEntry entry = entries[0];
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entry);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         // Get the actual versionstamp
         Versionstamp actualVersionstamp;
@@ -657,7 +718,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         }
 
         // Create new metadata specific to this BSON type test
-        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(5, 4, 5, "updated-" + bsonType.name().toLowerCase()).encode().array();
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 5, 4, 5, "updated-" + bsonType.name().toLowerCase()).encode().array();
         assertFalse(Arrays.equals(originalMetadata, newMetadata), "New metadata should differ from original for " + bsonType);
 
         // Update entry metadata
@@ -687,7 +748,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        DirectorySubspace primaryIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        assertNotNull(primaryIndex, "Primary index should exist");
+        DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
         // Get the actual versionstamp from one of the committed entries
         Versionstamp actualVersionstamp;
@@ -725,6 +788,10 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
                 }
             }
             assertFalse(found, "Dropped versionstamp should not be found in remaining entries");
+
+            // Verify cardinality was decremented
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
+            assertEquals(entries.length - 1, statistics.cardinality(), "Primary index cardinality should be decremented by 1");
         }
     }
 
@@ -739,7 +806,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        DirectorySubspace primaryIndexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
+        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        assertNotNull(primaryIndex, "Primary index should exist");
+        DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
         // Get the actual versionstamp from one of the committed entries
         Versionstamp actualVersionstamp;
@@ -758,7 +827,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         }
 
         // Create new metadata for update
-        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(2, 1, 2, "updated-primary").encode().array();
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated-primary").encode().array();
         assertFalse(Arrays.equals(originalIndexEntry, newMetadata), "New metadata should be different from original");
 
         // Update primary index entry metadata
@@ -791,7 +860,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldSetIndexEntryByVersionstamp() {
-        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING, SortOrder.ASCENDING);
+        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
 
         String indexValue = "test-value";
@@ -799,7 +868,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         Versionstamp versionstamp = generateVersionstamp(userVersion);
         byte[] entryMetadata = getEncodedEntryMetadata();
 
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector());
+        assertNotNull(index, "Index should exist");
+        DirectorySubspace indexSubspace = index.subspace();
 
         IndexEntryContainer container = new IndexEntryContainer(
                 metadata,
@@ -858,6 +929,12 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             assertEquals(indexValue, unpackedBackPointer.get(2), "Back pointer index value should match");
 
             assertArrayEquals(IndexBuilder.NULL_VALUE, backPointer.getValue(), "Back pointer value should be NULL_VALUE");
+        }
+
+        // Verify the cardinality was updated
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after adding one entry");
         }
     }
 }

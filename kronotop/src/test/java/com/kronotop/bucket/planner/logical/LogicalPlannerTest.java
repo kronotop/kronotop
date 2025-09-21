@@ -52,18 +52,18 @@ class LogicalPlannerTest {
             return value;
         } else if (operand instanceof Int64Val(long value)) {
             return value;
-        } else if (operand instanceof Decimal128Val decimal128Val) {
-            return decimal128Val.value();
+        } else if (operand instanceof Decimal128Val(java.math.BigDecimal value)) {
+            return value;
         } else if (operand instanceof DoubleVal(double value)) {
             return value;
         } else if (operand instanceof BooleanVal(boolean value)) {
             return value;
         } else if (operand instanceof NullVal) {
             return null;
-        } else if (operand instanceof BinaryVal binaryVal) {
-            return binaryVal.value();
-        } else if (operand instanceof DateTimeVal dateTimeVal) {
-            return dateTimeVal.value();
+        } else if (operand instanceof BinaryVal(byte[] value)) {
+            return value;
+        } else if (operand instanceof DateTimeVal(long value)) {
+            return value;
         } else if (operand instanceof List<?> list) {
             return list.stream()
                     .map(this::extractValue)
@@ -1288,13 +1288,12 @@ class LogicalPlannerTest {
 
             for (int depth : testDepths) {
                 // Create a deeply nested structure: NOT(NOT(NOT(...(selector = value)...)))
-                StringBuilder queryBuilder = new StringBuilder();
 
-                queryBuilder.append("{ \"$not\": ".repeat(depth));
-                queryBuilder.append("{ \"selector\": \"value\" }");
-                queryBuilder.append(" }".repeat(depth));
+                String queryBuilder = "{ \"$not\": ".repeat(depth) +
+                        "{ \"selector\": \"value\" }" +
+                        " }".repeat(depth);
 
-                BqlExpr expr = BqlParser.parse(queryBuilder.toString());
+                BqlExpr expr = BqlParser.parse(queryBuilder);
 
                 long startTime = System.nanoTime();
                 LogicalNode result = planner.plan(expr);

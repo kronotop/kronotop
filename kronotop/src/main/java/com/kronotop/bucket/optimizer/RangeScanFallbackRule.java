@@ -25,23 +25,28 @@ import java.util.List;
 
 /**
  * Optimization rule that converts PhysicalRangeScan nodes with null indexes
- * to PhysicalFullScan nodes with composite filters.
+ * to PhysicalAnd or PhysicalFullScan nodes with appropriate filter conditions.
  * <p>
- * This rule handles the fallback scenario where no suitable index is available 
- * for a range scan operation. Instead of failing, it converts the range scan 
+ * This rule handles the fallback scenario where no suitable index is available
+ * for a range scan operation. Instead of failing, it converts the range scan
  * to a full bucket scan with appropriate filter conditions.
  * <p>
- * Example:
- * - PhysicalRangeScan("age", 18, 65, true, false, null) 
- *   → PhysicalFullScan(PhysicalAnd([age >= 18, age < 65]))
+ * The convertToFullScan method behavior:
+ * - Single bound: converts to PhysicalFullScan with one filter
+ * - Multiple bounds: converts to PhysicalAnd with PhysicalFullScan children
+ * <p>
+ * Examples:
+ * - PhysicalRangeScan("age", 18, null, true, false, null)
+ * → PhysicalFullScan(age >= 18)
+ * - PhysicalRangeScan("age", 18, 65, true, false, null)
+ * → PhysicalAnd([PhysicalFullScan(age >= 18), PhysicalFullScan(age < 65)])
  */
 public class RangeScanFallbackRule implements PhysicalOptimizationRule {
 
     @Override
     public PhysicalNode apply(PhysicalNode node, BucketMetadata metadata, PlannerContext context) {
         return switch (node) {
-            case PhysicalRangeScan rangeScan when rangeScan.index() == null -> 
-                convertToFullScan(rangeScan, context);
+            case PhysicalRangeScan rangeScan when rangeScan.index() == null -> convertToFullScan(rangeScan, context);
             case PhysicalAnd and -> new PhysicalAnd(
                     context.nextId(),
                     and.children().stream()
@@ -75,8 +80,8 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
             Operator lowerOp = rangeScan.includeLower() ? Operator.GTE : Operator.GT;
             filters.add(new PhysicalFilter(
                     context.nextId(),
-                    rangeScan.selector(), 
-                    lowerOp, 
+                    rangeScan.selector(),
+                    lowerOp,
                     rangeScan.lowerBound()
             ));
         }
@@ -85,8 +90,8 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
             Operator upperOp = rangeScan.includeUpper() ? Operator.LTE : Operator.LT;
             filters.add(new PhysicalFilter(
                     context.nextId(),
-                    rangeScan.selector(), 
-                    upperOp, 
+                    rangeScan.selector(),
+                    upperOp,
                     rangeScan.upperBound()
             ));
         }
@@ -95,16 +100,12 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
             throw new IllegalStateException("Range scan must have at least one bound");
         }
 
-        // Create the composite filter
-        PhysicalNode compositeFilter;
         if (filters.size() == 1) {
-            compositeFilter = filters.get(0);
-        } else {
-            compositeFilter = new PhysicalAnd(context.nextId(), filters);
+            return new PhysicalFullScan(context.nextId(), filters.get(0));
         }
 
-        // Return a full scan with the composite filter
-        return new PhysicalFullScan(context.nextId(), compositeFilter);
+        filters.replaceAll(physicalNode -> new PhysicalFullScan(context.nextId(), physicalNode));
+        return new PhysicalAnd(context.nextId(), filters);
     }
 
     @Override

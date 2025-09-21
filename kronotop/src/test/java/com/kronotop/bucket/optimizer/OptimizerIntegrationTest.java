@@ -17,7 +17,6 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -25,7 +24,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -43,8 +41,8 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldApplyRulesInCorrectPriorityOrder() {
             // Create indexes
             createIndexes(
-                    IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING)
+                    IndexDefinition.create("name-index", "name", BsonType.STRING),
+                    IndexDefinition.create("age-index", "age", BsonType.INT32)
             );
 
             // Create plan that can benefit from multiple rules:
@@ -93,9 +91,9 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldHandleComplexNestedScenariosWithMultipleRules() {
             // Create indexes
             createIndexes(
-                    IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING),
-                    IndexDefinition.create("status-index", "status", BsonType.STRING, SortOrder.ASCENDING)
+                    IndexDefinition.create("name-index", "name", BsonType.STRING),
+                    IndexDefinition.create("age-index", "age", BsonType.INT32),
+                    IndexDefinition.create("status-index", "status", BsonType.STRING)
             );
 
             // Complex query with multiple optimization opportunities:
@@ -126,7 +124,7 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
 
             // Verify that optimizer runs successfully on complex plans without errors
             assertNotNull(optimized, "Optimizer should produce a valid result");
-            assertTrue(optimized instanceof PhysicalNode, "Result should be a PhysicalNode");
+            assertInstanceOf(PhysicalNode.class, optimized, "Result should be a PhysicalNode");
 
             // Verify the plan structure is maintained
             assertTrue(countNodeType(optimized, PhysicalNode.class) > 0,
@@ -140,8 +138,8 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
             // Create scenario where different rules might conflict
             // e.g., range consolidation vs index intersection on same fields
             createIndexes(
-                    IndexDefinition.create("price-index", "price", BsonType.DOUBLE, SortOrder.ASCENDING),
-                    IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING)
+                    IndexDefinition.create("price-index", "price", BsonType.DOUBLE),
+                    IndexDefinition.create("category-index", "category", BsonType.STRING)
             );
 
             // Query that could benefit from different optimizations:
@@ -235,7 +233,7 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldHandleMixedIndexedAndNonIndexedComplexScenarios() {
             // Create only one index
             createIndex(IndexDefinition.create(
-                    "name-index", "name", BsonType.STRING, SortOrder.ASCENDING
+                    "name-index", "name", BsonType.STRING
             ));
 
             // Query with mix of indexed and non-indexed fields
@@ -270,8 +268,8 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldConvergeWithinIterationLimits() {
             // Create scenario that might require multiple optimization passes
             createIndexes(
-                    IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING)
+                    IndexDefinition.create("name-index", "name", BsonType.STRING),
+                    IndexDefinition.create("age-index", "age", BsonType.INT32)
             );
 
             // Create complex plan with multiple levels of optimization opportunities
@@ -309,7 +307,7 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldHandleScenariosRequiringNoOptimization() {
             // Create optimal plan that needs no optimization
             createIndex(IndexDefinition.create(
-                    "name-index", "name", BsonType.STRING, SortOrder.ASCENDING
+                    "name-index", "name", BsonType.STRING
             ));
 
             String query = "{ \"name\": \"john\" }"; // Simple, optimal query
@@ -327,9 +325,9 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldStabilizeAfterApplyingAllBeneficialOptimizations() {
             // Create comprehensive optimization scenario
             createIndexes(
-                    IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING),
-                    IndexDefinition.create("status-index", "status", BsonType.STRING, SortOrder.ASCENDING)
+                    IndexDefinition.create("name-index", "name", BsonType.STRING),
+                    IndexDefinition.create("age-index", "age", BsonType.INT32),
+                    IndexDefinition.create("status-index", "status", BsonType.STRING)
             );
 
             // Query with multiple optimization opportunities
@@ -342,7 +340,7 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
                     "] }";
 
             PhysicalNode firstOptimization = planAndOptimize(query);
-            
+
             // Use same context for second optimization to maintain ID consistency
             PlannerContext context = new PlannerContext();
             PhysicalNode secondOptimization = optimizer.optimize(metadata, firstOptimization, context);
@@ -352,7 +350,7 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
             assertEquals(
                     firstOptimization,
                     secondOptimization,
-                "Second optimization should not change the plan structure"
+                    "Second optimization should not change the plan structure"
             );
         }
     }
@@ -366,10 +364,10 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldOptimizeComplexEcommerceQueryEfficiently() {
             // Simulate e-commerce product search scenario
             createIndexes(
-                    IndexDefinition.create("category-index", "category", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("brand-index", "brand", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("price-index", "price", BsonType.DOUBLE, SortOrder.ASCENDING),
-                    IndexDefinition.create("rating-index", "rating", BsonType.DOUBLE, SortOrder.ASCENDING)
+                    IndexDefinition.create("category-index", "category", BsonType.STRING),
+                    IndexDefinition.create("brand-index", "brand", BsonType.STRING),
+                    IndexDefinition.create("price-index", "price", BsonType.DOUBLE),
+                    IndexDefinition.create("rating-index", "rating", BsonType.DOUBLE)
             );
 
             // Complex e-commerce query:
@@ -414,9 +412,9 @@ class OptimizerIntegrationTest extends BaseOptimizerTest {
         void shouldOptimizeUserAnalyticsQueryWithTemporalConstraints() {
             // Simulate user analytics scenario
             createIndexes(
-                    IndexDefinition.create("user_id-index", "user_id", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("event_type-index", "event_type", BsonType.STRING, SortOrder.ASCENDING),
-                    IndexDefinition.create("timestamp-index", "timestamp", BsonType.DATE_TIME, SortOrder.ASCENDING)
+                    IndexDefinition.create("user_id-index", "user_id", BsonType.STRING),
+                    IndexDefinition.create("event_type-index", "event_type", BsonType.STRING),
+                    IndexDefinition.create("timestamp-index", "timestamp", BsonType.DATE_TIME)
             );
 
             // Analytics query: Find specific user's events of certain type within time range

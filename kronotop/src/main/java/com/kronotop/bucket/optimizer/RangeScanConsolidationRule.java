@@ -17,6 +17,7 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
@@ -180,7 +181,11 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     }
 
     private IndexDefinition getIndexFromMetadata(BucketMetadata metadata, String selector) {
-        return metadata.indexes().getIndexBySelector(selector);
+        Index index = metadata.indexes().getIndex(selector);
+        if (index == null) {
+            return null;
+        }
+        return index.definition();
     }
 
     // Simple comparison helpers - in reality, these would need proper type handling

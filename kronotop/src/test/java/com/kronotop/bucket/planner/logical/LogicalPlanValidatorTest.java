@@ -301,7 +301,7 @@ class LogicalPlanValidatorTest {
         @Test
         @DisplayName("IN operator with empty list should generate warning")
         void testInOperatorWithEmptyList() {
-            LogicalNode plan = new LogicalFilter("selector", Operator.IN, Arrays.asList());
+            LogicalNode plan = new LogicalFilter("selector", Operator.IN, List.of());
 
             ValidationResult result = validator.validate(plan);
 
@@ -339,7 +339,7 @@ class LogicalPlanValidatorTest {
         @Test
         @DisplayName("Single-child AND should generate optimization warning")
         void testSingleChildAnd() {
-            LogicalNode plan = new LogicalAnd(Arrays.asList(
+            LogicalNode plan = new LogicalAnd(List.of(
                     new LogicalFilter("status", Operator.EQ, new StringVal("active"))
             ));
 
@@ -354,7 +354,7 @@ class LogicalPlanValidatorTest {
         @Test
         @DisplayName("Single-child OR should generate optimization warning")
         void testSingleChildOr() {
-            LogicalNode plan = new LogicalOr(Arrays.asList(
+            LogicalNode plan = new LogicalOr(List.of(
                     new LogicalFilter("status", Operator.EQ, new StringVal("active"))
             ));
 
@@ -371,7 +371,7 @@ class LogicalPlanValidatorTest {
         void testNestedAnd() {
             LogicalNode plan = new LogicalAnd(Arrays.asList(
                     new LogicalFilter("status", Operator.EQ, new StringVal("active")),
-                    new LogicalAnd(Arrays.asList(
+                    new LogicalAnd(List.of(
                             new LogicalFilter("priority", Operator.GT, new Int32Val(5))
                     ))
             ));
@@ -405,7 +405,7 @@ class LogicalPlanValidatorTest {
         @DisplayName("Should find optimization issues using convenience method")
         void testFindOptimizationIssuesMethod() {
             // Create a plan with patterns that should be optimized away
-            LogicalNode plan = new LogicalAnd(Arrays.asList(
+            LogicalNode plan = new LogicalAnd(List.of(
                     new LogicalFilter("status", Operator.EQ, new StringVal("active"))
             ));
 
@@ -580,7 +580,7 @@ class LogicalPlanValidatorTest {
         @DisplayName("Validator should detect unoptimized patterns in raw plans")
         void testValidationWithUnoptimizedPlans() {
             // Create a planner without optimization transforms 
-            LogicalPlanner unoptimizedPlanner = new LogicalPlanner(Arrays.asList());
+            LogicalPlanner unoptimizedPlanner = new LogicalPlanner(List.of());
 
             BqlExpr expr = BqlParser.parse("""
                     {

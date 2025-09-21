@@ -35,7 +35,7 @@ import java.nio.ByteBuffer;
 public class DocumentRetriever {
     private final BucketService bucketService;
 
-    DocumentRetriever(BucketService bucketService) {
+    public DocumentRetriever(BucketService bucketService) {
         this.bucketService = bucketService;
     }
 

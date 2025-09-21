@@ -14,8 +14,20 @@
  * limitations under the License.
  */
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket.pipeline;
 
-public enum SortOrder {
-    ASCENDING, DESCENDING
+import java.nio.ByteBuffer;
+
+/**
+ * A predicate that always returns true for any document.
+ * <p>
+ * This implementation is used as a default or no-op predicate in query processing
+ * when no filtering conditions need to be applied. It accepts all documents
+ * without performing any evaluation.
+ */
+public record AlwaysTruePredicate() implements ResidualPredicateNode {
+    @Override
+    public boolean test(ByteBuffer document) {
+        return true;
+    }
 }

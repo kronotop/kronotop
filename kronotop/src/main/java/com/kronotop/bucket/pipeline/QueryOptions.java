@@ -25,6 +25,18 @@ import com.kronotop.bucket.DefaultIndexDefinition;
  *     .reverse(true)
  *     .limit(20)
  *     .build();
+ *
+ * // Query with pinned read version for consistent reads
+ * QueryOptions consistent = QueryOptions.builder()
+ *     .pinReadVersion(true)
+ *     .limit(100)
+ *     .build();
+ *
+ * // Query with specific read version
+ * QueryOptions withVersion = QueryOptions.builder()
+ *     .readVersion(123456789L)
+ *     .limit(50)
+ *     .build();
  * }</pre>
  *
  * @see QueryContext
@@ -47,6 +59,16 @@ public class QueryOptions {
      */
     private final int limit;
 
+    /**
+     * Whether to pin the read version for the query transaction.
+     */
+    private final boolean pinReadVersion;
+
+    /**
+     * The specific read version to use for the query transaction.
+     */
+    private final long readVersion;
+
     private final UpdateOptions update;
 
     /**
@@ -58,6 +80,8 @@ public class QueryOptions {
         this.reverse = builder.reverse;
         this.sortByField = builder.sortByField;
         this.limit = builder.limit;
+        this.pinReadVersion = builder.pinReadVersion;
+        this.readVersion = builder.readVersion;
         this.update = builder.update;
     }
 
@@ -100,6 +124,26 @@ public class QueryOptions {
         return limit;
     }
 
+    /**
+     * Returns whether the read version should be pinned for the query transaction.
+     * When true, the query will use a consistent read version across all operations.
+     *
+     * @return true if read version pinning is enabled, false otherwise
+     */
+    public boolean isPinReadVersion() {
+        return pinReadVersion;
+    }
+
+    /**
+     * Returns the specific read version to use for the query transaction.
+     * This value is only used when a specific read version is set.
+     *
+     * @return the read version to use, or 0 if not set
+     */
+    public long getReadVersion() {
+        return readVersion;
+    }
+
     public UpdateOptions update() {
         return update;
     }
@@ -128,6 +172,16 @@ public class QueryOptions {
          * Result limit. Defaults to {@value QueryContext#DEFAULT_LIMIT}.
          */
         private int limit = QueryContext.DEFAULT_LIMIT;
+
+        /**
+         * Whether to pin read version. Defaults to false.
+         */
+        private boolean pinReadVersion = false;
+
+        /**
+         * Specific read version to use. Defaults to 0 (not set).
+         */
+        private long readVersion = 0;
 
         /**
          * Sets whether results should be returned in reverse (descending) order.
@@ -168,6 +222,30 @@ public class QueryOptions {
                 throw new IllegalArgumentException("limit must be a non-negative integer");
             }
             this.limit = limit;
+            return this;
+        }
+
+        /**
+         * Sets whether the read version should be pinned for the query transaction.
+         * When enabled, the query will use a consistent read version across all operations.
+         *
+         * @param pinReadVersion true to enable read version pinning, false to disable (default)
+         * @return this Builder instance for method chaining
+         */
+        public Builder pinReadVersion(boolean pinReadVersion) {
+            this.pinReadVersion = pinReadVersion;
+            return this;
+        }
+
+        /**
+         * Sets the specific read version to use for the query transaction.
+         * When set to a non-zero value, the query will use this specific read version.
+         *
+         * @param readVersion the read version to use (0 for not set)
+         * @return this Builder instance for method chaining
+         */
+        public Builder readVersion(long readVersion) {
+            this.readVersion = readVersion;
             return this;
         }
 

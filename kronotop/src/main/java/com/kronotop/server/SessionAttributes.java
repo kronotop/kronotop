@@ -18,7 +18,7 @@ package com.kronotop.server;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.CommitHook;
-import com.kronotop.bucket.QueryExecutorConfig;
+import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.foundationdb.namespace.Namespace;
 import io.netty.util.AttributeKey;
 
@@ -75,7 +75,13 @@ public class SessionAttributes {
 
     public static final AttributeKey<Integer> LIMIT = AttributeKey.valueOf("limit");
 
-    public static final AttributeKey<QueryExecutorConfig> BUCKET_QUERY_EXECUTOR_CONFIG = AttributeKey.valueOf("bucket_query_executor_config");
-
     public static final AttributeKey<Boolean> PIN_READ_VERSION = AttributeKey.valueOf("pin_read_version");
+
+    public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_READ_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_read_query_contexts");
+
+    public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_DELETE_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_delete_query_contexts");
+
+    public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_UPDATE_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_update_query_contexts");
+
+
 }

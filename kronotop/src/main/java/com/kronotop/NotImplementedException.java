@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-package com.kronotop.bucket.executor;
+package com.kronotop;
 
-public record CursorState(Bounds bounds) {
+public class NotImplementedException extends KronotopException {
+    public NotImplementedException(String message) {
+        super(message);
+    }
 }

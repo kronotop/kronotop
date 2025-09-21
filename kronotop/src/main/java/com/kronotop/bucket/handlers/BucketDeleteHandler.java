@@ -17,9 +17,11 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.BucketDeleteResponse;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
+import com.kronotop.bucket.handlers.protocol.BucketDeleteMessage;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
@@ -27,51 +29,45 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
-import java.util.Map;
-import java.util.Objects;
+import java.util.List;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
-@Command(BucketAdvanceMessage.COMMAND)
-@MaximumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
-public class BucketAdvanceHandler extends AbstractBucketHandler {
-    public BucketAdvanceHandler(BucketService service) {
+@Command(BucketDeleteMessage.COMMAND)
+@MaximumParameterCount(BucketDeleteMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(BucketDeleteMessage.MINIMUM_PARAMETER_COUNT)
+public class BucketDeleteHandler extends AbstractBucketHandler implements Handler {
+    public BucketDeleteHandler(BucketService service) {
         super(service);
     }
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.BUCKETADVANCE).set(new BucketAdvanceMessage(request));
-    }
-
-    private Map<Integer, QueryContext> findQueryContext(Session session, BucketAdvanceMessage.Action action) {
-        return switch (action) {
-            case QUERY -> session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
-            case DELETE -> session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get();
-            case UPDATE -> session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get();
-        };
+        request.attr(MessageTypes.BUCKETDELETE).set(new BucketDeleteMessage(request));
     }
 
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
-            BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
+            BucketDeleteMessage message = request.attr(MessageTypes.BUCKETDELETE).get();
+
             Session session = request.getSession();
-            Map<Integer, QueryContext> contexts = findQueryContext(session, message.getAction());
-            QueryContext ctx = contexts.get(message.getCursorId());
-            if (Objects.isNull(ctx)) {
-                throw new KronotopException("No previous query context found for '" +
-                        message.getAction().name().toLowerCase() + "' action with the given cursor id");
-            }
+            QueryContext ctx = buildQueryContext(request, message.getBucket(), message.getQuery(), message.getArguments());
+            int cursorId = session.nextCursorId();
+            session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get().put(cursorId, ctx);
+
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            return new BucketReadResponse(message.getCursorId(), service.getQueryExecutor().read(tr, ctx));
-        }, (readResponse) -> {
+            List<Versionstamp> versionstamps = service.getQueryExecutor().delete(tr, ctx);
+
+            TransactionUtils.addPostCommitHook(new QueryContextCommitHook(ctx), request.getSession());
+            TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
+            return new BucketDeleteResponse(cursorId, versionstamps);
+        }, (deleteResponse) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
-                resp3Response(request, response, readResponse);
+                resp3VersionstampArrayResponse(response, deleteResponse);
             } else if (protoVer.equals(RESPVersion.RESP2)) {
-                resp2Response(request, response, readResponse);
+                resp2VersionstampArrayResponse(response, deleteResponse);
             } else {
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }

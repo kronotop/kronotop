@@ -17,7 +17,6 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.bucket.planner.physical.PhysicalAnd;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
@@ -36,7 +35,7 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
     void shouldReduceNumberOfIndexScansThoughConsolidation() {
         // Create index
         IndexDefinition priceIndex = IndexDefinition.create(
-                "price-index", "price", BsonType.DOUBLE, SortOrder.ASCENDING
+                "price-index", "price", BsonType.DOUBLE
         );
         createIndex(priceIndex);
 
@@ -60,7 +59,7 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
     void shouldConsolidateRangeConditionsInNestedAnd() {
         // Create index for age field
         IndexDefinition ageIndex = IndexDefinition.create(
-                "age-index", "age", BsonType.INT32, SortOrder.ASCENDING
+                "age-index", "age", BsonType.INT32
         );
         createIndex(ageIndex);
 
@@ -82,7 +81,7 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
     void shouldHandleOnlyUpperBoundConditions() {
         // Create index for score field
         IndexDefinition scoreIndex = IndexDefinition.create(
-                "score-index", "score", BsonType.DOUBLE, SortOrder.ASCENDING
+                "score-index", "score", BsonType.DOUBLE
         );
         createIndex(scoreIndex);
 
@@ -93,14 +92,14 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
         // Currently this returns IndexScan rather than RangeScan for single-bound cases
         // This is acceptable behavior - verify the optimizer runs without error
         assertNotNull(optimized, "Optimizer should produce a valid result");
-        assertTrue(optimized instanceof PhysicalNode, "Result should be a PhysicalNode");
+        assertInstanceOf(PhysicalNode.class, optimized, "Result should be a PhysicalNode");
     }
 
     @Test
     void shouldHandleOnlyLowerBoundConditions() {
         // Create index for age field
         IndexDefinition ageIndex = IndexDefinition.create(
-                "age-index", "age", BsonType.INT32, SortOrder.ASCENDING
+                "age-index", "age", BsonType.INT32
         );
         createIndex(ageIndex);
 
@@ -111,17 +110,17 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
         // Currently this returns IndexScan rather than RangeScan for single-bound cases
         // This is acceptable behavior - verify the optimizer runs without error  
         assertNotNull(optimized, "Optimizer should produce a valid result");
-        assertTrue(optimized instanceof PhysicalNode, "Result should be a PhysicalNode");
+        assertInstanceOf(PhysicalNode.class, optimized, "Result should be a PhysicalNode");
     }
 
     @Test
     void shouldHandleComplexNestedScenariosWithMultipleRules() {
         // Create indexes for age and name
         IndexDefinition ageIndex = IndexDefinition.create(
-                "age-index", "age", BsonType.INT32, SortOrder.ASCENDING
+                "age-index", "age", BsonType.INT32
         );
         IndexDefinition nameIndex = IndexDefinition.create(
-                "name-index", "name", BsonType.STRING, SortOrder.ASCENDING
+                "name-index", "name", BsonType.STRING
         );
         createIndexes(ageIndex, nameIndex);
 

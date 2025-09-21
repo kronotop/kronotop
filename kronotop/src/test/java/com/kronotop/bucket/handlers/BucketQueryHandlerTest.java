@@ -18,7 +18,6 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
@@ -26,7 +25,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import org.bson.Document;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -36,7 +34,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     @Test
-    @Disabled
     void shouldDoPhysicalFullScanWithoutOperator() {
         Map<String, byte[]> expectedDocument = insertDocuments(List.of(DOCUMENT));
 
@@ -44,11 +41,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(expectedDocument.size(), actualMessage.children().size());
         for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
             // Check key
@@ -64,7 +61,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoPhysicalFullScanWithoutOperator_RESP2() {
         Map<String, byte[]> expectedDocument = insertDocuments(List.of(DOCUMENT));
 
@@ -72,11 +68,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP2);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
-        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) ((ArrayRedisMessage) msg).children().get(1);
         int index = 0;
         String latestId = "";
         for (RedisMessage entry : actualMessage.children()) {
@@ -97,7 +93,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_EQ() {
         Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(3));
 
@@ -109,11 +104,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, String.format("{_id: {$eq: \"%s\"}}", expectedKey), BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$eq: \"%s\"}}", expectedKey)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(1, actualMessage.children().size());
         for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
             assertInstanceOf(SimpleStringRedisMessage.class, entry.getKey());
@@ -129,7 +124,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_GTE() {
         Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(10));
 
@@ -142,11 +136,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, String.format("{_id: {$gte: \"%s\"}}", key), BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$gte: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(6, actualMessage.children().size());
         int index = 4;
         for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
@@ -165,7 +159,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_GT() {
         Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(10));
 
@@ -177,11 +170,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, String.format("{_id: {$gt: \"%s\"}}", key), BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$gt: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(5, actualMessage.children().size());
         int index = 5;
         for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
@@ -200,7 +193,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_LT() {
         Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(10));
 
@@ -214,11 +206,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Query should retrieve the first two documents we inserted
-        cmd.query(BUCKET_NAME, String.format("{_id: {$lt: \"%s\"}}", key), BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$lt: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
 
         assertEquals(4, actualMessage.children().size());
 
@@ -240,7 +232,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_LTE() {
         Map<String, byte[]> expectedDocument = insertDocuments(makeDummyDocument(10));
 
@@ -254,11 +245,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Query should retrieve the first two documents we inserted
-        cmd.query(BUCKET_NAME, String.format("{_id: {$lte: \"%s\"}}", key), BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, String.format("{_id: {$lte: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
 
         assertEquals(5, actualMessage.children().size());
         int index = 0;
@@ -283,7 +274,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     // ========================================================================
 
     @Test
-    @Disabled
     void shouldDoFullScanWithStringFieldFilter_EQ() {
         // Insert documents with varying string field values
         List<byte[]> documents = List.of(
@@ -298,11 +288,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"name\": {\"$eq\": \"Alice\"}}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"name\": {\"$eq\": \"Alice\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(2, actualMessage.children().size(), "Should find 2 documents with name 'Alice'");
 
         // Verify that all returned documents have name = "Alice"
@@ -319,7 +309,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoFullScanWithNumericFieldFilter_GTE() {
         // Insert documents with varying numeric field values
         List<byte[]> documents = List.of(
@@ -335,11 +324,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"age\": {\"$gte\": 30}}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"age\": {\"$gte\": 30}}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(3, actualMessage.children().size(), "Should find 3 documents with age >= 30");
 
         // Verify all returned documents have age >= 30
@@ -356,7 +345,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoFullScanWithSelectiveFilter_InternalScanningEdgeCase() {
         // This tests the critical edge case we fixed: selective filters that match few documents
         // Insert many documents where only the last one matches
@@ -378,11 +366,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"category\": \"SPECIAL\"}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"category\": \"SPECIAL\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(1, actualMessage.children().size(), "Should find exactly 1 document with category 'SPECIAL'");
 
         // Verify the returned document is the special one
@@ -398,7 +386,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoFullScanWithBooleanFieldFilter() {
         // Insert documents with boolean fields
         List<byte[]> documents = List.of(
@@ -413,11 +400,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"active\": true}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"active\": true}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(2, actualMessage.children().size(), "Should find 2 documents with active = true");
 
         // Verify returned documents have active = true (Alice and Charlie)
@@ -435,7 +422,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoFullScanWithRangeQuery_AND_Optimization() {
         // Test range queries that should be optimized to PhysicalRangeScan
         List<byte[]> documents = List.of(
@@ -453,12 +439,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Range query: 70 <= score <= 90
-        cmd.query(BUCKET_NAME, "{\"$and\": [{\"score\": {\"$gte\": 70}}, {\"score\": {\"$lte\": 90}}]}",
-                BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"$and\": [{\"score\": {\"$gte\": 70}}, {\"score\": {\"$lte\": 90}}]}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(3, actualMessage.children().size(), "Should find 3 documents with score 70-90");
 
         // Verify returned documents are Alice (75), Bob (85), Eve (90)
@@ -479,7 +464,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoFullScanWithNoMatchingDocuments() {
         // Test the case where filter matches no documents - should return empty without infinite loops
         List<byte[]> documents = List.of(
@@ -493,16 +477,15 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"category\": \"NONEXISTENT_TYPE\"}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"category\": \"NONEXISTENT_TYPE\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(0, actualMessage.children().size(), "Should find no documents for nonexistent category");
     }
 
     @Test
-    @Disabled
     void shouldDoFullScanWithComplexDocument_NestedFields() {
         // Test full scan with more complex document structures
         List<byte[]> documents = List.of(
@@ -516,11 +499,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"status\": \"active\"}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"status\": \"active\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(2, actualMessage.children().size(), "Should find 2 documents with status 'active'");
 
         // Verify returned documents have status = "active" (Alice and Charlie)
@@ -540,7 +523,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldDoFullScanWithMixedDataTypes() {
         // Test full scan with various BSON data types
         List<byte[]> documents = List.of(
@@ -555,11 +537,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"priority\": 1}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"priority\": 1}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(2, actualMessage.children().size(), "Should find 2 documents with priority = 1");
 
         // Verify returned documents have priority = 1
@@ -575,7 +557,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldHandleFullScanWithLargeResultSet() {
         // Test full scan performance with larger dataset
         List<byte[]> documents = new ArrayList<>();
@@ -596,11 +577,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"tier\": \"GOLD\"}", BucketQueryArgs.Builder.shard(SHARD_ID)).encode(buf);
+        cmd.query(BUCKET_NAME, "{\"tier\": \"GOLD\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
         assertEquals(matchingDocs, actualMessage.children().size(), "Should find all GOLD tier documents");
 
         // Verify all returned documents are GOLD tier

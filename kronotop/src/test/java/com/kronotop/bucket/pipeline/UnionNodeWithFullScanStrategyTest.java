@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2023-2025 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
@@ -127,26 +143,26 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
         // Insert 200 documents with controlled distribution for OR query: age > 25 OR name = 'John'
         List<byte[]> documents = new ArrayList<>();
         String[] names = {"Alice", "Bob", "Charlie", "Diana", "Eve", "Frank"};
-        
+
         // Group 1: John with age <= 25 (matches name condition only) - 20 documents
         for (int i = 1; i <= 20; i++) {
             int age = 20 + (i % 6); // ages 20-25
             documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'age': %d, 'name': 'John'}", age)));
         }
-        
+
         // Group 2: John with age > 25 (matches both conditions) - 20 documents  
         for (int i = 1; i <= 20; i++) {
             int age = 26 + i; // ages 27-46
             documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'age': %d, 'name': 'John'}", age)));
         }
-        
+
         // Group 3: Non-John with age > 25 (matches age condition only) - 140 documents
         for (int i = 1; i <= 140; i++) {
             int age = 26 + (i % 30); // ages 26-55
             String name = names[i % names.length];
             documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'age': %d, 'name': '%s'}", age, name)));
         }
-        
+
         // Group 4: Non-John with age <= 25 (matches neither condition) - 20 documents
         for (int i = 1; i <= 20; i++) {
             int age = 15 + (i % 11); // ages 15-25
@@ -159,35 +175,35 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
         // Execute query with limit=2 and analyze each batch
         PipelineNode plan = createExecutionPlan(metadata, "{ $or: [ { 'age': { '$gt': 25 } }, { 'name': { '$eq': 'John' } } ] }");
-        
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             QueryOptions config = QueryOptions.builder().limit(2).build();
             QueryContext ctx = new QueryContext(metadata, config, plan);
-            
+
             int iterationCount = 0;
             int totalRetrieved = 0;
             List<String> allBatchContents = new ArrayList<>();
-            
+
             // EXPECTED CALCULATION:
             // - Total matching documents: 180 (20 John≤25 + 20 John>25 + 140 Non-John>25)
             // - Limit per iteration: 2
             // - Expected iterations: 180/2 = 90 iterations
             // - Each batch should have 2 documents (except possibly last)
-            
+
             System.out.printf("EXPECTED: 180 total matches (>150), limit=2, should need 90 iterations%n%n");
-            
+
             // Execute in loop to track ALL batches and iterations
             while (true) {
                 iterationCount++;
                 Map<?, ByteBuffer> batchResults = readExecutor.execute(tr, ctx);
-                
+
                 if (batchResults.isEmpty()) {
                     System.out.printf("Batch %d: Retrieved 0 documents [EMPTY - END]%n", iterationCount);
                     break; // No more results
                 }
-                
+
                 System.out.printf("Batch %d: Retrieved %d documents%n", iterationCount, batchResults.size());
-                
+
                 for (ByteBuffer buffer : batchResults.values()) {
                     buffer.rewind();
                     String json = BSONUtil.fromBson(buffer.array()).toJson();
@@ -198,12 +214,12 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
                     totalRetrieved++;
                 }
             }
-            
+
             // Verify batch analysis results - we'll check the actual count
             // assertEquals will be done after we compare with full query
             int actualIterations = iterationCount - 1; // -1 because final iteration is empty
             int expectedIterations = totalRetrieved / 2; // Should be totalRetrieved/2 with limit=2
-            
+
             // Verify each retrieved document matches the OR condition
             for (String json : allBatchContents) {
                 boolean isJohn = json.contains("\"name\": \"John\"");
@@ -212,9 +228,9 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
                 if (endIdx == -1) endIdx = json.indexOf("}", startIdx);
                 int age = Integer.parseInt(json.substring(startIdx, endIdx).trim());
                 boolean ageGt25 = age > 25;
-                
-                assertTrue(isJohn || ageGt25, 
-                    String.format("Document should match OR condition: %s", json));
+
+                assertTrue(isJohn || ageGt25,
+                        String.format("Document should match OR condition: %s", json));
             }
 
             // Now test full query to verify total count
@@ -227,7 +243,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
             // Use the actual full query result for comparison
             assertEquals(fullResults.size(), totalRetrieved,
-                String.format("Batch iteration (%d) should match full query (%d)", totalRetrieved, fullResults.size()));
+                    String.format("Batch iteration (%d) should match full query (%d)", totalRetrieved, fullResults.size()));
 
             System.out.printf("%nBatch Analysis Summary:%n");
             System.out.printf("- Total documents in dataset: 200%n");
@@ -237,10 +253,10 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             System.out.printf("- Documents per iteration: %.1f%n", (double) totalRetrieved / (iterationCount - 1));
             System.out.printf("- Match rate: %.1f%%%n", (double) totalRetrieved / documents.size() * 100);
             System.out.printf("- VERIFICATION: Expected %d iterations, got %d%n", expectedIterations, actualIterations);
-            
+
             // Final verification
-            assertEquals(expectedIterations, actualIterations, 
-                String.format("Should need exactly %d iterations for %d docs with limit=2", expectedIterations, totalRetrieved));
+            assertEquals(expectedIterations, actualIterations,
+                    String.format("Should need exactly %d iterations for %d docs with limit=2", expectedIterations, totalRetrieved));
         }
     }
 
@@ -253,26 +269,26 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
         // Insert 200 documents with controlled distribution for OR query: age > 25 OR name = 'John'
         List<byte[]> documents = new ArrayList<>();
         String[] names = {"Alice", "Bob", "Charlie", "Diana", "Eve", "Frank"};
-        
+
         // Group 1: John with age <= 25 (matches name condition only) - 20 documents
         for (int i = 1; i <= 20; i++) {
             int age = 20 + (i % 6); // ages 20-25
             documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'age': %d, 'name': 'John'}", age)));
         }
-        
+
         // Group 2: John with age > 25 (matches both conditions) - 20 documents  
         for (int i = 1; i <= 20; i++) {
             int age = 26 + i; // ages 27-46
             documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'age': %d, 'name': 'John'}", age)));
         }
-        
+
         // Group 3: Non-John with age > 25 (matches age condition only) - 140 documents
         for (int i = 1; i <= 140; i++) {
             int age = 26 + (i % 30); // ages 26-55
             String name = names[i % names.length];
             documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'age': %d, 'name': '%s'}", age, name)));
         }
-        
+
         // Group 4: Non-John with age <= 25 (matches neither condition) - 20 documents
         for (int i = 1; i <= 20; i++) {
             int age = 15 + (i % 11); // ages 15-25
@@ -285,35 +301,35 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
         // Execute query with limit=2, REVERSE=true and analyze each batch
         PipelineNode plan = createExecutionPlan(metadata, "{ $or: [ { 'age': { '$gt': 25 } }, { 'name': { '$eq': 'John' } } ] }");
-        
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             QueryOptions config = QueryOptions.builder().limit(2).reverse(true).build();
             QueryContext ctx = new QueryContext(metadata, config, plan);
-            
+
             int iterationCount = 0;
             int totalRetrieved = 0;
             List<String> allBatchContents = new ArrayList<>();
-            
+
             // EXPECTED CALCULATION:
             // - Total matching documents: 180 (20 John≤25 + 20 John>25 + 140 Non-John>25)
             // - Limit per iteration: 2
             // - Expected iterations: 180/2 = 90 iterations
             // - REVERSE=true: Should get documents in reverse order (highest age/versionstamp first)
-            
+
             System.out.printf("EXPECTED REVERSE: 180 total matches (>150), limit=2, should need 90 iterations, REVERSE ORDER%n%n");
-            
+
             // Execute in loop to track ALL batches and iterations
             while (true) {
                 iterationCount++;
                 Map<?, ByteBuffer> batchResults = readExecutor.execute(tr, ctx);
-                
+
                 if (batchResults.isEmpty()) {
                     System.out.printf("Batch %d: Retrieved 0 documents [EMPTY - END]%n", iterationCount);
                     break; // No more results
                 }
-                
+
                 System.out.printf("Batch %d: Retrieved %d documents%n", iterationCount, batchResults.size());
-                
+
                 for (ByteBuffer buffer : batchResults.values()) {
                     buffer.rewind();
                     String json = BSONUtil.fromBson(buffer.array()).toJson();
@@ -323,16 +339,16 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
                     }
                     totalRetrieved++;
                 }
-                
+
                 if (iterationCount == 4 && totalRetrieved < 180) {
                     System.out.printf("  ... [skipping middle batches for brevity] ...%n");
                 }
             }
-            
+
             // Verify batch analysis results - we'll check the actual count
             int actualIterations = iterationCount - 1; // -1 because final iteration is empty
             int expectedIterations = totalRetrieved / 2; // Should be totalRetrieved/2 with limit=2
-            
+
             // Verify each retrieved document matches the OR condition
             for (String json : allBatchContents) {
                 boolean isJohn = json.contains("\"name\": \"John\"");
@@ -341,9 +357,9 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
                 if (endIdx == -1) endIdx = json.indexOf("}", startIdx);
                 int age = Integer.parseInt(json.substring(startIdx, endIdx).trim());
                 boolean ageGt25 = age > 25;
-                
-                assertTrue(isJohn || ageGt25, 
-                    String.format("Document should match OR condition: %s", json));
+
+                assertTrue(isJohn || ageGt25,
+                        String.format("Document should match OR condition: %s", json));
             }
 
             // Now test full query to verify total count
@@ -356,11 +372,11 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
             // Use the actual full query result for comparison
             assertEquals(fullResults.size(), totalRetrieved,
-                String.format("Batch iteration (%d) should match full query (%d)", totalRetrieved, fullResults.size()));
+                    String.format("Batch iteration (%d) should match full query (%d)", totalRetrieved, fullResults.size()));
 
             // Verify we got at least 150 matches as originally required
-            assertTrue(totalRetrieved >= 150, 
-                String.format("Should have at least 150 matches, got %d", totalRetrieved));
+            assertTrue(totalRetrieved >= 150,
+                    String.format("Should have at least 150 matches, got %d", totalRetrieved));
 
             // Verify reverse order - first document should have higher values than last
             if (!allBatchContents.isEmpty()) {
@@ -378,10 +394,10 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             System.out.printf("- Match rate: %.1f%%%n", (double) totalRetrieved / documents.size() * 100);
             System.out.printf("- VERIFICATION: Expected %d iterations, got %d%n", expectedIterations, actualIterations);
             System.out.printf("- REVERSE ORDER: Documents retrieved in reverse sort order%n");
-            
+
             // Final verification
-            assertEquals(expectedIterations, actualIterations, 
-                String.format("Should need exactly %d iterations for %d docs with limit=2", expectedIterations, totalRetrieved));
+            assertEquals(expectedIterations, actualIterations,
+                    String.format("Should need exactly %d iterations for %d docs with limit=2", expectedIterations, totalRetrieved));
         }
     }
 }

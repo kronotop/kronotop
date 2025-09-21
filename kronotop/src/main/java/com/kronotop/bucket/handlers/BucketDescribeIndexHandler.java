@@ -42,7 +42,7 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 @Command(BucketDescribeIndexMessage.COMMAND)
 @MinimumParameterCount(BucketDescribeIndexMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(BucketDescribeIndexMessage.MAXIMUM_PARAMETER_COUNT)
-public class BucketDescribeIndexHandler extends BaseBucketHandler implements Handler {
+public class BucketDescribeIndexHandler extends AbstractBucketHandler implements Handler {
     public BucketDescribeIndexHandler(BucketService service) {
         super(service);
     }
@@ -56,10 +56,6 @@ public class BucketDescribeIndexHandler extends BaseBucketHandler implements Han
         description.put(
                 new SimpleStringRedisMessage("bson_type"),
                 new SimpleStringRedisMessage(definition.bsonType().name())
-        );
-        description.put(
-                new SimpleStringRedisMessage("sort_order"),
-                new SimpleStringRedisMessage(definition.sortOrder().name())
         );
 
         Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();

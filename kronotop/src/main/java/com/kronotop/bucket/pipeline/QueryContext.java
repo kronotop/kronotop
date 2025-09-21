@@ -23,10 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Consumer;
 
 /**
  * Context object that holds all necessary information and state for executing
@@ -100,19 +97,14 @@ public class QueryContext {
 
     private final Lock postCommitHooksLock = new ReentrantLock(true);
     private final List<CommitHook> postCommitHooks = new ArrayList<>();
-
-    private volatile int currentNodeId;
-
     /**
      * The execution plan as a tree of pipeline nodes.
      */
     private final PipelineNode plan;
-
     /**
      * Immutable query configuration options.
      */
     private final QueryOptions options;
-
     /**
      * A registry that holds and manages data sinks utilized during query execution.
      * The registry provides access to existing sinks related to specific pipeline nodes
@@ -128,7 +120,7 @@ public class QueryContext {
      * - Writing entries or locations to the appropriate sink type.
      */
     private final DataSinkRegistry sinks = new DataSinkRegistry();
-
+    private volatile int currentNodeId;
     /**
      * Pipeline environment providing access to services and utilities.
      * Set lazily during execution and cached for reuse.

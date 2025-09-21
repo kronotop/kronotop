@@ -48,7 +48,7 @@ public class IndexBuilder {
         byte[] value = indexEntry.encode();
 
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value);
-        IndexUtil.increaseCardinality(tr, metadata.subspace(), definition.id());
+        IndexUtil.mutateCardinality(tr, metadata.subspace(), definition.id(), 1);
     }
 
     /**
@@ -62,10 +62,11 @@ public class IndexBuilder {
      * @throws KronotopException if the required ID index subspace cannot be found in the metadata indexes.
      */
     public static void setPrimaryIndexEntry(Transaction tr, int shardId, BucketMetadata metadata, AppendedEntry[] entries) {
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
-        if (indexSubspace == null) {
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }
+        DirectorySubspace indexSubspace = index.subspace();
 
         for (AppendedEntry entry : entries) {
             Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), Versionstamp.incomplete(entry.userVersion()));
@@ -94,10 +95,11 @@ public class IndexBuilder {
             Object indexValue,
             AppendedEntry entry
     ) {
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(definition.selector());
-        if (indexSubspace == null) {
+        Index index = metadata.indexes().getIndex(definition.selector());
+        if (index == null) {
             throw new KronotopException("Index '" + definition.name() + "' not found");
         }
+        DirectorySubspace indexSubspace = index.subspace();
 
         Tuple entryKeyTuple = Tuple.from(
                 IndexSubspaceMagic.ENTRIES.getValue(),
@@ -117,14 +119,15 @@ public class IndexBuilder {
     }
 
     public static void dropPrimaryIndex(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
-        if (indexSubspace == null) {
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }
+        DirectorySubspace indexSubspace = index.subspace();
         Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), versionstamp);
         byte[] key = indexSubspace.pack(tuple);
         tr.clear(key);
-        IndexUtil.decreaseCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
+        IndexUtil.mutateCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id(), -1);
     }
 
     public static void dropIndexEntry(
@@ -148,7 +151,7 @@ public class IndexBuilder {
             tr.clear(indexKey);
             total--;
         }
-        IndexUtil.cardinalityCommon(tr, metadataSubspace, definition.id(), total);
+        IndexUtil.mutateCardinality(tr, metadataSubspace, definition.id(), total);
         // Drop the back pointers
         tr.clear(begin.getKey(), end.getKey());
     }
@@ -179,10 +182,11 @@ public class IndexBuilder {
             int shardId,
             byte[] entryMetadata
     ) {
-        DirectorySubspace indexSubspace = metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector());
-        if (indexSubspace == null) {
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }
+        DirectorySubspace indexSubspace = index.subspace();
         Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), versionstamp);
         byte[] key = indexSubspace.pack(tuple);
         IndexEntry indexEntry = new IndexEntry(shardId, entryMetadata);
@@ -194,10 +198,10 @@ public class IndexBuilder {
      * This method sets both the index entry and back pointer directly using the given versionstamp,
      * rather than relying on FoundationDB's versionstamp generation.
      *
-     * @param tr          The transaction object used to perform mutations against the database.
+     * @param tr           The transaction object used to perform mutations against the database.
      * @param versionstamp The versionstamp to be used as part of both the index entry key and back pointer key.
-     * @param container   The container object holding necessary metadata, index value, subspaces, shard ID,
-     *                    and entry metadata required for constructing and storing the index entry and back pointer.
+     * @param container    The container object holding necessary metadata, index value, subspaces, shard ID,
+     *                     and entry metadata required for constructing and storing the index entry and back pointer.
      */
     public static void setIndexEntryByVersionstamp(Transaction tr, Versionstamp versionstamp, IndexEntryContainer container) {
         Tuple indexKeyTuple = Tuple.from(
@@ -219,5 +223,7 @@ public class IndexBuilder {
 
         byte[] backPointer = container.indexSubspace().pack(backPointerTuple);
         tr.set(backPointer, NULL_VALUE);
+
+        IndexUtil.mutateCardinality(tr, container.metadata().subspace(), container.indexDefinition().id(), 1);
     }
 }

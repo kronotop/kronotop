@@ -1,10 +1,25 @@
+/*
+ * Copyright (c) 2023-2025 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +35,7 @@ class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testIntersectionWithTwoFieldsAndSingleIndex() {
         final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-single-index";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -53,7 +68,7 @@ class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testIntersectionWithBatchedIterationAndLimit() {
         final String TEST_BUCKET_NAME = "test-intersection-batched-iteration";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 20 documents with 7 matching the query criteria
@@ -121,7 +136,7 @@ class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testIntersectionWithBatchedIterationAndLimitReverse() {
         final String TEST_BUCKET_NAME = "test-intersection-batched-iteration-reverse";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 20 documents with 7 matching the query criteria
@@ -185,8 +200,8 @@ class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testIntersectionWithTwoFieldsAndDoubleIndex() {
         final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-double-index";
 
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert multiple documents with different field types and values
@@ -219,8 +234,8 @@ class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     void testIntersectionWithRangeScanAndDoubleIndex() {
         final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-double-index";
 
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING, SortOrder.ASCENDING);
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert multiple documents with different field types and values

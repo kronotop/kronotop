@@ -18,10 +18,7 @@ package com.kronotop.commandbuilder.kronotop;
 
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.output.GenericMapOutput;
-import io.lettuce.core.output.ListOfGenericMapsOutput;
-import io.lettuce.core.output.StatusOutput;
-import io.lettuce.core.output.StringListOutput;
+import io.lettuce.core.output.*;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 import io.lettuce.core.protocol.ProtocolKeyword;
@@ -76,21 +73,32 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
     }
 
-    public final Command<K, V, List<String>> query(String bucket, String query) {
+    public final Command<K, V, Map<K, V>> query(String bucket, String query) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
-        return createCommand(CommandType.QUERY, new StringListOutput<>(codec), args);
+        return createCommand(CommandType.QUERY, new MapOutput<>(codec), args);
     }
 
-    public final Command<K, V, List<String>> query(String bucket, String query, BucketQueryArgs bucketQueryArgs) {
+    public final Command<K, V, Map<K, V>> query(String bucket, String query, BucketQueryArgs bucketQueryArgs) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
         if (bucketQueryArgs != null) {
             bucketQueryArgs.build(args);
         }
-        return createCommand(CommandType.QUERY, new StringListOutput<>(codec), args);
+        return createCommand(CommandType.QUERY, new MapOutput<>(codec), args);
     }
 
-    public final Command<K, V, List<String>> advance() {
-        return createCommand(CommandType.BUCKET_ADVANCE, new StringListOutput<>(codec));
+    public final Command<K, V, Map<K, V>> advanceQuery(int cursorId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add("QUERY").add(cursorId);
+        return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
+    }
+
+    public final Command<K, V, List<K>> advanceDelete(int cursorId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add("DELETE").add(cursorId);
+        return createCommand(CommandType.BUCKET_ADVANCE, new KeyListOutput<>(codec), args);
+    }
+
+    public final Command<K, V, List<K>> advanceUpdate(int cursorId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add("UPDATE").add(cursorId);
+        return createCommand(CommandType.BUCKET_ADVANCE, new KeyListOutput<>(codec), args);
     }
 
     public Command<String, String, Map<String, Object>> hello(int protocolVersion) {
@@ -120,9 +128,23 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_DROP_INDEX, new StatusOutput<>(codec), args);
     }
 
+    public final Command<K, V, Map<K, V>> delete(String bucket, String query) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
+        return createCommand(CommandType.BUCKET_DELETE, new MapOutput<>(codec), args);
+    }
+
+    public final Command<K, V, Map<K, V>> delete(String bucket, String query, BucketQueryArgs bucketQueryArgs) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
+        if (bucketQueryArgs != null) {
+            bucketQueryArgs.build(args);
+        }
+        return createCommand(CommandType.BUCKET_DELETE, new MapOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         BUCKET_INSERT("BUCKET.INSERT"),
         BUCKET_QUERY("BUCKET.QUERY"),
+        BUCKET_DELETE("BUCKET.DELETE"),
         QUERY("QUERY"),
         BUCKET_ADVANCE("BUCKET.ADVANCE"),
         BUCKET_CREATE_INDEX("BUCKET.CREATE-INDEX"),

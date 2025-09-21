@@ -1,20 +1,32 @@
+/*
+ * Copyright (c) 2023-2025 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class IndexScanNodeBatchingTest extends BasePipelineTest {
     @Test
@@ -22,7 +34,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 21 documents with age > 22 (ages 23-43)
@@ -71,15 +83,15 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
                 }
 
                 nonEmptyBatchCount++;
-                
+
                 if (nonEmptyBatchCount <= 10) {
                     // First 10 batches should have 2 documents each
-                    assertEquals(2, results.size(), 
-                        String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
+                    assertEquals(2, results.size(),
+                            String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
                 } else if (nonEmptyBatchCount == 11) {
                     // Last batch should have 1 document (21 total / 2 per batch = 10 full batches + 1 partial)
-                    assertEquals(1, results.size(), 
-                        "Last batch should contain exactly 1 document");
+                    assertEquals(1, results.size(),
+                            "Last batch should contain exactly 1 document");
                 }
 
                 totalProcessedDocuments += results.size();
@@ -103,7 +115,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gte";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 21 documents with ages 23-43
@@ -153,15 +165,15 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
                 }
 
                 nonEmptyBatchCount++;
-                
+
                 if (nonEmptyBatchCount <= 5) {
                     // First 5 batches should have 2 documents each (10 documents total)
-                    assertEquals(2, results.size(), 
-                        String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
+                    assertEquals(2, results.size(),
+                            String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
                 } else if (nonEmptyBatchCount == 6) {
                     // Last batch should have 1 document (11 total / 2 per batch = 5 full batches + 1 partial)
-                    assertEquals(1, results.size(), 
-                        "Last batch should contain exactly 1 document");
+                    assertEquals(1, results.size(),
+                            "Last batch should contain exactly 1 document");
                 }
 
                 totalProcessedDocuments += results.size();
@@ -177,7 +189,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
             assertEquals(6, nonEmptyBatchCount, "Should have 6 non-empty batches total (5 with 2 docs + 1 with 1 doc)");
             assertEquals(7, totalIterations, "Should have 7 total iterations (6 non-empty + 1 empty)");
             assertEquals(11, totalProcessedDocuments, "Should process exactly 11 documents total with age >= 33");
-            
+
             // Verify specific age range was processed
             assertEquals(11, totalProcessedDocuments, "Should match exactly 11 documents with ages 33-43");
         }
@@ -188,7 +200,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gte-reverse";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 21 documents with ages 23-43
@@ -239,15 +251,15 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
                 }
 
                 nonEmptyBatchCount++;
-                
+
                 if (nonEmptyBatchCount <= 5) {
                     // First 5 batches should have 2 documents each (10 documents total)
-                    assertEquals(2, results.size(), 
-                        String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
+                    assertEquals(2, results.size(),
+                            String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
                 } else if (nonEmptyBatchCount == 6) {
                     // Last batch should have 1 document (11 total / 2 per batch = 5 full batches + 1 partial)
-                    assertEquals(1, results.size(), 
-                        "Last batch should contain exactly 1 document");
+                    assertEquals(1, results.size(),
+                            "Last batch should contain exactly 1 document");
                 }
 
                 totalProcessedDocuments += results.size();
@@ -265,7 +277,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
             assertEquals(6, nonEmptyBatchCount, "Should have 6 non-empty batches total (5 with 2 docs + 1 with 1 doc)");
             assertEquals(7, totalIterations, "Should have 7 total iterations (6 non-empty + 1 empty)");
             assertEquals(11, totalProcessedDocuments, "Should process exactly 11 documents total with age >= 33");
-            
+
             // Verify specific age range was processed in reverse order
             assertEquals(11, totalProcessedDocuments, "Should match exactly 11 documents with ages 33-43 in reverse order");
         }
@@ -285,7 +297,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-200-docs";
 
         // Create an age index for this test (this is the key difference from FullScanNodeTest)
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 200 documents with ages 0-199
@@ -384,7 +396,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-200-docs-reverse";
 
         // Create an age index for this test (this is the key difference from FullScanNodeTest)
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 200 documents with ages 0-199

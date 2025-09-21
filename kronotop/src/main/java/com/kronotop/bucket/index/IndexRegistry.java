@@ -21,7 +21,10 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.CachedTimeService;
 import com.kronotop.Context;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The IndexRegistry class is responsible for managing and organizing index-related operations
@@ -30,8 +33,7 @@ import java.util.*;
  */
 public class IndexRegistry {
     private final CachedTimeService cachedTime;
-    private final Map<String, IndexBundle> indexBundleBySelectors = new HashMap<>();
-    private Set<String> selectors = new HashSet<>();
+    private final Map<String, Index> indexesBySelectors = new HashMap<>();
     private volatile Map<Long, IndexStatistics> statistics;
     private volatile long statsLastRefreshedAt;
 
@@ -40,34 +42,21 @@ public class IndexRegistry {
     }
 
     public void register(IndexDefinition definition, DirectorySubspace subspace) {
-        IndexBundle bundle = new IndexBundle(definition, subspace);
-        indexBundleBySelectors.put(definition.selector(), bundle);
-        selectors = Collections.unmodifiableSet(indexBundleBySelectors.keySet());
+        Index bundle = new Index(definition, subspace);
+        indexesBySelectors.put(definition.selector(), bundle);
     }
 
-    public DirectorySubspace getSubspace(String selector) {
-        IndexBundle bundle = indexBundleBySelectors.get(selector);
-        if (bundle == null) {
-            return null;
-        }
-        return bundle.subspace;
+    public Index getIndex(String selector) {
+        return indexesBySelectors.get(selector);
     }
 
-    public IndexDefinition getIndexBySelector(String selector) {
-        IndexBundle bundle = indexBundleBySelectors.get(selector);
-        if (bundle == null) {
-            return null;
-        }
-        return bundle.definition;
+    public Collection<Index> getIndexes() {
+        return Collections.unmodifiableCollection(indexesBySelectors.values());
     }
 
     public void updateStatistics(Map<Long, IndexStatistics> statistics) {
         this.statistics = statistics;
         this.statsLastRefreshedAt = cachedTime.getCurrentTimeInMilliseconds();
-    }
-
-    public Set<String> getSelectors() {
-        return selectors;
     }
 
     public IndexStatistics getStatistics(long id) {
@@ -76,8 +65,5 @@ public class IndexRegistry {
 
     public long getStatsLastRefreshedAt() {
         return statsLastRefreshedAt;
-    }
-
-    record IndexBundle(IndexDefinition definition, DirectorySubspace subspace) {
     }
 }

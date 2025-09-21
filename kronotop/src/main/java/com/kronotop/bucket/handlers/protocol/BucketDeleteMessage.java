@@ -20,29 +20,35 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
-public class BucketDescribeIndexMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
-    public static final String COMMAND = "BUCKET.DESCRIBE-INDEX";
+public class BucketDeleteMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
+    public static final String COMMAND = "BUCKET.DELETE";
+    public static final int MAXIMUM_PARAMETER_COUNT = 4;
     public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
     private final Request request;
+    private String query;
     private String bucket;
-    private String index;
+    private QueryArguments arguments;
 
-    public BucketDescribeIndexMessage(Request request) {
+    public BucketDeleteMessage(Request request) {
         this.request = request;
         parse();
     }
 
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
-        index = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+        query = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+        arguments = parseCommonQueryArguments(request, 2);
+    }
+
+    public QueryArguments getArguments() {
+        return arguments;
+    }
+
+    public String getQuery() {
+        return query;
     }
 
     public String getBucket() {
         return bucket;
-    }
-
-    public String getIndex() {
-        return index;
     }
 }

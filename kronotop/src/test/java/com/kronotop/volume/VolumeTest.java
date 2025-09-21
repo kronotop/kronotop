@@ -1087,4 +1087,89 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         assertEquals(expected, result);
     }
+
+    @Test
+    void test_volume_initialization_sets_non_zero_id() {
+        // Test that volume initialization correctly sets a non-zero ID in VolumeMetadata
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeMetadata metadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+
+            // The initialize() method should have set a non-zero ID during volume construction
+            assertNotEquals(0, metadata.getId(), "Volume ID should not be 0 after initialization");
+
+            // Verify the ID is actually a valid integer (not zero)
+            assertTrue(metadata.getId() != 0, "Volume ID must be set to a non-zero value");
+
+            // Test that the ID persists across metadata loads
+            VolumeMetadata reloadedMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+            assertEquals(metadata.getId(), reloadedMetadata.getId(), "Volume ID should be consistent across loads");
+        }
+    }
+
+    @Test
+    void test_openSegments_prevents_unnecessary_segment_creation() throws IOException {
+        // Test that openSegments correctly opens existing segments and prevents creating new segments on reopen
+
+        // Create initial volume and append data to force segment creation
+        ByteBuffer[] initialEntries = getEntries(5);
+        List<Long> segmentsAfterInitialAppend;
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            volume.append(session, initialEntries);
+            tr.commit().join();
+        }
+
+        // Check how many segments exist after initial append
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeMetadata metadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+            segmentsAfterInitialAppend = new ArrayList<>(metadata.getSegments());
+        }
+
+        assertFalse(segmentsAfterInitialAppend.isEmpty(), "Initial append should create at least one segment");
+
+        // Close the volume
+        volume.close();
+
+        // Reopen the volume (this calls openSegments in constructor)
+        Volume reopenedVolume = service.newVolume(volume.getConfig());
+
+        // Append new data to the reopened volume
+        ByteBuffer[] newEntries = getEntries(3);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            reopenedVolume.append(session, newEntries);
+            tr.commit().join();
+        }
+
+        List<Long> segmentsAfterReopen;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeMetadata metadata = VolumeMetadata.load(tr, reopenedVolume.getConfig().subspace());
+            segmentsAfterReopen = new ArrayList<>(metadata.getSegments());
+        }
+
+        // Verify that openSegments prevented unnecessary segment creation
+        // The segment count should be the same unless the existing segment was full
+        // In most cases, no new segments should be created for small appends
+        assertEquals(segmentsAfterInitialAppend, segmentsAfterReopen);
+
+        // Verify that we can still read the original data
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+
+            // Get all data using range scan to verify both old and new data are accessible
+            List<ByteBuffer> allRetrievedEntries = new ArrayList<>();
+            Iterable<KeyEntryPair> iterable = reopenedVolume.getRange(session);
+            for (KeyEntryPair keyEntry : iterable) {
+                allRetrievedEntries.add(keyEntry.entry());
+            }
+
+            // Should have initial entries + new entries
+            assertEquals(initialEntries.length + newEntries.length, allRetrievedEntries.size(),
+                    "Should be able to read all entries (original + new) after reopen");
+        }
+
+        // Clean up
+        reopenedVolume.close();
+    }
 }

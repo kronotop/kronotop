@@ -23,7 +23,7 @@ public record PhysicalNot(int id, PhysicalNode child) implements PhysicalNode {
     public <R> R accept(PhysicalPlanVisitor<R> visitor) {
         return visitor.visitNot(this);
     }
-    
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
@@ -31,7 +31,7 @@ public record PhysicalNot(int id, PhysicalNode child) implements PhysicalNode {
         return Objects.equals(child, other.child);
         // Note: id is intentionally excluded from comparison
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(child);

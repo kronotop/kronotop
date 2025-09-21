@@ -19,10 +19,10 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.CachedTimeService;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexStatistics;
 import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.bucket.index.SortOrder;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.server.Session;
@@ -51,7 +51,9 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         assertEquals(testBucketName, metadata.name());
         assertNotNull(metadata.subspace());
         assertNotNull(metadata.volumePrefix());
-        assertNotNull(metadata.indexes().getSubspace(DefaultIndexDefinition.ID.selector()));
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        assertNotNull(index);
+        assertNotNull(index.subspace());
         assertTrue(metadata.version() > 0);
     }
 
@@ -142,8 +144,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         final IndexDefinition numericIndexDefinition = IndexDefinition.create(
                 "numeric-index",
                 "numeric-selector",
-                BsonType.INT32,
-                SortOrder.ASCENDING
+                BsonType.INT32
         );
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -152,7 +153,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexUtil.increaseCardinality(tr, metadata.subspace(), numericIndexDefinition.id());
+            IndexUtil.mutateCardinality(tr, metadata.subspace(), numericIndexDefinition.id(), 1);
             tr.commit().join();
         }
 
@@ -163,7 +164,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
             @Override
             public void run() {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    IndexUtil.increaseCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
+                    IndexUtil.mutateCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id(), 1);
                     tr.commit().join();
                 }
                 latch.countDown();
@@ -215,7 +216,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, testBucketName);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexUtil.increaseCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
+            IndexUtil.mutateCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id(), 1);
             tr.commit().join();
         }
 
@@ -284,7 +285,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, testBucketName);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexUtil.increaseCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
+            IndexUtil.mutateCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id(), 1);
             tr.commit().join();
         }
 

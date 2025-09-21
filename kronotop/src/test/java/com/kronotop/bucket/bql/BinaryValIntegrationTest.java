@@ -21,6 +21,7 @@ import com.kronotop.bucket.planner.logical.LogicalPlanner;
 import org.junit.jupiter.api.Test;
 
 import java.util.Base64;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -170,7 +171,7 @@ class BinaryValIntegrationTest {
         // Test BinaryVal in $nin operator
         byte[] excludedData = {(byte) 0xDE, (byte) 0xAD, (byte) 0xBE, (byte) 0xEF};
 
-        BqlExpr query = new BqlNin("checksum", java.util.Arrays.asList(
+        BqlExpr query = new BqlNin("checksum", List.of(
                 new BinaryVal(excludedData)
         ));
 

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2023-2025 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
@@ -5,7 +21,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.SortOrder;
 import org.bson.BsonType;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
@@ -23,7 +38,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-batching-200-docs";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 200 documents with ages 1-200
@@ -81,7 +96,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         assertEquals(expectedMatches, allAges.size(), "Should have " + expectedMatches + " unique ages");
         assertEquals(51, allAges.iterator().next(), "First age should be 51");
         assertTrue(allAges.contains(170), "Should contain age 170");
-        
+
         // Verify sequential ages from 51 to 170
         List<Integer> sortedAges = new ArrayList<>(allAges);
         for (int i = 0; i < sortedAges.size(); i++) {
@@ -95,7 +110,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input-with-limit-and-reverse";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32, SortOrder.ASCENDING);
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -133,7 +148,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         ));
 
         int index = 0;
-        while(true) {
+        while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
                 if (results.isEmpty()) {

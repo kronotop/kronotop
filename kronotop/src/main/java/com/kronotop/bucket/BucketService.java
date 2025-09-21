@@ -53,6 +53,9 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     // The default ShardSelector is RoundRobinShardSelector.
     private final ShardSelector shardSelector = new RoundRobinShardSelector();
 
+    private final QueryExecutor queryExecutor;
+    private final Planner planner;
+
     public BucketService(Context context) {
         super(context, NAME);
         this.routing = context.getService(RoutingService.NAME);
@@ -68,9 +71,21 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         handlerMethod(ServerKind.EXTERNAL, new BucketListIndexesHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketDescribeIndexHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketDropIndexHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketDeleteHandler(this));
 
         routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
+
+        this.planner = new Planner();
+        this.queryExecutor = new QueryExecutor(this);
+    }
+
+    public QueryExecutor getQueryExecutor() {
+        return queryExecutor;
+    }
+
+    public Planner getPlanner() {
+        return planner;
     }
 
     /**

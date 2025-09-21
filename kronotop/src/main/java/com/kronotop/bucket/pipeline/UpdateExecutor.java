@@ -6,10 +6,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.index.IndexBuilder;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexEntry;
-import com.kronotop.bucket.index.IndexEntryContainer;
+import com.kronotop.bucket.index.*;
 import com.kronotop.volume.*;
 import org.bson.BsonValue;
 
@@ -163,15 +160,13 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
      *                               generate index entries and update metadata for unaffected indexes
      */
     private void updateUnaffectedIndexes(QueryContext ctx, Transaction tr, Map<Versionstamp, UpdateResultContainer> updateResultContainers) {
-        for (String selector : ctx.metadata().indexes().getSelectors()) {
+        for (Index index : ctx.metadata().indexes().getIndexes()) {
+            String selector = index.definition().selector();
             if (ctx.options().update().setOps().containsKey(selector) || ctx.options().update().unsetOps().contains(selector)) {
                 continue;
             }
             for (Map.Entry<Versionstamp, UpdateResultContainer> entry : updateResultContainers.entrySet()) {
-                DirectorySubspace unaffectedIndexSubspace = ctx.metadata().indexes().getSubspace(selector);
-                if (unaffectedIndexSubspace == null) {
-                    continue;
-                }
+                DirectorySubspace unaffectedIndexSubspace = index.subspace();
                 Versionstamp versionstamp = entry.getKey();
                 UpdateResultContainer updateResultContainer = entry.getValue();
                 IndexEntry indexEntry = new IndexEntry(updateResultContainer.getShardId(), updateResultContainer.getEntryMetadata());
@@ -231,11 +226,12 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         Map<String, BsonValue> newValues = updateResultContainer.getDocumentUpdateResult().newValues();
         for (Map.Entry<String, BsonValue> newValue : newValues.entrySet()) {
             String selector = newValue.getKey();
-            DirectorySubspace affectedIndex = ctx.metadata().indexes().getSubspace(selector);
-            if (affectedIndex == null) {
+            Index index = ctx.metadata().indexes().getIndex(selector);
+            if (index == null) {
                 continue;
             }
-            IndexDefinition indexDefinition = ctx.metadata().indexes().getIndexBySelector(selector);
+            DirectorySubspace affectedIndex = index.subspace();
+            IndexDefinition indexDefinition = index.definition();
 
             BsonValue value = updateResultContainer.getDocumentUpdateResult().newValues().get(selector);
             IndexEntryContainer indexEntryContainer = new IndexEntryContainer(
@@ -266,11 +262,12 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         matchedSelectors.addAll(updateResultContainer.getDocumentUpdateResult().newValues().keySet());
         matchedSelectors.addAll(updateResultContainer.getDocumentUpdateResult().droppedSelectors());
         for (String selector : matchedSelectors) {
-            DirectorySubspace affectedIndex = ctx.metadata().indexes().getSubspace(selector);
-            if (affectedIndex == null) {
+            Index index = ctx.metadata().indexes().getIndex(selector);
+            if (index == null) {
                 continue;
             }
-            IndexDefinition indexDefinition = ctx.metadata().indexes().getIndexBySelector(selector);
+            DirectorySubspace affectedIndex = index.subspace();
+            IndexDefinition indexDefinition = index.definition();
             IndexBuilder.dropIndexEntry(tr, versionstamp, indexDefinition, affectedIndex, ctx.metadata().subspace());
         }
     }

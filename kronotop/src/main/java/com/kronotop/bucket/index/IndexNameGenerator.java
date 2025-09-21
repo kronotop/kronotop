@@ -19,7 +19,7 @@ package com.kronotop.bucket.index;
 import org.bson.BsonType;
 
 public class IndexNameGenerator {
-    public static String generate(String field, BsonType bsonType, SortOrder sortOrder) {
-        return String.format("selector:%s.bsonType:%s.sortOrder:%s", field, bsonType, sortOrder);
+    public static String generate(String field, BsonType bsonType) {
+        return String.format("selector:%s.bsonType:%s", field, bsonType);
     }
 }

@@ -18,8 +18,9 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.*;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
+import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -29,7 +30,7 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketQueryMessage.COMMAND)
 @MinimumParameterCount(BucketQueryMessage.MINIMUM_PARAMETER_COUNT)
-public class BucketQueryHandler extends BaseBucketHandler implements Handler {
+public class BucketQueryHandler extends AbstractBucketHandler implements Handler {
 
     public BucketQueryHandler(BucketService service) {
         super(service);
@@ -44,30 +45,20 @@ public class BucketQueryHandler extends BaseBucketHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
-
             Session session = request.getSession();
+
+            QueryContext ctx = buildQueryContext(request, message.getBucket(), message.getQuery(), message.getArguments());
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, message.getBucket());
+            int cursorId = session.nextCursorId();
+            session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
-            QueryExecutorConfig config = new QueryExecutorConfig(metadata, message.getQuery());
-            if (message.getArguments().limit() == 0) {
-                config.setLimit(session.attr(SessionAttributes.LIMIT).get());
-            } else {
-                config.setLimit(message.getArguments().limit());
-            }
-            config.setReverse(message.getArguments().reverse());
-            boolean pinReadVersion = session.attr(SessionAttributes.PIN_READ_VERSION).get();
-            config.setPinReadVersion(pinReadVersion);
-            tr.getReadVersion().thenAccept(config::setReadVersion);
-
-            session.attr(SessionAttributes.BUCKET_QUERY_EXECUTOR_CONFIG).set(config);
-            return QueryExecutor.execute(context, tr, config);
-        }, (entries) -> {
+            return new BucketReadResponse(cursorId, service.getQueryExecutor().read(tr, ctx));
+        }, (readResponse) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
-                resp3Response(request, response, entries);
+                resp3Response(request, response, readResponse);
             } else if (protoVer.equals(RESPVersion.RESP2)) {
-                resp2Response(request, response, entries);
+                resp2Response(request, response, readResponse);
             } else {
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }

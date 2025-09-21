@@ -16,9 +16,8 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.planner.logical.*;
 
 import java.util.ArrayList;
@@ -44,7 +43,8 @@ public class PhysicalPlanner {
             case LogicalFilter filter -> transposeFilter(metadata, filter, context);
 
             // Efficient list transformation - reuse child structure
-            case LogicalAnd and -> new PhysicalAnd(context.nextId(), transposeChildren(metadata, and.children(), context));
+            case LogicalAnd and ->
+                    new PhysicalAnd(context.nextId(), transposeChildren(metadata, and.children(), context));
             case LogicalOr or -> new PhysicalOr(context.nextId(), transposeChildren(metadata, or.children(), context));
 
             // Single child transposition
@@ -68,15 +68,14 @@ public class PhysicalPlanner {
      */
     private PhysicalNode transposeFilter(BucketMetadata metadata, LogicalFilter filter, PlannerContext context) {
         // Check for index availability
-        DirectorySubspace subspace = metadata.indexes().getSubspace(filter.selector());
-        IndexDefinition indexDefinition = metadata.indexes().getIndexBySelector(filter.selector());
+        Index index = metadata.indexes().getIndex(filter.selector());
 
         // Direct field reuse - no object copying
         PhysicalFilter node = new PhysicalFilter(context.nextId(), filter.selector(), filter.op(), filter.operand());
 
-        if (subspace != null) {
+        if (index != null) {
             // Index available - use index scan with filter pushdown
-            return new PhysicalIndexScan(context.nextId(), node, indexDefinition);
+            return new PhysicalIndexScan(context.nextId(), node, index.definition());
         }
 
         // No index - full scan with filter

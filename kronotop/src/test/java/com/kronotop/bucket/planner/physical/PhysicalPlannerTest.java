@@ -564,15 +564,14 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         @DisplayName("Deep nesting transposition should handle recursion efficiently")
         void testDeepNestingPerformance() {
             // Create deeply nested NOT structure via BQL for optimization to work
-            StringBuilder queryBuilder = new StringBuilder();
 
             // Build a nested NOT query: NOT(NOT(NOT(...(selector = value)...)))
-            queryBuilder.append("{ \"$not\": ".repeat(50));
-            queryBuilder.append("{ \"selector\": \"value\" }");
-            queryBuilder.append(" }".repeat(50));
+            String queryBuilder = "{ \"$not\": ".repeat(50) +
+                    "{ \"selector\": \"value\" }" +
+                    " }".repeat(50);
 
             long startTime = System.nanoTime();
-            PhysicalNode result = planQuery(queryBuilder.toString());
+            PhysicalNode result = planQuery(queryBuilder);
             long endTime = System.nanoTime();
 
             long durationMs = (endTime - startTime) / 1_000_000;

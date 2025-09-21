@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.bucket.executor;
+package com.kronotop.bucket.handlers;
 
-public record Bounds(Bound lower, Bound upper) {
+import com.apple.foundationdb.tuple.Versionstamp;
+
+import java.nio.ByteBuffer;
+import java.util.Map;
+
+public record BucketReadResponse(int cursorId, Map<Versionstamp, ByteBuffer> entries) {
 }
