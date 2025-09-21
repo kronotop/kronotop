@@ -18,14 +18,9 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
-import com.kronotop.bucket.handlers.protocol.QueryArguments;
-import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
-import com.kronotop.bucket.pipeline.QueryOptions;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;

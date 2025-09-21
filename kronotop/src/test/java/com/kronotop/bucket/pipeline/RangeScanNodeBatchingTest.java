@@ -96,7 +96,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         assertEquals(expectedMatches, allAges.size(), "Should have " + expectedMatches + " unique ages");
         assertEquals(51, allAges.iterator().next(), "First age should be 51");
         assertTrue(allAges.contains(170), "Should contain age 170");
-        
+
         // Verify sequential ages from 51 to 170
         List<Integer> sortedAges = new ArrayList<>(allAges);
         for (int i = 0; i < sortedAges.size(); i++) {
@@ -148,7 +148,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         ));
 
         int index = 0;
-        while(true) {
+        while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
                 if (results.isEmpty()) {

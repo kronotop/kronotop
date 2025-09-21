@@ -21,8 +21,6 @@ import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
-import java.util.List;
-
 public class BucketAdvanceMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.ADVANCE";
     public static final int MAXIMUM_PARAMETER_COUNT = 2;

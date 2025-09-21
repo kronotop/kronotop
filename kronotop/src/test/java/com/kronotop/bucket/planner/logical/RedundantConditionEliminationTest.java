@@ -47,8 +47,8 @@ class RedundantConditionEliminationTest {
             return value;
         } else if (operand instanceof Int64Val(long value)) {
             return value;
-        } else if (operand instanceof Decimal128Val decimal128Val) {
-            return decimal128Val.value();
+        } else if (operand instanceof Decimal128Val(java.math.BigDecimal value)) {
+            return value;
         }
         return operand;
     }

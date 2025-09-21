@@ -69,7 +69,7 @@ class IndexIntersectionAdvancedTest extends BaseOptimizerTest {
         // Should be simplified to just the index scan
         assertInstanceOf(PhysicalIndexScan.class, optimized);
         PhysicalIndexScan indexScan = (PhysicalIndexScan) optimized;
-        assertTrue(indexScan.node() instanceof PhysicalFilter);
+        assertInstanceOf(PhysicalFilter.class, indexScan.node());
         PhysicalFilter filter = (PhysicalFilter) indexScan.node();
         assertEquals("name", filter.selector());
         assertEquals(Operator.EQ, filter.op());

@@ -17,7 +17,6 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import org.bson.BsonBinaryReader;

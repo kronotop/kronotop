@@ -26,10 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.ByteBuffer;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class IndexScanNodeBatchingTest extends BasePipelineTest {
     @Test
@@ -86,15 +83,15 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
                 }
 
                 nonEmptyBatchCount++;
-                
+
                 if (nonEmptyBatchCount <= 10) {
                     // First 10 batches should have 2 documents each
-                    assertEquals(2, results.size(), 
-                        String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
+                    assertEquals(2, results.size(),
+                            String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
                 } else if (nonEmptyBatchCount == 11) {
                     // Last batch should have 1 document (21 total / 2 per batch = 10 full batches + 1 partial)
-                    assertEquals(1, results.size(), 
-                        "Last batch should contain exactly 1 document");
+                    assertEquals(1, results.size(),
+                            "Last batch should contain exactly 1 document");
                 }
 
                 totalProcessedDocuments += results.size();
@@ -168,15 +165,15 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
                 }
 
                 nonEmptyBatchCount++;
-                
+
                 if (nonEmptyBatchCount <= 5) {
                     // First 5 batches should have 2 documents each (10 documents total)
-                    assertEquals(2, results.size(), 
-                        String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
+                    assertEquals(2, results.size(),
+                            String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
                 } else if (nonEmptyBatchCount == 6) {
                     // Last batch should have 1 document (11 total / 2 per batch = 5 full batches + 1 partial)
-                    assertEquals(1, results.size(), 
-                        "Last batch should contain exactly 1 document");
+                    assertEquals(1, results.size(),
+                            "Last batch should contain exactly 1 document");
                 }
 
                 totalProcessedDocuments += results.size();
@@ -192,7 +189,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
             assertEquals(6, nonEmptyBatchCount, "Should have 6 non-empty batches total (5 with 2 docs + 1 with 1 doc)");
             assertEquals(7, totalIterations, "Should have 7 total iterations (6 non-empty + 1 empty)");
             assertEquals(11, totalProcessedDocuments, "Should process exactly 11 documents total with age >= 33");
-            
+
             // Verify specific age range was processed
             assertEquals(11, totalProcessedDocuments, "Should match exactly 11 documents with ages 33-43");
         }
@@ -254,15 +251,15 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
                 }
 
                 nonEmptyBatchCount++;
-                
+
                 if (nonEmptyBatchCount <= 5) {
                     // First 5 batches should have 2 documents each (10 documents total)
-                    assertEquals(2, results.size(), 
-                        String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
+                    assertEquals(2, results.size(),
+                            String.format("Batch %d should contain exactly 2 documents", nonEmptyBatchCount));
                 } else if (nonEmptyBatchCount == 6) {
                     // Last batch should have 1 document (11 total / 2 per batch = 5 full batches + 1 partial)
-                    assertEquals(1, results.size(), 
-                        "Last batch should contain exactly 1 document");
+                    assertEquals(1, results.size(),
+                            "Last batch should contain exactly 1 document");
                 }
 
                 totalProcessedDocuments += results.size();
@@ -280,7 +277,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
             assertEquals(6, nonEmptyBatchCount, "Should have 6 non-empty batches total (5 with 2 docs + 1 with 1 doc)");
             assertEquals(7, totalIterations, "Should have 7 total iterations (6 non-empty + 1 empty)");
             assertEquals(11, totalProcessedDocuments, "Should process exactly 11 documents total with age >= 33");
-            
+
             // Verify specific age range was processed in reverse order
             assertEquals(11, totalProcessedDocuments, "Should match exactly 11 documents with ages 33-43 in reverse order");
         }

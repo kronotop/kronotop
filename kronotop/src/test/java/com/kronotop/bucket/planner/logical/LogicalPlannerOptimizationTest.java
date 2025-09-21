@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -609,7 +610,7 @@ class LogicalPlannerOptimizationTest {
         void testOptimizationWithCustomPipeline() {
             // Create planner with only basic transforms (no advanced optimizations)
             // Note: Inner classes are private, so we test the absence of optimization differently
-            LogicalPlanner basicPlanner = new LogicalPlanner(Arrays.asList());
+            LogicalPlanner basicPlanner = new LogicalPlanner(List.of());
 
             BqlExpr expr = BqlParser.parse("""
                     {

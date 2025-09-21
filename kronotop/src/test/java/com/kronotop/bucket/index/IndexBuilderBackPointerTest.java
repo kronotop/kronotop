@@ -25,7 +25,6 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.Index;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeTestUtil;
 import org.bson.BsonType;
@@ -129,11 +128,11 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             List<KeyValue> allBackPointers = tr.getRange(begin, end).asList().join();
-            
+
             for (KeyValue kv : allBackPointers) {
                 Tuple unpacked = indexSubspace.unpack(kv.getKey());
                 Versionstamp versionstamp = (Versionstamp) unpacked.get(1);
-                
+
                 if (versionstamp.getUserVersion() == userVersion) {
                     backPointers.add(unpacked);
                 }
@@ -145,7 +144,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     private List<Object> getAllIndexValuesForVersionstamp(DirectorySubspace indexSubspace, int userVersion) {
         List<Object> indexValues = new ArrayList<>();
         List<Tuple> backPointers = getBackPointersForVersionstamp(indexSubspace, userVersion);
-        
+
         for (Tuple backPointer : backPointers) {
             Object indexValue = backPointer.get(2);
             indexValues.add(indexValue);
@@ -194,10 +193,10 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
 
             assertEquals(3, unpacked.size(), "Back pointer tuple should have 3 elements");
             assertEquals((long) IndexSubspaceMagic.BACK_POINTER.getValue(), unpacked.get(0), "First element should be BACK_POINTER magic");
-            
+
             Versionstamp versionstamp = (Versionstamp) unpacked.get(1);
             assertEquals(42, versionstamp.getUserVersion(), "Second element should be versionstamp with correct user version");
-            
+
             assertEquals(indexValue, unpacked.get(2), "Third element should be index value");
             assertArrayEquals(NULL_VALUE, backPointer.getValue(), "Back pointer value should be NULL_VALUE");
         }
@@ -207,7 +206,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     void shouldRetrieveIndexKeysUsingBackPointer() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, definition);
-        
+
         AppendedEntry entry = createAppendedEntry(100);
         String indexValue = "retrievable-value";
 
@@ -226,7 +225,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     void shouldCreateBackPointersForMultipleIndexes() {
         IndexDefinition stringIndex = IndexDefinition.create("string-index", "name", BsonType.STRING);
         IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32);
-        
+
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, stringIndex, intIndex);
 
         AppendedEntry entry = createAppendedEntry(200);
@@ -252,7 +251,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
         IndexDefinition stringIndex = IndexDefinition.create("string-index", "name", BsonType.STRING);
         IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32);
         IndexDefinition doubleIndex = IndexDefinition.create("double-index", "score", BsonType.DOUBLE);
-        
+
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, stringIndex, intIndex, doubleIndex);
 
         AppendedEntry entry = createAppendedEntry(300);
@@ -291,10 +290,10 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     void shouldHandleMultipleEntriesWithSameVersionstamp() {
         IndexDefinition definition = IndexDefinition.create("multi-entry-index", "value", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, definition);
-        
+
         int userVersion = 400;
         List<String> expectedValues = Arrays.asList("value1", "value2", "value3");
-        
+
         for (String value : expectedValues) {
             AppendedEntry entry = createAppendedEntry(userVersion);
             setIndexEntryAndCommit(definition, metadata, value, entry);

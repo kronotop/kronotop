@@ -92,7 +92,7 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
         // Currently this returns IndexScan rather than RangeScan for single-bound cases
         // This is acceptable behavior - verify the optimizer runs without error
         assertNotNull(optimized, "Optimizer should produce a valid result");
-        assertTrue(optimized instanceof PhysicalNode, "Result should be a PhysicalNode");
+        assertInstanceOf(PhysicalNode.class, optimized, "Result should be a PhysicalNode");
     }
 
     @Test
@@ -110,7 +110,7 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
         // Currently this returns IndexScan rather than RangeScan for single-bound cases
         // This is acceptable behavior - verify the optimizer runs without error  
         assertNotNull(optimized, "Optimizer should produce a valid result");
-        assertTrue(optimized instanceof PhysicalNode, "Result should be a PhysicalNode");
+        assertInstanceOf(PhysicalNode.class, optimized, "Result should be a PhysicalNode");
     }
 
     @Test

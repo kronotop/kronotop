@@ -81,12 +81,12 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
         PhysicalNode result = rule.apply(rangeScan, metadata, context);
 
         // Should be converted to PhysicalFullScan with single PhysicalFilter
-        assertTrue(result instanceof PhysicalFullScan);
+        assertInstanceOf(PhysicalFullScan.class, result);
         PhysicalFullScan fullScan = (PhysicalFullScan) result;
-        
-        assertTrue(fullScan.node() instanceof PhysicalFilter);
+
+        assertInstanceOf(PhysicalFilter.class, fullScan.node());
         PhysicalFilter filter = (PhysicalFilter) fullScan.node();
-        
+
         assertEquals("score", filter.selector());
         assertEquals(Operator.GT, filter.op());
         assertEquals(50, filter.operand());
@@ -102,12 +102,12 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
         PhysicalNode result = rule.apply(rangeScan, metadata, context);
 
         // Should be converted to PhysicalFullScan with single PhysicalFilter
-        assertTrue(result instanceof PhysicalFullScan);
+        assertInstanceOf(PhysicalFullScan.class, result);
         PhysicalFullScan fullScan = (PhysicalFullScan) result;
-        
-        assertTrue(fullScan.node() instanceof PhysicalFilter);
+
+        assertInstanceOf(PhysicalFilter.class, fullScan.node());
         PhysicalFilter filter = (PhysicalFilter) fullScan.node();
-        
+
         assertEquals("price", filter.selector());
         assertEquals(Operator.LTE, filter.op());
         assertEquals(100.0, filter.operand());
@@ -148,7 +148,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
         IndexDefinition mockIndex = IndexDefinition.create(
                 "age-index", "age", org.bson.BsonType.INT32
         );
-        
+
         // Create a range scan with a valid index (should not be converted)
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "age", 18, 65, true, false, mockIndex
@@ -212,10 +212,10 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
         PhysicalNode result = rule.apply(not, metadata, context);
 
         // Should convert the nested range scan
-        assertTrue(result instanceof PhysicalNot);
+        assertInstanceOf(PhysicalNot.class, result);
         PhysicalNot resultNot = (PhysicalNot) result;
-        
-        assertTrue(resultNot.child() instanceof PhysicalFullScan);
+
+        assertInstanceOf(PhysicalFullScan.class, resultNot.child());
     }
 
     @Test
@@ -233,7 +233,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
         IndexDefinition mockIndex = IndexDefinition.create(
                 "age-index", "age", org.bson.BsonType.INT32
         );
-        
+
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "age", 18, 65, true, false, mockIndex
         );

@@ -52,7 +52,7 @@ class RedundantScanAdvancedTest extends BaseOptimizerTest {
         // Should be reduced to single index scan regardless of nesting depth
         assertInstanceOf(PhysicalIndexScan.class, optimized);
         PhysicalIndexScan indexScan = (PhysicalIndexScan) optimized;
-        assertTrue(indexScan.node() instanceof PhysicalFilter);
+        assertInstanceOf(PhysicalFilter.class, indexScan.node());
         PhysicalFilter filter = (PhysicalFilter) indexScan.node();
         assertEquals("name", filter.selector());
         assertEquals(Operator.EQ, filter.op());
@@ -77,7 +77,7 @@ class RedundantScanAdvancedTest extends BaseOptimizerTest {
         // Should be reduced to single index scan
         assertInstanceOf(PhysicalIndexScan.class, optimized);
         PhysicalIndexScan indexScan = (PhysicalIndexScan) optimized;
-        assertTrue(indexScan.node() instanceof PhysicalFilter);
+        assertInstanceOf(PhysicalFilter.class, indexScan.node());
         PhysicalFilter filter = (PhysicalFilter) indexScan.node();
         assertEquals("status", filter.selector());
         assertEquals(Operator.EQ, filter.op());

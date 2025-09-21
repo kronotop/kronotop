@@ -252,7 +252,7 @@ public class BqlTestDataBuilder {
             } else if (value instanceof Boolean || value instanceof Number) {
                 return value.toString();
             } else {
-                return "\"" + value.toString() + "\"";
+                return "\"" + value + "\"";
             }
         }
 

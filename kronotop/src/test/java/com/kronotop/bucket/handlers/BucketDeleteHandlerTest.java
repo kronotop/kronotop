@@ -18,7 +18,6 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.BucketQueryArgs;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
