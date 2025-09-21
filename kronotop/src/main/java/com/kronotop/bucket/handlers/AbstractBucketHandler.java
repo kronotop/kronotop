@@ -18,12 +18,14 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.CommitHook;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketDeleteResponse;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
+import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
@@ -214,5 +216,44 @@ public abstract class AbstractBucketHandler implements Handler {
         }
         root.add(new ArrayRedisMessage(versionstamps));
         response.writeArray(root);
+    }
+
+    /**
+     * A commit hook implementation that executes post-commit operations for query contexts.
+     * This hook is triggered after a FoundationDB transaction commits successfully and is responsible
+     * for running any deferred operations that should only execute once the transaction is guaranteed
+     * to be committed.
+     *
+     * <p>The hook integrates with the Kronotop query execution pipeline to ensure that
+     * post-commit operations (such as cache invalidations, index updates, or cleanup tasks)
+     * are properly executed after successful transaction commits.</p>
+     *
+     * <p>This is particularly important for maintaining consistency between FoundationDB state
+     * and other components like the Volume storage layer or caching mechanisms.</p>
+     *
+     * @see CommitHook
+     * @see QueryContext#runPostCommitHooks()
+     */
+    static class QueryContextCommitHook implements CommitHook {
+        private final QueryContext ctx;
+
+        /**
+         * Constructs a new QueryContextCommitHook with the specified query context.
+         *
+         * @param ctx the query context containing post-commit operations to execute
+         */
+        QueryContextCommitHook(QueryContext ctx) {
+            this.ctx = ctx;
+        }
+
+        /**
+         * Executes the post-commit operations associated with the query context.
+         * This method is called automatically by the Kronotop framework after
+         * a FoundationDB transaction commits successfully.
+         */
+        @Override
+        public void run() {
+            ctx.runPostCommitHooks();
+        }
     }
 }
