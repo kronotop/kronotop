@@ -65,7 +65,7 @@ public class BucketAdvanceMessage extends AbstractBucketMessage implements Proto
     }
 
     public enum Action {
-        READ,
+        QUERY,
         DELETE,
         UPDATE
     }

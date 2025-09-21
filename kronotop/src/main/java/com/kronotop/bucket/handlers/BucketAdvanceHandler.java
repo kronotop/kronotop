@@ -47,7 +47,7 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
 
     private Map<Integer, QueryContext> findQueryContext(Session session, BucketAdvanceMessage.Action action) {
         return switch (action) {
-            case READ -> session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
+            case QUERY -> session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
             case DELETE -> session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get();
             case UPDATE -> session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get();
         };

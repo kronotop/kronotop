@@ -86,8 +86,8 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.QUERY, new MapOutput<>(codec), args);
     }
 
-    public final Command<K, V, Map<K, V>> advanceRead(int cursorId) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add("READ").add(cursorId);
+    public final Command<K, V, Map<K, V>> advanceQuery(int cursorId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add("QUERY").add(cursorId);
         return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
     }
 

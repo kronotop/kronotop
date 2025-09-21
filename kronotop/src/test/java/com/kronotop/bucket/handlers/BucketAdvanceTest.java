@@ -92,7 +92,7 @@ class BucketAdvanceTest extends BaseBucketHandlerTest {
         int advanceCalls = 0;
         while (advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.advanceRead(cursorId).encode(buf);
+            cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
@@ -169,7 +169,7 @@ class BucketAdvanceTest extends BaseBucketHandlerTest {
         int advanceCalls = 0;
         while (advanceCalls < maxAdvanceCalls) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.advanceRead(cursorId).encode(buf);
+            cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
@@ -236,7 +236,7 @@ class BucketAdvanceTest extends BaseBucketHandlerTest {
         // BUCKET.ADVANCE - Should return empty since no documents match
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.advanceRead(cursorId).encode(buf);
+            cmd.advanceQuery(cursorId).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
