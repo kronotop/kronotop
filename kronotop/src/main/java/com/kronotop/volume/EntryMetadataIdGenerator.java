@@ -22,28 +22,29 @@ import net.jpountz.xxhash.XXHashFactory;
 import java.nio.ByteBuffer;
 
 /**
- * Provides functionality to generate unique metadata IDs based on a segment ID and position.
+ * Provides functionality to generate unique metadata IDs using a hashing algorithm.
  * <p>
- * This class uses the XXHash algorithm to create a fast and efficient hash value
- * for identifying metadata entries in a system. The resulting ID is computed
- * by combining the input parameters and applying a hashing procedure with a specified seed.
+ * This class utilizes the XXHash algorithm, initialized with a predefined seed, to compute
+ * a hash value based on the provided entity identifier, segment identifier, and position.
+ * The generated hash serves as a unique representation of these combined input parameters.
  */
 public class EntryMetadataIdGenerator {
     private static final int SEED = 0x9747b28c;
-    private static final int LENGTH = 16;
+    private static final int LENGTH = 20;
 
     /**
-     * Generates a hash-based identifier using the provided segment ID and position.
-     * This method combines the input parameters and applies a hashing procedure
-     * utilizing the XXHash algorithm with a predefined seed value.
+     * Generates a unique hash value based on the provided parameters.
+     * The hash is computed using the XXHash algorithm with a specified seed.
      *
-     * @param segmentId the unique identifier of the segment
+     * @param volumeId        the identifier for the entity
+     * @param segmentId the identifier for the segment
      * @param position  the position within the segment
-     * @return a hash value representing the unique identifier for the given segment ID and position
+     * @return a hash value as an integer representing the combined input parameters
      */
-    public static int generate(long segmentId, long position) {
+    public static int generate(int volumeId, long segmentId, long position) {
         ByteBuffer buf = ByteBuffer.allocate(LENGTH);
         try (StreamingXXHash32 hashFunc = XXHashFactory.fastestInstance().newStreamingHash32(SEED)) {
+            buf.putInt(volumeId);
             buf.putLong(segmentId);
             buf.putLong(position);
             buf.flip();

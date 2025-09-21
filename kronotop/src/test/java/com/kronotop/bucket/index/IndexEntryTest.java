@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class IndexEntryTest {
     @Test
     void shouldEncodeDecode() {
-        EntryMetadata metadata = VolumeTestUtil.generateEntryMetadata(1, 0, 1, "test");
+        EntryMetadata metadata = VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test");
         // Invoke method on test
         ByteBuffer result = metadata.encode();
 

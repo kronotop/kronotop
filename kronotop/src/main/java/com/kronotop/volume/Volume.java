@@ -46,10 +46,12 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
 
+import static com.google.common.hash.Hashing.sipHash24;
 import static com.kronotop.volume.EntryMetadata.*;
 import static com.kronotop.volume.Subspaces.*;
 import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
@@ -64,6 +66,7 @@ public class Volume {
     private static final int SEGMENT_VACUUM_BATCH_SIZE = 100;
 
     private final Context context;
+    private final int id;
     private final VolumeConfig config;
     private final VolumeSubspace subspace;
     private final EntryMetadataCache entryMetadataCache;
@@ -83,10 +86,48 @@ public class Volume {
     public Volume(Context context, VolumeConfig config) throws IOException {
         this.context = context;
         this.config = config;
+        initialize();
+
+        VolumeMetadata metadata = loadVolumeMetadata();
+        this.id = metadata.getId();
+        this.status = metadata.getStatus();
+
         this.subspace = new VolumeSubspace(config.subspace());
-        this.status = loadStatusFromMetadata();
         this.entryMetadataCache = new EntryMetadataCache(context, subspace);
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
+    }
+
+    private void initialize() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            AtomicBoolean modified = new AtomicBoolean(false);
+            VolumeMetadata.compute(tr, config.subspace(), (metadata) -> {
+                if (metadata.getId() == 0) {
+                    String random = UUID.randomUUID().toString();
+                    int id = sipHash24().hashBytes(random.getBytes()).asInt();
+                    metadata.setId(id);
+                    modified.set(true);
+                }
+            });
+            if (modified.get()) {
+                tr.commit().join();
+            }
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof FDBException fdbException) {
+                int errorCode = fdbException.getCode();
+                if (errorCode == 1007 || errorCode == 1020) {
+                    LOGGER.error("Retrying to initialize the volume named '{}' due to error code: {}", config.name(), errorCode);
+                    // 1007 -> Transaction is too old to perform reads or be committed
+                    // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                    initialize();
+                }
+            }
+        }
+    }
+
+    private VolumeMetadata loadVolumeMetadata() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return VolumeMetadata.load(tr, config.subspace());
+        }
     }
 
     private SegmentContainer getSegmentContainer(String segmentName) {
@@ -95,18 +136,6 @@ public class Volume {
             return segments.get(segmentName);
         } finally {
             segmentsLock.unlockRead(stamp);
-        }
-    }
-
-    /**
-     * Loads the status of the volume from the metadata stored in the Volume's subspace.
-     * The method creates a transaction to read the metadata and retrieves the volume status.
-     *
-     * @return the status of the volume as retrieved from the metadata
-     */
-    private VolumeStatus loadStatusFromMetadata() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return VolumeMetadata.load(tr, config.subspace()).getStatus();
         }
     }
 
@@ -369,8 +398,8 @@ public class Volume {
             Segment segment = getWritableSegment(size);
             try {
                 SegmentAppendResult result = segment.append(entry);
-                int id = EntryMetadataIdGenerator.generate(segment.getConfig().id(), result.position());
-                return new EntryMetadata(segment.getName(), prefix.asBytes(), result.position(), result.length(), id);
+                int entryMetadataId = EntryMetadataIdGenerator.generate(id, segment.getConfig().id(), result.position());
+                return new EntryMetadata(segment.getName(), prefix.asBytes(), result.position(), result.length(), entryMetadataId);
             } catch (NotEnoughSpaceException e) {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("Trying to find a new segment with length {}", size);
@@ -1170,8 +1199,8 @@ public class Volume {
     private void clearSegmentsByPrefix(VolumeSession session) {
         assert session.transaction() != null;
         VolumeMetadata volumeMetadata = VolumeMetadata.load(session.transaction(), config.subspace());
-        for (long id : volumeMetadata.getSegments()) {
-            String segmentName = Segment.generateName(id);
+        for (long segmentId : volumeMetadata.getSegments()) {
+            String segmentName = Segment.generateName(segmentId);
 
             int capacity = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE;
             ByteBuffer buffer = ByteBuffer.

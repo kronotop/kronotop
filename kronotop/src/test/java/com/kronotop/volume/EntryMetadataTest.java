@@ -56,7 +56,7 @@ class EntryMetadataTest {
         String segment = Segment.generateName(segmentId);
         long position = 1L;
         long length = 1L;
-        int id = EntryMetadataIdGenerator.generate(segmentId, position);
+        int id = EntryMetadataIdGenerator.generate(1, segmentId, position);
 
         // Create EntryMetadata instance
         EntryMetadata entry = new EntryMetadata(segment, prefix.asBytes(), position, length, id);
@@ -77,7 +77,7 @@ class EntryMetadataTest {
         String segment = Segment.generateName(segmentId);
         long position = 1L;
         long length = 1L;
-        int id = EntryMetadataIdGenerator.generate(segmentId, position);
+        int id = EntryMetadataIdGenerator.generate(1, segmentId, position);
 
         // Create EntryMetadata instance
         EntryMetadata entry = new EntryMetadata(segment, prefix.asBytes(), position, length, id);

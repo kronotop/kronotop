@@ -20,11 +20,11 @@ import com.kronotop.volume.segment.Segment;
 
 public class VolumeTestUtil {
 
-    public static EntryMetadata generateEntryMetadata(int segmentId, long position, long length, String prefixName) {
+    public static EntryMetadata generateEntryMetadata(int volumeId, long segmentId, long position, long length, String prefixName) {
         Prefix prefix = new Prefix(prefixName);
         // Initialize necessary data
         String segment = Segment.generateName(segmentId);
-        int id = EntryMetadataIdGenerator.generate(segmentId, position);
+        int id = EntryMetadataIdGenerator.generate(volumeId, segmentId, position);
         // Create EntryMetadata instance
         return new EntryMetadata(segment, prefix.asBytes(), position, length, id);
     }
