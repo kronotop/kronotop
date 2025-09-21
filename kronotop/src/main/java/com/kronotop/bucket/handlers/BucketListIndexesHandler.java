@@ -40,7 +40,7 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 @Command(BucketListIndexesMessage.COMMAND)
 @MinimumParameterCount(BucketListIndexesMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(BucketListIndexesMessage.MAXIMUM_PARAMETER_COUNT)
-public class BucketListIndexesHandler extends BaseBucketHandler implements Handler {
+public class BucketListIndexesHandler extends AbstractBucketHandler implements Handler {
     public BucketListIndexesHandler(BucketService service) {
         super(service);
     }

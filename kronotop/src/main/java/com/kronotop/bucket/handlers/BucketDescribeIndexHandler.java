@@ -42,7 +42,7 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 @Command(BucketDescribeIndexMessage.COMMAND)
 @MinimumParameterCount(BucketDescribeIndexMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(BucketDescribeIndexMessage.MAXIMUM_PARAMETER_COUNT)
-public class BucketDescribeIndexHandler extends BaseBucketHandler implements Handler {
+public class BucketDescribeIndexHandler extends AbstractBucketHandler implements Handler {
     public BucketDescribeIndexHandler(BucketService service) {
         super(service);
     }

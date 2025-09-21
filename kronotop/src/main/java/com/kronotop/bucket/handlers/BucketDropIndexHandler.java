@@ -36,7 +36,7 @@ import static com.kronotop.AsyncCommandExecutor.runAsync;
 @Command(BucketDropIndexMessage.COMMAND)
 @MinimumParameterCount(BucketDropIndexMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(BucketDropIndexMessage.MAXIMUM_PARAMETER_COUNT)
-public class BucketDropIndexHandler extends BaseBucketHandler implements Handler {
+public class BucketDropIndexHandler extends AbstractBucketHandler implements Handler {
     public BucketDropIndexHandler(BucketService service) {
         super(service);
     }

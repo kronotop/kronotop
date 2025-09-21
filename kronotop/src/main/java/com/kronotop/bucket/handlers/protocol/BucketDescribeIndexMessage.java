@@ -22,7 +22,7 @@ import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class BucketDescribeIndexMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
+public class BucketDescribeIndexMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.DESCRIBE-INDEX";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     public static final int MAXIMUM_PARAMETER_COUNT = 2;

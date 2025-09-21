@@ -51,7 +51,7 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketInsertMessage.COMMAND)
 @MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)
-public class BucketInsertHandler extends BaseBucketHandler implements Handler {
+public class BucketInsertHandler extends AbstractBucketHandler implements Handler {
 
     public BucketInsertHandler(BucketService service) {
         super(service);

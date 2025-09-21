@@ -35,7 +35,7 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 @Command(BucketAdvanceMessage.COMMAND)
 @MaximumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
-public class BucketAdvanceHandler extends BaseBucketHandler {
+public class BucketAdvanceHandler extends AbstractBucketHandler {
     public BucketAdvanceHandler(BucketService service) {
         super(service);
     }

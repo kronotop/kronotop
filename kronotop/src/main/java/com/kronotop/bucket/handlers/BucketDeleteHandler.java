@@ -18,37 +18,39 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.BucketDeleteResponse;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
+import com.kronotop.bucket.handlers.protocol.BucketDeleteMessage;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.QueryOptions;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
-@Command(BucketQueryMessage.COMMAND)
-@MinimumParameterCount(BucketQueryMessage.MINIMUM_PARAMETER_COUNT)
-public class BucketQueryHandler extends AbstractBucketHandler implements Handler {
-
-    public BucketQueryHandler(BucketService service) {
+@Command(BucketDeleteMessage.COMMAND)
+@MaximumParameterCount(BucketDeleteMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(BucketDeleteMessage.MINIMUM_PARAMETER_COUNT)
+public class BucketDeleteHandler extends AbstractBucketHandler implements Handler {
+    public BucketDeleteHandler(BucketService service) {
         super(service);
     }
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.BUCKETQUERY).set(new BucketQueryMessage(request));
+        request.attr(MessageTypes.BUCKETDELETE).set(new BucketDeleteMessage(request));
     }
 
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
-            BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
+            BucketDeleteMessage message = request.attr(MessageTypes.BUCKETDELETE).get();
 
             Session session = request.getSession();
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
@@ -67,15 +69,15 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
             QueryContext ctx = new QueryContext(metadata, options, plan);
 
             int cursorId = session.nextCursorId();
-            session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().put(cursorId, ctx);
+            session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
-            return new BucketReadResponse(cursorId, service.getQueryExecutor().read(tr, ctx));
-        }, (readResponse) -> {
+            return new BucketDeleteResponse(cursorId, service.getQueryExecutor().delete(tr, ctx));
+        }, (deleteResponse) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
-                resp3Response(request, response, readResponse);
+                resp3VersionstampArrayResponse(response, deleteResponse);
             } else if (protoVer.equals(RESPVersion.RESP2)) {
-                resp2Response(request, response, readResponse);
+                resp2VersionstampArrayResponse(response, deleteResponse);
             } else {
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }

@@ -21,6 +21,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BucketDeleteResponse;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.internal.VersionstampUtil;
@@ -34,13 +35,14 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-public abstract class BaseBucketHandler implements Handler {
+public abstract class AbstractBucketHandler implements Handler {
     private final static RedisMessage CURSOR_ID_MESSAGE_KEY = new SimpleStringRedisMessage("cursor_id");
     private final static RedisMessage ENTRIES_MESSAGE_KEY = new SimpleStringRedisMessage("entries");
+    private final static RedisMessage VERSIONSTAMPS_MESSAGE_KEY = new SimpleStringRedisMessage("versionstamp");
     protected final BucketService service;
     protected final Context context;
 
-    public BaseBucketHandler(BucketService service) {
+    public AbstractBucketHandler(BucketService service) {
         this.service = service;
         this.context = service.getContext();
     }
@@ -178,5 +180,39 @@ public abstract class BaseBucketHandler implements Handler {
             throw new KronotopException("Shard not owned by this member");
         }
         return shard;
+    }
+
+    protected void resp3VersionstampArrayResponse(Response response, BucketDeleteResponse deleteResponse) {
+        Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
+        root.put(CURSOR_ID_MESSAGE_KEY, new IntegerRedisMessage(deleteResponse.cursorId()));
+        if (deleteResponse.versionstamps() == null || deleteResponse.versionstamps().isEmpty()) {
+            root.put(VERSIONSTAMPS_MESSAGE_KEY, ArrayRedisMessage.EMPTY_INSTANCE);
+            response.writeMap(root);
+            return;
+        }
+        List<RedisMessage> versionstamps = new ArrayList<>();
+        for (Versionstamp versionstamp : deleteResponse.versionstamps()) {
+            versionstamps.add(
+                    new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(versionstamp))
+            );
+        }
+        root.put(VERSIONSTAMPS_MESSAGE_KEY, new ArrayRedisMessage(versionstamps));
+        response.writeMap(root);
+    }
+
+    protected void resp2VersionstampArrayResponse(Response response, BucketDeleteResponse deleteResponse) {
+        List<RedisMessage> root = new LinkedList<>();
+        root.add(new IntegerRedisMessage(deleteResponse.cursorId()));
+        if (deleteResponse.versionstamps() == null || deleteResponse.versionstamps().isEmpty()) {
+            root.add(ArrayRedisMessage.EMPTY_INSTANCE);
+            response.writeArray(root);
+            return;
+        }
+        List<RedisMessage> versionstamps = new LinkedList<>();
+        for (Versionstamp versionstamp : deleteResponse.versionstamps()) {
+            versionstamps.add(new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(versionstamp)));
+        }
+        root.add(new ArrayRedisMessage(versionstamps));
+        response.writeArray(root);
     }
 }

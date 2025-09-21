@@ -38,7 +38,7 @@ import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 @Command(BucketCreateIndexMessage.COMMAND)
 @MinimumParameterCount(BucketCreateIndexMessage.MINIMUM_PARAMETER_COUNT)
-public class BucketCreateIndexHandler extends BaseBucketHandler implements Handler {
+public class BucketCreateIndexHandler extends AbstractBucketHandler implements Handler {
     public BucketCreateIndexHandler(BucketService service) {
         super(service);
     }

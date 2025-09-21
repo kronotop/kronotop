@@ -35,7 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class BucketCreateIndexMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
+public class BucketCreateIndexMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.CREATE-INDEX";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;

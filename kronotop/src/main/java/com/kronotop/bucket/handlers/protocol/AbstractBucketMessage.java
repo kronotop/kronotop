@@ -19,9 +19,22 @@ package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
+import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
-public class BaseBucketMessage {
+import java.util.List;
+
+public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
+
+    @Override
+    public Void getKey() {
+        return null;
+    }
+
+    @Override
+    public List<Void> getKeys() {
+        return List.of();
+    }
 
     private QueryArgumentKey valueOfArgument(String raw) {
         try {

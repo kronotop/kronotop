@@ -20,17 +20,16 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
-import java.util.List;
-
-public class BucketQueryMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
-    public static final String COMMAND = "BUCKET.QUERY";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
+public class BucketDeleteMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
+    public static final String COMMAND = "BUCKET.DELETE";
+    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_PARAMETER_COUNT = 4;
     private final Request request;
     private String query;
     private String bucket;
     private QueryArguments arguments;
 
-    public BucketQueryMessage(Request request) {
+    public BucketDeleteMessage(Request request) {
         this.request = request;
         parse();
     }
@@ -51,15 +50,5 @@ public class BucketQueryMessage extends AbstractBucketMessage implements Protoco
 
     public String getBucket() {
         return bucket;
-    }
-
-    @Override
-    public Void getKey() {
-        return null;
-    }
-
-    @Override
-    public List<Void> getKeys() {
-        return List.of();
     }
 }

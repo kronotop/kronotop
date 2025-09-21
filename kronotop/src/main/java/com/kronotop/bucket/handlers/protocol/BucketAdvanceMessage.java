@@ -23,7 +23,7 @@ import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class BucketAdvanceMessage extends BaseBucketMessage implements ProtocolMessage<Void> {
+public class BucketAdvanceMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.ADVANCE";
     public static final int MAXIMUM_PARAMETER_COUNT = 2;
     public static final int MINIMUM_PARAMETER_COUNT = 2;
