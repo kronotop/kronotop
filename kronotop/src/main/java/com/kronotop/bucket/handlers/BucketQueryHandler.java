@@ -22,6 +22,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
+import com.kronotop.bucket.handlers.protocol.QueryArguments;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.QueryOptions;
@@ -49,23 +50,10 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
-
             Session session = request.getSession();
+
+            QueryContext ctx = buildQueryContext(request, message.getBucket(), message.getQuery(), message.getArguments());
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, message.getBucket());
-
-            QueryOptions.Builder builder = QueryOptions.builder();
-            if (message.getArguments().limit() == 0) {
-                builder.limit(session.attr(SessionAttributes.LIMIT).get());
-            } else {
-                builder.limit(message.getArguments().limit());
-            }
-            builder.reverse(message.getArguments().reverse());
-
-            QueryOptions options = builder.build();
-            PipelineNode plan = service.getPlanner().plan(metadata, message.getQuery());
-            QueryContext ctx = new QueryContext(metadata, options, plan);
-
             int cursorId = session.nextCursorId();
             session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().put(cursorId, ctx);
 

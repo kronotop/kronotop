@@ -56,24 +56,11 @@ public class BucketDeleteHandler extends AbstractBucketHandler implements Handle
             BucketDeleteMessage message = request.attr(MessageTypes.BUCKETDELETE).get();
 
             Session session = request.getSession();
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, message.getBucket());
-
-            QueryOptions.Builder builder = QueryOptions.builder();
-            if (message.getArguments().limit() == 0) {
-                builder.limit(session.attr(SessionAttributes.LIMIT).get());
-            } else {
-                builder.limit(message.getArguments().limit());
-            }
-            builder.reverse(message.getArguments().reverse());
-
-            QueryOptions options = builder.build();
-            PipelineNode plan = service.getPlanner().plan(metadata, message.getQuery());
-            QueryContext ctx = new QueryContext(metadata, options, plan);
-
+            QueryContext ctx = buildQueryContext(request, message.getBucket(), message.getQuery(), message.getArguments());
             int cursorId = session.nextCursorId();
             session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
+            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
             List<Versionstamp> versionstamps = service.getQueryExecutor().delete(tr, ctx);
 
             boolean autoCommit = TransactionUtils.getAutoCommit(request.getSession());

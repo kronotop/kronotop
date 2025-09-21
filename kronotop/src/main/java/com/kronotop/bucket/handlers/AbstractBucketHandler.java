@@ -21,11 +21,11 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BSONUtil;
-import com.kronotop.bucket.BucketDeleteResponse;
-import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.BucketShard;
+import com.kronotop.bucket.*;
+import com.kronotop.bucket.handlers.protocol.QueryArguments;
+import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
+import com.kronotop.bucket.pipeline.QueryOptions;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
@@ -216,6 +216,26 @@ public abstract class AbstractBucketHandler implements Handler {
         }
         root.add(new ArrayRedisMessage(versionstamps));
         response.writeArray(root);
+    }
+
+    QueryOptions buildQueryOptions(Session session, QueryArguments arguments) {
+        QueryOptions.Builder builder = QueryOptions.builder();
+        if (arguments.limit() == 0) {
+            builder.limit(session.attr(SessionAttributes.LIMIT).get());
+        } else {
+            builder.limit(arguments.limit());
+        }
+        builder.reverse(arguments.reverse());
+        return builder.build();
+    }
+
+    QueryContext buildQueryContext(Request request, String bucket, String query, QueryArguments arguments) {
+        Session session = request.getSession();
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, bucket);
+
+        QueryOptions options = buildQueryOptions(session, arguments);
+        PipelineNode plan = service.getPlanner().plan(metadata, query);
+        return new QueryContext(metadata, options, plan);
     }
 
     /**
