@@ -17,6 +17,7 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketVersionstampArrayResponse;
@@ -31,6 +32,7 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -113,7 +115,11 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
                             message.getSubcommand().name().toLowerCase() + "' action with the given cursor id");
                 }
                 Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-                return new BucketVersionstampArrayResponse(message.getCursorId(), service.getQueryExecutor().update(tr, ctx));
+                List<Versionstamp> versionstamps = service.getQueryExecutor().update(tr, ctx);
+
+                TransactionUtils.addPostCommitHook(new QueryContextCommitHook(ctx), request.getSession());
+                TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
+                return new BucketVersionstampArrayResponse(message.getCursorId(), versionstamps);
             }, (readResponse) -> {
                 RESPVersion protoVer = request.getSession().protocolVersion();
                 if (protoVer.equals(RESPVersion.RESP3)) {

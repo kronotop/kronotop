@@ -26,13 +26,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import org.bson.*;
-import org.bson.types.Binary;
 import org.bson.types.Decimal128;
-
-import java.math.BigDecimal;
-import java.util.Date;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -71,8 +68,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             MapRedisMessage updateResponse = (MapRedisMessage) msg;
 
             // Extract versionstamps from update response
-            RedisMessage versionstampsMessage = findInMapMessage(updateResponse, "versionstamp");
-            assertNotNull(versionstampsMessage, "Update response should contain versionstamp field");
+            RedisMessage versionstampsMessage = findInMapMessage(updateResponse, "versionstamps");
+            assertNotNull(versionstampsMessage, "Update response should contain versionstamps field");
             assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
 
             ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
@@ -117,15 +114,15 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             if (age > 30) {
                 // Documents with age > 30 should have the new "status" field
                 assertTrue(updatedVersionstamps.contains(versionstamp),
-                    "Document with age " + age + " should be in updated versionstamps");
+                        "Document with age " + age + " should be in updated versionstamps");
                 assertEquals("senior", document.getString("status"),
-                    "Document with age " + age + " should have status 'senior'");
+                        "Document with age " + age + " should have status 'senior'");
             } else {
                 // Documents with age <= 30 should NOT have the "status" field
                 assertFalse(updatedVersionstamps.contains(versionstamp),
-                    "Document with age " + age + " should NOT be in updated versionstamps");
+                        "Document with age " + age + " should NOT be in updated versionstamps");
                 assertNull(document.getString("status"),
-                    "Document with age " + age + " should NOT have status field");
+                        "Document with age " + age + " should NOT have status field");
             }
         }
 
@@ -237,18 +234,18 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             if (age > 30) {
                 // Documents with age > 30 should have "temp" and "deprecated" fields removed
                 assertTrue(updatedVersionstamps.contains(versionstamp),
-                    "Document with age " + age + " should be in updated versionstamps");
+                        "Document with age " + age + " should be in updated versionstamps");
                 assertNull(document.getString("temp"),
-                    "Document with age " + age + " should NOT have temp field after unset");
+                        "Document with age " + age + " should NOT have temp field after unset");
                 assertNull(document.getString("deprecated"),
-                    "Document with age " + age + " should NOT have deprecated field after unset");
+                        "Document with age " + age + " should NOT have deprecated field after unset");
                 // Other fields should remain
                 assertNotNull(document.getString("name"), "name field should remain");
                 assertNotNull(document.getString("city"), "city field should remain");
             } else {
                 // Documents with age <= 30 should keep their original fields
                 assertFalse(updatedVersionstamps.contains(versionstamp),
-                    "Document with age " + age + " should NOT be in updated versionstamps");
+                        "Document with age " + age + " should NOT be in updated versionstamps");
             }
         }
 
@@ -559,16 +556,16 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             if (age > 30) {
                 // Documents with age > 30 should have been updated
                 assertTrue(allUpdatedVersionstamps.contains(versionstamp),
-                    "Document with age " + age + " should be in updated versionstamps");
+                        "Document with age " + age + " should be in updated versionstamps");
                 assertEquals("senior", status,
-                    "Document with age " + age + " should have status 'senior'");
+                        "Document with age " + age + " should have status 'senior'");
                 documentsWithStatus++;
             } else {
                 // Documents with age <= 30 should NOT have been updated
                 assertFalse(allUpdatedVersionstamps.contains(versionstamp),
-                    "Document with age " + age + " should NOT be in updated versionstamps");
+                        "Document with age " + age + " should NOT be in updated versionstamps");
                 assertNull(status,
-                    "Document with age " + age + " should NOT have status field");
+                        "Document with age " + age + " should NOT have status field");
                 documentsWithoutStatus++;
             }
         }
