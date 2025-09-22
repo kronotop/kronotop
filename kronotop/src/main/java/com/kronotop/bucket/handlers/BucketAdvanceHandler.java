@@ -65,7 +65,7 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
                         message.getAction().name().toLowerCase() + "' action with the given cursor id");
             }
             Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            return new BucketEntryMapResponse(message.getCursorId(), service.getQueryExecutor().read(tr, ctx));
+            return new BucketEntriesMapResponse(message.getCursorId(), service.getQueryExecutor().read(tr, ctx));
         }, (readResponse) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {

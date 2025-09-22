@@ -52,7 +52,7 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
             int cursorId = session.nextCursorId();
             session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
-            return new BucketEntryMapResponse(cursorId, service.getQueryExecutor().read(tr, ctx));
+            return new BucketEntriesMapResponse(cursorId, service.getQueryExecutor().read(tr, ctx));
         }, (entryMapResponse) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {

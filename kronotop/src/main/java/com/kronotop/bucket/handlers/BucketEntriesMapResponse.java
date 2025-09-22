@@ -21,5 +21,5 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
-public record BucketEntryMapResponse(int cursorId, Map<Versionstamp, ByteBuffer> entries) {
+public record BucketEntriesMapResponse(int cursorId, Map<Versionstamp, ByteBuffer> entries) {
 }

@@ -112,7 +112,7 @@ public abstract class AbstractBucketHandler implements Handler {
      * @param readResponse the {@code ReadResponse} object containing the cursor ID and entries to be converted
      *                     into a Redis-compliant map response
      */
-    protected void resp3Response(Request request, Response response, BucketEntryMapResponse readResponse) {
+    protected void resp3Response(Request request, Response response, BucketEntriesMapResponse readResponse) {
         Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
         root.put(CURSOR_ID_MESSAGE_KEY, new IntegerRedisMessage(readResponse.cursorId()));
         if (readResponse.entries() == null || readResponse.entries().isEmpty()) {
@@ -142,7 +142,7 @@ public abstract class AbstractBucketHandler implements Handler {
      * @param readResponse the {@code ReadResponse} object containing the cursor ID and entries
      *                     to be processed and sent as a Redis-compliant response
      */
-    protected void resp2Response(Request request, Response response, BucketEntryMapResponse readResponse) {
+    protected void resp2Response(Request request, Response response, BucketEntriesMapResponse readResponse) {
         List<RedisMessage> root = new LinkedList<>();
         root.add(new IntegerRedisMessage(readResponse.cursorId()));
         if (readResponse.entries() == null || readResponse.entries().isEmpty()) {
