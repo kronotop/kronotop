@@ -62,12 +62,12 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
             TransactionUtils.addPostCommitHook(new QueryContextCommitHook(ctx), request.getSession());
             TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
             return new BucketVersionstampResponse(cursorId, versionstamps);
-        }, (updateResponse) -> {
+        }, (versionstampResponse) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
-                resp3VersionstampArrayResponse(response, updateResponse);
+                resp3VersionstampArrayResponse(response, versionstampResponse);
             } else if (protoVer.equals(RESPVersion.RESP2)) {
-                resp2VersionstampArrayResponse(response, updateResponse);
+                resp2VersionstampArrayResponse(response, versionstampResponse);
             } else {
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }
