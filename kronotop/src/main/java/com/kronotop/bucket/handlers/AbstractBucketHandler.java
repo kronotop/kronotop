@@ -184,7 +184,7 @@ public abstract class AbstractBucketHandler implements Handler {
         return shard;
     }
 
-    protected void resp3VersionstampArrayResponse(Response response, BucketVersionstampResponse deleteResponse) {
+    protected void resp3VersionstampArrayResponse(Response response, BucketVersionstampArrayResponse deleteResponse) {
         Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
         root.put(CURSOR_ID_MESSAGE_KEY, new IntegerRedisMessage(deleteResponse.cursorId()));
         if (deleteResponse.versionstamps() == null || deleteResponse.versionstamps().isEmpty()) {
@@ -202,7 +202,7 @@ public abstract class AbstractBucketHandler implements Handler {
         response.writeMap(root);
     }
 
-    protected void resp2VersionstampArrayResponse(Response response, BucketVersionstampResponse deleteResponse) {
+    protected void resp2VersionstampArrayResponse(Response response, BucketVersionstampArrayResponse deleteResponse) {
         List<RedisMessage> root = new LinkedList<>();
         root.add(new IntegerRedisMessage(deleteResponse.cursorId()));
         if (deleteResponse.versionstamps() == null || deleteResponse.versionstamps().isEmpty()) {

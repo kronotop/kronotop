@@ -20,5 +20,5 @@ import com.apple.foundationdb.tuple.Versionstamp;
 
 import java.util.List;
 
-public record BucketVersionstampResponse(int cursorId, List<Versionstamp> versionstamps) {
+public record BucketVersionstampArrayResponse(int cursorId, List<Versionstamp> versionstamps) {
 }
