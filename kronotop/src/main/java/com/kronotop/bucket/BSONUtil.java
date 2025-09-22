@@ -31,6 +31,8 @@ import java.io.Reader;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Date;
+import java.util.List;
+import java.util.Collection;
 
 /**
  * Utility class for handling BSON {@code Document} serialization and deserialization.
@@ -138,6 +140,22 @@ public class BSONUtil {
             case byte[] binaryVal -> new BsonBinary(binaryVal);
             case BsonValue bsonVal -> bsonVal; // Already a BsonValue
             case Document docVal -> docVal.toBsonDocument(); // Convert Document to BsonDocument
+            case Collection<?> collection -> {
+                // Convert arrays/lists like [2, 3, 4] to BsonArray with BsonValue elements
+                BsonArray bsonArray = new BsonArray();
+                for (Object element : collection) {
+                    bsonArray.add(toBsonValue(element)); // Recursive conversion
+                }
+                yield bsonArray;
+            }
+            case Object[] array -> {
+                // Convert Object arrays to BsonArray
+                BsonArray bsonArray = new BsonArray();
+                for (Object element : array) {
+                    bsonArray.add(toBsonValue(element)); // Recursive conversion
+                }
+                yield bsonArray;
+            }
             default ->
                     throw new IllegalArgumentException("Unsupported value type for BSON conversion: " + value.getClass().getSimpleName());
         };

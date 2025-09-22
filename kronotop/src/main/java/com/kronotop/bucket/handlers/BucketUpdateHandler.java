@@ -19,7 +19,6 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketVersionstampArrayResponse;
 import com.kronotop.bucket.UpdateOptionsConverter;
@@ -31,12 +30,8 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import org.bson.BsonArray;
-import org.bson.BsonString;
-import org.bson.BsonValue;
 import org.bson.Document;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
