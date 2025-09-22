@@ -91,14 +91,14 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
     }
 
-    public final Command<K, V, List<K>> advanceDelete(int cursorId) {
+    public final Command<K, V, Map<K, V>> advanceDelete(int cursorId) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add("DELETE").add(cursorId);
-        return createCommand(CommandType.BUCKET_ADVANCE, new KeyListOutput<>(codec), args);
+        return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
     }
 
-    public final Command<K, V, List<K>> advanceUpdate(int cursorId) {
+    public final Command<K, V, Map<K, V>> advanceUpdate(int cursorId) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add("UPDATE").add(cursorId);
-        return createCommand(CommandType.BUCKET_ADVANCE, new KeyListOutput<>(codec), args);
+        return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
     }
 
     public Command<String, String, Map<String, Object>> hello(int protocolVersion) {
