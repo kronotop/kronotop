@@ -288,4 +288,130 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertTrue(foundAliceWithFields, "Alice should have kept all fields");
         assertTrue(foundDianaWithDeprecated, "Diana should have kept deprecated field");
     }
+
+    @Test
+    void test_bucket_update_set_all_bson_types() {
+        // Step 1: Insert a single test document that we'll update with all BSON types
+        List<byte[]> testDocuments = Collections.singletonList(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"TestDoc\", \"age\": 30}")
+        );
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        // Insert document and get its versionstamp
+        Map<String, byte[]> insertedDocs = insertDocuments(testDocuments);
+        List<String> allInsertedVersionstamps = new ArrayList<>(insertedDocs.keySet());
+
+        assertEquals(1, allInsertedVersionstamps.size(), "Should have inserted 1 document");
+        String targetVersionstamp = allInsertedVersionstamps.get(0);
+
+        // Step 2: Update the specific document by _id to add all BSON value types
+        Set<String> updatedVersionstamps = new HashSet<>();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            // Create update with all BSON types
+            String updateJson = """
+                {
+                    "$set": {
+                        "stringField": "Hello World",
+                        "intField": 42,
+                        "longField": 9223372036854775807,
+                        "doubleField": 3.14159,
+                        "booleanField": true,
+                        "dateField": {"$date": "2023-01-01T00:00:00.000Z"},
+                        "arrayField": [1, "two", true, null],
+                        "objectField": {"nested": "value", "count": 5},
+                        "nullField": null,
+                        "binaryField": {"$binary": {"base64": "SGVsbG8=", "subType": "00"}}
+                    }
+                }
+                """;
+
+            byte[] update = BSONUtil.jsonToDocumentThenBytes(updateJson);
+            cmd.update(BUCKET_NAME, "{\"_id\": {\"$eq\": \"" + targetVersionstamp + "\"}}", new String(update)).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(MapRedisMessage.class, msg);
+
+            MapRedisMessage updateResponse = (MapRedisMessage) msg;
+
+            // Extract versionstamps from update response
+            RedisMessage versionstampsMessage = findInMapMessage(updateResponse, "versionstamp");
+            assertNotNull(versionstampsMessage, "Update response should contain versionstamp field");
+            assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
+
+            ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
+            for (RedisMessage versionstampMsg : versionstampsArray.children()) {
+                SimpleStringRedisMessage versionstamp = (SimpleStringRedisMessage) versionstampMsg;
+                updatedVersionstamps.add(versionstamp.content());
+            }
+        }
+
+        // Should have updated exactly 1 document (the one with matching _id)
+        assertEquals(1, updatedVersionstamps.size(), "Should have updated exactly 1 document");
+        assertTrue(updatedVersionstamps.contains(targetVersionstamp), "Should have updated the target document");
+
+        // Step 3: Query the specific document to verify all BSON types were set
+        Document updatedDocument = null;
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.query(BUCKET_NAME, "{\"_id\": {\"$eq\": \"" + targetVersionstamp + "\"}}").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+
+            MapRedisMessage queryResponse = extractEntriesMap(msg);
+
+            assertEquals(1, queryResponse.children().size(), "Should retrieve exactly 1 document");
+
+            for (Map.Entry<RedisMessage, RedisMessage> entry : queryResponse.children().entrySet()) {
+                SimpleStringRedisMessage keyMessage = (SimpleStringRedisMessage) entry.getKey();
+                FullBulkStringRedisMessage valueMessage = (FullBulkStringRedisMessage) entry.getValue();
+
+                String versionstamp = keyMessage.content();
+                assertEquals(targetVersionstamp, versionstamp, "Should be the target document");
+
+                byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
+                updatedDocument = BSONUtil.toDocument(docBytes);
+            }
+        }
+
+        assertNotNull(updatedDocument, "Should have retrieved the updated document");
+
+        // Step 4: Verify all BSON field types were set correctly
+        // Original fields should remain
+        assertEquals("TestDoc", updatedDocument.getString("name"), "Original name field should remain");
+        assertEquals(30, updatedDocument.getInteger("age").intValue(), "Original age field should remain");
+
+        // New BSON type fields should be set
+        assertEquals("Hello World", updatedDocument.getString("stringField"), "String field should be set");
+        assertEquals(42, updatedDocument.getInteger("intField").intValue(), "Int field should be set");
+        assertEquals(9223372036854775807L, updatedDocument.getLong("longField").longValue(), "Long field should be set");
+        assertEquals(3.14159, updatedDocument.getDouble("doubleField"), 0.00001, "Double field should be set");
+        assertEquals(true, updatedDocument.getBoolean("booleanField"), "Boolean field should be set");
+
+        // Verify date field (should be a Date object)
+        assertNotNull(updatedDocument.getDate("dateField"), "Date field should be set");
+
+        // Verify array field
+        List<?> arrayField = updatedDocument.getList("arrayField", Object.class);
+        assertNotNull(arrayField, "Array field should be set");
+        assertEquals(4, arrayField.size(), "Array should have 4 elements");
+        assertEquals(1, arrayField.get(0), "Array first element should be 1");
+        assertEquals("two", arrayField.get(1), "Array second element should be 'two'");
+        assertEquals(true, arrayField.get(2), "Array third element should be true");
+        assertNull(arrayField.get(3), "Array fourth element should be null");
+
+        // Verify nested object field
+        Document objectField = updatedDocument.get("objectField", Document.class);
+        assertNotNull(objectField, "Object field should be set");
+        assertEquals("value", objectField.getString("nested"), "Nested object should have correct value");
+        assertEquals(5, objectField.getInteger("count").intValue(), "Nested object should have correct count");
+
+        // Verify null field
+        assertNull(updatedDocument.get("nullField"), "Null field should be null");
+
+        // Verify binary field exists (actual binary data verification depends on BSON implementation)
+        assertNotNull(updatedDocument.get("binaryField"), "Binary field should be set");
+    }
 }
