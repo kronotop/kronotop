@@ -31,6 +31,7 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import org.bson.BsonArray;
+import org.bson.BsonString;
 import org.bson.BsonValue;
 import org.bson.Document;
 
@@ -101,6 +102,7 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
             switch (key.toLowerCase()) {
                 case UpdateOptions.SET -> {
                     if (value instanceof Document setDoc) {
+                        // Handle Document format: Document{{likes=2}}
                         for (String field : setDoc.keySet()) {
                             Object fieldValue = setDoc.get(field);
                             if (fieldValue instanceof BsonValue bsonValue) {
@@ -112,12 +114,23 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
                     }
                 }
                 case UpdateOptions.UNSET -> {
-                    ArrayList<?> unsetKeys = (ArrayList<?>) value;
-                    for (Object unsetKey :unsetKeys ) {
-                        if (!(unsetKey instanceof String)) {
-                            throw new IllegalArgumentException("unset key must be a string");
+                    if (value instanceof ArrayList<?> unsetKeys) {
+                        // Handle ArrayList format: [field1, field2]
+                        for (Object unsetKey : unsetKeys) {
+                            if (!(unsetKey instanceof String)) {
+                                throw new IllegalArgumentException("unset key must be a string");
+                            }
+                            builder.unset((String) unsetKey);
                         }
-                        builder.unset((String) unsetKey);
+                    } else if (value instanceof BsonArray bsonArray) {
+                        // Handle BsonArray format: BsonArray{values=[BsonString{value='field1'}]}
+                        for (BsonValue bsonValue : bsonArray) {
+                            if (bsonValue instanceof BsonString bsonString) {
+                                builder.unset(bsonString.getValue());
+                            } else {
+                                throw new IllegalArgumentException("unset key must be a string, got: " + bsonValue.getClass().getSimpleName());
+                            }
+                        }
                     }
                 }
             }
