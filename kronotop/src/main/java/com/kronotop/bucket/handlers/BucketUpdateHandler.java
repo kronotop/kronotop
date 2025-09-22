@@ -24,13 +24,17 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketVersionstampArrayResponse;
 import com.kronotop.bucket.handlers.protocol.BucketUpdateMessage;
 import com.kronotop.bucket.pipeline.QueryContext;
+import com.kronotop.bucket.pipeline.UpdateOptions;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import org.bson.BsonArray;
+import org.bson.BsonValue;
 import org.bson.Document;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
@@ -56,10 +60,17 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
             Session session = request.getSession();
 
             InputType inputType = getInputType(request);
-            Document update = parseDocument(inputType, message.getUpdate());
-            System.out.println(update);
+            Document updateDoc = parseDocument(inputType, message.getUpdate());
+            UpdateOptions updateOptions = convertDocumentToUpdateOptions(updateDoc);
 
-            QueryContext ctx = buildQueryContext(request, message.getBucket(), message.getQuery(), message.getArguments());
+            QueryContext ctx = buildQueryContext(
+                    request,
+                    message.getBucket(),
+                    message.getQuery(),
+                    message.getArguments(),
+                    updateOptions
+            );
+
             int cursorId = session.nextCursorId();
             session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
@@ -79,5 +90,39 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }
         });
+    }
+
+    private UpdateOptions convertDocumentToUpdateOptions(Document updateDoc) {
+        UpdateOptions.Builder builder = UpdateOptions.builder();
+
+        for (String key : updateDoc.keySet()) {
+            Object value = updateDoc.get(key);
+
+            switch (key.toLowerCase()) {
+                case UpdateOptions.SET -> {
+                    if (value instanceof Document setDoc) {
+                        for (String field : setDoc.keySet()) {
+                            Object fieldValue = setDoc.get(field);
+                            if (fieldValue instanceof BsonValue bsonValue) {
+                                builder.set(field, bsonValue);
+                            } else {
+                                builder.set(field, BSONUtil.toBsonValue(fieldValue));
+                            }
+                        }
+                    }
+                }
+                case UpdateOptions.UNSET -> {
+                    ArrayList<?> unsetKeys = (ArrayList<?>) value;
+                    for (Object unsetKey :unsetKeys ) {
+                        if (!(unsetKey instanceof String)) {
+                            throw new IllegalArgumentException("unset key must be a string");
+                        }
+                        builder.unset((String) unsetKey);
+                    }
+                }
+            }
+        }
+
+        return builder.build();
     }
 }

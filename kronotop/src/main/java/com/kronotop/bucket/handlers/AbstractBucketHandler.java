@@ -26,6 +26,7 @@ import com.kronotop.bucket.handlers.protocol.QueryArguments;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.QueryOptions;
+import com.kronotop.bucket.pipeline.UpdateOptions;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
@@ -218,7 +219,7 @@ public abstract class AbstractBucketHandler implements Handler {
         response.writeArray(root);
     }
 
-    QueryOptions buildQueryOptions(Session session, QueryArguments arguments) {
+    QueryOptions buildQueryOptions(Session session, UpdateOptions updateOptions, QueryArguments arguments) {
         QueryOptions.Builder builder = QueryOptions.builder();
         if (arguments.limit() == 0) {
             builder.limit(session.attr(SessionAttributes.LIMIT).get());
@@ -226,16 +227,23 @@ public abstract class AbstractBucketHandler implements Handler {
             builder.limit(arguments.limit());
         }
         builder.reverse(arguments.reverse());
+        if (updateOptions != null) {
+            builder.update(updateOptions);
+        }
         return builder.build();
     }
 
-    QueryContext buildQueryContext(Request request, String bucket, String query, QueryArguments arguments) {
+    QueryContext buildQueryContext(Request request, String bucket, String query, QueryArguments arguments, UpdateOptions updateOptions) {
         Session session = request.getSession();
         BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, bucket);
 
-        QueryOptions options = buildQueryOptions(session, arguments);
+        QueryOptions options = buildQueryOptions(session, updateOptions, arguments);
         PipelineNode plan = service.getPlanner().plan(metadata, query);
         return new QueryContext(metadata, options, plan);
+    }
+
+    QueryContext buildQueryContext(Request request, String bucket, String query, QueryArguments arguments) {
+        return buildQueryContext(request, bucket, query, arguments, null);
     }
 
     Document parseDocument(InputType inputType, byte[] data) {

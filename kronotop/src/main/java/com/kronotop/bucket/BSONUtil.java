@@ -16,20 +16,21 @@
 
 package com.kronotop.bucket;
 
-import org.bson.BsonBinaryReader;
-import org.bson.BsonBinaryWriter;
-import org.bson.Document;
+import org.bson.*;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.DocumentCodec;
 import org.bson.codecs.EncoderContext;
 import org.bson.io.BasicOutputBuffer;
 import org.bson.json.JsonReader;
+import org.bson.types.Decimal128;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.Date;
 
 /**
  * Utility class for handling BSON {@code Document} serialization and deserialization.
@@ -111,5 +112,34 @@ public class BSONUtil {
      */
     public static byte[] jsonToDocumentThenBytes(String data) {
         return BSONUtil.toBytes(Document.parse(data));
+    }
+
+    /**
+     * Converts a Java object to its equivalent BSON value representation.
+     *
+     * @param value the Java object to convert to BsonValue
+     * @return the equivalent BsonValue representation
+     * @throws IllegalArgumentException if the value type is not supported for BSON conversion
+     */
+    public static BsonValue toBsonValue(Object value) {
+        if (value == null) {
+            return BsonNull.VALUE;
+        }
+
+        return switch (value) {
+            case String str -> new BsonString(str);
+            case Integer intVal -> new BsonInt32(intVal);
+            case Long longVal -> new BsonInt64(longVal);
+            case Double doubleVal -> new BsonDouble(doubleVal);
+            case Boolean boolVal -> new BsonBoolean(boolVal);
+            case Date dateVal -> new BsonDateTime(dateVal.getTime());
+            case BigDecimal decimalVal -> new BsonDecimal128(new Decimal128(decimalVal));
+            case Decimal128 decimal128Val -> new BsonDecimal128(decimal128Val);
+            case byte[] binaryVal -> new BsonBinary(binaryVal);
+            case BsonValue bsonVal -> bsonVal; // Already a BsonValue
+            case Document docVal -> docVal.toBsonDocument(); // Convert Document to BsonDocument
+            default ->
+                    throw new IllegalArgumentException("Unsupported value type for BSON conversion: " + value.getClass().getSimpleName());
+        };
     }
 }
