@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
+import com.kronotop.KronotopException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
@@ -27,7 +28,7 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
     private final Request request;
     private String query;
     private String bucket;
-    private String update;
+    private byte[] update;
     private QueryArguments arguments;
 
     public BucketUpdateMessage(Request request) {
@@ -38,7 +39,10 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
         query = ProtocolMessageUtil.readAsString(request.getParams().get(1));
-        update = ProtocolMessageUtil.readAsString(request.getParams().get(2));
+        update = ProtocolMessageUtil.readAsByteArray(request.getParams().get(2));
+        if (update.length == 0) {
+            throw new KronotopException("update parameter cannot be empty");
+        }
         arguments = parseCommonQueryArguments(request, 3);
     }
 
@@ -54,7 +58,7 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
         return bucket;
     }
 
-    public String getUpdate() {
+    public byte[] getUpdate() {
         return update;
     }
 }

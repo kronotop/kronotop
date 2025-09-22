@@ -60,7 +60,7 @@ public abstract class AbstractBucketHandler implements Handler {
      * @param request the request object containing the session from which the input type is retrieved
      * @return the input type associated with the session, typically either JSON or BSON
      */
-    protected InputType getInputType(Request request) {
+    InputType getInputType(Request request) {
         return request.getSession().attr(com.kronotop.server.SessionAttributes.INPUT_TYPE).get();
     }
 
@@ -236,6 +236,16 @@ public abstract class AbstractBucketHandler implements Handler {
         QueryOptions options = buildQueryOptions(session, arguments);
         PipelineNode plan = service.getPlanner().plan(metadata, query);
         return new QueryContext(metadata, options, plan);
+    }
+
+    Document parseDocument(InputType inputType, byte[] data) {
+        if (inputType.equals(InputType.JSON)) {
+            return BSONUtil.fromJson(data);
+        } else if (inputType.equals(InputType.BSON)) {
+            return BSONUtil.fromBson(data);
+        } else {
+            throw new KronotopException("Invalid input type: " + inputType);
+        }
     }
 
     /**

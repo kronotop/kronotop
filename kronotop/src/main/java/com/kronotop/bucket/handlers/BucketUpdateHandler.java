@@ -19,6 +19,7 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketVersionstampArrayResponse;
 import com.kronotop.bucket.handlers.protocol.BucketUpdateMessage;
@@ -28,6 +29,7 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import org.bson.Document;
 
 import java.util.List;
 
@@ -52,6 +54,11 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
             BucketUpdateMessage message = request.attr(MessageTypes.BUCKETUPDATE).get();
 
             Session session = request.getSession();
+
+            InputType inputType = getInputType(request);
+            Document update = parseDocument(inputType, message.getUpdate());
+            System.out.println(update);
+
             QueryContext ctx = buildQueryContext(request, message.getBucket(), message.getQuery(), message.getArguments());
             int cursorId = session.nextCursorId();
             session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get().put(cursorId, ctx);

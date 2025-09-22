@@ -21,6 +21,8 @@ import org.bson.BsonValue;
 import java.util.*;
 
 public final class UpdateOptions {
+    public static final String SET = "$set";
+    public static final String UNSET = "$unset";
     private final Map<String, BsonValue> setOps;
     private final Set<String> unsetOps;
 
@@ -39,10 +41,6 @@ public final class UpdateOptions {
 
     public Set<String> unsetOps() {
         return unsetOps;
-    }
-
-    public boolean isEmpty() {
-        return setOps.isEmpty() && unsetOps.isEmpty();
     }
 
     public static final class Builder {
