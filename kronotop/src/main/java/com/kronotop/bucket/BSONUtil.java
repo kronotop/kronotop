@@ -23,6 +23,7 @@ import org.bson.codecs.DocumentCodec;
 import org.bson.codecs.EncoderContext;
 import org.bson.io.BasicOutputBuffer;
 import org.bson.json.JsonReader;
+import org.bson.types.Binary;
 import org.bson.types.Decimal128;
 
 import java.io.ByteArrayInputStream;
@@ -138,6 +139,7 @@ public class BSONUtil {
             case BigDecimal decimalVal -> new BsonDecimal128(new Decimal128(decimalVal));
             case Decimal128 decimal128Val -> new BsonDecimal128(decimal128Val);
             case byte[] binaryVal -> new BsonBinary(binaryVal);
+            case Binary binaryVal -> new BsonBinary(binaryVal.getData()); // Convert org.bson.types.Binary to BsonBinary
             case BsonValue bsonVal -> bsonVal; // Already a BsonValue
             case Document docVal -> docVal.toBsonDocument(); // Convert Document to BsonDocument
             case Collection<?> collection -> {

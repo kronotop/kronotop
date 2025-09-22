@@ -17,6 +17,7 @@
 package com.kronotop.bucket;
 
 import org.bson.*;
+import org.bson.types.Binary;
 import org.bson.types.Decimal128;
 import org.junit.jupiter.api.Test;
 
@@ -155,6 +156,32 @@ class BSONUtilTest {
         assertEquals(new BsonString("test"), bsonArray.get(0));
         assertEquals(new BsonInt32(123), bsonArray.get(1));
         assertEquals(new BsonBoolean(false), bsonArray.get(2));
+    }
+
+    @Test
+    void test_toBsonValue_bsonTypes() {
+        // Test that existing BsonValue types are returned as-is
+        BsonString bsonString = new BsonString("test");
+        BsonInt32 bsonInt32 = new BsonInt32(123);
+        BsonBinary bsonBinary = new BsonBinary("binary data".getBytes());
+        BsonDecimal128 bsonDecimal = new BsonDecimal128(new Decimal128(456L));
+
+        // Should return the same instances
+        assertSame(bsonString, BSONUtil.toBsonValue(bsonString));
+        assertSame(bsonInt32, BSONUtil.toBsonValue(bsonInt32));
+        assertSame(bsonBinary, BSONUtil.toBsonValue(bsonBinary));
+        assertSame(bsonDecimal, BSONUtil.toBsonValue(bsonDecimal));
+    }
+
+    @Test
+    void test_toBsonValue_binaryTypes() {
+        // Test org.bson.types.Binary conversion
+        Binary binary = new Binary("Hello World".getBytes());
+        BsonValue result = BSONUtil.toBsonValue(binary);
+
+        assertInstanceOf(BsonBinary.class, result);
+        BsonBinary bsonBinary = (BsonBinary) result;
+        assertArrayEquals("Hello World".getBytes(), bsonBinary.getData());
     }
 
     @Test

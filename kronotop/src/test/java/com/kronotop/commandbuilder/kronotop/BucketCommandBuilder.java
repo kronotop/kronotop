@@ -146,6 +146,11 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_UPDATE, new MapOutput<>(codec), args);
     }
 
+    public final Command<K, V, Map<K, V>> update(String bucket, String query, byte[] update) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query).add(update);
+        return createCommand(CommandType.BUCKET_UPDATE, new MapOutput<>(codec), args);
+    }
+
     public final Command<K, V, Map<K, V>> update(String bucket, String query, String update, BucketQueryArgs bucketQueryArgs) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query).add(update);
         if (bucketQueryArgs != null) {

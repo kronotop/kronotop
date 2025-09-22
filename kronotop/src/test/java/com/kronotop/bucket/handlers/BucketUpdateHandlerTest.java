@@ -24,7 +24,12 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import org.bson.Document;
+import org.bson.*;
+import org.bson.types.Binary;
+import org.bson.types.Decimal128;
+
+import java.math.BigDecimal;
+import java.util.Date;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -310,26 +315,31 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Set<String> updatedVersionstamps = new HashSet<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            // Create update with all BSON types
-            String updateJson = """
-                {
-                    "$set": {
-                        "stringField": "Hello World",
-                        "intField": 42,
-                        "longField": 9223372036854775807,
-                        "doubleField": 3.14159,
-                        "booleanField": true,
-                        "dateField": {"$date": "2023-01-01T00:00:00.000Z"},
-                        "arrayField": [1, "two", true, null],
-                        "objectField": {"nested": "value", "count": 5},
-                        "nullField": null,
-                        "binaryField": {"$binary": {"base64": "SGVsbG8=", "subType": "00"}}
-                    }
-                }
-                """;
 
-            byte[] update = BSONUtil.jsonToDocumentThenBytes(updateJson);
-            cmd.update(BUCKET_NAME, "{\"_id\": {\"$eq\": \"" + targetVersionstamp + "\"}}", new String(update)).encode(buf);
+            // Create update document with native BSON types
+            Document setDoc = new Document()
+                    .append("stringField", new BsonString("Hello World"))
+                    .append("intField", new BsonInt32(42))
+                    .append("longField", new BsonInt64(9223372036854775807L))
+                    .append("doubleField", new BsonDouble(3.14159))
+                    .append("booleanField", new BsonBoolean(true))
+                    .append("dateField", new BsonDateTime(1672531200000L)) // 2023-01-01T00:00:00.000Z
+                    .append("arrayField", new BsonArray(Arrays.asList(
+                            new BsonInt32(1),
+                            new BsonString("two"),
+                            new BsonBoolean(true),
+                            new BsonNull()
+                    )))
+                    .append("objectField", new BsonDocument()
+                            .append("nested", new BsonString("value"))
+                            .append("count", new BsonInt32(5)))
+                    .append("nullField", new BsonNull())
+                    .append("binaryField", new BsonBinary("Hello".getBytes()))
+                    .append("decimal128Field", new BsonDecimal128(new Decimal128(new BigDecimal("123.456"))));
+
+            Document updateDoc = new Document("$set", setDoc);
+            byte[] update = BSONUtil.toBytes(updateDoc);
+            cmd.update(BUCKET_NAME, "{\"_id\": {\"$eq\": \"" + targetVersionstamp + "\"}}", update).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -411,7 +421,10 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Verify null field
         assertNull(updatedDocument.get("nullField"), "Null field should be null");
 
-        // Verify binary field exists (actual binary data verification depends on BSON implementation)
+        // Verify binary field exists
         assertNotNull(updatedDocument.get("binaryField"), "Binary field should be set");
+
+        // Verify decimal128 field
+        assertNotNull(updatedDocument.get("decimal128Field"), "Decimal128 field should be set");
     }
 }
