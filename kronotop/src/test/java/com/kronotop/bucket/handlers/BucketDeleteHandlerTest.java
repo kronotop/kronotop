@@ -68,8 +68,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             MapRedisMessage deleteResponse = (MapRedisMessage) msg;
 
             // Extract versionstamps from delete response
-            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamp");
-            assertNotNull(versionstampsMessage, "Delete response should contain versionstamp field");
+            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamps");
+            assertNotNull(versionstampsMessage, "Delete response should contain versionstamps field");
             assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
 
             ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
@@ -167,7 +167,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             MapRedisMessage deleteResponse = (MapRedisMessage) msg;
 
             // Should have an empty versionstamp array
-            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamp");
+            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamps");
             assertNotNull(versionstampsMessage);
             assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
 
@@ -211,7 +211,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
             MapRedisMessage deleteResponse = (MapRedisMessage) msg;
             assertNotNull(deleteResponse);
-            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamp");
+            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamps");
             ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
 
             for (RedisMessage versionstampMsg : versionstampsArray.children()) {
@@ -282,8 +282,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             MapRedisMessage deleteResponse = (MapRedisMessage) msg;
 
             // BUCKET.DELETE always returns actual versionstamps as strings
-            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamp");
-            assertNotNull(versionstampsMessage, "Delete response should contain versionstamp field");
+            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamps");
+            assertNotNull(versionstampsMessage, "Delete response should contain versionstamps field");
             assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
 
             ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;

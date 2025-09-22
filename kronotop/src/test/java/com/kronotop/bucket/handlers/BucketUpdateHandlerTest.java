@@ -191,8 +191,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             MapRedisMessage updateResponse = (MapRedisMessage) msg;
 
             // Extract versionstamps from update response
-            RedisMessage versionstampsMessage = findInMapMessage(updateResponse, "versionstamp");
-            assertNotNull(versionstampsMessage, "Update response should contain versionstamp field");
+            RedisMessage versionstampsMessage = findInMapMessage(updateResponse, "versionstamps");
+            assertNotNull(versionstampsMessage, "Update response should contain versionstamps field");
             assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
 
             ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
@@ -348,8 +348,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             MapRedisMessage updateResponse = (MapRedisMessage) msg;
 
             // Extract versionstamps from update response
-            RedisMessage versionstampsMessage = findInMapMessage(updateResponse, "versionstamp");
-            assertNotNull(versionstampsMessage, "Update response should contain versionstamp field");
+            RedisMessage versionstampsMessage = findInMapMessage(updateResponse, "versionstamps");
+            assertNotNull(versionstampsMessage, "Update response should contain versionstamps field");
             assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
 
             ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
@@ -470,8 +470,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             cursorId = Math.toIntExact(((IntegerRedisMessage) rawCursorId).value());
 
             // Extract versionstamps from initial update response
-            RedisMessage versionstampsMessage = findInMapMessage(updateResponse, "versionstamp");
-            assertNotNull(versionstampsMessage, "Update response should contain versionstamp field");
+            RedisMessage versionstampsMessage = findInMapMessage(updateResponse, "versionstamps");
+            assertNotNull(versionstampsMessage, "Update response should contain versionstamps field");
             assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
 
             ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
@@ -497,7 +497,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             MapRedisMessage mapResponse = (MapRedisMessage) msg;
 
             // Extract versionstamps from the map response
-            RedisMessage versionstampsMessage = findInMapMessage(mapResponse, "versionstamp");
+            RedisMessage versionstampsMessage = findInMapMessage(mapResponse, "versionstamps");
             if (versionstampsMessage == null) {
                 break; // No more updates to process
             }
