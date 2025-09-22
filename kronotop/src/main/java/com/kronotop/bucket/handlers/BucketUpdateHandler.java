@@ -22,6 +22,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketVersionstampArrayResponse;
+import com.kronotop.bucket.UpdateOptionsConverter;
 import com.kronotop.bucket.handlers.protocol.BucketUpdateMessage;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.UpdateOptions;
@@ -62,7 +63,7 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
 
             InputType inputType = getInputType(request);
             Document updateDoc = parseDocument(inputType, message.getUpdate());
-            UpdateOptions updateOptions = convertDocumentToUpdateOptions(updateDoc);
+            UpdateOptions updateOptions = UpdateOptionsConverter.fromDocument(updateDoc);
 
             QueryContext ctx = buildQueryContext(
                     request,
@@ -91,51 +92,5 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }
         });
-    }
-
-    private UpdateOptions convertDocumentToUpdateOptions(Document updateDoc) {
-        UpdateOptions.Builder builder = UpdateOptions.builder();
-
-        for (String key : updateDoc.keySet()) {
-            Object value = updateDoc.get(key);
-
-            switch (key.toLowerCase()) {
-                case UpdateOptions.SET -> {
-                    if (value instanceof Document setDoc) {
-                        // Handle Document format: Document{{likes=2}}
-                        for (String field : setDoc.keySet()) {
-                            Object fieldValue = setDoc.get(field);
-                            if (fieldValue instanceof BsonValue bsonValue) {
-                                builder.set(field, bsonValue);
-                            } else {
-                                builder.set(field, BSONUtil.toBsonValue(fieldValue));
-                            }
-                        }
-                    }
-                }
-                case UpdateOptions.UNSET -> {
-                    if (value instanceof ArrayList<?> unsetKeys) {
-                        // Handle ArrayList format: [field1, field2]
-                        for (Object unsetKey : unsetKeys) {
-                            if (!(unsetKey instanceof String)) {
-                                throw new IllegalArgumentException("unset key must be a string");
-                            }
-                            builder.unset((String) unsetKey);
-                        }
-                    } else if (value instanceof BsonArray bsonArray) {
-                        // Handle BsonArray format: BsonArray{values=[BsonString{value='field1'}]}
-                        for (BsonValue bsonValue : bsonArray) {
-                            if (bsonValue instanceof BsonString bsonString) {
-                                builder.unset(bsonString.getValue());
-                            } else {
-                                throw new IllegalArgumentException("unset key must be a string, got: " + bsonValue.getClass().getSimpleName());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return builder.build();
     }
 }
