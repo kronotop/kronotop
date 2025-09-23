@@ -101,6 +101,11 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
     }
 
+    public final Command<K, V, String> close(String operation, int cursorId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(operation).add(cursorId);
+        return createCommand(CommandType.BUCKET_CLOSE, new StatusOutput<>(codec), args);
+    }
+
     public Command<String, String, Map<String, Object>> hello(int protocolVersion) {
         CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII).add(protocolVersion);
         return new Command<>(HELLO, new GenericMapOutput<>(StringCodec.ASCII), args);
@@ -166,6 +171,7 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         BUCKET_UPDATE("BUCKET.UPDATE"),
         QUERY("QUERY"),
         BUCKET_ADVANCE("BUCKET.ADVANCE"),
+        BUCKET_CLOSE("BUCKET.CLOSE"),
         BUCKET_CREATE_INDEX("BUCKET.CREATE-INDEX"),
         BUCKET_LIST_INDEXES("BUCKET.LIST-INDEXES"),
         BUCKET_DESCRIBE_INDEX("BUCKET.DESCRIBE-INDEX"),
