@@ -16,7 +16,10 @@
 
 package com.kronotop.bucket.bql;
 
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.bql.ast.*;
+import org.bson.BsonInt32;
+import org.bson.Document;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -615,5 +618,56 @@ class BqlParserTest {
         // Verify JSON output is identical for both parsing methods
         assertEquals(expected.toJson(), result.toJson(),
                 "Fallback mode should produce identical JSON output as string parsing");
+    }
+
+    @Test
+    void testParseEncodedBsonDocument() {
+        // Construct BSON document: {"name": "Alice", "age": {"$gt": 25}}
+        Document queryDoc = new Document();
+        queryDoc.append("name", "Alice");
+
+        Document ageCondition = new Document();
+        ageCondition.append("$gt", new BsonInt32(25));
+        queryDoc.append("age", ageCondition);
+
+        // Convert Document to BSON byte array
+        byte[] bsonBytes = BSONUtil.toBytes(queryDoc);
+
+        // Verify the first byte is NOT '{' (should be BSON binary, not JSON)
+        assertNotEquals(123, bsonBytes[0], "First byte should NOT be '{' for BSON binary data");
+
+        // Parse using byte array (BSON mode)
+        BqlExpr result = BqlParser.parse(bsonBytes);
+
+        // Parse using string for comparison
+        String jsonQuery = "{\"name\": \"Alice\", \"age\": {\"$gt\": 25}}";
+        BqlExpr expected = BqlParser.parse(jsonQuery);
+
+        // Both should produce identical results
+        assertNotNull(result, "BSON parse result should not be null");
+        assertNotNull(expected, "String parse result should not be null");
+
+        // Verify the structure is correct
+        assertInstanceOf(BqlAnd.class, result, "Result should be a BqlAnd node");
+        BqlAnd andExpr = (BqlAnd) result;
+        assertEquals(2, andExpr.children().size(), "AND should have 2 children");
+
+        // First child: name = "Alice"
+        assertInstanceOf(BqlEq.class, andExpr.children().get(0), "First child should be BqlEq");
+        BqlEq nameEq = (BqlEq) andExpr.children().get(0);
+        assertEquals("name", nameEq.selector(), "First selector should be 'name'");
+        assertInstanceOf(StringVal.class, nameEq.value(), "First value should be StringVal");
+        assertEquals("Alice", ((StringVal) nameEq.value()).value(), "First value should be 'Alice'");
+
+        // Second child: age > 25
+        assertInstanceOf(BqlGt.class, andExpr.children().get(1), "Second child should be BqlGt");
+        BqlGt ageGt = (BqlGt) andExpr.children().get(1);
+        assertEquals("age", ageGt.selector(), "Second selector should be 'age'");
+        assertInstanceOf(Int32Val.class, ageGt.value(), "Second value should be Int32Val");
+        assertEquals(25, ((Int32Val) ageGt.value()).value(), "Second value should be 25");
+
+        // Verify JSON output is identical for both parsing methods
+        assertEquals(expected.toJson(), result.toJson(),
+                "BSON parsing should produce identical JSON output as string parsing");
     }
 }
