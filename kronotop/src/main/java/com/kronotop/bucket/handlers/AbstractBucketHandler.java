@@ -23,6 +23,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.bql.BqlParser;
+import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.handlers.protocol.QueryArguments;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
@@ -255,6 +256,14 @@ public abstract class AbstractBucketHandler implements Handler {
         } else {
             throw new KronotopException("Invalid input type: " + inputType);
         }
+    }
+
+    Map<Integer, QueryContext> findQueryContext(Session session, BucketOperation subcommand) {
+        return switch (subcommand) {
+            case QUERY -> session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
+            case DELETE -> session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get();
+            case UPDATE -> session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get();
+        };
     }
 
     /**

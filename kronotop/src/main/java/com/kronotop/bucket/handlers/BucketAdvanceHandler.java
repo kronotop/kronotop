@@ -22,7 +22,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketVersionstampArrayResponse;
 import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
-import com.kronotop.bucket.handlers.protocol.BucketAdvanceSubcommand;
+import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -42,13 +42,13 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 @MaximumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
 public class BucketAdvanceHandler extends AbstractBucketHandler {
-    private final EnumMap<BucketAdvanceSubcommand, SubcommandHandler> executors = new EnumMap<>(BucketAdvanceSubcommand.class);
+    private final EnumMap<BucketOperation, SubcommandHandler> executors = new EnumMap<>(BucketOperation.class);
 
     public BucketAdvanceHandler(BucketService service) {
         super(service);
-        executors.put(BucketAdvanceSubcommand.QUERY, new QuerySubcommand());
-        executors.put(BucketAdvanceSubcommand.UPDATE, new UpdateOrDeleteSubcommand(BucketAdvanceSubcommand.UPDATE));
-        executors.put(BucketAdvanceSubcommand.DELETE, new UpdateOrDeleteSubcommand(BucketAdvanceSubcommand.DELETE));
+        executors.put(BucketOperation.QUERY, new QuerySubcommand());
+        executors.put(BucketOperation.UPDATE, new UpdateOrDeleteSubcommand(BucketOperation.UPDATE));
+        executors.put(BucketOperation.DELETE, new UpdateOrDeleteSubcommand(BucketOperation.DELETE));
     }
 
     @Override
@@ -56,20 +56,12 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
         request.attr(MessageTypes.BUCKETADVANCE).set(new BucketAdvanceMessage(request));
     }
 
-    private Map<Integer, QueryContext> findQueryContext(Session session, BucketAdvanceSubcommand subcommand) {
-        return switch (subcommand) {
-            case QUERY -> session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
-            case DELETE -> session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get();
-            case UPDATE -> session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get();
-        };
-    }
-
     @Override
     public void execute(Request request, Response response) throws Exception {
         BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
-        SubcommandHandler executor = executors.get(message.getSubcommand());
+        SubcommandHandler executor = executors.get(message.getOperation());
         if (executor == null) {
-            throw new UnknownSubcommandException(message.getSubcommand().toString());
+            throw new UnknownSubcommandException(message.getOperation().toString());
         }
         executor.execute(request, response);
     }
@@ -77,11 +69,11 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
     private QueryContext getQueryContextAndValidate(Request request) {
         BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
         Session session = request.getSession();
-        Map<Integer, QueryContext> contexts = findQueryContext(session, message.getSubcommand());
+        Map<Integer, QueryContext> contexts = findQueryContext(session, message.getOperation());
         QueryContext ctx = contexts.get(message.getCursorId());
         if (Objects.isNull(ctx)) {
             throw new KronotopException("No previous query context found for '" +
-                    message.getSubcommand().name().toLowerCase() + "' action with the given cursor id");
+                    message.getOperation().name().toLowerCase() + "' operation with the given cursor id");
         }
         return ctx;
     }
@@ -109,10 +101,10 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
     }
 
     class UpdateOrDeleteSubcommand implements SubcommandHandler {
-        private final BucketAdvanceSubcommand subcommand;
+        private final BucketOperation operation;
 
-        UpdateOrDeleteSubcommand(BucketAdvanceSubcommand subcommand) {
-            this.subcommand = subcommand;
+        UpdateOrDeleteSubcommand(BucketOperation operation) {
+            this.operation = operation;
         }
 
         @Override
@@ -123,12 +115,12 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
 
                 Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
                 List<Versionstamp> versionstamps;
-                if (BucketAdvanceSubcommand.UPDATE.equals(subcommand)) {
+                if (BucketOperation.UPDATE.equals(operation)) {
                     versionstamps = service.getQueryExecutor().update(tr, ctx);
-                } else if (BucketAdvanceSubcommand.DELETE.equals(subcommand)) {
+                } else if (BucketOperation.DELETE.equals(operation)) {
                     versionstamps = service.getQueryExecutor().delete(tr, ctx);
                 } else {
-                    throw new IllegalArgumentException("Unsupported subcommand: " + subcommand);
+                    throw new IllegalArgumentException("Unsupported operation: " + operation);
                 }
 
                 TransactionUtils.addPostCommitHook(new QueryContextCommitHook(ctx), request.getSession());

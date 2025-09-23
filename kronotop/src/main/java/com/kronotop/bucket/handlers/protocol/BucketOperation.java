@@ -16,7 +16,7 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-public enum BucketAdvanceSubcommand {
+public enum BucketOperation {
     QUERY,
     DELETE,
     UPDATE
