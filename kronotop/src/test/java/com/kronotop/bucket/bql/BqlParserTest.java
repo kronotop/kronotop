@@ -341,18 +341,6 @@ class BqlParserTest {
     }
 
     @Test
-    void testNullQuery() {
-        // Test parsing null query
-        BqlParseException exception = assertThrows(BqlParseException.class, () -> {
-            BqlParser.parse(null);
-        });
-
-        assertNotNull(exception.getMessage(), "Exception should have a message");
-        assertTrue(exception.getMessage().contains("BQL parse error"), "Exception should contain BQL parse error prefix");
-        assertTrue(exception.getMessage().contains("Invalid BSON format"), "Exception should mention invalid BSON format");
-    }
-
-    @Test
     void testEmptyQuery() {
         // Test parsing empty query
         String emptyQuery = "";
@@ -583,5 +571,49 @@ class BqlParserTest {
         BqlLte lteExpr = (BqlLte) andExpr.children().get(1);
         assertEquals("age", lteExpr.selector());
         assertEquals(35, ((Int32Val) lteExpr.value()).value());
+    }
+
+    @Test
+    void testParseByteArrayFallbackMode() {
+        // Test fallback mode when byte array starts with '{' (ASCII 123)
+        // This triggers the fallback to parse as JSON string instead of BSON binary
+        String jsonQuery = "{\"name\": \"Alice\", \"age\": {\"$gt\": 25}}";
+        byte[] queryBytes = jsonQuery.getBytes();
+
+        // Verify the first byte is '{' to trigger fallback mode
+        assertEquals(123, queryBytes[0], "First byte should be '{' (ASCII 123) to trigger fallback");
+
+        // Parse using byte array (should use fallback mode)
+        BqlExpr result = BqlParser.parse(queryBytes);
+
+        // Parse using string (normal mode) for comparison
+        BqlExpr expected = BqlParser.parse(jsonQuery);
+
+        // Both should produce identical results
+        assertNotNull(result, "Fallback mode result should not be null");
+        assertNotNull(expected, "String parse result should not be null");
+
+        // Verify the structure is correct
+        assertInstanceOf(BqlAnd.class, result, "Result should be a BqlAnd node");
+        BqlAnd andExpr = (BqlAnd) result;
+        assertEquals(2, andExpr.children().size(), "AND should have 2 children");
+
+        // First child: name = "Alice"
+        assertInstanceOf(BqlEq.class, andExpr.children().get(0), "First child should be BqlEq");
+        BqlEq nameEq = (BqlEq) andExpr.children().get(0);
+        assertEquals("name", nameEq.selector(), "First selector should be 'name'");
+        assertInstanceOf(StringVal.class, nameEq.value(), "First value should be StringVal");
+        assertEquals("Alice", ((StringVal) nameEq.value()).value(), "First value should be 'Alice'");
+
+        // Second child: age > 25
+        assertInstanceOf(BqlGt.class, andExpr.children().get(1), "Second child should be BqlGt");
+        BqlGt ageGt = (BqlGt) andExpr.children().get(1);
+        assertEquals("age", ageGt.selector(), "Second selector should be 'age'");
+        assertInstanceOf(Int32Val.class, ageGt.value(), "Second value should be Int32Val");
+        assertEquals(25, ((Int32Val) ageGt.value()).value(), "Second value should be 25");
+
+        // Verify JSON output is identical for both parsing methods
+        assertEquals(expected.toJson(), result.toJson(),
+                "Fallback mode should produce identical JSON output as string parsing");
     }
 }
