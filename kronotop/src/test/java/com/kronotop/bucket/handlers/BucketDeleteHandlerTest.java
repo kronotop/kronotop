@@ -18,6 +18,7 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.commandbuilder.kronotop.BucketQueryArgs;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
@@ -68,8 +69,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             MapRedisMessage deleteResponse = (MapRedisMessage) msg;
 
             // Extract versionstamps from delete response
-            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamp");
-            assertNotNull(versionstampsMessage, "Delete response should contain versionstamp field");
+            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamps");
+            assertNotNull(versionstampsMessage, "Delete response should contain versionstamps field");
             assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
 
             ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
@@ -167,7 +168,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             MapRedisMessage deleteResponse = (MapRedisMessage) msg;
 
             // Should have an empty versionstamp array
-            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamp");
+            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamps");
             assertNotNull(versionstampsMessage);
             assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
 
@@ -211,7 +212,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
             MapRedisMessage deleteResponse = (MapRedisMessage) msg;
             assertNotNull(deleteResponse);
-            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamp");
+            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamps");
             ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
 
             for (RedisMessage versionstampMsg : versionstampsArray.children()) {
@@ -282,8 +283,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             MapRedisMessage deleteResponse = (MapRedisMessage) msg;
 
             // BUCKET.DELETE always returns actual versionstamps as strings
-            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamp");
-            assertNotNull(versionstampsMessage, "Delete response should contain versionstamp field");
+            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamps");
+            assertNotNull(versionstampsMessage, "Delete response should contain versionstamps field");
             assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
 
             ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
@@ -355,5 +356,137 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(Set.of("Alice", "Diana"), remainingNames,
                 "Should have Alice and Diana remaining after transaction delete");
+    }
+
+    @Test
+    void test_bucket_delete_with_limit_and_advance() {
+        // Step 1: Insert test documents with different ages
+        List<byte[]> testDocuments = Arrays.asList(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 35, \"city\": \"New York\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 40, \"city\": \"London\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Charlie\", \"age\": 45, \"city\": \"Paris\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Diana\", \"age\": 25, \"city\": \"Tokyo\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Eve\", \"age\": 50, \"city\": \"Berlin\"}")
+        );
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        // Insert documents and collect versionstamps
+        Map<String, byte[]> insertedDocs = insertDocuments(testDocuments);
+        List<String> allInsertedVersionstamps = new ArrayList<>(insertedDocs.keySet());
+
+        assertEquals(5, allInsertedVersionstamps.size(), "Should have inserted 5 documents");
+
+        // Step 2: Delete documents with age > 30 using limit=1
+        Set<String> allDeletedVersionstamps = new HashSet<>();
+        int cursorId;
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.delete(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage deleteResponse = (MapRedisMessage) msg;
+
+            // Extract cursor_id
+            RedisMessage rawCursorId = findInMapMessage(deleteResponse, "cursor_id");
+            assertNotNull(rawCursorId, "Delete response should contain cursor_id field");
+            assertInstanceOf(IntegerRedisMessage.class, rawCursorId);
+            cursorId = Math.toIntExact(((IntegerRedisMessage) rawCursorId).value());
+
+            // Extract versionstamps from initial delete response
+            RedisMessage versionstampsMessage = findInMapMessage(deleteResponse, "versionstamps");
+            assertNotNull(versionstampsMessage, "Delete response should contain versionstamps field");
+            assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
+
+            ArrayRedisMessage versionstampsArray = (ArrayRedisMessage) versionstampsMessage;
+            for (RedisMessage versionstampMsg : versionstampsArray.children()) {
+                SimpleStringRedisMessage versionstamp = (SimpleStringRedisMessage) versionstampMsg;
+                allDeletedVersionstamps.add(versionstamp.content());
+            }
+        }
+
+        // Should have deleted exactly 1 document in the first batch
+        assertEquals(1, allDeletedVersionstamps.size(), "Should have deleted exactly 1 document with limit=1");
+
+        // Step 3: Use BUCKET.ADVANCE DELETE to continue deleting remaining documents
+        int maxAdvanceCalls = 10; // Safety limit
+        int advanceCalls = 0;
+
+        while (advanceCalls < maxAdvanceCalls) {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.advanceDelete(cursorId).encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+
+            MapRedisMessage mapResponse = (MapRedisMessage) msg;
+
+            // Extract versionstamps from the map response
+            RedisMessage versionstampsMessage = findInMapMessage(mapResponse, "versionstamps");
+            if (versionstampsMessage == null) {
+                break; // No more deletions to process
+            }
+
+            assertInstanceOf(ArrayRedisMessage.class, versionstampsMessage);
+            ArrayRedisMessage advanceResponse = (ArrayRedisMessage) versionstampsMessage;
+
+            // If no more entries, we're done
+            if (advanceResponse.children().isEmpty()) {
+                break;
+            }
+
+            // Extract versionstamps from advance response
+            for (RedisMessage versionstampMsg : advanceResponse.children()) {
+                SimpleStringRedisMessage versionstamp = (SimpleStringRedisMessage) versionstampMsg;
+                allDeletedVersionstamps.add(versionstamp.content());
+            }
+
+            advanceCalls++;
+        }
+
+        // Should have deleted 4 documents total (age > 30: Alice=35, Bob=40, Charlie=45, Eve=50)
+        assertEquals(4, allDeletedVersionstamps.size(), "Should have deleted 4 documents with age > 30");
+
+        // Verify all deleted versionstamps were from our original insert
+        for (String deletedVs : allDeletedVersionstamps) {
+            assertTrue(allInsertedVersionstamps.contains(deletedVs),
+                    "Deleted versionstamp should be from original insert: " + deletedVs);
+        }
+
+        // Step 4: Query remaining documents to verify only Diana (age=25) remains
+        Map<String, Document> remainingDocuments = new HashMap<>();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.query(BUCKET_NAME, "{}").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+
+            MapRedisMessage queryResponse = extractEntriesMap(msg);
+
+            for (Map.Entry<RedisMessage, RedisMessage> entry : queryResponse.children().entrySet()) {
+                SimpleStringRedisMessage keyMessage = (SimpleStringRedisMessage) entry.getKey();
+                FullBulkStringRedisMessage valueMessage = (FullBulkStringRedisMessage) entry.getValue();
+
+                String versionstamp = keyMessage.content();
+                byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
+                Document document = BSONUtil.toDocument(docBytes);
+                remainingDocuments.put(versionstamp, document);
+            }
+        }
+
+        // Step 5: Verify only Diana (age=25) remains
+        assertEquals(1, remainingDocuments.size(), "Should have 1 remaining document after delete");
+
+        Document remainingDoc = remainingDocuments.values().iterator().next();
+        assertEquals("Diana", remainingDoc.getString("name"), "Remaining document should be Diana");
+        assertEquals(25, remainingDoc.getInteger("age"), "Remaining document should have age 25");
+
+        // Verify that none of the remaining versionstamps were deleted
+        for (String remainingVs : remainingDocuments.keySet()) {
+            assertFalse(allDeletedVersionstamps.contains(remainingVs),
+                    "Remaining versionstamp should NOT be in deleted versionstamps: " + remainingVs);
+        }
     }
 }

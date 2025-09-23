@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-package com.kronotop.bucket.pipeline;
+package com.kronotop.bucket;
 
-public interface TransformationNode extends PipelineNode {
-    void transform(QueryContext ctx);
+import com.apple.foundationdb.tuple.Versionstamp;
+
+import java.util.List;
+
+public record BucketVersionstampArrayResponse(int cursorId, List<Versionstamp> versionstamps) {
 }

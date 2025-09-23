@@ -91,14 +91,19 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
     }
 
-    public final Command<K, V, List<K>> advanceDelete(int cursorId) {
+    public final Command<K, V, Map<K, V>> advanceDelete(int cursorId) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add("DELETE").add(cursorId);
-        return createCommand(CommandType.BUCKET_ADVANCE, new KeyListOutput<>(codec), args);
+        return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
     }
 
-    public final Command<K, V, List<K>> advanceUpdate(int cursorId) {
+    public final Command<K, V, Map<K, V>> advanceUpdate(int cursorId) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add("UPDATE").add(cursorId);
-        return createCommand(CommandType.BUCKET_ADVANCE, new KeyListOutput<>(codec), args);
+        return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
+    }
+
+    public final Command<K, V, String> close(String operation, int cursorId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(operation).add(cursorId);
+        return createCommand(CommandType.BUCKET_CLOSE, new StatusOutput<>(codec), args);
     }
 
     public Command<String, String, Map<String, Object>> hello(int protocolVersion) {
@@ -141,12 +146,32 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_DELETE, new MapOutput<>(codec), args);
     }
 
+    public final Command<K, V, Map<K, V>> update(String bucket, String query, String update) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query).add(update);
+        return createCommand(CommandType.BUCKET_UPDATE, new MapOutput<>(codec), args);
+    }
+
+    public final Command<K, V, Map<K, V>> update(String bucket, String query, byte[] update) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query).add(update);
+        return createCommand(CommandType.BUCKET_UPDATE, new MapOutput<>(codec), args);
+    }
+
+    public final Command<K, V, Map<K, V>> update(String bucket, String query, String update, BucketQueryArgs bucketQueryArgs) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query).add(update);
+        if (bucketQueryArgs != null) {
+            bucketQueryArgs.build(args);
+        }
+        return createCommand(CommandType.BUCKET_UPDATE, new MapOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         BUCKET_INSERT("BUCKET.INSERT"),
         BUCKET_QUERY("BUCKET.QUERY"),
         BUCKET_DELETE("BUCKET.DELETE"),
+        BUCKET_UPDATE("BUCKET.UPDATE"),
         QUERY("QUERY"),
         BUCKET_ADVANCE("BUCKET.ADVANCE"),
+        BUCKET_CLOSE("BUCKET.CLOSE"),
         BUCKET_CREATE_INDEX("BUCKET.CREATE-INDEX"),
         BUCKET_LIST_INDEXES("BUCKET.LIST-INDEXES"),
         BUCKET_DESCRIBE_INDEX("BUCKET.DESCRIBE-INDEX"),

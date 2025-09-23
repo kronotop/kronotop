@@ -52,13 +52,13 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
             int cursorId = session.nextCursorId();
             session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
-            return new BucketReadResponse(cursorId, service.getQueryExecutor().read(tr, ctx));
-        }, (readResponse) -> {
+            return new BucketEntriesMapResponse(cursorId, service.getQueryExecutor().read(tr, ctx));
+        }, (entryMapResponse) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
-                resp3Response(request, response, readResponse);
+                resp3Response(request, response, entryMapResponse);
             } else if (protoVer.equals(RESPVersion.RESP2)) {
-                resp2Response(request, response, readResponse);
+                resp2Response(request, response, entryMapResponse);
             } else {
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }

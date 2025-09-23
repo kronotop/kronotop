@@ -22,10 +22,13 @@ import com.kronotop.CommitHook;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
+import com.kronotop.bucket.bql.BqlParser;
+import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.handlers.protocol.QueryArguments;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.QueryOptions;
+import com.kronotop.bucket.pipeline.UpdateOptions;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
@@ -40,7 +43,7 @@ import java.util.*;
 public abstract class AbstractBucketHandler implements Handler {
     private final static RedisMessage CURSOR_ID_MESSAGE_KEY = new SimpleStringRedisMessage("cursor_id");
     private final static RedisMessage ENTRIES_MESSAGE_KEY = new SimpleStringRedisMessage("entries");
-    private final static RedisMessage VERSIONSTAMPS_MESSAGE_KEY = new SimpleStringRedisMessage("versionstamp");
+    private final static RedisMessage VERSIONSTAMPS_MESSAGE_KEY = new SimpleStringRedisMessage("versionstamps");
     protected final BucketService service;
     protected final Context context;
 
@@ -60,7 +63,7 @@ public abstract class AbstractBucketHandler implements Handler {
      * @param request the request object containing the session from which the input type is retrieved
      * @return the input type associated with the session, typically either JSON or BSON
      */
-    protected InputType getInputType(Request request) {
+    InputType getInputType(Request request) {
         return request.getSession().attr(com.kronotop.server.SessionAttributes.INPUT_TYPE).get();
     }
 
@@ -112,7 +115,7 @@ public abstract class AbstractBucketHandler implements Handler {
      * @param readResponse the {@code ReadResponse} object containing the cursor ID and entries to be converted
      *                     into a Redis-compliant map response
      */
-    protected void resp3Response(Request request, Response response, BucketReadResponse readResponse) {
+    protected void resp3Response(Request request, Response response, BucketEntriesMapResponse readResponse) {
         Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
         root.put(CURSOR_ID_MESSAGE_KEY, new IntegerRedisMessage(readResponse.cursorId()));
         if (readResponse.entries() == null || readResponse.entries().isEmpty()) {
@@ -142,7 +145,7 @@ public abstract class AbstractBucketHandler implements Handler {
      * @param readResponse the {@code ReadResponse} object containing the cursor ID and entries
      *                     to be processed and sent as a Redis-compliant response
      */
-    protected void resp2Response(Request request, Response response, BucketReadResponse readResponse) {
+    protected void resp2Response(Request request, Response response, BucketEntriesMapResponse readResponse) {
         List<RedisMessage> root = new LinkedList<>();
         root.add(new IntegerRedisMessage(readResponse.cursorId()));
         if (readResponse.entries() == null || readResponse.entries().isEmpty()) {
@@ -184,7 +187,7 @@ public abstract class AbstractBucketHandler implements Handler {
         return shard;
     }
 
-    protected void resp3VersionstampArrayResponse(Response response, BucketDeleteResponse deleteResponse) {
+    protected void resp3VersionstampArrayResponse(Response response, BucketVersionstampArrayResponse deleteResponse) {
         Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
         root.put(CURSOR_ID_MESSAGE_KEY, new IntegerRedisMessage(deleteResponse.cursorId()));
         if (deleteResponse.versionstamps() == null || deleteResponse.versionstamps().isEmpty()) {
@@ -202,7 +205,7 @@ public abstract class AbstractBucketHandler implements Handler {
         response.writeMap(root);
     }
 
-    protected void resp2VersionstampArrayResponse(Response response, BucketDeleteResponse deleteResponse) {
+    protected void resp2VersionstampArrayResponse(Response response, BucketVersionstampArrayResponse deleteResponse) {
         List<RedisMessage> root = new LinkedList<>();
         root.add(new IntegerRedisMessage(deleteResponse.cursorId()));
         if (deleteResponse.versionstamps() == null || deleteResponse.versionstamps().isEmpty()) {
@@ -218,7 +221,7 @@ public abstract class AbstractBucketHandler implements Handler {
         response.writeArray(root);
     }
 
-    QueryOptions buildQueryOptions(Session session, QueryArguments arguments) {
+    QueryOptions buildQueryOptions(Session session, UpdateOptions updateOptions, QueryArguments arguments) {
         QueryOptions.Builder builder = QueryOptions.builder();
         if (arguments.limit() == 0) {
             builder.limit(session.attr(SessionAttributes.LIMIT).get());
@@ -226,16 +229,41 @@ public abstract class AbstractBucketHandler implements Handler {
             builder.limit(arguments.limit());
         }
         builder.reverse(arguments.reverse());
+        if (updateOptions != null) {
+            builder.update(updateOptions);
+        }
         return builder.build();
     }
 
-    QueryContext buildQueryContext(Request request, String bucket, String query, QueryArguments arguments) {
+    QueryContext buildQueryContext(Request request, String bucket, byte[] query, QueryArguments arguments, UpdateOptions updateOptions) {
         Session session = request.getSession();
         BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, bucket);
 
-        QueryOptions options = buildQueryOptions(session, arguments);
+        QueryOptions options = buildQueryOptions(session, updateOptions, arguments);
         PipelineNode plan = service.getPlanner().plan(metadata, query);
         return new QueryContext(metadata, options, plan);
+    }
+
+    QueryContext buildQueryContext(Request request, String bucket, byte[] query, QueryArguments arguments) {
+        return buildQueryContext(request, bucket, query, arguments, null);
+    }
+
+    Document parseDocument(InputType inputType, byte[] data) {
+        if (inputType.equals(InputType.JSON)) {
+            return BSONUtil.fromJson(data);
+        } else if (inputType.equals(InputType.BSON)) {
+            return BSONUtil.fromBson(data);
+        } else {
+            throw new KronotopException("Invalid input type: " + inputType);
+        }
+    }
+
+    Map<Integer, QueryContext> findQueryContext(Session session, BucketOperation subcommand) {
+        return switch (subcommand) {
+            case QUERY -> session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
+            case DELETE -> session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get();
+            case UPDATE -> session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get();
+        };
     }
 
     /**

@@ -33,7 +33,7 @@ public class Planner {
     private final Optimizer optimizer = new Optimizer();
     private final PlannerContext plannerCtx = new PlannerContext();
 
-    public PipelineNode plan(BucketMetadata metadata, String query) {
+    public PipelineNode plan(BucketMetadata metadata, byte[] query) {
         BqlExpr parsedQuery = BqlParser.parse(query);
         LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
         PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, plannerCtx);

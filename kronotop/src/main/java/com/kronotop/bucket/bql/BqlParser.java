@@ -18,14 +18,18 @@ package com.kronotop.bucket.bql;
 
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.internal.VersionstampUtil;
-import org.bson.BsonReader;
-import org.bson.BsonType;
-import org.bson.Document;
+import org.bson.*;
+import org.bson.codecs.*;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static java.util.Arrays.asList;
+import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
+import static org.bson.codecs.configuration.CodecRegistries.withUuidRepresentation;
 
 /**
  * BqlParser is a utility class designed for parsing Bucket Query Language (BQL) expressions.
@@ -43,6 +47,13 @@ import java.util.Map;
  * - Handling selector-specific operators like `$gt`, `$lt`, `$eq`, `$in`, and `$exists`.
  */
 public class BqlParser {
+    private static final byte OPENING_BRACE_ASCII_CODE = 123;
+    private static final Codec<Document> DEFAULT_CODEC =
+            withUuidRepresentation(fromProviders(asList(new ValueCodecProvider(),
+                    new CollectionCodecProvider(), new IterableCodecProvider(),
+                    new BsonValueCodecProvider(), new DocumentCodecProvider(), new MapCodecProvider())), UuidRepresentation.STANDARD)
+                    .get(Document.class);
+
     public static String explain(BqlExpr expr) {
         return Explain.explain(expr, 0);
     }
@@ -67,6 +78,57 @@ public class BqlParser {
             throw new BqlParseException("Invalid BSON format", e);
         }
 
+        return parse(document);
+    }
+
+    /**
+     * Determines if the given byte array represents a JSON object
+     * by checking if the first byte corresponds to the opening
+     * brace '{' ASCII code.
+     *
+     * @param query the byte array to check, where the first byte is analyzed
+     * @return true if the first byte indicates a JSON object, false otherwise
+     */
+    public static boolean isJSON(byte[] query) {
+        if (query.length == 0) {
+            return false;
+        }
+        byte firstByte = query[0];
+        return firstByte == OPENING_BRACE_ASCII_CODE;
+    }
+
+    /**
+     * Parses a BSON-encoded query into a BqlExpr object.
+     *
+     * @param query the BSON-encoded query as a byte array
+     * @return a BqlExpr object representing the parsed query
+     * @throws BqlParseException if the BSON format is invalid or an error occurs during parsing
+     */
+    public static BqlExpr parse(byte[] query) {
+        if (isJSON(query)) {
+            // Fallback mode: query in plain JSON
+            return parse(new String(query));
+        }
+
+        Document document;
+        try {
+            BsonReader reader = new BsonBinaryReader(ByteBuffer.wrap(query));
+            document = DEFAULT_CODEC.decode(reader, DecoderContext.builder().build());
+        } catch (Exception e) {
+            throw new BqlParseException("Invalid BSON format", e);
+        }
+
+        return parse(document);
+    }
+
+    /**
+     * Parses the given BSON document into a BqlExpr object.
+     *
+     * @param document the BSON document to be parsed. Must not be null.
+     * @return a BqlExpr object representing the parsed content of the document.
+     * @throws BqlParseException if a parsing error occurs or if there is an issue processing the BSON document.
+     */
+    private static BqlExpr parse(Document document) {
         try (BsonReader reader = document.toBsonDocument().asBsonReader()) {
             return new BqlParser().parse(reader);
         } catch (BqlParseException e) {

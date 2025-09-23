@@ -26,7 +26,7 @@ public class BucketAdvanceMessage extends AbstractBucketMessage implements Proto
     public static final int MAXIMUM_PARAMETER_COUNT = 2;
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;
-    private Action action;
+    private BucketOperation operation;
     private int cursorId;
 
     public BucketAdvanceMessage(Request request) {
@@ -37,24 +37,18 @@ public class BucketAdvanceMessage extends AbstractBucketMessage implements Proto
     private void parse() {
         String rawAction = ProtocolMessageUtil.readAsString(request.getParams().get(0));
         try {
-            action = Action.valueOf(rawAction.toUpperCase());
+            operation = BucketOperation.valueOf(rawAction.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalCommandArgumentException(String.format("Unknown '%s' action", rawAction));
         }
         cursorId = ProtocolMessageUtil.readAsInteger(request.getParams().get(1));
     }
 
-    public Action getAction() {
-        return action;
+    public BucketOperation getOperation() {
+        return operation;
     }
 
     public int getCursorId() {
         return cursorId;
-    }
-
-    public enum Action {
-        QUERY,
-        DELETE,
-        UPDATE
     }
 }

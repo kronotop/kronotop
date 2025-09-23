@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-package com.kronotop.bucket.handlers;
+package com.kronotop.bucket.handlers.protocol;
 
-import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.server.ProtocolMessage;
+import com.kronotop.server.Request;
 
-import java.nio.ByteBuffer;
-import java.util.Map;
+public class BucketCloseMessage extends BucketAdvanceMessage implements ProtocolMessage<Void> {
+    public static final String COMMAND = "BUCKET.CLOSE";
 
-public record BucketReadResponse(int cursorId, Map<Versionstamp, ByteBuffer> entries) {
+    public BucketCloseMessage(Request request) {
+        super(request);
+    }
 }

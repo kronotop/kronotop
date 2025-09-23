@@ -62,16 +62,6 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
         request.attr(MessageTypes.BUCKETINSERT).set(new BucketInsertMessage(request));
     }
 
-    private Document parseDocument(InputType inputType, byte[] data) {
-        if (inputType.equals(InputType.JSON)) {
-            return BSONUtil.fromJson(data);
-        } else if (inputType.equals(InputType.BSON)) {
-            return BSONUtil.fromBson(data);
-        } else {
-            throw new KronotopException("Invalid input type: " + inputType);
-        }
-    }
-
     /**
      * Extracts a field value from a BSON document and converts it to the appropriate Java object
      * for index storage. Returns null if the field is not found or if the BSON type doesn't

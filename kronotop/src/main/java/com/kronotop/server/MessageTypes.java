@@ -141,6 +141,8 @@ public class MessageTypes {
     public static final AttributeKey<BucketDescribeIndexMessage> BUCKETDESCRIBEINDEX = AttributeKey.valueOf(BucketDescribeIndexMessage.COMMAND);
     public static final AttributeKey<BucketDropIndexMessage> BUCKETDROPINDEX = AttributeKey.valueOf(BucketDropIndexMessage.COMMAND);
     public static final AttributeKey<BucketDeleteMessage> BUCKETDELETE = AttributeKey.valueOf(BucketDeleteMessage.COMMAND);
+    public static final AttributeKey<BucketUpdateMessage> BUCKETUPDATE = AttributeKey.valueOf(BucketUpdateMessage.COMMAND);
+    public static final AttributeKey<BucketCloseMessage> BUCKETCLOSE = AttributeKey.valueOf(BucketCloseMessage.COMMAND);
 
     // Session management
     public static final AttributeKey<SessionAttributeMessage> SESSIONATTRIBUTE = AttributeKey.valueOf(SessionAttributeMessage.COMMAND);

@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.bucket.pipeline;
+package com.kronotop.bucket.handlers;
 
-public interface TransformationNode extends PipelineNode {
-    void transform(QueryContext ctx);
+import com.apple.foundationdb.tuple.Versionstamp;
+
+import java.nio.ByteBuffer;
+import java.util.Map;
+
+public record BucketEntriesMapResponse(int cursorId, Map<Versionstamp, ByteBuffer> entries) {
 }

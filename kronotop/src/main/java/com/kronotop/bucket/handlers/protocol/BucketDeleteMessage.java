@@ -22,10 +22,10 @@ import com.kronotop.server.Request;
 
 public class BucketDeleteMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.DELETE";
-    public static final int MAXIMUM_PARAMETER_COUNT = 4;
+    public static final int MAXIMUM_PARAMETER_COUNT = 5;
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;
-    private String query;
+    private byte[] query;
     private String bucket;
     private QueryArguments arguments;
 
@@ -36,7 +36,7 @@ public class BucketDeleteMessage extends AbstractBucketMessage implements Protoc
 
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
-        query = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+        query = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
         arguments = parseCommonQueryArguments(request, 2);
     }
 
@@ -44,7 +44,7 @@ public class BucketDeleteMessage extends AbstractBucketMessage implements Protoc
         return arguments;
     }
 
-    public String getQuery() {
+    public byte[] getQuery() {
         return query;
     }
 

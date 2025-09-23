@@ -16,19 +16,22 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
+import com.kronotop.KronotopException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
-public class BucketQueryMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
-    public static final String COMMAND = "BUCKET.QUERY";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
+public class BucketUpdateMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
+    public static final String COMMAND = "BUCKET.UPDATE";
+    public static final int MINIMUM_PARAMETER_COUNT = 3;
+    public static final int MAXIMUM_PARAMETER_COUNT = 6;
     private final Request request;
-    private byte[] query;
     private String bucket;
+    private byte[] query;
+    private byte[] update;
     private QueryArguments arguments;
 
-    public BucketQueryMessage(Request request) {
+    public BucketUpdateMessage(Request request) {
         this.request = request;
         parse();
     }
@@ -36,18 +39,26 @@ public class BucketQueryMessage extends AbstractBucketMessage implements Protoco
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
         query = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
-        arguments = parseCommonQueryArguments(request, 2);
+        update = ProtocolMessageUtil.readAsByteArray(request.getParams().get(2));
+        if (update.length == 0) {
+            throw new KronotopException("update parameter cannot be empty");
+        }
+        arguments = parseCommonQueryArguments(request, 3);
     }
 
     public QueryArguments getArguments() {
         return arguments;
     }
 
+    public String getBucket() {
+        return bucket;
+    }
+
     public byte[] getQuery() {
         return query;
     }
 
-    public String getBucket() {
-        return bucket;
+    public byte[] getUpdate() {
+        return update;
     }
 }

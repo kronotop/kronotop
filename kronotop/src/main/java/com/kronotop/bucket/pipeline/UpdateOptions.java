@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2023-2025 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kronotop.bucket.pipeline;
 
 import org.bson.BsonValue;
@@ -5,18 +21,14 @@ import org.bson.BsonValue;
 import java.util.*;
 
 public final class UpdateOptions {
+    public static final String SET = "$set";
+    public static final String UNSET = "$unset";
     private final Map<String, BsonValue> setOps;
     private final Set<String> unsetOps;
-    private final Map<String, Number> incOps;
-    private final boolean upsert;
-    private final boolean multi;
 
     private UpdateOptions(Builder b) {
         this.setOps = Collections.unmodifiableMap(new LinkedHashMap<>(b.setOps));
         this.unsetOps = Collections.unmodifiableSet(new LinkedHashSet<>(b.unsetOps));
-        this.incOps = Collections.unmodifiableMap(new LinkedHashMap<>(b.incOps));
-        this.upsert = b.upsert;
-        this.multi = b.multi;
     }
 
     public static Builder builder() {
@@ -31,28 +43,9 @@ public final class UpdateOptions {
         return unsetOps;
     }
 
-    public Map<String, Number> incOps() {
-        return incOps;
-    }
-
-    public boolean upsert() {
-        return upsert;
-    }
-
-    public boolean multi() {
-        return multi;
-    }
-
-    public boolean isEmpty() {
-        return setOps.isEmpty() && unsetOps.isEmpty() && incOps.isEmpty();
-    }
-
     public static final class Builder {
         private final Map<String, BsonValue> setOps = new LinkedHashMap<>();
         private final Set<String> unsetOps = new LinkedHashSet<>();
-        private final Map<String, Number> incOps = new LinkedHashMap<>();
-        private boolean upsert;
-        private boolean multi;
 
         private static void requireField(String f) {
             if (f == null || f.isBlank()) {
@@ -73,45 +66,10 @@ public final class UpdateOptions {
             return this;
         }
 
-        public Builder inc(String field, Number delta) {
-            requireField(field);
-            if (delta == null) throw new IllegalArgumentException("delta == null");
-            incOps.put(field, delta);
-            return this;
-        }
-
-        // --- bulk helpers ---
-        public Builder putAllSet(Map<String, BsonValue> m) {
-            if (m != null) m.forEach(this::set);
-            return this;
-        }
-
-        public Builder addAllUnset(Collection<String> fields) {
-            if (fields != null) fields.forEach(this::unset);
-            return this;
-        }
-
-        public Builder putAllInc(Map<String, ? extends Number> m) {
-            if (m != null) m.forEach(this::inc);
-            return this;
-        }
-
-        // --- options ---
-        public Builder upsert(boolean v) {
-            this.upsert = v;
-            return this;
-        }
-
-        public Builder multi(boolean v) {
-            this.multi = v;
-            return this;
-        }
-
         // --- build ---
         public UpdateOptions build() {
             if (!unsetOps.isEmpty()) {
                 unsetOps.forEach(setOps::remove);
-                unsetOps.forEach(incOps::remove);
             }
             return new UpdateOptions(this);
         }

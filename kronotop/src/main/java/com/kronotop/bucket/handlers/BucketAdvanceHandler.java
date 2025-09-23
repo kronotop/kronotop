@@ -17,16 +17,22 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.BucketVersionstampArrayResponse;
 import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
+import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.internal.TransactionUtils;
+import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 
+import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -36,8 +42,13 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 @MaximumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
 public class BucketAdvanceHandler extends AbstractBucketHandler {
+    private final EnumMap<BucketOperation, SubcommandHandler> executors = new EnumMap<>(BucketOperation.class);
+
     public BucketAdvanceHandler(BucketService service) {
         super(service);
+        executors.put(BucketOperation.QUERY, new QuerySubcommand());
+        executors.put(BucketOperation.UPDATE, new UpdateOrDeleteSubcommand(BucketOperation.UPDATE));
+        executors.put(BucketOperation.DELETE, new UpdateOrDeleteSubcommand(BucketOperation.DELETE));
     }
 
     @Override
@@ -45,36 +56,86 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
         request.attr(MessageTypes.BUCKETADVANCE).set(new BucketAdvanceMessage(request));
     }
 
-    private Map<Integer, QueryContext> findQueryContext(Session session, BucketAdvanceMessage.Action action) {
-        return switch (action) {
-            case QUERY -> session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
-            case DELETE -> session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get();
-            case UPDATE -> session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get();
-        };
-    }
-
     @Override
     public void execute(Request request, Response response) throws Exception {
-        supplyAsync(context, response, () -> {
-            BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
-            Session session = request.getSession();
-            Map<Integer, QueryContext> contexts = findQueryContext(session, message.getAction());
-            QueryContext ctx = contexts.get(message.getCursorId());
-            if (Objects.isNull(ctx)) {
-                throw new KronotopException("No previous query context found for '" +
-                        message.getAction().name().toLowerCase() + "' action with the given cursor id");
-            }
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            return new BucketReadResponse(message.getCursorId(), service.getQueryExecutor().read(tr, ctx));
-        }, (readResponse) -> {
-            RESPVersion protoVer = request.getSession().protocolVersion();
-            if (protoVer.equals(RESPVersion.RESP3)) {
-                resp3Response(request, response, readResponse);
-            } else if (protoVer.equals(RESPVersion.RESP2)) {
-                resp2Response(request, response, readResponse);
-            } else {
-                throw new KronotopException("Unknown protocol version " + protoVer.getValue());
-            }
-        });
+        BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
+        SubcommandHandler executor = executors.get(message.getOperation());
+        if (executor == null) {
+            throw new UnknownSubcommandException(message.getOperation().toString());
+        }
+        executor.execute(request, response);
+    }
+
+    private QueryContext getQueryContextAndValidate(Request request) {
+        BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
+        Session session = request.getSession();
+        Map<Integer, QueryContext> contexts = findQueryContext(session, message.getOperation());
+        QueryContext ctx = contexts.get(message.getCursorId());
+        if (Objects.isNull(ctx)) {
+            throw new KronotopException("No previous query context found for '" +
+                    message.getOperation().name().toLowerCase() + "' operation with the given cursor id");
+        }
+        return ctx;
+    }
+
+    class QuerySubcommand implements SubcommandHandler {
+
+        @Override
+        public void execute(Request request, Response response) {
+            supplyAsync(context, response, () -> {
+                BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
+                QueryContext ctx = getQueryContextAndValidate(request);
+                Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+                return new BucketEntriesMapResponse(message.getCursorId(), service.getQueryExecutor().read(tr, ctx));
+            }, (readResponse) -> {
+                RESPVersion protoVer = request.getSession().protocolVersion();
+                if (protoVer.equals(RESPVersion.RESP3)) {
+                    resp3Response(request, response, readResponse);
+                } else if (protoVer.equals(RESPVersion.RESP2)) {
+                    resp2Response(request, response, readResponse);
+                } else {
+                    throw new KronotopException("Unknown protocol version " + protoVer.getValue());
+                }
+            });
+        }
+    }
+
+    class UpdateOrDeleteSubcommand implements SubcommandHandler {
+        private final BucketOperation operation;
+
+        UpdateOrDeleteSubcommand(BucketOperation operation) {
+            this.operation = operation;
+        }
+
+        @Override
+        public void execute(Request request, Response response) {
+            supplyAsync(context, response, () -> {
+                BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
+                QueryContext ctx = getQueryContextAndValidate(request);
+
+                Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+                List<Versionstamp> versionstamps;
+                if (BucketOperation.UPDATE.equals(operation)) {
+                    versionstamps = service.getQueryExecutor().update(tr, ctx);
+                } else if (BucketOperation.DELETE.equals(operation)) {
+                    versionstamps = service.getQueryExecutor().delete(tr, ctx);
+                } else {
+                    throw new IllegalArgumentException("Unsupported operation: " + operation);
+                }
+
+                TransactionUtils.addPostCommitHook(new QueryContextCommitHook(ctx), request.getSession());
+                TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
+                return new BucketVersionstampArrayResponse(message.getCursorId(), versionstamps);
+            }, (readResponse) -> {
+                RESPVersion protoVer = request.getSession().protocolVersion();
+                if (protoVer.equals(RESPVersion.RESP3)) {
+                    resp3VersionstampArrayResponse(response, readResponse);
+                } else if (protoVer.equals(RESPVersion.RESP2)) {
+                    resp2VersionstampArrayResponse(response, readResponse);
+                } else {
+                    throw new KronotopException("Unknown protocol version " + protoVer.getValue());
+                }
+            });
+        }
     }
 }
