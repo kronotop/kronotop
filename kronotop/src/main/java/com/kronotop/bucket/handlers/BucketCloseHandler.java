@@ -51,7 +51,8 @@ public class BucketCloseHandler extends AbstractBucketHandler {
             response.writeError("no cursor found");
             return;
         }
-        // Release ctx here
+        // With the current implementation, there is no need to release context manually
+        // GC will throw it away.
         response.writeOK();
     }
 }
