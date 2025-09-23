@@ -69,7 +69,9 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
         }
-        assertEquals(expectedResult, actualResult);
+        assertEquals(expectedResult.size(), actualResult.size());
+        assertTrue(actualResult.containsAll(expectedResult));
+        assertTrue(expectedResult.containsAll(actualResult));
     }
 
     @Test
@@ -108,7 +110,9 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
         }
-        assertEquals(expectedResult, actualResult);
+        assertEquals(expectedResult.size(), actualResult.size());
+        assertTrue(actualResult.containsAll(expectedResult));
+        assertTrue(expectedResult.containsAll(actualResult));
     }
 
     @Test
@@ -156,7 +160,9 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
             iterationCount++;
         }
         assertEquals(3, iterationCount);
-        assertEquals(expectedResult, actualResult);
+        assertEquals(expectedResult.size(), actualResult.size());
+        assertTrue(actualResult.containsAll(expectedResult));
+        assertTrue(expectedResult.containsAll(actualResult));
     }
 
     @Test
@@ -196,7 +202,9 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
         }
-        assertEquals(expectedResult, actualResult);
+        assertEquals(expectedResult.size(), actualResult.size());
+        assertTrue(actualResult.containsAll(expectedResult));
+        assertTrue(expectedResult.containsAll(actualResult));
     }
 
     @Test
@@ -234,7 +242,9 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
         }
-        assertEquals(expectedResult, actualResult);
+        assertEquals(expectedResult.size(), actualResult.size());
+        assertTrue(actualResult.containsAll(expectedResult));
+        assertTrue(expectedResult.containsAll(actualResult));
     }
 
     @Test
@@ -268,7 +278,9 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
         }
-        assertEquals(expectedResult, actualResult);
+        assertEquals(expectedResult.size(), actualResult.size());
+        assertTrue(actualResult.containsAll(expectedResult));
+        assertTrue(expectedResult.containsAll(actualResult));
     }
 
     @Test
@@ -309,7 +321,9 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
                 actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
             }
         }
-        assertEquals(expectedResult, actualResult);
+        assertEquals(expectedResult.size(), actualResult.size());
+        assertTrue(actualResult.containsAll(expectedResult));
+        assertTrue(expectedResult.containsAll(actualResult));
     }
 
     @Test

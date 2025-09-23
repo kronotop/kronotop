@@ -174,7 +174,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
         }
 
-        // Try to close non-existent cursor
+        // Try to close a non-existent cursor
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.close("QUERY", 99999).encode(buf);
