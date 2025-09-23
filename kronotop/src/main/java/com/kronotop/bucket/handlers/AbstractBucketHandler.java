@@ -233,7 +233,7 @@ public abstract class AbstractBucketHandler implements Handler {
         return builder.build();
     }
 
-    QueryContext buildQueryContext(Request request, String bucket, String query, QueryArguments arguments, UpdateOptions updateOptions) {
+    QueryContext buildQueryContext(Request request, String bucket, byte[] query, QueryArguments arguments, UpdateOptions updateOptions) {
         Session session = request.getSession();
         BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, bucket);
 
@@ -242,7 +242,7 @@ public abstract class AbstractBucketHandler implements Handler {
         return new QueryContext(metadata, options, plan);
     }
 
-    QueryContext buildQueryContext(Request request, String bucket, String query, QueryArguments arguments) {
+    QueryContext buildQueryContext(Request request, String bucket, byte[] query, QueryArguments arguments) {
         return buildQueryContext(request, bucket, query, arguments, null);
     }
 

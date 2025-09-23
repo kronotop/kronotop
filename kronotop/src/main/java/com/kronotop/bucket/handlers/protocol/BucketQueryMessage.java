@@ -24,7 +24,7 @@ public class BucketQueryMessage extends AbstractBucketMessage implements Protoco
     public static final String COMMAND = "BUCKET.QUERY";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;
-    private String query;
+    private byte[] query;
     private String bucket;
     private QueryArguments arguments;
 
@@ -35,7 +35,7 @@ public class BucketQueryMessage extends AbstractBucketMessage implements Protoco
 
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
-        query = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+        query = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
         arguments = parseCommonQueryArguments(request, 2);
     }
 
@@ -43,7 +43,7 @@ public class BucketQueryMessage extends AbstractBucketMessage implements Protoco
         return arguments;
     }
 
-    public String getQuery() {
+    public byte[] getQuery() {
         return query;
     }
 

@@ -26,7 +26,7 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
     public static final int MINIMUM_PARAMETER_COUNT = 3;
     public static final int MAXIMUM_PARAMETER_COUNT = 6;
     private final Request request;
-    private String query;
+    private byte[] query;
     private String bucket;
     private byte[] update;
     private QueryArguments arguments;
@@ -38,7 +38,7 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
 
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
-        query = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+        query = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
         update = ProtocolMessageUtil.readAsByteArray(request.getParams().get(2));
         if (update.length == 0) {
             throw new KronotopException("update parameter cannot be empty");
@@ -50,7 +50,7 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
         return arguments;
     }
 
-    public String getQuery() {
+    public byte[] getQuery() {
         return query;
     }
 
