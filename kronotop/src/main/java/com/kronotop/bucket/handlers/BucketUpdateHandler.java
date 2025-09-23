@@ -19,9 +19,11 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketVersionstampArrayResponse;
 import com.kronotop.bucket.UpdateOptionsConverter;
+import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.handlers.protocol.BucketUpdateMessage;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.UpdateOptions;
@@ -49,6 +51,24 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
         request.attr(MessageTypes.BUCKETUPDATE).set(new BucketUpdateMessage(request));
     }
 
+    /**
+     * Parses the input byte array into a Document object, assuming it is either JSON or BSON format.
+     * If the input is determined to be JSON, it converts it using the appropriate utility.
+     * Otherwise, it is treated as BSON and uses a different utility for conversion.
+     *
+     * @param input the input byte array containing the data to be parsed, expected to be in JSON or BSON format
+     * @return a Document object obtained by parsing the input byte array
+     */
+    private Document parseUpdateDocument(byte[] input) {
+        if (BqlParser.isJSON(input)) {
+            // Assume that the input is a valid JSON
+            return BSONUtil.fromJson(input);
+        } else {
+            // Assume that the input is a valid BSON
+            return BSONUtil.fromBson(input);
+        }
+    }
+
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
@@ -56,9 +76,8 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
 
             Session session = request.getSession();
 
-            InputType inputType = getInputType(request);
-            Document updateDoc = parseDocument(inputType, message.getUpdate());
-            UpdateOptions updateOptions = UpdateOptionsConverter.fromDocument(updateDoc);
+            Document updateDocument = parseUpdateDocument(message.getUpdate());
+            UpdateOptions updateOptions = UpdateOptionsConverter.fromDocument(updateDocument);
 
             QueryContext ctx = buildQueryContext(
                     request,

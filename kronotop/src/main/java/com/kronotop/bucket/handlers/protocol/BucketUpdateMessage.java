@@ -26,8 +26,8 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
     public static final int MINIMUM_PARAMETER_COUNT = 3;
     public static final int MAXIMUM_PARAMETER_COUNT = 6;
     private final Request request;
-    private byte[] query;
     private String bucket;
+    private byte[] query;
     private byte[] update;
     private QueryArguments arguments;
 
@@ -50,12 +50,12 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
         return arguments;
     }
 
-    public byte[] getQuery() {
-        return query;
-    }
-
     public String getBucket() {
         return bucket;
+    }
+
+    public byte[] getQuery() {
+        return query;
     }
 
     public byte[] getUpdate() {

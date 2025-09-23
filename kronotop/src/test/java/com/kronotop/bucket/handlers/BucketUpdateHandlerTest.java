@@ -59,8 +59,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Set<String> updatedVersionstamps = new HashSet<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            byte[] update = BSONUtil.jsonToDocumentThenBytes("{\"$set\": {\"status\": \"senior\"}}");
-            cmd.update(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", new String(update)).encode(buf);
+            cmd.update(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", "{\"$set\": {\"status\": \"senior\"}}").encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -179,8 +178,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Set<String> updatedVersionstamps = new HashSet<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            byte[] update = BSONUtil.jsonToDocumentThenBytes("{\"$unset\": [\"temp\", \"deprecated\"]}");
-            cmd.update(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", new String(update)).encode(buf);
+            cmd.update(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", "{\"$unset\": [\"temp\", \"deprecated\"]}").encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -453,8 +451,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Initial update with limit=1
         {
             ByteBuf buf = Unpooled.buffer();
-            byte[] update = BSONUtil.jsonToDocumentThenBytes("{\"$set\": {\"status\": \"senior\"}}");
-            cmd.update(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", new String(update), BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.update(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", "{\"$set\": {\"status\": \"senior\"}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);

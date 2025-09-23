@@ -22,6 +22,7 @@ import com.kronotop.CommitHook;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
+import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.handlers.protocol.QueryArguments;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;

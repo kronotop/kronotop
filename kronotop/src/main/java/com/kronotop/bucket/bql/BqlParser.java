@@ -82,6 +82,22 @@ public class BqlParser {
     }
 
     /**
+     * Determines if the given byte array represents a JSON object
+     * by checking if the first byte corresponds to the opening
+     * brace '{' ASCII code.
+     *
+     * @param query the byte array to check, where the first byte is analyzed
+     * @return true if the first byte indicates a JSON object, false otherwise
+     */
+    public static boolean isJSON(byte[] query) {
+        if (query.length == 0) {
+            return false;
+        }
+        byte firstByte = query[0];
+        return firstByte == OPENING_BRACE_ASCII_CODE;
+    }
+
+    /**
      * Parses a BSON-encoded query into a BqlExpr object.
      *
      * @param query the BSON-encoded query as a byte array
@@ -89,11 +105,11 @@ public class BqlParser {
      * @throws BqlParseException if the BSON format is invalid or an error occurs during parsing
      */
     public static BqlExpr parse(byte[] query) {
-        byte firstByte = query[0];
-        if (firstByte == OPENING_BRACE_ASCII_CODE) {
+        if (isJSON(query)) {
             // Fallback mode: query in plain JSON
             return parse(new String(query));
         }
+
         Document document;
         try {
             BsonReader reader = new BsonBinaryReader(ByteBuffer.wrap(query));
