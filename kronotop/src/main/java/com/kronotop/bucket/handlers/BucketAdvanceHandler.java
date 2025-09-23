@@ -47,7 +47,8 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
     public BucketAdvanceHandler(BucketService service) {
         super(service);
         executors.put(BucketAdvanceSubcommand.QUERY, new QuerySubcommand());
-        executors.put(BucketAdvanceSubcommand.UPDATE, new UpdateSubcommand());
+        executors.put(BucketAdvanceSubcommand.UPDATE, new UpdateOrDeleteSubcommand(BucketAdvanceSubcommand.UPDATE));
+        executors.put(BucketAdvanceSubcommand.DELETE, new UpdateOrDeleteSubcommand(BucketAdvanceSubcommand.DELETE));
     }
 
     @Override
@@ -73,20 +74,26 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
         executor.execute(request, response);
     }
 
+    private QueryContext getQueryContextAndValidate(Request request) {
+        BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
+        Session session = request.getSession();
+        Map<Integer, QueryContext> contexts = findQueryContext(session, message.getSubcommand());
+        QueryContext ctx = contexts.get(message.getCursorId());
+        if (Objects.isNull(ctx)) {
+            throw new KronotopException("No previous query context found for '" +
+                    message.getSubcommand().name().toLowerCase() + "' action with the given cursor id");
+        }
+        return ctx;
+    }
+
     class QuerySubcommand implements SubcommandHandler {
 
         @Override
         public void execute(Request request, Response response) {
             supplyAsync(context, response, () -> {
                 BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
-                Session session = request.getSession();
-                Map<Integer, QueryContext> contexts = findQueryContext(session, message.getSubcommand());
-                QueryContext ctx = contexts.get(message.getCursorId());
-                if (Objects.isNull(ctx)) {
-                    throw new KronotopException("No previous query context found for '" +
-                            message.getSubcommand().name().toLowerCase() + "' action with the given cursor id");
-                }
-                Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
+                QueryContext ctx = getQueryContextAndValidate(request);
+                Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
                 return new BucketEntriesMapResponse(message.getCursorId(), service.getQueryExecutor().read(tr, ctx));
             }, (readResponse) -> {
                 RESPVersion protoVer = request.getSession().protocolVersion();
@@ -101,21 +108,28 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
         }
     }
 
-    class UpdateSubcommand implements SubcommandHandler {
+    class UpdateOrDeleteSubcommand implements SubcommandHandler {
+        private final BucketAdvanceSubcommand subcommand;
+
+        UpdateOrDeleteSubcommand(BucketAdvanceSubcommand subcommand) {
+            this.subcommand = subcommand;
+        }
 
         @Override
         public void execute(Request request, Response response) {
             supplyAsync(context, response, () -> {
                 BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
-                Session session = request.getSession();
-                Map<Integer, QueryContext> contexts = findQueryContext(session, message.getSubcommand());
-                QueryContext ctx = contexts.get(message.getCursorId());
-                if (Objects.isNull(ctx)) {
-                    throw new KronotopException("No previous query context found for '" +
-                            message.getSubcommand().name().toLowerCase() + "' action with the given cursor id");
+                QueryContext ctx = getQueryContextAndValidate(request);
+
+                Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+                List<Versionstamp> versionstamps;
+                if (BucketAdvanceSubcommand.UPDATE.equals(subcommand)) {
+                    versionstamps = service.getQueryExecutor().update(tr, ctx);
+                } else if (BucketAdvanceSubcommand.DELETE.equals(subcommand)) {
+                    versionstamps = service.getQueryExecutor().delete(tr, ctx);
+                } else {
+                    throw new IllegalArgumentException("Unsupported subcommand: " + subcommand);
                 }
-                Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-                List<Versionstamp> versionstamps = service.getQueryExecutor().update(tr, ctx);
 
                 TransactionUtils.addPostCommitHook(new QueryContextCommitHook(ctx), request.getSession());
                 TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
