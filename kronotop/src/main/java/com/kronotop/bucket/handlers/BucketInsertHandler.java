@@ -24,6 +24,7 @@ import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
+import com.kronotop.bucket.index.SelectorMatcher;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
@@ -35,9 +36,8 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeSession;
-import org.bson.BsonBinaryReader;
-import org.bson.BsonReader;
 import org.bson.BsonType;
+import org.bson.BsonValue;
 import org.bson.Document;
 
 import java.io.IOException;
@@ -48,6 +48,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+import static org.bson.BsonType.INT32;
 
 @Command(BucketInsertMessage.COMMAND)
 @MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)
@@ -63,63 +64,41 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
     }
 
     /**
-     * Extracts a field value from a BSON document and converts it to the appropriate Java object
-     * for index storage. Returns null if the field is not found or if the BSON type doesn't
-     * match the expected IndexDefinition type.
+     * Converts a {@link BsonValue} into its equivalent Java object representation based on the expected BSON type.
+     * This method validates the type of the provided {@code BsonValue} against the expected BSON type
+     * and attempts to convert the value accordingly. If the BSON type is unsupported or does not match the expected type,
+     * an exception is thrown.
      *
-     * @param entry            the ByteBuffer containing the BSON document
-     * @param selector         the field name to extract
-     * @param expectedBsonType the expected BSON type from IndexDefinition
-     * @return the extracted field value as a Java object, or null if not found/type mismatch
+     * @param value the BSON value to be converted
+     * @param expectedBsonType the expected BSON type against which the value is validated
+     * @return the Java object equivalent of the BSON value, or {@code null} if the BSON type is {@code BsonType.NULL}
+     * @throws KronotopException if the BSON value's type does not match the expected BSON type and is not a valid exception
+     *                           (e.g., {@code INT32} for an {@code INT64}).
+     * @throws IllegalArgumentException if the BSON type is unsupported for conversion
      */
-    private Object extractFieldValueFromBsonDocument(ByteBuffer entry, String selector, BsonType expectedBsonType) {
-        entry.rewind();
-        try (BsonReader reader = new BsonBinaryReader(entry)) {
-            reader.readStartDocument();
-
-            while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                String fieldName = reader.readName();
-
-                if (fieldName.equals(selector)) {
-                    BsonType actualBsonType = reader.getCurrentBsonType();
-
-                    // Check if the actual BSON type matches the expected type from IndexDefinition
-                    if (actualBsonType != expectedBsonType) {
-                        // Int64 covers Int32 values
-                        if (!(expectedBsonType.equals(BsonType.INT64) && actualBsonType.equals(BsonType.INT32))) {
-                            throw new KronotopException("Type mismatch for '" + selector + "'. Expected BsonType=" + expectedBsonType);
-                        }
-                    }
-
-                    // Extract the value based on the BSON type
-                    return switch (actualBsonType) {
-                        case STRING -> reader.readString();
-                        case INT32 -> (long) reader.readInt32(); // FoundationDB stores as Long
-                        case INT64 -> reader.readInt64();
-                        case DOUBLE -> reader.readDouble();
-                        case BOOLEAN -> reader.readBoolean();
-                        case BINARY -> reader.readBinaryData().getData();
-                        case DATE_TIME -> reader.readDateTime();
-                        case DECIMAL128 -> reader.readDecimal128().bigDecimalValue();
-                        case NULL -> {
-                            reader.readNull();
-                            yield null;
-                        }
-                        default -> {
-                            reader.skipValue(); // Skip unsupported types
-                            yield null;
-                        }
-                    };
-                } else {
-                    reader.skipValue(); // Skip fields that don't match our selector
-                }
+    private Object convertBsonValueToJavaObject(BsonValue value, BsonType expectedBsonType) {
+        // Check if the actual BSON type matches the expected type from IndexDefinition
+        if (value.getBsonType() != expectedBsonType) {
+            // Int64 covers Int32 values
+            if (!(expectedBsonType.equals(BsonType.INT64) && value.getBsonType().equals(INT32))) {
+                throw new KronotopException("Type mismatch for Expected BsonType=" + expectedBsonType);
             }
-
-            return null; // Field not found in document
-        } catch (Exception e) {
-            // Log and ignore parsing errors - missing field is OK
-            return null;
         }
+        return switch (value.getBsonType()) {
+            case STRING -> value.asString().getValue();
+            case INT32 -> value.asInt32().getValue();
+            case INT64 -> value.asInt64().getValue();
+            case DOUBLE -> value.asDouble().getValue();
+            case BOOLEAN -> value.asBoolean().getValue();
+            case BINARY -> value.asBinary().getData();
+            case DATE_TIME -> value.asDateTime().getValue();
+            case TIMESTAMP -> value.asTimestamp().getValue();
+            case DECIMAL128 -> value.asDecimal128().getValue().bigDecimalValue();
+            case NULL -> null;
+            default -> {
+                throw new IllegalArgumentException("Unsupported BSON type: " + value.getBsonType());
+            }
+        };
     }
 
     /**
@@ -182,18 +161,15 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                 AppendedEntry appendedEntry = appendResult.getAppendedEntries()[i];
                 ByteBuffer entry = pack.entries[i];
                 entry.rewind();
-
                 for (Index index : metadata.indexes().getIndexes()) {
                     // Skip the default ID index as it's already handled above
                     if (index.definition().equals(DefaultIndexDefinition.ID)) {
                         continue;
                     }
 
-                    Object indexValue = extractFieldValueFromBsonDocument(
-                            entry,
-                            index.definition().selector(),
-                            index.definition().bsonType()
-                    );
+                    BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), entry);
+                    entry.rewind();
+                    Object indexValue = convertBsonValueToJavaObject(bsonValue, index.definition().bsonType());
                     IndexBuilder.setIndexEntry(
                             tr,
                             index.definition(),
