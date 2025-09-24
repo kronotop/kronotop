@@ -154,18 +154,18 @@ public class SelectorMatcher {
     }
 
     /**
-     * Matches a selector path against a BSON binary input and returns the corresponding value.
+     * Matches a selector path against a BSON document represented as a ByteBuffer and returns the corresponding value.
      * <p>
-     * This method traverses the BSON document represented in the given ByteBuffer using
-     * the provided selector string, which follows a dot-notation structure to access
-     * nested fields and array elements.
+     * This method navigates through the BSON document using a dot-separated path specified by the selector string.
+     * It reads data from the ByteBuffer and traverses through nested documents or arrays as necessary to locate
+     * the desired value.
      *
-     * @param selector the dot-notation path to the desired value (e.g., "user.profile.name", "items.0")
-     * @param input the ByteBuffer containing the BSON binary data to search within
+     * @param selector the dot-notation path to the desired value (e.g., "field.subfield", "arrayField.0")
+     * @param input the ByteBuffer containing the BSON document to search within
      * @return the BsonValue found at the specified path, or {@code null} if the path doesn't exist,
-     *         contains invalid array indices, or encounters type mismatches
-     * @throws IllegalArgumentException if selector is null or empty
-     * @throws IllegalArgumentException if input is null
+     *         the BSON structure does not match the selector, or array indices are invalid
+     * @throws IllegalArgumentException if the selector is null or empty
+     * @throws NullPointerException if the input ByteBuffer is null
      */
     public static BsonValue match(String selector, ByteBuffer input) {
         String[] pathSegments = selector.split("\\.");
@@ -173,6 +173,8 @@ public class SelectorMatcher {
         try (BsonReader reader = new BsonBinaryReader(input)) {
             reader.readStartDocument();
             return findValueInDocument(reader, pathSegments, 0);
+        } finally {
+            input.rewind();
         }
     }
 

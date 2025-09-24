@@ -41,7 +41,6 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonType;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -292,7 +291,6 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldIgnoreMissingFieldsInDocument() {
         // Create indexes for fields that don't exist in the document
         IndexDefinition nameIndexDefinition = IndexDefinition.create("name-index", "name", BsonType.STRING);
@@ -350,7 +348,6 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
     void shouldIgnoreTypeMismatchedFields() {
         // Create an index expecting INT32 for 'age' field
         IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);

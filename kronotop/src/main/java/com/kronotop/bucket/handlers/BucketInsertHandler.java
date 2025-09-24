@@ -64,24 +64,24 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
     }
 
     /**
-     * Converts a {@link BsonValue} into its equivalent Java object representation based on the expected BSON type.
-     * This method validates the type of the provided {@code BsonValue} against the expected BSON type
-     * and attempts to convert the value accordingly. If the BSON type is unsupported or does not match the expected type,
-     * an exception is thrown.
+     * Converts a given {@link BsonValue} to its corresponding Java object based on the BSON type.
+     * If there is a mismatch between the actual BSON type of the value and the expected BSON type,
+     * null is returned unless the mismatch is specifically allowed (e.g., INT32 values are allowed
+     * where INT64 is expected).
      *
-     * @param value the BSON value to be converted
-     * @param expectedBsonType the expected BSON type against which the value is validated
-     * @return the Java object equivalent of the BSON value, or {@code null} if the BSON type is {@code BsonType.NULL}
-     * @throws KronotopException if the BSON value's type does not match the expected BSON type and is not a valid exception
-     *                           (e.g., {@code INT32} for an {@code INT64}).
-     * @throws IllegalArgumentException if the BSON type is unsupported for conversion
+     * @param value the {@link BsonValue} to be converted
+     * @param expectedBsonType the expected {@link BsonType} of the {@code value}
+     * @return a Java object that corresponds to the BSON type of the {@code value},
+     *         or null if there is a type mismatch or the BSON type is unsupported
+     * @throws IllegalArgumentException if an unsupported BSON type is encountered
      */
     private Object convertBsonValueToJavaObject(BsonValue value, BsonType expectedBsonType) {
         // Check if the actual BSON type matches the expected type from IndexDefinition
         if (value.getBsonType() != expectedBsonType) {
             // Int64 covers Int32 values
             if (!(expectedBsonType.equals(BsonType.INT64) && value.getBsonType().equals(INT32))) {
-                throw new KronotopException("Type mismatch for Expected BsonType=" + expectedBsonType);
+                // Type mismatches are not indexed, but documents are still persisted.
+                return null;
             }
         }
         return switch (value.getBsonType()) {
@@ -160,7 +160,8 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             for (int i = 0; i < appendResult.getAppendedEntries().length; i++) {
                 AppendedEntry appendedEntry = appendResult.getAppendedEntries()[i];
                 ByteBuffer entry = pack.entries[i];
-                entry.rewind();
+                entry.rewind(); // ready to read the document again
+
                 for (Index index : metadata.indexes().getIndexes()) {
                     // Skip the default ID index as it's already handled above
                     if (index.definition().equals(DefaultIndexDefinition.ID)) {
@@ -168,8 +169,15 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                     }
 
                     BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), entry);
-                    entry.rewind();
+                    if (bsonValue == null) {
+                        // No match for the given selector
+                        continue;
+                    }
                     Object indexValue = convertBsonValueToJavaObject(bsonValue, index.definition().bsonType());
+                    if (indexValue == null) {
+                        // Type mismatched
+                        continue;
+                    }
                     IndexBuilder.setIndexEntry(
                             tr,
                             index.definition(),
