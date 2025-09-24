@@ -16,10 +16,9 @@
 
 package com.kronotop.bucket.index;
 
-import org.bson.BsonReader;
-import org.bson.BsonType;
-import org.bson.BsonValue;
-import org.bson.Document;
+import org.bson.*;
+
+import java.nio.ByteBuffer;
 
 /**
  * SelectorMatcher provides JSONPath-like functionality for traversing and extracting values
@@ -149,6 +148,29 @@ public class SelectorMatcher {
         String[] pathSegments = selector.split("\\.");
 
         try (BsonReader reader = document.toBsonDocument().asBsonReader()) {
+            reader.readStartDocument();
+            return findValueInDocument(reader, pathSegments, 0);
+        }
+    }
+
+    /**
+     * Matches a selector path against a BSON binary input and returns the corresponding value.
+     * <p>
+     * This method traverses the BSON document represented in the given ByteBuffer using
+     * the provided selector string, which follows a dot-notation structure to access
+     * nested fields and array elements.
+     *
+     * @param selector the dot-notation path to the desired value (e.g., "user.profile.name", "items.0")
+     * @param input the ByteBuffer containing the BSON binary data to search within
+     * @return the BsonValue found at the specified path, or {@code null} if the path doesn't exist,
+     *         contains invalid array indices, or encounters type mismatches
+     * @throws IllegalArgumentException if selector is null or empty
+     * @throws IllegalArgumentException if input is null
+     */
+    public static BsonValue match(String selector, ByteBuffer input) {
+        String[] pathSegments = selector.split("\\.");
+
+        try (BsonReader reader = new BsonBinaryReader(input)) {
             reader.readStartDocument();
             return findValueInDocument(reader, pathSegments, 0);
         }

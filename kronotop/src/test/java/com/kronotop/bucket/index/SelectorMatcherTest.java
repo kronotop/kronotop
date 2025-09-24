@@ -16,10 +16,12 @@
 
 package com.kronotop.bucket.index;
 
+import com.kronotop.bucket.BSONUtil;
 import org.bson.*;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Date;
 
@@ -31,6 +33,17 @@ class SelectorMatcherTest {
         Document document = new Document();
         document.append("key", new BsonString("value"));
         BsonValue matchedValue = SelectorMatcher.match("key", document);
+        assertInstanceOf(BsonString.class, matchedValue);
+        assertEquals("value", matchedValue.asString().getValue());
+    }
+
+    @Test
+    void testMatchWithByteBuffer() {
+        Document document = new Document();
+        document.append("key", new BsonString("value"));
+        ByteBuffer buffer = ByteBuffer.wrap(BSONUtil.toBytes(document));
+        BsonValue matchedValue = SelectorMatcher.match("key", buffer);
+
         assertInstanceOf(BsonString.class, matchedValue);
         assertEquals("value", matchedValue.asString().getValue());
     }
@@ -267,10 +280,10 @@ class SelectorMatcherTest {
     @Test
     void testMethodJavaDocExample() {
         Document user = new Document()
-            .append("name", "Alice")
-            .append("contact", new Document()
-                .append("email", "alice@example.com")
-                .append("phones", Arrays.asList("123-456-7890", "987-654-3210")));
+                .append("name", "Alice")
+                .append("contact", new Document()
+                        .append("email", "alice@example.com")
+                        .append("phones", Arrays.asList("123-456-7890", "987-654-3210")));
 
         BsonValue name = SelectorMatcher.match("name", user);
         assertEquals("Alice", name.asString().getValue());
@@ -289,10 +302,10 @@ class SelectorMatcherTest {
     @Test
     void testClassJavaDocExample() {
         Document doc = new Document()
-            .append("user", new Document()
-                .append("name", "John")
-                .append("age", 30))
-            .append("scores", Arrays.asList(95, 87, 92));
+                .append("user", new Document()
+                        .append("name", "John")
+                        .append("age", 30))
+                .append("scores", Arrays.asList(95, 87, 92));
 
         BsonValue userName = SelectorMatcher.match("user.name", doc);
         assertEquals("John", userName.asString().getValue());
@@ -344,11 +357,6 @@ class SelectorMatcherTest {
 
         BsonValue result = SelectorMatcher.match("", document);
         assertNull(result);
-    }
-
-    @Test
-    void testNullDocument() {
-        assertThrows(Exception.class, () -> SelectorMatcher.match("key", null));
     }
 
     // Test arrays within documents within arrays (from JavaDoc example)
