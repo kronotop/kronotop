@@ -28,7 +28,10 @@ import com.kronotop.server.RESPError;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -249,6 +252,43 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
             assertTrue(firstBucketIndexes.contains(definition.name()));
             assertTrue(secondBucketIndexes.contains(definition.name()));
+        }
+    }
+
+    @Test
+    void shouldCreateIndexDefinitionsWithUniqueIdsForSameParameters() {
+        String indexName = "test-index";
+        String selector = "test.field";
+        BsonType bsonType = BsonType.STRING;
+        int numberOfIndexes = 10;
+
+        List<IndexDefinition> createdIndexes = new ArrayList<>();
+        Set<Long> uniqueIds = new HashSet<>();
+
+        // Create multiple IndexDefinition instances with identical parameters
+        for (int i = 0; i < numberOfIndexes; i++) {
+            IndexDefinition indexDefinition = IndexDefinition.create(indexName, selector, bsonType);
+            createdIndexes.add(indexDefinition);
+            uniqueIds.add(indexDefinition.id());
+        }
+
+        // Verify all indexes have the same name, selector, and bsonType
+        for (IndexDefinition indexDefinition : createdIndexes) {
+            assertEquals(indexName, indexDefinition.name());
+            assertEquals(selector, indexDefinition.selector());
+            assertEquals(bsonType, indexDefinition.bsonType());
+        }
+
+        // Verify all IDs are unique
+        assertEquals(numberOfIndexes, uniqueIds.size(),
+                "All IndexDefinition instances should have unique IDs despite having identical parameters");
+
+        // Verify no two indexes have the same ID
+        for (int i = 0; i < createdIndexes.size(); i++) {
+            for (int j = i + 1; j < createdIndexes.size(); j++) {
+                assertNotEquals(createdIndexes.get(i).id(), createdIndexes.get(j).id(),
+                        "IndexDefinition at index " + i + " and " + j + " should have different IDs");
+            }
         }
     }
 }
