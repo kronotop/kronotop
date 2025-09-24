@@ -26,21 +26,44 @@ import java.util.UUID;
 import static com.google.common.hash.Hashing.sipHash24;
 
 /**
- * Represents the definition of an index used in the system. This definition includes the unique
- * identifier of the index, its name, the selector it targets, its sort order, and BSON type.
+ * Represents an immutable index definition for document fields in Kronotop buckets.
  * <p>
- * The IndexDefinition is designed as an immutable record and provides utility for creating a new
- * instance with an auto-generated identifier based on the name, as well as overrides for standard
- * Object methods like toString and hashCode.
- * <p>
- * Key Components:
- * - id: A unique identifier for the index, derived from the hash of the index name.
- * - name: The name of the index.
- * - selector: The selector associated with the index.
- * - bsonType: The BSON type of the selector being indexed.
- * <p>
- * The main usage scenarios include defining new indexes for a database and providing sufficient
- * metadata for index-related operations.
+ * This record encapsulates all metadata required to create and manage secondary indexes on BSON document
+ * fields. Each index definition contains a unique identifier, human-readable name, field selector path,
+ * and the expected BSON data type of the indexed field.
+ *
+ * <h3>Index Identification</h3>
+ * Each index is uniquely identified by a cryptographically secure hash-based ID generated from a random UUID.
+ * This ensures global uniqueness across all buckets while avoiding collisions.
+ *
+ * <h3>Field Selection</h3>
+ * The selector specifies the document field path to be indexed using dot notation (e.g., "user.profile.age").
+ * Only fields matching the specified BSON type will be included in the index.
+ *
+ * <h3>Supported Data Types</h3>
+ * Most BSON types are supported for indexing, with the exception of DECIMAL128 which is not yet implemented.
+ * The type constraint ensures index consistency and enables type-specific optimizations.
+ *
+ * <h3>Usage Examples</h3>
+ * <pre>{@code
+ * // Create index with explicit name
+ * IndexDefinition userAgeIndex = IndexDefinition.create("user_age_idx", "user.age", BsonType.INT32);
+ *
+ * // Create index with auto-generated name
+ * IndexDefinition emailIndex = IndexDefinition.create("email", BsonType.STRING);
+ * }</pre>
+ *
+ * <h3>Index Scope</h3>
+ * Index definitions are scoped to individual buckets. The same index definition can be safely created
+ * on multiple buckets without conflicts, as each bucket maintains its own index namespace.
+ *
+ * @param id       Unique identifier generated from UUID hash using SipHash24 algorithm
+ * @param name     Human-readable index name, must be unique within a bucket
+ * @param selector Document field path in dot notation (e.g., "field.subfield")
+ * @param bsonType Expected BSON data type of the indexed field values
+ *
+ * @see IndexUtil#create(com.apple.foundationdb.Transaction, com.apple.foundationdb.directory.DirectorySubspace, IndexDefinition)
+ * @see IndexNameGenerator#generate(String, BsonType)
  */
 public record IndexDefinition(long id, String name, String selector, BsonType bsonType) {
 
