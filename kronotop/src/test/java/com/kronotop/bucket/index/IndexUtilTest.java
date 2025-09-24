@@ -203,4 +203,52 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         });
         assertEquals("'" + definition.name() + "' has already exist", exception.getMessage());
     }
+
+    @Test
+    void shouldCreateSameIndexDefinitionOnDifferentBuckets() {
+        String firstBucketName = "first-bucket";
+        String secondBucketName = "second-bucket";
+
+        BucketMetadata firstBucketMetadata = getBucketMetadata(firstBucketName);
+        BucketMetadata secondBucketMetadata = getBucketMetadata(secondBucketName);
+
+        // Create same index on first bucket
+        DirectorySubspace firstIndexSubspace = assertDoesNotThrow(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                DirectorySubspace subspace = IndexUtil.create(tr, firstBucketMetadata.subspace(), definition);
+                tr.commit().join();
+                return subspace;
+            }
+        });
+        assertNotNull(firstIndexSubspace);
+
+        // Create same index on second bucket - should succeed
+        DirectorySubspace secondIndexSubspace = assertDoesNotThrow(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                DirectorySubspace subspace = IndexUtil.create(tr, secondBucketMetadata.subspace(), definition);
+                tr.commit().join();
+                return subspace;
+            }
+        });
+        assertNotNull(secondIndexSubspace);
+
+        // Verify both indexes exist and have the same definition
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexDefinition firstIndexDefinition = IndexUtil.loadIndexDefinition(tr, firstIndexSubspace);
+            IndexDefinition secondIndexDefinition = IndexUtil.loadIndexDefinition(tr, secondIndexSubspace);
+
+            assertThat(firstIndexDefinition).usingRecursiveComparison().isEqualTo(definition);
+            assertThat(secondIndexDefinition).usingRecursiveComparison().isEqualTo(definition);
+            assertThat(firstIndexDefinition).usingRecursiveComparison().isEqualTo(secondIndexDefinition);
+        }
+
+        // Verify indexes appear in their respective bucket index lists
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<String> firstBucketIndexes = IndexUtil.list(tr, firstBucketMetadata.subspace());
+            List<String> secondBucketIndexes = IndexUtil.list(tr, secondBucketMetadata.subspace());
+
+            assertTrue(firstBucketIndexes.contains(definition.name()));
+            assertTrue(secondBucketIndexes.contains(definition.name()));
+        }
+    }
 }
