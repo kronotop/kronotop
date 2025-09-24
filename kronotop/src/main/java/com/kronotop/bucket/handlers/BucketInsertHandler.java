@@ -36,6 +36,7 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeSession;
+import org.bson.BsonNull;
 import org.bson.BsonType;
 import org.bson.BsonValue;
 import org.bson.Document;
@@ -69,10 +70,10 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
      * null is returned unless the mismatch is specifically allowed (e.g., INT32 values are allowed
      * where INT64 is expected).
      *
-     * @param value the {@link BsonValue} to be converted
+     * @param value            the {@link BsonValue} to be converted
      * @param expectedBsonType the expected {@link BsonType} of the {@code value}
      * @return a Java object that corresponds to the BSON type of the {@code value},
-     *         or null if there is a type mismatch or the BSON type is unsupported
+     * or null if there is a type mismatch or the BSON type is unsupported
      * @throws IllegalArgumentException if an unsupported BSON type is encountered
      */
     private Object convertBsonValueToJavaObject(BsonValue value, BsonType expectedBsonType) {
@@ -168,16 +169,19 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                         continue;
                     }
 
+                    // Every insert produces an index entry. Missing values and explicit nulls are both
+                    // represented as null in the index. Non-null values are converted to the target type;
+                    // if conversion fails due to a type mismatch, the entry is skipped.
+                    Object indexValue = null;
                     BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), entry);
-                    if (bsonValue == null) {
-                        // No match for the given selector
-                        continue;
+                    if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
+                        indexValue = convertBsonValueToJavaObject(bsonValue, index.definition().bsonType());
+                        if (indexValue == null) {
+                            // Type mismatch, continue
+                            continue;
+                        }
                     }
-                    Object indexValue = convertBsonValueToJavaObject(bsonValue, index.definition().bsonType());
-                    if (indexValue == null) {
-                        // Type mismatched
-                        continue;
-                    }
+
                     IndexBuilder.setIndexEntry(
                             tr,
                             index.definition(),
