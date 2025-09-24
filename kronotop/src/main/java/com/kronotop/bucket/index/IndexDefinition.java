@@ -21,6 +21,8 @@ import org.bson.BsonType;
 
 import javax.annotation.Nonnull;
 
+import java.util.UUID;
+
 import static com.google.common.hash.Hashing.sipHash24;
 
 /**
@@ -46,7 +48,8 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
         if (bsonType.equals(BsonType.DECIMAL128)) {
             throw new NotImplementedException("Creating indexes on DECIMAL128 fields not implemented yet");
         }
-        long id = sipHash24().hashBytes(name.getBytes()).asLong();
+        UUID uuid = UUID.randomUUID();
+        long id = sipHash24().hashBytes(uuid.toString().getBytes()).asLong();
         return new IndexDefinition(id, name, selector, bsonType);
     }
 
