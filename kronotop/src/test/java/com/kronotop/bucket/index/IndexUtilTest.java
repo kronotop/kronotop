@@ -182,4 +182,25 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
             assertEquals("No such index: 'not-exist-index-name'", exception.getMessage());
         }
     }
+
+    @Test
+    void shouldThrowExceptionWhenCreatingSameIndexTwice() {
+        BucketMetadata metadata = getBucketMetadata(bucketName);
+
+        // Create index first time
+        assertDoesNotThrow(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexUtil.create(tr, metadata.subspace(), definition);
+                tr.commit().join();
+            }
+        });
+
+        // Attempt to create the same index again should throw exception
+        KronotopException exception = assertThrows(KronotopException.class, () -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexUtil.create(tr, metadata.subspace(), definition);
+            }
+        });
+        assertEquals("'" + definition.name() + "' has already exist", exception.getMessage());
+    }
 }
