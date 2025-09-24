@@ -67,6 +67,18 @@ import static com.google.common.hash.Hashing.sipHash24;
  */
 public record IndexDefinition(long id, String name, String selector, BsonType bsonType) {
 
+    /**
+     * Creates a new index definition with the specified name, selector, and BSON type.
+     * <p>
+     * This factory method generates a unique identifier using SipHash24 on a random UUID,
+     * ensuring cryptographically secure uniqueness across all index definitions.
+     *
+     * @param name     the human-readable name for the index, must be unique within a bucket
+     * @param selector the document field path to index using dot notation (e.g., "user.email")
+     * @param bsonType the expected BSON data type of the indexed field values
+     * @return a new IndexDefinition instance with generated unique ID
+     * @throws NotImplementedException if bsonType is DECIMAL128 (not yet supported)
+     */
     public static IndexDefinition create(String name, String selector, BsonType bsonType) {
         if (bsonType.equals(BsonType.DECIMAL128)) {
             throw new NotImplementedException("Creating indexes on DECIMAL128 fields not implemented yet");
@@ -76,6 +88,18 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
         return new IndexDefinition(id, name, selector, bsonType);
     }
 
+    /**
+     * Creates a new index definition with an auto-generated name based on the selector and BSON type.
+     * <p>
+     * The index name is automatically generated using {@link IndexNameGenerator#generate(String, BsonType)}
+     * to create a consistent naming convention based on the field path and data type.
+     *
+     * @param selector the document field path to index using dot notation (e.g., "user.age")
+     * @param bsonType the expected BSON data type of the indexed field values
+     * @return a new IndexDefinition instance with auto-generated name and unique ID
+     * @throws NotImplementedException if bsonType is DECIMAL128 (not yet supported)
+     * @see IndexNameGenerator#generate(String, BsonType)
+     */
     public static IndexDefinition create(String selector, BsonType bsonType) {
         String name = IndexNameGenerator.generate(selector, bsonType);
         return create(name, selector, bsonType);
