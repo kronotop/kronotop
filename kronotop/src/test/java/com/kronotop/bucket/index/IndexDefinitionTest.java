@@ -42,4 +42,11 @@ class IndexDefinitionTest {
     void DECIMAL128NotImplementedYet() {
         assertThrows(NotImplementedException.class, () -> IndexDefinition.create("index-name", "_id", BsonType.DECIMAL128));
     }
+
+    @Test
+    void shouldUpdateStatus() {
+        IndexDefinition definition = IndexDefinition.create("index-name", "_id", BsonType.INT32);
+        IndexDefinition updated = definition.updateStatus(IndexStatus.BUILDING);
+        assertEquals(IndexStatus.BUILDING, updated.status());
+    }
 }

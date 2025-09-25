@@ -20,7 +20,6 @@ import com.kronotop.NotImplementedException;
 import org.bson.BsonType;
 
 import javax.annotation.Nonnull;
-
 import java.util.UUID;
 
 import static com.google.common.hash.Hashing.sipHash24;
@@ -30,7 +29,7 @@ import static com.google.common.hash.Hashing.sipHash24;
  * <p>
  * This record encapsulates all metadata required to create and manage secondary indexes on BSON document
  * fields. Each index definition contains a unique identifier, human-readable name, field selector path,
- * and the expected BSON data type of the indexed field.
+ * the expected BSON data type of the indexed field, and the current operational status.
  *
  * <h3>Index Identification</h3>
  * Each index is uniquely identified by a cryptographically secure hash-based ID generated from a random UUID.
@@ -40,17 +39,25 @@ import static com.google.common.hash.Hashing.sipHash24;
  * The selector specifies the document field path to be indexed using dot notation (e.g., "user.profile.age").
  * Only fields matching the specified BSON type will be included in the index.
  *
+ * <h3>Index Status Management</h3>
+ * The status field tracks the operational state of the index (e.g., READY, BUILDING, FAILED).
+ * This enables background index building and status monitoring. Use {@link #updateStatus(IndexStatus)}
+ * to create a new instance with updated status while preserving immutability.
+ *
  * <h3>Supported Data Types</h3>
  * Most BSON types are supported for indexing, with the exception of DECIMAL128 which is not yet implemented.
  * The type constraint ensures index consistency and enables type-specific optimizations.
  *
  * <h3>Usage Examples</h3>
  * <pre>{@code
- * // Create index with explicit name
+ * // Create index with explicit name (defaults to READY status)
  * IndexDefinition userAgeIndex = IndexDefinition.create("user_age_idx", "user.age", BsonType.INT32);
  *
  * // Create index with auto-generated name
  * IndexDefinition emailIndex = IndexDefinition.create("email", BsonType.STRING);
+ *
+ * // Update index status
+ * IndexDefinition buildingIndex = userAgeIndex.updateStatus(IndexStatus.BUILDING);
  * }</pre>
  *
  * <h3>Index Scope</h3>
@@ -61,22 +68,24 @@ import static com.google.common.hash.Hashing.sipHash24;
  * @param name     Human-readable index name, must be unique within a bucket
  * @param selector Document field path in dot notation (e.g., "field.subfield")
  * @param bsonType Expected BSON data type of the indexed field values
- *
+ * @param status   Current operational status of the index (READY, BUILDING, FAILED, etc.)
  * @see IndexUtil#create(com.apple.foundationdb.Transaction, com.apple.foundationdb.directory.DirectorySubspace, IndexDefinition)
  * @see IndexNameGenerator#generate(String, BsonType)
+ * @see IndexStatus
  */
-public record IndexDefinition(long id, String name, String selector, BsonType bsonType) {
+public record IndexDefinition(long id, String name, String selector, BsonType bsonType, IndexStatus status) {
 
     /**
      * Creates a new index definition with the specified name, selector, and BSON type.
      * <p>
      * This factory method generates a unique identifier using SipHash24 on a random UUID,
      * ensuring cryptographically secure uniqueness across all index definitions.
+     * The index is created with {@link IndexStatus#READY} status by default.
      *
      * @param name     the human-readable name for the index, must be unique within a bucket
      * @param selector the document field path to index using dot notation (e.g., "user.email")
      * @param bsonType the expected BSON data type of the indexed field values
-     * @return a new IndexDefinition instance with generated unique ID
+     * @return a new IndexDefinition instance with generated unique ID and READY status
      * @throws NotImplementedException if bsonType is DECIMAL128 (not yet supported)
      */
     public static IndexDefinition create(String name, String selector, BsonType bsonType) {
@@ -85,7 +94,7 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
         }
         UUID uuid = UUID.randomUUID();
         long id = sipHash24().hashBytes(uuid.toString().getBytes()).asLong();
-        return new IndexDefinition(id, name, selector, bsonType);
+        return new IndexDefinition(id, name, selector, bsonType, IndexStatus.READY);
     }
 
     /**
@@ -93,10 +102,11 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
      * <p>
      * The index name is automatically generated using {@link IndexNameGenerator#generate(String, BsonType)}
      * to create a consistent naming convention based on the field path and data type.
+     * The index is created with {@link IndexStatus#READY} status by default.
      *
      * @param selector the document field path to index using dot notation (e.g., "user.age")
      * @param bsonType the expected BSON data type of the indexed field values
-     * @return a new IndexDefinition instance with auto-generated name and unique ID
+     * @return a new IndexDefinition instance with auto-generated name, unique ID, and READY status
      * @throws NotImplementedException if bsonType is DECIMAL128 (not yet supported)
      * @see IndexNameGenerator#generate(String, BsonType)
      */
@@ -105,9 +115,26 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
         return create(name, selector, bsonType);
     }
 
+    /**
+     * Creates a new IndexDefinition instance with the specified status while preserving all other fields.
+     * <p>
+     * This method maintains immutability by creating a new instance rather than modifying the existing one.
+     * It is commonly used during index lifecycle management, such as marking an index as BUILDING during
+     * background index construction or FAILED if an error occurs.
+     *
+     * @param status the new status to assign to the index
+     * @return a new IndexDefinition instance with the updated status
+     * @see IndexStatus
+     */
+    public IndexDefinition updateStatus(IndexStatus status) {
+        return new IndexDefinition(id, name, selector, bsonType, status);
+    }
+
     @Override
     @Nonnull
     public String toString() {
-        return "IndexDefinition { id=" + id + ", name=" + name + ", selector=" + selector + ", bsonType=" + bsonType + " }";
+        return "IndexDefinition { id=" + id + ", name=" + name +
+                ", selector=" + selector + ", bsonType="
+                + bsonType + ", status=" + status + " }";
     }
 }
