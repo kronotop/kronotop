@@ -69,7 +69,7 @@ public class PhysicalPlanner {
      */
     private PhysicalNode transposeFilter(BucketMetadata metadata, LogicalFilter filter, PlannerContext context) {
         // Check for index availability
-        Index index = metadata.indexes().getIndex(filter.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(filter.selector(), IndexSelectionPolicy.READONLY);
 
         // Direct field reuse - no object copying
         PhysicalFilter node = new PhysicalFilter(context.nextId(), filter.selector(), filter.op(), filter.operand());

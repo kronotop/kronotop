@@ -54,15 +54,19 @@ public class IndexRegistry {
 
         IndexStatus status = index.definition().status();
 
-        if (policy == IndexSelectionPolicy.READ) {
+        if (policy == IndexSelectionPolicy.READONLY) {
             return status == IndexStatus.READY ? index : null;
         }
 
-        if (policy == IndexSelectionPolicy.WRITE) {
+        if (policy == IndexSelectionPolicy.READWRITE) {
             return switch (status) {
                 case WAITING, BUILDING, READY -> index;
                 case DROPPED, FAILED -> null;
             };
+        }
+
+        if (policy == IndexSelectionPolicy.ALL) {
+            return index;
         }
 
         throw new IllegalArgumentException("Unknown policy: " + policy);

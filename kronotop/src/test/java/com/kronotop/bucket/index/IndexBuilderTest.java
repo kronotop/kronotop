@@ -29,7 +29,6 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeTestUtil;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -142,7 +141,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entries[0]);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist for " + bsonType);
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -183,7 +182,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        Index idIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READ);
+        Index idIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(idIndex, "Index should exist");
         DirectorySubspace idIndexSubspace = idIndex.subspace();
         byte[] prefix = idIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -219,7 +218,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         // First set the index entry
         setIndexEntryAndCommit(definition, metadata, indexValue, entries[0]);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -287,7 +286,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         // Set the index entry
         setIndexEntryAndCommit(definition, metadata, inputValue, entries[0]);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -355,10 +354,10 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         setIndexEntryAndCommit(stringIndex, metadata, stringValue, entries[0]);
         setIndexEntryAndCommit(intIndex, metadata, intValue, entries[0]);
 
-        Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector(), IndexSelectionPolicy.READ);
+        Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(stringIndexObj, "String index should exist");
         DirectorySubspace stringIndexSubspace = stringIndexObj.subspace();
-        Index intIndexObj = metadata.indexes().getIndex(intIndex.selector(), IndexSelectionPolicy.READ);
+        Index intIndexObj = metadata.indexes().getIndex(intIndex.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(intIndexObj, "Int index should exist");
         DirectorySubspace intIndexSubspace = intIndexObj.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -445,7 +444,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -477,7 +476,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         setIndexEntryAndCommit(definition, metadata, "value2", entries[1]);
         setIndexEntryAndCommit(definition, metadata, "value3", entries[2]);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -560,7 +559,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, indexValue, entry);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -615,7 +614,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             setIndexEntryAndCommit(definition, metadata, value, entry);
         }
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -663,7 +662,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         IndexDefinition definition = IndexDefinition.create("empty-index", "value", BsonType.STRING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         Versionstamp nonExistentVersionstamp = Versionstamp.complete(new byte[10], 999);
@@ -698,7 +697,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entry);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -749,7 +748,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READ);
+        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
@@ -807,7 +806,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READ);
+        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
@@ -869,7 +868,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         Versionstamp versionstamp = generateVersionstamp(userVersion);
         byte[] entryMetadata = getEncodedEntryMetadata();
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 

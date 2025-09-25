@@ -74,7 +74,7 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
                     node instanceof PhysicalFilter filter &&
                     isEqualityOperator(filter.op())) {
 
-                Index index = metadata.indexes().getIndex(filter.selector(), IndexSelectionPolicy.READ);
+                Index index = metadata.indexes().getIndex(filter.selector(), IndexSelectionPolicy.READONLY);
                 if (index != null) {
                     indexCandidates.add(new IndexScanCandidate(filter, index.definition()));
                 } else {

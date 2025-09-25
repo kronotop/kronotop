@@ -62,7 +62,7 @@ public class IndexBuilder {
      * @throws KronotopException if the required ID index subspace cannot be found in the metadata indexes.
      */
     public static void setPrimaryIndexEntry(Transaction tr, int shardId, BucketMetadata metadata, AppendedEntry[] entries) {
-        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
         if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }
@@ -95,7 +95,7 @@ public class IndexBuilder {
             Object indexValue,
             AppendedEntry entry
     ) {
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         if (index == null) {
             throw new KronotopException("Index '" + definition.name() + "' not found");
         }
@@ -119,7 +119,7 @@ public class IndexBuilder {
     }
 
     public static void dropPrimaryIndexEntry(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
-        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
         if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }
@@ -182,7 +182,7 @@ public class IndexBuilder {
             int shardId,
             byte[] entryMetadata
     ) {
-        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READ);
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
         if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }

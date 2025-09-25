@@ -17,6 +17,7 @@
 package com.kronotop.bucket.index;
 
 public enum IndexSelectionPolicy {
-    READ,
-    WRITE
+    READONLY,
+    READWRITE,
+    ALL
 }
