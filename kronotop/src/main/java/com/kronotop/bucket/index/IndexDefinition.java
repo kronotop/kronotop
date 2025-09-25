@@ -108,6 +108,6 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
     @Override
     @Nonnull
     public String toString() {
-        return "IndexDefinition { name=" + name + ", selector=" + selector + ", bsonType=" + bsonType + " }";
+        return "IndexDefinition { id=" + id + ", name=" + name + ", selector=" + selector + ", bsonType=" + bsonType + " }";
     }
 }
