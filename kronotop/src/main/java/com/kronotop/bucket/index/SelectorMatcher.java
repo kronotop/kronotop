@@ -103,9 +103,9 @@ import java.nio.ByteBuffer;
  * BsonValue missing = SelectorMatcher.match("user.email", doc);  // null
  * }</pre>
  *
- * @since 0.13
  * @see org.bson.BsonReader
  * @see org.bson.BsonValue
+ * @since 0.13
  */
 public class SelectorMatcher {
     /**
@@ -140,7 +140,7 @@ public class SelectorMatcher {
      * @param selector the dot-notation path to the desired value (e.g., "user.profile.name", "items.0")
      * @param document the BSON document to search within
      * @return the BsonValue found at the specified path, or {@code null} if the path doesn't exist,
-     *         contains invalid array indices, or encounters type mismatches
+     * contains invalid array indices, or encounters type mismatches
      * @throws IllegalArgumentException if selector is null or empty
      * @throws IllegalArgumentException if document is null
      */
@@ -161,11 +161,11 @@ public class SelectorMatcher {
      * the desired value.
      *
      * @param selector the dot-notation path to the desired value (e.g., "field.subfield", "arrayField.0")
-     * @param input the ByteBuffer containing the BSON document to search within
+     * @param input    the ByteBuffer containing the BSON document to search within
      * @return the BsonValue found at the specified path, or {@code null} if the path doesn't exist,
-     *         the BSON structure does not match the selector, or array indices are invalid
+     * the BSON structure does not match the selector, or array indices are invalid
      * @throws IllegalArgumentException if the selector is null or empty
-     * @throws NullPointerException if the input ByteBuffer is null
+     * @throws NullPointerException     if the input ByteBuffer is null
      */
     public static BsonValue match(String selector, ByteBuffer input) {
         String[] pathSegments = selector.split("\\.");

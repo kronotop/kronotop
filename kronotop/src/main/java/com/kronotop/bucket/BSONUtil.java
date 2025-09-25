@@ -31,9 +31,8 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.util.Date;
-import java.util.List;
 import java.util.Collection;
+import java.util.Date;
 
 /**
  * Utility class for handling BSON {@code Document} serialization and deserialization.

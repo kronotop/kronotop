@@ -23,6 +23,7 @@ import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexStatistics;
 import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.server.Session;
@@ -51,7 +52,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         assertEquals(testBucketName, metadata.name());
         assertNotNull(metadata.subspace());
         assertNotNull(metadata.volumePrefix());
-        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index);
         assertNotNull(index.subspace());
         assertTrue(metadata.version() > 0);

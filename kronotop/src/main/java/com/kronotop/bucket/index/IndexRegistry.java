@@ -46,10 +46,6 @@ public class IndexRegistry {
         bySelector.put(definition.selector(), bundle);
     }
 
-    public Index getIndex(String selector) {
-        return getIndex(selector, IndexSelectionPolicy.READ);
-    }
-
     public Index getIndex(String selector, IndexSelectionPolicy policy) {
         Index index = bySelector.get(selector);
         if (index == null) {

@@ -27,6 +27,7 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.VersionstampUtil;
@@ -255,7 +256,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify the index entry was created
-        Index index = metadata.indexes().getIndex(indexDefinition.selector());
+        Index index = metadata.indexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist for " + fieldName);
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -321,8 +322,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify only the 'name' index entry was created
-        Index nameIndex = metadata.indexes().getIndex("name");
-        Index ageIndex = metadata.indexes().getIndex("age");
+        Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
+        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
         assertNotNull(nameIndex, "Name index should exist");
         assertNotNull(ageIndex, "Age index should exist");
         DirectorySubspace nameIndexSubspace = nameIndex.subspace();
@@ -376,7 +377,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify no index entry was created due to type mismatch
-        Index ageIndex = metadata.indexes().getIndex("age");
+        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
         assertNotNull(ageIndex, "Age index should exist");
         DirectorySubspace ageIndexSubspace = ageIndex.subspace();
 
@@ -425,7 +426,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         // Verify all three index entries were created
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Check name index
-            Index nameIndex = metadata.indexes().getIndex("name");
+            Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
             assertNotNull(nameIndex, "Name index should exist");
             DirectorySubspace nameIndexSubspace = nameIndex.subspace();
             byte[] namePrefix = nameIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -436,7 +437,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(1, nameEntries.size(), "Should have one entry for name index");
 
             // Check age index
-            Index ageIndex = metadata.indexes().getIndex("age");
+            Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
             assertNotNull(ageIndex, "Age index should exist");
             DirectorySubspace ageIndexSubspace = ageIndex.subspace();
             byte[] agePrefix = ageIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -447,7 +448,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(1, ageEntries.size(), "Should have one entry for age index");
 
             // Check active index
-            Index activeIndex = metadata.indexes().getIndex("active");
+            Index activeIndex = metadata.indexes().getIndex("active", IndexSelectionPolicy.READ);
             assertNotNull(activeIndex, "Active index should exist");
             DirectorySubspace activeIndexSubspace = activeIndex.subspace();
             byte[] activePrefix = activeIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
