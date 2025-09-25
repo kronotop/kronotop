@@ -57,6 +57,10 @@ public class BucketDescribeIndexHandler extends AbstractBucketHandler implements
                 new SimpleStringRedisMessage("bson_type"),
                 new SimpleStringRedisMessage(definition.bsonType().name())
         );
+        description.put(
+                new SimpleStringRedisMessage("status"),
+                new SimpleStringRedisMessage(definition.status().name())
+        );
 
         Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();
         stats.put(new SimpleStringRedisMessage("cardinality"), new IntegerRedisMessage(statistics.cardinality()));

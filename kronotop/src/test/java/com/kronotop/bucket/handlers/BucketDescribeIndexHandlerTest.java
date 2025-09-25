@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -80,6 +81,10 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
                 case "bson_type" -> {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();
                     assertEquals("STRING", value.content());
+                }
+                case "status" -> {
+                    SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();
+                    assertEquals(IndexStatus.READY.name(), value.content());
                 }
                 case "statistics" -> {
                     MapRedisMessage value = (MapRedisMessage) entry.getValue();
