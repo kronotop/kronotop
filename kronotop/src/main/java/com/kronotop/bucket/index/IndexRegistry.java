@@ -33,7 +33,7 @@ import java.util.Map;
  */
 public class IndexRegistry {
     private final CachedTimeService cachedTime;
-    private final Map<String, Index> indexesBySelectors = new HashMap<>();
+    private final Map<String, Index> bySelector = new HashMap<>();
     private volatile Map<Long, IndexStatistics> statistics;
     private volatile long statsLastRefreshedAt;
 
@@ -43,15 +43,37 @@ public class IndexRegistry {
 
     public void register(IndexDefinition definition, DirectorySubspace subspace) {
         Index bundle = new Index(definition, subspace);
-        indexesBySelectors.put(definition.selector(), bundle);
+        bySelector.put(definition.selector(), bundle);
     }
 
     public Index getIndex(String selector) {
-        return indexesBySelectors.get(selector);
+        return getIndex(selector, IndexSelectionPolicy.READ);
+    }
+
+    public Index getIndex(String selector, IndexSelectionPolicy policy) {
+        Index index = bySelector.get(selector);
+        if (index == null) {
+            return null;
+        }
+
+        IndexStatus status = index.definition().status();
+
+        if (policy == IndexSelectionPolicy.READ) {
+            return status == IndexStatus.READY ? index : null;
+        }
+
+        if (policy == IndexSelectionPolicy.WRITE) {
+            return switch (status) {
+                case WAITING, BUILDING, READY -> index;
+                case DROPPED, FAILED -> null;
+            };
+        }
+
+        throw new IllegalArgumentException("Unknown policy: " + policy);
     }
 
     public Collection<Index> getIndexes() {
-        return Collections.unmodifiableCollection(indexesBySelectors.values());
+        return Collections.unmodifiableCollection(bySelector.values());
     }
 
     public void updateStatistics(Map<Long, IndexStatistics> statistics) {
