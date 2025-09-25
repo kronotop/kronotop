@@ -137,4 +137,9 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
                 ", selector=" + selector + ", bsonType="
                 + bsonType + ", status=" + status + " }";
     }
+
+    @Override
+    public int hashCode() {
+        return Long.hashCode(id);
+    }
 }
