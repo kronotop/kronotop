@@ -118,7 +118,7 @@ public class IndexBuilder {
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, backPointer, NULL_VALUE);
     }
 
-    public static void dropPrimaryIndex(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
+    public static void dropPrimaryIndexEntry(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
         Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
         if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");

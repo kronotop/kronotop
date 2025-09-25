@@ -738,7 +738,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldDropPrimaryIndex() {
+    void shouldDropPrimaryIndexEntry() {
         BucketMetadata metadata = getBucketMetadata(testBucketName);
         AppendedEntry[] entries = getAppendedEntries();
 
@@ -768,7 +768,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         // Drop primary index entry
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuilder.dropPrimaryIndex(tr, actualVersionstamp, metadata);
+            IndexBuilder.dropPrimaryIndexEntry(tr, actualVersionstamp, metadata);
             tr.commit().join();
         }
 

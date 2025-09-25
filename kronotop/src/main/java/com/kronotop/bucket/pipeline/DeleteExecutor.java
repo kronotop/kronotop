@@ -119,7 +119,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             }
 
             for (Versionstamp versionstamp : versionstamps) {
-                IndexBuilder.dropPrimaryIndex(tr, versionstamp, ctx.metadata());
+                IndexBuilder.dropPrimaryIndexEntry(tr, versionstamp, ctx.metadata());
             }
 
             return versionstamps;
