@@ -63,7 +63,9 @@ public class IndexRegistry {
         lock.writeLock().lock();
         try {
             bySelector.remove(definition.selector());
-            statistics.remove(definition.id());
+            if (statistics != null) {
+                statistics.remove(definition.id());
+            }
             segregateIndexesByPolicy();
         } finally {
             lock.writeLock().unlock();
@@ -152,7 +154,10 @@ public class IndexRegistry {
     }
 
     public IndexStatistics getStatistics(long id) {
-        return statistics.get(id);
+        if (statistics != null) {
+            return statistics.get(id);
+        }
+        return null;
     }
 
     public long getStatsLastRefreshedAt() {
