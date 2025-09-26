@@ -174,28 +174,6 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testGetIndex_MultipleIndexesWithSameSelector_ReturnsLatestRegistered() {
-        // Register an index
-        IndexDefinition firstDef = IndexDefinition.create("first-index", "shared.field", BsonType.STRING);
-        indexRegistry.register(firstDef, testSubspace);
-
-        // Register another index with the same selector (this should overwrite the first)
-        IndexDefinition secondDef = IndexDefinition.create("second-index", "shared.field", BsonType.INT32)
-                .updateStatus(IndexStatus.BUILDING);
-        DirectorySubspace secondSubspace = createOrOpenSubspaceUnderCluster("test-index-2");
-        indexRegistry.register(secondDef, secondSubspace);
-
-        // Should return the second (latest) index
-        Index result = indexRegistry.getIndex("shared.field", IndexSelectionPolicy.ALL);
-        assertNotNull(result);
-        assertEquals(secondDef, result.definition());
-        assertEquals(secondSubspace, result.subspace());
-        assertEquals("second-index", result.definition().name());
-        assertEquals(BsonType.INT32, result.definition().bsonType());
-        assertEquals(IndexStatus.BUILDING, result.definition().status());
-    }
-
-    @Test
     void testGetIndex_CaseSensitiveSelectors() {
         IndexDefinition lowerCaseDef = IndexDefinition.create("lower-index", "field.name", BsonType.STRING);
         IndexDefinition upperCaseDef = IndexDefinition.create("upper-index", "Field.Name", BsonType.STRING);

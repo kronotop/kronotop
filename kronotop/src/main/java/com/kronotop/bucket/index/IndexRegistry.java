@@ -20,6 +20,7 @@ package com.kronotop.bucket.index;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.CachedTimeService;
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
 
 import java.util.*;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -47,8 +48,38 @@ public class IndexRegistry {
     public void register(IndexDefinition definition, DirectorySubspace subspace) {
         lock.writeLock().lock();
         try {
-            Index bundle = new Index(definition, subspace);
-            bySelector.put(definition.selector(), bundle);
+            Index index = new Index(definition, subspace);
+            if (bySelector.containsKey(definition.selector())) {
+                throw new IndexAlreadyRegisteredException(definition.selector());
+            }
+            bySelector.put(definition.selector(), index);
+            segregateIndexesByPolicy();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public void deregister(IndexDefinition definition) {
+        lock.writeLock().lock();
+        try {
+            bySelector.remove(definition.selector());
+            statistics.remove(definition.id());
+            segregateIndexesByPolicy();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public void updateIndexDefinition(IndexDefinition definition) {
+        // Useful for index status changes
+        lock.writeLock().lock();
+        try {
+            Index index = bySelector.get(definition.selector());
+            if (index == null) {
+                throw new KronotopException("Index with '" + definition.selector() + "' could not be found");
+            }
+            Index refreshed = new Index(definition, index.subspace());
+            bySelector.put(definition.selector(), refreshed);
             segregateIndexesByPolicy();
         } finally {
             lock.writeLock().unlock();
