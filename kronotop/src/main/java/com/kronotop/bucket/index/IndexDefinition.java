@@ -89,12 +89,28 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
      * @throws NotImplementedException if bsonType is DECIMAL128 (not yet supported)
      */
     public static IndexDefinition create(String name, String selector, BsonType bsonType) {
+        return create(name, selector, bsonType, IndexStatus.READY);
+    }
+
+    /**
+     * Creates a new index definition with a unique ID, specified name, selector, BSON type, and status.
+     * Generates a unique identifier using SipHash24 on a random UUID.
+     * Throws an exception if the BSON type is DECIMAL128, as it is not implemented.
+     *
+     * @param name     the human-readable name for the index, must be unique within a bucket
+     * @param selector the document field path to index using dot notation (e.g., "user.address.city")
+     * @param bsonType the expected BSON data type of the indexed field values
+     * @param status   the initial status assigned to the index
+     * @return a new IndexDefinition instance with a unique ID and the specified attributes
+     * @throws NotImplementedException if bsonType is DECIMAL128, which is not currently supported
+     */
+    public static IndexDefinition create(String name, String selector, BsonType bsonType, IndexStatus status) {
         if (bsonType.equals(BsonType.DECIMAL128)) {
             throw new NotImplementedException("Creating indexes on DECIMAL128 fields not implemented yet");
         }
         UUID uuid = UUID.randomUUID();
         long id = sipHash24().hashBytes(uuid.toString().getBytes()).asLong();
-        return new IndexDefinition(id, name, selector, bsonType, IndexStatus.READY);
+        return new IndexDefinition(id, name, selector, bsonType, status);
     }
 
     /**

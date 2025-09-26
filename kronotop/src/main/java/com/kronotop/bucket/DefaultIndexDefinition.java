@@ -17,8 +17,14 @@
 package com.kronotop.bucket;
 
 import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
 import org.bson.BsonType;
 
 public class DefaultIndexDefinition {
-    public static IndexDefinition ID = IndexDefinition.create("_id", BsonType.BINARY);
+    public static IndexDefinition ID = IndexDefinition.create(
+            "primary-index",
+            "_id",
+            BsonType.BINARY,
+            IndexStatus.READY
+    );
 }
