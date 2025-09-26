@@ -176,7 +176,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
      *                               generate index entries and update metadata for unaffected indexes
      */
     private void updateUnaffectedIndexes(QueryContext ctx, Transaction tr, Map<Versionstamp, UpdateResultContainer> updateResultContainers) {
-        for (Index index : ctx.metadata().indexes().getIndexes()) {
+        for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
             String selector = index.definition().selector();
             if (ctx.options().update().setOps().containsKey(selector) || ctx.options().update().unsetOps().contains(selector)) {
                 continue;

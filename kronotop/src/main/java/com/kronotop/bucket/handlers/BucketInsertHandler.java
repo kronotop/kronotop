@@ -24,6 +24,7 @@ import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.SelectorMatcher;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
@@ -163,7 +164,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                 ByteBuffer entry = pack.entries[i];
                 entry.rewind(); // ready to read the document again
 
-                for (Index index : metadata.indexes().getIndexes()) {
+                for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
                     // Skip the default ID index as it's already handled above
                     if (index.definition().equals(DefaultIndexDefinition.ID)) {
                         continue;

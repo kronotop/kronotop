@@ -21,10 +21,9 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.CachedTimeService;
 import com.kronotop.Context;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * The IndexRegistry class is responsible for managing and organizing index-related operations
@@ -32,8 +31,12 @@ import java.util.Map;
  * associated subspaces, as well as management of index statistics and their refresh timings.
  */
 public class IndexRegistry {
+    private final ReadWriteLock lock = new ReentrantReadWriteLock(true);
     private final CachedTimeService cachedTime;
-    private final Map<String, Index> bySelector = new HashMap<>();
+    private final Map<String, Index> bySelector = new LinkedHashMap<>();
+    private List<Index> readonly = new ArrayList<>();
+    private List<Index> readwrite = new ArrayList<>();
+    private List<Index> all = new ArrayList<>();
     private volatile Map<Long, IndexStatistics> statistics;
     private volatile long statsLastRefreshedAt;
 
@@ -42,8 +45,35 @@ public class IndexRegistry {
     }
 
     public void register(IndexDefinition definition, DirectorySubspace subspace) {
-        Index bundle = new Index(definition, subspace);
-        bySelector.put(definition.selector(), bundle);
+        lock.writeLock().lock();
+        try {
+            Index bundle = new Index(definition, subspace);
+            bySelector.put(definition.selector(), bundle);
+            segregateIndexesByPolicy();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    private void segregateIndexesByPolicy() {
+        List<Index> readonly = new ArrayList<>();
+        List<Index> readwrite = new ArrayList<>();
+        List<Index> all = new ArrayList<>();
+        for (Index index : bySelector.values()) {
+            all.add(index);
+            if (index.definition().status() == IndexStatus.READY) {
+                readonly.add(index);
+                readwrite.add(index);
+            } else {
+                switch (index.definition().status()) {
+                    case WAITING, BUILDING -> readwrite.add(index);
+                }
+                ;
+            }
+        }
+        this.readonly = Collections.unmodifiableList(readonly);
+        this.readwrite = Collections.unmodifiableList(readwrite);
+        this.all = Collections.unmodifiableList(all);
     }
 
     public Index getIndex(String selector, IndexSelectionPolicy policy) {
@@ -72,8 +102,12 @@ public class IndexRegistry {
         throw new IllegalArgumentException("Unknown policy: " + policy);
     }
 
-    public Collection<Index> getIndexes() {
-        return Collections.unmodifiableCollection(bySelector.values());
+    public Collection<Index> getIndexes(IndexSelectionPolicy policy) {
+        return switch (policy) {
+            case ALL -> all;
+            case READONLY -> readonly;
+            case READWRITE -> readwrite;
+        };
     }
 
     public void updateStatistics(Map<Long, IndexStatistics> statistics) {

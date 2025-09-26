@@ -22,6 +22,7 @@ import com.kronotop.CommitHook;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.volume.DeleteResult;
 import com.kronotop.volume.VolumeSession;
 
@@ -112,7 +113,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                 ctx.registerPostCommitHook(postCommitHook);
             }
 
-            for (Index index : ctx.metadata().indexes().getIndexes()) {
+            for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
                 for (Versionstamp versionstamp : versionstamps) {
                     IndexBuilder.dropIndexEntry(tr, versionstamp, index.definition(), index.subspace(), ctx.metadata().subspace());
                 }
