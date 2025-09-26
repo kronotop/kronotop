@@ -77,29 +77,34 @@ public class IndexRegistry {
     }
 
     public Index getIndex(String selector, IndexSelectionPolicy policy) {
-        Index index = bySelector.get(selector);
-        if (index == null) {
-            return null;
+        lock.readLock().lock();
+        try {
+            Index index = bySelector.get(selector);
+            if (index == null) {
+                return null;
+            }
+
+            IndexStatus status = index.definition().status();
+
+            if (policy == IndexSelectionPolicy.READONLY) {
+                return status == IndexStatus.READY ? index : null;
+            }
+
+            if (policy == IndexSelectionPolicy.READWRITE) {
+                return switch (status) {
+                    case WAITING, BUILDING, READY -> index;
+                    case DROPPED, FAILED -> null;
+                };
+            }
+
+            if (policy == IndexSelectionPolicy.ALL) {
+                return index;
+            }
+
+            throw new IllegalArgumentException("Unknown policy: " + policy);
+        } finally {
+            lock.readLock().unlock();
         }
-
-        IndexStatus status = index.definition().status();
-
-        if (policy == IndexSelectionPolicy.READONLY) {
-            return status == IndexStatus.READY ? index : null;
-        }
-
-        if (policy == IndexSelectionPolicy.READWRITE) {
-            return switch (status) {
-                case WAITING, BUILDING, READY -> index;
-                case DROPPED, FAILED -> null;
-            };
-        }
-
-        if (policy == IndexSelectionPolicy.ALL) {
-            return index;
-        }
-
-        throw new IllegalArgumentException("Unknown policy: " + policy);
     }
 
     public Collection<Index> getIndexes(IndexSelectionPolicy policy) {
