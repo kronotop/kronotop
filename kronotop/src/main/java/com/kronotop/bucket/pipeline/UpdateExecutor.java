@@ -22,6 +22,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketShard;
+import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.*;
 import com.kronotop.volume.*;
 import org.bson.BsonValue;
@@ -177,6 +178,10 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
      */
     private void updateUnaffectedIndexes(QueryContext ctx, Transaction tr, Map<Versionstamp, UpdateResultContainer> updateResultContainers) {
         for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            // Skip the default ID index as it'll be handled separately
+            if (index.definition().equals(DefaultIndexDefinition.ID)) {
+                continue;
+            }
             String selector = index.definition().selector();
             if (ctx.options().update().setOps().containsKey(selector) || ctx.options().update().unsetOps().contains(selector)) {
                 continue;

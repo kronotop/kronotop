@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.bucket.BucketShard;
+import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
@@ -114,6 +115,10 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             }
 
             for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+                // Skip the default ID index as it'll be handled separately
+                if (index.definition().equals(DefaultIndexDefinition.ID)) {
+                    continue;
+                }
                 for (Versionstamp versionstamp : versionstamps) {
                     IndexBuilder.dropIndexEntry(tr, versionstamp, index.definition(), index.subspace(), ctx.metadata().subspace());
                 }
