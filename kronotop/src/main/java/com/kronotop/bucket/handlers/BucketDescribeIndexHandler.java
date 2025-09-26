@@ -50,6 +50,10 @@ public class BucketDescribeIndexHandler extends AbstractBucketHandler implements
     private static Map<RedisMessage, RedisMessage> getRedisMessageRedisMessageMap(IndexDefinition definition, IndexStatistics statistics) {
         Map<RedisMessage, RedisMessage> description = new LinkedHashMap<>();
         description.put(
+                new SimpleStringRedisMessage("id"),
+                new IntegerRedisMessage(definition.id())
+        );
+        description.put(
                 new SimpleStringRedisMessage("selector"),
                 new SimpleStringRedisMessage(definition.selector())
         );
@@ -81,6 +85,7 @@ public class BucketDescribeIndexHandler extends AbstractBucketHandler implements
             Session session = request.getSession();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, message.getBucket());
+                metadata.indexes().hasIndexWithId(1);
 
                 DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), message.getIndex());
                 IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, indexSubspace);

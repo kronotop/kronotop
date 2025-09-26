@@ -74,6 +74,10 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
         for (Map.Entry<RedisMessage, RedisMessage> entry : fields.entrySet()) {
             SimpleStringRedisMessage key = (SimpleStringRedisMessage) entry.getKey();
             switch (key.content()) {
+                case "id" -> {
+                    IntegerRedisMessage value = (IntegerRedisMessage) entry.getValue();
+                    assertTrue(value.value() > 0);
+                }
                 case "selector" -> {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();
                     assertEquals("username", value.content());
