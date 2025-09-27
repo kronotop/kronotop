@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.kronotop.internal.VersionstampDeserializer;
 import com.kronotop.internal.VersionstampSerializer;
 
-public class IndexBuildTask {
+public class IndexBuildTask extends IndexTask {
     private final String namespace;
     private final String bucket;
     private final long indexId;
@@ -38,6 +38,7 @@ public class IndexBuildTask {
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
             @JsonProperty("indexId") long indexId) {
+        super(IndexTaskKind.BUILD);
         this.namespace = namespace;
         this.bucket = bucket;
         this.indexId = indexId;
@@ -63,11 +64,11 @@ public class IndexBuildTask {
         this.completed = completed;
     }
 
-    public void setHighestVersionstamp(Versionstamp highestVersionstamp) {
-        this.highestVersionstamp = highestVersionstamp;
-    }
-
     public Versionstamp getHighestVersionstamp() {
         return highestVersionstamp;
+    }
+
+    public void setHighestVersionstamp(Versionstamp highestVersionstamp) {
+        this.highestVersionstamp = highestVersionstamp;
     }
 }
