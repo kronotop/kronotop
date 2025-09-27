@@ -33,9 +33,5 @@ public class Bucket extends KronotopDirectoryNode {
             super(layout);
             layout.add(Integer.toString(shardId));
         }
-
-        public Index index(String bucket, String index) {
-            return new Index(layout, bucket, index);
-        }
     }
 }
