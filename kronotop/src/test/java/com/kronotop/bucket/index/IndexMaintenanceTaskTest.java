@@ -28,19 +28,17 @@ class IndexMaintenanceTaskTest {
         IndexMaintenanceTask task = new IndexMaintenanceTask(
                 "namespace-name",
                 "bucket-name",
-                "index-name",
                 12345
         );
         byte[] encoded = JSONUtil.writeValueAsBytes(task);
         IndexMaintenanceTask decoded = JSONUtil.readValue(encoded, IndexMaintenanceTask.class);
         assertEquals(task.getNamespace(), decoded.getNamespace());
         assertEquals(task.getBucket(), decoded.getBucket());
-        assertEquals(task.getIndex(), decoded.getIndex());
         assertEquals(task.getIndexId(), decoded.getIndexId());
         assertFalse(task.isCompleted());
         assertFalse(decoded.isCompleted());
-        assertNull(task.getEnd());
-        assertNull(decoded.getEnd());
+        assertNull(task.getHighestVersionstamp());
+        assertNull(decoded.getHighestVersionstamp());
     }
 
     @Test
@@ -48,7 +46,6 @@ class IndexMaintenanceTaskTest {
         IndexMaintenanceTask task = new IndexMaintenanceTask(
                 "namespace-name",
                 "bucket-name",
-                "index-name",
                 12345
         );
         task.setCompleted(true);
@@ -63,14 +60,13 @@ class IndexMaintenanceTaskTest {
         IndexMaintenanceTask task = new IndexMaintenanceTask(
                 "namespace-name",
                 "bucket-name",
-                "index-name",
                 12345
         );
         Versionstamp end = Versionstamp.incomplete(1);
-        task.setEnd(end);
+        task.setHighestVersionstamp(end);
         byte[] encoded = JSONUtil.writeValueAsBytes(task);
         IndexMaintenanceTask decoded = JSONUtil.readValue(encoded, IndexMaintenanceTask.class);
-        assertEquals(end, task.getEnd());
-        assertEquals(end, decoded.getEnd());
+        assertEquals(end, task.getHighestVersionstamp());
+        assertEquals(end, decoded.getHighestVersionstamp());
     }
 }

@@ -109,32 +109,50 @@ public class IndexRegistry {
         this.all = Collections.unmodifiableList(all);
     }
 
-    public Index getIndex(String selector, IndexSelectionPolicy policy) {
+    private Index filterIndexByPolicy(Index index, IndexSelectionPolicy policy) {
+        if (index == null) {
+            return null;
+        }
+
+        IndexStatus status = index.definition().status();
+
+        if (policy == IndexSelectionPolicy.READONLY) {
+            return status == IndexStatus.READY ? index : null;
+        }
+
+        if (policy == IndexSelectionPolicy.READWRITE) {
+            return switch (status) {
+                case WAITING, BUILDING, READY -> index;
+                case DROPPED, FAILED -> null;
+            };
+        }
+
+        if (policy == IndexSelectionPolicy.ALL) {
+            return index;
+        }
+
+        throw new IllegalArgumentException("Unknown policy: " + policy);
+    }
+
+    public Index getIndexById(long id, IndexSelectionPolicy policy) {
         lock.readLock().lock();
         try {
-            Index index = bySelector.get(selector);
-            if (index == null) {
-                return null;
+            for (Index index : bySelector.values()) {
+                if (index.definition().id() == id) {
+                    return filterIndexByPolicy(index, policy);
+                }
             }
+            return null;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
 
-            IndexStatus status = index.definition().status();
-
-            if (policy == IndexSelectionPolicy.READONLY) {
-                return status == IndexStatus.READY ? index : null;
-            }
-
-            if (policy == IndexSelectionPolicy.READWRITE) {
-                return switch (status) {
-                    case WAITING, BUILDING, READY -> index;
-                    case DROPPED, FAILED -> null;
-                };
-            }
-
-            if (policy == IndexSelectionPolicy.ALL) {
-                return index;
-            }
-
-            throw new IllegalArgumentException("Unknown policy: " + policy);
+    public Index getIndex(String selector, IndexSelectionPolicy policy) {
+        lock.readLock().lock();
+        Index index = bySelector.get(selector);
+        try {
+            return filterIndexByPolicy(index, policy);
         } finally {
             lock.readLock().unlock();
         }

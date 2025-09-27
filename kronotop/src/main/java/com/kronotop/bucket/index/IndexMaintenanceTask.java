@@ -27,22 +27,19 @@ import com.kronotop.internal.VersionstampSerializer;
 public class IndexMaintenanceTask {
     private final String namespace;
     private final String bucket;
-    private final String index;
     private final long indexId;
     private boolean completed;
     @JsonSerialize(using = VersionstampSerializer.class)
     @JsonDeserialize(using = VersionstampDeserializer.class)
-    private Versionstamp end;
+    private Versionstamp highestVersionstamp;
 
     @JsonCreator
     public IndexMaintenanceTask(
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
-            @JsonProperty("index") String index,
             @JsonProperty("indexId") long indexId) {
         this.namespace = namespace;
         this.bucket = bucket;
-        this.index = index;
         this.indexId = indexId;
     }
 
@@ -52,10 +49,6 @@ public class IndexMaintenanceTask {
 
     public String getBucket() {
         return bucket;
-    }
-
-    public String getIndex() {
-        return index;
     }
 
     public long getIndexId() {
@@ -70,11 +63,11 @@ public class IndexMaintenanceTask {
         this.completed = completed;
     }
 
-    public void setEnd(Versionstamp end) {
-        this.end = end;
+    public void setHighestVersionstamp(Versionstamp highestVersionstamp) {
+        this.highestVersionstamp = highestVersionstamp;
     }
 
-    public Versionstamp getEnd() {
-        return end;
+    public Versionstamp getHighestVersionstamp() {
+        return highestVersionstamp;
     }
 }

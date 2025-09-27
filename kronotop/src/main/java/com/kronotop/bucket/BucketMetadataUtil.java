@@ -85,32 +85,6 @@ public class BucketMetadataUtil {
     }
 
     private static BucketMetadata createOrOpen_internal(Context context, Session session, String bucket) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace dataStructureSubspace = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
-            DirectorySubspace subspace = dataStructureSubspace.createOrOpen(tr, List.of(bucket)).join();
-
-            CreateOrOpenResult result = createOrOpen(context, tr, subspace);
-
-            // Transaction cannot be used after this point.
-
-            String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
-            BucketMetadata metadata = new BucketMetadata(bucket, result.version(), subspace, result.prefix(), result.indexes());
-            // Update the global bucket metadata cache
-            context.getBucketMetadataCache().set(namespace, bucket, metadata);
-            return metadata;
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof FDBException ex) {
-                // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
-                if (ex.getCode() == 1020) {
-                    // retry
-                    return createOrOpen(context, session, bucket);
-                }
-            }
-            throw new KronotopException(e);
-        }
-    }
-
-    private static CreateOrOpenResult createOrOpen(Context context, Transaction tr, DirectorySubspace subspace) {
         /*
             The initial version is set using System.currentTimeMillis(), which may be affected by clock drift.
             However, this does not compromise correctness: when multiple cluster members attempt to create
@@ -121,58 +95,43 @@ public class BucketMetadataUtil {
             NTP synchronization across nodes is assumed, but strict clock precision is not required
             thanks to FoundationDB's serializable transaction model.
         */
-        byte[] bucketVolumePrefixKey = prefixKey(subspace);
-        byte[] raw = tr.get(bucketVolumePrefixKey).join();
-
-        long version;
-        Prefix prefix;
-        final IndexRegistry indexes = new IndexRegistry(context);
-        if (raw != null) {
-            // Open
-            prefix = Prefix.fromBytes(raw);
-            // Open the indexes
-            IndexUtil.list(tr, subspace).forEach(index -> {
-                DirectorySubspace indexSubspace = IndexUtil.open(tr, subspace, index);
-                IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, indexSubspace);
-                indexes.register(definition, indexSubspace);
-            });
-            BucketMetadataHeader header = readBucketMetadataHeader(tr, subspace);
-            indexes.updateStatistics(header.indexStatistics());
-            version = header.version();
-        } else {
-            // Create
-            setInitialVersion(context, tr, subspace);
-            prefix = createPrefix(context, tr, bucketVolumePrefixKey);
-            DirectorySubspace idIndexSubspace = IndexUtil.create(tr, subspace, DefaultIndexDefinition.ID);
-            indexes.register(DefaultIndexDefinition.ID, idIndexSubspace);
-            indexes.updateStatistics(Map.of(DefaultIndexDefinition.ID.id(), new IndexStatistics(0)));
-            version = readVersion(tr, subspace);
-            tr.commit().join();
-        }
-        return new CreateOrOpenResult(indexes, prefix, version);
-    }
-
-    /**
-     * Creates or opens the metadata for a specified bucket within a given namespace and context.
-     * This method ensures that the bucket metadata exists and is up-to-date, creating it if necessary.
-     * It also manages the global cache for bucket metadata to guarantee consistency.
-     * <p>
-     * Primary user of this method: background index maintenance workers
-     *
-     * @param context   the Context instance providing the environment and FoundationDB services
-     * @param namespace the namespace within which the bucket resides
-     * @param bucket    the unique name of the bucket to create or open
-     * @return the BucketMetadata instance corresponding to the specified bucket
-     * @throws KronotopException if an error occurs during the operation
-     */
-    public static BucketMetadata createOrOpen(Context context, String namespace, String bucket) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace dataStructureSubspace = NamespaceUtil.open(tr, context.getClusterName(), namespace, DataStructureKind.BUCKET);
+            DirectorySubspace dataStructureSubspace = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
             DirectorySubspace subspace = dataStructureSubspace.createOrOpen(tr, List.of(bucket)).join();
 
-            CreateOrOpenResult result = createOrOpen(context, tr, subspace);
+            byte[] bucketVolumePrefixKey = prefixKey(subspace);
+            byte[] raw = tr.get(bucketVolumePrefixKey).join();
+
+            long version;
+            Prefix prefix;
+            final IndexRegistry indexes = new IndexRegistry(context);
+            if (raw != null) {
+                // Open
+                prefix = Prefix.fromBytes(raw);
+                // Open the indexes
+                IndexUtil.list(tr, subspace).forEach(index -> {
+                    DirectorySubspace indexSubspace = IndexUtil.open(tr, subspace, index);
+                    IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, indexSubspace);
+                    indexes.register(definition, indexSubspace);
+                });
+                BucketMetadataHeader header = readBucketMetadataHeader(tr, subspace);
+                indexes.updateStatistics(header.indexStatistics());
+                version = header.version();
+            } else {
+                // Create
+                setInitialVersion(context, tr, subspace);
+                prefix = createPrefix(context, tr, bucketVolumePrefixKey);
+                DirectorySubspace idIndexSubspace = IndexUtil.create(tr, subspace, DefaultIndexDefinition.ID);
+                indexes.register(DefaultIndexDefinition.ID, idIndexSubspace);
+                indexes.updateStatistics(Map.of(DefaultIndexDefinition.ID.id(), new IndexStatistics(0)));
+                version = readVersion(tr, subspace);
+                tr.commit().join();
+            }
+
             // Transaction cannot be used after this point.
-            BucketMetadata metadata = new BucketMetadata(bucket, result.version, subspace, result.prefix(), result.indexes());
+
+            String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
+            BucketMetadata metadata = new BucketMetadata(bucket, version, subspace, prefix, indexes);
             // Update the global bucket metadata cache
             context.getBucketMetadataCache().set(namespace, bucket, metadata);
             return metadata;
@@ -181,7 +140,7 @@ public class BucketMetadataUtil {
                 // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
                 if (ex.getCode() == 1020) {
                     // retry
-                    return createOrOpen(context, namespace, bucket);
+                    return createOrOpen(context, session, bucket);
                 }
             }
             throw new KronotopException(e);
@@ -242,8 +201,8 @@ public class BucketMetadataUtil {
         return metadata;
     }
 
-    private static BucketMetadata open_internal(Context context, Transaction tr, Session session, String bucket) {
-        DirectorySubspace dataStructureSubspace = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
+    private static BucketMetadata open_internal(Context context, Transaction tr, String namespace, String bucket) {
+        DirectorySubspace dataStructureSubspace = NamespaceUtil.open(tr, context.getClusterName(), namespace, DataStructureKind.BUCKET);
         try {
             DirectorySubspace subspace = dataStructureSubspace.open(tr, List.of(bucket)).join();
             byte[] bucketVolumePrefixKey = prefixKey(subspace);
@@ -266,7 +225,6 @@ public class BucketMetadataUtil {
             long version = header.version();
 
             Prefix prefix = Prefix.fromBytes(raw);
-            String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
             BucketMetadata metadata = new BucketMetadata(bucket, version, subspace, prefix, indexes);
             context.getBucketMetadataCache().set(namespace, bucket, metadata);
             return metadata;
@@ -297,15 +255,31 @@ public class BucketMetadataUtil {
             throw new IllegalArgumentException("namespace not specified");
         }
 
+        return open_internal(context, tr, namespace, bucket);
+    }
+
+    /**
+     * Opens the metadata for the specified bucket within the provided context, namespace, and transaction.
+     * This method attempts to retrieve the bucket metadata from a cache. If the metadata is not found
+     * or the version has changed, it fetches the latest metadata from the database. Index statistics
+     * are refreshed based on a predefined time-to-live (TTL).
+     *
+     * @param context   the {@code Context} instance providing the necessary environment and services
+     * @param tr        the {@code Transaction} instance used to interact with the database
+     * @param namespace the namespace to which the bucket belongs
+     * @param bucket    the unique name of the bucket whose metadata needs to be opened
+     * @return a {@code BucketMetadata} instance corresponding to the specified bucket
+     */
+    public static BucketMetadata open(Context context, Transaction tr, String namespace, String bucket) {
         BucketMetadata metadata = context.getBucketMetadataCache().get(namespace, bucket);
         if (metadata == null) {
-            return open_internal(context, tr, session, bucket);
+            return open_internal(context, tr, namespace, bucket);
         }
 
         long version = readVersion(tr, metadata.subspace());
         if (version != metadata.version()) {
             // version changed, fetch the latest metadata.
-            return open_internal(context, tr, session, bucket);
+            return open_internal(context, tr, namespace, bucket);
         }
 
         refreshIndexStatistics(context, metadata, INDEX_STATISTICS_TTL);
@@ -425,8 +399,5 @@ public class BucketMetadataUtil {
 
         cardinality = ByteBuffer.wrap(value).order(ByteOrder.LITTLE_ENDIAN).getLong();
         return new IndexStatistics(cardinality);
-    }
-
-    private record CreateOrOpenResult(IndexRegistry indexes, Prefix prefix, long version) {
     }
 }
