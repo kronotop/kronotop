@@ -21,6 +21,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.kronotop.internal.VersionstampDeserializer;
+import com.kronotop.internal.VersionstampSerializer;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
 
@@ -39,8 +41,8 @@ public class Member {
     private Address externalAddress;
     private Address internalAddress;
     private int hashCode;
-    @JsonSerialize(using = ProcessIdSerializer.class)
-    @JsonDeserialize(using = ProcessIdDeserializer.class)
+    @JsonSerialize(using = VersionstampSerializer.class)
+    @JsonDeserialize(using = VersionstampDeserializer.class)
     private Versionstamp processId;
 
     Member() {

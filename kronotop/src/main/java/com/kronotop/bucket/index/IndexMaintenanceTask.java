@@ -16,14 +16,23 @@
 
 package com.kronotop.bucket.index;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.kronotop.internal.VersionstampDeserializer;
+import com.kronotop.internal.VersionstampSerializer;
 
 public class IndexMaintenanceTask {
     private final String namespace;
     private final String bucket;
     private final String index;
     private final long indexId;
+    private boolean completed;
+    @JsonSerialize(using = VersionstampSerializer.class)
+    @JsonDeserialize(using = VersionstampDeserializer.class)
+    private Versionstamp end;
 
     @JsonCreator
     public IndexMaintenanceTask(
@@ -53,13 +62,19 @@ public class IndexMaintenanceTask {
         return indexId;
     }
 
-    @Override
-    public String toString() {
-        return "IndexMaintenanceTask{" +
-                "namespace='" + namespace + '\'' +
-                ", bucket='" + bucket + '\'' +
-                ", index='" + index + '\'' +
-                ", indexId=" + indexId +
-                '}';
+    public boolean isCompleted() {
+        return completed;
+    }
+
+    public void setCompleted(boolean completed) {
+        this.completed = completed;
+    }
+
+    public void setEnd(Versionstamp end) {
+        this.end = end;
+    }
+
+    public Versionstamp getEnd() {
+        return end;
     }
 }

@@ -16,10 +16,11 @@
 
 package com.kronotop.bucket.index;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.internal.JSONUtil;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class IndexMaintenanceTaskTest {
     @Test
@@ -36,5 +37,40 @@ class IndexMaintenanceTaskTest {
         assertEquals(task.getBucket(), decoded.getBucket());
         assertEquals(task.getIndex(), decoded.getIndex());
         assertEquals(task.getIndexId(), decoded.getIndexId());
+        assertFalse(task.isCompleted());
+        assertFalse(decoded.isCompleted());
+        assertNull(task.getEnd());
+        assertNull(decoded.getEnd());
+    }
+
+    @Test
+    void shouldEncodeDecode_completed() {
+        IndexMaintenanceTask task = new IndexMaintenanceTask(
+                "namespace-name",
+                "bucket-name",
+                "index-name",
+                12345
+        );
+        task.setCompleted(true);
+        byte[] encoded = JSONUtil.writeValueAsBytes(task);
+        IndexMaintenanceTask decoded = JSONUtil.readValue(encoded, IndexMaintenanceTask.class);
+        assertTrue(task.isCompleted());
+        assertTrue(decoded.isCompleted());
+    }
+
+    @Test
+    void shouldEncodeDecode_end() {
+        IndexMaintenanceTask task = new IndexMaintenanceTask(
+                "namespace-name",
+                "bucket-name",
+                "index-name",
+                12345
+        );
+        Versionstamp end = Versionstamp.incomplete(1);
+        task.setEnd(end);
+        byte[] encoded = JSONUtil.writeValueAsBytes(task);
+        IndexMaintenanceTask decoded = JSONUtil.readValue(encoded, IndexMaintenanceTask.class);
+        assertEquals(end, task.getEnd());
+        assertEquals(end, decoded.getEnd());
     }
 }
