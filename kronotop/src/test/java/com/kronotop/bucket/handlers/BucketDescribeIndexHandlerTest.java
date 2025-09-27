@@ -16,7 +16,12 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -62,6 +67,8 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
             runCommand(channel, buf);
         }
 
+        BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
+
         String indexName = "selector:username.bsonType:STRING";
 
         ByteBuf buf = Unpooled.buffer();
@@ -76,7 +83,8 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
             switch (key.content()) {
                 case "id" -> {
                     IntegerRedisMessage value = (IntegerRedisMessage) entry.getValue();
-                    assertTrue(value.value() > 0);
+                    Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+                    assertEquals(index.definition().id(), value.value());
                 }
                 case "selector" -> {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();

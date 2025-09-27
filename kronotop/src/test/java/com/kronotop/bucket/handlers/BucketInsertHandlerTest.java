@@ -292,7 +292,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldIgnoreMissingFieldsInDocument() {
+    void shouldNotIgnoreMissingFieldsInDocument() {
         // Create indexes for fields that don't exist in the document
         IndexDefinition nameIndexDefinition = IndexDefinition.create("name-index", "name", BsonType.STRING);
         IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -338,13 +338,18 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             ).asList().join();
             assertEquals(1, nameEntries.size(), "Should have one entry for name index");
 
-            // Check age index - should have no entries
+            // Check age index - should have one entry(null)
             byte[] agePrefix = ageIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> ageEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(agePrefix),
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(agePrefix))
             ).asList().join();
-            assertEquals(0, ageEntries.size(), "Should have no entries for age index when field is missing");
+
+            assertEquals(1, ageEntries.size(), "Should have an entry(null) for age index when field is missing");
+            for (KeyValue entry: ageEntries) {
+                Tuple tuple = ageIndexSubspace.unpack(entry.getKey());
+                assertNull(tuple.get(1));
+            }
         }
     }
 

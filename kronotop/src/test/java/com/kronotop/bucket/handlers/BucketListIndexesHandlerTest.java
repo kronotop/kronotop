@@ -57,7 +57,7 @@ class BucketListIndexesHandlerTest extends BaseBucketHandlerTest {
         }
 
         List<String> expectedNames = List.of(
-                "selector:_id.bsonType:BINARY",
+                "primary-index",
                 "selector:selector.bsonType:INT32",
                 "selector:username.bsonType:STRING"
         );
