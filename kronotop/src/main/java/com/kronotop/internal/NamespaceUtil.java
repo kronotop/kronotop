@@ -59,7 +59,7 @@ public class NamespaceUtil {
         }
     }
 
-    private static DirectorySubspace open(Transaction tr, String clusterName, String name, DataStructureKind kind) {
+    public static DirectorySubspace open(Transaction tr, String clusterName, String name, DataStructureKind kind) {
         List<String> subpath = splitNamespaceHierarchy(name);
         subpath.add(Namespace.INTERNAL_LEAF);
         subpath.add(kind.name().toLowerCase());

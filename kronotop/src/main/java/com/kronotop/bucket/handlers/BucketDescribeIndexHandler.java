@@ -85,7 +85,6 @@ public class BucketDescribeIndexHandler extends AbstractBucketHandler implements
             Session session = request.getSession();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, message.getBucket());
-                metadata.indexes().hasIndexWithId(1);
 
                 DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), message.getIndex());
                 IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, indexSubspace);
