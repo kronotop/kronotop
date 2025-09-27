@@ -22,16 +22,16 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class IndexMaintenanceTaskTest {
+class IndexBuildTaskTest {
     @Test
     void shouldEncodeDecode() {
-        IndexMaintenanceTask task = new IndexMaintenanceTask(
+        IndexBuildTask task = new IndexBuildTask(
                 "namespace-name",
                 "bucket-name",
                 12345
         );
         byte[] encoded = JSONUtil.writeValueAsBytes(task);
-        IndexMaintenanceTask decoded = JSONUtil.readValue(encoded, IndexMaintenanceTask.class);
+        IndexBuildTask decoded = JSONUtil.readValue(encoded, IndexBuildTask.class);
         assertEquals(task.getNamespace(), decoded.getNamespace());
         assertEquals(task.getBucket(), decoded.getBucket());
         assertEquals(task.getIndexId(), decoded.getIndexId());
@@ -43,21 +43,21 @@ class IndexMaintenanceTaskTest {
 
     @Test
     void shouldEncodeDecode_completed() {
-        IndexMaintenanceTask task = new IndexMaintenanceTask(
+        IndexBuildTask task = new IndexBuildTask(
                 "namespace-name",
                 "bucket-name",
                 12345
         );
         task.setCompleted(true);
         byte[] encoded = JSONUtil.writeValueAsBytes(task);
-        IndexMaintenanceTask decoded = JSONUtil.readValue(encoded, IndexMaintenanceTask.class);
+        IndexBuildTask decoded = JSONUtil.readValue(encoded, IndexBuildTask.class);
         assertTrue(task.isCompleted());
         assertTrue(decoded.isCompleted());
     }
 
     @Test
     void shouldEncodeDecode_end() {
-        IndexMaintenanceTask task = new IndexMaintenanceTask(
+        IndexBuildTask task = new IndexBuildTask(
                 "namespace-name",
                 "bucket-name",
                 12345
@@ -65,7 +65,7 @@ class IndexMaintenanceTaskTest {
         Versionstamp end = Versionstamp.incomplete(1);
         task.setHighestVersionstamp(end);
         byte[] encoded = JSONUtil.writeValueAsBytes(task);
-        IndexMaintenanceTask decoded = JSONUtil.readValue(encoded, IndexMaintenanceTask.class);
+        IndexBuildTask decoded = JSONUtil.readValue(encoded, IndexBuildTask.class);
         assertEquals(end, task.getHighestVersionstamp());
         assertEquals(end, decoded.getHighestVersionstamp());
     }

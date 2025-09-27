@@ -117,6 +117,11 @@ public class IndexUtil {
         return JSONUtil.readValue(value, IndexDefinition.class);
     }
 
+    public static void saveIndexDefinition(Transaction tr, IndexDefinition definition, DirectorySubspace indexSubspace) {
+        byte[] indexDefinitionKey = indexSubspace.pack(BucketMetadataMagic.INDEX_DEFINITION.getValue());
+        tr.set(indexDefinitionKey, JSONUtil.writeValueAsBytes(definition));
+    }
+
     /**
      * Lists the subdirectories within the bucket metadata subspace's index directory.
      * This method constructs the subpath for the index directory, then fetches

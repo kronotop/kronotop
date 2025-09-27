@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.kronotop.internal.VersionstampDeserializer;
 import com.kronotop.internal.VersionstampSerializer;
 
-public class IndexMaintenanceTask {
+public class IndexBuildTask {
     private final String namespace;
     private final String bucket;
     private final long indexId;
@@ -34,7 +34,7 @@ public class IndexMaintenanceTask {
     private Versionstamp highestVersionstamp;
 
     @JsonCreator
-    public IndexMaintenanceTask(
+    public IndexBuildTask(
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
             @JsonProperty("indexId") long indexId) {
