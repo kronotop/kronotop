@@ -99,7 +99,8 @@ public class BackgroundIndexBuilder implements Runnable {
         byte[] begin = primaryIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         byte[] end = ByteArrayUtil.strinc(begin);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        // This will retry the business logic if FDB raises a conflict
+        context.getFoundationDB().run(tr -> {
             List<KeyValue> entries = tr.getRange(begin, end, 1, true).asList().join();
 
             KeyValue entry = entries.getFirst();
@@ -108,38 +109,37 @@ public class BackgroundIndexBuilder implements Runnable {
             task.setHighestVersionstamp(versionstamp);
 
             tr.set(subspace.pack(taskId), JSONUtil.writeValueAsBytes(task));
-            tr.commit().join();
-        }
+            return null;
+        });
     }
 
     @Override
     public void run() {
         findOutHighestVersionstamp();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        Result result = context.getFoundationDB().run(tr -> {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
                 KronotopException exp = new KronotopException("no index found with id " + task.getIndexId());
                 markTaskFailed(exp);
                 throw exp;
-            } else {
-                if (index.definition().status() == IndexStatus.READY) {
-                    task.setError(String.format(
-                            "index with selector=%s, id=%d is ready to query",
-                            index.definition().selector(),
-                            index.definition().id()
-                    ));
-                    task.setStatus(IndexTaskStatus.FAILED);
-                }
-                if (index.definition().status() == IndexStatus.DROPPED) {
-                    task.setError(String.format(
-                            "index with selector=%s, id=%d is dropped",
-                            index.definition().selector(),
-                            index.definition().id()
-                    ));
-                    task.setStatus(IndexTaskStatus.FAILED);
-                }
+            }
+
+            if (index.definition().status() == IndexStatus.READY) {
+                task.setError(String.format(
+                        "index with selector=%s, id=%d is ready to query",
+                        index.definition().selector(),
+                        index.definition().id()
+                ));
+                task.setStatus(IndexTaskStatus.FAILED);
+            } else if (index.definition().status() == IndexStatus.DROPPED) {
+                task.setError(String.format(
+                        "index with selector=%s, id=%d is dropped",
+                        index.definition().selector(),
+                        index.definition().id()
+                ));
+                task.setStatus(IndexTaskStatus.FAILED);
             }
 
             if (task.getStatus() == IndexTaskStatus.FAILED) {
@@ -148,8 +148,20 @@ public class BackgroundIndexBuilder implements Runnable {
                 throw exp;
             }
 
-            index.definition().updateStatus(IndexStatus.BUILDING);
-            IndexUtil.saveIndexDefinition(tr, index.definition(), index.subspace());
-        }
+
+            // Three possibilities for IndexStatus: WAITING, BUILDING, FAILED
+
+            if (index.definition().status() != IndexStatus.BUILDING) {
+                // db.run wil retry the business logic if FDB raises a conflict.
+                index.definition().updateStatus(IndexStatus.BUILDING);
+                IndexUtil.saveIndexDefinition(tr, index.definition(), index.subspace());
+            }
+            return new Result(metadata, index);
+        });
+
+
+    }
+
+    record Result(BucketMetadata metadata, Index index) {
     }
 }
