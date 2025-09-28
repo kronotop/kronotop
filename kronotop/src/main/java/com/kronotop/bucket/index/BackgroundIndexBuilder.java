@@ -36,6 +36,7 @@ public class BackgroundIndexBuilder implements Runnable {
     private final DirectorySubspace subspace;
     private final Versionstamp taskId;
     private final IndexBuildTask task;
+    private final boolean doNotWaitTxLimit;
 
     public BackgroundIndexBuilder(
             Context context,
@@ -43,10 +44,21 @@ public class BackgroundIndexBuilder implements Runnable {
             Versionstamp taskId,
             IndexBuildTask task
     ) {
+        this(context, subspace, taskId, task, false);
+    }
+
+    BackgroundIndexBuilder(
+            Context context,
+            DirectorySubspace subspace,
+            Versionstamp taskId,
+            IndexBuildTask task,
+            boolean doNotWaitTxLimit
+    ) {
         this.context = context;
         this.subspace = subspace;
         this.taskId = taskId;
         this.task = task;
+        this.doNotWaitTxLimit = doNotWaitTxLimit;
     }
 
     private void saveIndexTask() {
@@ -66,14 +78,26 @@ public class BackgroundIndexBuilder implements Runnable {
     private BucketMetadata refreshAndLoadBucketMetadata() {
         BucketMetadata metadata;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Open the BucketMetadata and refresh the caches
             metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
                 throw new KronotopException("index with id '" + task.getIndexId() + "' could not be found");
             }
 
-            // Metadata has refreshed or it was already fresh. Wait for 6000ms
-            Thread.sleep(10);
+            /*
+             * A potential stop-the-world pause (e.g., JVM GC) during the sleep interval
+             * does not break the logic here. Once the transaction is created, it already
+             * holds a stable read version from FoundationDB. If the pause extends beyond
+             * the transaction lifetime, this transaction will simply fail with "too old"
+             * and the task will be marked as failed. In that case, a manual or KCP trigger
+             * is required to retry. This design ensures correctness is preserved even under
+             * GC pauses; the worst case is a delayed or failed task, never inconsistent state.
+             */
+            if (!doNotWaitTxLimit) {
+                // Metadata has refreshed or it was already fresh. Wait for 6000ms
+                Thread.sleep(6000);
+            }
             // Now all transactions either committed or died.
             return metadata;
         } catch (InterruptedException e) {
@@ -117,7 +141,7 @@ public class BackgroundIndexBuilder implements Runnable {
     public void run() {
         findOutHighestVersionstamp();
 
-        Result result = context.getFoundationDB().run(tr -> {
+        MetadataBundle bundle = context.getFoundationDB().run(tr -> {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
@@ -156,12 +180,11 @@ public class BackgroundIndexBuilder implements Runnable {
                 index.definition().updateStatus(IndexStatus.BUILDING);
                 IndexUtil.saveIndexDefinition(tr, index.definition(), index.subspace());
             }
-            return new Result(metadata, index);
+            return new MetadataBundle(metadata, index);
         });
-
-
+        System.out.println(bundle);
     }
 
-    record Result(BucketMetadata metadata, Index index) {
+    record MetadataBundle(BucketMetadata metadata, Index index) {
     }
 }
