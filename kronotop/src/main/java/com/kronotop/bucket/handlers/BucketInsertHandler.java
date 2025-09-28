@@ -66,44 +66,6 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
     }
 
     /**
-     * Converts a given {@link BsonValue} to its corresponding Java object based on the BSON type.
-     * If there is a mismatch between the actual BSON type of the value and the expected BSON type,
-     * null is returned unless the mismatch is specifically allowed (e.g., INT32 values are allowed
-     * where INT64 is expected).
-     *
-     * @param value            the {@link BsonValue} to be converted
-     * @param expectedBsonType the expected {@link BsonType} of the {@code value}
-     * @return a Java object that corresponds to the BSON type of the {@code value},
-     * or null if there is a type mismatch or the BSON type is unsupported
-     * @throws IllegalArgumentException if an unsupported BSON type is encountered
-     */
-    private Object convertBsonValueToJavaObject(BsonValue value, BsonType expectedBsonType) {
-        // Check if the actual BSON type matches the expected type from IndexDefinition
-        if (value.getBsonType() != expectedBsonType) {
-            // Int64 covers Int32 values
-            if (!(expectedBsonType.equals(BsonType.INT64) && value.getBsonType().equals(INT32))) {
-                // Type mismatches are not indexed, but documents are still persisted.
-                return null;
-            }
-        }
-        return switch (value.getBsonType()) {
-            case STRING -> value.asString().getValue();
-            case INT32 -> value.asInt32().getValue();
-            case INT64 -> value.asInt64().getValue();
-            case DOUBLE -> value.asDouble().getValue();
-            case BOOLEAN -> value.asBoolean().getValue();
-            case BINARY -> value.asBinary().getData();
-            case DATE_TIME -> value.asDateTime().getValue();
-            case TIMESTAMP -> value.asTimestamp().getValue();
-            case DECIMAL128 -> value.asDecimal128().getValue().bigDecimalValue();
-            case NULL -> null;
-            default -> {
-                throw new IllegalArgumentException("Unsupported BSON type: " + value.getBsonType());
-            }
-        };
-    }
-
-    /**
      * Prepares entries for insertion into a bucket. This method processes and validates
      * the documents contained in the {@code BucketInsertMessage}, converting them
      * into the appropriate format and wrapping them in an {@code EntriesPack}.
@@ -176,7 +138,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                     Object indexValue = null;
                     BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), entry);
                     if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
-                        indexValue = convertBsonValueToJavaObject(bsonValue, index.definition().bsonType());
+                        indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
                         if (indexValue == null) {
                             // Type mismatch, continue
                             continue;

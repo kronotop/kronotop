@@ -29,12 +29,9 @@ import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
 import org.bson.BsonNull;
-import org.bson.BsonType;
 import org.bson.BsonValue;
 
 import java.util.List;
-
-import static org.bson.BsonType.INT32;
 
 public class BackgroundIndexBuilder implements Runnable {
     private final Context context;
@@ -72,7 +69,7 @@ public class BackgroundIndexBuilder implements Runnable {
         this.doNotWaitTxLimit = doNotWaitTxLimit;
     }
 
-    private BucketMetadata refreshAndLoadBucketMetadata() {
+    private BucketMetadata refreshAndLoadBucketMetadata() throws InterruptedException {
         BucketMetadata metadata;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Open the BucketMetadata and refresh the caches
@@ -92,15 +89,12 @@ public class BackgroundIndexBuilder implements Runnable {
              * GC pauses; the worst case is a delayed or failed task, never inconsistent state.
              */
             if (!doNotWaitTxLimit) {
-                // Metadata has refreshed or it was already fresh. Wait for 6000ms
+                // FoundationDB transactions cannot live beyond 5s.
+                // Sleeping 6s ensures that any previously opened transactions are expired.
                 Thread.sleep(6000);
             }
             // Now all transactions either committed or died.
             return metadata;
-        } catch (InterruptedException e) {
-            // Do not mark the task as failed. Program has stopped and this task
-            // can be retried.
-            throw new RuntimeException(e);
         }
     }
 
@@ -128,11 +122,12 @@ public class BackgroundIndexBuilder implements Runnable {
         return (Versionstamp) parsedKey.get(1);
     }
 
-    private void findOutScanBoundaries() {
+    private void findOutBoundaries() throws InterruptedException {
         IndexBuildTaskState state = context.getFoundationDB().run(tr -> IndexBuildTaskState.load(tr, subspace, taskId));
         if (state.cursorVersionstamp() != null && state.highestVersionstamp() != null) {
             return;
         }
+
         BucketMetadata metadata = refreshAndLoadBucketMetadata();
         Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.ALL);
         byte[] begin = primaryIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -146,18 +141,12 @@ public class BackgroundIndexBuilder implements Runnable {
         }
     }
 
-    @Override
-    public void run() {
-        findOutScanBoundaries();
-
-        MetadataBundle bundle;
+    private void validateIndexBuildTask() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
-                KronotopException exp = new KronotopException("no index found with id " + task.getIndexId());
-                markIndexBuildTaskFailed(exp);
-                throw exp;
+                throw new IndexTaskException("no index found with id " + task.getIndexId(), true);
             }
 
             if (index.definition().status() == IndexStatus.READY) {
@@ -179,9 +168,8 @@ public class BackgroundIndexBuilder implements Runnable {
 
             IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
             if (state.status() == IndexTaskStatus.FAILED) {
-                KronotopException exp = new KronotopException(state.error());
-                markIndexBuildTaskFailed(exp);
-                throw exp;
+                tr.commit().join();
+                throw new IndexTaskException(state.error(), true);
             }
 
             // Three possibilities for IndexStatus: WAITING, BUILDING, FAILED
@@ -189,18 +177,34 @@ public class BackgroundIndexBuilder implements Runnable {
             if (index.definition().status() != IndexStatus.BUILDING) {
                 IndexDefinition definition = index.definition().updateStatus(IndexStatus.BUILDING);
                 IndexUtil.saveIndexDefinition(tr, definition, index.subspace());
+                tr.commit().join();
             }
-
-            tr.commit().join();
-            bundle = new MetadataBundle(metadata, index);
         }
-
-        scanPrimaryIndex(bundle);
     }
 
-    private void scanPrimaryIndex(MetadataBundle bundle) {
-        BucketMetadata metadata = bundle.metadata();
-        IndexDefinition definition = bundle.index().definition();
+    @Override
+    public void run() {
+        try {
+            findOutBoundaries();
+            validateIndexBuildTask();
+            scanPrimaryIndex();
+        } catch (InterruptedException e) {
+            // Do not mark the task as failed. Program has stopped and this task
+            // can be retried.
+            throw new RuntimeException(e);
+        } catch (IndexTaskException exp) {
+            if (exp.isFailed()) {
+                markIndexBuildTaskFailed(exp);
+            }
+            throw exp;
+        }
+    }
+
+    private void scanPrimaryIndex() {
+        BucketMetadata metadata = context.getFoundationDB().run(tr ->
+                BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
+        );
+        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
         BucketShard shard = service.getShard(shardId);
 
         while (true) {
@@ -218,15 +222,15 @@ public class BackgroundIndexBuilder implements Runnable {
                 Versionstamp cursor = null;
                 for (VolumeEntry pair : entries) {
                     Object indexValue = null;
-                    BsonValue bsonValue = SelectorMatcher.match(definition.selector(), pair.entry());
+                    BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), pair.entry());
                     if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
-                        indexValue = convertBsonValueToJavaObject(bsonValue, definition.bsonType());
+                        indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
                         if (indexValue == null) {
                             // Type mismatch, continue
                             continue;
                         }
                     }
-                    IndexBuilder.insertIndexEntry(tr, definition, metadata, pair.key(), indexValue, pair.metadata());
+                    IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, pair.key(), indexValue, pair.metadata());
                     cursor = pair.key();
                 }
                 if (cursor != null) {
@@ -235,34 +239,5 @@ public class BackgroundIndexBuilder implements Runnable {
                 tr.commit().join();
             }
         }
-    }
-
-    private Object convertBsonValueToJavaObject(BsonValue value, BsonType expectedBsonType) {
-        // Check if the actual BSON type matches the expected type from IndexDefinition
-        if (value.getBsonType() != expectedBsonType) {
-            // Int64 covers Int32 values
-            if (!(expectedBsonType.equals(BsonType.INT64) && value.getBsonType().equals(INT32))) {
-                // Type mismatches are not indexed, but documents are still persisted.
-                return null;
-            }
-        }
-        return switch (value.getBsonType()) {
-            case STRING -> value.asString().getValue();
-            case INT32 -> value.asInt32().getValue();
-            case INT64 -> value.asInt64().getValue();
-            case DOUBLE -> value.asDouble().getValue();
-            case BOOLEAN -> value.asBoolean().getValue();
-            case BINARY -> value.asBinary().getData();
-            case DATE_TIME -> value.asDateTime().getValue();
-            case TIMESTAMP -> value.asTimestamp().getValue();
-            case DECIMAL128 -> value.asDecimal128().getValue().bigDecimalValue();
-            case NULL -> null;
-            default -> {
-                throw new IllegalArgumentException("Unsupported BSON type: " + value.getBsonType());
-            }
-        };
-    }
-
-    record MetadataBundle(BucketMetadata metadata, Index index) {
     }
 }
