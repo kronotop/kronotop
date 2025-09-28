@@ -32,6 +32,7 @@ public class IndexBuildTask extends IndexTask {
     @JsonSerialize(using = VersionstampSerializer.class)
     @JsonDeserialize(using = VersionstampDeserializer.class)
     private Versionstamp highestVersionstamp;
+    private String error;
 
     @JsonCreator
     public IndexBuildTask(
@@ -70,5 +71,13 @@ public class IndexBuildTask extends IndexTask {
 
     public void setHighestVersionstamp(Versionstamp highestVersionstamp) {
         this.highestVersionstamp = highestVersionstamp;
+    }
+
+    public void setError(String error) {
+        this.error = error;
+    }
+
+    public String getError() {
+        return error;
     }
 }

@@ -27,7 +27,6 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
-import com.kronotop.bucket.NoSuchBucketException;
 import com.kronotop.internal.JSONUtil;
 
 import java.util.List;
@@ -50,34 +49,64 @@ public class BackgroundIndexBuilder implements Runnable {
         this.task = task;
     }
 
-    private void findOutHighestVersionstamp() {
+    private void saveIndexTask() {
+        context.getFoundationDB().run((tr) -> {
+            byte[] key = subspace.pack(taskId);
+            tr.set(key, JSONUtil.writeValueAsBytes(task));
+            return null;
+        });
+    }
+
+    private void markTaskFailed(Throwable e) {
+        task.setError(e.getMessage());
+        task.setStatus(IndexTaskStatus.FAILED);
+        saveIndexTask();
+    }
+
+    private BucketMetadata refreshAndLoadBucketMetadata() {
         BucketMetadata metadata;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
-                // TODO: Index is probably removed, mark the task obsolete.
-                throw new KronotopException("Index with id '" + task.getIndexId() + "' could not be found");
+                throw new KronotopException("index with id '" + task.getIndexId() + "' could not be found");
             }
+
             // Metadata has refreshed or it was already fresh. Wait for 6000ms
-            Thread.sleep(6000);
+            Thread.sleep(10);
             // Now all transactions either committed or died.
-        } catch (NoSuchBucketException e) {
-            // TODO: Bucket or namespace is probably removed, mark the task obsolete.
-            throw new KronotopException(e);
+            return metadata;
         } catch (InterruptedException e) {
+            // Do not mark the task as failed. Program has stopped and this task
+            // can be retried.
             throw new RuntimeException(e);
+        } catch (Exception e) {
+            markTaskFailed(e);
+            throw e;
         }
+    }
+
+    private void findOutHighestVersionstamp() {
+        if (task.getHighestVersionstamp() != null) {
+            // Task already has the highest versionstamp record.
+            return;
+        }
+
+        BucketMetadata metadata = refreshAndLoadBucketMetadata();
+
+        // Find the highest versionstamp
         Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.ALL);
-        byte[] begin = primaryIndex.subspace().pack();
+        byte[] begin = primaryIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         byte[] end = ByteArrayUtil.strinc(begin);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            List<KeyValue> items = tr.getRange(begin, end, 1, true).asList().join();
-            KeyValue keyValue = items.getFirst();
-            Tuple tuple = primaryIndex.subspace().unpack(keyValue.getKey());
-            Versionstamp versionstamp = (Versionstamp) tuple.get(1);
+            List<KeyValue> entries = tr.getRange(begin, end, 1, true).asList().join();
+
+            KeyValue entry = entries.getFirst();
+            Tuple parsedKey = primaryIndex.subspace().unpack(entry.getKey());
+            Versionstamp versionstamp = (Versionstamp) parsedKey.get(1);
             task.setHighestVersionstamp(versionstamp);
+
             tr.set(subspace.pack(taskId), JSONUtil.writeValueAsBytes(task));
             tr.commit().join();
         }
@@ -85,31 +114,42 @@ public class BackgroundIndexBuilder implements Runnable {
 
     @Override
     public void run() {
-        if (task.getHighestVersionstamp() == null) {
-            findOutHighestVersionstamp();
-        }
+        findOutHighestVersionstamp();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
-                // TODO: Mark the task failed
-                throw new KronotopException("no index found");
-            }
-            if (index.definition().status() == IndexStatus.READY) {
-                // TODO: Mark the task failed
-                throw new KronotopException("already ready to query");
-            }
-            if (index.definition().status() == IndexStatus.DROPPED) {
-                // TODO: Mark the task failed
-                throw new KronotopException("already dropped");
+                KronotopException exp = new KronotopException("no index found with id " + task.getIndexId());
+                markTaskFailed(exp);
+                throw exp;
+            } else {
+                if (index.definition().status() == IndexStatus.READY) {
+                    task.setError(String.format(
+                            "index with selector=%s, id=%d is ready to query",
+                            index.definition().selector(),
+                            index.definition().id()
+                    ));
+                    task.setStatus(IndexTaskStatus.FAILED);
+                }
+                if (index.definition().status() == IndexStatus.DROPPED) {
+                    task.setError(String.format(
+                            "index with selector=%s, id=%d is dropped",
+                            index.definition().selector(),
+                            index.definition().id()
+                    ));
+                    task.setStatus(IndexTaskStatus.FAILED);
+                }
             }
 
-            if (index.definition().status() == IndexStatus.FAILED) {
-                // TODO: Mark the task failed
-                throw new KronotopException("already failed");
+            if (task.getStatus() == IndexTaskStatus.FAILED) {
+                KronotopException exp = new KronotopException(task.getError());
+                markTaskFailed(exp);
+                throw exp;
             }
+
+            index.definition().updateStatus(IndexStatus.BUILDING);
+            IndexUtil.saveIndexDefinition(tr, index.definition(), index.subspace());
         }
-
     }
 }
