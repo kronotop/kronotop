@@ -16,16 +16,21 @@
 
 package com.kronotop.bucket.index;
 
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.TaskStorage;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -34,13 +39,14 @@ import io.netty.buffer.Unpooled;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class BackgroundIndexBuilderTest extends BaseBucketHandlerTest {
     @Test
-    void foo() {
+    void shouldBuildIndexAtBackground() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[][] docs = makeDocumentsArray(
@@ -54,10 +60,12 @@ class BackgroundIndexBuilderTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
 
+        List<Versionstamp> expectedVersionstamps = new ArrayList<>();
         assertEquals(2, actualMessage.children().size());
         for (int i = 0; i < actualMessage.children().size(); i++) {
             SimpleStringRedisMessage message = (SimpleStringRedisMessage) actualMessage.children().get(i);
             assertNotNull(message.content());
+            expectedVersionstamps.add(VersionstampUtil.base32HexDecode(message.content()));
         }
 
         IndexDefinition definition = IndexDefinition.create(
@@ -79,5 +87,22 @@ class BackgroundIndexBuilderTest extends BaseBucketHandlerTest {
 
         BackgroundIndexBuilder builder = new BackgroundIndexBuilder(context, taskSubspace, SHARD_ID, taskId, task, true);
         builder.run();
+
+        List<Long> expectedIndexValues = new ArrayList<>(List.of(32L, 40L));
+        List<Long> indexValues = new ArrayList<>();
+        List<Versionstamp> versionstamps = new ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, "global", BUCKET_NAME);
+            Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+            byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
+            byte[] end = ByteArrayUtil.strinc(begin);
+            for (KeyValue entry : tr.getRange(begin, end)) {
+                Tuple unpacked = index.subspace().unpack(entry.getKey());
+                indexValues.add(unpacked.getLong(2));
+                versionstamps.add((Versionstamp) unpacked.get(1));
+            }
+            assertEquals(expectedVersionstamps, versionstamps);
+            assertEquals(expectedIndexValues, indexValues);
+        }
     }
 }

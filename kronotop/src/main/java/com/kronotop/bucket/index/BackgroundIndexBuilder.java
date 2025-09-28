@@ -101,9 +101,6 @@ public class BackgroundIndexBuilder implements Runnable {
             // Do not mark the task as failed. Program has stopped and this task
             // can be retried.
             throw new RuntimeException(e);
-        } catch (Exception e) {
-
-            throw e;
         }
     }
 
@@ -159,8 +156,7 @@ public class BackgroundIndexBuilder implements Runnable {
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
                 KronotopException exp = new KronotopException("no index found with id " + task.getIndexId());
-                IndexBuildTaskState.setError(tr, subspace, taskId, exp.getMessage());
-                IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
+                markIndexBuildTaskFailed(exp);
                 throw exp;
             }
 
@@ -184,18 +180,15 @@ public class BackgroundIndexBuilder implements Runnable {
             IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
             if (state.status() == IndexTaskStatus.FAILED) {
                 KronotopException exp = new KronotopException(state.error());
-                IndexBuildTaskState.setError(tr, subspace, taskId, exp.getMessage());
-                IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
+                markIndexBuildTaskFailed(exp);
                 throw exp;
             }
-
 
             // Three possibilities for IndexStatus: WAITING, BUILDING, FAILED
 
             if (index.definition().status() != IndexStatus.BUILDING) {
-                // TODO: Clone the definition and save it
-                index.definition().updateStatus(IndexStatus.BUILDING);
-                IndexUtil.saveIndexDefinition(tr, index.definition(), index.subspace());
+                IndexDefinition definition = index.definition().updateStatus(IndexStatus.BUILDING);
+                IndexUtil.saveIndexDefinition(tr, definition, index.subspace());
             }
 
             tr.commit().join();
