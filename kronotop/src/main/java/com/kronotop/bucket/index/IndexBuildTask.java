@@ -16,29 +16,23 @@
 
 package com.kronotop.bucket.index;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.kronotop.internal.VersionstampDeserializer;
-import com.kronotop.internal.VersionstampSerializer;
 
 public class IndexBuildTask extends IndexTask {
     private final String namespace;
     private final String bucket;
     private final long indexId;
-    private boolean completed;
-    private String error;
+    //private boolean completed;
+    //private String error;
 
-    @JsonSerialize(using = VersionstampSerializer.class)
-    @JsonDeserialize(using = VersionstampDeserializer.class)
-    private Versionstamp highestVersionstamp;
+    //@JsonSerialize(using = VersionstampSerializer.class)
+    //@JsonDeserialize(using = VersionstampDeserializer.class)
+    //private Versionstamp highestVersionstamp;
 
-    @JsonSerialize(using = VersionstampSerializer.class)
-    @JsonDeserialize(using = VersionstampDeserializer.class)
-    private Versionstamp cursorVersionstamp;
-
+    //@JsonSerialize(using = VersionstampSerializer.class)
+    //@JsonDeserialize(using = VersionstampDeserializer.class)
+    //private Versionstamp cursorVersionstamp;
 
     @JsonCreator
     public IndexBuildTask(
@@ -63,35 +57,35 @@ public class IndexBuildTask extends IndexTask {
         return indexId;
     }
 
-    public boolean isCompleted() {
-        return completed;
-    }
+    //public boolean isCompleted() {
+    //    return completed;
+    //}
 
-    public void setCompleted(boolean completed) {
-        this.completed = completed;
-    }
+    //public void setCompleted(boolean completed) {
+    //    this.completed = completed;
+    //}
 
-    public Versionstamp getHighestVersionstamp() {
-        return highestVersionstamp;
-    }
+    //public Versionstamp getHighestVersionstamp() {
+    //    return highestVersionstamp;
+    //}
 
-    public void setHighestVersionstamp(Versionstamp highestVersionstamp) {
-        this.highestVersionstamp = highestVersionstamp;
-    }
+    //public void setHighestVersionstamp(Versionstamp highestVersionstamp) {
+    //    this.highestVersionstamp = highestVersionstamp;
+    //}
 
-    public void setCursorVersionstamp(Versionstamp cursorVersionstamp) {
-        this.cursorVersionstamp = cursorVersionstamp;
-    }
+    //public void setCursorVersionstamp(Versionstamp cursorVersionstamp) {
+    //    this.cursorVersionstamp = cursorVersionstamp;
+    //}
 
-    public Versionstamp getCursorVersionstamp() {
-        return cursorVersionstamp;
-    }
+    //public Versionstamp getCursorVersionstamp() {
+    //    return cursorVersionstamp;
+    //}
 
-    public void setError(String error) {
-        this.error = error;
-    }
+    //public void setError(String error) {
+    //    this.error = error;
+    //}
 
-    public String getError() {
-        return error;
-    }
+    //public String getError() {
+    //    return error;
+    //}
 }

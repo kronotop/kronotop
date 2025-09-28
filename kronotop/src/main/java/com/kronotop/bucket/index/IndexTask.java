@@ -20,24 +20,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class IndexTask {
     private final IndexTaskKind kind;
-    private IndexTaskStatus status;
 
     public IndexTask(
             @JsonProperty("kind") IndexTaskKind kind
     ) {
         this.kind = kind;
-        this.status = IndexTaskStatus.WAITING;
     }
 
     public IndexTaskKind getKind() {
         return kind;
-    }
-
-    public void setStatus(IndexTaskStatus status) {
-        this.status = status;
-    }
-
-    public IndexTaskStatus getStatus() {
-        return status;
     }
 }

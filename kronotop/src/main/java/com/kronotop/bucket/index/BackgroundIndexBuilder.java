@@ -26,6 +26,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.internal.TaskStorage;
 import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeSession;
@@ -34,6 +35,7 @@ import org.bson.BsonType;
 import org.bson.BsonValue;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.bson.BsonType.INT32;
 
@@ -71,20 +73,6 @@ public class BackgroundIndexBuilder implements Runnable {
         this.task = task;
         this.service = context.getService(BucketService.NAME);
         this.doNotWaitTxLimit = doNotWaitTxLimit;
-    }
-
-    private void saveIndexTask() {
-        context.getFoundationDB().run((tr) -> {
-            byte[] key = subspace.pack(taskId);
-            tr.set(key, JSONUtil.writeValueAsBytes(task));
-            return null;
-        });
-    }
-
-    private void markTaskFailed(Throwable e) {
-        task.setError(e.getMessage());
-        task.setStatus(IndexTaskStatus.FAILED);
-        saveIndexTask();
     }
 
     private BucketMetadata refreshAndLoadBucketMetadata() {
@@ -138,8 +126,15 @@ public class BackgroundIndexBuilder implements Runnable {
         return (Versionstamp) parsedKey.get(1);
     }
 
+    private Versionstamp readStateFields(Transaction tr) {
+        Map<String, byte[]> entries = TaskStorage.getStateFields(tr, subspace, taskId);
+
+    }
+
     private void findOutScanBoundaries() {
-        if (task.getCursorVersionstamp() != null && task.getHighestVersionstamp() != null) {
+        IndexBuildTaskState state = context.getFoundationDB().run(tr -> IndexBuildTaskState.load(tr, subspace, taskId));
+
+        if (state.cursorVersionstamp() != null && state.highestVersionstamp() != null) {
             return;
         }
 
@@ -153,10 +148,10 @@ public class BackgroundIndexBuilder implements Runnable {
         // This will retry the business logic if FDB raises a conflict
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Versionstamp cursor = findOutCursorVersionstamp(tr, primaryIndex, begin, end);
+            IndexBuildTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
+
             Versionstamp highest = findOutHighestVersionstamp(tr, primaryIndex, begin, end);
-            task.setCursorVersionstamp(cursor);
-            task.setHighestVersionstamp(highest);
-            tr.set(subspace.pack(taskId), JSONUtil.writeValueAsBytes(task));
+            IndexBuildTaskState.setHighestVersionstamp(tr, subspace, taskId, highest);
         }
     }
 
@@ -174,23 +169,24 @@ public class BackgroundIndexBuilder implements Runnable {
             }
 
             if (index.definition().status() == IndexStatus.READY) {
-                task.setError(String.format(
+                IndexBuildTaskState.setError(tr, subspace, taskId, String.format(
                         "index with selector=%s, id=%d is ready to query",
                         index.definition().selector(),
                         index.definition().id()
                 ));
-                task.setStatus(IndexTaskStatus.FAILED);
+                // set state
             } else if (index.definition().status() == IndexStatus.DROPPED) {
-                task.setError(String.format(
+                IndexBuildTaskState.setError(tr, subspace, taskId, String.format(
                         "index with selector=%s, id=%d is dropped",
                         index.definition().selector(),
                         index.definition().id()
                 ));
-                task.setStatus(IndexTaskStatus.FAILED);
+                //task.setStatus(IndexTaskStatus.FAILED);
             }
 
-            if (task.getStatus() == IndexTaskStatus.FAILED) {
-                KronotopException exp = new KronotopException(task.getError());
+            IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
+            if (state.status() == IndexTaskStatus.FAILED) {
+                KronotopException exp = new KronotopException(state.error());
                 markTaskFailed(exp);
                 throw exp;
             }
@@ -214,8 +210,9 @@ public class BackgroundIndexBuilder implements Runnable {
         BucketShard shard = service.getShard(shardId);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(task.getCursorVersionstamp());
-            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(task.getHighestVersionstamp());
+            IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
+            VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp());
+            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(state.highestVersionstamp());
             VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
 
             Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end);

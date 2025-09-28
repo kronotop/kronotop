@@ -16,18 +16,16 @@
 
 package com.kronotop.bucket.index;
 
-import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.internal.TaskStorage;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -37,7 +35,6 @@ import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -63,28 +60,24 @@ class BackgroundIndexBuilderTest extends BaseBucketHandlerTest {
             assertNotNull(message.content());
         }
 
-        IndexBuildTask task;
-        Versionstamp versionstamp;
+        IndexDefinition definition = IndexDefinition.create(
+                "test-index",
+                "age",
+                BsonType.INT32,
+                IndexStatus.WAITING
+        );
+
         DirectorySubspace taskSubspace = createOrOpenSubspaceUnderCluster("test-subspace");
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexDefinition definition = IndexDefinition.create(
-                    "test-index",
-                    "age",
-                    BsonType.INT32,
-                    IndexStatus.WAITING
-            );
             BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
             IndexUtil.create(tr, metadata.subspace(), definition);
-            task = new IndexBuildTask("global", BUCKET_NAME, definition.id());
-            Tuple t = Tuple.from(Versionstamp.incomplete());
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, taskSubspace.packWithVersionstamp(t), JSONUtil.writeValueAsBytes(task));
-            CompletableFuture<byte[]> future = tr.getVersionstamp();
             tr.commit().join();
-            byte[] trVersion = future.join();
-            versionstamp = Versionstamp.complete(trVersion);
         }
 
-        BackgroundIndexBuilder builder = new BackgroundIndexBuilder(context, taskSubspace, SHARD_ID, versionstamp, task, true);
+        IndexBuildTask task = new IndexBuildTask("global", BUCKET_NAME, definition.id());
+        Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+
+        BackgroundIndexBuilder builder = new BackgroundIndexBuilder(context, taskSubspace, SHARD_ID, taskId, task, true);
         builder.run();
     }
 }
