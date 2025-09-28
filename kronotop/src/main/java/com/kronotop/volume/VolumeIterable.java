@@ -30,7 +30,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 
-class VolumeIterable implements Iterable<KeyEntryPair> {
+class VolumeIterable implements Iterable<KeyEntry> {
     private final AsyncIterable<KeyValue> asyncIterable;
     private final Volume volume;
     private final VolumeSession session;
@@ -65,11 +65,11 @@ class VolumeIterable implements Iterable<KeyEntryPair> {
 
     @Nonnull
     @Override
-    public Iterator<KeyEntryPair> iterator() {
+    public Iterator<KeyEntry> iterator() {
         return new VolumeIterator(volume, session, asyncIterable.iterator());
     }
 
-    private static class VolumeIterator implements Iterator<KeyEntryPair> {
+    private static class VolumeIterator implements Iterator<KeyEntry> {
         private final Volume volume;
         private final VolumeSession session;
         private final AsyncIterator<KeyValue> asyncIterator;
@@ -99,13 +99,13 @@ class VolumeIterable implements Iterable<KeyEntryPair> {
          * @throws NoSuchElementException if the iteration has no more elements
          */
         @Override
-        public KeyEntryPair next() {
+        public KeyEntry next() {
             KeyValue keyValue = asyncIterator.next();
             Versionstamp key = (Versionstamp) volume.getConfig().subspace().unpack(keyValue.getKey()).get(2);
             EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(keyValue.getValue()));
             try {
                 ByteBuffer entry = volume.getByEntryMetadata(session.prefix(), key, entryMetadata);
-                return new KeyEntryPair(key, entry);
+                return new KeyEntry(key, entry);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

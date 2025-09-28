@@ -29,10 +29,16 @@ public class IndexBuildTask extends IndexTask {
     private final String bucket;
     private final long indexId;
     private boolean completed;
+    private String error;
+
     @JsonSerialize(using = VersionstampSerializer.class)
     @JsonDeserialize(using = VersionstampDeserializer.class)
     private Versionstamp highestVersionstamp;
-    private String error;
+
+    @JsonSerialize(using = VersionstampSerializer.class)
+    @JsonDeserialize(using = VersionstampDeserializer.class)
+    private Versionstamp cursorVersionstamp;
+
 
     @JsonCreator
     public IndexBuildTask(
@@ -71,6 +77,14 @@ public class IndexBuildTask extends IndexTask {
 
     public void setHighestVersionstamp(Versionstamp highestVersionstamp) {
         this.highestVersionstamp = highestVersionstamp;
+    }
+
+    public void setCursorVersionstamp(Versionstamp cursorVersionstamp) {
+        this.cursorVersionstamp = cursorVersionstamp;
+    }
+
+    public Versionstamp getCursorVersionstamp() {
+        return cursorVersionstamp;
     }
 
     public void setError(String error) {

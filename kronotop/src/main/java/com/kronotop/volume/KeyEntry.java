@@ -20,5 +20,5 @@ import com.apple.foundationdb.tuple.Versionstamp;
 
 import java.nio.ByteBuffer;
 
-public record KeyEntryPair(Versionstamp key, ByteBuffer entry) {
+public record KeyEntry(Versionstamp key, ByteBuffer entry) {
 }

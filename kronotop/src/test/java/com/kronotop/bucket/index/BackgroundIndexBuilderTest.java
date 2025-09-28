@@ -84,7 +84,7 @@ class BackgroundIndexBuilderTest extends BaseBucketHandlerTest {
             versionstamp = Versionstamp.complete(trVersion);
         }
 
-        BackgroundIndexBuilder builder = new BackgroundIndexBuilder(context, taskSubspace, versionstamp, task, true);
+        BackgroundIndexBuilder builder = new BackgroundIndexBuilder(context, taskSubspace, SHARD_ID, versionstamp, task, true);
         builder.run();
     }
 }

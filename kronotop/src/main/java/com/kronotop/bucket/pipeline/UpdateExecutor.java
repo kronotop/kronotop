@@ -104,7 +104,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
                 VolumeSession session = new VolumeSession(tr, ctx.metadata().volumePrefix());
 
-                List<KeyEntryPair> updatedEntries = new ArrayList<>();
+                List<KeyEntry> updatedEntries = new ArrayList<>();
                 for (Versionstamp versionstamp : versionstampGroupByShard.getValue()) {
                     ByteBuffer document = shard.volume().get(session, versionstamp);
                     if (document == null) {
@@ -116,13 +116,13 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                             ctx.options().update().setOps(),
                             ctx.options().update().unsetOps()
                     );
-                    KeyEntryPair updatedEntry = new KeyEntryPair(versionstamp, setResult.document());
+                    KeyEntry updatedEntry = new KeyEntry(versionstamp, setResult.document());
                     updatedEntries.add(updatedEntry);
                     updateResultContainers.put(versionstamp, new UpdateResultContainer(shardId, setResult));
                 }
 
                 // Update the documents at Volume level
-                UpdateResult updateResult = shard.volume().update(session, updatedEntries.toArray(new KeyEntryPair[0]));
+                UpdateResult updateResult = shard.volume().update(session, updatedEntries.toArray(new KeyEntry[0]));
                 ctx.registerPostCommitHook(new PostCommitHook(updateResult));
 
                 setUpdatedEntryMetadata(updateResultContainers, updateResult.entries());

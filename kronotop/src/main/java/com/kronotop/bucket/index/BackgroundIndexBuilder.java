@@ -24,32 +24,42 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.*;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.volume.KeyEntry;
+import com.kronotop.volume.VersionstampedKeySelector;
+import com.kronotop.volume.VolumeSession;
+import org.bson.BsonNull;
+import org.bson.BsonType;
+import org.bson.BsonValue;
 
 import java.util.List;
+
+import static org.bson.BsonType.INT32;
 
 public class BackgroundIndexBuilder implements Runnable {
     private final Context context;
     private final DirectorySubspace subspace;
+    private final int shardId;
     private final Versionstamp taskId;
     private final IndexBuildTask task;
+    private final BucketService service;
     private final boolean doNotWaitTxLimit;
 
     public BackgroundIndexBuilder(
             Context context,
             DirectorySubspace subspace,
+            int shardId,
             Versionstamp taskId,
             IndexBuildTask task
     ) {
-        this(context, subspace, taskId, task, false);
+        this(context, subspace, shardId, taskId, task, false);
     }
 
     BackgroundIndexBuilder(
             Context context,
             DirectorySubspace subspace,
+            int sharId,
             Versionstamp taskId,
             IndexBuildTask task,
             boolean doNotWaitTxLimit
@@ -57,7 +67,9 @@ public class BackgroundIndexBuilder implements Runnable {
         this.context = context;
         this.subspace = subspace;
         this.taskId = taskId;
+        this.shardId = sharId;
         this.task = task;
+        this.service = context.getService(BucketService.NAME);
         this.doNotWaitTxLimit = doNotWaitTxLimit;
     }
 
@@ -110,9 +122,26 @@ public class BackgroundIndexBuilder implements Runnable {
         }
     }
 
-    private void findOutHighestVersionstamp() {
-        if (task.getHighestVersionstamp() != null) {
-            // Task already has the highest versionstamp record.
+    private void findOutCursorVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
+        List<KeyValue> entries = tr.getRange(begin, end, 1).asList().join();
+
+        KeyValue entry = entries.getFirst();
+        Tuple parsedKey = primaryIndex.subspace().unpack(entry.getKey());
+        Versionstamp versionstamp = (Versionstamp) parsedKey.get(1);
+        task.setCursorVersionstamp(versionstamp);
+    }
+
+    private void findOutHighestVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
+        List<KeyValue> entries = tr.getRange(begin, end, 1, true).asList().join();
+
+        KeyValue entry = entries.getFirst();
+        Tuple parsedKey = primaryIndex.subspace().unpack(entry.getKey());
+        Versionstamp versionstamp = (Versionstamp) parsedKey.get(1);
+        task.setHighestVersionstamp(versionstamp);
+    }
+
+    private void findOutScanBoundaries() {
+        if (task.getCursorVersionstamp() != null && task.getHighestVersionstamp() != null) {
             return;
         }
 
@@ -124,22 +153,16 @@ public class BackgroundIndexBuilder implements Runnable {
         byte[] end = ByteArrayUtil.strinc(begin);
 
         // This will retry the business logic if FDB raises a conflict
-        context.getFoundationDB().run(tr -> {
-            List<KeyValue> entries = tr.getRange(begin, end, 1, true).asList().join();
-
-            KeyValue entry = entries.getFirst();
-            Tuple parsedKey = primaryIndex.subspace().unpack(entry.getKey());
-            Versionstamp versionstamp = (Versionstamp) parsedKey.get(1);
-            task.setHighestVersionstamp(versionstamp);
-
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            findOutHighestVersionstamp(tr, primaryIndex, begin, end);
+            findOutCursorVersionstamp(tr, primaryIndex, begin, end);
             tr.set(subspace.pack(taskId), JSONUtil.writeValueAsBytes(task));
-            return null;
-        });
+        }
     }
 
     @Override
     public void run() {
-        findOutHighestVersionstamp();
+        findOutScanBoundaries();
 
         MetadataBundle bundle = context.getFoundationDB().run(tr -> {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
@@ -182,7 +205,71 @@ public class BackgroundIndexBuilder implements Runnable {
             }
             return new MetadataBundle(metadata, index);
         });
-        System.out.println(bundle);
+        scanPrimaryIndex(bundle);
+    }
+
+    private void scanPrimaryIndex(MetadataBundle bundle) {
+        BucketMetadata metadata = bundle.metadata();
+        IndexDefinition definition = bundle.index().definition();
+        BucketShard shard = service.getShard(shardId);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(task.getCursorVersionstamp());
+            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(task.getHighestVersionstamp());
+            VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
+            Iterable<KeyEntry> entries = shard.volume().getRange(session, begin, end);
+            for (KeyEntry pair : entries) {
+                System.out.println("Key " + pair.key());
+                BsonValue value = SelectorMatcher.match(definition.selector(), pair.entry());
+                System.out.println(value);
+
+                Object indexValue = null;
+                BsonValue bsonValue = SelectorMatcher.match(definition.selector(), pair.entry());
+                if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
+                    indexValue = convertBsonValueToJavaObject(bsonValue, definition.bsonType());
+                    if (indexValue == null) {
+                        // Type mismatch, continue
+                        continue;
+                    }
+                }
+
+                IndexBuilder.insertIndexEntry(tr, definition, metadata, pair.key(), indexValue, );
+                IndexBuilder.setIndexEntry(
+                        tr,
+                        definition,
+                        shard.id(),
+                        metadata,
+                        indexValue,
+                        appendedEntry
+                );
+
+            }
+        }
+    }
+
+    private Object convertBsonValueToJavaObject(BsonValue value, BsonType expectedBsonType) {
+        // Check if the actual BSON type matches the expected type from IndexDefinition
+        if (value.getBsonType() != expectedBsonType) {
+            // Int64 covers Int32 values
+            if (!(expectedBsonType.equals(BsonType.INT64) && value.getBsonType().equals(INT32))) {
+                // Type mismatches are not indexed, but documents are still persisted.
+                return null;
+            }
+        }
+        return switch (value.getBsonType()) {
+            case STRING -> value.asString().getValue();
+            case INT32 -> value.asInt32().getValue();
+            case INT64 -> value.asInt64().getValue();
+            case DOUBLE -> value.asDouble().getValue();
+            case BOOLEAN -> value.asBoolean().getValue();
+            case BINARY -> value.asBinary().getData();
+            case DATE_TIME -> value.asDateTime().getValue();
+            case TIMESTAMP -> value.asTimestamp().getValue();
+            case DECIMAL128 -> value.asDecimal128().getValue().bigDecimalValue();
+            case NULL -> null;
+            default -> {
+                throw new IllegalArgumentException("Unsupported BSON type: " + value.getBsonType());
+            }
+        };
     }
 
     record MetadataBundle(BucketMetadata metadata, Index index) {

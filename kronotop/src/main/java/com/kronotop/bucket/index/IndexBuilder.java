@@ -118,6 +118,41 @@ public class IndexBuilder {
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, backPointer, NULL_VALUE);
     }
 
+    public static void insertIndexEntry(
+            Transaction tr,
+            IndexDefinition definition,
+            BucketMetadata metadata,
+            Versionstamp versionstamp,
+            Object indexValue,
+            byte[] entry
+    ) {
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
+        if (index == null) {
+            throw new KronotopException("Index '" + definition.name() + "' not found");
+        }
+        DirectorySubspace indexSubspace = index.subspace();
+
+        Tuple entryKeyTuple = Tuple.from(
+                IndexSubspaceMagic.ENTRIES.getValue(),
+                indexValue,
+                versionstamp
+        );
+
+        byte[] key = indexSubspace.pack(entryKeyTuple);
+
+        tr.set(key, entry);
+        IndexUtil.mutateCardinality(tr, metadata.subspace(), definition.id(), 1);
+
+        Tuple backPointerTuple = Tuple.from(
+                IndexSubspaceMagic.BACK_POINTER.getValue(),
+                versionstamp,
+                indexValue
+        );
+
+        byte[] backPointer = indexSubspace.pack(backPointerTuple);
+        tr.set(backPointer, NULL_VALUE);
+    }
+
     public static void dropPrimaryIndexEntry(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
         Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
         if (index == null) {
