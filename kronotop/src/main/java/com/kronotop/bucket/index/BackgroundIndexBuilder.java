@@ -122,22 +122,20 @@ public class BackgroundIndexBuilder implements Runnable {
         }
     }
 
-    private void findOutCursorVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
+    private Versionstamp findOutCursorVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
         List<KeyValue> entries = tr.getRange(begin, end, 1).asList().join();
 
         KeyValue entry = entries.getFirst();
         Tuple parsedKey = primaryIndex.subspace().unpack(entry.getKey());
-        Versionstamp versionstamp = (Versionstamp) parsedKey.get(1);
-        task.setCursorVersionstamp(versionstamp);
+        return (Versionstamp) parsedKey.get(1);
     }
 
-    private void findOutHighestVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
+    private Versionstamp findOutHighestVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
         List<KeyValue> entries = tr.getRange(begin, end, 1, true).asList().join();
 
         KeyValue entry = entries.getFirst();
         Tuple parsedKey = primaryIndex.subspace().unpack(entry.getKey());
-        Versionstamp versionstamp = (Versionstamp) parsedKey.get(1);
-        task.setHighestVersionstamp(versionstamp);
+        return (Versionstamp) parsedKey.get(1);
     }
 
     private void findOutScanBoundaries() {
@@ -154,8 +152,10 @@ public class BackgroundIndexBuilder implements Runnable {
 
         // This will retry the business logic if FDB raises a conflict
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            findOutHighestVersionstamp(tr, primaryIndex, begin, end);
-            findOutCursorVersionstamp(tr, primaryIndex, begin, end);
+            Versionstamp cursor = findOutCursorVersionstamp(tr, primaryIndex, begin, end);
+            Versionstamp highest = findOutHighestVersionstamp(tr, primaryIndex, begin, end);
+            task.setCursorVersionstamp(cursor);
+            task.setHighestVersionstamp(highest);
             tr.set(subspace.pack(taskId), JSONUtil.writeValueAsBytes(task));
         }
     }
@@ -212,16 +212,14 @@ public class BackgroundIndexBuilder implements Runnable {
         BucketMetadata metadata = bundle.metadata();
         IndexDefinition definition = bundle.index().definition();
         BucketShard shard = service.getShard(shardId);
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(task.getCursorVersionstamp());
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(task.getHighestVersionstamp());
             VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
+
             Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end);
             for (VolumeEntry pair : entries) {
-                System.out.println("Key " + pair.key());
-                BsonValue value = SelectorMatcher.match(definition.selector(), pair.entry());
-                System.out.println(value);
-
                 Object indexValue = null;
                 BsonValue bsonValue = SelectorMatcher.match(definition.selector(), pair.entry());
                 if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
