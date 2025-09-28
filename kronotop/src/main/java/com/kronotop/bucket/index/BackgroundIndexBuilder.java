@@ -26,7 +26,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.internal.JSONUtil;
-import com.kronotop.volume.KeyEntry;
+import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeSession;
 import org.bson.BsonNull;
@@ -216,8 +216,8 @@ public class BackgroundIndexBuilder implements Runnable {
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(task.getCursorVersionstamp());
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(task.getHighestVersionstamp());
             VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
-            Iterable<KeyEntry> entries = shard.volume().getRange(session, begin, end);
-            for (KeyEntry pair : entries) {
+            Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end);
+            for (VolumeEntry pair : entries) {
                 System.out.println("Key " + pair.key());
                 BsonValue value = SelectorMatcher.match(definition.selector(), pair.entry());
                 System.out.println(value);
@@ -231,17 +231,7 @@ public class BackgroundIndexBuilder implements Runnable {
                         continue;
                     }
                 }
-
-                IndexBuilder.insertIndexEntry(tr, definition, metadata, pair.key(), indexValue, );
-                IndexBuilder.setIndexEntry(
-                        tr,
-                        definition,
-                        shard.id(),
-                        metadata,
-                        indexValue,
-                        appendedEntry
-                );
-
+                //IndexBuilder.insertIndexEntry(tr, definition, metadata, pair.key(), indexValue);
             }
         }
     }

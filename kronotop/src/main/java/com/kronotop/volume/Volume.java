@@ -934,7 +934,7 @@ public class Volume {
      * @param session the session for which to retrieve the KeyEntry objects
      * @return an iterable collection of KeyEntry objects within the specified session
      */
-    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session) {
         return getRange(session, ReadTransaction.ROW_LIMIT_UNLIMITED);
     }
 
@@ -945,7 +945,7 @@ public class Volume {
      * @param reverse a boolean indicating the traversal direction; if true, traverses in reverse order
      * @return an Iterable of KeyEntry objects representing the resulting range
      */
-    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, boolean reverse) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, boolean reverse) {
         return getRange(session, ReadTransaction.ROW_LIMIT_UNLIMITED, reverse);
     }
 
@@ -956,7 +956,7 @@ public class Volume {
      * @param limit   the maximum number of KeyEntry objects to retrieve
      * @return an Iterable of KeyEntry objects within the specified range
      */
-    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, int limit) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, int limit) {
         return getRange(session, limit, false);
     }
 
@@ -968,7 +968,7 @@ public class Volume {
      * @param reverse if true, retrieves the entries in reverse order
      * @return an iterable collection of KeyEntry objects matching the specified range and order
      */
-    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, int limit, boolean reverse) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, int limit, boolean reverse) {
         return new VolumeIterable(this, session, null, null, limit, reverse);
     }
 
@@ -980,7 +980,7 @@ public class Volume {
      * @param end     the ending VersionstampedKeySelector for the range
      * @return an Iterable of KeyEntry objects within the specified range
      */
-    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
         return getRange(session, begin, end, ReadTransaction.ROW_LIMIT_UNLIMITED);
     }
 
@@ -993,7 +993,7 @@ public class Volume {
      * @param limit   the maximum number of key entries to include in the range
      * @return an iterable collection of KeyEntry objects that falls within the specified range
      */
-    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
         return new VolumeIterable(this, session, begin, end, limit, false);
     }
 
@@ -1007,7 +1007,7 @@ public class Volume {
      * @param reverse whether to retrieve the range in reverse order
      * @return an Iterable collection of KeyEntry objects within the specified range
      */
-    public Iterable<KeyEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
         return new VolumeIterable(this, session, begin, end, limit, reverse);
     }
 

@@ -531,8 +531,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int index = 0;
-            Iterable<KeyEntry> iterable = volume.getRange(session);
-            for (KeyEntry keyEntry : iterable) {
+            Iterable<VolumeEntry> iterable = volume.getRange(session);
+            for (VolumeEntry keyEntry : iterable) {
                 retrievedKeys[index] = keyEntry.key();
                 retrievedEntries[index] = keyEntry.entry();
                 index++;
@@ -567,8 +567,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int index = 0;
-            Iterable<KeyEntry> iterable = volume.getRange(session, limit);
-            for (KeyEntry keyEntry : iterable) {
+            Iterable<VolumeEntry> iterable = volume.getRange(session, limit);
+            for (VolumeEntry keyEntry : iterable) {
                 retrievedKeys[index] = keyEntry.key();
                 retrievedEntries[index] = keyEntry.entry();
                 index++;
@@ -603,8 +603,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int index = 0;
-            Iterable<KeyEntry> iterable = volume.getRange(session, true);
-            for (KeyEntry keyEntry : iterable) {
+            Iterable<VolumeEntry> iterable = volume.getRange(session, true);
+            for (VolumeEntry keyEntry : iterable) {
                 retrievedKeys[index] = keyEntry.key();
                 retrievedEntries[index] = keyEntry.entry();
                 index++;
@@ -651,9 +651,9 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(expectedKeys[expectedKeys.length - 1]);
 
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            Iterable<KeyEntry> iterable = volume.getRange(session, begin, end);
+            Iterable<VolumeEntry> iterable = volume.getRange(session, begin, end);
             int index = 0;
-            for (KeyEntry keyEntry : iterable) {
+            for (VolumeEntry keyEntry : iterable) {
                 retrievedKeys[index] = keyEntry.key();
                 retrievedEntries[index] = keyEntry.entry();
                 index++;
@@ -753,8 +753,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             int index = 0;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-                Iterable<KeyEntry> iterable = volume.getRange(session);
-                for (KeyEntry keyEntry : iterable) {
+                Iterable<VolumeEntry> iterable = volume.getRange(session);
+                for (VolumeEntry keyEntry : iterable) {
                     index++;
                 }
             }
@@ -765,8 +765,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             int index = 0;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, new Prefix("test"));
-                Iterable<KeyEntry> iterable = volume.getRange(session);
-                for (KeyEntry keyEntry : iterable) {
+                Iterable<VolumeEntry> iterable = volume.getRange(session);
+                for (VolumeEntry keyEntry : iterable) {
                     index++;
                 }
             }
@@ -1159,8 +1159,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
             // Get all data using range scan to verify both old and new data are accessible
             List<ByteBuffer> allRetrievedEntries = new ArrayList<>();
-            Iterable<KeyEntry> iterable = reopenedVolume.getRange(session);
-            for (KeyEntry keyEntry : iterable) {
+            Iterable<VolumeEntry> iterable = reopenedVolume.getRange(session);
+            for (VolumeEntry keyEntry : iterable) {
                 allRetrievedEntries.add(keyEntry.entry());
             }
 
