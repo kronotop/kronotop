@@ -16,11 +16,10 @@
 
 package com.kronotop.bucket.index;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.internal.JSONUtil;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class IndexBuildTaskTest {
     @Test
@@ -33,56 +32,9 @@ class IndexBuildTaskTest {
         byte[] encoded = JSONUtil.writeValueAsBytes(task);
         IndexBuildTask decoded = JSONUtil.readValue(encoded, IndexBuildTask.class);
         assertEquals(IndexTaskKind.BUILD, task.getKind());
-        assertEquals(IndexTaskStatus.WAITING, task.getStatus());
         assertEquals(task.getNamespace(), decoded.getNamespace());
         assertEquals(task.getBucket(), decoded.getBucket());
         assertEquals(task.getIndexId(), decoded.getIndexId());
         assertEquals(task.getKind(), decoded.getKind());
-        assertFalse(task.isCompleted());
-        assertFalse(decoded.isCompleted());
-        assertNull(task.getHighestVersionstamp());
-        assertNull(decoded.getHighestVersionstamp());
-    }
-
-    @Test
-    void shouldEncodeDecode_completed() {
-        IndexBuildTask task = new IndexBuildTask(
-                "namespace-name",
-                "bucket-name",
-                12345
-        );
-        task.setCompleted(true);
-        byte[] encoded = JSONUtil.writeValueAsBytes(task);
-        IndexBuildTask decoded = JSONUtil.readValue(encoded, IndexBuildTask.class);
-        assertTrue(task.isCompleted());
-        assertTrue(decoded.isCompleted());
-    }
-
-    @Test
-    void shouldEncodeDecode_highestVersionstamp() {
-        IndexBuildTask task = new IndexBuildTask(
-                "namespace-name",
-                "bucket-name",
-                12345
-        );
-        Versionstamp highestVersionstamp = Versionstamp.incomplete(1);
-        task.setHighestVersionstamp(highestVersionstamp);
-        byte[] encoded = JSONUtil.writeValueAsBytes(task);
-        IndexBuildTask decoded = JSONUtil.readValue(encoded, IndexBuildTask.class);
-        assertEquals(highestVersionstamp, task.getHighestVersionstamp());
-        assertEquals(highestVersionstamp, decoded.getHighestVersionstamp());
-    }
-
-    @Test
-    void shouldEncodeDecode_highest() {
-        IndexBuildTask task = new IndexBuildTask(
-                "namespace-name",
-                "bucket-name",
-                12345
-        );
-        task.setStatus(IndexTaskStatus.COMPLETED);
-        byte[] encoded = JSONUtil.writeValueAsBytes(task);
-        IndexBuildTask decoded = JSONUtil.readValue(encoded, IndexBuildTask.class);
-        assertEquals(IndexTaskStatus.COMPLETED, decoded.getStatus());
     }
 }

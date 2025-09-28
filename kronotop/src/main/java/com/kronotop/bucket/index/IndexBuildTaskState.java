@@ -22,6 +22,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.internal.TaskStorage;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Map;
 
 public record IndexBuildTaskState(Versionstamp cursorVersionstamp, Versionstamp highestVersionstamp, boolean completed,

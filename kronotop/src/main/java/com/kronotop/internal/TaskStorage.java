@@ -63,7 +63,8 @@ public class TaskStorage {
         byte[] end = ByteArrayUtil.strinc(begin);
         Map<String, byte[]> entries = new HashMap<>();
         for (KeyValue entry : tr.getRange(begin, end)) {
-            String key = new String(entry.getKey());
+            Tuple tuple = subspace.unpack(entry.getKey());
+            String key = tuple.get(2).toString();
             entries.put(key, entry.getValue());
         }
         return entries;

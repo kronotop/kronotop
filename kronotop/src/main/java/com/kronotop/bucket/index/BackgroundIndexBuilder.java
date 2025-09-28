@@ -25,17 +25,14 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
-import com.kronotop.internal.JSONUtil;
-import com.kronotop.internal.TaskStorage;
-import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VersionstampedKeySelector;
+import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
 import org.bson.BsonNull;
 import org.bson.BsonType;
 import org.bson.BsonValue;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.bson.BsonType.INT32;
 
@@ -105,8 +102,16 @@ public class BackgroundIndexBuilder implements Runnable {
             // can be retried.
             throw new RuntimeException(e);
         } catch (Exception e) {
-            markTaskFailed(e);
+
             throw e;
+        }
+    }
+
+    private void markIndexBuildTaskFailed(Throwable th) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuildTaskState.setError(tr, subspace, taskId, th.getMessage());
+            IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
+            tr.commit().join();
         }
     }
 
@@ -126,32 +131,21 @@ public class BackgroundIndexBuilder implements Runnable {
         return (Versionstamp) parsedKey.get(1);
     }
 
-    private Versionstamp readStateFields(Transaction tr) {
-        Map<String, byte[]> entries = TaskStorage.getStateFields(tr, subspace, taskId);
-
-    }
-
     private void findOutScanBoundaries() {
         IndexBuildTaskState state = context.getFoundationDB().run(tr -> IndexBuildTaskState.load(tr, subspace, taskId));
-
         if (state.cursorVersionstamp() != null && state.highestVersionstamp() != null) {
             return;
         }
-
         BucketMetadata metadata = refreshAndLoadBucketMetadata();
-
-        // Find the highest versionstamp
         Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.ALL);
         byte[] begin = primaryIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         byte[] end = ByteArrayUtil.strinc(begin);
-
-        // This will retry the business logic if FDB raises a conflict
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Versionstamp cursor = findOutCursorVersionstamp(tr, primaryIndex, begin, end);
             IndexBuildTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
-
             Versionstamp highest = findOutHighestVersionstamp(tr, primaryIndex, begin, end);
             IndexBuildTaskState.setHighestVersionstamp(tr, subspace, taskId, highest);
+            tr.commit().join();
         }
     }
 
@@ -159,12 +153,14 @@ public class BackgroundIndexBuilder implements Runnable {
     public void run() {
         findOutScanBoundaries();
 
-        MetadataBundle bundle = context.getFoundationDB().run(tr -> {
+        MetadataBundle bundle;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
                 KronotopException exp = new KronotopException("no index found with id " + task.getIndexId());
-                markTaskFailed(exp);
+                IndexBuildTaskState.setError(tr, subspace, taskId, exp.getMessage());
+                IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
                 throw exp;
             }
 
@@ -175,19 +171,21 @@ public class BackgroundIndexBuilder implements Runnable {
                         index.definition().id()
                 ));
                 // set state
+                IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
             } else if (index.definition().status() == IndexStatus.DROPPED) {
                 IndexBuildTaskState.setError(tr, subspace, taskId, String.format(
                         "index with selector=%s, id=%d is dropped",
                         index.definition().selector(),
                         index.definition().id()
                 ));
-                //task.setStatus(IndexTaskStatus.FAILED);
+                IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
             }
 
             IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
             if (state.status() == IndexTaskStatus.FAILED) {
                 KronotopException exp = new KronotopException(state.error());
-                markTaskFailed(exp);
+                IndexBuildTaskState.setError(tr, subspace, taskId, exp.getMessage());
+                IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
                 throw exp;
             }
 
@@ -195,12 +193,15 @@ public class BackgroundIndexBuilder implements Runnable {
             // Three possibilities for IndexStatus: WAITING, BUILDING, FAILED
 
             if (index.definition().status() != IndexStatus.BUILDING) {
-                // db.run wil retry the business logic if FDB raises a conflict.
+                // TODO: Clone the definition and save it
                 index.definition().updateStatus(IndexStatus.BUILDING);
                 IndexUtil.saveIndexDefinition(tr, index.definition(), index.subspace());
             }
-            return new MetadataBundle(metadata, index);
-        });
+
+            tr.commit().join();
+            bundle = new MetadataBundle(metadata, index);
+        }
+
         scanPrimaryIndex(bundle);
     }
 
@@ -209,24 +210,36 @@ public class BackgroundIndexBuilder implements Runnable {
         IndexDefinition definition = bundle.index().definition();
         BucketShard shard = service.getShard(shardId);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
-            VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp());
-            VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(state.highestVersionstamp());
-            VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
-
-            Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end);
-            for (VolumeEntry pair : entries) {
-                Object indexValue = null;
-                BsonValue bsonValue = SelectorMatcher.match(definition.selector(), pair.entry());
-                if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
-                    indexValue = convertBsonValueToJavaObject(bsonValue, definition.bsonType());
-                    if (indexValue == null) {
-                        // Type mismatch, continue
-                        continue;
-                    }
+        while (true) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
+                if (state.cursorVersionstamp().equals(state.highestVersionstamp())) {
+                    break;
                 }
-                //IndexBuilder.insertIndexEntry(tr, definition, metadata, pair.key(), indexValue);
+
+                VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp());
+                VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(state.highestVersionstamp());
+                VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
+
+                Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, 100);
+                Versionstamp cursor = null;
+                for (VolumeEntry pair : entries) {
+                    Object indexValue = null;
+                    BsonValue bsonValue = SelectorMatcher.match(definition.selector(), pair.entry());
+                    if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
+                        indexValue = convertBsonValueToJavaObject(bsonValue, definition.bsonType());
+                        if (indexValue == null) {
+                            // Type mismatch, continue
+                            continue;
+                        }
+                    }
+                    IndexBuilder.insertIndexEntry(tr, definition, metadata, pair.key(), indexValue, pair.metadata());
+                    cursor = pair.key();
+                }
+                if (cursor != null) {
+                    IndexBuildTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
+                }
+                tr.commit().join();
             }
         }
     }
