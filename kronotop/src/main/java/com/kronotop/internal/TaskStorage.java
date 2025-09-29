@@ -29,11 +29,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class TaskStorage {
+    private static final byte TASKS_MAGIC = 0x23;
     private static final byte DEFINITION = 0x44;
     private static final byte STATE = 0x53;
 
     public static Versionstamp create(Context context, DirectorySubspace subspace, byte[] definition) {
-        byte[] key = subspace.packWithVersionstamp(Tuple.from(Versionstamp.incomplete(), DEFINITION));
+        byte[] key = subspace.packWithVersionstamp(Tuple.from(TASKS_MAGIC, Versionstamp.incomplete(), DEFINITION));
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             CompletableFuture<byte[]> future = tr.getVersionstamp();
             tr.set(key, definition);
@@ -44,27 +45,27 @@ public class TaskStorage {
     }
 
     public static byte[] getDefinition(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
-        byte[] key = subspace.pack(Tuple.from(taskId, DEFINITION));
+        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, DEFINITION));
         return tr.get(key).join();
     }
 
     public static void setStateField(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, String field, byte[] value) {
-        byte[] key = subspace.pack(Tuple.from(taskId, STATE, field));
+        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, STATE, field));
         tr.set(key, value);
     }
 
     public static byte[] getStateField(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, String field) {
-        byte[] key = subspace.pack(Tuple.from(taskId, STATE, field));
+        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, STATE, field));
         return tr.get(key).join();
     }
 
     public static Map<String, byte[]> getStateFields(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
-        byte[] begin = subspace.pack(Tuple.from(taskId, STATE));
+        byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, STATE));
         byte[] end = ByteArrayUtil.strinc(begin);
         Map<String, byte[]> entries = new HashMap<>();
         for (KeyValue entry : tr.getRange(begin, end)) {
             Tuple tuple = subspace.unpack(entry.getKey());
-            String key = tuple.get(2).toString();
+            String key = tuple.get(3).toString();
             entries.put(key, entry.getValue());
         }
         return entries;

@@ -75,7 +75,7 @@ class BackgroundIndexBuilderTest extends BaseBucketHandlerTest {
                 IndexStatus.WAITING
         );
 
-        DirectorySubspace taskSubspace = createOrOpenSubspaceUnderCluster("test-subspace");
+        DirectorySubspace taskSubspace  = IndexTaskUtil.createOrOpen(context, SHARD_ID);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
             IndexUtil.create(tr, metadata.subspace(), definition);
