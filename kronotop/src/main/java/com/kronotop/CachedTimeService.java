@@ -26,8 +26,8 @@ import java.util.concurrent.locks.LockSupport;
  */
 public class CachedTimeService extends BaseKronotopService implements KronotopService {
     public static String NAME = "CachedTime";
-    private final CachedTime cachedTime = new CachedTime();
     private final Thread updater;
+    private volatile long currentTimeInMilliseconds;
     private volatile boolean shutdown;
 
     public CachedTimeService(Context context) {
@@ -35,12 +35,16 @@ public class CachedTimeService extends BaseKronotopService implements KronotopSe
         updater = new Thread(() -> {
             Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
             while (!shutdown) {
-                cachedTime.run();
+                update();
                 LockSupport.parkNanos(1_000_000); // 1ms
             }
         });
         updater.setDaemon(true);
         updater.setName("kr-cached-time-service");
+    }
+
+    private void update() {
+        currentTimeInMilliseconds = System.currentTimeMillis();
     }
 
     public void start() {
@@ -56,7 +60,7 @@ public class CachedTimeService extends BaseKronotopService implements KronotopSe
      * @return the current cached system time in milliseconds.
      */
     public long getCurrentTimeInMilliseconds() {
-        return cachedTime.getCurrentTimeInMilliseconds();
+        return currentTimeInMilliseconds;
     }
 
     @Override
