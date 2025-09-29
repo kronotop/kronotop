@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.index;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -32,6 +33,7 @@ import org.bson.BsonNull;
 import org.bson.BsonValue;
 
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 public class BackgroundIndexBuilder implements Runnable {
     private final Context context;
@@ -135,50 +137,11 @@ public class BackgroundIndexBuilder implements Runnable {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Versionstamp cursor = findOutCursorVersionstamp(tr, primaryIndex, begin, end);
             IndexBuildTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
+
             Versionstamp highest = findOutHighestVersionstamp(tr, primaryIndex, begin, end);
             IndexBuildTaskState.setHighestVersionstamp(tr, subspace, taskId, highest);
+
             tr.commit().join();
-        }
-    }
-
-    private void validateIndexBuildTask() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
-            Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
-            if (index == null) {
-                throw new IndexTaskException("no index found with id " + task.getIndexId(), true);
-            }
-
-            if (index.definition().status() == IndexStatus.READY) {
-                IndexBuildTaskState.setError(tr, subspace, taskId, String.format(
-                        "index with selector=%s, id=%d is ready to query",
-                        index.definition().selector(),
-                        index.definition().id()
-                ));
-                // set state
-                IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-            } else if (index.definition().status() == IndexStatus.DROPPED) {
-                IndexBuildTaskState.setError(tr, subspace, taskId, String.format(
-                        "index with selector=%s, id=%d is dropped",
-                        index.definition().selector(),
-                        index.definition().id()
-                ));
-                IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-            }
-
-            IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
-            if (state.status() == IndexTaskStatus.FAILED) {
-                tr.commit().join();
-                throw new IndexTaskException(state.error(), true);
-            }
-
-            // Three possibilities for IndexStatus: WAITING, BUILDING, FAILED
-
-            if (index.definition().status() != IndexStatus.BUILDING) {
-                IndexDefinition definition = index.definition().updateStatus(IndexStatus.BUILDING);
-                IndexUtil.saveIndexDefinition(tr, definition, index.subspace());
-                tr.commit().join();
-            }
         }
     }
 
@@ -186,7 +149,6 @@ public class BackgroundIndexBuilder implements Runnable {
     public void run() {
         try {
             findOutBoundaries();
-            validateIndexBuildTask();
             scanPrimaryIndex();
         } catch (InterruptedException e) {
             // Do not mark the task as failed. Program has stopped and this task
@@ -201,16 +163,42 @@ public class BackgroundIndexBuilder implements Runnable {
     }
 
     private void scanPrimaryIndex() {
-        BucketMetadata metadata = context.getFoundationDB().run(tr ->
-                BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
-        );
-        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
         BucketShard shard = service.getShard(shardId);
-
         while (true) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+                Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
+                if (index == null) {
+                    throw new IndexTaskException("no index found with id " + task.getIndexId(), true);
+                }
+
+                if (index.definition().status() == IndexStatus.READY) {
+                    throw new IndexTaskException(String.format(
+                            "index with selector=%s, id=%d is ready to query",
+                            index.definition().selector(),
+                            index.definition().id()
+                    ), true);
+                } else if (index.definition().status() == IndexStatus.DROPPED) {
+                    throw new IndexTaskException(String.format(
+                            "index with selector=%s, id=%d is dropped",
+                            index.definition().selector(),
+                            index.definition().id()
+                    ), true);
+                }
+
+                // Three possibilities for IndexStatus: WAITING, BUILDING, FAILED
+                if (index.definition().status() != IndexStatus.BUILDING) {
+                    IndexDefinition definition = index.definition().updateStatus(IndexStatus.BUILDING);
+                    context.getFoundationDB().run(tx -> {
+                        // This will retry in the case of conflict
+                        IndexUtil.saveIndexDefinition(tx, definition, index.subspace());
+                        return null;
+                    });
+                }
+
                 IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
                 if (state.cursorVersionstamp().equals(state.highestVersionstamp())) {
+                    // End of the task.
                     break;
                 }
 
@@ -218,7 +206,7 @@ public class BackgroundIndexBuilder implements Runnable {
                 VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(state.highestVersionstamp());
                 VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
 
-                Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, 100);
+                Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, 1000);
                 Versionstamp cursor = null;
                 for (VolumeEntry pair : entries) {
                     Object indexValue = null;
@@ -237,6 +225,16 @@ public class BackgroundIndexBuilder implements Runnable {
                     IndexBuildTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
                 }
                 tr.commit().join();
+            } catch (CompletionException exp) {
+                if (exp.getCause() instanceof FDBException fdbException) {
+                    int code = fdbException.getCode();
+                    if (code == 1020 || code == 1007) {
+                        // Retry
+                        // 1007 -> Transaction is too old to perform reads or be committed
+                        // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
+                        scanPrimaryIndex();
+                    }
+                }
             }
         }
     }
