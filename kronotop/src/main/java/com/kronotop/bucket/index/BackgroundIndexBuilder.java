@@ -197,8 +197,12 @@ public class BackgroundIndexBuilder implements Runnable {
                 }
 
                 IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
+                if (state.status() == IndexTaskStatus.STOPPED) {
+                    // The operator marked the task as STOPPED manually.
+                    break;
+                }
                 if (state.cursorVersionstamp().equals(state.highestVersionstamp())) {
-                    // End of the task.
+                    // All entries are processed. End of the task.
                     break;
                 }
 

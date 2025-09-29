@@ -20,5 +20,6 @@ public enum IndexTaskStatus {
     WAITING,
     RUNNING,
     COMPLETED,
-    FAILED
+    FAILED,
+    STOPPED
 }
