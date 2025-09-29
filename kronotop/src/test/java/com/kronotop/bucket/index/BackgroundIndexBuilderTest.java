@@ -29,7 +29,7 @@ import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.JSONUtil;
-import com.kronotop.internal.TaskStorage;
+import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -75,7 +75,7 @@ class BackgroundIndexBuilderTest extends BaseBucketHandlerTest {
                 IndexStatus.WAITING
         );
 
-        DirectorySubspace taskSubspace  = IndexTaskUtil.createOrOpen(context, SHARD_ID);
+        DirectorySubspace taskSubspace  = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
             IndexUtil.create(tr, metadata.subspace(), definition);

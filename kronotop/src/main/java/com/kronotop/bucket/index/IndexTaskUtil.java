@@ -24,17 +24,20 @@ import com.kronotop.directory.KronotopDirectory;
 import java.util.List;
 
 public class IndexTaskUtil {
-    public static DirectorySubspace createOrOpen(Context context, int shardId) {
+    /**
+     * Creates or opens a DirectorySubspace for index maintenance tasks based on the specified context and shard ID.
+     * This method generates the directory layout using the Kronotop directory structure,
+     * retrieves the FoundationDB database from the provided context, and operates on the subspace.
+     *
+     * @param context the context associated with the Kronotop instance, providing cluster and FoundationDB database access
+     * @param shardId the ID of the shard for which the subspace will be created or opened
+     * @return the DirectorySubspace corresponding to the specified IndexTask's subspace
+     */
+    public static DirectorySubspace createOrOpenTasksSubspace(Context context, int shardId) {
         List<String> layout = KronotopDirectory.
-                kronotop().
-                cluster(context.getClusterName()).
-                metadata().
-                shards().
-                bucket().
-                shard(shardId).
-                maintenance().
-                index().
-                tasks().toList();
+                kronotop().cluster(context.getClusterName()).metadata().
+                shards().bucket().shard(shardId).maintenance().
+                index().tasks().toList();
         return context.getFoundationDB().run(tr -> DirectoryLayer.getDefault().createOrOpen(tr, layout).join());
     }
 }

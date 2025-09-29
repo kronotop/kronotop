@@ -19,10 +19,9 @@ package com.kronotop.bucket.index;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.internal.TaskStorage;
+import com.kronotop.internal.task.TaskStorage;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Map;
 
 public record IndexBuildTaskState(Versionstamp cursorVersionstamp, Versionstamp highestVersionstamp, boolean completed,

@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package com.kronotop.internal;
+package com.kronotop.internal.task;
 
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
@@ -37,14 +37,24 @@ public class TaskStorage {
 
     private static final byte[] POSITIVE_DELTA_ONE = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1L, little-endian
 
+    public static byte[] trigger(DirectorySubspace subspace) {
+        return subspace.pack(Tuple.from(TRIGGER_MAGIC));
+    }
+
+    private static void triggerWatchers(Transaction tr, DirectorySubspace subspace) {
+        tr.mutate(MutationType.ADD, trigger(subspace), POSITIVE_DELTA_ONE);
+    }
+
     public static Versionstamp create(Context context, DirectorySubspace subspace, byte[] definition) {
         byte[] key = subspace.packWithVersionstamp(Tuple.from(TASKS_MAGIC, Versionstamp.incomplete(), DEFINITION));
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            CompletableFuture<byte[]> future = tr.getVersionstamp();
+            CompletableFuture<byte[]> versionstampFuture = tr.getVersionstamp();
             tr.set(key, definition);
-            tr.mutate(MutationType.ADD, subspace.pack(Tuple.from(TRIGGER_MAGIC)), POSITIVE_DELTA_ONE);
+
+            triggerWatchers(tr, subspace);
             tr.commit().join();
-            byte[] trVersion = future.join();
+
+            byte[] trVersion = versionstampFuture.join();
             return Versionstamp.complete(trVersion);
         }
     }
