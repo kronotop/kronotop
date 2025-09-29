@@ -16,36 +16,35 @@
 
 package com.kronotop;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 /**
- * The CachedTimeService class extends the BaseKronotopService and implements the KronotopService
- * interface. This service provides a mechanism to manage and access a cached system time
- * that is periodically updated in the background. The frequent system time updates allow
- * efficient access to the current time with reduced overhead compared to directly calling
- * {@code System.currentTimeMillis()}.
- * <p>
- * The service uses a {@code ScheduledExecutorService} to execute the {@code CachedTime} instance,
- * which periodically refreshes the cached system time.
- * <p>
- * Key features of this service include:
- * - Caching of system time updated on a millisecond interval.
- * - Background thread execution for minimal performance impact.
- * - Graceful shutdown of background threads upon service termination.
- * <p>
- * This service is uniquely identified by the {@code NAME} "CachedTime".
+ * The CachedTimeService class is a service responsible for maintaining and providing
+ * a periodically updated snapshot of the current system time in milliseconds.
+ * The service uses a background thread to keep a cached copy of the current system time
+ * refreshed at regular intervals (every millisecond).
  */
 public class CachedTimeService extends BaseKronotopService implements KronotopService {
     public static String NAME = "CachedTime";
     private final CachedTime cachedTime = new CachedTime();
-    private final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(1,
-            Thread.ofVirtual().name("kr.cached-time-service-", 0L).factory());
+    private final Thread updater;
+    private volatile boolean shutdown;
 
     public CachedTimeService(Context context) {
         super(context, NAME);
-        executor.scheduleAtFixedRate(cachedTime, 0, 1, TimeUnit.MILLISECONDS);
+        updater = new Thread(() -> {
+            Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
+            while (!shutdown) {
+                cachedTime.run();
+                LockSupport.parkNanos(1_000_000); // 1ms
+            }
+        });
+        updater.setDaemon(true);
+        updater.setName("kr-cached-time-service");
+    }
+
+    public void start() {
+        updater.start();
     }
 
     /**
@@ -62,6 +61,9 @@ public class CachedTimeService extends BaseKronotopService implements KronotopSe
 
     @Override
     public void shutdown() {
-        executor.shutdownNow();
+        shutdown = true;
+        if (updater != null && updater.isAlive()) {
+            updater.interrupt();
+        }
     }
 }

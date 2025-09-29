@@ -156,6 +156,7 @@ public class KronotopInstance {
         BucketService bucketService = new BucketService(context);
         context.registerService(BucketService.NAME, bucketService);
 
+        cachedTimeService.start();
         membershipService.start();
         routingService.start();
         volumeService.start();
