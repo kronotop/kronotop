@@ -26,6 +26,7 @@ import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.internal.KeyWatcher;
 import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,10 +46,12 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
     private final int numberOfShards;
     private final RoutingService routing;
+    private final KeyWatcher keyWatcher = new KeyWatcher();
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Thread.ofVirtual().name("kr.bucket-service-", 0L).factory()
     );
+    private volatile boolean shutdown;
 
     // The default ShardSelector is RoundRobinShardSelector.
     private final ShardSelector shardSelector = new RoundRobinShardSelector();
@@ -147,6 +150,12 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         CachedTimeService cachedTimeService = context.getService(CachedTimeService.NAME);
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(cachedTimeService, 1000 * 5 * 60);
         scheduledExecutorService.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
+    }
+
+    @Override
+    public void shutdown() {
+        shutdown = true;
+        keyWatcher.unwatchAll();
     }
 
     /**

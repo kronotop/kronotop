@@ -57,7 +57,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     private final Consumer clusterEventsConsumer;
     private final int heartbeatInterval;
     private final int heartbeatMaximumSilentPeriod;
-    private volatile boolean isShutdown;
+    private volatile boolean shutdown;
 
     public MembershipService(Context context) {
         super(context, NAME);
@@ -227,7 +227,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     @Override
     public void shutdown() {
         try {
-            isShutdown = true;
+            shutdown = true;
             keyWatcher.unwatchAll();
             clusterEventsConsumer.stop();
             scheduler.shutdownNow();
@@ -340,7 +340,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
 
         @Override
         public void run() {
-            if (isShutdown) {
+            if (shutdown) {
                 return;
             }
 
@@ -361,7 +361,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             } catch (Exception e) {
                 LOGGER.error("Error while watching journal: {}", JournalName.CLUSTER_EVENTS, e);
             } finally {
-                if (!isShutdown) {
+                if (!shutdown) {
                     scheduler.execute(this);
                 }
             }
@@ -373,7 +373,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
 
         @Override
         public void run() {
-            if (isShutdown) {
+            if (shutdown) {
                 return;
             }
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -382,7 +382,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             } catch (Exception e) {
                 LOGGER.error("Error while updating heartbeat", e);
             } finally {
-                if (!isShutdown) {
+                if (!shutdown) {
                     scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);
                 }
             }
@@ -394,7 +394,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
 
         @Override
         public void run() {
-            if (isShutdown) {
+            if (shutdown) {
                 return;
             }
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -435,7 +435,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             } catch (Exception e) {
                 LOGGER.error("Error while running failure detection task", e);
             } finally {
-                if (!isShutdown) {
+                if (!shutdown) {
                     scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);
                 }
             }
