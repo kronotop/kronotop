@@ -30,11 +30,15 @@ import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
 import org.bson.BsonNull;
 import org.bson.BsonValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
 public class BackgroundIndexBuilder implements Runnable {
+    protected static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuilder.class);
+
     private final Context context;
     private final DirectorySubspace subspace;
     private final int shardId;
@@ -192,6 +196,12 @@ public class BackgroundIndexBuilder implements Runnable {
 
     @Override
     public void run() {
+        LOGGER.debug(
+                "Starting to build namespace={}, bucket={}, index={} at the background",
+                task.getNamespace(),
+                task.getBucket(),
+                task.getIndexId()
+        );
         try {
             findOutBoundaries();
             scanPrimaryIndex();
@@ -269,9 +279,21 @@ public class BackgroundIndexBuilder implements Runnable {
                 IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
                 if (state.status() == IndexTaskStatus.STOPPED) {
                     // The operator marked the task as STOPPED manually.
+                    LOGGER.debug(
+                            "Background index builder for namespace={}, bucket={}, index={} has been stopped by the operator",
+                            task.getNamespace(),
+                            task.getBucket(),
+                            task.getIndexId()
+                    );
                     break;
                 }
                 if (state.cursorVersionstamp().equals(state.highestVersionstamp())) {
+                    LOGGER.debug(
+                            "Background index builder for namespace={}, bucket={}, index={} has been completed",
+                            task.getNamespace(),
+                            task.getBucket(),
+                            task.getIndexId()
+                    );
                     // All entries are processed. End of the task.
                     break;
                 }
