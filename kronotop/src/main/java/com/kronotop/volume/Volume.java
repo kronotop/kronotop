@@ -562,7 +562,6 @@ public class Volume {
 
         EntryMetadata[] appendEntries = appendEntries(session.prefix(), entries);
 
-        // TODO: Consider using a executor service to run flushMutatedSegments and writeMetadata concurrently.
         // Forces any updates to this channel's file to be written to the storage device that contains it.
         try {
             flushMutatedSegments(appendEntries);
