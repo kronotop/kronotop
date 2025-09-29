@@ -562,23 +562,15 @@ public class Volume {
 
         EntryMetadata[] appendEntries = appendEntries(session.prefix(), entries);
 
-        Thread asyncFlush = Thread.ofVirtual().start(() -> {
-            // Forces any updates to this channel's file to be written to the storage device that contains it.
-            try {
-                flushMutatedSegments(appendEntries);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        });
-
-        WriteMetadataResult result = writeMetadata(session, appendEntries);
-
+        // TODO: Consider using a executor service to run flushMutatedSegments and writeMetadata concurrently.
+        // Forces any updates to this channel's file to be written to the storage device that contains it.
         try {
-            asyncFlush.join();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            flushMutatedSegments(appendEntries);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
 
+        WriteMetadataResult result = writeMetadata(session, appendEntries);
         raiseExceptionIfVolumeReadOnly();
         return new AppendResult(result.versionstampFuture(), result.entries(), entryMetadataCache.load(session.prefix())::put);
     }
