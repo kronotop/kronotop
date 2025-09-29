@@ -24,7 +24,6 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
@@ -71,14 +70,32 @@ public class BackgroundIndexBuilder implements Runnable {
         this.doNotWaitTxLimit = doNotWaitTxLimit;
     }
 
-    private BucketMetadata refreshAndLoadBucketMetadata() throws InterruptedException {
-        BucketMetadata metadata;
+    /**
+     * Refreshes bucket metadata and validates the target index while ensuring transaction isolation.
+     *
+     * <p>This method performs a critical initialization step for background index building by:
+     * <ul>
+     *   <li>Creating a new FoundationDB transaction with a stable read version</li>
+     *   <li>Loading bucket metadata and refreshing internal caches</li>
+     *   <li>Validating that the target index exists in the metadata</li>
+     *   <li>Introducing a 6-second sleep to ensure all previous transactions expire</li>
+     * </ul>
+     *
+     * <p>The 6-second sleep is a critical safety mechanism that ensures transaction isolation.
+     * Since FoundationDB transactions cannot live beyond 5 seconds, sleeping for 6 seconds
+     * guarantees that any previously opened transactions have either committed or expired.
+     * This prevents potential conflicts during the index building process.
+     *
+     * @throws InterruptedException if the thread is interrupted during the 6-second sleep
+     * @throws IndexTaskException   if the target index is not found in the metadata
+     */
+    private void refreshBucketMetadata() throws InterruptedException {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Open the BucketMetadata and refresh the caches
-            metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
-                throw new KronotopException("index with id '" + task.getIndexId() + "' could not be found");
+                throw new IndexTaskException("index with id '" + task.getIndexId() + "' could not be found", true);
             }
 
             /*
@@ -96,7 +113,6 @@ public class BackgroundIndexBuilder implements Runnable {
                 Thread.sleep(6000);
             }
             // Now all transactions either committed or died.
-            return metadata;
         }
     }
 
@@ -124,13 +140,42 @@ public class BackgroundIndexBuilder implements Runnable {
         return (Versionstamp) parsedKey.get(1);
     }
 
+    /**
+     * Determines and sets the cursor and highest versionstamp boundaries for index scanning.
+     *
+     * <p>This method establishes the range boundaries for the background index building process by:
+     * <ul>
+     *   <li>Checking if boundaries are already set in the task state</li>
+     *   <li>If not set, refreshing bucket metadata and locating the primary index</li>
+     *   <li>Finding the lowest versionstamp (cursor start position) from the primary index</li>
+     *   <li>Finding the highest versionstamp (scan end position) from the primary index</li>
+     *   <li>Persisting both boundaries to the IndexBuildTaskState for progress tracking</li>
+     * </ul>
+     *
+     * <p>The boundaries define the complete range of documents that need to be processed
+     * during index building. The cursor versionstamp tracks current progress, while the
+     * highest versionstamp defines when the scan is complete.
+     *
+     * <p>If boundaries are already set in the task state, this method returns immediately
+     * without any database operations, making it safe to call multiple times.
+     *
+     * @throws InterruptedException if the thread is interrupted during the 6-second sleep
+     *                              in refreshAndLoadBucketMetadata()
+     */
     private void findOutBoundaries() throws InterruptedException {
         IndexBuildTaskState state = context.getFoundationDB().run(tr -> IndexBuildTaskState.load(tr, subspace, taskId));
         if (state.cursorVersionstamp() != null && state.highestVersionstamp() != null) {
             return;
         }
 
-        BucketMetadata metadata = refreshAndLoadBucketMetadata();
+        // Refresh bucket metadata, it's important to fetch the latest indexes before building the secondary index
+        // We want that all threads have the latest view of the bucket metadata.
+        refreshBucketMetadata();
+
+        // Fetch the up-to-date version of BucketMetadata
+        BucketMetadata metadata = context.getFoundationDB().run(
+                tr -> BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
+        );
         Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.ALL);
         byte[] begin = primaryIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         byte[] end = ByteArrayUtil.strinc(begin);
@@ -162,6 +207,31 @@ public class BackgroundIndexBuilder implements Runnable {
         }
     }
 
+    /**
+     * Scans the primary index and builds the target secondary index incrementally.
+     *
+     * <p>This method performs the core work of background index building by:
+     * <ul>
+     *   <li>Loading bucket metadata and validating the target index status</li>
+     *   <li>Updating index status to BUILDING if not already set</li>
+     *   <li>Reading documents from the volume in batches using cursor-based pagination</li>
+     *   <li>Extracting index values using the index selector and inserting index entries</li>
+     *   <li>Updating the cursor position for incremental progress tracking</li>
+     * </ul>
+     *
+     * <p>The method uses transaction retries to handle FoundationDB conflicts (codes 1007, 1020)
+     * and processes documents in batches of 1000 to balance memory usage and transaction size.
+     *
+     * <p>The scan continues until either:
+     * <ul>
+     *   <li>All documents have been processed (cursor reaches the highest versionstamp)</li>
+     *   <li>The task is manually stopped (status set to STOPPED)</li>
+     *   <li>The index is found to be in READY or DROPPED status</li>
+     * </ul>
+     *
+     * @throws IndexTaskException  if the index is not found, already ready, or dropped
+     * @throws CompletionException for FoundationDB transaction conflicts (handled with retry)
+     */
     private void scanPrimaryIndex() {
         BucketShard shard = service.getShard(shardId);
         while (true) {
