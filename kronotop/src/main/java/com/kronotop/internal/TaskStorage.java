@@ -17,6 +17,7 @@
 package com.kronotop.internal;
 
 import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
@@ -29,15 +30,19 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class TaskStorage {
+    private static final byte TRIGGER_MAGIC = 0x21;
     private static final byte TASKS_MAGIC = 0x23;
     private static final byte DEFINITION = 0x44;
     private static final byte STATE = 0x53;
+
+    private static final byte[] POSITIVE_DELTA_ONE = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1L, little-endian
 
     public static Versionstamp create(Context context, DirectorySubspace subspace, byte[] definition) {
         byte[] key = subspace.packWithVersionstamp(Tuple.from(TASKS_MAGIC, Versionstamp.incomplete(), DEFINITION));
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             CompletableFuture<byte[]> future = tr.getVersionstamp();
             tr.set(key, definition);
+            tr.mutate(MutationType.ADD, subspace.pack(Tuple.from(TRIGGER_MAGIC)), POSITIVE_DELTA_ONE);
             tr.commit().join();
             byte[] trVersion = future.join();
             return Versionstamp.complete(trVersion);
