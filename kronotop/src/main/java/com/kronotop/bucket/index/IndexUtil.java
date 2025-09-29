@@ -63,8 +63,7 @@ public class IndexUtil {
         subpath.add(definition.name());
         try {
             DirectorySubspace indexSubspace = DirectoryLayer.getDefault().create(tr, subpath).join();
-            byte[] indexDefinitionKey = indexSubspace.pack(BucketMetadataMagic.INDEX_DEFINITION.getValue());
-            tr.set(indexDefinitionKey, JSONUtil.writeValueAsBytes(definition));
+            saveIndexDefinition(tr, definition, indexSubspace);
             BucketMetadataUtil.increaseVersion(tr, bucketMetadataSubspace, POSITIVE_DELTA_ONE);
             return indexSubspace;
         } catch (CompletionException e) {
