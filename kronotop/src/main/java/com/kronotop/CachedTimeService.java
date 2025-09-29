@@ -19,10 +19,22 @@ package com.kronotop;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * The CachedTimeService class is a service responsible for maintaining and providing
- * a periodically updated snapshot of the current system time in milliseconds.
- * The service uses a background thread to keep a cached copy of the current system time
- * refreshed at regular intervals (every millisecond).
+ * A service that provides cached access to the current system time with millisecond precision.
+ * <p>
+ * This service maintains a cached timestamp that is updated approximately every millisecond
+ * by a low-priority background thread. This approach reduces the overhead of frequent
+ * {@code System.currentTimeMillis()} calls while maintaining reasonable time accuracy
+ * for applications that can tolerate slight time skew (up to 1ms).
+ * <p>
+ * The service is particularly useful in high-throughput scenarios where time is frequently
+ * accessed but microsecond precision is not required, such as TTL checks, timeout calculations,
+ * or timestamp generation for non-critical operations.
+ * <p>
+ * Thread-safety: This service is thread-safe. The cached time value is stored in a volatile
+ * field, ensuring visibility across threads.
+ *
+ * @see BaseKronotopService
+ * @see KronotopService
  */
 public class CachedTimeService extends BaseKronotopService implements KronotopService {
     public static String NAME = "CachedTime";
@@ -30,6 +42,15 @@ public class CachedTimeService extends BaseKronotopService implements KronotopSe
     private volatile long currentTimeInMilliseconds;
     private volatile boolean shutdown;
 
+    /**
+     * Constructs a new CachedTimeService with the specified context.
+     * <p>
+     * Creates a daemon thread that will continuously update the cached time value
+     * at approximately 1ms intervals. The updater thread runs at minimum priority
+     * to minimize impact on application performance.
+     *
+     * @param context the Kronotop context providing access to system resources
+     */
     public CachedTimeService(Context context) {
         super(context, NAME);
         updater = new Thread(() -> {
@@ -47,22 +68,44 @@ public class CachedTimeService extends BaseKronotopService implements KronotopSe
         currentTimeInMilliseconds = System.currentTimeMillis();
     }
 
+    /**
+     * Starts the cached time service by launching the background updater thread.
+     * <p>
+     * Once started, the service will begin updating the cached time value approximately
+     * every millisecond. This method should be called once during service initialization.
+     * <p>
+     * Note: The service must be started before {@link #getCurrentTimeInMilliseconds()}
+     * will return meaningful values.
+     */
     public void start() {
         updater.start();
     }
 
     /**
-     * Retrieves the current cached system time in milliseconds.
-     * This method delegates the call to the {@code CachedTime} instance
-     * to return a snapshot of the time that is periodically updated
-     * by a background thread.
+     * Returns the cached current time in milliseconds since the Unix epoch.
+     * <p>
+     * This method returns the most recently cached time value, which is updated
+     * approximately every millisecond by the background thread. The returned value
+     * may be up to 1ms behind the actual system time.
+     * <p>
+     * This method is lock-free and has minimal overhead compared to calling
+     * {@code System.currentTimeMillis()} directly.
      *
-     * @return the current cached system time in milliseconds.
+     * @return the cached current time in milliseconds since January 1, 1970 UTC
      */
     public long getCurrentTimeInMilliseconds() {
         return currentTimeInMilliseconds;
     }
 
+    /**
+     * Shuts down the cached time service and stops the background updater thread.
+     * <p>
+     * This method sets the shutdown flag and interrupts the updater thread if it's
+     * still running. After shutdown, the service will no longer update the cached
+     * time value.
+     * <p>
+     * This method is idempotent and can be called multiple times safely.
+     */
     @Override
     public void shutdown() {
         shutdown = true;
