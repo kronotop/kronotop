@@ -130,7 +130,9 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     public void shutdown() {
-        watcher.cancel(true);
+        if (watcher != null) {
+            watcher.cancel(true);
+        }
         for (Future<?> worker : workers.values()) {
             worker.cancel(true);
         }
