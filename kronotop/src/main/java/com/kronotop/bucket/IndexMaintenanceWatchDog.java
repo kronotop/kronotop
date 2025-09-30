@@ -28,15 +28,20 @@ import com.kronotop.bucket.index.IndexBuilderTaskState;
 import com.kronotop.bucket.index.IndexTaskStatus;
 import com.kronotop.bucket.index.IndexTaskUtil;
 import com.kronotop.internal.task.TaskStorage;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.*;
 
 import static com.kronotop.internal.task.TaskStorage.TASKS_MAGIC;
 
 public class IndexMaintenanceWatchDog implements Runnable {
+    private static final String INDEX_COMPLETION_HOOK_RETRY = "index-completion-hook-retry";
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexMaintenanceWatchDog.class);
     private static final int WORKER_POOL_SIZE = 2;
     private final Context context;
@@ -45,6 +50,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private final byte[] trigger;
     private final ExecutorService workerExecutor;
     private final Map<Versionstamp, Future<?>> workers = new ConcurrentHashMap<>();
+    private final RetryRegistry retryRegistry;
     private volatile CompletableFuture<Void> watcher;
 
     public IndexMaintenanceWatchDog(Context context, BucketShard shard) {
@@ -53,6 +59,26 @@ public class IndexMaintenanceWatchDog implements Runnable {
         this.subspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shard.id());
         this.trigger = TaskStorage.trigger(subspace);
         this.workerExecutor = Executors.newFixedThreadPool(WORKER_POOL_SIZE);
+        this.retryRegistry = retryRegistry();
+    }
+
+    private RetryRegistry retryRegistry() {
+        return RetryRegistry.custom().addRetryConfig(INDEX_COMPLETION_HOOK_RETRY, RetryConfig.custom()
+                        .maxAttempts(10)
+                        .waitDuration(Duration.ofMillis(100))
+                        .retryOnException(e -> {
+                            if (e instanceof CompletionException) {
+                                Throwable cause = e.getCause();
+                                if (cause instanceof FDBException) {
+                                    int code = ((FDBException) cause).getCode();
+                                    // 1007: transaction_too_old
+                                    // 1020: not_committed
+                                    return code == 1007 || code == 1020;
+                                }
+                            }
+                            return false;
+                        }).build())
+                .build();
     }
 
     private CompletableFuture<Void> watcher() {
@@ -64,21 +90,16 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     private void indexTaskCompletionHook(Versionstamp taskId) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
-            tr.commit().join();
-            workers.remove(taskId);
-            spawnWorkersForPendingTasks();
-        } catch (CompletionException exp) {
-            if (exp.getCause() instanceof FDBException fdbException) {
-                int code = fdbException.getCode();
-                if (code == 1007 || code == 1020) {
-                    indexTaskCompletionHook(taskId);
-                    return;
-                }
+        Retry retry = retryRegistry.retry(INDEX_COMPLETION_HOOK_RETRY);
+        retry.executeSupplier(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
+                tr.commit().join();
+                workers.remove(taskId);
+                spawnWorkersForPendingTasks();
+                return null;
             }
-            throw exp;
-        }
+        });
     }
 
     private synchronized void spawnWorkersForPendingTasks() {
