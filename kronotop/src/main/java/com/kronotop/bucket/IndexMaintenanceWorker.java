@@ -22,18 +22,25 @@ import com.kronotop.Context;
 import com.kronotop.bucket.index.*;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.function.Consumer;
 
 public class IndexMaintenanceWorker implements Runnable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndexMaintenanceWorker.class);
     private final Context context;
     private final IndexMaintenanceRoutine routine;
     private final DirectorySubspace subspace;
     private final Versionstamp taskId;
+    private final Consumer<Versionstamp> completionHook;
     private volatile boolean shutdown;
 
-    public IndexMaintenanceWorker(Context context, DirectorySubspace subspace, int shardId, Versionstamp taskId) {
+    public IndexMaintenanceWorker(Context context, DirectorySubspace subspace, int shardId, Versionstamp taskId, Consumer<Versionstamp> completionHook) {
         this.context = context;
         this.subspace = subspace;
         this.taskId = taskId;
+        this.completionHook = completionHook;
         byte[] raw = context.getFoundationDB().run(tr -> TaskStorage.getDefinition(tr, subspace, taskId));
         IndexBuilderTask task = JSONUtil.readValue(raw, IndexBuilderTask.class);
         this.routine = new BackgroundIndexBuilderRoutine(context, subspace, shardId, taskId, task);
@@ -47,9 +54,10 @@ public class IndexMaintenanceWorker implements Runnable {
                 IndexBuilderTaskState state = context.getFoundationDB().run(tr -> IndexBuilderTaskState.load(tr, subspace, taskId));
                 if (state.status().equals(IndexTaskStatus.COMPLETED)) {
                     // Run a callback to remove this task from the watchdog thread.
+                    completionHook.accept(taskId);
                 }
             } catch (Exception e) {
-                // TODO: LOG THIS
+                LOGGER.error("Failed to run the routine", e);
             }
         }
     }

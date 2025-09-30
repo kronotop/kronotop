@@ -24,11 +24,10 @@ import com.kronotop.internal.task.TaskStorage;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstamp highestVersionstamp, boolean completed,
+public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstamp highestVersionstamp,
                                     IndexTaskStatus status, String error) {
     public static final String CURSOR_VERSIONSTAMP = "cv";
     public static final String HIGHEST_VERSIONSTAMP = "hv";
-    public static final String COMPLETED = "c";
     public static final String ERROR = "e";
     public static final String STATUS = "s";
 
@@ -47,12 +46,6 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
             highestVersionstamp = Versionstamp.fromBytes(rawHighestVs);
         }
 
-        boolean completed = false;
-        byte[] rawCompleted = entries.get(COMPLETED);
-        if (rawCompleted != null) {
-            completed = rawCompleted[0] == 1;
-        }
-
         String error = null;
         byte[] rawError = entries.get(ERROR);
         if (rawError != null) {
@@ -64,7 +57,7 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
         if (rawStatus != null) {
             status = IndexTaskStatus.valueOf(new String(rawStatus));
         }
-        return new IndexBuilderTaskState(cursorVersionstamp, highestVersionstamp, completed, status, error);
+        return new IndexBuilderTaskState(cursorVersionstamp, highestVersionstamp, status, error);
     }
 
     public static void setCursorVersionstamp(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, Versionstamp value) {
@@ -73,11 +66,6 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
 
     public static void setHighestVersionstamp(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, Versionstamp value) {
         TaskStorage.setStateField(tr, subspace, taskId, HIGHEST_VERSIONSTAMP, value.getBytes());
-    }
-
-    public static void setCompleted(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, boolean value) {
-        byte[] arr = new byte[]{(byte) (value ? 1 : 0)};
-        TaskStorage.setStateField(tr, subspace, taskId, COMPLETED, arr);
     }
 
     public static void setError(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, String error) {
