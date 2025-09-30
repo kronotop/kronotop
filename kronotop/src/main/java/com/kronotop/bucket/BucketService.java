@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.CachedTimeService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
@@ -49,7 +50,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
-            Thread.ofVirtual().name("kr.bucket-service-", 0L).factory()
+            new ThreadFactoryBuilder().setNameFormat("kr.bucket-service-%d").build()
     );
     private volatile boolean shutdown;
 

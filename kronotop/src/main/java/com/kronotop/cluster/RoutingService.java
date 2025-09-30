@@ -19,6 +19,7 @@ package com.kronotop.cluster;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.*;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -54,7 +55,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
 
         this.membership = context.getService(MembershipService.NAME);
 
-        ThreadFactory factory = Thread.ofVirtual().name("kr.routing").factory();
+        ThreadFactory factory = new ThreadFactoryBuilder().setNameFormat("kr.routing-%d").build();
         this.scheduler = new ScheduledThreadPoolExecutor(1, factory);
 
         handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));

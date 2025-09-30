@@ -21,6 +21,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.BaseKronotopService;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
@@ -71,7 +72,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         ConsumerConfig config = new ConsumerConfig(consumerId, JournalName.CLUSTER_EVENTS.getValue(), ConsumerConfig.Offset.LATEST);
         this.clusterEventsConsumer = new Consumer(context, config);
 
-        ThreadFactory factory = Thread.ofVirtual().name("kr.membership").factory();
+        ThreadFactory factory = new ThreadFactoryBuilder().setNameFormat("kr.membership-%d").build();
         this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
     }
 
