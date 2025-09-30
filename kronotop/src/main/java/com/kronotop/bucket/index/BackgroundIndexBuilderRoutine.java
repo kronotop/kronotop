@@ -36,8 +36,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
-public class BackgroundIndexBuilder implements Runnable {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuilder.class);
+public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
+    protected static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuilderRoutine.class);
 
     private final Context context;
     private final DirectorySubspace subspace;
@@ -46,8 +46,9 @@ public class BackgroundIndexBuilder implements Runnable {
     private final IndexBuilderTask task;
     private final BucketService service;
     private final boolean doNotWaitTxLimit;
+    private volatile boolean stopped;
 
-    public BackgroundIndexBuilder(
+    public BackgroundIndexBuilderRoutine(
             Context context,
             DirectorySubspace subspace,
             int shardId,
@@ -57,7 +58,7 @@ public class BackgroundIndexBuilder implements Runnable {
         this(context, subspace, shardId, taskId, task, false);
     }
 
-    BackgroundIndexBuilder(
+    BackgroundIndexBuilderRoutine(
             Context context,
             DirectorySubspace subspace,
             int sharId,
@@ -194,14 +195,14 @@ public class BackgroundIndexBuilder implements Runnable {
         }
     }
 
-    @Override
-    public void run() {
+    public void start() {
         LOGGER.debug(
                 "Starting to build namespace={}, bucket={}, index={} at the background",
                 task.getNamespace(),
                 task.getBucket(),
                 task.getIndexId()
         );
+        stopped = false; // also means a restart
         try {
             findOutBoundaries();
             scanPrimaryIndex();
@@ -215,6 +216,10 @@ public class BackgroundIndexBuilder implements Runnable {
             }
             throw exp;
         }
+    }
+
+    public void stop() {
+        stopped = true;
     }
 
     /**
@@ -244,7 +249,7 @@ public class BackgroundIndexBuilder implements Runnable {
      */
     private void scanPrimaryIndex() {
         BucketShard shard = service.getShard(shardId);
-        while (true) {
+        while (!stopped) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
                 Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);

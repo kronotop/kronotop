@@ -19,19 +19,15 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.bucket.index.BackgroundIndexBuilder;
-import com.kronotop.bucket.index.IndexBuilderTask;
-import com.kronotop.bucket.index.IndexBuilderTaskState;
-import com.kronotop.bucket.index.IndexTaskStatus;
+import com.kronotop.bucket.index.*;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 
 public class IndexMaintenanceWorker implements Runnable {
     private final Context context;
-    private final BackgroundIndexBuilder backgroundIndexBuilder;
+    private final IndexMaintenanceRoutine routine;
     private final DirectorySubspace subspace;
     private final Versionstamp taskId;
-    private final IndexBuilderTask task;
     private volatile boolean shutdown;
 
     public IndexMaintenanceWorker(Context context, DirectorySubspace subspace, int shardId, Versionstamp taskId) {
@@ -39,23 +35,27 @@ public class IndexMaintenanceWorker implements Runnable {
         this.subspace = subspace;
         this.taskId = taskId;
         byte[] raw = context.getFoundationDB().run(tr -> TaskStorage.getDefinition(tr, subspace, taskId));
-        this.task = JSONUtil.readValue(raw, IndexBuilderTask.class);
-        this.backgroundIndexBuilder = new BackgroundIndexBuilder(context, subspace, shardId, taskId, task);
+        IndexBuilderTask task = JSONUtil.readValue(raw, IndexBuilderTask.class);
+        this.routine = new BackgroundIndexBuilderRoutine(context, subspace, shardId, taskId, task);
     }
-
 
     @Override
     public void run() {
-        while(!shutdown) {
+        while (!shutdown) {
             try {
-                backgroundIndexBuilder.run();
+                routine.start();
                 IndexBuilderTaskState state = context.getFoundationDB().run(tr -> IndexBuilderTaskState.load(tr, subspace, taskId));
                 if (state.status().equals(IndexTaskStatus.COMPLETED)) {
-
+                    // Run a callback to remove this task from the watchdog thread.
                 }
             } catch (Exception e) {
                 // TODO: LOG THIS
             }
         }
+    }
+
+    public void shutdown() {
+        shutdown = true;
+        routine.stop();
     }
 }
