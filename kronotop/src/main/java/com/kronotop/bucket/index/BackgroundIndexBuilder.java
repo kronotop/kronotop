@@ -295,6 +295,7 @@ public class BackgroundIndexBuilder implements Runnable {
                             task.getIndexId()
                     );
                     // All entries are processed. End of the task.
+                    IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
                     break;
                 }
 

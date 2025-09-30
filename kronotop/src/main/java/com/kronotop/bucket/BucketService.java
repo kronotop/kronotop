@@ -27,7 +27,6 @@ import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.internal.KeyWatcher;
 import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +46,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
     private final int numberOfShards;
     private final RoutingService routing;
-    private final KeyWatcher keyWatcher = new KeyWatcher();
     private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(
             1,
             new ThreadFactoryBuilder().setNameFormat("kr.bucket-service-%d").build()
@@ -155,7 +153,9 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     public void shutdown() {
         try {
             shutdown = true;
-            keyWatcher.unwatchAll();
+            for (BucketShard shard : getServiceContext().shards().values()) {
+                shard.close();
+            }
             scheduler.shutdownNow();
             if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
                 LOGGER.warn("{} service cannot be stopped gracefully", NAME);
@@ -213,6 +213,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             }
             BucketShard shard = getShard(shardId);
             shard.setOperable(false);
+            shard.close();
             shardSelector.remove(shard);
         }
     }

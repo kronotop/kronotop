@@ -31,7 +31,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class TaskStorage {
     private static final byte TRIGGER_MAGIC = 0x21;
-    private static final byte TASKS_MAGIC = 0x23;
+    public static final byte TASKS_MAGIC = 0x23;
     private static final byte DEFINITION = 0x44;
     private static final byte STATE = 0x53;
 

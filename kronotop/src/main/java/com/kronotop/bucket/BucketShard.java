@@ -31,4 +31,11 @@ public interface BucketShard extends Shard {
      * Closes the shard and frees allocated resources.
      */
     void close();
+
+    /**
+     * Checks whether the shard is closed.
+     *
+     * @return true if the shard is closed, otherwise false
+     */
+    boolean isClosed();
 }
