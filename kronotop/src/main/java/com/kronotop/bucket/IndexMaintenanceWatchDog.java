@@ -62,7 +62,11 @@ public class IndexMaintenanceWatchDog implements Runnable {
         }
     }
 
-    private void scanTasks() {
+    private void spawnWorkersForPendingTasks() {
+        if (workers.size() >= WORKER_POOL_SIZE * 2) {
+            // There are already too many tasks in the executor's queue.
+            return;
+        }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC));
             byte[] end = ByteArrayUtil.strinc(begin);
@@ -79,6 +83,10 @@ public class IndexMaintenanceWatchDog implements Runnable {
                             new IndexMaintenanceWorker(context, subspace, shard.id(), taskId);
                     Future<?> future = workerExecutor.submit(worker);
                     workers.put(taskId, future);
+                    if (workers.size() >= WORKER_POOL_SIZE * 2) {
+                        // Backpressure - WORKER_POOL_SIZE = 2
+                        break;
+                    }
                 }
             }
         }
@@ -88,11 +96,11 @@ public class IndexMaintenanceWatchDog implements Runnable {
     public void run() {
         while (!shard.isClosed()) {
             try {
-                scanTasks();
+                spawnWorkersForPendingTasks();
                 watcher = watcher();
                 // Waits until receiving a new task
                 watcher.join();
-                scanTasks();
+                spawnWorkersForPendingTasks();
             } catch (Exception e) {
                 LOGGER.error("Failed to run shard maintenance worker on Bucket shard: {}", shard.id(), e);
             }
