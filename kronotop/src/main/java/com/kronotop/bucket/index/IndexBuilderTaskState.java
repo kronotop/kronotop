@@ -75,4 +75,8 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
     public static void setStatus(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, IndexTaskStatus status) {
         TaskStorage.setStateField(tr, subspace, taskId, STATUS, status.name().getBytes());
     }
+
+    public static boolean isTerminal(IndexTaskStatus status) {
+        return status.equals(IndexTaskStatus.COMPLETED) || status.equals(IndexTaskStatus.FAILED) || status.equals(IndexTaskStatus.STOPPED);
+    }
 }

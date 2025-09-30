@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -63,13 +64,24 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     private void indexTaskCompletionHook(Versionstamp taskId) {
-        context.getFoundationDB().run(tr -> {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
-            return null;
-        });
+            tr.commit().join();
+            workers.remove(taskId);
+            spawnWorkersForPendingTasks();
+        } catch (CompletionException exp) {
+            if (exp.getCause() instanceof FDBException fdbException) {
+                int code = fdbException.getCode();
+                if (code == 1007 || code == 1020) {
+                    indexTaskCompletionHook(taskId);
+                    return;
+                }
+            }
+            throw exp;
+        }
     }
 
-    private void spawnWorkersForPendingTasks() {
+    private synchronized void spawnWorkersForPendingTasks() {
         if (workers.size() >= WORKER_POOL_SIZE * 2) {
             // There are already too many tasks in the executor's queue.
             return;
@@ -103,6 +115,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     public void run() {
         while (!shard.isClosed()) {
             try {
+                // Initial run, start the workers if we have room to run tasks.
                 spawnWorkersForPendingTasks();
                 watcher = watcher();
                 // Waits until receiving a new task

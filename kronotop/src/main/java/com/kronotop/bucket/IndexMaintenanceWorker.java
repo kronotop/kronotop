@@ -19,7 +19,10 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.index.BackgroundIndexBuilderRoutine;
+import com.kronotop.bucket.index.IndexBuilderTask;
+import com.kronotop.bucket.index.IndexBuilderTaskState;
+import com.kronotop.bucket.index.IndexMaintenanceRoutine;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.slf4j.Logger;
@@ -52,9 +55,11 @@ public class IndexMaintenanceWorker implements Runnable {
             try {
                 routine.start();
                 IndexBuilderTaskState state = context.getFoundationDB().run(tr -> IndexBuilderTaskState.load(tr, subspace, taskId));
-                if (state.status().equals(IndexTaskStatus.COMPLETED)) {
+                if (IndexBuilderTaskState.isTerminal(state.status())) {
                     // Run a callback to remove this task from the watchdog thread.
                     completionHook.accept(taskId);
+                    shutdown();
+                    break;
                 }
             } catch (Exception e) {
                 LOGGER.error("Failed to run the routine", e);
