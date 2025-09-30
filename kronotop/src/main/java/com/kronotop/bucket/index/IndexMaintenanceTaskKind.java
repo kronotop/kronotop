@@ -16,7 +16,7 @@
 
 package com.kronotop.bucket.index;
 
-public enum IndexTaskKind {
+public enum IndexMaintenanceTaskKind {
     BUILD,
     DROP
 }

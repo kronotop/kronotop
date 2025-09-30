@@ -18,16 +18,16 @@ package com.kronotop.bucket.index;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class IndexTask {
-    private final IndexTaskKind kind;
+public class IndexMaintenanceTask {
+    private final IndexMaintenanceTaskKind kind;
 
-    public IndexTask(
-            @JsonProperty("kind") IndexTaskKind kind
+    public IndexMaintenanceTask(
+            @JsonProperty("kind") IndexMaintenanceTaskKind kind
     ) {
         this.kind = kind;
     }
 
-    public IndexTaskKind getKind() {
+    public IndexMaintenanceTaskKind getKind() {
         return kind;
     }
 }

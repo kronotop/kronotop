@@ -19,27 +19,17 @@ package com.kronotop.bucket.index;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class IndexBuildTask extends IndexTask {
+public class IndexBuilderTask extends IndexMaintenanceTask {
     private final String namespace;
     private final String bucket;
     private final long indexId;
-    //private boolean completed;
-    //private String error;
-
-    //@JsonSerialize(using = VersionstampSerializer.class)
-    //@JsonDeserialize(using = VersionstampDeserializer.class)
-    //private Versionstamp highestVersionstamp;
-
-    //@JsonSerialize(using = VersionstampSerializer.class)
-    //@JsonDeserialize(using = VersionstampDeserializer.class)
-    //private Versionstamp cursorVersionstamp;
 
     @JsonCreator
-    public IndexBuildTask(
+    public IndexBuilderTask(
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
             @JsonProperty("indexId") long indexId) {
-        super(IndexTaskKind.BUILD);
+        super(IndexMaintenanceTaskKind.BUILD);
         this.namespace = namespace;
         this.bucket = bucket;
         this.indexId = indexId;
@@ -56,36 +46,4 @@ public class IndexBuildTask extends IndexTask {
     public long getIndexId() {
         return indexId;
     }
-
-    //public boolean isCompleted() {
-    //    return completed;
-    //}
-
-    //public void setCompleted(boolean completed) {
-    //    this.completed = completed;
-    //}
-
-    //public Versionstamp getHighestVersionstamp() {
-    //    return highestVersionstamp;
-    //}
-
-    //public void setHighestVersionstamp(Versionstamp highestVersionstamp) {
-    //    this.highestVersionstamp = highestVersionstamp;
-    //}
-
-    //public void setCursorVersionstamp(Versionstamp cursorVersionstamp) {
-    //    this.cursorVersionstamp = cursorVersionstamp;
-    //}
-
-    //public Versionstamp getCursorVersionstamp() {
-    //    return cursorVersionstamp;
-    //}
-
-    //public void setError(String error) {
-    //    this.error = error;
-    //}
-
-    //public String getError() {
-    //    return error;
-    //}
 }

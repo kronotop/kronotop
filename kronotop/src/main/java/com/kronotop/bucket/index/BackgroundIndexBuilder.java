@@ -43,7 +43,7 @@ public class BackgroundIndexBuilder implements Runnable {
     private final DirectorySubspace subspace;
     private final int shardId;
     private final Versionstamp taskId;
-    private final IndexBuildTask task;
+    private final IndexBuilderTask task;
     private final BucketService service;
     private final boolean doNotWaitTxLimit;
 
@@ -52,7 +52,7 @@ public class BackgroundIndexBuilder implements Runnable {
             DirectorySubspace subspace,
             int shardId,
             Versionstamp taskId,
-            IndexBuildTask task
+            IndexBuilderTask task
     ) {
         this(context, subspace, shardId, taskId, task, false);
     }
@@ -62,7 +62,7 @@ public class BackgroundIndexBuilder implements Runnable {
             DirectorySubspace subspace,
             int sharId,
             Versionstamp taskId,
-            IndexBuildTask task,
+            IndexBuilderTask task,
             boolean doNotWaitTxLimit
     ) {
         this.context = context;
@@ -122,8 +122,8 @@ public class BackgroundIndexBuilder implements Runnable {
 
     private void markIndexBuildTaskFailed(Throwable th) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildTaskState.setError(tr, subspace, taskId, th.getMessage());
-            IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
+            IndexBuilderTaskState.setError(tr, subspace, taskId, th.getMessage());
+            IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
             tr.commit().join();
         }
     }
@@ -167,7 +167,7 @@ public class BackgroundIndexBuilder implements Runnable {
      *                              in refreshAndLoadBucketMetadata()
      */
     private void findOutBoundaries() throws InterruptedException {
-        IndexBuildTaskState state = context.getFoundationDB().run(tr -> IndexBuildTaskState.load(tr, subspace, taskId));
+        IndexBuilderTaskState state = context.getFoundationDB().run(tr -> IndexBuilderTaskState.load(tr, subspace, taskId));
         if (state.cursorVersionstamp() != null && state.highestVersionstamp() != null) {
             return;
         }
@@ -185,10 +185,10 @@ public class BackgroundIndexBuilder implements Runnable {
         byte[] end = ByteArrayUtil.strinc(begin);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Versionstamp cursor = findOutCursorVersionstamp(tr, primaryIndex, begin, end);
-            IndexBuildTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
+            IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
 
             Versionstamp highest = findOutHighestVersionstamp(tr, primaryIndex, begin, end);
-            IndexBuildTaskState.setHighestVersionstamp(tr, subspace, taskId, highest);
+            IndexBuilderTaskState.setHighestVersionstamp(tr, subspace, taskId, highest);
 
             tr.commit().join();
         }
@@ -276,7 +276,7 @@ public class BackgroundIndexBuilder implements Runnable {
                     });
                 }
 
-                IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
+                IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, subspace, taskId);
                 if (state.status() == IndexTaskStatus.STOPPED) {
                     // The operator marked the task as STOPPED manually.
                     LOGGER.debug(
@@ -295,7 +295,7 @@ public class BackgroundIndexBuilder implements Runnable {
                             task.getIndexId()
                     );
                     // All entries are processed. End of the task.
-                    IndexBuildTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
+                    IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
                     break;
                 }
 
@@ -319,7 +319,7 @@ public class BackgroundIndexBuilder implements Runnable {
                     cursor = pair.key();
                 }
                 if (cursor != null) {
-                    IndexBuildTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
+                    IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
                 }
                 tr.commit().join();
             } catch (CompletionException exp) {

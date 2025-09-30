@@ -20,18 +20,18 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.index.BackgroundIndexBuilder;
-import com.kronotop.bucket.index.IndexBuildTask;
-import com.kronotop.bucket.index.IndexBuildTaskState;
+import com.kronotop.bucket.index.IndexBuilderTask;
+import com.kronotop.bucket.index.IndexBuilderTaskState;
 import com.kronotop.bucket.index.IndexTaskStatus;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 
 public class IndexMaintenanceWorker implements Runnable {
     private final Context context;
-    private final BackgroundIndexBuilder builder;
+    private final BackgroundIndexBuilder backgroundIndexBuilder;
     private final DirectorySubspace subspace;
     private final Versionstamp taskId;
-    private final IndexBuildTask task;
+    private final IndexBuilderTask task;
     private volatile boolean shutdown;
 
     public IndexMaintenanceWorker(Context context, DirectorySubspace subspace, int shardId, Versionstamp taskId) {
@@ -39,8 +39,8 @@ public class IndexMaintenanceWorker implements Runnable {
         this.subspace = subspace;
         this.taskId = taskId;
         byte[] raw = context.getFoundationDB().run(tr -> TaskStorage.getDefinition(tr, subspace, taskId));
-        this.task = JSONUtil.readValue(raw, IndexBuildTask.class);
-        this.builder = new BackgroundIndexBuilder(context, subspace, shardId, taskId, task);
+        this.task = JSONUtil.readValue(raw, IndexBuilderTask.class);
+        this.backgroundIndexBuilder = new BackgroundIndexBuilder(context, subspace, shardId, taskId, task);
     }
 
 
@@ -48,8 +48,8 @@ public class IndexMaintenanceWorker implements Runnable {
     public void run() {
         while(!shutdown) {
             try {
-                builder.run();
-                IndexBuildTaskState state = context.getFoundationDB().run(tr -> IndexBuildTaskState.load(tr, subspace, taskId));
+                backgroundIndexBuilder.run();
+                IndexBuilderTaskState state = context.getFoundationDB().run(tr -> IndexBuilderTaskState.load(tr, subspace, taskId));
                 if (state.status().equals(IndexTaskStatus.COMPLETED)) {
 
                 }

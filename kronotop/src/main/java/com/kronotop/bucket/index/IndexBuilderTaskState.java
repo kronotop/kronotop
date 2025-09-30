@@ -24,15 +24,15 @@ import com.kronotop.internal.task.TaskStorage;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-public record IndexBuildTaskState(Versionstamp cursorVersionstamp, Versionstamp highestVersionstamp, boolean completed,
-                                  IndexTaskStatus status, String error) {
+public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstamp highestVersionstamp, boolean completed,
+                                    IndexTaskStatus status, String error) {
     public static final String CURSOR_VERSIONSTAMP = "cv";
     public static final String HIGHEST_VERSIONSTAMP = "hv";
     public static final String COMPLETED = "c";
     public static final String ERROR = "e";
     public static final String STATUS = "s";
 
-    public static IndexBuildTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
+    public static IndexBuilderTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
         Map<String, byte[]> entries = TaskStorage.getStateFields(tr, subspace, taskId);
 
         Versionstamp cursorVersionstamp = null;
@@ -64,7 +64,7 @@ public record IndexBuildTaskState(Versionstamp cursorVersionstamp, Versionstamp 
         if (rawStatus != null) {
             status = IndexTaskStatus.valueOf(new String(rawStatus));
         }
-        return new IndexBuildTaskState(cursorVersionstamp, highestVersionstamp, completed, status, error);
+        return new IndexBuilderTaskState(cursorVersionstamp, highestVersionstamp, completed, status, error);
     }
 
     public static void setCursorVersionstamp(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, Versionstamp value) {

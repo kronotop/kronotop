@@ -23,7 +23,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.bucket.index.IndexBuildTaskState;
+import com.kronotop.bucket.index.IndexBuilderTaskState;
 import com.kronotop.bucket.index.IndexTaskStatus;
 import com.kronotop.bucket.index.IndexTaskUtil;
 import com.kronotop.internal.task.TaskStorage;
@@ -69,7 +69,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
             for (KeyValue entry : tr.getRange(begin, end)) {
                 Tuple tuple = subspace.unpack(entry.getKey());
                 Versionstamp taskId = (Versionstamp) tuple.get(1);
-                IndexBuildTaskState state = IndexBuildTaskState.load(tr, subspace, taskId);
+                IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, subspace, taskId);
                 IndexTaskStatus status = state.status();
                 if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
                     if (workers.containsKey(taskId)) {

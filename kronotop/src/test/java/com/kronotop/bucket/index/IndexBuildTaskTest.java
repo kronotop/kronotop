@@ -24,14 +24,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class IndexBuildTaskTest {
     @Test
     void shouldEncodeDecode() {
-        IndexBuildTask task = new IndexBuildTask(
+        IndexBuilderTask task = new IndexBuilderTask(
                 "namespace-name",
                 "bucket-name",
                 12345
         );
         byte[] encoded = JSONUtil.writeValueAsBytes(task);
-        IndexBuildTask decoded = JSONUtil.readValue(encoded, IndexBuildTask.class);
-        assertEquals(IndexTaskKind.BUILD, task.getKind());
+        IndexBuilderTask decoded = JSONUtil.readValue(encoded, IndexBuilderTask.class);
+        assertEquals(IndexMaintenanceTaskKind.BUILD, task.getKind());
         assertEquals(task.getNamespace(), decoded.getNamespace());
         assertEquals(task.getBucket(), decoded.getBucket());
         assertEquals(task.getIndexId(), decoded.getIndexId());

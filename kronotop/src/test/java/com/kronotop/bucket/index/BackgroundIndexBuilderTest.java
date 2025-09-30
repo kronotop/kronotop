@@ -82,7 +82,7 @@ class BackgroundIndexBuilderTest extends BaseBucketHandlerTest {
             tr.commit().join();
         }
 
-        IndexBuildTask task = new IndexBuildTask("global", BUCKET_NAME, definition.id());
+        IndexBuilderTask task = new IndexBuilderTask("global", BUCKET_NAME, definition.id());
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         BackgroundIndexBuilder builder = new BackgroundIndexBuilder(context, taskSubspace, SHARD_ID, taskId, task, true);
