@@ -122,7 +122,9 @@ public class IndexMaintenanceWatchDog implements Runnable {
                 watcher.join();
                 spawnWorkersForPendingTasks();
             } catch (Exception e) {
-                LOGGER.error("Failed to run shard maintenance worker on Bucket shard: {}", shard.id(), e);
+                if (!shard.isClosed()) {
+                    LOGGER.error("Failed to run shard maintenance worker on Bucket shard: {}", shard.id(), e);
+                }
             }
         }
     }
