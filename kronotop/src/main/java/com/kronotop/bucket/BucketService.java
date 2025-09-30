@@ -48,17 +48,15 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final int numberOfShards;
     private final RoutingService routing;
     private final KeyWatcher keyWatcher = new KeyWatcher();
-    private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
-            Runtime.getRuntime().availableProcessors(),
+    private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(
+            1,
             new ThreadFactoryBuilder().setNameFormat("kr.bucket-service-%d").build()
     );
-    private volatile boolean shutdown;
-
     // The default ShardSelector is RoundRobinShardSelector.
     private final ShardSelector shardSelector = new RoundRobinShardSelector();
-
     private final QueryExecutor queryExecutor;
     private final Planner planner;
+    private volatile boolean shutdown;
 
     public BucketService(Context context) {
         super(context, NAME);
@@ -150,13 +148,21 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
         CachedTimeService cachedTimeService = context.getService(CachedTimeService.NAME);
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(cachedTimeService, 1000 * 5 * 60);
-        scheduledExecutorService.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
+        scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
     }
 
     @Override
     public void shutdown() {
-        shutdown = true;
-        keyWatcher.unwatchAll();
+        try {
+            shutdown = true;
+            keyWatcher.unwatchAll();
+            scheduler.shutdownNow();
+            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
+                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
