@@ -121,9 +121,9 @@ public class IndexMaintenanceWatchDog implements Runnable {
                 // Waits until receiving a new task
                 watcher.join();
                 spawnWorkersForPendingTasks();
-            } catch (Exception e) {
-                if (!shard.isClosed()) {
-                    LOGGER.error("Failed to run shard maintenance worker on Bucket shard: {}", shard.id(), e);
+            } catch (Exception exp) {
+                if (!(shard.isClosed() && exp instanceof CancellationException)) {
+                    LOGGER.error("Failed to run shard maintenance worker on Bucket shard: {}", shard.id(), exp);
                 }
             }
         }
