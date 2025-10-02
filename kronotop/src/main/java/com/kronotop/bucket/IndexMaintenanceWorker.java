@@ -37,7 +37,6 @@ public class IndexMaintenanceWorker implements Runnable {
     private final DirectorySubspace subspace;
     private final Versionstamp taskId;
     private final Consumer<Versionstamp> completionHook;
-    private volatile boolean shutdown;
 
     public IndexMaintenanceWorker(Context context, DirectorySubspace subspace, int shardId, Versionstamp taskId, Consumer<Versionstamp> completionHook) {
         this.context = context;
@@ -51,7 +50,7 @@ public class IndexMaintenanceWorker implements Runnable {
 
     @Override
     public void run() {
-        while (!shutdown) {
+        RetryMethods.retry(RetryMethods.INDEX_MAINTENANCE_ROUTINE).executeRunnable(() -> {
             try {
                 routine.start();
                 IndexBuilderTaskState state = context.getFoundationDB().run(tr -> IndexBuilderTaskState.load(tr, subspace, taskId));
@@ -59,16 +58,15 @@ public class IndexMaintenanceWorker implements Runnable {
                     // Run a callback to remove this task from the watchdog thread.
                     completionHook.accept(taskId);
                     shutdown();
-                    break;
                 }
             } catch (Exception e) {
-                LOGGER.error("Failed to run the routine", e);
+                LOGGER.error("Failed to run the maintenance routine", e);
+                throw e;
             }
-        }
+        });
     }
 
     public void shutdown() {
-        shutdown = true;
         routine.stop();
     }
 }

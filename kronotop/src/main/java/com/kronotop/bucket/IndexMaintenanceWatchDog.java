@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket;
 
-import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -28,12 +27,9 @@ import com.kronotop.bucket.index.IndexBuilderTaskState;
 import com.kronotop.bucket.index.IndexTaskStatus;
 import com.kronotop.bucket.index.IndexTaskUtil;
 import com.kronotop.internal.task.TaskStorage;
-import io.github.resilience4j.retry.Retry;
-import io.github.resilience4j.retry.RetryConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.*;
 
@@ -48,7 +44,6 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private final byte[] trigger;
     private final ExecutorService workerExecutor;
     private final Map<Versionstamp, Future<?>> workers = new ConcurrentHashMap<>();
-    private final Retry indexCompletionHookRetry;
     private volatile CompletableFuture<Void> watcher;
 
     public IndexMaintenanceWatchDog(Context context, BucketShard shard) {
@@ -57,21 +52,6 @@ public class IndexMaintenanceWatchDog implements Runnable {
         this.subspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shard.id());
         this.trigger = TaskStorage.trigger(subspace);
         this.workerExecutor = Executors.newFixedThreadPool(WORKER_POOL_SIZE);
-        this.indexCompletionHookRetry = Retry.of("INDEX_COMPLETION_HOOK_RETRY", RetryConfig.custom()
-                .maxAttempts(10)
-                .waitDuration(Duration.ofMillis(100))
-                .retryOnException(e -> {
-                    if (e instanceof CompletionException) {
-                        Throwable cause = e.getCause();
-                        if (cause instanceof FDBException) {
-                            int code = ((FDBException) cause).getCode();
-                            // 1007: transaction_too_old
-                            // 1020: not_committed
-                            return code == 1007 || code == 1020;
-                        }
-                    }
-                    return false;
-                }).build());
     }
 
     private CompletableFuture<Void> watcher() {
@@ -83,7 +63,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     private void indexTaskCompletionHook(Versionstamp taskId) {
-        indexCompletionHookRetry.executeRunnable(() -> {
+        RetryMethods.retry(RetryMethods.INDEX_COMPLETION_HOOK).executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
                 tr.commit().join();

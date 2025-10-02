@@ -331,7 +331,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                 if (exp.getCause() instanceof FDBException fdbException) {
                     int code = fdbException.getCode();
                     if (code == 1020 || code == 1007) {
-                        // Retry
+                        // Retry immediately, 1020 or 1007 should be immediately fixed by a retry.
                         // 1007 -> Transaction is too old to perform reads or be committed
                         // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
                         scanPrimaryIndex();
