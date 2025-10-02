@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.index;
 
-import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -28,13 +27,13 @@ import com.kronotop.bucket.*;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
+import io.github.resilience4j.retry.Retry;
 import org.bson.BsonNull;
 import org.bson.BsonValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.concurrent.CompletionException;
 
 public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
     protected static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuilderRoutine.class);
@@ -197,39 +196,6 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         }
     }
 
-    public void start() {
-        LOGGER.debug(
-                "Starting to build namespace={}, bucket={}, index={} at the background",
-                task.getNamespace(),
-                task.getBucket(),
-                task.getIndexId()
-        );
-        stopped = false; // also means a restart
-        try {
-            findOutBoundaries();
-            scanPrimaryIndex();
-        } catch (InterruptedException e) {
-            // Do not mark the task as failed. Program has stopped and this task
-            // can be retried.
-            throw new RuntimeException(e);
-        } catch (IndexMaintenanceRoutineException exp) {
-            if (exp.isFailed()) {
-                markIndexBuildTaskFailed(exp);
-                return;
-            }
-            throw exp;
-        }
-    }
-
-    public void stop() {
-        stopped = true;
-    }
-
-    @Override
-    public IndexMaintenanceRoutineMetrics getMetrics() {
-        return null;
-    }
-
     /**
      * Scans the primary index and builds the target secondary index incrementally.
      *
@@ -253,7 +219,6 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
      * </ul>
      *
      * @throws IndexMaintenanceRoutineException if the index is not found, already ready, or dropped
-     * @throws CompletionException              for FoundationDB transaction conflicts (handled with retry)
      */
     private void scanPrimaryIndex() {
         BucketShard shard = service.getShard(shardId);
@@ -335,19 +300,43 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                     IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
                 }
                 tr.commit().join();
-            } catch (CompletionException exp) {
-                if (exp.getCause() instanceof FDBException fdbException) {
-                    int code = fdbException.getCode();
-                    if (code == 1020 || code == 1007) {
-                        // Retry immediately, 1020 or 1007 should be immediately fixed by a retry.
-                        // 1007 -> Transaction is too old to perform reads or be committed
-                        // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
-                        scanPrimaryIndex();
-                    }
-                }
             } finally {
                 metrics.setLatestExecution(System.currentTimeMillis());
             }
         }
+    }
+
+    public void start() {
+        LOGGER.debug(
+                "Starting to build namespace={}, bucket={}, index={} at the background",
+                task.getNamespace(),
+                task.getBucket(),
+                task.getIndexId()
+        );
+        stopped = false; // also means a restart
+        try {
+            findOutBoundaries();
+            Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+            retry.executeRunnable(this::scanPrimaryIndex);
+        } catch (InterruptedException e) {
+            // Do not mark the task as failed. Program has stopped and this task
+            // can be retried.
+            throw new RuntimeException(e);
+        } catch (IndexMaintenanceRoutineException exp) {
+            if (exp.isFailed()) {
+                markIndexBuildTaskFailed(exp);
+                return;
+            }
+            throw exp;
+        }
+    }
+
+    public void stop() {
+        stopped = true;
+    }
+
+    @Override
+    public IndexMaintenanceRoutineMetrics getMetrics() {
+        return null;
     }
 }

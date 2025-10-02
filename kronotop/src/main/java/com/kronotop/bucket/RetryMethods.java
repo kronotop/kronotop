@@ -31,7 +31,7 @@ import java.util.concurrent.CompletionException;
 
 public class RetryMethods {
     public static final String INDEX_MAINTENANCE_ROUTINE = "INDEX_MAINTENANCE_ROUTINE";
-    public static final String INDEX_COMPLETION_HOOK = "INDEX_COMPLETION_HOOK";
+    public static final String TRANSACTION = "TRANSACTION";
     private static final Logger LOGGER = LoggerFactory.getLogger(RetryMethods.class);
     private static final RetryRegistry retryRegistry;
 
@@ -44,7 +44,7 @@ public class RetryMethods {
                         .retryOnException(ex -> !(ex instanceof IndexMaintenanceRoutineShutdownException))
                         .build());
 
-        configs.put(INDEX_COMPLETION_HOOK,
+        configs.put(TRANSACTION,
                 RetryConfig.custom()
                         .maxAttempts(10)
                         .waitDuration(Duration.ofMillis(100))

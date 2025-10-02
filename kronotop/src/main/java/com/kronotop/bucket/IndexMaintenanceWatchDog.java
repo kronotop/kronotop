@@ -67,7 +67,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     private void indexTaskCompletionHook(Versionstamp taskId) {
-        RetryMethods.retry(RetryMethods.INDEX_COMPLETION_HOOK).executeRunnable(() -> {
+        RetryMethods.retry(RetryMethods.TRANSACTION).executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
                 tr.commit().join();
