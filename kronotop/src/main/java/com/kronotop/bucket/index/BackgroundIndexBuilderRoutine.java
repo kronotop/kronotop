@@ -45,7 +45,6 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
     private final IndexBuilderTask task;
     private final BucketService service;
     private final IndexMaintenanceRoutineMetrics metrics;
-    private final boolean doNotWaitTxLimit;
     private volatile boolean stopped;
 
     public BackgroundIndexBuilderRoutine(
@@ -55,25 +54,13 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
             Versionstamp taskId,
             IndexBuilderTask task
     ) {
-        this(context, subspace, shardId, taskId, task, false);
-    }
-
-    BackgroundIndexBuilderRoutine(
-            Context context,
-            DirectorySubspace subspace,
-            int sharId,
-            Versionstamp taskId,
-            IndexBuilderTask task,
-            boolean doNotWaitTxLimit
-    ) {
         this.context = context;
         this.subspace = subspace;
         this.taskId = taskId;
-        this.shardId = sharId;
+        this.shardId = shardId;
         this.task = task;
         this.metrics = new IndexMaintenanceRoutineMetrics();
         this.service = context.getService(BucketService.NAME);
-        this.doNotWaitTxLimit = doNotWaitTxLimit;
     }
 
     /**
@@ -113,7 +100,9 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
              * is required to retry. This design ensures correctness is preserved even under
              * GC pauses; the worst case is a delayed or failed task, never inconsistent state.
              */
-            if (!doNotWaitTxLimit) {
+            String txLimitConfigPath = "__test__.background_index_builder.skip_wait_transaction_limit";
+            boolean skipWaitTxLimit = context.getConfig().hasPath(txLimitConfigPath) && context.getConfig().getBoolean(txLimitConfigPath);
+            if (!skipWaitTxLimit) {
                 // FoundationDB transactions cannot live beyond 5s.
                 // Sleeping 6s ensures that any previously opened transactions are expired.
                 Thread.sleep(6000);
