@@ -42,6 +42,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class BaseBucketHandlerTest extends BaseHandlerTest {
+    protected final String NAMESPACE_NAME = "global";
     protected final String BUCKET_NAME = "test-bucket";
     protected final int SHARD_ID = 1;
     protected final byte[] DOCUMENT = BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}");

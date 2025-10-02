@@ -84,7 +84,7 @@ class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
             tr.commit().join();
         }
 
-        IndexBuilderTask task = new IndexBuilderTask("global", BUCKET_NAME, definition.id());
+        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
         context.getFoundationDB().run(tr -> {
             IndexBuilderTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.WAITING);
@@ -96,7 +96,7 @@ class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
             List<Long> indexValues = new ArrayList<>();
             List<Versionstamp> versionstamps = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, "global", BUCKET_NAME);
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, NAMESPACE_NAME, BUCKET_NAME);
                 Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
