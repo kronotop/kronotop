@@ -46,10 +46,10 @@ public class TaskStorage {
     }
 
     public static Versionstamp create(Context context, DirectorySubspace subspace, byte[] definition) {
-        byte[] key = subspace.packWithVersionstamp(Tuple.from(TASKS_MAGIC, Versionstamp.incomplete(), DEFINITION));
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] key = subspace.packWithVersionstamp(Tuple.from(TASKS_MAGIC, Versionstamp.incomplete(), DEFINITION));
             CompletableFuture<byte[]> versionstampFuture = tr.getVersionstamp();
-            tr.set(key, definition);
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, definition);
 
             triggerWatchers(tr, subspace);
             tr.commit().join();
