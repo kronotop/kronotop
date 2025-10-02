@@ -93,8 +93,8 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
      * guarantees that any previously opened transactions have either committed or expired.
      * This prevents potential conflicts during the index building process.
      *
-     * @throws InterruptedException if the thread is interrupted during the 6-second sleep
-     * @throws IndexTaskException   if the target index is not found in the metadata
+     * @throws InterruptedException             if the thread is interrupted during the 6-second sleep
+     * @throws IndexMaintenanceRoutineException if the target index is not found in the metadata
      */
     private void refreshBucketMetadata() throws InterruptedException {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -102,7 +102,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
-                throw new IndexTaskException("index with id '" + task.getIndexId() + "' could not be found", true);
+                throw new IndexMaintenanceRoutineException("index with id '" + task.getIndexId() + "' could not be found", true);
             }
 
             /*
@@ -212,9 +212,10 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
             // Do not mark the task as failed. Program has stopped and this task
             // can be retried.
             throw new RuntimeException(e);
-        } catch (IndexTaskException exp) {
+        } catch (IndexMaintenanceRoutineException exp) {
             if (exp.isFailed()) {
                 markIndexBuildTaskFailed(exp);
+                return;
             }
             throw exp;
         }
@@ -251,8 +252,8 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
      *   <li>The index is found to be in READY or DROPPED status</li>
      * </ul>
      *
-     * @throws IndexTaskException  if the index is not found, already ready, or dropped
-     * @throws CompletionException for FoundationDB transaction conflicts (handled with retry)
+     * @throws IndexMaintenanceRoutineException if the index is not found, already ready, or dropped
+     * @throws CompletionException              for FoundationDB transaction conflicts (handled with retry)
      */
     private void scanPrimaryIndex() {
         BucketShard shard = service.getShard(shardId);
@@ -261,17 +262,17 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
                 Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
                 if (index == null) {
-                    throw new IndexTaskException("no index found with id " + task.getIndexId(), true);
+                    throw new IndexMaintenanceRoutineException("no index found with id " + task.getIndexId(), true);
                 }
 
                 if (index.definition().status() == IndexStatus.READY) {
-                    throw new IndexTaskException(String.format(
+                    throw new IndexMaintenanceRoutineException(String.format(
                             "index with selector=%s, id=%d is ready to query",
                             index.definition().selector(),
                             index.definition().id()
                     ), true);
                 } else if (index.definition().status() == IndexStatus.DROPPED) {
-                    throw new IndexTaskException(String.format(
+                    throw new IndexMaintenanceRoutineException(String.format(
                             "index with selector=%s, id=%d is dropped",
                             index.definition().selector(),
                             index.definition().id()
