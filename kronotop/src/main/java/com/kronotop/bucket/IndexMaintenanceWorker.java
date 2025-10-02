@@ -34,6 +34,7 @@ public class IndexMaintenanceWorker implements Runnable {
     private final DirectorySubspace subspace;
     private final Versionstamp taskId;
     private final Consumer<Versionstamp> completionHook;
+    private volatile boolean shutdown;
 
     public IndexMaintenanceWorker(Context context, DirectorySubspace subspace, int shardId, Versionstamp taskId, Consumer<Versionstamp> completionHook) {
         this.context = context;
@@ -47,8 +48,11 @@ public class IndexMaintenanceWorker implements Runnable {
 
     @Override
     public void run() {
-        RetryMethods.retry(RetryMethods.INDEX_MAINTENANCE_ROUTINE).executeRunnable(() -> {
-            try {
+        try {
+            RetryMethods.retry(RetryMethods.INDEX_MAINTENANCE_ROUTINE).executeRunnable(() -> {
+                if (shutdown) {
+                    throw new IndexMaintenanceRoutineShutdownException();
+                }
                 routine.start();
                 IndexBuilderTaskState state = context.getFoundationDB().run(tr -> IndexBuilderTaskState.load(tr, subspace, taskId));
                 if (IndexBuilderTaskState.isTerminal(state.status())) {
@@ -56,11 +60,9 @@ public class IndexMaintenanceWorker implements Runnable {
                     completionHook.accept(taskId);
                     shutdown();
                 }
-            } catch (Exception e) {
-                LOGGER.error("Failed to run the maintenance routine", e);
-                throw e;
-            }
-        });
+            });
+        } catch (IndexMaintenanceRoutineShutdownException ignored) {
+        }
     }
 
     public IndexMaintenanceRoutineMetrics getMetrics() {
@@ -68,6 +70,7 @@ public class IndexMaintenanceWorker implements Runnable {
     }
 
     public void shutdown() {
+        shutdown = true;
         routine.stop();
     }
 }

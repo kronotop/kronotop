@@ -17,9 +17,12 @@
 package com.kronotop.bucket;
 
 import com.apple.foundationdb.FDBException;
+import com.kronotop.bucket.index.IndexMaintenanceRoutineShutdownException;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -29,6 +32,7 @@ import java.util.concurrent.CompletionException;
 public class RetryMethods {
     public static final String INDEX_MAINTENANCE_ROUTINE = "INDEX_MAINTENANCE_ROUTINE";
     public static final String INDEX_COMPLETION_HOOK = "INDEX_COMPLETION_HOOK";
+    private static final Logger LOGGER = LoggerFactory.getLogger(RetryMethods.class);
     private static final RetryRegistry retryRegistry;
 
     static {
@@ -37,6 +41,7 @@ public class RetryMethods {
                 RetryConfig.custom()
                         .maxAttempts(10)
                         .waitDuration(Duration.ofMillis(100))
+                        .retryOnException(ex -> !(ex instanceof IndexMaintenanceRoutineShutdownException))
                         .build());
 
         configs.put(INDEX_COMPLETION_HOOK,
@@ -56,6 +61,25 @@ public class RetryMethods {
                             return false;
                         }).build());
         retryRegistry = RetryRegistry.of(configs);
+
+        retryRegistry.getEventPublisher().onEntryAdded(event -> {
+            Retry retry = event.getAddedEntry();
+            retry.getEventPublisher()
+                    .onRetry(ev -> {
+                        if (ev.getLastThrowable() != null) {
+                            LOGGER.warn("Retry attempt #{} for [{}] due to {}",
+                                    ev.getNumberOfRetryAttempts(),
+                                    ev.getName(),
+                                    ev.getLastThrowable().toString());
+                        }
+                    })
+                    .onError(ev -> {
+                        LOGGER.error("All retries failed for [{}] after {} attempts",
+                                ev.getName(),
+                                ev.getNumberOfRetryAttempts(),
+                                ev.getLastThrowable());
+                    });
+        });
     }
 
     public static Retry retry(String name) {

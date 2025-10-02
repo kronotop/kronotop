@@ -38,13 +38,15 @@ import static com.kronotop.internal.task.TaskStorage.TASKS_MAGIC;
 public class IndexMaintenanceWatchDog implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexMaintenanceWatchDog.class);
     private static final int WORKER_POOL_SIZE = 2;
+    private static final int MAX_WORKER_POOL_SIZE = WORKER_POOL_SIZE * 2;
+    private final long WORKER_MAX_STALE_PERIOD = 60000; // 60s
     private final Context context;
     private final BucketShard shard;
     private final DirectorySubspace subspace;
     private final byte[] trigger;
     private final ExecutorService workerExecutor;
+    private final ScheduledExecutorService scheduler;
     private final Map<Versionstamp, Worker> workers = new ConcurrentHashMap<>();
-    private final long WORKER_MAX_STALE_PERIOD = 60000; // 60s
     private volatile CompletableFuture<Void> watcher;
 
     public IndexMaintenanceWatchDog(Context context, BucketShard shard) {
@@ -53,6 +55,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
         this.subspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shard.id());
         this.trigger = TaskStorage.trigger(subspace);
         this.workerExecutor = Executors.newFixedThreadPool(WORKER_POOL_SIZE);
+        this.scheduler = Executors.newSingleThreadScheduledExecutor();
     }
 
     private CompletableFuture<Void> watcher() {
@@ -74,7 +77,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
         });
     }
 
-    private void cleanupStaleWorkers() {
+    private synchronized void cleanupStaleWorkers() {
         long now = System.currentTimeMillis();
         workers.entrySet().removeIf(entry -> {
             Worker worker = entry.getValue();
@@ -94,8 +97,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     private synchronized void spawnWorkersForPendingTasks() {
-        cleanupStaleWorkers();
-        if (workers.size() >= WORKER_POOL_SIZE * 2) {
+        if (workers.size() >= MAX_WORKER_POOL_SIZE) {
             // There are already too many tasks in the executor's queue.
             return;
         }
@@ -115,7 +117,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
                             new IndexMaintenanceWorker(context, subspace, shard.id(), taskId, this::indexTaskCompletionHook);
                     Future<?> future = workerExecutor.submit(worker);
                     workers.put(taskId, new Worker(worker, future));
-                    if (workers.size() >= WORKER_POOL_SIZE * 2) {
+                    if (workers.size() >= MAX_WORKER_POOL_SIZE) {
                         // Backpressure - WORKER_POOL_SIZE = 2
                         break;
                     }
@@ -126,10 +128,13 @@ public class IndexMaintenanceWatchDog implements Runnable {
 
     @Override
     public void run() {
+        scheduler.scheduleAtFixedRate(() -> {
+            cleanupStaleWorkers();
+            spawnWorkersForPendingTasks();
+        }, 0, 60, TimeUnit.SECONDS);
+
         while (!shard.isClosed()) {
             try {
-                // Initial run, start the workers if we have room to run tasks.
-                spawnWorkersForPendingTasks();
                 watcher = watcher();
                 // Waits until receiving a new task
                 watcher.join();
