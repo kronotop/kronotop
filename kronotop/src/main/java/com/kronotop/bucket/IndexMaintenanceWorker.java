@@ -37,6 +37,7 @@ public class IndexMaintenanceWorker implements Runnable {
     private final DirectorySubspace subspace;
     private final Versionstamp taskId;
     private final Consumer<Versionstamp> completionHook;
+    private final Metrics metrics = new Metrics();
 
     public IndexMaintenanceWorker(Context context, DirectorySubspace subspace, int shardId, Versionstamp taskId, Consumer<Versionstamp> completionHook) {
         this.context = context;
@@ -62,11 +63,38 @@ public class IndexMaintenanceWorker implements Runnable {
             } catch (Exception e) {
                 LOGGER.error("Failed to run the maintenance routine", e);
                 throw e;
+            } finally {
+                getMetrics().setLatestExecution(System.currentTimeMillis());
             }
         });
     }
 
+    public Metrics getMetrics() {
+        return metrics;
+    }
+
     public void shutdown() {
         routine.stop();
+    }
+
+    public static class Metrics {
+        private final long initiatedAt;
+        private volatile long latestExecution;
+
+        public Metrics() {
+            this.initiatedAt = System.currentTimeMillis();
+        }
+
+        public long getInitiatedAt() {
+            return initiatedAt;
+        }
+
+        public long getLatestExecution() {
+            return latestExecution;
+        }
+
+        public void setLatestExecution(long latestExecution) {
+            this.latestExecution = latestExecution;
+        }
     }
 }

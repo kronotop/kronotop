@@ -43,7 +43,8 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private final DirectorySubspace subspace;
     private final byte[] trigger;
     private final ExecutorService workerExecutor;
-    private final Map<Versionstamp, Future<?>> workers = new ConcurrentHashMap<>();
+    private final Map<Versionstamp, Worker> workers = new ConcurrentHashMap<>();
+    private final long WORKER_MAX_STALE_PERIOD = 60000; // 60s
     private volatile CompletableFuture<Void> watcher;
 
     public IndexMaintenanceWatchDog(Context context, BucketShard shard) {
@@ -73,6 +74,25 @@ public class IndexMaintenanceWatchDog implements Runnable {
         });
     }
 
+    private void cleanupStaleWorkers() {
+        long now = System.currentTimeMillis();
+        workers.entrySet().removeIf(entry -> {
+            Worker worker = entry.getValue();
+            IndexMaintenanceWorker instance = worker.instance();
+
+            boolean neverExecuted = instance.getMetrics().getLatestExecution() == 0;
+            long lastActivity = neverExecuted
+                    ? instance.getMetrics().getInitiatedAt()
+                    : instance.getMetrics().getLatestExecution();
+
+            boolean stale = lastActivity + WORKER_MAX_STALE_PERIOD < now;
+            if (stale) {
+                worker.shutdown();
+            }
+            return stale; // remove from map if stale
+        });
+    }
+
     private synchronized void spawnWorkersForPendingTasks() {
         if (workers.size() >= WORKER_POOL_SIZE * 2) {
             // There are already too many tasks in the executor's queue.
@@ -93,7 +113,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
                     IndexMaintenanceWorker worker =
                             new IndexMaintenanceWorker(context, subspace, shard.id(), taskId, this::indexTaskCompletionHook);
                     Future<?> future = workerExecutor.submit(worker);
-                    workers.put(taskId, future);
+                    workers.put(taskId, new Worker(worker, future));
                     if (workers.size() >= WORKER_POOL_SIZE * 2) {
                         // Backpressure - WORKER_POOL_SIZE = 2
                         break;
@@ -125,9 +145,16 @@ public class IndexMaintenanceWatchDog implements Runnable {
         if (watcher != null) {
             watcher.cancel(true);
         }
-        for (Future<?> worker : workers.values()) {
-            worker.cancel(true);
+        for (Worker worker : workers.values()) {
+            worker.future().cancel(true);
         }
         workerExecutor.shutdownNow();
+    }
+
+    record Worker(IndexMaintenanceWorker instance, Future<?> future) {
+        void shutdown() {
+            instance.shutdown();
+            future.cancel(true);
+        }
     }
 }
