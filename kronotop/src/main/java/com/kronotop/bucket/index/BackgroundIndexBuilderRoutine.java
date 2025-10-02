@@ -37,7 +37,7 @@ import java.util.List;
 
 public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
     protected static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuilderRoutine.class);
-
+    private final static int INDEX_SCAN_BATCH_SIZE = 100;
     private final Context context;
     private final DirectorySubspace subspace;
     private final int shardId;
@@ -281,7 +281,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                 VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(state.highestVersionstamp());
                 VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
 
-                Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, 1000);
+                Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
                 Versionstamp cursor = null;
                 for (VolumeEntry pair : entries) {
                     Object indexValue = null;
