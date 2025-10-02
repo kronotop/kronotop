@@ -19,10 +19,7 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.bucket.index.BackgroundIndexBuilderRoutine;
-import com.kronotop.bucket.index.IndexBuilderTask;
-import com.kronotop.bucket.index.IndexBuilderTaskState;
-import com.kronotop.bucket.index.IndexMaintenanceRoutine;
+import com.kronotop.bucket.index.*;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.slf4j.Logger;
@@ -37,7 +34,6 @@ public class IndexMaintenanceWorker implements Runnable {
     private final DirectorySubspace subspace;
     private final Versionstamp taskId;
     private final Consumer<Versionstamp> completionHook;
-    private final Metrics metrics = new Metrics();
 
     public IndexMaintenanceWorker(Context context, DirectorySubspace subspace, int shardId, Versionstamp taskId, Consumer<Versionstamp> completionHook) {
         this.context = context;
@@ -63,38 +59,15 @@ public class IndexMaintenanceWorker implements Runnable {
             } catch (Exception e) {
                 LOGGER.error("Failed to run the maintenance routine", e);
                 throw e;
-            } finally {
-                getMetrics().setLatestExecution(System.currentTimeMillis());
             }
         });
     }
 
-    public Metrics getMetrics() {
-        return metrics;
+    public IndexMaintenanceRoutineMetrics getMetrics() {
+        return routine.getMetrics();
     }
 
     public void shutdown() {
         routine.stop();
-    }
-
-    public static class Metrics {
-        private final long initiatedAt;
-        private volatile long latestExecution;
-
-        public Metrics() {
-            this.initiatedAt = System.currentTimeMillis();
-        }
-
-        public long getInitiatedAt() {
-            return initiatedAt;
-        }
-
-        public long getLatestExecution() {
-            return latestExecution;
-        }
-
-        public void setLatestExecution(long latestExecution) {
-            this.latestExecution = latestExecution;
-        }
     }
 }

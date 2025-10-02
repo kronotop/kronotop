@@ -16,8 +16,23 @@
 
 package com.kronotop.bucket.index;
 
-public interface IndexMaintenanceRoutine {
-    void start();
-    void stop();
-    IndexMaintenanceRoutineMetrics getMetrics();
+public class IndexMaintenanceRoutineMetrics {
+    private final long initiatedAt;
+    private volatile long latestExecution;
+
+    public IndexMaintenanceRoutineMetrics() {
+        this.initiatedAt = System.currentTimeMillis();
+    }
+
+    public long getInitiatedAt() {
+        return initiatedAt;
+    }
+
+    public long getLatestExecution() {
+        return latestExecution;
+    }
+
+    public void setLatestExecution(long latestExecution) {
+        this.latestExecution = latestExecution;
+    }
 }

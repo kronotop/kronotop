@@ -94,6 +94,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     private synchronized void spawnWorkersForPendingTasks() {
+        cleanupStaleWorkers();
         if (workers.size() >= WORKER_POOL_SIZE * 2) {
             // There are already too many tasks in the executor's queue.
             return;

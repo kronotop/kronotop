@@ -45,6 +45,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
     private final Versionstamp taskId;
     private final IndexBuilderTask task;
     private final BucketService service;
+    private final IndexMaintenanceRoutineMetrics metrics;
     private final boolean doNotWaitTxLimit;
     private volatile boolean stopped;
 
@@ -71,6 +72,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         this.taskId = taskId;
         this.shardId = sharId;
         this.task = task;
+        this.metrics = new IndexMaintenanceRoutineMetrics();
         this.service = context.getService(BucketService.NAME);
         this.doNotWaitTxLimit = doNotWaitTxLimit;
     }
@@ -222,6 +224,11 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         stopped = true;
     }
 
+    @Override
+    public IndexMaintenanceRoutineMetrics getMetrics() {
+        return null;
+    }
+
     /**
      * Scans the primary index and builds the target secondary index incrementally.
      *
@@ -337,6 +344,8 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                         scanPrimaryIndex();
                     }
                 }
+            } finally {
+                metrics.setLatestExecution(System.currentTimeMillis());
             }
         }
     }
