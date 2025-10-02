@@ -212,6 +212,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
     private void scanPrimaryIndex() {
         BucketShard shard = service.getShard(shardId);
         while (!stopped) {
+            long processedEntries = 0;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
                 Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
@@ -273,6 +274,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                 Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
                 Versionstamp cursor = null;
                 for (VolumeEntry pair : entries) {
+                    processedEntries++;
                     Object indexValue = null;
                     BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), pair.entry());
                     if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
@@ -290,6 +292,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                 }
                 tr.commit().join();
             } finally {
+                metrics.incrementProcessedEntries(processedEntries);
                 metrics.setLatestExecution(System.currentTimeMillis());
             }
         }
