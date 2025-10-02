@@ -44,7 +44,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class BackgroundIndexBuilderTest extends BaseBucketHandlerTest {
+class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
     @Test
     void shouldBuildIndexAtBackground() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
