@@ -62,6 +62,7 @@ public class IndexMaintenanceWorker implements Runnable {
                 }
             });
         } catch (IndexMaintenanceRoutineShutdownException ignored) {
+            // ignore it, this only signals the retry mech
         }
     }
 

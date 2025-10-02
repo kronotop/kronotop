@@ -337,6 +337,6 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
 
     @Override
     public IndexMaintenanceRoutineMetrics getMetrics() {
-        return null;
+        return metrics;
     }
 }

@@ -152,9 +152,16 @@ public class IndexMaintenanceWatchDog implements Runnable {
             watcher.cancel(true);
         }
         for (Worker worker : workers.values()) {
-            worker.future().cancel(true);
+            worker.shutdown();
         }
         workerExecutor.shutdownNow();
+        try {
+            if (!workerExecutor.awaitTermination(6000, TimeUnit.MILLISECONDS)) {
+                LOGGER.warn("Failed to stop all index maintenance workers for Bucket shard: {}", shard.id());
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     record Worker(IndexMaintenanceWorker instance, Future<?> future) {
