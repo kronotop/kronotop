@@ -67,14 +67,8 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     private void indexTaskCompletionHook(Versionstamp taskId) {
-        RetryMethods.retry(RetryMethods.TRANSACTION).executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
-                tr.commit().join();
-                workers.remove(taskId);
-                spawnWorkersForPendingTasks();
-            }
-        });
+        workers.remove(taskId);
+        spawnWorkersForPendingTasks();
     }
 
     private synchronized void cleanupStaleWorkers() {
@@ -109,7 +103,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
                 Versionstamp taskId = (Versionstamp) tuple.get(1);
                 IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, subspace, taskId);
                 IndexTaskStatus status = state.status();
-                if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
+                if (status == null || status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
                     if (workers.containsKey(taskId)) {
                         continue;
                     }

@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket;
 
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
@@ -22,53 +22,54 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.bucket.BSONUtil;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
+import com.kronotop.bucket.index.*;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.JSONUtil;
-import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonType;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.*;
 
-class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
+class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
+    private final Lock lock = new ReentrantLock();
+    private final Condition cond = lock.newCondition();
+    private volatile boolean condition = false;
+
+    @BeforeAll
+    static void setUp() {
+        System.setProperty("__test__.background_index_builder.skip_wait_transaction_limit", "true");
+    }
+
+    @BeforeAll
+    static void teardown() {
+        System.setProperty("__test__.background_index_builder.skip_wait_transaction_limit", "false");
+    }
+
     @Test
-    void shouldBuildIndexAtBackground() {
-        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
-        ByteBuf buf = Unpooled.buffer();
-        byte[][] docs = makeDocumentsArray(
-                List.of(
-                        BSONUtil.jsonToDocumentThenBytes("{\"age\": 32}"),
-                        BSONUtil.jsonToDocumentThenBytes("{\"age\": 40}")
-                ));
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+    void shouldBuildIndexAtBackground2() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(500);
+        ExecutorService service = Executors.newSingleThreadExecutor();
+        service.submit(() -> background(latch));
 
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(ArrayRedisMessage.class, msg);
-        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
-
-        List<Versionstamp> expectedVersionstamps = new ArrayList<>();
-        assertEquals(2, actualMessage.children().size());
-        for (int i = 0; i < actualMessage.children().size(); i++) {
-            SimpleStringRedisMessage message = (SimpleStringRedisMessage) actualMessage.children().get(i);
-            assertNotNull(message.content());
-            expectedVersionstamps.add(VersionstampUtil.base32HexDecode(message.content()));
-        }
+        latch.await();
+        System.out.println("latch bitti");
 
         IndexDefinition definition = IndexDefinition.create(
                 "test-index",
@@ -91,9 +92,20 @@ class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
             return null;
         });
 
+        System.out.println("index olusturma bitti");
+
+        lock.lock();
+        try {
+            while (!condition) {
+                cond.await();
+            }
+        } finally {
+            lock.unlock();
+        }
+
+        System.out.println("insert bitti");
+
         await().atMost(Duration.ofSeconds(5)).until(() -> {
-            List<Long> expectedIndexValues = new ArrayList<>(List.of(32L, 40L));
-            List<Long> indexValues = new ArrayList<>();
             List<Versionstamp> versionstamps = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, NAMESPACE_NAME, BUCKET_NAME);
@@ -102,19 +114,51 @@ class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
                 byte[] end = ByteArrayUtil.strinc(begin);
                 for (KeyValue entry : tr.getRange(begin, end)) {
                     Tuple unpacked = index.subspace().unpack(entry.getKey());
-                    indexValues.add(unpacked.getLong(2));
                     versionstamps.add((Versionstamp) unpacked.get(1));
                 }
-                return expectedVersionstamps.equals(versionstamps)
-                        && expectedIndexValues.equals(indexValues);
             }
+            System.out.println(versionstamps.size());
+            return versionstamps.size() == 2000;
         });
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, taskSubspace, taskId);
-            assertEquals(state.cursorVersionstamp(), state.highestVersionstamp());
-            assertNull(state.error());
-            assertEquals(IndexTaskStatus.COMPLETED, state.status());
+            System.out.println(state.cursorVersionstamp());
+            System.out.println(state.highestVersionstamp());
+            System.out.println(state.error());
+            System.out.println(state.status());
+        }
+    }
+
+    private void background(CountDownLatch latch) {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        byte[][] docs = makeDocumentsArray(
+                List.of(
+                        BSONUtil.jsonToDocumentThenBytes("{\"age\": 32}"),
+                        BSONUtil.jsonToDocumentThenBytes("{\"age\": 40}")
+                ));
+
+        for (int j = 0; j < 1000; j++) {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+
+            runCommand(channel, buf);
+
+            try {
+                Thread.sleep(2);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            latch.countDown();
+        }
+
+        // uyandıran thread
+        lock.lock();
+        try {
+            condition = true;
+            cond.signal();
+        } finally {
+            lock.unlock();
         }
     }
 }

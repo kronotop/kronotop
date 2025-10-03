@@ -63,6 +63,16 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         this.service = context.getService(BucketService.NAME);
     }
 
+    private void setIndexTaskStatus(IndexTaskStatus status) {
+        Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+        retry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexBuilderTaskState.setStatus(tr, subspace, taskId, status);
+                tr.commit().join();
+            }
+        });
+    }
+
     /**
      * Refreshes bucket metadata and validates the target index while ensuring transaction isolation.
      *
@@ -263,7 +273,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                             task.getIndexId()
                     );
                     // All entries are processed. End of the task.
-                    IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
+                    setIndexTaskStatus(IndexTaskStatus.COMPLETED);
                     break;
                 }
 
@@ -307,6 +317,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         );
         stopped = false; // also means a restart
         try {
+            setIndexTaskStatus(IndexTaskStatus.RUNNING);
             findOutBoundaries();
             Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
             retry.executeRunnable(this::scanPrimaryIndex);
