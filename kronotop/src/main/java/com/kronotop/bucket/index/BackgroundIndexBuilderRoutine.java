@@ -318,13 +318,18 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         stopped = false; // also means a restart
         try {
             setIndexTaskStatus(IndexTaskStatus.RUNNING);
-            findOutBoundaries();
             Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+            retry.executeRunnable(() -> {
+                try {
+                    findOutBoundaries();
+                } catch (InterruptedException e) {
+                    // Do not mark the task as failed. Program has stopped and this task
+                    // can be retried.
+                    Thread.currentThread().interrupt();
+                    throw new IndexMaintenanceRoutineShutdownException();
+                }
+            });
             retry.executeRunnable(this::scanPrimaryIndex);
-        } catch (InterruptedException e) {
-            // Do not mark the task as failed. Program has stopped and this task
-            // can be retried.
-            throw new RuntimeException(e);
         } catch (IndexMaintenanceRoutineException exp) {
             if (exp.isFailed()) {
                 markIndexBuildTaskFailed(exp);
