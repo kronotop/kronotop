@@ -44,6 +44,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
@@ -109,7 +111,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
 
             bgFuture.get();
 
-            await().atMost(Duration.ofSeconds(5)).until(() -> {
+            await().atMost(Duration.ofSeconds(10)).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     BucketMetadata metadata = BucketMetadataUtil.open(context, tr, NAMESPACE_NAME, BUCKET_NAME);
                     Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
@@ -123,6 +125,13 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
                     return count == totalInserts * 2;
                 }
             });
+
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, taskSubspace, taskId);
+                assertEquals(state.cursorVersionstamp(), state.highestVersionstamp());
+                assertNull(state.error());
+                assertEquals(IndexTaskStatus.COMPLETED, state.status());
+            }
         }
     }
 

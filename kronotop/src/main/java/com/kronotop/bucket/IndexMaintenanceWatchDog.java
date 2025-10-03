@@ -103,7 +103,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
                 Versionstamp taskId = (Versionstamp) tuple.get(1);
                 IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, subspace, taskId);
                 IndexTaskStatus status = state.status();
-                if (status == null || status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
+                if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
                     if (workers.containsKey(taskId)) {
                         continue;
                     }

@@ -52,7 +52,7 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
             error = new String(rawError, StandardCharsets.UTF_8);
         }
 
-        IndexTaskStatus status = null;
+        IndexTaskStatus status = IndexTaskStatus.WAITING; // Initial status should be WAITING
         byte[] rawStatus = entries.get(STATUS);
         if (rawStatus != null) {
             status = IndexTaskStatus.valueOf(new String(rawStatus));
