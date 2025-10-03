@@ -86,10 +86,6 @@ class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
 
         IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
-        context.getFoundationDB().run(tr -> {
-            IndexBuilderTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.WAITING);
-            return null;
-        });
 
         await().atMost(Duration.ofSeconds(5)).until(() -> {
             List<Long> expectedIndexValues = new ArrayList<>(List.of(32L, 40L));
