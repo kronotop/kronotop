@@ -37,22 +37,17 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.Future;
 
 import static org.awaitility.Awaitility.await;
 
 class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
-    private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY = "__test__.background_index_builder.skip_wait_transaction_limit";
-    private final Lock lock = new ReentrantLock();
-    private final Condition cond = lock.newCondition();
-    private volatile boolean condition = false;
+    private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
+            "__test__.background_index_builder.skip_wait_transaction_limit";
 
     @BeforeAll
     static void setUp() {
@@ -61,78 +56,77 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
 
     @AfterAll
     static void teardown() {
-        System.setProperty(SKIP_WAIT_TRANSACTION_LIMIT_KEY, "false");
+        System.clearProperty(SKIP_WAIT_TRANSACTION_LIMIT_KEY);
     }
 
     @Test
-    void shouldBuildIndexAtBackground2() throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(534);
-        ExecutorService service = Executors.newSingleThreadExecutor();
-        service.submit(() -> background(latch));
+    void shouldBuildIndexAtBackground() throws Exception {
+        // This test verifies that the background index building works correctly
+        // while insert operations are still in progress.
+        //
+        // Steps:
+        // 1. Start a background thread that performs 1000 inserts.
+        // 2. Wait until half of the inserts (500) are done, then create an index definition and enqueue a build task.
+        // 3. The background index builder should pick up the task and build the index for all documents
+        //    that existed before the index was created.
+        // 4. The remaining inserts should be automatically indexed by the regular insert path (Netty threads).
+        // 5. Finally, assert that the index contains entries for all 2000 inserted documents (2 docs per insert).
 
-        latch.await();
-        System.out.println("latch bitti");
+        int halfway = 500;
+        int totalInserts = 1000;
 
-        IndexDefinition definition = IndexDefinition.create(
-                "test-index",
-                "age",
-                BsonType.INT32,
-                IndexStatus.WAITING
-        );
+        CountDownLatch halfLatch = new CountDownLatch(halfway);
+        CountDownLatch allLatch = new CountDownLatch(totalInserts);
 
-        DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
-            IndexUtil.create(tr, metadata.subspace(), definition);
-            tr.commit().join();
-        }
 
-        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
-        Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
-        context.getFoundationDB().run(tr -> {
-            IndexBuilderTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.WAITING);
-            return null;
-        });
+        try (ExecutorService service = Executors.newSingleThreadExecutor()) {
+            Future<?> bgFuture = service.submit(() -> insertAtBackground(halfLatch, allLatch, totalInserts));
 
-        System.out.println("index olusturma bitti");
+            halfLatch.await();
 
-        lock.lock();
-        try {
-            while (!condition) {
-                cond.await();
-            }
-        } finally {
-            lock.unlock();
-        }
+            IndexDefinition definition = IndexDefinition.create(
+                    "test-index",
+                    "age",
+                    BsonType.INT32,
+                    IndexStatus.WAITING
+            );
 
-        System.out.println("insert bitti");
-
-        await().atMost(Duration.ofSeconds(5)).until(() -> {
-            List<Versionstamp> versionstamps = new ArrayList<>();
+            DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, NAMESPACE_NAME, BUCKET_NAME);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
-                byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
-                byte[] end = ByteArrayUtil.strinc(begin);
-                for (KeyValue entry : tr.getRange(begin, end)) {
-                    Tuple unpacked = index.subspace().unpack(entry.getKey());
-                    versionstamps.add((Versionstamp) unpacked.get(1));
-                }
+                BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
+                IndexUtil.create(tr, metadata.subspace(), definition);
+                tr.commit().join();
             }
-            System.out.println(versionstamps.size());
-            return versionstamps.size() == 2000;
-        });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, taskSubspace, taskId);
-            System.out.println(state.cursorVersionstamp());
-            System.out.println(state.highestVersionstamp());
-            System.out.println(state.error());
-            System.out.println(state.status());
+            IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
+            Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+            context.getFoundationDB().run(tr -> {
+                IndexBuilderTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.WAITING);
+                return null;
+            });
+
+            allLatch.await();
+
+            bgFuture.get();
+
+            await().atMost(Duration.ofSeconds(5)).until(() -> {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    BucketMetadata metadata = BucketMetadataUtil.open(context, tr, NAMESPACE_NAME, BUCKET_NAME);
+                    Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                    byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
+                    byte[] end = ByteArrayUtil.strinc(begin);
+
+                    int count = 0;
+                    for (KeyValue ignored : tr.getRange(begin, end)) {
+                        count++;
+                    }
+                    return count == totalInserts * 2;
+                }
+            });
         }
     }
 
-    private void background(CountDownLatch latch) {
+    private void insertAtBackground(CountDownLatch halfLatch, CountDownLatch allLatch, int totalInserts) {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         byte[][] docs = makeDocumentsArray(
                 List.of(
@@ -140,27 +134,20 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
                         BSONUtil.jsonToDocumentThenBytes("{\"age\": 40}")
                 ));
 
-        for (int j = 0; j < 1000; j++) {
+        for (int j = 0; j < totalInserts; j++) {
             ByteBuf buf = Unpooled.buffer();
             cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
-
             runCommand(channel, buf);
 
             try {
                 Thread.sleep(2);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
-            latch.countDown();
-        }
 
-        // uyandıran thread
-        lock.lock();
-        try {
-            condition = true;
-            cond.signal();
-        } finally {
-            lock.unlock();
+            halfLatch.countDown();
+            allLatch.countDown();
         }
     }
 }
