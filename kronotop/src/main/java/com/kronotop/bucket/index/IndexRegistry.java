@@ -101,7 +101,6 @@ public class IndexRegistry {
                 switch (index.definition().status()) {
                     case WAITING, BUILDING -> readwrite.add(index);
                 }
-                ;
             }
         }
         this.readonly = Collections.unmodifiableList(readonly);

@@ -45,16 +45,21 @@ public class TaskStorage {
         tr.mutate(MutationType.ADD, trigger(subspace), POSITIVE_DELTA_ONE);
     }
 
+    public static CompletableFuture<byte[]> create(Transaction tr, DirectorySubspace subspace, byte[] definition) {
+        byte[] key = subspace.packWithVersionstamp(Tuple.from(TASKS_MAGIC, Versionstamp.incomplete(), DEFINITION));
+        CompletableFuture<byte[]> future = tr.getVersionstamp();
+        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, definition);
+
+        triggerWatchers(tr, subspace);
+        return future;
+    }
+
     public static Versionstamp create(Context context, DirectorySubspace subspace, byte[] definition) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] key = subspace.packWithVersionstamp(Tuple.from(TASKS_MAGIC, Versionstamp.incomplete(), DEFINITION));
-            CompletableFuture<byte[]> versionstampFuture = tr.getVersionstamp();
-            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, definition);
-
-            triggerWatchers(tr, subspace);
+            CompletableFuture<byte[]> future = create(tr, subspace, definition);
             tr.commit().join();
 
-            byte[] trVersion = versionstampFuture.join();
+            byte[] trVersion = future.join();
             return Versionstamp.complete(trVersion);
         }
     }
