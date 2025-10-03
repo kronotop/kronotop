@@ -32,6 +32,7 @@ import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonType;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -48,23 +49,24 @@ import java.util.concurrent.locks.ReentrantLock;
 import static org.awaitility.Awaitility.await;
 
 class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
+    private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY = "__test__.background_index_builder.skip_wait_transaction_limit";
     private final Lock lock = new ReentrantLock();
     private final Condition cond = lock.newCondition();
     private volatile boolean condition = false;
 
     @BeforeAll
     static void setUp() {
-        System.setProperty("__test__.background_index_builder.skip_wait_transaction_limit", "true");
+        System.setProperty(SKIP_WAIT_TRANSACTION_LIMIT_KEY, "true");
     }
 
-    @BeforeAll
+    @AfterAll
     static void teardown() {
-        System.setProperty("__test__.background_index_builder.skip_wait_transaction_limit", "false");
+        System.setProperty(SKIP_WAIT_TRANSACTION_LIMIT_KEY, "false");
     }
 
     @Test
     void shouldBuildIndexAtBackground2() throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(500);
+        CountDownLatch latch = new CountDownLatch(534);
         ExecutorService service = Executors.newSingleThreadExecutor();
         service.submit(() -> background(latch));
 
