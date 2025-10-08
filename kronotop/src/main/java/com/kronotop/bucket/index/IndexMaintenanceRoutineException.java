@@ -19,18 +19,8 @@ package com.kronotop.bucket.index;
 import com.kronotop.KronotopException;
 
 public class IndexMaintenanceRoutineException extends KronotopException {
-    private final boolean failed;
-
-    public IndexMaintenanceRoutineException(String message, boolean failed) {
-        super(message);
-        this.failed = failed;
-    }
 
     public IndexMaintenanceRoutineException(String message) {
-        this(message, false);
-    }
-
-    public boolean isFailed() {
-        return failed;
+        super(message);
     }
 }

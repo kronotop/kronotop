@@ -22,6 +22,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
 import com.kronotop.bucket.index.IndexBuilderTaskState;
 import com.kronotop.bucket.index.IndexTaskStatus;
@@ -54,8 +55,12 @@ public class IndexMaintenanceWatchDog implements Runnable {
         this.shard = shard;
         this.subspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shard.id());
         this.trigger = TaskStorage.trigger(subspace);
-        this.workerExecutor = Executors.newFixedThreadPool(WORKER_POOL_SIZE);
-        this.scheduler = Executors.newSingleThreadScheduledExecutor();
+
+        ThreadFactory factory = new ThreadFactoryBuilder()
+                .setNameFormat("kr-index-maintenance-%d")
+                .build();
+        this.workerExecutor = Executors.newFixedThreadPool(WORKER_POOL_SIZE, factory);
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(factory);
     }
 
     private CompletableFuture<Void> watcher() {

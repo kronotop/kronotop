@@ -22,13 +22,10 @@ import com.kronotop.Context;
 import com.kronotop.bucket.index.*;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.function.Consumer;
 
 public class IndexMaintenanceWorker implements Runnable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(IndexMaintenanceWorker.class);
     private final Context context;
     private final IndexMaintenanceRoutine routine;
     private final DirectorySubspace subspace;

@@ -24,6 +24,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.*;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
@@ -98,7 +99,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
-                throw new IndexMaintenanceRoutineException("index with id '" + task.getIndexId() + "' could not be found", true);
+                throw new IndexMaintenanceRoutineException("index with id '" + task.getIndexId() + "' could not be found");
             }
 
             /*
@@ -227,21 +228,21 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
                 Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
                 if (index == null) {
-                    throw new IndexMaintenanceRoutineException("no index found with id " + task.getIndexId(), true);
+                    throw new IndexMaintenanceRoutineException("no index found with id " + task.getIndexId());
                 }
 
                 if (index.definition().status() == IndexStatus.READY) {
                     throw new IndexMaintenanceRoutineException(String.format(
-                            "index with selector=%s, id=%d is ready to query",
+                            "index with selector=%s, id=%d is already ready to query",
                             index.definition().selector(),
                             index.definition().id()
-                    ), true);
+                    ));
                 } else if (index.definition().status() == IndexStatus.DROPPED) {
                     throw new IndexMaintenanceRoutineException(String.format(
                             "index with selector=%s, id=%d is dropped",
                             index.definition().selector(),
                             index.definition().id()
-                    ), true);
+                    ));
                 }
 
                 // Three possibilities for IndexStatus: WAITING, BUILDING, FAILED
@@ -267,10 +268,11 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                 }
                 if (state.cursorVersionstamp().equals(state.highestVersionstamp())) {
                     LOGGER.debug(
-                            "Background index builder for namespace={}, bucket={}, index={} has been completed",
+                            "Background index builder for namespace={}, bucket={}, index={} on Bucket shard: {} has been completed",
                             task.getNamespace(),
                             task.getBucket(),
-                            task.getIndexId()
+                            task.getIndexId(),
+                            shardId
                     );
                     // All entries are processed. End of the task.
                     setIndexTaskStatus(IndexTaskStatus.COMPLETED);
@@ -301,6 +303,14 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                     IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
                 }
                 tr.commit().join();
+            } catch (IndexMaintenanceRoutineException exp) {
+                LOGGER.error("TaskId: {} on Bucket shard: {} has failed due to an error: '{}'",
+                        VersionstampUtil.base32HexEncode(taskId),
+                        shardId,
+                        exp.getMessage()
+                );
+                markIndexBuildTaskFailed(exp);
+                break;
             } finally {
                 metrics.incrementProcessedEntries(processedEntries);
                 metrics.setLatestExecution(System.currentTimeMillis());
@@ -310,33 +320,26 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
 
     public void start() {
         LOGGER.debug(
-                "Starting to build namespace={}, bucket={}, index={} at the background",
+                "Starting to build namespace={}, bucket={}, index={} on Bucket shard={} at the background",
                 task.getNamespace(),
                 task.getBucket(),
-                task.getIndexId()
+                task.getIndexId(),
+                shardId
         );
         stopped = false; // also means a restart
-        try {
-            setIndexTaskStatus(IndexTaskStatus.RUNNING);
-            Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
-            retry.executeRunnable(() -> {
-                try {
-                    findOutBoundaries();
-                } catch (InterruptedException e) {
-                    // Do not mark the task as failed. Program has stopped and this task
-                    // can be retried.
-                    Thread.currentThread().interrupt();
-                    throw new IndexMaintenanceRoutineShutdownException();
-                }
-            });
-            retry.executeRunnable(this::scanPrimaryIndex);
-        } catch (IndexMaintenanceRoutineException exp) {
-            if (exp.isFailed()) {
-                markIndexBuildTaskFailed(exp);
-                return;
+        setIndexTaskStatus(IndexTaskStatus.RUNNING);
+        Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+        retry.executeRunnable(() -> {
+            try {
+                findOutBoundaries();
+            } catch (InterruptedException e) {
+                // Do not mark the task as failed. Program has stopped and this task
+                // can be retried.
+                Thread.currentThread().interrupt();
+                throw new IndexMaintenanceRoutineShutdownException();
             }
-            throw exp;
-        }
+        });
+        retry.executeRunnable(this::scanPrimaryIndex);
     }
 
     public void stop() {
