@@ -39,9 +39,9 @@ import io.netty.buffer.Unpooled;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -87,7 +87,7 @@ class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
         IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
-        await().atMost(Duration.ofSeconds(5)).until(() -> {
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
             List<Long> expectedIndexValues = new ArrayList<>(List.of(32L, 40L));
             List<Long> indexValues = new ArrayList<>();
             List<Versionstamp> versionstamps = new ArrayList<>();
@@ -103,6 +103,13 @@ class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
                 }
                 return expectedVersionstamps.equals(versionstamps)
                         && expectedIndexValues.equals(indexValues);
+            }
+        });
+
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, taskSubspace, taskId);
+                return IndexTaskStatus.COMPLETED == state.status(); // ready to check the IndexBuilderTaskState
             }
         });
 
