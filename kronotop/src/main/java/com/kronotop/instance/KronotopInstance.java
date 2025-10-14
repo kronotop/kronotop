@@ -59,6 +59,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -272,6 +273,20 @@ public class KronotopInstance {
                 NamespaceUtil.create(context, defaultNamespace);
             } catch (NamespaceAlreadyExistsException ignore) {
             }
+
+            // Index maintenance metadata
+            int numBucketShards = config.getInt("bucket.shards");
+            for (int shardId = 0; shardId < numBucketShards; shardId++) {
+                List<String> layout = KronotopDirectory.
+                        kronotop().cluster(context.getClusterName()).metadata().
+                        shards().bucket().shard(shardId).maintenance().
+                        index().tasks().toList();
+                DirectoryLayer.getDefault().createOrOpen(tr, layout);
+            }
+            List<String> layout = KronotopDirectory.
+                    kronotop().cluster(context.getClusterName()).metadata().
+                    buckets().maintenance().index().counter().toList();
+            DirectoryLayer.getDefault().createOrOpen(tr, layout).join();
 
             tr.commit().join();
         } catch (CompletionException e) {

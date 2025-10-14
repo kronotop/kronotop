@@ -30,25 +30,18 @@ import java.util.Map;
 
 public class IndexMaintenanceTaskSweeper {
     private final Context context;
-    private final BucketShard shard;
     private final int numShards;
     private final Map<Integer, DirectorySubspace> subspaces = new HashMap<>();
 
-    public IndexMaintenanceTaskSweeper(Context context, BucketShard shard, DirectorySubspace subspace) {
+    public IndexMaintenanceTaskSweeper(Context context) {
         this.context = context;
-        this.shard = shard;
         BucketService service = context.getService(BucketService.NAME);
         this.numShards = service.getNumberOfShards();
-        subspaces.put(shard.id(), subspace);
     }
 
     public void sweep(DirectorySubspace taskSubspace, Versionstamp taskId) {
         int numCompleted = 0;
         for (int shardId = 0; shardId < numShards; shardId++) {
-            if (shardId == shard.id()) {
-                // Already completed
-                continue;
-            }
             DirectorySubspace otherTaskSubspace = subspaces.computeIfAbsent(shardId,
                     (id) -> IndexTaskUtil.createOrOpenTasksSubspace(context, id));
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -59,26 +52,34 @@ public class IndexMaintenanceTaskSweeper {
                 numCompleted++;
             }
         }
-        if (numCompleted == numShards - 1) {
-            // READY
-            Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
-            retry.executeRunnable(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    byte[] raw = TaskStorage.getDefinition(tr, taskSubspace, taskId);
-                    IndexBuilderTask task = JSONUtil.readValue(raw, IndexBuilderTask.class);
-                    BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
-                    Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
-                    if (index.definition().status() == IndexStatus.BUILDING) {
-                        return;
-                    }
-                    IndexDefinition definition = index.definition().updateStatus(IndexStatus.READY);
-                    IndexUtil.saveIndexDefinition(tr, definition, index.subspace());
-                    for (DirectorySubspace sb : subspaces.values()) {
-                        TaskStorage.drop(tr, sb, taskId);
+        if (numCompleted != numShards) {
+            return;
+        }
+        // READY
+        Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+        retry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                byte[] raw = TaskStorage.getDefinition(tr, taskSubspace, taskId);
+                IndexBuilderTask task = JSONUtil.readValue(raw, IndexBuilderTask.class);
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+                Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
+                if (index == null) {
+                    for (DirectorySubspace subspace : subspaces.values()) {
+                        TaskStorage.drop(tr, subspace, taskId);
                     }
                     tr.commit().join();
+                    return;
                 }
-            });
-        }
+                if (index.definition().status() == IndexStatus.BUILDING) {
+                    return;
+                }
+                IndexDefinition definition = index.definition().updateStatus(IndexStatus.READY);
+                IndexUtil.saveIndexDefinition(tr, definition, index.subspace());
+                for (DirectorySubspace subspace : subspaces.values()) {
+                    TaskStorage.drop(tr, subspace, taskId);
+                }
+                tr.commit().join();
+            }
+        });
     }
 }

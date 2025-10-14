@@ -92,7 +92,7 @@ public final class DirectorySubspaceCache {
      * @return the DirectorySubspace associated with the given subpath.
      * @throws RuntimeException if an ExecutionException occurs when accessing the cache.
      */
-    private DirectorySubspace get(List<String> subpath) {
+    public DirectorySubspace get(List<String> subpath) {
         try {
             return cache.get(subpath);
         } catch (ExecutionException | UncheckedExecutionException e) {

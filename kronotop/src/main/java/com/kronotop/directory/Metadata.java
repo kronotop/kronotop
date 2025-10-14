@@ -44,4 +44,8 @@ public class Metadata extends KronotopDirectoryNode {
     public Prefixes prefixes() {
         return new Prefixes(layout);
     }
+
+    public Buckets buckets() {
+        return new Buckets(layout);
+    }
 }

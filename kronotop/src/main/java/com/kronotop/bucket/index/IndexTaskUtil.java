@@ -16,11 +16,16 @@
 
 package com.kronotop.bucket.index;
 
-import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.directory.KronotopDirectory;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.List;
 
 public class IndexTaskUtil {
@@ -38,6 +43,28 @@ public class IndexTaskUtil {
                 kronotop().cluster(context.getClusterName()).metadata().
                 shards().bucket().shard(shardId).maintenance().
                 index().tasks().toList();
-        return context.getFoundationDB().run(tr -> DirectoryLayer.getDefault().createOrOpen(tr, layout).join());
+        return context.getDirectorySubspaceCache().get(layout);
+    }
+
+    public static void modifyTaskCounter(Context context, Transaction tr, Versionstamp taskId, int delta) {
+        List<String> layout = KronotopDirectory.
+                kronotop().cluster(context.getClusterName()).metadata().
+                buckets().maintenance().index().counter().toList();
+        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(layout);
+        byte[] data = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(delta).array();
+        byte[] key = subspace.pack(taskId);
+        tr.mutate(MutationType.ADD, key, data);
+    }
+
+    public static int readTaskCounter(Context context, Versionstamp taskId) {
+        List<String> layout = KronotopDirectory.
+                kronotop().cluster(context.getClusterName()).metadata().
+                buckets().maintenance().index().counter().toList();
+        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(layout);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] key = subspace.pack(taskId);
+            byte[] data = tr.get(key).join();
+            return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
+        }
     }
 }

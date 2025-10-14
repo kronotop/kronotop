@@ -89,7 +89,7 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
      * @throws NotImplementedException if bsonType is DECIMAL128 (not yet supported)
      */
     public static IndexDefinition create(String name, String selector, BsonType bsonType) {
-        return create(name, selector, bsonType, IndexStatus.READY);
+        return create(name, selector, bsonType, IndexStatus.WAITING);
     }
 
     /**

@@ -41,6 +41,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private static final int MAX_WORKER_POOL_SIZE = WORKER_POOL_SIZE * 2;
     private final long WORKER_MAX_STALE_PERIOD = 60000; // 60s
     private final Context context;
+    private final BucketService service;
     private final BucketShard shard;
     private final IndexMaintenanceTaskSweeper sweeper;
     private final DirectorySubspace subspace;
@@ -52,9 +53,10 @@ public class IndexMaintenanceWatchDog implements Runnable {
 
     public IndexMaintenanceWatchDog(Context context, BucketShard shard) {
         this.context = context;
+        this.service = context.getService(BucketService.NAME);
         this.shard = shard;
         this.subspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shard.id());
-        this.sweeper = new IndexMaintenanceTaskSweeper(context, shard, this.subspace);
+        this.sweeper = new IndexMaintenanceTaskSweeper(context);
         this.trigger = TaskStorage.trigger(subspace);
 
         ThreadFactory factory = new ThreadFactoryBuilder()
@@ -122,7 +124,10 @@ public class IndexMaintenanceWatchDog implements Runnable {
                         break;
                     }
                 } else if (status == IndexTaskStatus.COMPLETED) {
-                    sweeper.sweep(subspace, taskId);
+                    int counter = IndexTaskUtil.readTaskCounter(context, taskId);
+                    if (counter == service.getNumberOfShards()) {
+                        sweeper.sweep(subspace, taskId);
+                    }
                 }
             }
         }

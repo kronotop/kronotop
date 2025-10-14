@@ -69,6 +69,9 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         retry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuilderTaskState.setStatus(tr, subspace, taskId, status);
+                if (status == IndexTaskStatus.COMPLETED) {
+                    IndexTaskUtil.modifyTaskCounter(context, tr, taskId, 1);
+                }
                 tr.commit().join();
             }
         });
@@ -132,7 +135,9 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
 
     private Versionstamp findOutCursorVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
         List<KeyValue> entries = tr.getRange(begin, end, 1).asList().join();
-
+        if (entries.isEmpty()) {
+            return null;
+        }
         KeyValue entry = entries.getFirst();
         Tuple parsedKey = primaryIndex.subspace().unpack(entry.getKey());
         return (Versionstamp) parsedKey.get(1);
@@ -140,7 +145,9 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
 
     private Versionstamp findOutHighestVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
         List<KeyValue> entries = tr.getRange(begin, end, 1, true).asList().join();
-
+        if (entries.isEmpty()) {
+            return null;
+        }
         KeyValue entry = entries.getFirst();
         Tuple parsedKey = primaryIndex.subspace().unpack(entry.getKey());
         return (Versionstamp) parsedKey.get(1);
@@ -187,10 +194,14 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         byte[] end = ByteArrayUtil.strinc(begin);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Versionstamp cursor = findOutCursorVersionstamp(tr, primaryIndex, begin, end);
-            IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
+            if (cursor != null) {
+                IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
+            }
 
             Versionstamp highest = findOutHighestVersionstamp(tr, primaryIndex, begin, end);
-            IndexBuilderTaskState.setHighestVersionstamp(tr, subspace, taskId, highest);
+            if (highest != null) {
+                IndexBuilderTaskState.setHighestVersionstamp(tr, subspace, taskId, highest);
+            }
 
             tr.commit().join();
         }
@@ -264,6 +275,18 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                             task.getBucket(),
                             task.getIndexId()
                     );
+                    break;
+                }
+                if (state.cursorVersionstamp() == null || state.highestVersionstamp() == null) {
+                    LOGGER.debug(
+                            "Background index builder for namespace={}, bucket={}, index={} on Bucket shard: {} has been completed, no items found",
+                            task.getNamespace(),
+                            task.getBucket(),
+                            task.getIndexId(),
+                            shardId
+                    );
+                    // All entries are processed. End of the task.
+                    setIndexTaskStatus(IndexTaskStatus.COMPLETED);
                     break;
                 }
                 if (state.cursorVersionstamp().equals(state.highestVersionstamp())) {
