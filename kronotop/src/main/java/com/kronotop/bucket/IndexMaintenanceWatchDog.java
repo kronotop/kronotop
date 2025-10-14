@@ -24,9 +24,8 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
-import com.kronotop.bucket.index.IndexBuilderTaskState;
-import com.kronotop.bucket.index.IndexTaskStatus;
-import com.kronotop.bucket.index.IndexTaskUtil;
+import com.kronotop.bucket.index.*;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +42,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private final long WORKER_MAX_STALE_PERIOD = 60000; // 60s
     private final Context context;
     private final BucketShard shard;
+    private final IndexMaintenanceTaskSweeper sweeper;
     private final DirectorySubspace subspace;
     private final byte[] trigger;
     private final ExecutorService workerExecutor;
@@ -54,6 +54,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
         this.context = context;
         this.shard = shard;
         this.subspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shard.id());
+        this.sweeper = new IndexMaintenanceTaskSweeper(context, shard, this.subspace);
         this.trigger = TaskStorage.trigger(subspace);
 
         ThreadFactory factory = new ThreadFactoryBuilder()
@@ -120,6 +121,8 @@ public class IndexMaintenanceWatchDog implements Runnable {
                         // Backpressure - WORKER_POOL_SIZE = 2
                         break;
                     }
+                } else if (status == IndexTaskStatus.COMPLETED) {
+                    sweeper.sweep(subspace, taskId);
                 }
             }
         }

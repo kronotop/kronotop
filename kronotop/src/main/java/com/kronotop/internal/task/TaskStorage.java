@@ -30,8 +30,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class TaskStorage {
-    private static final byte TRIGGER_MAGIC = 0x21;
     public static final byte TASKS_MAGIC = 0x23;
+    private static final byte TRIGGER_MAGIC = 0x21;
     private static final byte DEFINITION = 0x44;
     private static final byte STATE = 0x53;
 
@@ -67,6 +67,15 @@ public class TaskStorage {
     public static byte[] getDefinition(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
         byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, DEFINITION));
         return tr.get(key).join();
+    }
+
+    public static void drop(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
+        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, DEFINITION));
+        tr.clear(key);
+
+        byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, STATE));
+        byte[] end = ByteArrayUtil.strinc(begin);
+        tr.clear(begin, end);
     }
 
     public static void setStateField(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, String field, byte[] value) {
