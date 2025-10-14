@@ -70,10 +70,7 @@ public class TaskStorage {
     }
 
     public static void drop(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
-        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, DEFINITION));
-        tr.clear(key);
-
-        byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, STATE));
+        byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC, taskId));
         byte[] end = ByteArrayUtil.strinc(begin);
         tr.clear(begin, end);
     }
