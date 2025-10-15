@@ -36,6 +36,38 @@ import java.util.concurrent.*;
 
 import static com.kronotop.internal.task.TaskStorage.TASKS_MAGIC;
 
+/**
+ * Monitors and manages index maintenance tasks for a specific bucket shard.
+ *
+ * <p>This watchdog service continuously monitors the task queue for new index building
+ * tasks and manages their execution lifecycle. It performs the following key functions:
+ * <ul>
+ *   <li>Watches for new tasks using FoundationDB's watch mechanism</li>
+ *   <li>Spawns worker threads to execute pending index building tasks</li>
+ *   <li>Manages worker pool with backpressure control to prevent overload</li>
+ *   <li>Cleans up stale or stuck workers that exceed the maximum stale period</li>
+ *   <li>Coordinates task completion across shards using the task sweeper</li>
+ * </ul>
+ *
+ * <p>The watchdog implements a bounded worker pool strategy with:
+ * <ul>
+ *   <li>A core pool size of {@code WORKER_POOL_SIZE} (2) workers</li>
+ *   <li>A maximum of {@code MAX_WORKER_POOL_SIZE} (4) concurrent workers</li>
+ *   <li>Automatic cleanup of workers that have been inactive for 60 seconds</li>
+ * </ul>
+ *
+ * <p>Task coordination across shards is handled through a completion counter.
+ * When all shards report a task as completed, the watchdog triggers the
+ * {@link IndexMaintenanceTaskSweeper} to finalize the index and clean up task data.
+ *
+ * <p>The watchdog runs continuously until the shard is closed, using both reactive
+ * (watch-based) and proactive (scheduled) approaches to ensure timely task processing
+ * and resource cleanup.
+ *
+ * @see IndexMaintenanceWorker
+ * @see IndexMaintenanceTaskSweeper
+ * @see BucketShard
+ */
 public class IndexMaintenanceWatchDog implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexMaintenanceWatchDog.class);
     private static final int WORKER_POOL_SIZE = 2;
@@ -52,6 +84,20 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private final Map<Versionstamp, Worker> workers = new ConcurrentHashMap<>();
     private volatile CompletableFuture<Void> watcher;
 
+    /**
+     * Constructs a new IndexMaintenanceWatchDog for the specified bucket shard.
+     *
+     * <p>Initializes the watchdog with:
+     * <ul>
+     *   <li>Task subspace for the shard's index maintenance tasks</li>
+     *   <li>Task sweeper for cross-shard coordination</li>
+     *   <li>Worker thread pool with named threads for task execution</li>
+     *   <li>Scheduled executor for periodic cleanup operations</li>
+     * </ul>
+     *
+     * @param context the application context providing access to services and FoundationDB
+     * @param shard   the bucket shard this watchdog will monitor
+     */
     public IndexMaintenanceWatchDog(Context context, BucketShard shard) {
         this.context = context;
         this.service = context.getService(BucketService.NAME);
@@ -67,6 +113,15 @@ public class IndexMaintenanceWatchDog implements Runnable {
         this.scheduler = Executors.newSingleThreadScheduledExecutor(factory);
     }
 
+    /**
+     * Creates a FoundationDB watch on the task trigger key.
+     *
+     * <p>This method establishes a watch on the trigger key that will be notified
+     * when new tasks are added to the queue. The watch is committed in a transaction
+     * to ensure it's properly registered with FoundationDB.
+     *
+     * @return a CompletableFuture that completes when the watched key changes
+     */
     private CompletableFuture<Void> watcher() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             CompletableFuture<Void> watcher = tr.watch(trigger);
@@ -75,11 +130,36 @@ public class IndexMaintenanceWatchDog implements Runnable {
         }
     }
 
+    /**
+     * Callback hook invoked when an index task completes execution.
+     *
+     * <p>This method is called by workers when they finish processing a task.
+     * It removes the completed task from the active workers map and attempts
+     * to spawn new workers for any pending tasks in the queue.
+     *
+     * @param taskId the versionstamp identifier of the completed task
+     */
     private void indexTaskCompletionHook(Versionstamp taskId) {
         workers.remove(taskId);
         spawnWorkersForPendingTasks();
     }
 
+    /**
+     * Removes stale workers that have been inactive beyond the maximum stale period.
+     *
+     * <p>This synchronized method iterates through all active workers and checks their
+     * last activity timestamp. Workers are considered stale if:
+     * <ul>
+     *   <li>They have never executed and initiation time exceeds the stale period</li>
+     *   <li>Their last execution time exceeds the stale period (60 seconds)</li>
+     * </ul>
+     *
+     * <p>Stale workers are shut down gracefully and removed from the workers map.
+     * This prevents resource leaks from stuck or abandoned worker threads.
+     *
+     * <p>This method is called periodically by the scheduled executor to maintain
+     * a healthy worker pool.
+     */
     private synchronized void cleanupStaleWorkers() {
         long now = System.currentTimeMillis();
         workers.entrySet().removeIf(entry -> {
@@ -99,6 +179,32 @@ public class IndexMaintenanceWatchDog implements Runnable {
         });
     }
 
+    /**
+     * Spawns new worker threads for pending index maintenance tasks.
+     *
+     * <p>This synchronized method scans the task queue and creates workers for tasks
+     * in WAITING or RUNNING status that don't already have an active worker. It also
+     * handles completed tasks by triggering the sweeper when all shards have finished.
+     *
+     * <p>Key behaviors:
+     * <ul>
+     *   <li>Respects the MAX_WORKER_POOL_SIZE limit to prevent overload</li>
+     *   <li>Skips tasks that already have active workers</li>
+     *   <li>Creates new IndexMaintenanceWorker instances for eligible tasks</li>
+     *   <li>Registers workers with completion callbacks for lifecycle management</li>
+     *   <li>Triggers task sweeping when all shards report completion</li>
+     * </ul>
+     *
+     * <p>This method is called:
+     * <ul>
+     *   <li>When the watch detects new tasks</li>
+     *   <li>After a worker completes</li>
+     *   <li>Periodically by the scheduled executor</li>
+     * </ul>
+     *
+     * <p>The method implements backpressure by stopping task spawning when the
+     * maximum worker pool size is reached.
+     */
     private synchronized void spawnWorkersForPendingTasks() {
         if (workers.size() >= MAX_WORKER_POOL_SIZE) {
             // There are already too many tasks in the executor's queue.
@@ -134,6 +240,34 @@ public class IndexMaintenanceWatchDog implements Runnable {
         }
     }
 
+    /**
+     * Main execution loop for the watchdog service.
+     *
+     * <p>This method runs continuously until the shard is closed and performs two
+     * primary functions:
+     * <ol>
+     *   <li>Schedules periodic cleanup and task spawning every 60 seconds</li>
+     *   <li>Watches for new tasks and spawns workers when detected</li>
+     * </ol>
+     *
+     * <p>The periodic scheduler ensures that:
+     * <ul>
+     *   <li>Stale workers are cleaned up even if no new tasks arrive</li>
+     *   <li>Pending tasks are eventually processed even if watches fail</li>
+     * </ul>
+     *
+     * <p>The watch loop:
+     * <ul>
+     *   <li>Creates a watch on the task trigger key</li>
+     *   <li>Blocks until the key changes (new task added)</li>
+     *   <li>Spawns workers for pending tasks when triggered</li>
+     *   <li>Recreates the watch for the next notification</li>
+     * </ul>
+     *
+     * <p>Exceptions are logged except for expected CancellationExceptions during
+     * shard closure. The method continues running even after exceptions to ensure
+     * resilience.
+     */
     @Override
     public void run() {
         scheduler.scheduleAtFixedRate(() -> {
@@ -155,6 +289,23 @@ public class IndexMaintenanceWatchDog implements Runnable {
         }
     }
 
+    /**
+     * Gracefully shuts down the watchdog service and all active workers.
+     *
+     * <p>This method performs a complete shutdown sequence:
+     * <ol>
+     *   <li>Cancels the active watch to stop waiting for new tasks</li>
+     *   <li>Shuts down all active workers by calling their shutdown methods</li>
+     *   <li>Initiates immediate shutdown of the worker executor service</li>
+     *   <li>Waits up to 6 seconds for all workers to terminate</li>
+     * </ol>
+     *
+     * <p>If workers don't terminate within the timeout period, a warning is logged
+     * but the shutdown continues. This ensures the watchdog doesn't block the
+     * shard closure process indefinitely.
+     *
+     * @throws RuntimeException if interrupted while waiting for executor termination
+     */
     public void shutdown() {
         if (watcher != null) {
             watcher.cancel(true);
@@ -172,7 +323,29 @@ public class IndexMaintenanceWatchDog implements Runnable {
         }
     }
 
+    /**
+     * Record representing an active worker and its associated future.
+     *
+     * <p>This record encapsulates:
+     * <ul>
+     *   <li>The IndexMaintenanceWorker instance performing the actual work</li>
+     *   <li>The Future representing the worker's execution in the thread pool</li>
+     * </ul>
+     *
+     * <p>The record provides a shutdown method that gracefully stops the worker
+     * and cancels its future, ensuring clean termination of the task.
+     *
+     * @param instance the IndexMaintenanceWorker performing index building
+     * @param future   the Future representing the worker's execution
+     */
     record Worker(IndexMaintenanceWorker instance, Future<?> future) {
+        /**
+         * Shuts down this worker by stopping its execution and canceling its future.
+         *
+         * <p>This method first calls the worker instance's shutdown method to signal
+         * graceful termination, then cancels the future with interruption to ensure
+         * the thread pool releases the task.
+         */
         void shutdown() {
             instance.shutdown();
             future.cancel(true);
