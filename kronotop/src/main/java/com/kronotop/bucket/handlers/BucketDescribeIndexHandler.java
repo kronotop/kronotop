@@ -88,7 +88,7 @@ public class BucketDescribeIndexHandler extends AbstractBucketHandler implements
 
                 DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), message.getIndex());
                 IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, indexSubspace);
-                IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, indexSubspace, definition.id());
+                IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
                 return getRedisMessageRedisMessageMap(definition, statistics);
             }
         }, response::writeMap);

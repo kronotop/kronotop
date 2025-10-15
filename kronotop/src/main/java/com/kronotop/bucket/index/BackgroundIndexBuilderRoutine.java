@@ -234,9 +234,11 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
     private void scanPrimaryIndex() {
         BucketShard shard = service.getShard(shardId);
         while (!stopped) {
-            long processedEntries = 0;
+            // Fetch the metadata with an independent TX due to prevent conflicts during commit time.
+            BucketMetadata metadata = context.getFoundationDB().run(tr ->
+                    BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
+            );
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
                 Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
                 if (index == null) {
                     throw new IndexMaintenanceRoutineException("no index found with id " + task.getIndexId());
@@ -261,12 +263,22 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                     IndexDefinition definition = index.definition().updateStatus(IndexStatus.BUILDING);
                     context.getFoundationDB().run(tx -> {
                         // This will retry in the case of conflict
-                        IndexUtil.saveIndexDefinition(tx, definition, index.subspace());
+                        IndexUtil.saveIndexDefinition(tx, metadata, definition);
                         return null;
                     });
                 }
 
                 IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, subspace, taskId);
+                if (state.status() == IndexTaskStatus.COMPLETED) {
+                    LOGGER.debug(
+                            "Background index builder for namespace={}, bucket={}, index={} on Bucket shard: {} has been completed",
+                            task.getNamespace(),
+                            task.getBucket(),
+                            task.getIndexId(),
+                            shardId
+                    );
+                    break;
+                }
                 if (state.status() == IndexTaskStatus.STOPPED) {
                     // The operator marked the task as STOPPED manually.
                     LOGGER.debug(
@@ -302,30 +314,15 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                     break;
                 }
 
-                VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp());
-                VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(state.highestVersionstamp());
-                VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
-
-                Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
-                Versionstamp cursor = null;
-                for (VolumeEntry pair : entries) {
-                    processedEntries++;
-                    Object indexValue = null;
-                    BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), pair.entry());
-                    if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
-                        indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
-                        if (indexValue == null) {
-                            // Type mismatch, continue
-                            continue;
-                        }
-                    }
-                    IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, pair.key(), indexValue, pair.metadata());
-                    cursor = pair.key();
-                }
-                if (cursor != null) {
-                    IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
-                }
+                int processedEntries = indexBucketEntries(tr, shard, metadata, state);
                 tr.commit().join();
+                if (processedEntries == 0) {
+                    // everything went well and processed zero entry.
+                    setIndexTaskStatus(IndexTaskStatus.COMPLETED);
+                    break;
+                } else {
+                    metrics.incrementProcessedEntries(processedEntries);
+                }
             } catch (IndexMaintenanceRoutineException exp) {
                 LOGGER.error("TaskId: {} on Bucket shard: {} has failed due to an error: '{}'",
                         VersionstampUtil.base32HexEncode(taskId),
@@ -335,9 +332,41 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                 markIndexBuildTaskFailed(exp);
                 break;
             } finally {
-                metrics.incrementProcessedEntries(processedEntries);
                 metrics.setLatestExecution(System.currentTimeMillis());
             }
+        }
+    }
+
+    private int indexBucketEntries(Transaction tr, BucketShard shard, BucketMetadata metadata, IndexBuilderTaskState state) {
+        int total = 0;
+        VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp());
+        VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(state.highestVersionstamp());
+        VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
+
+        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
+        Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
+        Versionstamp cursor = null;
+        for (VolumeEntry pair : entries) {
+            total++;
+            Object indexValue = null;
+            cursor = pair.key();
+            BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), pair.entry());
+            if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
+                indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
+                if (indexValue == null) {
+                    // Type mismatch, continue
+                    continue;
+                }
+            }
+            IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, pair.key(), indexValue, shardId, pair.metadata());
+        }
+        setCursor(tr, cursor);
+        return total;
+    }
+
+    private void setCursor(Transaction tr, Versionstamp cursor) {
+        if (cursor != null) {
+            IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
         }
     }
 

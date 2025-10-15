@@ -25,6 +25,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataMagic;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.internal.JSONUtil;
@@ -116,9 +117,16 @@ public class IndexUtil {
         return JSONUtil.readValue(value, IndexDefinition.class);
     }
 
-    public static void saveIndexDefinition(Transaction tr, IndexDefinition definition, DirectorySubspace indexSubspace) {
+    private static void saveIndexDefinition(Transaction tr, IndexDefinition definition, DirectorySubspace indexSubspace) {
         byte[] indexDefinitionKey = indexSubspace.pack(BucketMetadataMagic.INDEX_DEFINITION.getValue());
         tr.set(indexDefinitionKey, JSONUtil.writeValueAsBytes(definition));
+    }
+
+    public static void saveIndexDefinition(Transaction tr, BucketMetadata metadata, IndexDefinition definition) {
+        Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
+        byte[] indexDefinitionKey = index.subspace().pack(BucketMetadataMagic.INDEX_DEFINITION.getValue());
+        tr.set(indexDefinitionKey, JSONUtil.writeValueAsBytes(definition));
+        BucketMetadataUtil.increaseVersion(tr, metadata.subspace(), POSITIVE_DELTA_ONE);
     }
 
     /**
@@ -146,7 +154,7 @@ public class IndexUtil {
         }
     }
 
-    private static byte[] getCardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
+    public static byte[] getCardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
         Tuple tuple = Tuple.from(
                 BucketMetadataMagic.HEADER.getValue(),
                 BucketMetadataMagic.INDEX_STATISTICS.getValue(),

@@ -59,27 +59,32 @@ public class IndexMaintenanceTaskSweeper {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                byte[] raw = TaskStorage.getDefinition(tr, taskSubspace, taskId);
-                IndexBuilderTask task = JSONUtil.readValue(raw, IndexBuilderTask.class);
+                byte[] taskDef = TaskStorage.getDefinition(tr, taskSubspace, taskId);
+                if (taskDef == null) {
+                    return;
+                }
+                IndexBuilderTask task = JSONUtil.readValue(taskDef, IndexBuilderTask.class);
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
                 Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
                 if (index == null) {
-                    for (DirectorySubspace subspace : subspaces.values()) {
-                        TaskStorage.drop(tr, subspace, taskId);
-                    }
+                    dropIndexBuildingTaskPieces(tr, taskId);
                     tr.commit().join();
-                    return;
+                } else {
+                    IndexStatus status = index.definition().status();
+                    if (status == IndexStatus.BUILDING) {
+                        IndexDefinition definition = index.definition().updateStatus(IndexStatus.READY);
+                        IndexUtil.saveIndexDefinition(tr, metadata, definition);
+                        dropIndexBuildingTaskPieces(tr, taskId);
+                        tr.commit().join();
+                    }
                 }
-                if (index.definition().status() == IndexStatus.BUILDING) {
-                    return;
-                }
-                IndexDefinition definition = index.definition().updateStatus(IndexStatus.READY);
-                IndexUtil.saveIndexDefinition(tr, definition, index.subspace());
-                for (DirectorySubspace subspace : subspaces.values()) {
-                    TaskStorage.drop(tr, subspace, taskId);
-                }
-                tr.commit().join();
             }
         });
+    }
+
+    private void dropIndexBuildingTaskPieces(Transaction tr, Versionstamp taskId) {
+        for (DirectorySubspace subspace : subspaces.values()) {
+            TaskStorage.drop(tr, subspace, taskId);
+        }
     }
 }

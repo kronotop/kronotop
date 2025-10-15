@@ -124,6 +124,7 @@ public class IndexBuilder {
             BucketMetadata metadata,
             Versionstamp versionstamp,
             Object indexValue,
+            int shardId,
             byte[] entry
     ) {
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
@@ -138,7 +139,8 @@ public class IndexBuilder {
                 versionstamp
         );
         byte[] indexEntryKey = indexSubspace.pack(indexEntryTuple);
-        tr.set(indexEntryKey, entry);
+        IndexEntry indexEntry = new IndexEntry(shardId, entry);
+        tr.set(indexEntryKey, indexEntry.encode());
         IndexUtil.mutateCardinality(tr, metadata.subspace(), definition.id(), 1);
 
         Tuple backPointerTuple = Tuple.from(

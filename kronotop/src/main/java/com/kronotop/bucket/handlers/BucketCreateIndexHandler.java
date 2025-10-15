@@ -52,6 +52,7 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
             BucketCreateIndexMessage message = request.attr(MessageTypes.BUCKETCREATEINDEX).get();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
+                int userVersion = 0;
                 for (Map.Entry<String, BucketCreateIndexMessage.IndexDefinition> entry : message.getDefinitions().entrySet()) {
                     BucketCreateIndexMessage.IndexDefinition definition = entry.getValue();
                     String name = definition.getName();
@@ -70,8 +71,9 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
                     byte[] encodedTask = JSONUtil.writeValueAsBytes(task);
                     for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
                         DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
-                        TaskStorage.create(tr, taskSubspace, encodedTask);
+                        TaskStorage.create(tr, userVersion, taskSubspace, encodedTask);
                     }
+                    userVersion++;
                 }
                 tr.commit().join();
             }

@@ -384,15 +384,9 @@ public class BucketMetadataUtil {
      * @return an {@code IndexStatistics} instance containing the cardinality of the specified index
      */
     public static IndexStatistics readIndexStatistics(Transaction tr, DirectorySubspace subspace, long indexId) {
-        Tuple tuple = Tuple.from(
-                BucketMetadataMagic.HEADER.getValue(),
-                BucketMetadataMagic.INDEX_STATISTICS.getValue(),
-                BucketMetadataMagic.INDEX_CARDINALITY.getValue(),
-                indexId
-        );
-
+        byte[] key = IndexUtil.getCardinalityKey(subspace, indexId);
         long cardinality = 0;
-        byte[] value = tr.get(subspace.pack(tuple)).join();
+        byte[] value = tr.get(key).join();
         if (value == null) {
             return new IndexStatistics(cardinality);
         }
