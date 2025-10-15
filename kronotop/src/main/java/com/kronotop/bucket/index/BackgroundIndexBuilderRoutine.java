@@ -36,6 +36,37 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+/**
+ * Background routine for building secondary indexes on existing bucket data.
+ *
+ * <p>This routine implements the core logic for asynchronously building secondary indexes
+ * without blocking normal bucket operations. It performs incremental index building by:
+ * <ul>
+ *   <li>Establishing scan boundaries from the primary index</li>
+ *   <li>Processing documents in batches to manage memory and transaction sizes</li>
+ *   <li>Tracking progress using cursor-based pagination</li>
+ *   <li>Handling failures and retries with proper state management</li>
+ * </ul>
+ *
+ * <p>The routine ensures transaction isolation by:
+ * <ul>
+ *   <li>Using a 6-second sleep to allow existing transactions to expire</li>
+ *   <li>Operating with stable read versions from FoundationDB</li>
+ *   <li>Retrying on transaction conflicts (codes 1007, 1020)</li>
+ * </ul>
+ *
+ * <p>Progress is tracked through {@link IndexBuilderTaskState} which persists:
+ * <ul>
+ *   <li>Current cursor position for resumable processing</li>
+ *   <li>Highest versionstamp boundary to detect completion</li>
+ *   <li>Task status (RUNNING, COMPLETED, FAILED, STOPPED)</li>
+ *   <li>Error messages for failed tasks</li>
+ * </ul>
+ *
+ * @see IndexMaintenanceRoutine
+ * @see IndexBuilderTask
+ * @see IndexBuilderTaskState
+ */
 public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
     protected static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuilderRoutine.class);
     private final static int INDEX_SCAN_BATCH_SIZE = 100;
@@ -64,6 +95,15 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         this.service = context.getService(BucketService.NAME);
     }
 
+    /**
+     * Updates the index task status in FoundationDB with retry logic.
+     *
+     * <p>This method atomically updates the task's status and handles the special case
+     * of COMPLETED status by incrementing the global task counter. The operation is
+     * wrapped in a retry mechanism to handle transient FoundationDB conflicts.
+     *
+     * @param status the new status to set for the index task
+     */
     private void setIndexTaskStatus(IndexTaskStatus status) {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
@@ -125,6 +165,16 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         }
     }
 
+    /**
+     * Marks the index building task as failed with an error message.
+     *
+     * <p>This method atomically updates the task state to FAILED and records the
+     * error message from the provided throwable. Unlike normal status updates,
+     * this method does not use retry logic as it's typically called from
+     * exception handlers where further retries would be inappropriate.
+     *
+     * @param th the throwable containing the error message to record
+     */
     private void markIndexBuildTaskFailed(Throwable th) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuilderTaskState.setError(tr, subspace, taskId, th.getMessage());
@@ -133,6 +183,19 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         }
     }
 
+    /**
+     * Finds the starting cursor position by locating the first versionstamp in the primary index.
+     *
+     * <p>This method performs a single-item range scan on the primary index to find the
+     * lowest versionstamp, which becomes the starting cursor position for the index
+     * building process. Returns null if the primary index is empty.
+     *
+     * @param tr           the FoundationDB transaction to use for the scan
+     * @param primaryIndex the primary index to scan
+     * @param begin        the starting byte array for the range scan
+     * @param end          the ending byte array for the range scan
+     * @return the first versionstamp found, or null if no entries exist
+     */
     private Versionstamp findOutCursorVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
         List<KeyValue> entries = tr.getRange(begin, end, 1).asList().join();
         if (entries.isEmpty()) {
@@ -143,6 +206,19 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         return (Versionstamp) parsedKey.get(1);
     }
 
+    /**
+     * Finds the ending boundary by locating the highest versionstamp in the primary index.
+     *
+     * <p>This method performs a reverse single-item range scan on the primary index to find
+     * the highest versionstamp, which defines the end boundary for the index building
+     * process. Returns null if the primary index is empty.
+     *
+     * @param tr           the FoundationDB transaction to use for the scan
+     * @param primaryIndex the primary index to scan
+     * @param begin        the starting byte array for the range scan
+     * @param end          the ending byte array for the range scan
+     * @return the highest versionstamp found, or null if no entries exist
+     */
     private Versionstamp findOutHighestVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
         List<KeyValue> entries = tr.getRange(begin, end, 1, true).asList().join();
         if (entries.isEmpty()) {
@@ -337,6 +413,29 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         }
     }
 
+    /**
+     * Processes a batch of bucket entries and builds corresponding index entries.
+     *
+     * <p>This method reads documents from the volume storage in batches, extracts index
+     * values using the index selector, and inserts the corresponding index entries into
+     * FoundationDB. It handles:
+     * <ul>
+     *   <li>Reading documents from volume using cursor-based pagination</li>
+     *   <li>Extracting index values based on the index definition selector</li>
+     *   <li>Type validation and conversion based on the index's BSON type</li>
+     *   <li>Inserting index entries with proper metadata</li>
+     *   <li>Updating the cursor position after each batch</li>
+     * </ul>
+     *
+     * <p>Documents that don't match the index selector or have type mismatches are
+     * silently skipped, allowing the index build to continue for valid documents.
+     *
+     * @param tr       the FoundationDB transaction to use for index operations
+     * @param shard    the bucket shard containing the volume to read from
+     * @param metadata the bucket metadata containing index definitions
+     * @param state    the current task state with cursor position
+     * @return the number of entries processed in this batch
+     */
     private int indexBucketEntries(Transaction tr, BucketShard shard, BucketMetadata metadata, IndexBuilderTaskState state) {
         int total = 0;
         VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp());
@@ -364,12 +463,42 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         return total;
     }
 
+    /**
+     * Updates the cursor position in the task state.
+     *
+     * <p>This method persists the current cursor position to the task state,
+     * allowing the index building process to resume from this point if interrupted.
+     * Only updates if a non-null cursor is provided.
+     *
+     * @param tr     the FoundationDB transaction to use for the update
+     * @param cursor the new cursor versionstamp to set, or null to skip update
+     */
     private void setCursor(Transaction tr, Versionstamp cursor) {
         if (cursor != null) {
             IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
         }
     }
 
+    /**
+     * Starts the background index building routine.
+     *
+     * <p>This method initiates the index building process by:
+     * <ol>
+     *   <li>Setting the task status to RUNNING</li>
+     *   <li>Finding and persisting the scan boundaries (cursor and highest versionstamp)</li>
+     *   <li>Beginning the primary index scan to build the secondary index</li>
+     * </ol>
+     *
+     * <p>The method uses retry logic for both boundary detection and index scanning to handle
+     * FoundationDB conflicts. If interrupted during boundary detection (e.g., during shutdown),
+     * the method throws {@link IndexMaintenanceRoutineShutdownException} without marking the
+     * task as failed, allowing it to be retried later.
+     *
+     * <p>This method is idempotent and can be called multiple times (e.g., after a stop())
+     * to restart the index building process from the last saved cursor position.
+     *
+     * @throws IndexMaintenanceRoutineShutdownException if interrupted during boundary detection
+     */
     public void start() {
         LOGGER.debug(
                 "Starting to build namespace={}, bucket={}, index={} on Bucket shard={} at the background",
@@ -394,10 +523,30 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         retry.executeRunnable(this::scanPrimaryIndex);
     }
 
+    /**
+     * Stops the background index building routine.
+     *
+     * <p>This method gracefully stops the index building process by setting the
+     * internal stopped flag to true. The routine will complete its current batch
+     * processing before terminating. The task status remains unchanged, allowing
+     * the routine to be restarted later from the last saved cursor position.
+     *
+     * <p>This method is thread-safe and can be called from any thread to request
+     * a graceful shutdown of the index building process.
+     */
     public void stop() {
         stopped = true;
     }
 
+    /**
+     * Returns metrics for this index maintenance routine.
+     *
+     * <p>Provides access to runtime metrics including the number of entries processed
+     * and the timestamp of the latest execution. These metrics can be used for
+     * monitoring progress and performance of the index building operation.
+     *
+     * @return the {@link IndexMaintenanceRoutineMetrics} instance containing current metrics
+     */
     @Override
     public IndexMaintenanceRoutineMetrics getMetrics() {
         return metrics;
