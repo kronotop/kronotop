@@ -117,11 +117,40 @@ public class IndexUtil {
         return JSONUtil.readValue(value, IndexDefinition.class);
     }
 
+    /**
+     * Saves the index definition to the specified index subspace.
+     *
+     * <p>This private helper method serializes the index definition to JSON and stores
+     * it in FoundationDB under the INDEX_DEFINITION key within the index subspace.
+     * This method is used internally during index creation to persist the definition.
+     *
+     * @param tr            the transaction instance used to interact with the database
+     * @param definition    the index definition to be saved
+     * @param indexSubspace the directory subspace for the index where the definition will be stored
+     */
     private static void saveIndexDefinition(Transaction tr, IndexDefinition definition, DirectorySubspace indexSubspace) {
         byte[] indexDefinitionKey = indexSubspace.pack(BucketMetadataMagic.INDEX_DEFINITION.getValue());
         tr.set(indexDefinitionKey, JSONUtil.writeValueAsBytes(definition));
     }
 
+    /**
+     * Saves an updated index definition and increments the bucket metadata version.
+     *
+     * <p>This public method is used to update an existing index definition within the bucket.
+     * It performs the following operations:
+     * <ul>
+     *   <li>Locates the index by its ID in the bucket metadata</li>
+     *   <li>Saves the updated definition to the index subspace</li>
+     *   <li>Increments the bucket metadata version to reflect the change</li>
+     * </ul>
+     *
+     * <p>The version increment ensures that cached metadata is invalidated and clients
+     * receive the updated index definition.
+     *
+     * @param tr         the transaction instance used to interact with the database
+     * @param metadata   the bucket metadata containing the index to be updated
+     * @param definition the updated index definition to be saved
+     */
     public static void saveIndexDefinition(Transaction tr, BucketMetadata metadata, IndexDefinition definition) {
         Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
         saveIndexDefinition(tr, definition, index.subspace());
@@ -153,6 +182,26 @@ public class IndexUtil {
         }
     }
 
+    /**
+     * Constructs the FoundationDB key for storing an index's cardinality value.
+     *
+     * <p>This method builds a tuple-encoded key within the bucket metadata subspace
+     * that identifies the cardinality statistic for a specific index. The key structure
+     * includes:
+     * <ul>
+     *   <li>HEADER magic value</li>
+     *   <li>INDEX_STATISTICS magic value</li>
+     *   <li>INDEX_CARDINALITY magic value</li>
+     *   <li>The index ID</li>
+     * </ul>
+     *
+     * <p>Cardinality represents the approximate number of unique values in the index,
+     * which is useful for query optimization and statistics.
+     *
+     * @param bucketMetadataSubspace the directory subspace representing the bucket's metadata
+     * @param indexId                the unique identifier of the index
+     * @return the byte array key for accessing the index's cardinality value
+     */
     public static byte[] getCardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
         Tuple tuple = Tuple.from(
                 BucketMetadataMagic.HEADER.getValue(),
