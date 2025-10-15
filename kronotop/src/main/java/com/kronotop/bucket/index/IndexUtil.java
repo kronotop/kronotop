@@ -124,8 +124,7 @@ public class IndexUtil {
 
     public static void saveIndexDefinition(Transaction tr, BucketMetadata metadata, IndexDefinition definition) {
         Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
-        byte[] indexDefinitionKey = index.subspace().pack(BucketMetadataMagic.INDEX_DEFINITION.getValue());
-        tr.set(indexDefinitionKey, JSONUtil.writeValueAsBytes(definition));
+        saveIndexDefinition(tr, definition, index.subspace());
         BucketMetadataUtil.increaseVersion(tr, metadata.subspace(), POSITIVE_DELTA_ONE);
     }
 
