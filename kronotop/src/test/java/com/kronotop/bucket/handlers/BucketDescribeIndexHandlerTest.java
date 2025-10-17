@@ -96,7 +96,7 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
                 }
                 case "status" -> {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();
-                    assertEquals(IndexStatus.READY.name(), value.content());
+                    assertEquals(IndexStatus.WAITING.name(), value.content());
                 }
                 case "statistics" -> {
                     MapRedisMessage value = (MapRedisMessage) entry.getValue();

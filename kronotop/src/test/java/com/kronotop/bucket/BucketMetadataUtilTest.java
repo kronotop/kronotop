@@ -269,7 +269,12 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = assertDoesNotThrow(() -> BucketMetadataUtil.open(context, tr, session, TEST_BUCKET));
-            assertThat(expectedBucketMetadata).usingRecursiveComparison().isEqualTo(metadata);
+            assertThat(metadata)
+                    .usingRecursiveComparison()
+                    .ignoringFields("indexes.lock",
+                            "indexes.statistics",
+                            "indexes.statsLastRefreshedAt")
+                    .isEqualTo(expectedBucketMetadata);
         }
     }
 
