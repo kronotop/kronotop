@@ -50,7 +50,6 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
         runAsync(context, response, () -> {
             BucketCreateIndexMessage message = request.attr(MessageTypes.BUCKETCREATEINDEX).get();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
                 int userVersion = 0;
                 String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
                 for (Map.Entry<String, BucketCreateIndexMessage.IndexDefinition> entry : message.getDefinitions().entrySet()) {
@@ -65,14 +64,12 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
                             definition.getBsonType()
                     );
 
-                    IndexUtil.createWithBackgroundTasks(
+                    IndexUtil.create(
                             context,
                             tr,
-                            metadata.subspace(),
                             namespace,
                             message.getBucket(),
                             indexDefinition,
-                            service.getNumberOfShards(),
                             userVersion
                     );
                     userVersion++;

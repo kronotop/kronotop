@@ -26,10 +26,7 @@ import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataMagic;
-import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.IndexMaintenanceWatchDog;
+import com.kronotop.bucket.*;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 
@@ -91,34 +88,32 @@ public class IndexUtil {
      * <p>The background tasks enable parallel index building across all shards,
      * coordinated by the {@link IndexMaintenanceWatchDog} on each shard.
      *
-     * @param context                the application context providing access to services
-     * @param tr                     the transaction instance used to interact with the database
-     * @param bucketMetadataSubspace the bucket metadata subspace serving as the base path for the index
-     * @param namespace              the namespace containing the bucket
-     * @param bucket                 the bucket name
-     * @param definition             the definition of the index to be created
-     * @param numberOfShards         the total number of shards to create tasks for
-     * @param userVersion            the user version for task ordering
+     * @param context     the application context providing access to services
+     * @param tr          the transaction instance used to interact with the database
+     * @param namespace   the namespace containing the bucket
+     * @param bucket      the bucket name
+     * @param definition  the definition of the index to be created
+     * @param userVersion the user version for task ordering
      * @throws KronotopException if the index already exists
      */
-    public static void createWithBackgroundTasks(
+    public static void create(
             Context context,
             Transaction tr,
-            DirectorySubspace bucketMetadataSubspace,
             String namespace,
             String bucket,
             IndexDefinition definition,
-            int numberOfShards,
             int userVersion) {
 
+        BucketMetadata bucketMetadata = BucketMetadataUtil.open(context, tr, namespace, bucket);
         // Create the index
-        create(tr, bucketMetadataSubspace, definition);
+        create(tr, bucketMetadata.subspace(), definition);
 
         // Create background build tasks for all shards
         IndexBuilderTask task = new IndexBuilderTask(namespace, bucket, definition.id());
         byte[] encodedTask = JSONUtil.writeValueAsBytes(task);
 
-        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+        BucketService service = context.getService(BucketService.NAME);
+        for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
             DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
             TaskStorage.create(tr, userVersion, taskSubspace, encodedTask);
         }
