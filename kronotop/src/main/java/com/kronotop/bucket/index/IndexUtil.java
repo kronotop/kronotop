@@ -24,11 +24,14 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataMagic;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.IndexMaintenanceWatchDog;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.internal.task.TaskStorage;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -72,6 +75,52 @@ public class IndexUtil {
                 throw new KronotopException("'" + definition.name() + "' has already exist");
             }
             throw e;
+        }
+    }
+
+    /**
+     * Creates an index and spawns background build tasks across all shards.
+     *
+     * <p>This method performs a complete index creation operation by:
+     * <ul>
+     *   <li>Creating the index subspace and saving the definition</li>
+     *   <li>Creating background build tasks for all shards</li>
+     *   <li>Incrementing the bucket metadata version</li>
+     * </ul>
+     *
+     * <p>The background tasks enable parallel index building across all shards,
+     * coordinated by the {@link IndexMaintenanceWatchDog} on each shard.
+     *
+     * @param context                the application context providing access to services
+     * @param tr                     the transaction instance used to interact with the database
+     * @param bucketMetadataSubspace the bucket metadata subspace serving as the base path for the index
+     * @param namespace              the namespace containing the bucket
+     * @param bucket                 the bucket name
+     * @param definition             the definition of the index to be created
+     * @param numberOfShards         the total number of shards to create tasks for
+     * @param userVersion            the user version for task ordering
+     * @throws KronotopException if the index already exists
+     */
+    public static void createWithBackgroundTasks(
+            Context context,
+            Transaction tr,
+            DirectorySubspace bucketMetadataSubspace,
+            String namespace,
+            String bucket,
+            IndexDefinition definition,
+            int numberOfShards,
+            int userVersion) {
+
+        // Create the index
+        create(tr, bucketMetadataSubspace, definition);
+
+        // Create background build tasks for all shards
+        IndexBuilderTask task = new IndexBuilderTask(namespace, bucket, definition.id());
+        byte[] encodedTask = JSONUtil.writeValueAsBytes(task);
+
+        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+            DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
+            TaskStorage.create(tr, userVersion, taskSubspace, encodedTask);
         }
     }
 

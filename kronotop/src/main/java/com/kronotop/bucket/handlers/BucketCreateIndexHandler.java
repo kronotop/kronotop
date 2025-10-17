@@ -17,14 +17,13 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketCreateIndexMessage;
-import com.kronotop.bucket.index.*;
-import com.kronotop.internal.JSONUtil;
-import com.kronotop.internal.task.TaskStorage;
+import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexNameGenerator;
+import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -53,6 +52,7 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
                 int userVersion = 0;
+                String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
                 for (Map.Entry<String, BucketCreateIndexMessage.IndexDefinition> entry : message.getDefinitions().entrySet()) {
                     BucketCreateIndexMessage.IndexDefinition definition = entry.getValue();
                     String name = definition.getName();
@@ -64,15 +64,17 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
                             entry.getKey(),
                             definition.getBsonType()
                     );
-                    IndexUtil.create(tr, metadata.subspace(), indexDefinition);
 
-                    String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
-                    IndexBuilderTask task = new IndexBuilderTask(namespace, message.getBucket(), indexDefinition.id());
-                    byte[] encodedTask = JSONUtil.writeValueAsBytes(task);
-                    for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
-                        DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
-                        TaskStorage.create(tr, userVersion, taskSubspace, encodedTask);
-                    }
+                    IndexUtil.createWithBackgroundTasks(
+                            context,
+                            tr,
+                            metadata.subspace(),
+                            namespace,
+                            message.getBucket(),
+                            indexDefinition,
+                            service.getNumberOfShards(),
+                            userVersion
+                    );
                     userVersion++;
                 }
                 tr.commit().join();
