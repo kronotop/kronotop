@@ -37,7 +37,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexUtilTest extends BaseStandaloneInstanceTest {
-    final String bucketName = "test-bucket";
     final IndexDefinition definition = IndexDefinition.create(
             "numeric-index",
             "numeric-selector",
@@ -46,10 +45,10 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldCreateIndexAndIncreaseVersionByOne() {
-        BucketMetadata metadata = getBucketMetadata(bucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         DirectorySubspace indexSubspace = assertDoesNotThrow(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                DirectorySubspace subspace = IndexUtil.create(tr, metadata.subspace(), definition);
+                DirectorySubspace subspace = IndexUtil.create(context, tr, TEST_NAMESPACE, TEST_BUCKET, definition);
                 tr.commit().join();
                 return subspace;
             }
@@ -67,7 +66,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldOpenDefaultIDIndexSubspace() {
-        BucketMetadata metadata = getBucketMetadata(bucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         DirectorySubspace indexSubspace = assertDoesNotThrow(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 return IndexUtil.open(tr, metadata.subspace(), DefaultIndexDefinition.ID.name());
@@ -78,7 +77,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldThrowErrorWhenOpeningNonExistingIndexSubspace() {
-        BucketMetadata metadata = getBucketMetadata(bucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         KronotopException ex = assertThrows(KronotopException.class, () -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexUtil.open(tr, metadata.subspace(), "not-exist-index-name");
@@ -90,13 +89,9 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldListAllIndexes() {
-        BucketMetadata metadata = getBucketMetadata(bucketName);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
-            assertNotNull(indexSubspace);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(definition);
 
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         List<String> expectedIndexes = List.of(DefaultIndexDefinition.ID.name(), definition.name());
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             List<String> indexes = IndexUtil.list(tr, metadata.subspace());
@@ -106,26 +101,24 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldLoadIndexDefinitionWithDirectorySubspace() {
-        BucketMetadata metadata = getBucketMetadata(bucketName);
-        DirectorySubspace indexSubspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
-            assertNotNull(indexSubspace);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(definition);
 
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
             IndexDefinition loadedIndexDefinition = IndexUtil.loadIndexDefinition(tr, indexSubspace);
-            assertThat(loadedIndexDefinition).usingRecursiveComparison().isEqualTo(definition);
+            IndexDefinition finalDef = definition.updateStatus(IndexStatus.READY);
+            assertThat(loadedIndexDefinition).usingRecursiveComparison().isEqualTo(finalDef);
         }
     }
 
     @Test
     void shouldModifyIndexCardinality() {
-        BucketMetadata metadata = getBucketMetadata(bucketName);
+        createIndexThenWaitForReadiness(definition);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         DirectorySubspace indexSubspace;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
+            indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
             assertNotNull(indexSubspace);
             tr.commit().join();
         }
@@ -147,15 +140,14 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldDrop() {
-        BucketMetadata metadata = getBucketMetadata(bucketName);
-        DirectorySubspace indexSubspace = assertDoesNotThrow(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                DirectorySubspace subspace = IndexUtil.create(tr, metadata.subspace(), definition);
-                tr.commit().join();
-                return subspace;
-            }
-        });
-        assertNotNull(indexSubspace);
+        createIndexThenWaitForReadiness(definition);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+        DirectorySubspace indexSubspace;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
+            assertNotNull(indexSubspace);
+            tr.commit().join();
+        }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             assertDoesNotThrow(() -> {
@@ -177,7 +169,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldNotDropNotExistingIndex() {
-        BucketMetadata metadata = getBucketMetadata(bucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             KronotopException exception = assertThrows(KronotopException.class, () -> {
                 IndexUtil.drop(tr, metadata.subspace(), "not-exist-index-name");
@@ -188,7 +180,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldThrowExceptionWhenCreatingSameIndexTwice() {
-        BucketMetadata metadata = getBucketMetadata(bucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         // Create index first time
         assertDoesNotThrow(() -> {
@@ -209,11 +201,11 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldCreateSameIndexDefinitionOnDifferentBuckets() {
-        String firstBucketName = "first-bucket";
-        String secondBucketName = "second-bucket";
+        String firstTEST_BUCKET = "first-bucket";
+        String secondTEST_BUCKET = "second-bucket";
 
-        BucketMetadata firstBucketMetadata = getBucketMetadata(firstBucketName);
-        BucketMetadata secondBucketMetadata = getBucketMetadata(secondBucketName);
+        BucketMetadata firstBucketMetadata = getBucketMetadata(firstTEST_BUCKET);
+        BucketMetadata secondBucketMetadata = getBucketMetadata(secondTEST_BUCKET);
 
         // Create same index on first bucket
         DirectorySubspace firstIndexSubspace = assertDoesNotThrow(() -> {

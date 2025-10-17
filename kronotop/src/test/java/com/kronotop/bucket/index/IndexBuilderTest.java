@@ -43,7 +43,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class IndexBuilderTest extends BaseStandaloneInstanceTest {
     final int SHARD_ID = 1;
-    final String testBucketName = "test-bucket";
 
     /**
      * Provides test data for all BqlValue/BsonType combinations
@@ -77,12 +76,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     }
 
     BucketMetadata createIndexAndLoadBucketMetadata(IndexDefinition definition, String bucket) {
-        BucketMetadata metadata = getBucketMetadata(bucket);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
-            assertNotNull(indexSubspace);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(TEST_NAMESPACE, bucket, definition);
         // Refresh the index registry
         return getBucketMetadata(TEST_BUCKET);
     }
@@ -136,7 +130,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @MethodSource("indexValueTestData")
     void shouldSetIndexValueForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
         IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entries[0]);
@@ -159,7 +153,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     void shouldSetDefaultIDIndex() {
         AppendedEntry[] entries = getAppendedEntries();
         assertDoesNotThrow(() -> {
-            BucketMetadata metadata = getBucketMetadata(testBucketName);
+            BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuilder.setPrimaryIndexEntry(tr, SHARD_ID, metadata, entries);
                 tr.commit().join();
@@ -176,7 +170,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReadEntriesFromIdIndex() {
         AppendedEntry[] entries = getAppendedEntries();
-        BucketMetadata metadata = getBucketMetadata(testBucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuilder.setPrimaryIndexEntry(tr, SHARD_ID, metadata, entries);
             tr.commit().join();
@@ -211,7 +205,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldDropIndexEntry() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         String indexValue = "test-value";
 
@@ -280,7 +274,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @MethodSource("indexValueTestData")
     void shouldDropIndexEntryForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
         IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
 
         // Set the index entry
@@ -337,14 +331,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         IndexDefinition stringIndex = IndexDefinition.create("string-index", "name", BsonType.STRING);
         IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32);
 
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(stringIndex, testBucketName);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace intIndexSubspace = IndexUtil.create(tr, metadata.subspace(), intIndex);
-            assertNotNull(intIndexSubspace);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(stringIndex, intIndex);
         // Refresh metadata
-        metadata = getBucketMetadata(testBucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         AppendedEntry[] entries = getAppendedEntries();
         String stringValue = "multi-drop-test";
@@ -442,7 +431,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldHandleDropIndexEntryForNonExistentVersionstamp() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
@@ -468,7 +457,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldDropOnlySpecificVersionstampEntries() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
 
         // Set multiple entries with different versionstamps
@@ -552,7 +541,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldUpdateEntryMetadata() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         AppendedEntry entry = entries[0];
         String indexValue = "update-test";
@@ -603,7 +592,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldUpdateEntryMetadataForMultipleIndexValues() {
         IndexDefinition definition = IndexDefinition.create("multi-value-index", "tag", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         AppendedEntry[] entries = getAppendedEntries();
         AppendedEntry entry = entries[1];
@@ -660,7 +649,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldHandleUpdateEntryMetadataForNonExistentVersionstamp() {
         IndexDefinition definition = IndexDefinition.create("empty-index", "value", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
@@ -691,7 +680,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @MethodSource("indexValueTestData")
     void shouldUpdateEntryMetadataForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
         IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         AppendedEntry entry = entries[0];
 
@@ -739,7 +728,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldDropPrimaryIndexEntry() {
-        BucketMetadata metadata = getBucketMetadata(testBucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
 
         // First set the ID index entries
@@ -797,7 +786,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldUpdatePrimaryIndex() {
-        BucketMetadata metadata = getBucketMetadata(testBucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
 
         // First set the primary index entries
@@ -861,7 +850,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldSetIndexEntryByVersionstamp() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         String indexValue = "test-value";
         int userVersion = 42;

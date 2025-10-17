@@ -347,15 +347,10 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
 
         // Create bucket metadata and register the index
-        BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), TEST_BUCKET);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Refresh bucket metadata to include the new index
-        metadata = getBucketMetadata(TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         // Insert document where 'age' is a STRING instead of INT32
         String jsonDocument = "{\"name\": \"John\", \"age\": \"twenty-five\"}"; // 'age' is string, not int32
@@ -392,17 +387,10 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         IndexDefinition activeIndexDefinition = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
 
         // Create bucket metadata and register the indexes
-        BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), TEST_BUCKET);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), nameIndexDefinition);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), activeIndexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(nameIndexDefinition, ageIndexDefinition, activeIndexDefinition);
 
         // Refresh bucket metadata to include the new indexes
-        metadata = getBucketMetadata(TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         // Insert document with all indexed fields
         String jsonDocument = "{\"name\": \"Alice\", \"age\": 28, \"active\": true, \"city\": \"Boston\"}";
@@ -469,15 +457,10 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
 
         // Create bucket metadata and register the index
-        BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), TEST_BUCKET);
-            IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Refresh bucket metadata to include the new index
-        metadata = getBucketMetadata(TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace());

@@ -42,7 +42,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     final int SHARD_ID = 1;
-    final String testBucketName = "test-bucket";
     final byte[] NULL_VALUE = new byte[]{0};
 
     static Stream<Arguments> indexValueTestData() {
@@ -69,15 +68,8 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     }
 
     BucketMetadata createIndexAndLoadBucketMetadata(String bucket, IndexDefinition... definitions) {
-        BucketMetadata metadata = getBucketMetadata(bucket);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            for (IndexDefinition definition : definitions) {
-                DirectorySubspace indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
-                assertNotNull(indexSubspace);
-            }
-            tr.commit().join();
-        }
-        return getBucketMetadata(testBucketName);
+        createIndexThenWaitForReadiness(TEST_NAMESPACE, bucket, definitions);
+        return getBucketMetadata(TEST_BUCKET);
     }
 
     private void setIndexEntryAndCommit(IndexDefinition definition, BucketMetadata metadata, Object indexValue, AppendedEntry entry) {
@@ -156,7 +148,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     @MethodSource("indexValueTestData")
     void shouldCreateBackPointerWhenSettingIndexEntry(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
         IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, definition);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
         AppendedEntry entry = createAppendedEntry(0);
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entry);
@@ -171,7 +163,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldCreateBackPointerWithCorrectStructure() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, definition);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
         AppendedEntry entry = createAppendedEntry(42);
         String indexValue = "test-value";
 
@@ -205,7 +197,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldRetrieveIndexKeysUsingBackPointer() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, definition);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
 
         AppendedEntry entry = createAppendedEntry(100);
         String indexValue = "retrievable-value";
@@ -226,7 +218,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
         IndexDefinition stringIndex = IndexDefinition.create("string-index", "name", BsonType.STRING);
         IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32);
 
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, stringIndex, intIndex);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, stringIndex, intIndex);
 
         AppendedEntry entry = createAppendedEntry(200);
         String stringValue = "multi-index-test";
@@ -252,7 +244,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
         IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32);
         IndexDefinition doubleIndex = IndexDefinition.create("double-index", "score", BsonType.DOUBLE);
 
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, stringIndex, intIndex, doubleIndex);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, stringIndex, intIndex, doubleIndex);
 
         AppendedEntry entry = createAppendedEntry(300);
         String stringValue = "scan-test";
@@ -289,7 +281,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldHandleMultipleEntriesWithSameVersionstamp() {
         IndexDefinition definition = IndexDefinition.create("multi-entry-index", "value", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, definition);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
 
         int userVersion = 400;
         List<String> expectedValues = Arrays.asList("value1", "value2", "value3");
@@ -313,7 +305,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldCreateBackPointersForNullValues() {
         IndexDefinition definition = IndexDefinition.create("null-index", "nullable", BsonType.NULL);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(testBucketName, definition);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
         AppendedEntry entry = createAppendedEntry(500);
 
         setIndexEntryAndCommit(definition, metadata, null, entry);

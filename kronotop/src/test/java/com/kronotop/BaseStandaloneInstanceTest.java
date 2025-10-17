@@ -107,14 +107,18 @@ public class BaseStandaloneInstanceTest extends BaseTest {
      *                    contains structural and metadata information about the index.
      */
     protected void createIndexThenWaitForReadiness(IndexDefinition... definitions) {
+        createIndexThenWaitForReadiness(TEST_NAMESPACE, TEST_BUCKET, definitions);
+    }
+
+    protected void createIndexThenWaitForReadiness(String namespace, String bucket, IndexDefinition... definitions) {
         Session session = getSession();
-        BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
+        BucketMetadataUtil.createOrOpen(context, session, bucket);
 
         List<DirectorySubspace> subspaces = new ArrayList<>();
         int userVersion = 0;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (IndexDefinition definition : definitions) {
-                DirectorySubspace subspace = IndexUtil.create(context, tr, TEST_NAMESPACE, TEST_BUCKET, definition, userVersion);
+                DirectorySubspace subspace = IndexUtil.create(context, tr, namespace, bucket, definition, userVersion);
                 subspaces.add(subspace);
                 userVersion++;
             }

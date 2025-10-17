@@ -75,13 +75,13 @@ public class IndexUtil {
         }
     }
 
-    public static void create(
+    public static DirectorySubspace create(
             Context context,
             Transaction tr,
             String namespace,
             String bucket,
             IndexDefinition definition) {
-        create(context, tr, namespace, bucket, definition, 0);
+        return create(context, tr, namespace, bucket, definition, 0);
     }
 
     /**
@@ -117,6 +117,11 @@ public class IndexUtil {
         BucketMetadata bucketMetadata = BucketMetadataUtil.open(context, tr, namespace, bucket);
         // Create the index
         DirectorySubspace indexSubspace = create(tr, bucketMetadata.subspace(), definition);
+
+        if (definition.id() == DefaultIndexDefinition.ID.id()) {
+            // Primary index doesn't require a background index building procedure
+            return indexSubspace;
+        }
 
         // Create background build tasks for all shards
         IndexBuilderTask task = new IndexBuilderTask(namespace, bucket, definition.id());

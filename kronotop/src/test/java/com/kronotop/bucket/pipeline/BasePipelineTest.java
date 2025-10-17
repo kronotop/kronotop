@@ -32,7 +32,6 @@ import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
-import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.optimizer.Optimizer;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
@@ -104,32 +103,10 @@ public class BasePipelineTest extends BaseHandlerTest {
         return versionstamps;
     }
 
-    protected void createBucket(String bucketName) {
-        // Bucket is created implicitly through BucketMetadataUtil.createOrOpen()
-        Session session = getSession();
-        BucketMetadataUtil.createOrOpen(context, session, bucketName);
-    }
-
-    void createIndex(Transaction tr, String bucket, IndexDefinition definition) {
-        BucketMetadata metadata = getBucketMetadata(bucket);
-        DirectorySubspace indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
-        assertNotNull(indexSubspace);
-    }
-
-    protected void createIndex(String bucketName, IndexDefinition indexDefinition) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            createIndex(tr, bucketName, indexDefinition);
-            tr.commit().join();
-        }
-    }
-
     protected BucketMetadata createIndexesAndLoadBucketMetadata(String bucketName, IndexDefinition... indexes) {
-        // Create the bucket first
-        createBucket(bucketName);
-
         // Create indexes
-        for (IndexDefinition index : indexes) {
-            createIndex(bucketName, index);
+        for (IndexDefinition definition : indexes) {
+            createIndexThenWaitForReadiness(TEST_NAMESPACE, bucketName, definition);
         }
 
         // Load and return metadata

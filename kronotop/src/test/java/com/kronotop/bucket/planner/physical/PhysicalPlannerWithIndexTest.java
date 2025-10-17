@@ -40,11 +40,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
      * Helper method to create an index
      */
     void createIndex(IndexDefinition definition) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
-            assertNotNull(indexSubspace);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(definition);
         // Refresh the index registry
         metadata = getBucketMetadata(TEST_BUCKET);
     }
