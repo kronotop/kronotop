@@ -84,7 +84,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
         // Refresh the index registry
-        return getBucketMetadata(TEST_BUCKET_NAME);
+        return getBucketMetadata(TEST_BUCKET);
     }
 
     /**

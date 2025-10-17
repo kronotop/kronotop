@@ -19,11 +19,7 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.CachedTimeService;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexStatistics;
-import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.*;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.server.Session;
@@ -39,17 +35,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 
 class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
-    final String testBucketName = "test-bucket";
 
     @Test
     void shouldCreateOrOpenBucketMetadata() {
         Session session = getSession();
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, testBucketName);
-        assertEquals(testBucketName, metadata.name());
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
+        assertEquals(TEST_BUCKET, metadata.name());
         assertNotNull(metadata.subspace());
         assertNotNull(metadata.volumePrefix());
         Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
@@ -61,7 +57,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReadVersionFromExistingBucketMetadata() {
         Session session = getSession();
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, testBucketName);
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             long version = BucketMetadataUtil.readVersion(tr, metadata.subspace());
@@ -72,7 +68,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldIncreaseVersion() {
         Session session = getSession();
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, testBucketName);
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadataUtil.increaseVersion(tr, metadata.subspace(), IndexUtil.POSITIVE_DELTA_ONE);
@@ -110,7 +106,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
                     checkpoint.await();
 
                     Session session = getSession();
-                    BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, testBucketName);
+                    BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
                     result.put(threadId, metadata);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
@@ -140,7 +136,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReadIndexStatistics() throws InterruptedException {
         Session session = getSession();
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, testBucketName);
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
 
         final IndexDefinition numericIndexDefinition = IndexDefinition.create(
                 "numeric-index",
@@ -148,10 +144,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
                 BsonType.INT32
         );
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexUtil.create(tr, metadata.subspace(), numericIndexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(numericIndexDefinition);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexUtil.mutateCardinality(tr, metadata.subspace(), numericIndexDefinition.id(), 1);
@@ -197,7 +190,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         for (int i = 0; i < numberOfEntries; i++) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.insert(testBucketName, BucketInsertArgs.Builder.shard(1), DOCUMENT).encode(buf);
+            cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(1), DOCUMENT).encode(buf);
 
             runCommand(instance.getChannel(), buf);
         }
@@ -206,7 +199,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context.getService(CachedTimeService.NAME), 0);
         cleanup.run();
 
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), testBucketName);
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), TEST_BUCKET);
         IndexStatistics statistics = metadata.indexes().getStatistics(DefaultIndexDefinition.ID.id());
         assertEquals(numberOfEntries, statistics.cardinality());
     }
@@ -214,7 +207,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReadBucketMetadataHeader() {
         Session session = getSession();
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, testBucketName);
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexUtil.mutateCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id(), 1);
@@ -238,18 +231,18 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         for (int i = 0; i < numberOfEntries; i++) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.insert(testBucketName, BucketInsertArgs.Builder.shard(1), DOCUMENT).encode(buf);
+            cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(1), DOCUMENT).encode(buf);
 
             runCommand(instance.getChannel(), buf);
         }
 
         {
-            BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), testBucketName);
+            BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), TEST_BUCKET);
             // Try hard refresh
             BucketMetadataUtil.refreshIndexStatistics(context, metadata, 0);
         }
 
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), testBucketName);
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), TEST_BUCKET);
         IndexStatistics statistics = metadata.indexes().getStatistics(DefaultIndexDefinition.ID.id());
         assertEquals(numberOfEntries, statistics.cardinality());
     }
@@ -259,7 +252,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             NoSuchBucketException exception = assertThrows(NoSuchBucketException.class, () -> {
-                BucketMetadataUtil.open(context, tr, session, testBucketName);
+                BucketMetadataUtil.open(context, tr, session, TEST_BUCKET);
             });
             assertEquals("No such bucket: 'test-bucket'", exception.getMessage());
         }
@@ -269,13 +262,13 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     void shouldOpenExistingBucket() {
         Session session = getSession();
 
-        BucketMetadata expectedBucketMetadata = BucketMetadataUtil.createOrOpen(context, session, testBucketName);
+        BucketMetadata expectedBucketMetadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
         // This will flush all cached entries
         Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context.getService(CachedTimeService.NAME), 0);
         cleanup.run();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = assertDoesNotThrow(() -> BucketMetadataUtil.open(context, tr, session, testBucketName));
+            BucketMetadata metadata = assertDoesNotThrow(() -> BucketMetadataUtil.open(context, tr, session, TEST_BUCKET));
             assertThat(expectedBucketMetadata).usingRecursiveComparison().isEqualTo(metadata);
         }
     }
@@ -283,7 +276,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReadIndexStatisticsForIndexId() {
         Session session = getSession();
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, testBucketName);
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexUtil.mutateCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id(), 1);

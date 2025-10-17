@@ -46,7 +46,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
             tr.commit().join();
         }
         // Refresh the index registry
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     /**

@@ -55,7 +55,7 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         logicalPlanner = new LogicalPlanner();
         physicalPlanner = new PhysicalPlanner();
         optimizer = new Optimizer();
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     private void createIndex(IndexDefinition definition) {
@@ -65,7 +65,7 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
             tr.commit().join();
         }
         // Refresh the index registry
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     private void createIndexes(IndexDefinition... definitions) {

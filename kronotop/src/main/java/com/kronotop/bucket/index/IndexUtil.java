@@ -75,6 +75,15 @@ public class IndexUtil {
         }
     }
 
+    public static void create(
+            Context context,
+            Transaction tr,
+            String namespace,
+            String bucket,
+            IndexDefinition definition) {
+        create(context, tr, namespace, bucket, definition, 0);
+    }
+
     /**
      * Creates an index and spawns background build tasks across all shards.
      *
@@ -94,9 +103,10 @@ public class IndexUtil {
      * @param bucket      the bucket name
      * @param definition  the definition of the index to be created
      * @param userVersion the user version for task ordering
+     * @return the newly created directory subspace for the specified index
      * @throws KronotopException if the index already exists
      */
-    public static void create(
+    public static DirectorySubspace create(
             Context context,
             Transaction tr,
             String namespace,
@@ -106,7 +116,7 @@ public class IndexUtil {
 
         BucketMetadata bucketMetadata = BucketMetadataUtil.open(context, tr, namespace, bucket);
         // Create the index
-        create(tr, bucketMetadata.subspace(), definition);
+        DirectorySubspace indexSubspace = create(tr, bucketMetadata.subspace(), definition);
 
         // Create background build tasks for all shards
         IndexBuilderTask task = new IndexBuilderTask(namespace, bucket, definition.id());
@@ -117,6 +127,8 @@ public class IndexUtil {
             DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
             TaskStorage.create(tr, userVersion, taskSubspace, encodedTask);
         }
+
+        return indexSubspace;
     }
 
     /**

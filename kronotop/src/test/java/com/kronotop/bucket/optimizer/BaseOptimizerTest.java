@@ -49,7 +49,7 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
         optimizer = new Optimizer();
         physicalPlanner = new PhysicalPlanner();
         logicalPlanner = new LogicalPlanner();
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     /**
@@ -90,7 +90,7 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
         // Refresh the index registry
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     /**
