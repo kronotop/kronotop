@@ -74,7 +74,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     void test_insert_single_document_with_oneOff_transaction() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -97,7 +97,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                         BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
                         BSONUtil.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                 ));
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -134,7 +134,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                             BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
                             BSONUtil.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                     ));
-            bucketCommandBuilder.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+            bucketCommandBuilder.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -185,7 +185,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                             BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
                             BSONUtil.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                     ));
-            bucketCommandBuilder.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+            bucketCommandBuilder.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -234,21 +234,16 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         IndexDefinition indexDefinition = IndexDefinition.create(fieldName + "-index", fieldName, bsonType);
 
         // Create bucket metadata and register the index
-        BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), BUCKET_NAME);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), indexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(indexDefinition);
 
         // Refresh bucket metadata to include the new index
-        metadata = getBucketMetadata(BUCKET_NAME);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         // Insert document
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -297,24 +292,17 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         IndexDefinition nameIndexDefinition = IndexDefinition.create("name-index", "name", BsonType.STRING);
         IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
 
-        // Create bucket metadata and register the indexes
-        BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), BUCKET_NAME);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), nameIndexDefinition);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(nameIndexDefinition, ageIndexDefinition);
 
         // Refresh bucket metadata to include the new indexes
-        metadata = getBucketMetadata(BUCKET_NAME);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         // Insert document that only has one of the indexed fields
         String jsonDocument = "{\"name\": \"John Doe\", \"city\": \"New York\"}"; // Missing 'age' field
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -361,20 +349,20 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         // Create bucket metadata and register the index
         BucketMetadata metadata;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), BUCKET_NAME);
+            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), TEST_BUCKET);
             com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
             tr.commit().join();
         }
 
         // Refresh bucket metadata to include the new index
-        metadata = getBucketMetadata(BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
 
         // Insert document where 'age' is a STRING instead of INT32
         String jsonDocument = "{\"name\": \"John\", \"age\": \"twenty-five\"}"; // 'age' is string, not int32
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -406,7 +394,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         // Create bucket metadata and register the indexes
         BucketMetadata metadata;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), BUCKET_NAME);
+            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), TEST_BUCKET);
             com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), nameIndexDefinition);
             com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
             com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), activeIndexDefinition);
@@ -414,14 +402,14 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Refresh bucket metadata to include the new indexes
-        metadata = getBucketMetadata(BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
 
         // Insert document with all indexed fields
         String jsonDocument = "{\"name\": \"Alice\", \"age\": 28, \"active\": true, \"city\": \"Boston\"}";
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -483,13 +471,13 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         // Create bucket metadata and register the index
         BucketMetadata metadata;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), BUCKET_NAME);
+            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), TEST_BUCKET);
             IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
             tr.commit().join();
         }
 
         // Refresh bucket metadata to include the new index
-        metadata = getBucketMetadata(BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace());
@@ -508,7 +496,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         for (String jsonDocument : documents) {
             ByteBuf buf = Unpooled.buffer();
             byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
-            cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+            cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -527,7 +515,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         // Insert one more document to verify cardinality increments correctly
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"David\", \"age\": 40}");
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
