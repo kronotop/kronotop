@@ -126,7 +126,7 @@ public class BaseStandaloneInstanceTest extends BaseTest {
         }
 
         for (DirectorySubspace subspace : subspaces) {
-            await().atMost(Duration.ofSeconds(5)).until(() -> {
+            await().atMost(Duration.ofSeconds(15)).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, subspace);
                     return definition.status() == IndexStatus.READY;

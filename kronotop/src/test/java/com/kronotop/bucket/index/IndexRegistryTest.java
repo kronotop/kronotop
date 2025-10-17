@@ -213,8 +213,6 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
         assertSame(originalDef, retrievedIndex.definition());
     }
 
-    // === NEW TESTS FOR UPDATED FUNCTIONALITY ===
-
     @Test
     void testRegister_DuplicateSelector_ThrowsException() {
         // Register an index
@@ -237,7 +235,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
         assertEquals(testSubspace, result.subspace());
         assertEquals("first-index", result.definition().name());
         assertEquals(BsonType.STRING, result.definition().bsonType());
-        assertEquals(IndexStatus.READY, result.definition().status());
+        assertEquals(IndexStatus.WAITING, result.definition().status());
     }
 
     @Test
@@ -279,7 +277,8 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     @Test
     void testUpdateIndexDefinition_ExistingIndex_UpdatesSuccessfully() {
         // Register an index with READY status
-        IndexDefinition originalDef = IndexDefinition.create("test-index", "test.field", BsonType.STRING);
+        IndexDefinition originalDef = IndexDefinition.create("test-index", "test.field", BsonType.STRING).
+                updateStatus(IndexStatus.READY);
         indexRegistry.register(originalDef, testSubspace);
 
         // Verify initial state
@@ -310,20 +309,23 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     @Test
     void testUpdateIndexDefinition_StatusChanges_AffectsPolicySegregation() {
         // Register indexes with different statuses
-        IndexDefinition readyDef = IndexDefinition.create("ready-index", "ready.field", BsonType.STRING);
+        IndexDefinition waitingDef = IndexDefinition.create("waiting-index", "waiting.field", BsonType.STRING);
+        IndexDefinition readyDef = IndexDefinition.create("ready-index", "ready.field", BsonType.STRING).
+                updateStatus(IndexStatus.READY);
         IndexDefinition buildingDef = IndexDefinition.create("building-index", "building.field", BsonType.STRING)
                 .updateStatus(IndexStatus.BUILDING);
         IndexDefinition failedDef = IndexDefinition.create("failed-index", "failed.field", BsonType.STRING)
                 .updateStatus(IndexStatus.FAILED);
 
+        indexRegistry.register(waitingDef, testSubspace);
         indexRegistry.register(readyDef, testSubspace);
         indexRegistry.register(buildingDef, testSubspace);
         indexRegistry.register(failedDef, testSubspace);
 
         // Initial counts
         assertEquals(1, indexRegistry.getIndexes(IndexSelectionPolicy.READONLY).size()); // Only READY
-        assertEquals(2, indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE).size()); // READY + BUILDING
-        assertEquals(3, indexRegistry.getIndexes(IndexSelectionPolicy.ALL).size()); // All indexes
+        assertEquals(3, indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE).size()); // WAITING + READY + BUILDING
+        assertEquals(4, indexRegistry.getIndexes(IndexSelectionPolicy.ALL).size()); // All indexes
 
         // Update BUILDING to READY
         IndexDefinition updatedBuilding = buildingDef.updateStatus(IndexStatus.READY);
@@ -331,8 +333,8 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
 
         // Verify counts changed
         assertEquals(2, indexRegistry.getIndexes(IndexSelectionPolicy.READONLY).size()); // READY + updated READY
-        assertEquals(2, indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE).size()); // Both READY indexes
-        assertEquals(3, indexRegistry.getIndexes(IndexSelectionPolicy.ALL).size()); // Still all indexes
+        assertEquals(3, indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE).size()); // WAITING + READY indexes
+        assertEquals(4, indexRegistry.getIndexes(IndexSelectionPolicy.ALL).size()); // Still all indexes
 
         // Update READY to FAILED
         IndexDefinition updatedReady = readyDef.updateStatus(IndexStatus.FAILED);
@@ -340,8 +342,8 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
 
         // Verify counts changed again
         assertEquals(1, indexRegistry.getIndexes(IndexSelectionPolicy.READONLY).size()); // Only the updated building->ready
-        assertEquals(1, indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE).size()); // Only the updated building->ready
-        assertEquals(3, indexRegistry.getIndexes(IndexSelectionPolicy.ALL).size()); // Still all indexes
+        assertEquals(2, indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE).size()); // WAITING + READY
+        assertEquals(4, indexRegistry.getIndexes(IndexSelectionPolicy.ALL).size()); // Still all indexes
     }
 
     @Test
