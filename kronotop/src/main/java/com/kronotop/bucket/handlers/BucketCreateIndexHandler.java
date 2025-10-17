@@ -17,9 +17,8 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.handlers.protocol.BucketCreateIndexMessage;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexNameGenerator;
@@ -27,6 +26,7 @@ import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import io.github.resilience4j.retry.Retry;
 
 import java.util.Map;
 
@@ -49,33 +49,36 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
     public void execute(Request request, Response response) throws Exception {
         runAsync(context, response, () -> {
             BucketCreateIndexMessage message = request.attr(MessageTypes.BUCKETCREATEINDEX).get();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                int userVersion = 0;
-                String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
-                for (Map.Entry<String, BucketCreateIndexMessage.IndexDefinition> entry : message.getDefinitions().entrySet()) {
-                    BucketCreateIndexMessage.IndexDefinition definition = entry.getValue();
-                    String name = definition.getName();
-                    if (name == null) {
-                        name = IndexNameGenerator.generate(entry.getKey(), definition.getBsonType());
-                    }
-                    IndexDefinition indexDefinition = IndexDefinition.create(
-                            name,
-                            entry.getKey(),
-                            definition.getBsonType()
-                    );
+            Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+            retry.executeRunnable(() -> {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    int userVersion = 0;
+                    String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
+                    for (Map.Entry<String, BucketCreateIndexMessage.IndexDefinition> entry : message.getDefinitions().entrySet()) {
+                        BucketCreateIndexMessage.IndexDefinition definition = entry.getValue();
+                        String name = definition.getName();
+                        if (name == null) {
+                            name = IndexNameGenerator.generate(entry.getKey(), definition.getBsonType());
+                        }
+                        IndexDefinition indexDefinition = IndexDefinition.create(
+                                name,
+                                entry.getKey(),
+                                definition.getBsonType()
+                        );
 
-                    IndexUtil.create(
-                            context,
-                            tr,
-                            namespace,
-                            message.getBucket(),
-                            indexDefinition,
-                            userVersion
-                    );
-                    userVersion++;
+                        IndexUtil.create(
+                                context,
+                                tr,
+                                namespace,
+                                message.getBucket(),
+                                indexDefinition,
+                                userVersion
+                        );
+                        userVersion++;
+                    }
+                    tr.commit().join();
                 }
-                tr.commit().join();
-            }
+            });
         }, response::writeOK);
     }
 }

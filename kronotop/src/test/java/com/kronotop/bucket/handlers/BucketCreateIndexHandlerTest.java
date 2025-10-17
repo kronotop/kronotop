@@ -85,7 +85,6 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
         }
     }
 
-
     @Test
     void shouldThrowAnErrorWhenIndexAlreadyExists() {
         String definition = "{\"selector\": {\"bson_type\": \"int32\"}, \"username\": {\"bson_type\": \"string\"}}";
