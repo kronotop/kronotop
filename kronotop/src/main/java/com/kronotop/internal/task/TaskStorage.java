@@ -231,6 +231,20 @@ public class TaskStorage {
     }
 
     /**
+     * Retrieves a single state field for the specified task.
+     *
+     * @param tr       the transaction instance to use for the operation
+     * @param subspace the directory subspace where the task is stored
+     * @param taskId   the complete versionstamp identifying the task
+     * @param field    the name of the state field to retrieve
+     * @return the serialized field value, or null if the field doesn't exist
+     */
+    public static byte[] getStateField(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, String field) {
+        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, STATE, field));
+        return tr.get(key).join();
+    }
+
+    /**
      * Retrieves all state fields for the specified task.
      *
      * <p>This method performs a range scan to retrieve all state fields associated
