@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -160,5 +161,31 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         RedisMessage msg = findInMapMessage((MapRedisMessage) response, "entries");
         assertInstanceOf(MapRedisMessage.class, msg);
         return (MapRedisMessage) msg;
+    }
+
+
+    protected void insertAtBackground(CountDownLatch halfLatch, CountDownLatch allLatch, int totalInserts) {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        byte[][] docs = makeDocumentsArray(
+                List.of(
+                        BSONUtil.jsonToDocumentThenBytes("{\"age\": 32}"),
+                        BSONUtil.jsonToDocumentThenBytes("{\"age\": 40}")
+                ));
+
+        for (int j = 0; j < totalInserts; j++) {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+            runCommand(channel, buf);
+
+            try {
+                Thread.sleep(2);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+
+            halfLatch.countDown();
+            allLatch.countDown();
+        }
     }
 }

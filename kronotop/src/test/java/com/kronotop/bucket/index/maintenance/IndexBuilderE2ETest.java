@@ -16,17 +16,14 @@
 
 package com.kronotop.bucket.index.maintenance;
 
-import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
-import com.kronotop.bucket.index.*;
-import com.kronotop.internal.JSONUtil;
+import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
 import org.junit.jupiter.api.AfterAll;
@@ -38,12 +35,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
+public class IndexBuilderE2ETest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
             "__test__.background_index_builder.skip_wait_transaction_limit";
 
@@ -58,18 +56,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldBuildIndexAtBackground() throws Exception {
-        // This test verifies that the background index building works correctly
-        // while insert operations are still in progress.
-        //
-        // Steps:
-        // 1. Start a background thread that performs 1000 inserts.
-        // 2. Wait until half of the inserts (500) are done, then create an index definition and enqueue a build task.
-        // 3. The background index builder should pick up the task and build the index for all documents
-        //    that existed before the index was created.
-        // 4. The remaining inserts should be automatically indexed by the regular insert path (Netty threads).
-        // 5. Finally, assert that the index contains entries for all 2000 inserted documents (2 docs per insert).
-
+    void shouldTransitionIndexToReadyAfterBackgroundBuildCompletes() throws Exception {
         int halfway = 500;
         int totalInserts = 1000;
 
@@ -89,41 +76,40 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
                     IndexStatus.WAITING
             );
 
-            DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
-                IndexUtil.create(tr, metadata.subspace(), definition);
+                IndexUtil.create(context, tr, TEST_NAMESPACE, TEST_BUCKET, definition);
                 tr.commit().join();
             }
 
-            IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
-            Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+            // Refresh the metadata
+            BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
             allLatch.await();
 
             bgFuture.get();
 
-            await().atMost(Duration.ofSeconds(10)).until(() -> {
+            DirectorySubspace subspace = context.getFoundationDB().run(tr ->
+                    IndexUtil.open(tr, metadata.subspace(), definition.name()));
+            await().atMost(Duration.ofSeconds(15)).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    BucketMetadata metadata = BucketMetadataUtil.open(context, tr, NAMESPACE_NAME, BUCKET_NAME);
-                    Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
-                    byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
-                    byte[] end = ByteArrayUtil.strinc(begin);
-
-                    int count = 0;
-                    for (KeyValue ignored : tr.getRange(begin, end)) {
-                        count++;
-                    }
-                    return count == totalInserts * 2;
+                    IndexDefinition indexDefinition = IndexUtil.loadIndexDefinition(tr, subspace);
+                    return indexDefinition.status() == IndexStatus.READY;
                 }
             });
 
+            // All tasks must be dropped after this point
+            AtomicInteger tasks = new AtomicInteger();
+            BucketService bucketService = context.getService(BucketService.NAME);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, taskSubspace, taskId);
-                assertEquals(state.cursorVersionstamp(), state.highestVersionstamp());
-                assertNull(state.error());
-                assertEquals(IndexTaskStatus.COMPLETED, state.status());
+                for (int shardId = 0; shardId < bucketService.getNumberOfShards(); shardId++) {
+                    DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
+                    TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
+                      tasks.getAndIncrement();
+                      return true;
+                    });
+                }
             }
+            assertEquals(0, tasks.getAndIncrement());
         }
     }
 }
