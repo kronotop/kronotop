@@ -17,11 +17,9 @@
 package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexStatus;
-import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;

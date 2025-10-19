@@ -18,6 +18,8 @@ package com.kronotop.bucket.index;
 
 public interface IndexMaintenanceRoutine {
     void start();
+
     void stop();
+
     IndexMaintenanceRoutineMetrics getMetrics();
 }

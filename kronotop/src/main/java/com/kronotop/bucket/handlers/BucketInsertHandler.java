@@ -38,7 +38,6 @@ import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeSession;
 import org.bson.BsonNull;
-import org.bson.BsonType;
 import org.bson.BsonValue;
 import org.bson.Document;
 
@@ -50,7 +49,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
-import static org.bson.BsonType.INT32;
 
 @Command(BucketInsertMessage.COMMAND)
 @MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)

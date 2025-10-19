@@ -27,7 +27,6 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.*;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.VersionstampUtil;
@@ -35,7 +34,6 @@ import com.kronotop.protocol.CommitArgs;
 import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
-import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
@@ -334,7 +332,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             ).asList().join();
 
             assertEquals(1, ageEntries.size(), "Should have an entry(null) for age index when field is missing");
-            for (KeyValue entry: ageEntries) {
+            for (KeyValue entry : ageEntries) {
                 Tuple tuple = ageIndexSubspace.unpack(entry.getKey());
                 assertNull(tuple.get(1));
             }

@@ -382,8 +382,8 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
         assertEquals(3, readwriteIndexes.size());
         assertTrue(readwriteIndexes.stream().allMatch(idx ->
                 idx.definition().status() == IndexStatus.WAITING ||
-                idx.definition().status() == IndexStatus.BUILDING ||
-                idx.definition().status() == IndexStatus.READY));
+                        idx.definition().status() == IndexStatus.BUILDING ||
+                        idx.definition().status() == IndexStatus.READY));
     }
 
     @Test

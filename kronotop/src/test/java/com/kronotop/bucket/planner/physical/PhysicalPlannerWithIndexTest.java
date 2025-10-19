@@ -16,10 +16,7 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.planner.Operator;
 import org.bson.BsonType;
 import org.junit.jupiter.api.DisplayName;

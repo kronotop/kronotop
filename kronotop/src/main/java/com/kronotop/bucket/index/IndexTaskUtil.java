@@ -19,7 +19,6 @@ package com.kronotop.bucket.index;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.directory.KronotopDirectory;
