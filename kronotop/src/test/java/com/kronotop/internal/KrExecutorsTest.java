@@ -35,7 +35,7 @@ class KrExecutorsTest {
 
         try {
             CountDownLatch latch = new CountDownLatch(1);
-            Future<?> future = executor.submit(() -> latch.countDown());
+            Future<?> future = executor.submit(latch::countDown);
 
             assertTrue(latch.await(5, TimeUnit.SECONDS));
             assertFalse(future.isCancelled());
@@ -62,7 +62,7 @@ class KrExecutorsTest {
 
         try {
             CountDownLatch latch = new CountDownLatch(1);
-            Future<?> future = executor.submit(() -> latch.countDown());
+            Future<?> future = executor.submit(latch::countDown);
 
             assertTrue(latch.await(5, TimeUnit.SECONDS));
             assertTrue(future.isDone());
