@@ -27,6 +27,7 @@ import com.kronotop.Context;
 import com.kronotop.bucket.index.IndexBuilderTaskState;
 import com.kronotop.bucket.index.IndexTaskStatus;
 import com.kronotop.bucket.index.IndexTaskUtil;
+import com.kronotop.internal.KrExecutors;
 import com.kronotop.internal.task.TaskStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,11 +50,13 @@ import static com.kronotop.internal.task.TaskStorage.TASKS_MAGIC;
  *   <li>Coordinates task completion across shards using the task sweeper</li>
  * </ul>
  *
- * <p>The watchdog implements a bounded worker pool strategy with:
+ * <p>The watchdog implements a bounded worker pool strategy using {@link KrExecutors#newBoundedExecutor}:
  * <ul>
- *   <li>A core pool size of {@code WORKER_POOL_SIZE} (2) workers</li>
- *   <li>A maximum of {@code MAX_WORKER_POOL_SIZE} (4) concurrent workers</li>
- *   <li>Automatic cleanup of workers that have been inactive for 60 seconds</li>
+ *   <li>Dynamic thread scaling from 0 to {@code WORKER_POOL_SIZE} threads</li>
+ *   <li>A maximum of {@code MAX_WORKER_POOL_SIZE} concurrent workers tracked in-memory</li>
+ *   <li>LinkedBlockingQueue for task buffering when threads are busy</li>
+ *   <li>1-minute thread keep-alive time for automatic thread cleanup during idle periods</li>
+ *   <li>Automatic cleanup of stale workers that have been inactive for 60 seconds</li>
  * </ul>
  *
  * <p>Task coordination across shards is handled through a completion counter.
@@ -70,7 +73,7 @@ import static com.kronotop.internal.task.TaskStorage.TASKS_MAGIC;
  */
 public class IndexMaintenanceWatchDog implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexMaintenanceWatchDog.class);
-    private static final int WORKER_POOL_SIZE = 2;
+    private static final int WORKER_POOL_SIZE = Runtime.getRuntime().availableProcessors();
     private static final int MAX_WORKER_POOL_SIZE = WORKER_POOL_SIZE * 2;
     private final long WORKER_MAX_STALE_PERIOD = 60000; // 60s
     private final Context context;
@@ -91,8 +94,9 @@ public class IndexMaintenanceWatchDog implements Runnable {
      * <ul>
      *   <li>Task subspace for the shard's index maintenance tasks</li>
      *   <li>Task sweeper for cross-shard coordination</li>
-     *   <li>Worker thread pool with named threads for task execution</li>
-     *   <li>Scheduled executor for periodic cleanup operations</li>
+     *   <li>Bounded worker executor using {@link KrExecutors#newBoundedExecutor} with dynamic thread scaling,
+     *       task buffering via LinkedBlockingQueue, and 1-minute thread keep-alive timeout</li>
+     *   <li>Single-threaded scheduled executor for periodic cleanup operations</li>
      * </ul>
      *
      * @param context the application context providing access to services and FoundationDB
@@ -109,7 +113,12 @@ public class IndexMaintenanceWatchDog implements Runnable {
         ThreadFactory factory = new ThreadFactoryBuilder()
                 .setNameFormat("kr-index-maintenance-%d")
                 .build();
-        this.workerExecutor = Executors.newFixedThreadPool(WORKER_POOL_SIZE, factory);
+        this.workerExecutor = KrExecutors.newBoundedExecutor(
+                WORKER_POOL_SIZE,
+                1L,
+                TimeUnit.MINUTES,
+                factory
+        );
         this.scheduler = Executors.newSingleThreadScheduledExecutor(factory);
     }
 
