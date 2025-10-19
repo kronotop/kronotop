@@ -17,6 +17,7 @@
 package com.kronotop.bucket;
 
 import com.kronotop.Context;
+import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.impl.AbstractShard;
 import com.kronotop.volume.Volume;

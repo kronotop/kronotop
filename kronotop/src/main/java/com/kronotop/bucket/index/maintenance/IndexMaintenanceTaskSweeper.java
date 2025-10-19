@@ -14,17 +14,17 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket;
+package com.kronotop.bucket.index.maintenance;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.*;
-import com.kronotop.bucket.index.maintenance.IndexBuilderTask;
-import com.kronotop.bucket.index.maintenance.IndexBuilderTaskState;
-import com.kronotop.bucket.index.maintenance.IndexTaskStatus;
-import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import io.github.resilience4j.retry.Retry;

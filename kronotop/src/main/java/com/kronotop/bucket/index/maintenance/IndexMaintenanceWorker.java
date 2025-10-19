@@ -14,12 +14,12 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket;
+package com.kronotop.bucket.index.maintenance;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.bucket.index.maintenance.*;
+import com.kronotop.bucket.RetryMethods;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 

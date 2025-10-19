@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket;
+package com.kronotop.bucket.index.maintenance;
 
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
@@ -24,9 +24,8 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
-import com.kronotop.bucket.index.maintenance.IndexBuilderTaskState;
-import com.kronotop.bucket.index.maintenance.IndexTaskStatus;
-import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.BucketShard;
 import com.kronotop.internal.KrExecutors;
 import com.kronotop.internal.task.TaskStorage;
 import org.slf4j.Logger;

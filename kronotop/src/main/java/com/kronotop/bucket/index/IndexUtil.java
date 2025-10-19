@@ -28,6 +28,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.maintenance.IndexBuilderTask;
+import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;

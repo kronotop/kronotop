@@ -24,6 +24,9 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper;
+import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
+import com.kronotop.bucket.index.maintenance.IndexMaintenanceWorker;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -56,9 +59,9 @@ import java.util.concurrent.CompletableFuture;
  * All operations are transactional through FoundationDB, providing ACID guarantees.
  * The class itself is stateless and thread-safe.
  *
- * @see com.kronotop.bucket.IndexMaintenanceWatchDog
- * @see com.kronotop.bucket.IndexMaintenanceWorker
- * @see com.kronotop.bucket.IndexMaintenanceTaskSweeper
+ * @see IndexMaintenanceWatchDog
+ * @see IndexMaintenanceWorker
+ * @see IndexMaintenanceTaskSweeper
  */
 public class TaskStorage {
     /**
