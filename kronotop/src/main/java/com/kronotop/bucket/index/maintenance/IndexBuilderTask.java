@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket.index.maintenance;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

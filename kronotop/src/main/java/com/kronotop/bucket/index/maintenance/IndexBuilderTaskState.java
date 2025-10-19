@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket.index.maintenance;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;

@@ -14,12 +14,13 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket.index.maintenance;
 
-public enum IndexTaskStatus {
-    WAITING,
-    RUNNING,
-    COMPLETED,
-    FAILED,
-    STOPPED
+import com.kronotop.KronotopException;
+
+public class IndexMaintenanceRoutineException extends KronotopException {
+
+    public IndexMaintenanceRoutineException(String message) {
+        super(message);
+    }
 }

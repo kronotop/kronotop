@@ -14,9 +14,20 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket.index.maintenance;
 
-import com.kronotop.KronotopException;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class IndexMaintenanceRoutineShutdownException extends KronotopException {
+public class IndexMaintenanceTask {
+    private final IndexMaintenanceTaskKind kind;
+
+    public IndexMaintenanceTask(
+            @JsonProperty("kind") IndexMaintenanceTaskKind kind
+    ) {
+        this.kind = kind;
+    }
+
+    public IndexMaintenanceTaskKind getKind() {
+        return kind;
+    }
 }

@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket.index.maintenance;
 
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
@@ -26,6 +26,7 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
+import com.kronotop.bucket.index.*;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.internal.JSONUtil;

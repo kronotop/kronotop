@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket.index.maintenance;
 
 import com.kronotop.internal.JSONUtil;
 import org.junit.jupiter.api.Test;

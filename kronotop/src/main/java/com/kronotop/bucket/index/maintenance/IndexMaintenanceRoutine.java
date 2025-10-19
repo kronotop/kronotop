@@ -14,13 +14,12 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket.index.maintenance;
 
-import com.kronotop.KronotopException;
+public interface IndexMaintenanceRoutine {
+    void start();
 
-public class IndexMaintenanceRoutineException extends KronotopException {
+    void stop();
 
-    public IndexMaintenanceRoutineException(String message) {
-        super(message);
-    }
+    IndexMaintenanceRoutineMetrics getMetrics();
 }

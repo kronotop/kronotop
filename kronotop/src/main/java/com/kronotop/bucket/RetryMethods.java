@@ -17,7 +17,7 @@
 package com.kronotop.bucket;
 
 import com.apple.foundationdb.FDBException;
-import com.kronotop.bucket.index.IndexMaintenanceRoutineShutdownException;
+import com.kronotop.bucket.index.maintenance.IndexMaintenanceRoutineShutdownException;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;

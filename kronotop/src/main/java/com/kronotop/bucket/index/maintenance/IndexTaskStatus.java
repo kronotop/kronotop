@@ -14,20 +14,12 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket.index;
+package com.kronotop.bucket.index.maintenance;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-public class IndexMaintenanceTask {
-    private final IndexMaintenanceTaskKind kind;
-
-    public IndexMaintenanceTask(
-            @JsonProperty("kind") IndexMaintenanceTaskKind kind
-    ) {
-        this.kind = kind;
-    }
-
-    public IndexMaintenanceTaskKind getKind() {
-        return kind;
-    }
+public enum IndexTaskStatus {
+    WAITING,
+    RUNNING,
+    COMPLETED,
+    FAILED,
+    STOPPED
 }

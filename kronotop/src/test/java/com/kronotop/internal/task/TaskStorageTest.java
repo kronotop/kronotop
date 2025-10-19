@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.bucket.index.IndexBuilderTask;
+import com.kronotop.bucket.index.maintenance.IndexBuilderTask;
 import com.kronotop.internal.JSONUtil;
 import org.junit.jupiter.api.Test;
 
