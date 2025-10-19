@@ -33,7 +33,6 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
 
     public static IndexBuilderTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
         Map<String, byte[]> entries = TaskStorage.getStateFields(tr, subspace, taskId);
-
         Versionstamp cursorVersionstamp = null;
         byte[] rawCursorVs = entries.get(CURSOR_VERSIONSTAMP);
         if (rawCursorVs != null) {

@@ -243,13 +243,15 @@ public class IndexMaintenanceWatchDog implements Runnable {
                             new IndexMaintenanceWorker(context, subspace, shard.id(), taskId, this::indexTaskCompletionHook);
                     Future<?> future = workerExecutor.submit(worker);
                     workers.put(taskId, new Worker(worker, future));
-                    // Backpressure - WORKER_POOL_SIZE = 2
+                    // Backpressure
                     return workers.size() < MAX_WORKER_POOL_SIZE;
                 } else if (status == IndexTaskStatus.COMPLETED) {
                     int counter = IndexTaskUtil.readTaskCounter(context, taskId);
                     if (counter == service.getNumberOfShards()) {
                         sweeper.sweep(subspace, taskId);
                     }
+                } else if (status == IndexTaskStatus.STOPPED) {
+                    sweeper.sweep(subspace, taskId);
                 }
                 return true;
             });

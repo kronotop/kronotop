@@ -16,8 +16,10 @@
 
 package com.kronotop.bucket.index.maintenance;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class IndexMaintenanceTask {
     private final IndexMaintenanceTaskKind kind;
 

@@ -355,8 +355,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                             shardId
                     );
                     break;
-                }
-                if (state.status() == IndexTaskStatus.STOPPED) {
+                } else if (state.status() == IndexTaskStatus.STOPPED) {
                     // The operator marked the task as STOPPED manually.
                     LOGGER.debug(
                             "Background index builder for namespace={}, bucket={}, index={} has been stopped by the operator",
@@ -366,6 +365,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                     );
                     break;
                 }
+
                 if (state.cursorVersionstamp() == null || state.highestVersionstamp() == null) {
                     LOGGER.debug(
                             "Background index builder for namespace={}, bucket={}, index={} on Bucket shard: {} has been completed, no items found",
