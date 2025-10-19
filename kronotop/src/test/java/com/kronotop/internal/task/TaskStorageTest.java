@@ -403,6 +403,231 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         }
     }
 
+    @Test
+    void test_tasks_iterate_all() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
+
+        // Create multiple tasks
+        IndexBuilderTask task1 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuilderTask task2 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 2);
+        IndexBuilderTask task3 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+
+        Versionstamp taskId1 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
+        Versionstamp taskId2 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
+        Versionstamp taskId3 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task3));
+
+        // Iterate over all tasks
+        java.util.List<Versionstamp> foundTasks = new java.util.ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TaskStorage.tasks(tr, subspace, taskId -> {
+                foundTasks.add(taskId);
+                return true; // Continue iteration
+            });
+        }
+
+        // Verify all tasks were found
+        assertEquals(3, foundTasks.size());
+        assertTrue(foundTasks.contains(taskId1));
+        assertTrue(foundTasks.contains(taskId2));
+        assertTrue(foundTasks.contains(taskId3));
+    }
+
+    @Test
+    void test_tasks_chronological_order() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
+
+        // Create tasks sequentially
+        IndexBuilderTask task1 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuilderTask task2 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 2);
+        IndexBuilderTask task3 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+
+        Versionstamp taskId1 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
+        Versionstamp taskId2 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
+        Versionstamp taskId3 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task3));
+
+        // Collect tasks in iteration order
+        java.util.List<Versionstamp> foundTasks = new java.util.ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TaskStorage.tasks(tr, subspace, taskId -> {
+                foundTasks.add(taskId);
+                return true;
+            });
+        }
+
+        // Verify tasks are in chronological order
+        assertEquals(3, foundTasks.size());
+        assertEquals(taskId1, foundTasks.get(0));
+        assertEquals(taskId2, foundTasks.get(1));
+        assertEquals(taskId3, foundTasks.get(2));
+    }
+
+    @Test
+    void test_tasks_break_after_first() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
+
+        // Create multiple tasks
+        IndexBuilderTask task1 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuilderTask task2 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 2);
+        IndexBuilderTask task3 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+
+        Versionstamp taskId1 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
+        TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
+        TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task3));
+
+        // Iterate but break after first task
+        java.util.List<Versionstamp> foundTasks = new java.util.ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TaskStorage.tasks(tr, subspace, taskId -> {
+                foundTasks.add(taskId);
+                return false; // Break immediately
+            });
+        }
+
+        // Verify only first task was processed
+        assertEquals(1, foundTasks.size());
+        assertEquals(taskId1, foundTasks.get(0));
+    }
+
+    @Test
+    void test_tasks_break_after_second() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
+
+        // Create multiple tasks
+        IndexBuilderTask task1 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuilderTask task2 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 2);
+        IndexBuilderTask task3 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+
+        Versionstamp taskId1 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
+        Versionstamp taskId2 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
+        TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task3));
+
+        // Iterate but break after second task
+        java.util.List<Versionstamp> foundTasks = new java.util.ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TaskStorage.tasks(tr, subspace, taskId -> {
+                foundTasks.add(taskId);
+                return foundTasks.size() < 2; // Break after second task
+            });
+        }
+
+        // Verify only first two tasks were processed
+        assertEquals(2, foundTasks.size());
+        assertEquals(taskId1, foundTasks.get(0));
+        assertEquals(taskId2, foundTasks.get(1));
+    }
+
+    @Test
+    void test_tasks_find_specific_task() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
+
+        // Create multiple tasks
+        IndexBuilderTask task1 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuilderTask task2 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 2);
+        IndexBuilderTask task3 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+
+        TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
+        Versionstamp targetTaskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
+        TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task3));
+
+        // Find specific task and break
+        java.util.concurrent.atomic.AtomicReference<Versionstamp> foundTask = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicInteger iterationCount = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TaskStorage.tasks(tr, subspace, taskId -> {
+                iterationCount.incrementAndGet();
+                if (taskId.equals(targetTaskId)) {
+                    foundTask.set(taskId);
+                    return false; // Found it, stop iteration
+                }
+                return true; // Continue searching
+            });
+        }
+
+        // Verify we found the task and stopped early
+        assertNotNull(foundTask.get());
+        assertEquals(targetTaskId, foundTask.get());
+        assertEquals(2, iterationCount.get()); // Should have processed 2 tasks before breaking
+    }
+
+    @Test
+    void test_tasks_empty_subspace() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
+
+        // Don't create any tasks
+        java.util.concurrent.atomic.AtomicInteger callCount = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TaskStorage.tasks(tr, subspace, taskId -> {
+                callCount.incrementAndGet();
+                return true;
+            });
+        }
+
+        // Verify action was never called
+        assertEquals(0, callCount.get());
+    }
+
+    @Test
+    void test_tasks_ignores_state_entries() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
+
+        // Create a task with state fields
+        IndexBuilderTask task = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
+
+        // Add multiple state fields
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TaskStorage.setStateField(tr, subspace, taskId, "status", "running".getBytes(StandardCharsets.UTF_8));
+            TaskStorage.setStateField(tr, subspace, taskId, "progress", "50%".getBytes(StandardCharsets.UTF_8));
+            TaskStorage.setStateField(tr, subspace, taskId, "error", "none".getBytes(StandardCharsets.UTF_8));
+            tr.commit().join();
+        }
+
+        // Iterate over tasks
+        java.util.List<Versionstamp> foundTasks = new java.util.ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TaskStorage.tasks(tr, subspace, foundTaskId -> {
+                foundTasks.add(foundTaskId);
+                return true;
+            });
+        }
+
+        // Verify only one task is found (not duplicated for each state field)
+        assertEquals(1, foundTasks.size());
+        assertEquals(taskId, foundTasks.get(0));
+    }
+
+    @Test
+    void test_tasks_conditional_processing() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
+
+        // Create multiple tasks
+        IndexBuilderTask task1 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuilderTask task2 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 2);
+        IndexBuilderTask task3 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+        IndexBuilderTask task4 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 4);
+        IndexBuilderTask task5 = new IndexBuilderTask(TEST_NAMESPACE, TEST_BUCKET, 5);
+
+        TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
+        TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
+        TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task3));
+        TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task4));
+        TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task5));
+
+        // Process only first 3 tasks
+        java.util.List<Versionstamp> processedTasks = new java.util.ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TaskStorage.tasks(tr, subspace, taskId -> {
+                processedTasks.add(taskId);
+                return processedTasks.size() < 3; // Continue until we have 3 tasks
+            });
+        }
+
+        // Verify exactly 3 tasks were processed
+        assertEquals(3, processedTasks.size());
+    }
+
     /**
      * Helper method to convert little-endian byte array to long
      */

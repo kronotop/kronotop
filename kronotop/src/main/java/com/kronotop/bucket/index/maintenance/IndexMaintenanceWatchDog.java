@@ -219,32 +219,27 @@ public class IndexMaintenanceWatchDog implements Runnable {
             return;
         }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC));
-            byte[] end = ByteArrayUtil.strinc(begin);
-            for (KeyValue entry : tr.getRange(begin, end)) {
-                Tuple tuple = subspace.unpack(entry.getKey());
-                Versionstamp taskId = (Versionstamp) tuple.get(1);
+            TaskStorage.tasks(tr, subspace, (taskId) -> {
                 IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, subspace, taskId);
                 IndexTaskStatus status = state.status();
                 if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
                     if (workers.containsKey(taskId)) {
-                        continue;
+                        return true;
                     }
                     IndexMaintenanceWorker worker =
                             new IndexMaintenanceWorker(context, subspace, shard.id(), taskId, this::indexTaskCompletionHook);
                     Future<?> future = workerExecutor.submit(worker);
                     workers.put(taskId, new Worker(worker, future));
-                    if (workers.size() >= MAX_WORKER_POOL_SIZE) {
-                        // Backpressure - WORKER_POOL_SIZE = 2
-                        break;
-                    }
+                    // Backpressure - WORKER_POOL_SIZE = 2
+                    return workers.size() < MAX_WORKER_POOL_SIZE;
                 } else if (status == IndexTaskStatus.COMPLETED) {
                     int counter = IndexTaskUtil.readTaskCounter(context, taskId);
                     if (counter == service.getNumberOfShards()) {
                         sweeper.sweep(subspace, taskId);
                     }
                 }
-            }
+                return true;
+            });
         }
     }
 

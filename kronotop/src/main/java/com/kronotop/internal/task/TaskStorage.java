@@ -31,6 +31,9 @@ import com.kronotop.bucket.index.maintenance.IndexMaintenanceWorker;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * TaskStorage provides low-level FoundationDB operations for managing background tasks in Kronotop.
@@ -43,8 +46,8 @@ import java.util.concurrent.CompletableFuture;
  * The class uses a hierarchical key structure based on magic bytes:
  * <ul>
  *   <li><b>Trigger Key:</b> {@code [TRIGGER_MAGIC]} - Used to notify watchers of new tasks</li>
- *   <li><b>Definition Key:</b> {@code [TASKS_MAGIC, Versionstamp, DEFINITION]} - Stores task definition</li>
- *   <li><b>State Key:</b> {@code [TASKS_MAGIC, Versionstamp, STATE, field_name]} - Stores task state fields</li>
+ *   <li><b>Definition Key:</b> {@code [TASKS_MAGIC, DEFINITION, Versionstamp]} - Stores task definition</li>
+ *   <li><b>State Key:</b> {@code [TASKS_MAGIC, STATE, Versionstamp, field_name]} - Stores task state fields</li>
  * </ul>
  *
  * <h2>Versionstamping</h2>
@@ -138,7 +141,7 @@ public class TaskStorage {
      * @return a CompletableFuture containing the complete versionstamp after commit
      */
     public static CompletableFuture<byte[]> create(Transaction tr, int userVersion, DirectorySubspace subspace, byte[] definition) {
-        byte[] key = subspace.packWithVersionstamp(Tuple.from(TASKS_MAGIC, Versionstamp.incomplete(userVersion), DEFINITION));
+        byte[] key = subspace.packWithVersionstamp(Tuple.from(TASKS_MAGIC, DEFINITION, Versionstamp.incomplete(userVersion)));
         CompletableFuture<byte[]> future = tr.getVersionstamp();
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, definition);
 
@@ -184,7 +187,7 @@ public class TaskStorage {
      * @return the serialized task definition, or null if the task doesn't exist
      */
     public static byte[] getDefinition(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
-        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, DEFINITION));
+        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, DEFINITION, taskId));
         return tr.get(key).join();
     }
 
@@ -192,17 +195,24 @@ public class TaskStorage {
      * Deletes a task and all its associated data.
      *
      * <p>This method removes the task definition and all state fields for the specified
-     * task using a range clear operation. The operation is atomic within the transaction.
+     * task. The operation is atomic within the transaction.
      *
-     * <p>The range clear covers all keys with the prefix {@code [TASKS_MAGIC, taskId]},
-     * which includes the task definition and all state fields.
+     * <p>The method performs two separate clear operations:
+     * <ul>
+     *   <li>Clears the definition key: {@code [TASKS_MAGIC, DEFINITION, taskId]}</li>
+     *   <li>Range clears all state keys: {@code [TASKS_MAGIC, STATE, taskId, *]}</li>
+     * </ul>
      *
      * @param tr       the transaction instance to use for the operation
      * @param subspace the directory subspace where the task is stored
      * @param taskId   the complete versionstamp identifying the task to delete
      */
     public static void drop(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
-        byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC, taskId));
+        // Drop the task definition
+        tr.clear(subspace.pack(Tuple.from(TASKS_MAGIC, DEFINITION, taskId)));
+
+        // Then drop the task state
+        byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC, STATE, taskId));
         byte[] end = ByteArrayUtil.strinc(begin);
         tr.clear(begin, end);
     }
@@ -229,7 +239,7 @@ public class TaskStorage {
      * @param value    the serialized field value
      */
     public static void setStateField(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, String field, byte[] value) {
-        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, STATE, field));
+        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, STATE, taskId, field));
         tr.set(key, value);
     }
 
@@ -243,7 +253,7 @@ public class TaskStorage {
      * @return the serialized field value, or null if the field doesn't exist
      */
     public static byte[] getStateField(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, String field) {
-        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, STATE, field));
+        byte[] key = subspace.pack(Tuple.from(TASKS_MAGIC, STATE, taskId, field));
         return tr.get(key).join();
     }
 
@@ -267,7 +277,7 @@ public class TaskStorage {
      * @return a map of field names to serialized values, empty if no state fields exist
      */
     public static Map<String, byte[]> getStateFields(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
-        byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC, taskId, STATE));
+        byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC, STATE, taskId));
         byte[] end = ByteArrayUtil.strinc(begin);
         Map<String, byte[]> entries = new HashMap<>();
         for (KeyValue entry : tr.getRange(begin, end)) {
@@ -276,5 +286,41 @@ public class TaskStorage {
             entries.put(key, entry.getValue());
         }
         return entries;
+    }
+
+    /**
+     * Iterates over all task definitions in chronological order, applying an action to each task ID.
+     *
+     * <p>This method performs a range scan over all keys with the prefix
+     * {@code [TASKS_MAGIC, DEFINITION]} and extracts task IDs (versionstamps) from
+     * each key. Tasks are iterated in chronological order due to the monotonically
+     * increasing nature of versionstamps.
+     *
+     * <p>Iteration can be terminated early by returning {@code false} from the action
+     * function. Common use cases include:
+     * <ul>
+     *   <li>Finding a specific task and stopping when found</li>
+     *   <li>Processing a limited number of tasks</li>
+     *   <li>Implementing conditional task processing</li>
+     * </ul>
+     *
+     * <p><b>Note:</b> Only task definition keys are scanned, ensuring each task is
+     * processed exactly once. Task state entries are excluded from iteration.
+     *
+     * @param tr       the transaction to use for the range scan
+     * @param subspace the directory subspace containing task data
+     * @param action   a function that receives each task ID and returns {@code true} to
+     *                 continue iteration or {@code false} to stop
+     */
+    public static void tasks(Transaction tr, DirectorySubspace subspace, Function<Versionstamp, Boolean> action) {
+        byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC, DEFINITION));
+        byte[] end = ByteArrayUtil.strinc(begin);
+        for (KeyValue entry : tr.getRange(begin, end)) {
+            Tuple tuple = subspace.unpack(entry.getKey());
+            Versionstamp taskId = (Versionstamp) tuple.get(2);
+            if (!action.apply(taskId)) {
+                break;
+            }
+        }
     }
 }
