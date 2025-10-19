@@ -24,6 +24,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
 import com.kronotop.internal.JSONUtil;
@@ -33,15 +34,12 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
@@ -125,5 +123,290 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
                 assertEquals(IndexTaskStatus.COMPLETED, state.status());
             }
         }
+    }
+
+    @Test
+    void test_cleanupStaleWorkers_noWorkers() {
+        // Given: A watchdog with no workers
+        BucketShard shard = getShard(SHARD_ID);
+        IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
+
+        // When: cleanupStaleWorkers is called
+        watchdog.cleanupStaleWorkers();
+
+        // Then: No workers should exist
+        assertTrue(watchdog.getWorkers().isEmpty());
+
+        watchdog.shutdown();
+    }
+
+    @Test
+    void test_cleanupStaleWorkers_freshWorkerNotRemoved() {
+        // Given: A watchdog with a fresh worker (just created)
+        BucketShard shard = getShard(SHARD_ID);
+        IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
+        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+
+        // Create a worker that was just initiated (fresh)
+        IndexMaintenanceWorker worker = new IndexMaintenanceWorker(
+                context,
+                taskSubspace,
+                SHARD_ID,
+                taskId,
+                (id) -> {
+                }
+        );
+        Future<?> future = CompletableFuture.completedFuture(null);
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+
+        // When: cleanupStaleWorkers is called immediately
+        watchdog.cleanupStaleWorkers();
+
+        // Then: Worker should NOT be removed (it's fresh)
+        assertEquals(1, watchdog.getWorkers().size());
+        assertTrue(watchdog.getWorkers().containsKey(taskId));
+
+        watchdog.shutdown();
+    }
+
+    @Test
+    void test_cleanupStaleWorkers_neverExecutedStaleWorkerRemoved() throws Exception {
+        // Given: A watchdog with a worker that never executed and is stale
+        BucketShard shard = getShard(SHARD_ID);
+        IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
+        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+
+        IndexMaintenanceWorker worker = new IndexMaintenanceWorker(
+                context,
+                taskSubspace,
+                SHARD_ID,
+                taskId,
+                (id) -> {
+                }
+        );
+
+        // Manipulate the metrics to make it appear stale (initiated 70 seconds ago)
+        long staleInitiationTime = System.currentTimeMillis() - (watchdog.WORKER_MAX_STALE_PERIOD + 10000);
+        setInitiatedAt(worker.getMetrics(), staleInitiationTime);
+
+        Future<?> future = CompletableFuture.completedFuture(null);
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+
+        assertEquals(1, watchdog.getWorkers().size());
+
+        // When: cleanupStaleWorkers is called
+        watchdog.cleanupStaleWorkers();
+
+        // Then: Worker should be removed (it's stale and never executed)
+        assertTrue(watchdog.getWorkers().isEmpty());
+
+        watchdog.shutdown();
+    }
+
+    @Test
+    void test_cleanupStaleWorkers_executedButStaleWorkerRemoved() {
+        // Given: A watchdog with a worker that executed but is now stale
+        BucketShard shard = getShard(SHARD_ID);
+        IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
+        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+
+        IndexMaintenanceWorker worker = new IndexMaintenanceWorker(
+                context,
+                taskSubspace,
+                SHARD_ID,
+                taskId,
+                (id) -> {
+                }
+        );
+
+        // Set latestExecution to a stale timestamp (70 seconds ago)
+        long staleExecutionTime = System.currentTimeMillis() - (watchdog.WORKER_MAX_STALE_PERIOD + 10000);
+        worker.getMetrics().setLatestExecution(staleExecutionTime);
+
+        Future<?> future = CompletableFuture.completedFuture(null);
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+
+        assertEquals(1, watchdog.getWorkers().size());
+
+        // When: cleanupStaleWorkers is called
+        watchdog.cleanupStaleWorkers();
+
+        // Then: Worker should be removed (last execution was too long ago)
+        assertTrue(watchdog.getWorkers().isEmpty());
+
+        watchdog.shutdown();
+    }
+
+    @Test
+    void test_cleanupStaleWorkers_executedRecentlyNotRemoved() {
+        // Given: A watchdog with a worker that executed recently
+        BucketShard shard = getShard(SHARD_ID);
+        IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
+        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+
+        IndexMaintenanceWorker worker = new IndexMaintenanceWorker(
+                context,
+                taskSubspace,
+                SHARD_ID,
+                taskId,
+                (id) -> {
+                }
+        );
+
+        // Set latestExecution to a recent timestamp (30 seconds ago - within the 60s window)
+        long recentExecutionTime = System.currentTimeMillis() - 30000;
+        worker.getMetrics().setLatestExecution(recentExecutionTime);
+
+        Future<?> future = CompletableFuture.completedFuture(null);
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+
+        assertEquals(1, watchdog.getWorkers().size());
+
+        // When: cleanupStaleWorkers is called
+        watchdog.cleanupStaleWorkers();
+
+        // Then: Worker should NOT be removed (it executed recently)
+        assertEquals(1, watchdog.getWorkers().size());
+        assertTrue(watchdog.getWorkers().containsKey(taskId));
+
+        watchdog.shutdown();
+    }
+
+    @Test
+    void test_cleanupStaleWorkers_mixedWorkers() throws Exception {
+        // Given: A watchdog with multiple workers - some stale, some fresh
+        BucketShard shard = getShard(SHARD_ID);
+        IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
+
+        // Create 4 tasks
+        IndexBuilderTask task1 = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        IndexBuilderTask task2 = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 2);
+        IndexBuilderTask task3 = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 3);
+        IndexBuilderTask task4 = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 4);
+
+        Versionstamp taskId1 = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task1));
+        Versionstamp taskId2 = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task2));
+        Versionstamp taskId3 = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task3));
+        Versionstamp taskId4 = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task4));
+
+        // Worker 1: Fresh (just initiated)
+        IndexMaintenanceWorker worker1 = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId1, (id) -> {
+        });
+        watchdog.getWorkers().put(taskId1, new IndexMaintenanceWatchDog.Worker(worker1, CompletableFuture.completedFuture(null)));
+
+        // Worker 2: Stale (never executed, initiated 70s ago)
+        IndexMaintenanceWorker worker2 = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId2, (id) -> {
+        });
+        setInitiatedAt(worker2.getMetrics(), System.currentTimeMillis() - (watchdog.WORKER_MAX_STALE_PERIOD + 10000));
+        watchdog.getWorkers().put(taskId2, new IndexMaintenanceWatchDog.Worker(worker2, CompletableFuture.completedFuture(null)));
+
+        // Worker 3: Fresh (executed 30s ago)
+        IndexMaintenanceWorker worker3 = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId3, (id) -> {
+        });
+        worker3.getMetrics().setLatestExecution(System.currentTimeMillis() - 30000);
+        watchdog.getWorkers().put(taskId3, new IndexMaintenanceWatchDog.Worker(worker3, CompletableFuture.completedFuture(null)));
+
+        // Worker 4: Stale (last executed 70s ago)
+        IndexMaintenanceWorker worker4 = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId4, (id) -> {
+        });
+        worker4.getMetrics().setLatestExecution(System.currentTimeMillis() - (watchdog.WORKER_MAX_STALE_PERIOD + 10000));
+        watchdog.getWorkers().put(taskId4, new IndexMaintenanceWatchDog.Worker(worker4, CompletableFuture.completedFuture(null)));
+
+        assertEquals(4, watchdog.getWorkers().size());
+
+        // When: cleanupStaleWorkers is called
+        watchdog.cleanupStaleWorkers();
+
+        // Then: Only the 2 fresh workers should remain (worker1 and worker3)
+        assertEquals(2, watchdog.getWorkers().size());
+        assertTrue(watchdog.getWorkers().containsKey(taskId1));
+        assertFalse(watchdog.getWorkers().containsKey(taskId2)); // Stale - removed
+        assertTrue(watchdog.getWorkers().containsKey(taskId3));
+        assertFalse(watchdog.getWorkers().containsKey(taskId4)); // Stale - removed
+
+        watchdog.shutdown();
+    }
+
+    @Test
+    void test_cleanupStaleWorkers_boundaryCondition_exactlyAtStaleLimit() {
+        // Given: A worker at exactly the stale boundary (60s)
+        BucketShard shard = getShard(SHARD_ID);
+        IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
+        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+
+        IndexMaintenanceWorker worker = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId, (id) -> {
+        });
+
+        // Set latestExecution to exactly the stale period (60s ago)
+        long exactlyStaleTime = System.currentTimeMillis() - watchdog.WORKER_MAX_STALE_PERIOD;
+        worker.getMetrics().setLatestExecution(exactlyStaleTime);
+
+        Future<?> future = CompletableFuture.completedFuture(null);
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+
+        // When: cleanupStaleWorkers is called
+        watchdog.cleanupStaleWorkers();
+
+        // Then: Worker should NOT be removed (condition is <, not <=)
+        // lastActivity + WORKER_MAX_STALE_PERIOD < now
+        assertEquals(1, watchdog.getWorkers().size());
+
+        watchdog.shutdown();
+    }
+
+    @Test
+    void test_cleanupStaleWorkers_boundaryCondition_justBeyondStaleLimit() {
+        // Given: A worker just beyond the stale boundary (60s + 1ms)
+        BucketShard shard = getShard(SHARD_ID);
+        IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
+        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+
+        IndexMaintenanceWorker worker = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId, (id) -> {
+        });
+
+        // Set latestExecution to just beyond the stale period (60s + 1ms ago)
+        long justBeyondStaleTime = System.currentTimeMillis() - (watchdog.WORKER_MAX_STALE_PERIOD + 1);
+        worker.getMetrics().setLatestExecution(justBeyondStaleTime);
+
+        Future<?> future = CompletableFuture.completedFuture(null);
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+
+        // When: cleanupStaleWorkers is called
+        watchdog.cleanupStaleWorkers();
+
+        // Then: Worker SHOULD be removed (it's beyond the limit)
+        assertTrue(watchdog.getWorkers().isEmpty());
+
+        watchdog.shutdown();
+    }
+
+    /**
+     * Helper method to set the initiatedAt field using reflection.
+     * This is necessary because IndexMaintenanceRoutineMetrics sets initiatedAt in constructor.
+     */
+    private void setInitiatedAt(IndexMaintenanceRoutineMetrics metrics, long timestamp) throws Exception {
+        Field initiatedAtField = IndexMaintenanceRoutineMetrics.class.getDeclaredField("initiatedAt");
+        initiatedAtField.setAccessible(true);
+        initiatedAtField.set(metrics, timestamp);
     }
 }

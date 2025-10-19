@@ -18,6 +18,8 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.BucketShard;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.protocol.CommitArgs;
@@ -187,5 +189,9 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
             halfLatch.countDown();
             allLatch.countDown();
         }
+    }
+
+    protected BucketShard getShard(int shardId) {
+        return ((BucketService) context.getService(BucketService.NAME)).getShard(SHARD_ID);
     }
 }

@@ -74,7 +74,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexMaintenanceWatchDog.class);
     private static final int WORKER_POOL_SIZE = Runtime.getRuntime().availableProcessors();
     private static final int MAX_WORKER_POOL_SIZE = WORKER_POOL_SIZE * 2;
-    private final long WORKER_MAX_STALE_PERIOD = 60000; // 60s
+    final long WORKER_MAX_STALE_PERIOD = 60000; // 60s (package-private for testing)
     private final Context context;
     private final BucketService service;
     private final BucketShard shard;
@@ -153,6 +153,17 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
+     * Returns the active workers map.
+     *
+     * <p><b>Note:</b> Package-private for testing purposes only.
+     *
+     * @return the map of active workers keyed by task ID
+     */
+    Map<Versionstamp, Worker> getWorkers() {
+        return workers;
+    }
+
+    /**
      * Removes stale workers that have been inactive beyond the maximum stale period.
      *
      * <p>This synchronized method iterates through all active workers and checks their
@@ -167,8 +178,10 @@ public class IndexMaintenanceWatchDog implements Runnable {
      *
      * <p>This method is called periodically by the scheduled executor to maintain
      * a healthy worker pool.
+     *
+     * <p><b>Note:</b> Package-private for testing purposes.
      */
-    private synchronized void cleanupStaleWorkers() {
+    synchronized void cleanupStaleWorkers() {
         long now = System.currentTimeMillis();
         workers.entrySet().removeIf(entry -> {
             Worker worker = entry.getValue();
