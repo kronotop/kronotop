@@ -147,6 +147,9 @@ public class IndexTaskUtil {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] key = subspace.pack(taskId);
             byte[] data = tr.get(key).join();
+            if (data == null) {
+                return 0;
+            }
             return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
         }
     }
