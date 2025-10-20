@@ -145,14 +145,14 @@ public class IndexMaintenanceWatchDog implements Runnable {
      * Callback hook invoked when an index task completes execution.
      *
      * <p>This method is called by workers when they finish processing a task.
-     * It removes the completed task from the active workers map and attempts
-     * to spawn new workers for any pending tasks in the queue.
+     * It removes the completed task from the active workers map and triggers
+     * task queue processing to handle any pending tasks.
      *
      * @param taskId the versionstamp identifier of the completed task
      */
     private void indexTaskCompletionHook(Versionstamp taskId) {
         workers.remove(taskId);
-        spawnWorkersForPendingTasks();
+        processTaskQueue();
     }
 
     /**
@@ -204,32 +204,32 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * Spawns new worker threads for pending index maintenance tasks.
+     * Processes the task queue by spawning workers for pending tasks and cleaning up completed ones.
      *
-     * <p>This synchronized method scans the task queue and creates workers for tasks
-     * in WAITING or RUNNING status that don't already have an active worker. It also
-     * handles completed tasks by triggering the sweeper when all shards have finished.
+     * <p>This synchronized method scans the task queue and takes appropriate action based on task status:
+     * <ul>
+     *   <li><b>WAITING/RUNNING tasks:</b> Spawns new worker threads if not already running</li>
+     *   <li><b>COMPLETED tasks:</b> Triggers task sweeping when all shards report completion</li>
+     *   <li><b>STOPPED tasks:</b> Immediately triggers task sweeping</li>
+     * </ul>
      *
-     * <p>Key behaviors:
+     * <p>Worker spawning behaviors:
      * <ul>
      *   <li>Respects the MAX_WORKER_POOL_SIZE limit to prevent overload</li>
      *   <li>Skips tasks that already have active workers</li>
      *   <li>Creates new IndexMaintenanceWorker instances for eligible tasks</li>
      *   <li>Registers workers with completion callbacks for lifecycle management</li>
-     *   <li>Triggers task sweeping when all shards report completion</li>
+     *   <li>Implements backpressure by stopping task spawning when pool limit is reached</li>
      * </ul>
      *
      * <p>This method is called:
      * <ul>
-     *   <li>When the watch detects new tasks</li>
-     *   <li>After a worker completes</li>
-     *   <li>Periodically by the scheduled executor</li>
+     *   <li>When the watch detects new tasks added to the queue</li>
+     *   <li>After a worker completes execution</li>
+     *   <li>Periodically by the scheduled executor for maintenance</li>
      * </ul>
-     *
-     * <p>The method implements backpressure by stopping task spawning when the
-     * maximum worker pool size is reached.
      */
-    private synchronized void spawnWorkersForPendingTasks() {
+    private synchronized void processTaskQueue() {
         if (workers.size() >= MAX_WORKER_POOL_SIZE) {
             // There are already too many tasks in the executor's queue.
             return;
@@ -297,7 +297,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
         }
         scheduler.scheduleAtFixedRate(() -> {
             cleanupStaleWorkers();
-            spawnWorkersForPendingTasks();
+            processTaskQueue();
         }, 0, maintenanceInterval, TimeUnit.SECONDS);
 
         while (!shard.isClosed()) {
@@ -305,7 +305,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
                 watcher = watcher();
                 // Waits until receiving a new task
                 watcher.join();
-                spawnWorkersForPendingTasks();
+                processTaskQueue();
             } catch (Exception exp) {
                 if (!(shard.isClosed() && exp instanceof CancellationException)) {
                     LOGGER.error("Failed to run shard maintenance worker on Bucket shard: {}", shard.id(), exp);
