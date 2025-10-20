@@ -115,12 +115,11 @@ public class BaseStandaloneInstanceTest extends BaseTest {
         BucketMetadataUtil.createOrOpen(context, session, bucket);
 
         List<DirectorySubspace> subspaces = new ArrayList<>();
-        int userVersion = 0;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
             for (IndexDefinition definition : definitions) {
-                DirectorySubspace subspace = IndexUtil.create(context, tr, namespace, bucket, definition, userVersion);
+                DirectorySubspace subspace = IndexUtil.create(tx, namespace, bucket, definition);
                 subspaces.add(subspace);
-                userVersion++;
             }
             tr.commit().join();
         }

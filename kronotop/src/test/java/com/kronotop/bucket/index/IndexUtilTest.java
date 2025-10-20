@@ -49,7 +49,8 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         DirectorySubspace indexSubspace = assertDoesNotThrow(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                DirectorySubspace subspace = IndexUtil.create(context, tr, TEST_NAMESPACE, TEST_BUCKET, definition);
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                DirectorySubspace subspace = IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
                 tr.commit().join();
                 return subspace;
             }

@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
+class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
             "__test__.background_index_builder.skip_wait_transaction_limit";
 
@@ -78,7 +78,8 @@ public class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             );
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexUtil.create(context, tr, TEST_NAMESPACE, TEST_BUCKET, definition);
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
                 tr.commit().join();
             }
 
@@ -136,7 +137,8 @@ public class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             );
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexUtil.create(context, tr, TEST_NAMESPACE, TEST_BUCKET, definition);
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
                 tr.commit().join();
             }
 

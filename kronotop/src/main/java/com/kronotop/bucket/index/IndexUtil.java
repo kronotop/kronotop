@@ -24,7 +24,6 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.*;
@@ -77,48 +76,14 @@ public class IndexUtil {
         }
     }
 
-    public static DirectorySubspace create(
-            Context context,
-            Transaction tr,
-            String namespace,
-            String bucket,
-            IndexDefinition definition) {
-        return create(context, tr, namespace, bucket, definition, 0);
-    }
+    public static DirectorySubspace create(TransactionalContext tx,
+                                           String namespace,
+                                           String bucket,
+                                           IndexDefinition definition) {
 
-    /**
-     * Creates an index and spawns background build tasks across all shards.
-     *
-     * <p>This method performs a complete index creation operation by:
-     * <ul>
-     *   <li>Creating the index subspace and saving the definition</li>
-     *   <li>Creating background build tasks for all shards</li>
-     *   <li>Incrementing the bucket metadata version</li>
-     * </ul>
-     *
-     * <p>The background tasks enable parallel index building across all shards,
-     * coordinated by the {@link IndexMaintenanceWatchDog} on each shard.
-     *
-     * @param context     the application context providing access to services
-     * @param tr          the transaction instance used to interact with the database
-     * @param namespace   the namespace containing the bucket
-     * @param bucket      the bucket name
-     * @param definition  the definition of the index to be created
-     * @param userVersion the user version for task ordering
-     * @return the newly created directory subspace for the specified index
-     * @throws KronotopException if the index already exists
-     */
-    public static DirectorySubspace create(
-            Context context,
-            Transaction tr,
-            String namespace,
-            String bucket,
-            IndexDefinition definition,
-            int userVersion) {
-
-        BucketMetadata bucketMetadata = BucketMetadataUtil.open(context, tr, namespace, bucket);
+        BucketMetadata bucketMetadata = BucketMetadataUtil.open(tx.context(), tx.tr(), namespace, bucket);
         // Create the index
-        DirectorySubspace indexSubspace = create(tr, bucketMetadata.subspace(), definition);
+        DirectorySubspace indexSubspace = create(tx.tr(), bucketMetadata.subspace(), definition);
 
         if (definition.id() == DefaultIndexDefinition.ID.id()) {
             // Primary index doesn't require a background index building procedure
@@ -129,10 +94,12 @@ public class IndexUtil {
         IndexBuildingTask task = new IndexBuildingTask(namespace, bucket, definition.id());
         byte[] encodedTask = JSONUtil.writeValueAsBytes(task);
 
-        BucketService service = context.getService(BucketService.NAME);
+        BucketService service = tx.context().getService(BucketService.NAME);
+        int userVersion = tx.userVersion(); // increases the user version
         for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
-            DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
-            TaskStorage.create(tr, userVersion, taskSubspace, encodedTask);
+            DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(tx.context(), shardId);
+            // create tasks in the task subspaces with the same ID
+            TaskStorage.create(tx.tr(), userVersion, taskSubspace, encodedTask);
         }
 
         return indexSubspace;
@@ -375,7 +342,7 @@ public class IndexUtil {
      * @param tx       the transactional context providing access to both the transaction and application context
      * @param metadata the bucket metadata containing the index to be dropped
      * @param name     the name of the index to be dropped
-     * @throws NoSuchIndexException if the specified index does not exist
+     * @throws NoSuchIndexException  if the specified index does not exist
      * @throws IllegalStateException if the index is already in DROPPED status (via {@link IndexDefinition#updateStatus(IndexStatus)})
      * @see #clear(Transaction, DirectorySubspace, String)
      * @see IndexDefinition#updateStatus(IndexStatus)
@@ -390,7 +357,7 @@ public class IndexUtil {
 
         IndexDropTask task = new IndexDropTask(metadata.namespace(), metadata.name(), latestDef.id());
         byte[] definition = JSONUtil.writeValueAsBytes(task);
-        
+
         BucketService service = tx.context().getService(BucketService.NAME);
         for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
             DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(tx.context(), shardId);
@@ -398,7 +365,7 @@ public class IndexUtil {
                 IndexBuildingTaskState.setStatus(tx.tr(), taskSubspace, taskId, IndexTaskStatus.STOPPED);
                 return true;
             });
-            TaskStorage.create(tx.tr(), tx.userVersion(), taskSubspace, definition);
+            // TODO: TaskStorage.create(tx.tr(), tx.userVersion(), taskSubspace, definition);
             TaskStorage.triggerWatchers(tx.tr(), taskSubspace);
         }
     }

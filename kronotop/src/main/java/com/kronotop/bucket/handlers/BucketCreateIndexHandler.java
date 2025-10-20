@@ -17,6 +17,7 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.handlers.protocol.BucketCreateIndexMessage;
@@ -52,7 +53,7 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
             Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
             retry.executeRunnable(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    int userVersion = 0;
+                    TransactionalContext tx = new TransactionalContext(context, tr);
                     String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
                     for (Map.Entry<String, BucketCreateIndexMessage.IndexDefinition> entry : message.getDefinitions().entrySet()) {
                         BucketCreateIndexMessage.IndexDefinition definition = entry.getValue();
@@ -67,14 +68,11 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
                         );
 
                         IndexUtil.create(
-                                context,
-                                tr,
+                                tx,
                                 namespace,
                                 message.getBucket(),
-                                indexDefinition,
-                                userVersion
+                                indexDefinition
                         );
-                        userVersion++;
                     }
                     tr.commit().join();
                 }

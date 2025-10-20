@@ -22,18 +22,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A wrapper class that combines Kronotop's application context with a FoundationDB transaction
- * and provides automatic user version management for task ordering.
+ * and provides automatic user version management for generating sequential versionstamps.
  * <p>
  * This class serves as a unified transactional context that provides access to:
  * <ul>
  *   <li>The application {@link Context} for accessing services and configuration</li>
  *   <li>A FoundationDB {@link Transaction} for database operations</li>
- *   <li>An auto-incrementing user version for task sequencing</li>
+ *   <li>An auto-incrementing user version for versionstamp generation</li>
  * </ul>
  *
- * <p>The user version is particularly useful when creating multiple tasks within a single
- * transaction, as it provides a monotonically increasing sequence number to maintain task
- * ordering across distributed operations.
+ * <p>The user version is used by FoundationDB's versionstamp mechanism to generate sequential,
+ * globally unique identifiers within a transaction. When multiple versionstamp operations occur
+ * in a single transaction, the user version ensures they receive distinct versionstamps with
+ * increasing sequence numbers.
  *
  * <p><strong>Thread Safety:</strong> This class uses {@link AtomicInteger} for user version
  * management, making the {@link #userVersion()} method thread-safe. However, the encapsulated
@@ -46,7 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * try (Transaction tr = db.createTransaction()) {
  *     TransactionalContext tx = new TransactionalContext(context, tr);
  *
- *     // Create multiple tasks with automatic versioning
+ *     // Create multiple items with sequential versionstamps
  *     TaskStorage.create(tx.tr(), tx.userVersion(), taskSubspace, task1);
  *     TaskStorage.create(tx.tr(), tx.userVersion(), taskSubspace, task2);
  *

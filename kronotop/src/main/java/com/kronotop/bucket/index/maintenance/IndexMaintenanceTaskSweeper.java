@@ -351,6 +351,9 @@ public class IndexMaintenanceTaskSweeper {
             DirectorySubspace subspace = subspaces.computeIfAbsent(shardId,
                     (id) -> IndexTaskUtil.createOrOpenTasksSubspace(context, id));
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
+            if (definition == null) {
+                continue;
+            }
             IndexMaintenanceTask task = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
             boolean exists = Stream.of(kinds).anyMatch(k -> k == task.getKind());
             if (exists) {
