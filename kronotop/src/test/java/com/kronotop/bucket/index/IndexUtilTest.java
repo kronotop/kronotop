@@ -24,6 +24,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataHeader;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.TransactionalContext;
 import com.kronotop.server.RESPError;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -298,7 +299,8 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
         // Drop the index
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexUtil.drop(context, tr, metadata, definition.name());
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            IndexUtil.drop(tx, metadata, definition.name());
             tr.commit().join();
         }
 
@@ -316,7 +318,8 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
         KronotopException exception = assertThrows(KronotopException.class, () -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexUtil.drop(context, tr, metadata, "non-existing-index");
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                IndexUtil.drop(tx, metadata, "non-existing-index");
             }
         });
         assertEquals("No such index: 'non-existing-index'", exception.getMessage());
@@ -329,7 +332,8 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
         // Drop the index first time
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexUtil.drop(context, tr, metadata, definition.name());
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            IndexUtil.drop(tx, metadata, definition.name());
             tr.commit().join();
         }
 
@@ -343,7 +347,8 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         // Drop again should succeed (idempotent operation)
         assertDoesNotThrow(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexUtil.drop(context, tr, metadata, definition.name());
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                IndexUtil.drop(tx, metadata, definition.name());
                 tr.commit().join();
             }
         });

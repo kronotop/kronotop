@@ -131,7 +131,7 @@ public class BucketMetadataUtil {
             // Transaction cannot be used after this point.
 
             String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
-            BucketMetadata metadata = new BucketMetadata(bucket, version, subspace, prefix, indexes);
+            BucketMetadata metadata = new BucketMetadata(namespace, bucket, version, subspace, prefix, indexes);
             // Update the global bucket metadata cache
             context.getBucketMetadataCache().set(namespace, bucket, metadata);
             return metadata;
@@ -225,7 +225,7 @@ public class BucketMetadataUtil {
             long version = header.version();
 
             Prefix prefix = Prefix.fromBytes(raw);
-            BucketMetadata metadata = new BucketMetadata(bucket, version, subspace, prefix, indexes);
+            BucketMetadata metadata = new BucketMetadata(namespace, bucket, version, subspace, prefix, indexes);
             context.getBucketMetadataCache().set(namespace, bucket, metadata);
             return metadata;
         } catch (CompletionException e) {

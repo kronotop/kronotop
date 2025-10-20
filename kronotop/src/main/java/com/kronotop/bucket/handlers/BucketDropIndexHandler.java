@@ -23,6 +23,7 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.handlers.protocol.BucketDropIndexMessage;
 import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.TransactionalContext;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -54,8 +55,9 @@ public class BucketDropIndexHandler extends AbstractBucketHandler implements Han
                 throw new IllegalArgumentException("Cannot drop the default index");
             }
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TransactionalContext tx = new TransactionalContext(context, tr);
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
-                IndexUtil.clear(tr, metadata.subspace(), message.getIndex());
+                IndexUtil.drop(tx, metadata, message.getIndex());
                 tr.commit().join();
             }
         }, response::writeOK);

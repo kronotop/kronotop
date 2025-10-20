@@ -25,6 +25,7 @@ import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.TransactionalContext;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
 import org.junit.jupiter.api.AfterAll;
@@ -145,7 +146,8 @@ public class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexUtil.drop(context, tr, metadata, definition.name());
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                IndexUtil.drop(tx, metadata, definition.name());
                 tr.commit().join();
             }
 

@@ -26,6 +26,7 @@ import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.maintenance.*;
 import com.kronotop.internal.JSONUtil;
@@ -341,49 +342,64 @@ public class IndexUtil {
     }
 
     /**
-     * Marks an index as dropped and stops all associated background maintenance tasks.
+     * Marks an index as dropped and coordinates cleanup of all associated background tasks.
      * <p>
-     * This method performs a logical drop operation by:
+     * This method performs a logical drop operation by executing the following steps atomically:
      * <ul>
+     *   <li>Loading the current index definition from the index subspace</li>
      *   <li>Updating the index status to {@link IndexStatus#DROPPED}</li>
-     *   <li>Stopping all background build tasks across all shards</li>
+     *   <li>Saving the updated definition and incrementing the bucket metadata version</li>
+     *   <li>Iterating through all existing tasks in each shard's task subspace and marking them as {@link IndexTaskStatus#STOPPED}</li>
+     *   <li>Creating {@link IndexDropTask} instances for each shard to coordinate final cleanup</li>
      *   <li>Triggering task watchers to process the status changes</li>
-     *   <li>Incrementing the bucket metadata version</li>
      * </ul>
      *
      * <p>Unlike {@link #clear(Transaction, DirectorySubspace, String)}, which physically removes
-     * the index and all its data, this method performs a logical deletion by marking the index
-     * as dropped. The index structure remains in FoundationDB but becomes inactive.
+     * the index and all its data immediately, this method performs a logical deletion by marking
+     * the index as dropped. The index structure and data remain in FoundationDB but become
+     * inaccessible for queries.
      *
-     * <p>This approach allows background maintenance tasks (like {@link com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper})
-     * to properly clean up all associated tasks before the index data is physically removed.
+     * <p>This two-phase approach ensures graceful shutdown of background processes:
+     * <ol>
+     *   <li>Existing build tasks are stopped to prevent further index updates</li>
+     *   <li>Drop tasks are created to handle final cleanup operations</li>
+     *   <li>The {@link com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper}
+     *       processes these tasks and eventually physically removes the index data</li>
+     * </ol>
      *
-     * <p><strong>Important:</strong> Once an index is marked as DROPPED, its status cannot be
-     * changed to any other status to prevent accidental reactivation.
+     * <p><strong>Important:</strong> Once an index is marked as {@link IndexStatus#DROPPED},
+     * its status cannot be changed to any other status (enforced by
+     * {@link IndexDefinition#updateStatus(IndexStatus)}) to prevent accidental reactivation
+     * of a dropped index.
      *
-     * @param context  the application context providing access to services
-     * @param tr       the transaction instance used to interact with the database
+     * @param tx       the transactional context providing access to both the transaction and application context
      * @param metadata the bucket metadata containing the index to be dropped
      * @param name     the name of the index to be dropped
-     * @throws NoSuchIndexException  if the specified index does not exist
-     * @throws IllegalStateException if the index is already dropped
+     * @throws NoSuchIndexException if the specified index does not exist
+     * @throws IllegalStateException if the index is already in DROPPED status (via {@link IndexDefinition#updateStatus(IndexStatus)})
      * @see #clear(Transaction, DirectorySubspace, String)
      * @see IndexDefinition#updateStatus(IndexStatus)
+     * @see IndexTaskStatus#STOPPED
+     * @see IndexDropTask
      * @see com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper
      */
-    public static void drop(Context context, Transaction tr, BucketMetadata metadata, String name) {
-        DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), name);
-        IndexDefinition latestDef = IndexUtil.loadIndexDefinition(tr, indexSubspace);
-        IndexUtil.saveIndexDefinition(tr, metadata, latestDef.updateStatus(IndexStatus.DROPPED));
+    public static void drop(TransactionalContext tx, BucketMetadata metadata, String name) {
+        DirectorySubspace indexSubspace = IndexUtil.open(tx.tr(), metadata.subspace(), name);
+        IndexDefinition latestDef = IndexUtil.loadIndexDefinition(tx.tr(), indexSubspace);
+        IndexUtil.saveIndexDefinition(tx.tr(), metadata, latestDef.updateStatus(IndexStatus.DROPPED));
 
-        BucketService service = context.getService(BucketService.NAME);
+        IndexDropTask task = new IndexDropTask(metadata.namespace(), metadata.name(), latestDef.id());
+        byte[] definition = JSONUtil.writeValueAsBytes(task);
+        
+        BucketService service = tx.context().getService(BucketService.NAME);
         for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
-            DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
-            TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
-                IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.STOPPED);
+            DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(tx.context(), shardId);
+            TaskStorage.tasks(tx.tr(), taskSubspace, (taskId) -> {
+                IndexBuildingTaskState.setStatus(tx.tr(), taskSubspace, taskId, IndexTaskStatus.STOPPED);
                 return true;
             });
-            TaskStorage.triggerWatchers(tr, taskSubspace);
+            TaskStorage.create(tx.tr(), tx.userVersion(), taskSubspace, definition);
+            TaskStorage.triggerWatchers(tx.tr(), taskSubspace);
         }
     }
 }
