@@ -19,13 +19,13 @@ package com.kronotop.bucket.index.maintenance;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class IndexBuilderTask extends IndexMaintenanceTask {
+public class IndexBuildingTask extends IndexMaintenanceTask {
     private final String namespace;
     private final String bucket;
     private final long indexId;
 
     @JsonCreator
-    public IndexBuilderTask(
+    public IndexBuildingTask(
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
             @JsonProperty("indexId") long indexId) {

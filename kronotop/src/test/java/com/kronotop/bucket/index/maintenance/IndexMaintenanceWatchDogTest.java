@@ -94,7 +94,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
                 tr.commit().join();
             }
 
-            IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
+            IndexBuildingTask task = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
             Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
             allLatch.await();
@@ -117,7 +117,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
             });
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, taskSubspace, taskId);
+                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
                 assertEquals(state.cursorVersionstamp(), state.highestVersionstamp());
                 assertNull(state.error());
                 assertEquals(IndexTaskStatus.COMPLETED, state.status());
@@ -147,7 +147,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
-        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        IndexBuildingTask task = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         // Create a worker that was just initiated (fresh)
@@ -179,7 +179,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
-        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        IndexBuildingTask task = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(
@@ -216,7 +216,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
-        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        IndexBuildingTask task = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(
@@ -253,7 +253,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
-        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        IndexBuildingTask task = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(
@@ -293,10 +293,10 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
 
         // Create 4 tasks
-        IndexBuilderTask task1 = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
-        IndexBuilderTask task2 = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 2);
-        IndexBuilderTask task3 = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 3);
-        IndexBuilderTask task4 = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 4);
+        IndexBuildingTask task1 = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        IndexBuildingTask task2 = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 2);
+        IndexBuildingTask task3 = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 3);
+        IndexBuildingTask task4 = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 4);
 
         Versionstamp taskId1 = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task1));
         Versionstamp taskId2 = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task2));
@@ -348,7 +348,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
-        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        IndexBuildingTask task = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId, (id) -> {
@@ -378,7 +378,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
-        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, 1);
+        IndexBuildingTask task = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId, (id) -> {

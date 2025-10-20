@@ -68,7 +68,7 @@ public class IndexMaintenanceWorker implements Runnable {
      * <p>This constructor performs the following initialization:
      * <ul>
      *   <li>Loads the task definition from FoundationDB using the provided task ID</li>
-     *   <li>Deserializes the task definition into an IndexBuilderTask object</li>
+     *   <li>Deserializes the task definition into an IndexBuildingTask object</li>
      *   <li>Creates a BackgroundIndexBuilderRoutine to handle the actual index building</li>
      * </ul>
      *
@@ -87,7 +87,7 @@ public class IndexMaintenanceWorker implements Runnable {
         this.taskId = taskId;
         this.completionHook = completionHook;
         byte[] raw = context.getFoundationDB().run(tr -> TaskStorage.getDefinition(tr, subspace, taskId));
-        IndexBuilderTask task = JSONUtil.readValue(raw, IndexBuilderTask.class);
+        IndexBuildingTask task = JSONUtil.readValue(raw, IndexBuildingTask.class);
         this.routine = new BackgroundIndexBuilderRoutine(context, subspace, shardId, taskId, task);
     }
 
@@ -126,8 +126,8 @@ public class IndexMaintenanceWorker implements Runnable {
                     throw new IndexMaintenanceRoutineShutdownException();
                 }
                 routine.start();
-                IndexBuilderTaskState state = context.getFoundationDB().run(tr -> IndexBuilderTaskState.load(tr, subspace, taskId));
-                if (IndexBuilderTaskState.isTerminal(state.status())) {
+                IndexBuildingTaskState state = context.getFoundationDB().run(tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
+                if (IndexBuildingTaskState.isTerminal(state.status())) {
                     // Run a callback to remove this task from the watchdog thread.
                     completionHook.accept(taskId);
                     shutdown();

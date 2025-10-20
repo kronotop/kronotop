@@ -105,8 +105,8 @@ import java.util.stream.Stream;
  * (typically IndexMaintenanceWatchDog). Concurrent sweep operations on the same task
  * are safe due to FoundationDB transaction isolation, but may cause unnecessary retries.</p>
  *
- * @see IndexBuilderTask
- * @see IndexBuilderTaskState
+ * @see IndexBuildingTask
+ * @see IndexBuildingTaskState
  * @see IndexTaskStatus
  * @see IndexMaintenanceWatchDog
  */
@@ -193,7 +193,7 @@ public class IndexMaintenanceTaskSweeper {
             DirectorySubspace otherTaskSubspace = subspaces.computeIfAbsent(shardId,
                     (id) -> IndexTaskUtil.createOrOpenTasksSubspace(context, id));
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, otherTaskSubspace, taskId);
+                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, otherTaskSubspace, taskId);
                 if (state.status() != IndexTaskStatus.COMPLETED) {
                     break;
                 }
@@ -286,7 +286,7 @@ public class IndexMaintenanceTaskSweeper {
             if (taskDef == null) {
                 return;
             }
-            IndexBuilderTask task = JSONUtil.readValue(taskDef, IndexBuilderTask.class);
+            IndexBuildingTask task = JSONUtil.readValue(taskDef, IndexBuildingTask.class);
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {

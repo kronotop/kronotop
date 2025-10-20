@@ -27,7 +27,7 @@ import java.util.Map;
 /**
  * Represents the runtime state of an index builder task executing on a single shard.
  *
- * <p>IndexBuilderTaskState tracks the progress and status of background index building
+ * <p>IndexBuildingTaskState tracks the progress and status of background index building
  * operations. Each shard maintains its own task state in FoundationDB, allowing distributed
  * coordination and monitoring of index construction across the cluster.</p>
  *
@@ -71,16 +71,16 @@ import java.util.Map;
  * <p><b>Example Usage:</b></p>
  * <pre>{@code
  * // Load current state
- * IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, subspace, taskId);
+ * IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
  *
  * // Update cursor position during processing
- * IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, newCursor);
+ * IndexBuildingTaskState.setCursorVersionstamp(tr, subspace, taskId, newCursor);
  *
  * // Mark task as completed
- * IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
+ * IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
  *
  * // Check if terminal
- * if (IndexBuilderTaskState.isTerminal(state.status())) {
+ * if (IndexBuildingTaskState.isTerminal(state.status())) {
  *     // Task finished (success or failure)
  * }
  * }</pre>
@@ -90,13 +90,13 @@ import java.util.Map;
  * @param status the current execution status of the task
  * @param error error message if status is FAILED, null otherwise
  *
- * @see IndexBuilderTask
+ * @see IndexBuildingTask
  * @see IndexTaskStatus
  * @see IndexMaintenanceTaskSweeper
  * @see TaskStorage
  */
-public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstamp highestVersionstamp,
-                                    IndexTaskStatus status, String error) {
+public record IndexBuildingTaskState(Versionstamp cursorVersionstamp, Versionstamp highestVersionstamp,
+                                     IndexTaskStatus status, String error) {
     /** Field key for the cursor versionstamp in TaskStorage. */
     public static final String CURSOR_VERSIONSTAMP = "cv";
 
@@ -113,7 +113,7 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
      * Loads the task state from FoundationDB for a specific task.
      *
      * <p>This method retrieves all state fields atomically within the given transaction
-     * and reconstructs the IndexBuilderTaskState object. If state fields don't exist
+     * and reconstructs the IndexBuildingTaskState object. If state fields don't exist
      * (new task), default values are used.</p>
      *
      * <p><b>Default Values:</b></p>
@@ -135,9 +135,9 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
      * @param tr the transaction to use for loading state
      * @param subspace the directory subspace containing the task
      * @param taskId the versionstamp identifier of the task
-     * @return the loaded IndexBuilderTaskState with current field values or defaults
+     * @return the loaded IndexBuildingTaskState with current field values or defaults
      */
-    public static IndexBuilderTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
+    public static IndexBuildingTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
         Map<String, byte[]> entries = TaskStorage.getStateFields(tr, subspace, taskId);
         Versionstamp cursorVersionstamp = null;
         byte[] rawCursorVs = entries.get(CURSOR_VERSIONSTAMP);
@@ -162,7 +162,7 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
         if (rawStatus != null) {
             status = IndexTaskStatus.valueOf(new String(rawStatus));
         }
-        return new IndexBuilderTaskState(cursorVersionstamp, highestVersionstamp, status, error);
+        return new IndexBuildingTaskState(cursorVersionstamp, highestVersionstamp, status, error);
     }
 
     /**
@@ -179,7 +179,7 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
      *     // Add entry to index
      * }
      * // Update cursor to last processed entry
-     * IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, lastVersionstamp);
+     * IndexBuildingTaskState.setCursorVersionstamp(tr, subspace, taskId, lastVersionstamp);
      * tr.commit();
      * }</pre>
      *
@@ -204,7 +204,7 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
      * <pre>{@code
      * // When starting task, capture current highest versionstamp
      * Versionstamp snapshot = getLatestVersionstamp(tr, bucket);
-     * IndexBuilderTaskState.setHighestVersionstamp(tr, subspace, taskId, snapshot);
+     * IndexBuildingTaskState.setHighestVersionstamp(tr, subspace, taskId, snapshot);
      * }</pre>
      *
      * @param tr the transaction to use for the update
@@ -228,8 +228,8 @@ public record IndexBuilderTaskState(Versionstamp cursorVersionstamp, Versionstam
      * try {
      *     // Build index
      * } catch (Exception e) {
-     *     IndexBuilderTaskState.setError(tr, subspace, taskId, e.getMessage());
-     *     IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
+     *     IndexBuildingTaskState.setError(tr, subspace, taskId, e.getMessage());
+     *     IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
      *     tr.commit();
      * }
      * }</pre>

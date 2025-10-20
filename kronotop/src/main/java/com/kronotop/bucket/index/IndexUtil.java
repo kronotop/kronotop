@@ -125,7 +125,7 @@ public class IndexUtil {
         }
 
         // Create background build tasks for all shards
-        IndexBuilderTask task = new IndexBuilderTask(namespace, bucket, definition.id());
+        IndexBuildingTask task = new IndexBuildingTask(namespace, bucket, definition.id());
         byte[] encodedTask = JSONUtil.writeValueAsBytes(task);
 
         BucketService service = context.getService(BucketService.NAME);
@@ -380,7 +380,7 @@ public class IndexUtil {
         for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
             DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
             TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
-                IndexBuilderTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.STOPPED);
+                IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.STOPPED);
                 return true;
             });
             TaskStorage.triggerWatchers(tr, taskSubspace);

@@ -16,11 +16,8 @@
 
 package com.kronotop.bucket.index.maintenance;
 
-import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
@@ -33,8 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.*;
-
-import static com.kronotop.internal.task.TaskStorage.TASKS_MAGIC;
 
 /**
  * Monitors and manages index maintenance tasks for a specific bucket shard.
@@ -233,7 +228,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
         }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TaskStorage.tasks(tr, subspace, (taskId) -> {
-                IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, subspace, taskId);
+                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
                 IndexTaskStatus status = state.status();
                 if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
                     if (workers.containsKey(taskId)) {

@@ -56,7 +56,7 @@ import java.util.List;
  *   <li>Retrying on transaction conflicts (codes 1007, 1020)</li>
  * </ul>
  *
- * <p>Progress is tracked through {@link IndexBuilderTaskState} which persists:
+ * <p>Progress is tracked through {@link IndexBuildingTaskState} which persists:
  * <ul>
  *   <li>Current cursor position for resumable processing</li>
  *   <li>Highest versionstamp boundary to detect completion</li>
@@ -65,8 +65,8 @@ import java.util.List;
  * </ul>
  *
  * @see IndexMaintenanceRoutine
- * @see IndexBuilderTask
- * @see IndexBuilderTaskState
+ * @see IndexBuildingTask
+ * @see IndexBuildingTaskState
  */
 public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
     protected static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuilderRoutine.class);
@@ -75,7 +75,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
     private final DirectorySubspace subspace;
     private final int shardId;
     private final Versionstamp taskId;
-    private final IndexBuilderTask task;
+    private final IndexBuildingTask task;
     private final BucketService service;
     private final IndexMaintenanceRoutineMetrics metrics;
     private volatile boolean stopped;
@@ -85,7 +85,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
             DirectorySubspace subspace,
             int shardId,
             Versionstamp taskId,
-            IndexBuilderTask task
+            IndexBuildingTask task
     ) {
         this.context = context;
         this.subspace = subspace;
@@ -109,7 +109,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexBuilderTaskState.setStatus(tr, subspace, taskId, status);
+                IndexBuildingTaskState.setStatus(tr, subspace, taskId, status);
                 if (status == IndexTaskStatus.COMPLETED) {
                     IndexTaskUtil.modifyTaskCounter(context, tr, taskId, 1);
                 }
@@ -178,8 +178,8 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
      */
     private void markIndexBuildTaskFailed(Throwable th) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuilderTaskState.setError(tr, subspace, taskId, th.getMessage());
-            IndexBuilderTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
+            IndexBuildingTaskState.setError(tr, subspace, taskId, th.getMessage());
+            IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
             tr.commit().join();
         }
     }
@@ -253,7 +253,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
      *                              in refreshAndLoadBucketMetadata()
      */
     private void findOutBoundaries() throws InterruptedException {
-        IndexBuilderTaskState state = context.getFoundationDB().run(tr -> IndexBuilderTaskState.load(tr, subspace, taskId));
+        IndexBuildingTaskState state = context.getFoundationDB().run(tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
         if (state.cursorVersionstamp() != null && state.highestVersionstamp() != null) {
             return;
         }
@@ -272,12 +272,12 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Versionstamp cursor = findOutCursorVersionstamp(tr, primaryIndex, begin, end);
             if (cursor != null) {
-                IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
+                IndexBuildingTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
             }
 
             Versionstamp highest = findOutHighestVersionstamp(tr, primaryIndex, begin, end);
             if (highest != null) {
-                IndexBuilderTaskState.setHighestVersionstamp(tr, subspace, taskId, highest);
+                IndexBuildingTaskState.setHighestVersionstamp(tr, subspace, taskId, highest);
             }
 
             tr.commit().join();
@@ -357,7 +357,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                     retry.executeRunnable(() -> setIndexStatusAsBuilding(metadata, index.subspace()));
                 }
 
-                IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, subspace, taskId);
+                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
                 if (state.status() == IndexTaskStatus.COMPLETED) {
                     LOGGER.debug(
                             "Background index builder for namespace={}, bucket={}, index={} on Bucket shard: {} has been completed",
@@ -449,7 +449,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
      * @param state    the current task state with cursor position
      * @return the number of entries processed in this batch
      */
-    private int indexBucketEntries(Transaction tr, BucketShard shard, BucketMetadata metadata, IndexBuilderTaskState state) {
+    private int indexBucketEntries(Transaction tr, BucketShard shard, BucketMetadata metadata, IndexBuildingTaskState state) {
         int total = 0;
         VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp());
         VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(state.highestVersionstamp());
@@ -488,7 +488,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
      */
     private void setCursor(Transaction tr, Versionstamp cursor) {
         if (cursor != null) {
-            IndexBuilderTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
+            IndexBuildingTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
         }
     }
 

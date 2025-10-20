@@ -85,7 +85,7 @@ class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
             tr.commit().join();
         }
 
-        IndexBuilderTask task = new IndexBuilderTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
+        IndexBuildingTask task = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
@@ -109,13 +109,13 @@ class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, taskSubspace, taskId);
-                return IndexTaskStatus.COMPLETED == state.status(); // ready to check the IndexBuilderTaskState
+                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
+                return IndexTaskStatus.COMPLETED == state.status(); // ready to check the IndexBuildingTaskState
             }
         });
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, taskSubspace, taskId);
+            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(state.cursorVersionstamp(), state.highestVersionstamp());
             assertNull(state.error());
             assertEquals(IndexTaskStatus.COMPLETED, state.status());
