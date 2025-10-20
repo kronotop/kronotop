@@ -17,17 +17,21 @@
 package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class BucketDropIndexHandlerTest extends BaseIndexHandlerTest {
 
@@ -79,10 +83,29 @@ class BucketDropIndexHandlerTest extends BaseIndexHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.describeIndex(BUCKET_NAME, "test-index").encode(buf);
             Object msg = runCommand(channel, buf);
+            MapRedisMessage actualMessage = (MapRedisMessage) msg;
+            assertNotNull(actualMessage);
+            boolean found = false;
+            for (Map.Entry<RedisMessage, RedisMessage> entry: actualMessage.children().entrySet()) {
+                SimpleStringRedisMessage key = (SimpleStringRedisMessage) entry.getKey();
+                if (key.content().equals("status")) {
+                    found = true;
+                    SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();
+                    assertEquals(IndexStatus.DROPPED.name(), value.content());
+                }
+            }
+            assertTrue(found, "No 'status' found in the result map");
+        }
+
+        // TODO: Run this check after implementing the IndexDropTask
+        /*{
+            ByteBuf buf = Unpooled.buffer();
+            cmd.describeIndex(BUCKET_NAME, "test-index").encode(buf);
+            Object msg = runCommand(channel, buf);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertNotNull(actualMessage);
             assertEquals("NOSUCHINDEX No such index: 'test-index'", actualMessage.content());
-        }
+        }*/
     }
 
     @Test
