@@ -288,7 +288,7 @@ public class IndexMaintenanceTaskSweeper {
             }
             IndexBuilderTask task = JSONUtil.readValue(taskDef, IndexBuilderTask.class);
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
-            Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
+            Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
             if (index == null) {
                 dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD, IndexMaintenanceTaskKind.DROP);
             } else {

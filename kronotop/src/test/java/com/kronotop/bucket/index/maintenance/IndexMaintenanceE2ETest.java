@@ -24,6 +24,7 @@ import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
 import org.junit.jupiter.api.AfterAll;
@@ -109,6 +110,80 @@ public class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                 }
             }
             assertEquals(0, tasks.getAndIncrement());
+        }
+    }
+
+    @Test
+    void shouldSweepStoppedBuildTasksForDroppedIndex() throws Exception {
+        int halfway = 500;
+        int totalInserts = 1000;
+
+        CountDownLatch halfLatch = new CountDownLatch(halfway);
+        CountDownLatch allLatch = new CountDownLatch(totalInserts);
+
+
+        try (ExecutorService service = Executors.newSingleThreadExecutor()) {
+            Future<?> bgFuture = service.submit(() -> insertAtBackground(halfLatch, allLatch, totalInserts));
+
+            halfLatch.await();
+
+            IndexDefinition definition = IndexDefinition.create(
+                    "test-index",
+                    "age",
+                    BsonType.INT32,
+                    IndexStatus.WAITING
+            );
+
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexUtil.create(context, tr, TEST_NAMESPACE, TEST_BUCKET, definition);
+                tr.commit().join();
+            }
+
+            BucketService bucketService = context.getService(BucketService.NAME);
+
+            // Refresh the metadata
+            BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+            //
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
+                IndexDefinition def = IndexUtil.loadIndexDefinition(tr, indexSubspace);
+                IndexUtil.saveIndexDefinition(tr, metadata, def.updateStatus(IndexStatus.DROPPED));
+                for (int shardId = 0; shardId < bucketService.getNumberOfShards(); shardId++) {
+                    DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
+                    TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
+                        IndexBuilderTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.STOPPED);
+                        return true;
+                    });
+                    TaskStorage.triggerWatchers(tr, taskSubspace);
+                }
+                tr.commit().join();
+            }
+
+            allLatch.await();
+
+            bgFuture.get();
+
+            // All build tasks are killed and removed
+            AtomicInteger counter = new AtomicInteger();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                for (int shardId = 0; shardId < bucketService.getNumberOfShards(); shardId++) {
+                    DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
+                    TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
+                        byte[] taskDef = TaskStorage.getDefinition(tr, taskSubspace, taskId);
+                        IndexMaintenanceTask task = JSONUtil.readValue(taskDef, IndexMaintenanceTask.class);
+                        if (task.getKind() == IndexMaintenanceTaskKind.BUILD) {
+                            counter.getAndIncrement();
+                        }
+                        return true;
+                    });
+                }
+
+                DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
+                IndexDefinition latestDef = IndexUtil.loadIndexDefinition(tr, indexSubspace);
+                assertEquals(IndexStatus.DROPPED, latestDef.status());
+            }
+            assertEquals(0, counter.get());
         }
     }
 }

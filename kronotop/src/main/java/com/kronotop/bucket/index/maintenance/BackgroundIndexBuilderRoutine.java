@@ -284,6 +284,19 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
         }
     }
 
+    private void setIndexStatusAsBuilding(BucketMetadata metadata, DirectorySubspace indexSubspace) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // This will retry in the case of conflict
+            IndexDefinition latestVersion = IndexUtil.loadIndexDefinition(tr, indexSubspace);
+            if (latestVersion.status() == IndexStatus.DROPPED || latestVersion.status() == IndexStatus.BUILDING) {
+                return;
+            }
+            IndexDefinition definition = latestVersion.updateStatus(IndexStatus.BUILDING);
+            IndexUtil.saveIndexDefinition(tr, metadata, definition);
+            tr.commit().join();
+        }
+    }
+
     /**
      * Scans the primary index and builds the target secondary index incrementally.
      *
@@ -316,33 +329,32 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
                     BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
             );
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
+                Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
                 if (index == null) {
                     throw new IndexMaintenanceRoutineException("no index found with id " + task.getIndexId());
                 }
 
                 if (index.definition().status() == IndexStatus.READY) {
                     throw new IndexMaintenanceRoutineException(String.format(
-                            "index with selector=%s, id=%d is already ready to query",
+                            "Index with selector=%s, id=%d is already ready to query",
                             index.definition().selector(),
                             index.definition().id()
                     ));
                 } else if (index.definition().status() == IndexStatus.DROPPED) {
-                    throw new IndexMaintenanceRoutineException(String.format(
-                            "index with selector=%s, id=%d is dropped",
+                    LOGGER.debug("Index with namespace={}, bucket={}, selector={}, id={} is dropped",
+                            task.getNamespace(),
+                            task.getBucket(),
                             index.definition().selector(),
                             index.definition().id()
-                    ));
+                    );
+                    break;
                 }
 
                 // Three possibilities for IndexStatus: WAITING, BUILDING, FAILED
-                if (index.definition().status() != IndexStatus.BUILDING) {
-                    IndexDefinition definition = index.definition().updateStatus(IndexStatus.BUILDING);
-                    context.getFoundationDB().run(tx -> {
-                        // This will retry in the case of conflict
-                        IndexUtil.saveIndexDefinition(tx, metadata, definition);
-                        return null;
-                    });
+                IndexStatus status = index.definition().status();
+                if (status == IndexStatus.WAITING || status == IndexStatus.FAILED) {
+                    Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+                    retry.executeRunnable(() -> setIndexStatusAsBuilding(metadata, index.subspace()));
                 }
 
                 IndexBuilderTaskState state = IndexBuilderTaskState.load(tr, subspace, taskId);

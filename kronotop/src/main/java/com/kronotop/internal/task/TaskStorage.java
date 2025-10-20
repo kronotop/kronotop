@@ -114,7 +114,7 @@ public class TaskStorage {
      * @param tr       the transaction instance
      * @param subspace the directory subspace for task storage
      */
-    private static void triggerWatchers(Transaction tr, DirectorySubspace subspace) {
+    public static void triggerWatchers(Transaction tr, DirectorySubspace subspace) {
         tr.mutate(MutationType.ADD, trigger(subspace), POSITIVE_DELTA_ONE);
     }
 
