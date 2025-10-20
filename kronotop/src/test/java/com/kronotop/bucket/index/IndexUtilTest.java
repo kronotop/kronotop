@@ -151,7 +151,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             assertDoesNotThrow(() -> {
-                IndexUtil.drop(tr, metadata.subspace(), definition.name());
+                IndexUtil.clear(tr, metadata.subspace(), definition.name());
                 tr.commit().join();
             });
         }
@@ -172,7 +172,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             KronotopException exception = assertThrows(KronotopException.class, () -> {
-                IndexUtil.drop(tr, metadata.subspace(), "not-exist-index-name");
+                IndexUtil.clear(tr, metadata.subspace(), "not-exist-index-name");
             });
             assertEquals("No such index: 'not-exist-index-name'", exception.getMessage());
         }

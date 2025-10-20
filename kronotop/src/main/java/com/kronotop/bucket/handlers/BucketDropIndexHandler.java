@@ -55,7 +55,7 @@ public class BucketDropIndexHandler extends AbstractBucketHandler implements Han
             }
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
-                IndexUtil.drop(tr, metadata.subspace(), message.getIndex());
+                IndexUtil.clear(tr, metadata.subspace(), message.getIndex());
                 tr.commit().join();
             }
         }, response::writeOK);

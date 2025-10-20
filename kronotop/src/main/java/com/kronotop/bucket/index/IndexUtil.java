@@ -312,15 +312,15 @@ public class IndexUtil {
     }
 
     /**
-     * Drops an index and its associated metadata from a bucket metadata subspace.
+     * Clears an index and its associated metadata from a bucket metadata subspace.
      * This method removes the index definition, cardinality information, and the actual index subspace.
      *
      * @param tr                     the transaction instance used to interact with the database
      * @param bucketMetadataSubspace the bucket metadata subspace serving as the base path for the index
-     * @param name                   the name of the index to be dropped
+     * @param name                   the name of the index to be cleared
      * @throws KronotopException if the specified index does not exist
      */
-    public static void drop(Transaction tr, DirectorySubspace bucketMetadataSubspace, String name) {
+    public static void clear(Transaction tr, DirectorySubspace bucketMetadataSubspace, String name) {
         DirectorySubspace indexSubspace = open(tr, bucketMetadataSubspace, name);
         if (indexSubspace == null) {
             throw new NoSuchIndexException(name);
@@ -335,7 +335,7 @@ public class IndexUtil {
         byte[] cardinalityKey = getCardinalityKey(bucketMetadataSubspace, definition.id());
         tr.clear(cardinalityKey);
 
-        // Drop the index
+        // Clear the index
         List<String> subpath = new ArrayList<>(bucketMetadataSubspace.getPath());
         subpath.add(BucketMetadataUtil.INDEXES_DIRECTORY);
         subpath.add(definition.name());
