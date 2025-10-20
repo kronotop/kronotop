@@ -39,9 +39,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class IndexBuilderE2ETest extends BaseBucketHandlerTest {
+public class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
             "__test__.background_index_builder.skip_wait_transaction_limit";
 
@@ -104,8 +103,8 @@ public class IndexBuilderE2ETest extends BaseBucketHandlerTest {
                 for (int shardId = 0; shardId < bucketService.getNumberOfShards(); shardId++) {
                     DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
                     TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
-                      tasks.getAndIncrement();
-                      return true;
+                        tasks.getAndIncrement();
+                        return true;
                     });
                 }
             }
