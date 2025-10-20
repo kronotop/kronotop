@@ -27,9 +27,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
-import com.kronotop.bucket.index.maintenance.IndexBuilderTask;
-import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
-import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
+import com.kronotop.bucket.index.maintenance.*;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 
@@ -340,5 +338,52 @@ public class IndexUtil {
         subpath.add(BucketMetadataUtil.INDEXES_DIRECTORY);
         subpath.add(definition.name());
         DirectoryLayer.getDefault().remove(tr, subpath).join();
+    }
+
+    /**
+     * Marks an index as dropped and stops all associated background maintenance tasks.
+     * <p>
+     * This method performs a logical drop operation by:
+     * <ul>
+     *   <li>Updating the index status to {@link IndexStatus#DROPPED}</li>
+     *   <li>Stopping all background build tasks across all shards</li>
+     *   <li>Triggering task watchers to process the status changes</li>
+     *   <li>Incrementing the bucket metadata version</li>
+     * </ul>
+     *
+     * <p>Unlike {@link #clear(Transaction, DirectorySubspace, String)}, which physically removes
+     * the index and all its data, this method performs a logical deletion by marking the index
+     * as dropped. The index structure remains in FoundationDB but becomes inactive.
+     *
+     * <p>This approach allows background maintenance tasks (like {@link com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper})
+     * to properly clean up all associated tasks before the index data is physically removed.
+     *
+     * <p><strong>Important:</strong> Once an index is marked as DROPPED, its status cannot be
+     * changed to any other status to prevent accidental reactivation.
+     *
+     * @param context  the application context providing access to services
+     * @param tr       the transaction instance used to interact with the database
+     * @param metadata the bucket metadata containing the index to be dropped
+     * @param name     the name of the index to be dropped
+     * @throws NoSuchIndexException  if the specified index does not exist
+     * @throws IllegalStateException if the index is already dropped
+     * @see #clear(Transaction, DirectorySubspace, String)
+     * @see IndexDefinition#updateStatus(IndexStatus)
+     * @see com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper
+     */
+    public static void drop(Context context, Transaction tr, BucketMetadata metadata, String name) {
+        DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), name);
+        IndexDefinition latestDef = IndexUtil.loadIndexDefinition(tr, indexSubspace);
+        IndexUtil.saveIndexDefinition(tr, metadata, latestDef.updateStatus(IndexStatus.DROPPED));
+
+        BucketService service = context.getService(BucketService.NAME);
+        for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
+            DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
+            TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
+                IndexBuilderTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.STOPPED);
+                return true;
+            });
+            TaskStorage.triggerWatchers(tr, taskSubspace);
+        }
     }
 }

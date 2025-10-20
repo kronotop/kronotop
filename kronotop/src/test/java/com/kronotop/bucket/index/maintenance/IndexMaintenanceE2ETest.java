@@ -144,19 +144,8 @@ public class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             // Refresh the metadata
             BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-            //
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
-                IndexDefinition def = IndexUtil.loadIndexDefinition(tr, indexSubspace);
-                IndexUtil.saveIndexDefinition(tr, metadata, def.updateStatus(IndexStatus.DROPPED));
-                for (int shardId = 0; shardId < bucketService.getNumberOfShards(); shardId++) {
-                    DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shardId);
-                    TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
-                        IndexBuilderTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.STOPPED);
-                        return true;
-                    });
-                    TaskStorage.triggerWatchers(tr, taskSubspace);
-                }
+                IndexUtil.drop(context, tr, metadata, definition.name());
                 tr.commit().join();
             }
 

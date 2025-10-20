@@ -23,7 +23,12 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataHeader;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.index.maintenance.IndexBuilderTaskState;
+import com.kronotop.bucket.index.maintenance.IndexTaskStatus;
+import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
+import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.server.RESPError;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -32,6 +37,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -139,7 +145,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldDrop() {
+    void shouldClear() {
         createIndexThenWaitForReadiness(definition);
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         DirectorySubspace indexSubspace;
@@ -168,7 +174,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldNotDropNotExistingIndex() {
+    void shouldNotClearNotExistingIndex() {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             KronotopException exception = assertThrows(KronotopException.class, () -> {
@@ -281,6 +287,78 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
                 assertNotEquals(createdIndexes.get(i).id(), createdIndexes.get(j).id(),
                         "IndexDefinition at index " + i + " and " + j + " should have different IDs");
             }
+        }
+    }
+
+    @Test
+    void shouldDropIndexAndUpdateStatusToDropped() {
+        createIndexThenWaitForReadiness(definition);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        // Verify index is READY before drop
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
+            IndexDefinition currentDef = IndexUtil.loadIndexDefinition(tr, indexSubspace);
+            assertEquals(IndexStatus.READY, currentDef.status());
+        }
+
+        // Drop the index
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexUtil.drop(context, tr, metadata, definition.name());
+            tr.commit().join();
+        }
+
+        // Verify index status is now DROPPED
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
+            IndexDefinition droppedDef = IndexUtil.loadIndexDefinition(tr, indexSubspace);
+            assertEquals(IndexStatus.DROPPED, droppedDef.status());
+        }
+    }
+
+    @Test
+    void shouldNotDropNonExistingIndex() {
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        KronotopException exception = assertThrows(KronotopException.class, () -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexUtil.drop(context, tr, metadata, "non-existing-index");
+            }
+        });
+        assertEquals("No such index: 'non-existing-index'", exception.getMessage());
+    }
+
+    @Test
+    void shouldAllowIdempotentDropOperation() {
+        createIndexThenWaitForReadiness(definition);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        // Drop the index first time
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexUtil.drop(context, tr, metadata, definition.name());
+            tr.commit().join();
+        }
+
+        // Verify status is DROPPED
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
+            IndexDefinition droppedDef = IndexUtil.loadIndexDefinition(tr, indexSubspace);
+            assertEquals(IndexStatus.DROPPED, droppedDef.status());
+        }
+
+        // Drop again should succeed (idempotent operation)
+        assertDoesNotThrow(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexUtil.drop(context, tr, metadata, definition.name());
+                tr.commit().join();
+            }
+        });
+
+        // Verify status is still DROPPED
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
+            IndexDefinition droppedDef = IndexUtil.loadIndexDefinition(tr, indexSubspace);
+            assertEquals(IndexStatus.DROPPED, droppedDef.status());
         }
     }
 }
