@@ -36,7 +36,7 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
 
     @BeforeEach
     void setupTask() {
-        taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(context, SHARD_ID);
+        taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         IndexBuildingTask task = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, 12345);
         taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
     }

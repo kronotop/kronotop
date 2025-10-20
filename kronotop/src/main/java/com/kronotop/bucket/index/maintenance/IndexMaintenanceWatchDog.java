@@ -100,7 +100,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
         this.context = context;
         this.service = context.getService(BucketService.NAME);
         this.shard = shard;
-        this.subspace = IndexTaskUtil.createOrOpenTasksSubspace(context, shard.id());
+        this.subspace = IndexTaskUtil.openTasksSubspace(context, shard.id());
         this.sweeper = new IndexMaintenanceTaskSweeper(context);
         this.trigger = TaskStorage.trigger(subspace);
 

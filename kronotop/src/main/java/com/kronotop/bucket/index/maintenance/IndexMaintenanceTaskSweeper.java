@@ -191,7 +191,7 @@ public class IndexMaintenanceTaskSweeper {
         int numCompleted = 0;
         for (int shardId = 0; shardId < numShards; shardId++) {
             DirectorySubspace otherTaskSubspace = subspaces.computeIfAbsent(shardId,
-                    (id) -> IndexTaskUtil.createOrOpenTasksSubspace(context, id));
+                    (id) -> IndexTaskUtil.openTasksSubspace(context, id));
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, otherTaskSubspace, taskId);
                 if (state.status() != IndexTaskStatus.COMPLETED) {
@@ -349,7 +349,7 @@ public class IndexMaintenanceTaskSweeper {
     private void dropIndexMaintenanceTask(Transaction tr, Versionstamp taskId, IndexMaintenanceTaskKind... kinds) {
         for (int shardId = 0; shardId < numShards; shardId++) {
             DirectorySubspace subspace = subspaces.computeIfAbsent(shardId,
-                    (id) -> IndexTaskUtil.createOrOpenTasksSubspace(context, id));
+                    (id) -> IndexTaskUtil.openTasksSubspace(context, id));
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
                 continue;

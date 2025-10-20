@@ -27,17 +27,48 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
 
+/**
+ * Utility class for managing index maintenance task subspaces and task counters in FoundationDB.
+ * <p>
+ * This class provides methods for:
+ * <ul>
+ *   <li>Opening task subspaces for specific shards</li>
+ *   <li>Managing task counters to track task completion across shards</li>
+ *   <li>Reading task counter values for monitoring purposes</li>
+ * </ul>
+ *
+ * <p>Task counters are used to coordinate index maintenance operations across multiple shards.
+ * When a task affects multiple shards, the counter tracks how many shards have completed the task,
+ * enabling efficient coordination without requiring a central coordinator.
+ *
+ * @see IndexBuildingTask
+ * @see IndexDropTask
+ * @see com.kronotop.internal.task.TaskStorage
+ */
 public class IndexTaskUtil {
     /**
-     * Creates or opens a DirectorySubspace for index maintenance tasks based on the specified context and shard ID.
-     * This method generates the directory layout using the Kronotop directory structure,
-     * retrieves the FoundationDB database from the provided context, and operates on the subspace.
+     * Opens the DirectorySubspace for index maintenance tasks for a specific shard.
+     * <p>
+     * This method retrieves the task subspace from the directory cache using the standard
+     * Kronotop directory layout for shard-level index maintenance tasks. The subspace must
+     * have been previously created during cluster initialization.
      *
-     * @param context the context associated with the Kronotop instance, providing cluster and FoundationDB database access
-     * @param shardId the ID of the shard for which the subspace will be created or opened
-     * @return the DirectorySubspace corresponding to the specified IndexTask's subspace
+     * <p>The directory path follows the structure:
+     * <pre>
+     * kronotop/{cluster}/metadata/shards/bucket/shard/{shardId}/maintenance/index/tasks
+     * </pre>
+     *
+     * <p>Each shard maintains its own task queue in this subspace, allowing parallel
+     * index maintenance operations across all shards in the cluster.
+     *
+     * @param context the application context providing access to cluster configuration and directory cache
+     * @param shardId the ID of the shard whose task subspace should be opened
+     * @return the DirectorySubspace for the shard's index maintenance tasks
+     * @see com.kronotop.internal.task.TaskStorage
+     * @see KronotopDirectory
      */
-    public static DirectorySubspace createOrOpenTasksSubspace(Context context, int shardId) {
+    public static DirectorySubspace openTasksSubspace(Context context, int shardId) {
+        // Task subspace has already been created during initialization
         List<String> layout = KronotopDirectory.
                 kronotop().cluster(context.getClusterName()).metadata().
                 shards().bucket().shard(shardId).maintenance().
@@ -45,6 +76,35 @@ public class IndexTaskUtil {
         return context.getDirectorySubspaceCache().get(layout);
     }
 
+    /**
+     * Atomically modifies a task counter by the specified delta value.
+     * <p>
+     * This method uses FoundationDB's atomic ADD mutation to increment or decrement
+     * a counter associated with a specific task. The counter is stored in a global
+     * maintenance subspace and is used to track task completion across multiple shards.
+     *
+     * <p>The directory path for counters follows the structure:
+     * <pre>
+     * kronotop/{cluster}/metadata/buckets/maintenance/index/counter
+     * </pre>
+     *
+     * <p>Common use cases:
+     * <ul>
+     *   <li>Increment by +1 when a shard completes its portion of a task</li>
+     *   <li>Decrement by -1 when a task needs to be retried</li>
+     *   <li>Initialize counter when creating a distributed task</li>
+     * </ul>
+     *
+     * <p><strong>Atomicity:</strong> This operation is atomic and thread-safe, using
+     * FoundationDB's {@link MutationType#ADD} mutation. Multiple shards can safely modify
+     * the same counter concurrently.
+     *
+     * @param context the application context providing access to cluster configuration
+     * @param tr      the transaction in which to perform the atomic mutation
+     * @param taskId  the versionstamp identifying the task whose counter should be modified
+     * @param delta   the value to add to the counter (can be negative for decrement)
+     * @see #readTaskCounter(Context, Versionstamp)
+     */
     public static void modifyTaskCounter(Context context, Transaction tr, Versionstamp taskId, int delta) {
         List<String> layout = KronotopDirectory.
                 kronotop().cluster(context.getClusterName()).metadata().
@@ -55,6 +115,30 @@ public class IndexTaskUtil {
         tr.mutate(MutationType.ADD, key, data);
     }
 
+    /**
+     * Reads the current value of a task counter.
+     * <p>
+     * This method retrieves the counter value for a specific task from the global
+     * maintenance counter subspace. The counter tracks how many shards have completed
+     * their portion of a distributed task.
+     *
+     * <p>The directory path for counters follows the structure:
+     * <pre>
+     * kronotop/{cluster}/metadata/buckets/maintenance/index/counter
+     * </pre>
+     *
+     * <p>This method creates its own transaction for reading the counter value,
+     * providing a consistent snapshot of the counter at the time of the read.
+     *
+     * <p><strong>Note:</strong> The returned value represents a point-in-time snapshot.
+     * The actual counter value may change immediately after this method returns if other
+     * shards are concurrently modifying it.
+     *
+     * @param context the application context providing access to cluster configuration and FoundationDB
+     * @param taskId  the versionstamp identifying the task whose counter should be read
+     * @return the current counter value as a 32-bit integer
+     * @see #modifyTaskCounter(Context, Transaction, Versionstamp, int)
+     */
     public static int readTaskCounter(Context context, Versionstamp taskId) {
         List<String> layout = KronotopDirectory.
                 kronotop().cluster(context.getClusterName()).metadata().

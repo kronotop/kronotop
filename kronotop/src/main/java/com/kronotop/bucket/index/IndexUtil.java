@@ -97,7 +97,7 @@ public class IndexUtil {
         BucketService service = tx.context().getService(BucketService.NAME);
         int userVersion = tx.userVersion(); // increases the user version
         for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
-            DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(tx.context(), shardId);
+            DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(tx.context(), shardId);
             // create tasks in the task subspaces with the same ID
             TaskStorage.create(tx.tr(), userVersion, taskSubspace, encodedTask);
         }
@@ -360,7 +360,7 @@ public class IndexUtil {
 
         BucketService service = tx.context().getService(BucketService.NAME);
         for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
-            DirectorySubspace taskSubspace = IndexTaskUtil.createOrOpenTasksSubspace(tx.context(), shardId);
+            DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(tx.context(), shardId);
             TaskStorage.tasks(tx.tr(), taskSubspace, (taskId) -> {
                 IndexBuildingTaskState.setStatus(tx.tr(), taskSubspace, taskId, IndexTaskStatus.STOPPED);
                 return true;

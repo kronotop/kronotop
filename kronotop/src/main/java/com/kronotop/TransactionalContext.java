@@ -111,8 +111,10 @@ public class TransactionalContext {
      * Each call returns the current value and then increments the internal counter,
      * ensuring unique version numbers within this transactional context.
      *
-     * <p>The user version is commonly used for task ordering in {@link com.kronotop.internal.task.TaskStorage}
-     * to maintain execution order when multiple tasks are created in a single transaction.
+     * <p>The user version is used in FoundationDB's versionstamp generation to create
+     * sequential, globally unique identifiers. When multiple versionstamp operations occur
+     * within a single transaction, each operation receives a distinct user version,
+     * ensuring the generated versionstamps are properly ordered.
      *
      * <p><strong>Thread Safety:</strong> This method is thread-safe due to the use of
      * {@link AtomicInteger#getAndIncrement()}.
