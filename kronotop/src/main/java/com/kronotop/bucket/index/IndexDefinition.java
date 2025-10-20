@@ -137,12 +137,20 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
      * This method maintains immutability by creating a new instance rather than modifying the existing one.
      * It is commonly used during index lifecycle management, such as marking an index as BUILDING during
      * background index construction or FAILED if an error occurs.
+     * <p>
+     * Once an index is marked as {@link IndexStatus#DROPPED}, its status cannot be changed to any other status
+     * to prevent accidental reactivation of dropped indexes. However, a dropped index can be updated to DROPPED
+     * again without error (idempotent operation).
      *
      * @param status the new status to assign to the index
      * @return a new IndexDefinition instance with the updated status
+     * @throws IllegalStateException if the current status is DROPPED and the new status is not DROPPED
      * @see IndexStatus
      */
     public IndexDefinition updateStatus(IndexStatus status) {
+        if (status != IndexStatus.DROPPED && status() == IndexStatus.DROPPED) {
+            throw new IllegalStateException("Index '" + name + "' is already dropped and its status cannot be modified.");
+        }
         return new IndexDefinition(id, name, selector, bsonType, status);
     }
 
