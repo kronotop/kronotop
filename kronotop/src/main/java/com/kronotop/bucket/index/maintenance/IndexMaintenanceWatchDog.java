@@ -327,9 +327,13 @@ public class IndexMaintenanceWatchDog implements Runnable {
             worker.shutdown();
         }
         workerExecutor.shutdownNow();
+        scheduler.shutdownNow();
         try {
             if (!workerExecutor.awaitTermination(6000, TimeUnit.MILLISECONDS)) {
-                LOGGER.warn("Failed to stop all index maintenance workers for Bucket shard: {}", shard.id());
+                LOGGER.warn("Index maintenance worker pool did not fully terminate for shard: {}", shard.id());
+            }
+            if (!scheduler.awaitTermination(6000, TimeUnit.MILLISECONDS)) {
+                LOGGER.warn("Index maintenance scheduler did not fully terminate for shard: {}", shard.id());
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
