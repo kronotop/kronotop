@@ -17,11 +17,9 @@
 package com.kronotop.bucket.index.maintenance;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.NoSuchBucketException;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
@@ -75,7 +73,7 @@ class IndexDropRoutineTest extends BaseBucketHandlerTest {
         }
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            try (Transaction tr  = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 try {
                     IndexUtil.open(tr, metadata.subspace(), definition.name());
                     return false;

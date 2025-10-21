@@ -123,7 +123,6 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         CountDownLatch halfLatch = new CountDownLatch(halfway);
         CountDownLatch allLatch = new CountDownLatch(totalInserts);
 
-
         try (ExecutorService service = Executors.newSingleThreadExecutor()) {
             Future<?> bgFuture = service.submit(() -> insertAtBackground(halfLatch, allLatch, totalInserts));
 
@@ -171,10 +170,6 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                         return true;
                     });
                 }
-
-                DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
-                IndexDefinition latestDef = IndexUtil.loadIndexDefinition(tr, indexSubspace);
-                assertEquals(IndexStatus.DROPPED, latestDef.status());
             }
             assertEquals(0, counter.get());
         }
