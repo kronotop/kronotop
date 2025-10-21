@@ -32,7 +32,12 @@ import java.util.function.Consumer;
  * managing their lifecycle and coordinating with the watchdog service. Each worker:
  * <ul>
  *   <li>Loads the task definition from FoundationDB</li>
- *   <li>Creates the appropriate maintenance routine (e.g., BackgroundIndexBuildingRoutine)</li>
+ *   <li>Creates the appropriate maintenance routine based on task kind:
+ *       <ul>
+ *         <li>{@link BackgroundIndexBuildingRoutine} for BUILD tasks</li>
+ *         <li>{@link IndexDropRoutine} for DROP tasks</li>
+ *       </ul>
+ *   </li>
  *   <li>Executes the routine with retry logic for transient failures</li>
  *   <li>Notifies the watchdog upon task completion via a callback hook</li>
  *   <li>Handles graceful shutdown when requested</li>
@@ -52,6 +57,7 @@ import java.util.function.Consumer;
  *
  * @see IndexMaintenanceRoutine
  * @see BackgroundIndexBuildingRoutine
+ * @see IndexDropRoutine
  * @see IndexMaintenanceWatchDog
  */
 public class IndexMaintenanceWorker implements Runnable {
@@ -68,8 +74,13 @@ public class IndexMaintenanceWorker implements Runnable {
      * <p>This constructor performs the following initialization:
      * <ul>
      *   <li>Loads the task definition from FoundationDB using the provided task ID</li>
-     *   <li>Deserializes the task definition into an IndexBuildingTask object</li>
-     *   <li>Creates a BackgroundIndexBuildingRoutine to handle the actual index building</li>
+     *   <li>Deserializes the task definition to determine the task kind (BUILD or DROP)</li>
+     *   <li>Creates the appropriate maintenance routine based on task kind:
+     *       <ul>
+     *         <li>BUILD: Creates {@link BackgroundIndexBuildingRoutine} for index building</li>
+     *         <li>DROP: Creates {@link IndexDropRoutine} for index removal</li>
+     *       </ul>
+     *   </li>
      * </ul>
      *
      * <p>The completion hook provided will be called when the task reaches a terminal
@@ -80,15 +91,27 @@ public class IndexMaintenanceWorker implements Runnable {
      * @param shardId        the ID of the bucket shard this worker is operating on
      * @param taskId         the unique versionstamp identifier of the task to execute
      * @param completionHook callback to invoke when the task reaches a terminal state
+     * @throws IllegalStateException if the task kind is not recognized
      */
     public IndexMaintenanceWorker(Context context, DirectorySubspace subspace, int shardId, Versionstamp taskId, Consumer<Versionstamp> completionHook) {
         this.context = context;
         this.subspace = subspace;
         this.taskId = taskId;
         this.completionHook = completionHook;
-        byte[] raw = context.getFoundationDB().run(tr -> TaskStorage.getDefinition(tr, subspace, taskId));
-        IndexBuildingTask task = JSONUtil.readValue(raw, IndexBuildingTask.class);
-        this.routine = new BackgroundIndexBuildingRoutine(context, subspace, shardId, taskId, task);
+
+        byte[] definition = context.getFoundationDB().run(tr -> TaskStorage.getDefinition(tr, subspace, taskId));
+        IndexMaintenanceTask base = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
+        switch (base.getKind()) {
+            case BUILD -> {
+                IndexBuildingTask task = JSONUtil.readValue(definition, IndexBuildingTask.class);
+                this.routine = new BackgroundIndexBuildingRoutine(context, subspace, shardId, taskId, task);
+            }
+            case DROP -> {
+                IndexDropTask task = JSONUtil.readValue(definition, IndexDropTask.class);
+                this.routine = new IndexDropRoutine(context, subspace, taskId, task);
+            }
+            default -> throw new IllegalStateException("Unknown task kind: " + base.getKind());
+        }
     }
 
     /**
