@@ -32,53 +32,17 @@ import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class IndexDropRoutine implements IndexMaintenanceRoutine {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(IndexDropRoutine.class);
-    private final Context context;
-    private final DirectorySubspace subspace;
-    private final Versionstamp taskId;
+public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndexDropRoutine.class);
     private final IndexDropTask task;
-    private final IndexMaintenanceRoutineMetrics metrics;
     private volatile boolean stopped;
 
     public IndexDropRoutine(Context context,
                             DirectorySubspace subspace,
                             Versionstamp taskId,
                             IndexDropTask task) {
-        this.context = context;
-        this.subspace = subspace;
-        this.taskId = taskId;
+        super(context, subspace, taskId);
         this.task = task;
-        this.metrics = new IndexMaintenanceRoutineMetrics();
-    }
-
-    private void refreshBucketMetadata() throws InterruptedException {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            // Open the BucketMetadata and refresh the caches
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
-            Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
-            if (index == null) {
-                throw new IndexMaintenanceRoutineException("index with id '" + task.getIndexId() + "' could not be found");
-            }
-
-            /*
-             * A potential stop-the-world pause (e.g., JVM GC) during the sleep interval
-             * does not break the logic here. Once the transaction is created, it already
-             * holds a stable read version from FoundationDB. If the pause extends beyond
-             * the transaction lifetime, this transaction will simply fail with "too old"
-             * and the task will be marked as failed. In that case, a manual or KCP trigger
-             * is required to retry. This design ensures correctness is preserved even under
-             * GC pauses; the worst case is a delayed or failed task, never inconsistent state.
-             */
-            String txLimitConfigPath = "__test__.index_maintenance.skip_wait_transaction_limit";
-            boolean skipWaitTxLimit = context.getConfig().hasPath(txLimitConfigPath) && context.getConfig().getBoolean(txLimitConfigPath);
-            if (!skipWaitTxLimit) {
-                // FoundationDB transactions cannot live beyond 5s.
-                // Sleeping 6s ensures that any previously opened transactions are expired.
-                Thread.sleep(6000);
-            }
-            // Now all transactions either committed or died.
-        }
     }
 
     private void markIndexDropTaskFailed(Throwable th) {
@@ -130,7 +94,7 @@ public class IndexDropRoutine implements IndexMaintenanceRoutine {
         }
 
         try {
-            refreshBucketMetadata();
+            refreshBucketMetadata(task.getNamespace(), task.getBucket(), task.getIndexId());
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 clearIndex(tr);
                 markIndexDropTaskCompleted(tr);
@@ -174,10 +138,5 @@ public class IndexDropRoutine implements IndexMaintenanceRoutine {
     @Override
     public void stop() {
         stopped = true;
-    }
-
-    @Override
-    public IndexMaintenanceRoutineMetrics getMetrics() {
-        return metrics;
     }
 }
