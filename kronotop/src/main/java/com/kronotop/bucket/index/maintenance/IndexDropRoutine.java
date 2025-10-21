@@ -136,6 +136,12 @@ public class IndexDropRoutine implements IndexMaintenanceRoutine {
                 clearIndex(tr);
                 tr.commit().join();
             }
+            LOGGER.debug(
+                    "Index={} on namespace={}, bucket={} has been dropped",
+                    task.getIndexId(),
+                    task.getNamespace(),
+                    task.getBucket()
+            );
         } catch (InterruptedException e) {
             // Do not mark the task as failed. Program has stopped and this task
             // can be retried.
@@ -154,6 +160,13 @@ public class IndexDropRoutine implements IndexMaintenanceRoutine {
 
     @Override
     public void start() {
+        LOGGER.debug(
+                "Dropping index={} on namespace={}, bucket={}",
+                task.getIndexId(),
+                task.getNamespace(),
+                task.getBucket()
+        );
+        stopped = false; // also means a restart
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(this::doStart);
     }

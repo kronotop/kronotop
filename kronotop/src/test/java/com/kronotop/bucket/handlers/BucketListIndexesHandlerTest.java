@@ -33,7 +33,7 @@ class BucketListIndexesHandlerTest extends BaseBucketHandlerTest {
 
     @BeforeEach
     void beforeEach() {
-        getBucketMetadata(BUCKET_NAME);
+        getBucketMetadata(TEST_BUCKET);
     }
 
     @Test
@@ -52,7 +52,7 @@ class BucketListIndexesHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(BUCKET_NAME, "{\"selector\": {\"bson_type\": \"int32\"}, \"username\": {\"bson_type\": \"string\"}}").encode(buf);
+            cmd.createIndex(TEST_BUCKET, "{\"selector\": {\"bson_type\": \"int32\"}, \"username\": {\"bson_type\": \"string\"}}").encode(buf);
             runCommand(channel, buf);
         }
 
@@ -63,7 +63,7 @@ class BucketListIndexesHandlerTest extends BaseBucketHandlerTest {
         );
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.listIndexes(BUCKET_NAME).encode(buf);
+        cmd.listIndexes(TEST_BUCKET).encode(buf);
         Object msg = runCommand(channel, buf);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertNotNull(actualMessage);

@@ -57,7 +57,7 @@ class BackgroundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                         BSONUtil.jsonToDocumentThenBytes("{\"age\": 32}"),
                         BSONUtil.jsonToDocumentThenBytes("{\"age\": 40}")
                 ));
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -80,12 +80,12 @@ class BackgroundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = getBucketMetadata(BUCKET_NAME);
+            BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
             IndexUtil.create(tr, metadata.subspace(), definition);
             tr.commit().join();
         }
 
-        IndexBuildingTask task = new IndexBuildingTask(NAMESPACE_NAME, BUCKET_NAME, definition.id());
+        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, definition.id());
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
@@ -93,7 +93,7 @@ class BackgroundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<Long> indexValues = new ArrayList<>();
             List<Versionstamp> versionstamps = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, NAMESPACE_NAME, BUCKET_NAME);
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
                 Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);

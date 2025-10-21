@@ -46,7 +46,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
     void shouldCreateIndexWithMultipleFields() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"selector-one\": {\"bson_type\": \"int32\"}, \"selector-two\": {\"bson_type\": \"string\"}}").encode(buf);
+        cmd.createIndex(TEST_BUCKET, "{\"selector-one\": {\"bson_type\": \"int32\"}, \"selector-two\": {\"bson_type\": \"string\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -57,7 +57,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
     void invalidTypeShouldReturnError() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"selector\": {\"bson_type\": \"int322\"}}").encode(buf);
+        cmd.createIndex(TEST_BUCKET, "{\"selector\": {\"bson_type\": \"int322\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -74,7 +74,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
             BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             ByteBuf buf = Unpooled.buffer();
             String directive = String.format(template, validType, validType);
-            cmd.createIndex(BUCKET_NAME, directive).encode(buf);
+            cmd.createIndex(TEST_BUCKET, directive).encode(buf);
             Object msg = runCommand(channel, buf);
             if (msg instanceof ErrorRedisMessage errorRedisMessage) {
                 fail("For '" + directive + "', should not return error: " + errorRedisMessage.content());
@@ -91,7 +91,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(BUCKET_NAME, definition).encode(buf);
+            cmd.createIndex(TEST_BUCKET, definition).encode(buf);
             Object msg = runCommand(channel, buf);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertNotNull(actualMessage);
@@ -99,7 +99,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
         }
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(BUCKET_NAME, definition).encode(buf);
+            cmd.createIndex(TEST_BUCKET, definition).encode(buf);
             Object msg = runCommand(channel, buf);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertNotNull(actualMessage);
@@ -111,7 +111,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
     void invalidIndexDefinition() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"some\": \"key\"}").encode(buf);
+        cmd.createIndex(TEST_BUCKET, "{\"some\": \"key\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);

@@ -45,8 +45,6 @@ import java.util.concurrent.CountDownLatch;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class BaseBucketHandlerTest extends BaseHandlerTest {
-    protected final String NAMESPACE_NAME = "global";
-    protected final String BUCKET_NAME = "test-bucket";
     protected final int SHARD_ID = 1;
     protected final byte[] DOCUMENT = BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}");
 
@@ -176,7 +174,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
 
         for (int j = 0; j < totalInserts; j++) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+            cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
             runCommand(channel, buf);
 
             try {

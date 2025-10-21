@@ -70,7 +70,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         List<String> result = new ArrayList<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
@@ -148,7 +148,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         Map<String, Document> allResults = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{\"type\": \"A\"}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"type\": \"A\"}", BucketQueryArgs.Builder.limit(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
@@ -216,7 +216,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.QUERY - Filter for non-existent category
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{\"category\": \"NONEXISTENT\"}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"category\": \"NONEXISTENT\"}", BucketQueryArgs.Builder.limit(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
