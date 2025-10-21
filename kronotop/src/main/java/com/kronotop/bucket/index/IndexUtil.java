@@ -307,6 +307,7 @@ public class IndexUtil {
         subpath.add(BucketMetadataUtil.INDEXES_DIRECTORY);
         subpath.add(definition.name());
         DirectoryLayer.getDefault().remove(tr, subpath).join();
+        BucketMetadataUtil.increaseVersion(tr, bucketMetadataSubspace, POSITIVE_DELTA_ONE);
     }
 
     /**

@@ -18,14 +18,13 @@ package com.kronotop.bucket.index.maintenance;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexStatus;
-import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.internal.JSONUtil;
-import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.index.*;
+import com.kronotop.directory.Bucket;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
 import org.junit.jupiter.api.AfterAll;
@@ -33,6 +32,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,6 +42,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
@@ -168,8 +170,63 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                         });
                     }
                 }
-                return 0 == counter.get();
+                return counter.get() == 0;
             });
+
+            // Refresh and check
+            metadata = getBucketMetadata(TEST_BUCKET);
+            assertNull(metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL));
         }
+    }
+
+    @Test
+    void shouldDropAndWipeOutIndex() {
+        // Insert documents with a simple field for filtering
+        List<byte[]> documents = Arrays.asList(
+                BSONUtil.jsonToDocumentThenBytes("{\"type\": \"A\", \"value\": 1}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"type\": \"B\", \"value\": 2}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"type\": \"A\", \"value\": 3}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"type\": \"B\", \"value\": 4}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"type\": \"A\", \"value\": 5}")
+        );
+
+        insertDocuments(documents);
+
+        IndexDefinition definition = IndexDefinition.create(
+                "test-index",
+                "value",
+                BsonType.INT32
+        );
+
+        createIndexThenWaitForReadiness(definition);
+
+        // Refresh the metadata
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            IndexUtil.drop(tx, metadata, definition.name());
+            tr.commit().join();
+        }
+
+        BucketService bucketService = context.getService(BucketService.NAME);
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
+            // All build & drop tasks are killed and removed
+            AtomicInteger counter = new AtomicInteger();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                for (int shardId = 0; shardId < bucketService.getNumberOfShards(); shardId++) {
+                    DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
+                    TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
+                        counter.getAndIncrement();
+                        return true;
+                    });
+                }
+            }
+            return counter.get() == 0;
+        });
+
+        // Refresh and check
+        metadata = getBucketMetadata(TEST_BUCKET);
+        assertNull(metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL));
     }
 }
