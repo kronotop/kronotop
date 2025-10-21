@@ -204,26 +204,11 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Sweeps and finalizes a completed index maintenance task across all shards.
+     * Coordinates cleanup of completed index maintenance tasks with retry logic.
      *
-     * <p>This method performs a coordinated cleanup of an index building task by:
-     * <ol>
-     *   <li>Checking if the task is COMPLETED on all shards (fallback verification)</li>
-     *   <li>If all shards have completed, retrieving the task definition</li>
-     *   <li>Loading the bucket metadata and target index</li>
-     *   <li>Updating the index status from BUILDING to READY if applicable</li>
-     *   <li>Removing all task-related data from all shard subspaces</li>
-     * </ol>
-     *
-     * <p>The sweep operation is atomic - either all changes are committed or none are.
-     * This ensures the index is only marked as READY when fully built across all shards,
-     * and that cleanup is consistent across the distributed system.
-     *
-     * <p>If the index no longer exists in the metadata (e.g., it was dropped), the method
-     * still performs cleanup of task data to prevent storage leaks.
-     *
-     * <p>The method uses retry logic to handle transient FoundationDB conflicts during
-     * the final update and cleanup transaction.
+     * <p>Wraps {@link #doSweep} with transaction retry to handle FoundationDB conflicts.
+     * Atomically updates index status and removes task metadata across all shards when
+     * all shards complete their work.
      *
      * @param taskSubspace the directory subspace containing the task definition
      * @param taskId       the unique versionstamp identifier of the task to sweep
@@ -234,77 +219,92 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Performs the actual sweep operation within a transaction (called by retry wrapper).
+     * Processes BUILD task cleanup and index status transitions.
      *
-     * <p>This method executes the complete sweep workflow:</p>
-     * <ol>
-     *   <li>Loads the task definition from the task subspace</li>
-     *   <li>Retrieves bucket metadata and the target index</li>
-     *   <li>Handles three cases based on index state:
-     *     <ul>
-     *       <li><b>Index deleted:</b> Cleans up all task types (BUILD, DROP)</li>
-     *       <li><b>Index BUILDING:</b> Verifies all shards completed, then transitions to READY</li>
-     *       <li><b>Index DROPPED:</b> Cleans up BUILD tasks only (DROP tasks handled separately)</li>
-     *     </ul>
-     *   </li>
-     *   <li>Commits the transaction atomically</li>
-     * </ol>
+     * <p>Handles three cases: index deleted (cleanup BUILD task), index BUILDING
+     * (verify all shards complete, transition to READY), index DROPPED (cleanup BUILD task).
      *
-     * <p><b>Case 1: Index Deleted (index == null)</b></p>
-     * <p>When an index is dropped and removed from metadata during an active build:</p>
-     * <ul>
-     *   <li>Cleanup both BUILD and DROP tasks to prevent resource leaks</li>
-     *   <li>This handles the race condition where index is deleted before sweep runs</li>
-     * </ul>
+     * @param tr      the active transaction
+     * @param taskId  the task identifier
+     * @param taskDef the serialized task definition
+     */
+    private void sweepBuildTask(Transaction tr, Versionstamp taskId, byte[] taskDef) {
+        IndexBuildingTask task = JSONUtil.readValue(taskDef, IndexBuildingTask.class);
+        BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        if (index == null) {
+            dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
+        } else {
+            IndexStatus status = index.definition().status();
+            if (status == IndexStatus.BUILDING) {
+                if (!isCompleted(taskId)) {
+                    return;
+                }
+                IndexDefinition definition = index.definition().updateStatus(IndexStatus.READY);
+                IndexUtil.saveIndexDefinition(tr, metadata, definition);
+                dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
+            } else if (status == IndexStatus.DROPPED) {
+                // Drop the BUILD tasks if there is any.
+                // The DROP tasks will be dropped separately.
+                dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
+            }
+        }
+    }
+
+    /**
+     * Processes DROP task cleanup after index data removal.
      *
-     * <p><b>Case 2: Index BUILDING</b></p>
-     * <p>Normal completion path for index builds:</p>
-     * <ul>
-     *   <li>Verifies ALL shards report COMPLETED (barrier check)</li>
-     *   <li>If not all completed: return early without changes</li>
-     *   <li>If all completed: Update index status BUILDING → READY</li>
-     *   <li>Delete BUILD task metadata from all shard subspaces</li>
-     * </ul>
+     * <p>Cleans up DROP task when index is removed from metadata or index data
+     * no longer exists in FoundationDB.
      *
-     * <p><b>Case 3: Index DROPPED</b></p>
-     * <p>When index is dropped while BUILD tasks still exist:</p>
-     * <ul>
-     *   <li>Clean up BUILD tasks (no longer needed)</li>
-     *   <li>Leave DROP tasks intact (processed by separate cleanup logic)</li>
-     * </ul>
+     * @param tr      the active transaction
+     * @param taskId  the task identifier
+     * @param taskDef the serialized task definition
+     */
+    private void sweepDropTask(Transaction tr, Versionstamp taskId, byte[] taskDef) {
+        IndexDropTask task = JSONUtil.readValue(taskDef, IndexDropTask.class);
+        BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        if (index == null) {
+            dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.DROP);
+        } else {
+            if (index.definition().status() != IndexStatus.DROPPED) {
+                // silently quit
+                return;
+            }
+            try {
+                IndexUtil.open(tr, metadata.subspace(), index.definition().name());
+            } catch (NoSuchIndexException exp) {
+                dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.DROP);
+            }
+        }
+    }
+
+    /**
+     * Dispatches task cleanup to the appropriate handler based on task kind.
      *
-     * <p><b>Transaction Isolation:</b></p>
-     * <p>All operations within this method execute in a single FoundationDB transaction,
-     * ensuring atomic visibility of index status changes and task cleanup across the cluster.</p>
+     * <p>Loads task definition, routes to {@link #sweepBuildTask} or {@link #sweepDropTask},
+     * and commits changes atomically.
      *
      * @param taskSubspace the directory subspace containing the task definition
      * @param taskId       the versionstamp identifier of the task to sweep
      */
     private void doSweep(DirectorySubspace taskSubspace, Versionstamp taskId) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] taskDef = TaskStorage.getDefinition(tr, taskSubspace, taskId);
-            if (taskDef == null) {
+            byte[] definition = TaskStorage.getDefinition(tr, taskSubspace, taskId);
+            if (definition == null) {
                 return;
             }
-            IndexBuildingTask task = JSONUtil.readValue(taskDef, IndexBuildingTask.class);
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
-            Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
-            if (index == null) {
-                dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD, IndexMaintenanceTaskKind.DROP);
-            } else {
-                IndexStatus status = index.definition().status();
-                if (status == IndexStatus.BUILDING) {
-                    if (!isCompleted(taskId)) {
-                        return;
-                    }
-                    IndexDefinition definition = index.definition().updateStatus(IndexStatus.READY);
-                    IndexUtil.saveIndexDefinition(tr, metadata, definition);
-                    dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
-                } else if (status == IndexStatus.DROPPED) {
-                    // Drop the BUILD tasks if there is any.
-                    // The DROP tasks will be dropped separately.
-                    dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
-                }
+            IndexMaintenanceTask base = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
+            switch (base.getKind()) {
+                case IndexMaintenanceTaskKind.BUILD:
+                    sweepBuildTask(tr, taskId, definition);
+                    break;
+                case IndexMaintenanceTaskKind.DROP:
+                    sweepDropTask(tr, taskId, definition);
+                    break;
+                default:
+                    throw new IllegalStateException("Unknown index maintenance task kind: " + base.getKind());
             }
             tr.commit().join();
         }

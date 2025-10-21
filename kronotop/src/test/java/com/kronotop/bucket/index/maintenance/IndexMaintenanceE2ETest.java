@@ -156,22 +156,20 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
 
             bgFuture.get();
 
-            // All build tasks are killed and removed
-            AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                for (int shardId = 0; shardId < bucketService.getNumberOfShards(); shardId++) {
-                    DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
-                    TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
-                        byte[] taskDef = TaskStorage.getDefinition(tr, taskSubspace, taskId);
-                        IndexMaintenanceTask task = JSONUtil.readValue(taskDef, IndexMaintenanceTask.class);
-                        if (task.getKind() == IndexMaintenanceTaskKind.BUILD) {
+            await().atMost(Duration.ofSeconds(15)).until(() -> {
+                // All build & drop tasks are killed and removed
+                AtomicInteger counter = new AtomicInteger();
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    for (int shardId = 0; shardId < bucketService.getNumberOfShards(); shardId++) {
+                        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
+                        TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
                             counter.getAndIncrement();
-                        }
-                        return true;
-                    });
+                            return true;
+                        });
+                    }
                 }
-            }
-            assertEquals(0, counter.get());
+                return 0 == counter.get();
+            });
         }
     }
 }

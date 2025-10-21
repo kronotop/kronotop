@@ -102,7 +102,6 @@ public class IndexDropRoutine implements IndexMaintenanceRoutine {
             return;
         }
         IndexUtil.clear(tr, metadata.subspace(), index.definition().name());
-        markIndexDropTaskCompleted(tr);
     }
 
     private void doStart() {
@@ -134,6 +133,7 @@ public class IndexDropRoutine implements IndexMaintenanceRoutine {
             refreshBucketMetadata();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 clearIndex(tr);
+                markIndexDropTaskCompleted(tr);
                 tr.commit().join();
             }
             LOGGER.debug(
