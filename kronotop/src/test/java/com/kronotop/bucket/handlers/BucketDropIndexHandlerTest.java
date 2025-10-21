@@ -29,8 +29,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Map;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketDropIndexHandlerTest extends BaseIndexHandlerTest {
@@ -97,15 +99,16 @@ class BucketDropIndexHandlerTest extends BaseIndexHandlerTest {
             assertTrue(found, "No 'status' found in the result map");
         }
 
-        // TODO: Run this check after implementing the IndexDropTask
-        /*{
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
             ByteBuf buf = Unpooled.buffer();
-            cmd.describeIndex(BUCKET_NAME, "test-index").encode(buf);
+            cmd.describeIndex(TEST_BUCKET, "test-index").encode(buf);
             Object msg = runCommand(channel, buf);
-            ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-            assertNotNull(actualMessage);
-            assertEquals("NOSUCHINDEX No such index: 'test-index'", actualMessage.content());
-        }*/
+            assertNotNull(msg);
+            if (!(msg instanceof ErrorRedisMessage actualMessage)) {
+                return false;
+            }
+            return actualMessage.content().equals("NOSUCHINDEX No such index: 'test-index'");
+        });
     }
 
     @Test
