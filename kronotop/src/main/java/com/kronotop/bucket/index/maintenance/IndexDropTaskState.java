@@ -86,9 +86,6 @@ public record IndexDropTaskState(IndexTaskStatus status, String error) {
      *   <li>RUNNING → STOPPED (task manually stopped)</li>
      * </ul>
      *
-     * <p><b>Important:</b> Once a task reaches a terminal status (COMPLETED, FAILED, STOPPED),
-     * it should not transition to any other status. Use {@link #isTerminal} to check.</p>
-     *
      * @param tr the transaction to use for the update
      * @param subspace the directory subspace containing the task
      * @param taskId the versionstamp identifier of the task
@@ -96,32 +93,5 @@ public record IndexDropTaskState(IndexTaskStatus status, String error) {
      */
     public static void setStatus(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, IndexTaskStatus status) {
         TaskStorage.setStateField(tr, subspace, taskId, STATUS, status.name().getBytes());
-    }
-
-    /**
-     * Checks if the given status is a terminal state (task cannot transition further).
-     *
-     * <p>Terminal states indicate that the task has finished execution and no further
-     * processing will occur. Tasks in terminal states are eligible for cleanup by the
-     * {@link IndexMaintenanceTaskSweeper}.</p>
-     *
-     * <p><b>Terminal States:</b></p>
-     * <ul>
-     *   <li><b>COMPLETED:</b> Task finished successfully</li>
-     *   <li><b>FAILED:</b> Task encountered a fatal error</li>
-     *   <li><b>STOPPED:</b> Task was manually stopped</li>
-     * </ul>
-     *
-     * <p><b>Non-Terminal States:</b></p>
-     * <ul>
-     *   <li><b>WAITING:</b> Task can transition to RUNNING</li>
-     *   <li><b>RUNNING:</b> Task can transition to COMPLETED, FAILED, or STOPPED</li>
-     * </ul>
-     *
-     * @param status the status to check
-     * @return true if the status is terminal (COMPLETED, FAILED, or STOPPED), false otherwise
-     */
-    public static boolean isTerminal(IndexTaskStatus status) {
-        return status.equals(IndexTaskStatus.COMPLETED) || status.equals(IndexTaskStatus.FAILED) || status.equals(IndexTaskStatus.STOPPED);
     }
 }
