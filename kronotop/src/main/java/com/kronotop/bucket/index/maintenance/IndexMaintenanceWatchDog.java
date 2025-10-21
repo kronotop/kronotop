@@ -210,6 +210,30 @@ public class IndexMaintenanceWatchDog implements Runnable {
         return task.getKind();
     }
 
+    /**
+     * Spawns a new worker thread for the specified task if not already running.
+     *
+     * <p>This method creates and submits a new {@link IndexMaintenanceWorker} to the worker
+     * executor pool. The worker will execute the appropriate maintenance routine based on the
+     * task kind (BUILD or DROP).
+     *
+     * <p>Worker spawning logic:
+     * <ul>
+     *   <li>If a worker already exists for this task ID, returns {@code true} to continue processing</li>
+     *   <li>Creates a new IndexMaintenanceWorker with completion callback</li>
+     *   <li>Submits the worker to the bounded executor pool</li>
+     *   <li>Tracks the worker and its future in the workers map</li>
+     *   <li>Implements backpressure by returning {@code false} when pool limit is reached</li>
+     * </ul>
+     *
+     * <p>The worker is registered with a completion hook ({@link #indexTaskCompletionHook})
+     * that will be invoked when the task reaches a terminal state, allowing the watchdog
+     * to clean up and spawn new workers for pending tasks.
+     *
+     * @param taskId the versionstamp identifier of the task to spawn a worker for
+     * @return {@code true} if task queue processing should continue (worker spawned or already exists),
+     *         {@code false} if the worker pool has reached capacity and processing should pause
+     */
     private boolean spawnWorker(Versionstamp taskId) {
         if (workers.containsKey(taskId)) {
             return true; // means continue
