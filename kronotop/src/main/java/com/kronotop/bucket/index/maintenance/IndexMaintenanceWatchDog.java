@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KrExecutors;
 import com.kronotop.internal.task.TaskStorage;
 import org.slf4j.Logger;
@@ -203,6 +204,24 @@ public class IndexMaintenanceWatchDog implements Runnable {
         });
     }
 
+    private IndexMaintenanceTaskKind getTaskKind(Transaction tr, Versionstamp taskId) {
+        byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
+        IndexMaintenanceTask task = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
+        return task.getKind();
+    }
+
+    private boolean spawnWorker(Versionstamp taskId) {
+        if (workers.containsKey(taskId)) {
+            return true; // means continue
+        }
+        IndexMaintenanceWorker worker =
+                new IndexMaintenanceWorker(context, subspace, shard.id(), taskId, this::indexTaskCompletionHook);
+        Future<?> future = workerExecutor.submit(worker);
+        workers.put(taskId, new Worker(worker, future));
+        // Backpressure
+        return workers.size() < MAX_WORKER_POOL_SIZE;
+    }
+
     /**
      * Processes the task queue by spawning workers for pending tasks and cleaning up completed ones.
      *
@@ -236,25 +255,28 @@ public class IndexMaintenanceWatchDog implements Runnable {
         }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TaskStorage.tasks(tr, subspace, (taskId) -> {
-                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
-                IndexTaskStatus status = state.status();
-                if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
-                    if (workers.containsKey(taskId)) {
-                        return true;
-                    }
-                    IndexMaintenanceWorker worker =
-                            new IndexMaintenanceWorker(context, subspace, shard.id(), taskId, this::indexTaskCompletionHook);
-                    Future<?> future = workerExecutor.submit(worker);
-                    workers.put(taskId, new Worker(worker, future));
-                    // Backpressure
-                    return workers.size() < MAX_WORKER_POOL_SIZE;
-                } else if (status == IndexTaskStatus.COMPLETED) {
-                    int counter = IndexTaskUtil.readTaskCounter(context, taskId);
-                    if (counter == service.getNumberOfShards()) {
+                IndexMaintenanceTaskKind kind = getTaskKind(tr, taskId);
+                if (kind == IndexMaintenanceTaskKind.BUILD) {
+                    IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
+                    IndexTaskStatus status = state.status();
+                    if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
+                        return spawnWorker(taskId);
+                    } else if (status == IndexTaskStatus.COMPLETED) {
+                        int counter = IndexTaskUtil.readTaskCounter(context, taskId);
+                        if (counter == service.getNumberOfShards()) {
+                            sweeper.sweep(subspace, taskId);
+                        }
+                    } else if (status == IndexTaskStatus.STOPPED) {
                         sweeper.sweep(subspace, taskId);
                     }
-                } else if (status == IndexTaskStatus.STOPPED) {
-                    sweeper.sweep(subspace, taskId);
+                } else if (kind == IndexMaintenanceTaskKind.DROP) {
+                    IndexDropTaskState state = IndexDropTaskState.load(tr, subspace, taskId);
+                    IndexTaskStatus status = state.status();
+                    if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
+                        return spawnWorker(taskId);
+                    } else if (status == IndexTaskStatus.COMPLETED || status == IndexTaskStatus.STOPPED) {
+                        sweeper.sweep(subspace, taskId);
+                    }
                 }
                 return true;
             });
