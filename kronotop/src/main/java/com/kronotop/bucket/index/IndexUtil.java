@@ -35,6 +35,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -309,46 +310,26 @@ public class IndexUtil {
     }
 
     /**
-     * Marks an index as dropped and coordinates cleanup of all associated background tasks.
-     * <p>
-     * This method performs a logical drop operation by executing the following steps atomically:
-     * <ul>
-     *   <li>Loading the current index definition from the index subspace</li>
-     *   <li>Updating the index status to {@link IndexStatus#DROPPED}</li>
-     *   <li>Saving the updated definition and incrementing the bucket metadata version</li>
-     *   <li>Iterating through all existing tasks in each shard's task subspace and marking them as {@link IndexTaskStatus#STOPPED}</li>
-     *   <li>Creating {@link IndexDropTask} instances for each shard to coordinate final cleanup</li>
-     *   <li>Triggering task watchers to process the status changes</li>
-     * </ul>
+     * Marks an index as dropped and initiates asynchronous cleanup.
      *
-     * <p>Unlike {@link #clear(Transaction, DirectorySubspace, String)}, which physically removes
-     * the index and all its data immediately, this method performs a logical deletion by marking
-     * the index as dropped. The index structure and data remain in FoundationDB but become
-     * inaccessible for queries.
-     *
-     * <p>This two-phase approach ensures graceful shutdown of background processes:
+     * <p>This method performs a two-phase deletion:
      * <ol>
-     *   <li>Existing build tasks are stopped to prevent further index updates</li>
-     *   <li>Drop tasks are created to handle final cleanup operations</li>
-     *   <li>The {@link com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper}
-     *       processes these tasks and eventually physically removes the index data</li>
+     *   <li>Marks the index as {@link IndexStatus#DROPPED}, making it inaccessible for queries</li>
+     *   <li>Creates an {@link IndexDropTask} in a randomly selected shard to coordinate background cleanup</li>
      * </ol>
      *
-     * <p><strong>Important:</strong> Once an index is marked as {@link IndexStatus#DROPPED},
-     * its status cannot be changed to any other status (enforced by
-     * {@link IndexDefinition#updateStatus(IndexStatus)}) to prevent accidental reactivation
-     * of a dropped index.
+     * <p>The {@link IndexDropRoutine} waits 6 seconds for existing transactions to expire before
+     * physically removing the index data via {@link #clear}.
+     *
+     * <p>Random shard selection ensures single-point coordination and load distribution.
      *
      * @param tx       the transactional context providing access to both the transaction and application context
      * @param metadata the bucket metadata containing the index to be dropped
      * @param name     the name of the index to be dropped
      * @throws NoSuchIndexException  if the specified index does not exist
-     * @throws IllegalStateException if the index is already in DROPPED status (via {@link IndexDefinition#updateStatus(IndexStatus)})
+     * @throws IllegalStateException if the index is already in DROPPED status
      * @see #clear(Transaction, DirectorySubspace, String)
-     * @see IndexDefinition#updateStatus(IndexStatus)
-     * @see IndexTaskStatus#STOPPED
-     * @see IndexDropTask
-     * @see com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper
+     * @see IndexDropRoutine
      */
     public static void drop(TransactionalContext tx, BucketMetadata metadata, String name) {
         DirectorySubspace indexSubspace = IndexUtil.open(tx.tr(), metadata.subspace(), name);
@@ -359,14 +340,15 @@ public class IndexUtil {
         byte[] definition = JSONUtil.writeValueAsBytes(task);
 
         BucketService service = tx.context().getService(BucketService.NAME);
-        for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
-            DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(tx.context(), shardId);
-            TaskStorage.tasks(tx.tr(), taskSubspace, (taskId) -> {
-                IndexBuildingTaskState.setStatus(tx.tr(), taskSubspace, taskId, IndexTaskStatus.STOPPED);
-                return true;
-            });
-            // TODO: TaskStorage.create(tx.tr(), tx.userVersion(), taskSubspace, definition);
-            TaskStorage.triggerWatchers(tx.tr(), taskSubspace);
-        }
+
+        Random random = new Random();
+        int shardId = random.nextInt(service.getNumberOfShards());
+        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(tx.context(), shardId);
+        TaskStorage.tasks(tx.tr(), taskSubspace, (taskId) -> {
+            IndexBuildingTaskState.setStatus(tx.tr(), taskSubspace, taskId, IndexTaskStatus.STOPPED);
+            return true;
+        });
+        TaskStorage.create(tx.tr(), tx.userVersion(), taskSubspace, definition);
+        TaskStorage.triggerWatchers(tx.tr(), taskSubspace);
     }
 }
