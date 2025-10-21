@@ -32,10 +32,25 @@ import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Background routine that executes index drop operations asynchronously.
+ *
+ * <p>This routine removes all index entries from FoundationDB storage and manages
+ * task state transitions through the drop lifecycle. It ensures transactional
+ * consistency and handles failures by updating task status appropriately.
+ */
 public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexDropRoutine.class);
     private final IndexDropTask task;
 
+    /**
+     * Creates a new index drop routine.
+     *
+     * @param context   the Kronotop context providing access to services
+     * @param subspace  the directory subspace containing task metadata
+     * @param taskId    the unique versionstamp identifier for this task
+     * @param task      the drop task definition specifying the target index
+     */
     public IndexDropRoutine(Context context,
                             DirectorySubspace subspace,
                             Versionstamp taskId,
@@ -44,6 +59,11 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         this.task = task;
     }
 
+    /**
+     * Marks the index drop task as failed and records the error message.
+     *
+     * @param th the throwable that caused the task to fail
+     */
     private void markIndexDropTaskFailed(Throwable th) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexDropTaskState.setError(tr, subspace, taskId, th.getMessage());
@@ -52,10 +72,20 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         }
     }
 
+    /**
+     * Marks the index drop task as completed within the provided transaction.
+     *
+     * @param tr the transaction to use for updating task status
+     */
     private void markIndexDropTaskCompleted(Transaction tr) {
         IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
     }
 
+    /**
+     * Removes all index entries from storage or marks the task complete if the index no longer exists.
+     *
+     * @param tr the transaction to use for the clear operation
+     */
     private void clearIndex(Transaction tr) {
         BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
         Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
@@ -67,6 +97,14 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         IndexUtil.clear(tr, metadata.subspace(), index.definition().name());
     }
 
+    /**
+     * Executes the index drop operation with transaction isolation and error handling.
+     *
+     * <p>This method validates task state, refreshes metadata to ensure transaction isolation,
+     * removes all index entries, and updates task status to reflect completion or failure.
+     *
+     * @throws IndexMaintenanceRoutineShutdownException if interrupted during execution
+     */
     private void doStart() {
         if (stopped) {
             return;
@@ -121,6 +159,12 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         }
     }
 
+    /**
+     * Initiates the index drop routine with automatic retry on transient failures.
+     *
+     * <p>This method resets the stopped flag to enable restarts and delegates execution
+     * to {@link #doStart()} with retry protection for transient FoundationDB errors.
+     */
     @Override
     public void start() {
         LOGGER.debug(
