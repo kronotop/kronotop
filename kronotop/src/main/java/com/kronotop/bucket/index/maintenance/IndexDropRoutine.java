@@ -26,6 +26,7 @@ import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
 import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
@@ -80,25 +81,59 @@ public class IndexDropRoutine implements IndexMaintenanceRoutine {
         }
     }
 
+    private void markIndexDropTaskFailed(Throwable th) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexDropTaskState.setError(tr, subspace, taskId, th.getMessage());
+            IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
+            tr.commit().join();
+        }
+    }
+
+    private void markIndexDropTaskCompleted(Transaction tr) {
+        IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
+    }
+
+    private void clearIndex(Transaction tr) {
+        BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        if (index == null) {
+            // index is gone
+            markIndexDropTaskCompleted(tr);
+            return;
+        }
+        IndexUtil.clear(tr, metadata.subspace(), index.definition().name());
+        markIndexDropTaskCompleted(tr);
+    }
+
     private void doStart() {
         if (stopped) {
             return;
         }
+
+        IndexTaskStatus status = context.getFoundationDB().run(tr -> {
+            byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
+            if (definition == null) {
+                // task has dropped
+                return IndexTaskStatus.COMPLETED;
+            }
+            IndexDropTaskState state = IndexDropTaskState.load(tr, subspace, taskId);
+            if (state.status() == IndexTaskStatus.COMPLETED) {
+                // Already completed
+                markIndexDropTaskCompleted(tr);
+                return IndexTaskStatus.COMPLETED;
+            }
+            IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
+            return IndexTaskStatus.RUNNING;
+        });
+
+        if (status == IndexTaskStatus.COMPLETED) {
+            return;
+        }
+
         try {
             refreshBucketMetadata();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
-                if (definition == null) {
-                    // task has dropped
-                    return;
-                }
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
-                Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
-                if (index == null) {
-                    // index is gone
-                    return;
-                }
-                IndexUtil.clear(tr, metadata.subspace(), index.definition().name());
+                clearIndex(tr);
                 tr.commit().join();
             }
         } catch (InterruptedException e) {
@@ -106,6 +141,14 @@ public class IndexDropRoutine implements IndexMaintenanceRoutine {
             // can be retried.
             Thread.currentThread().interrupt();
             throw new IndexMaintenanceRoutineShutdownException();
+        } catch (IndexMaintenanceRoutineException exp) {
+            LOGGER.error("TaskId: {} has failed due to an error: '{}'",
+                    VersionstampUtil.base32HexEncode(taskId),
+                    exp.getMessage()
+            );
+            markIndexDropTaskFailed(exp);
+        } finally {
+            metrics.setLatestExecution(System.currentTimeMillis());
         }
     }
 
