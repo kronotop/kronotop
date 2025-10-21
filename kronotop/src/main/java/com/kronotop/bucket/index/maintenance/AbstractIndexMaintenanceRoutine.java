@@ -30,6 +30,7 @@ public abstract class AbstractIndexMaintenanceRoutine implements IndexMaintenanc
     protected final Versionstamp taskId;
     protected final DirectorySubspace subspace;
     protected final IndexMaintenanceRoutineMetrics metrics;
+    protected volatile boolean stopped;
 
     protected AbstractIndexMaintenanceRoutine(Context context,
                                               DirectorySubspace subspace,
@@ -40,6 +41,25 @@ public abstract class AbstractIndexMaintenanceRoutine implements IndexMaintenanc
         this.metrics = new IndexMaintenanceRoutineMetrics();
     }
 
+    /**
+     * Refreshes bucket metadata and validates the target index while ensuring transaction isolation.
+     *
+     * <p>This method performs a critical initialization step for background index building by:
+     * <ul>
+     *   <li>Creating a new FoundationDB transaction with a stable read version</li>
+     *   <li>Loading bucket metadata and refreshing internal caches</li>
+     *   <li>Validating that the target index exists in the metadata</li>
+     *   <li>Introducing a 6-second sleep to ensure all previous transactions expire</li>
+     * </ul>
+     *
+     * <p>The 6-second sleep is a critical safety mechanism that ensures transaction isolation.
+     * Since FoundationDB transactions cannot live beyond 5 seconds, sleeping for 6 seconds
+     * guarantees that any previously opened transactions have either committed or expired.
+     * This prevents potential conflicts during the index building process.
+     *
+     * @throws InterruptedException             if the thread is interrupted during the 6-second sleep
+     * @throws IndexMaintenanceRoutineException if the target index is not found in the metadata
+     */
     protected void refreshBucketMetadata(String namespace, String bucket, long indexId) throws InterruptedException {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Open the BucketMetadata and refresh the caches
@@ -67,6 +87,11 @@ public abstract class AbstractIndexMaintenanceRoutine implements IndexMaintenanc
             }
             // Now all transactions either committed or died.
         }
+    }
+
+    @Override
+    public void stop() {
+        stopped = true;
     }
 
     @Override

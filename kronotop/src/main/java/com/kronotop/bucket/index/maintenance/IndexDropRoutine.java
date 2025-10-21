@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory;
 public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexDropRoutine.class);
     private final IndexDropTask task;
-    private volatile boolean stopped;
 
     public IndexDropRoutine(Context context,
                             DirectorySubspace subspace,
@@ -133,10 +132,5 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         stopped = false; // also means a restart
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(this::doStart);
-    }
-
-    @Override
-    public void stop() {
-        stopped = true;
     }
 }

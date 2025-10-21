@@ -68,17 +68,12 @@ import java.util.List;
  * @see IndexBuildingTask
  * @see IndexBuildingTaskState
  */
-public class BackgroundIndexBuildingRoutine implements IndexMaintenanceRoutine {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuildingRoutine.class);
+public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuildingRoutine.class);
     private final static int INDEX_SCAN_BATCH_SIZE = 100;
-    private final Context context;
-    private final DirectorySubspace subspace;
     private final int shardId;
-    private final Versionstamp taskId;
     private final IndexBuildingTask task;
     private final BucketService service;
-    private final IndexMaintenanceRoutineMetrics metrics;
-    private volatile boolean stopped;
 
     public BackgroundIndexBuildingRoutine(
             Context context,
@@ -87,12 +82,9 @@ public class BackgroundIndexBuildingRoutine implements IndexMaintenanceRoutine {
             Versionstamp taskId,
             IndexBuildingTask task
     ) {
-        this.context = context;
-        this.subspace = subspace;
-        this.taskId = taskId;
+        super(context, subspace, taskId);
         this.shardId = shardId;
         this.task = task;
-        this.metrics = new IndexMaintenanceRoutineMetrics();
         this.service = context.getService(BucketService.NAME);
     }
 
@@ -116,54 +108,6 @@ public class BackgroundIndexBuildingRoutine implements IndexMaintenanceRoutine {
                 tr.commit().join();
             }
         });
-    }
-
-    /**
-     * Refreshes bucket metadata and validates the target index while ensuring transaction isolation.
-     *
-     * <p>This method performs a critical initialization step for background index building by:
-     * <ul>
-     *   <li>Creating a new FoundationDB transaction with a stable read version</li>
-     *   <li>Loading bucket metadata and refreshing internal caches</li>
-     *   <li>Validating that the target index exists in the metadata</li>
-     *   <li>Introducing a 6-second sleep to ensure all previous transactions expire</li>
-     * </ul>
-     *
-     * <p>The 6-second sleep is a critical safety mechanism that ensures transaction isolation.
-     * Since FoundationDB transactions cannot live beyond 5 seconds, sleeping for 6 seconds
-     * guarantees that any previously opened transactions have either committed or expired.
-     * This prevents potential conflicts during the index building process.
-     *
-     * @throws InterruptedException             if the thread is interrupted during the 6-second sleep
-     * @throws IndexMaintenanceRoutineException if the target index is not found in the metadata
-     */
-    private void refreshBucketMetadata() throws InterruptedException {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            // Open the BucketMetadata and refresh the caches
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
-            Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
-            if (index == null) {
-                throw new IndexMaintenanceRoutineException("index with id '" + task.getIndexId() + "' could not be found");
-            }
-
-            /*
-             * A potential stop-the-world pause (e.g., JVM GC) during the sleep interval
-             * does not break the logic here. Once the transaction is created, it already
-             * holds a stable read version from FoundationDB. If the pause extends beyond
-             * the transaction lifetime, this transaction will simply fail with "too old"
-             * and the task will be marked as failed. In that case, a manual or KCP trigger
-             * is required to retry. This design ensures correctness is preserved even under
-             * GC pauses; the worst case is a delayed or failed task, never inconsistent state.
-             */
-            String txLimitConfigPath = "__test__.index_maintenance.skip_wait_transaction_limit";
-            boolean skipWaitTxLimit = context.getConfig().hasPath(txLimitConfigPath) && context.getConfig().getBoolean(txLimitConfigPath);
-            if (!skipWaitTxLimit) {
-                // FoundationDB transactions cannot live beyond 5s.
-                // Sleeping 6s ensures that any previously opened transactions are expired.
-                Thread.sleep(6000);
-            }
-            // Now all transactions either committed or died.
-        }
     }
 
     /**
@@ -260,7 +204,7 @@ public class BackgroundIndexBuildingRoutine implements IndexMaintenanceRoutine {
 
         // Refresh bucket metadata, it's important to fetch the latest indexes before building the secondary index
         // We want that all threads have the latest view of the bucket metadata.
-        refreshBucketMetadata();
+        refreshBucketMetadata(task.getNamespace(), task.getBucket(), task.getIndexId());
 
         // Fetch the up-to-date version of BucketMetadata
         BucketMetadata metadata = context.getFoundationDB().run(
@@ -534,34 +478,5 @@ public class BackgroundIndexBuildingRoutine implements IndexMaintenanceRoutine {
             }
         });
         retry.executeRunnable(this::scanPrimaryIndex);
-    }
-
-    /**
-     * Stops the background index building routine.
-     *
-     * <p>This method gracefully stops the index building process by setting the
-     * internal stopped flag to true. The routine will complete its current batch
-     * processing before terminating. The task status remains unchanged, allowing
-     * the routine to be restarted later from the last saved cursor position.
-     *
-     * <p>This method is thread-safe and can be called from any thread to request
-     * a graceful shutdown of the index building process.
-     */
-    public void stop() {
-        stopped = true;
-    }
-
-    /**
-     * Returns metrics for this index maintenance routine.
-     *
-     * <p>Provides access to runtime metrics including the number of entries processed
-     * and the timestamp of the latest execution. These metrics can be used for
-     * monitoring progress and performance of the index building operation.
-     *
-     * @return the {@link IndexMaintenanceRoutineMetrics} instance containing current metrics
-     */
-    @Override
-    public IndexMaintenanceRoutineMetrics getMetrics() {
-        return metrics;
     }
 }
