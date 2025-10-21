@@ -68,8 +68,8 @@ import java.util.List;
  * @see IndexBuildingTask
  * @see IndexBuildingTaskState
  */
-public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuilderRoutine.class);
+public class BackgroundIndexBuildingRoutine implements IndexMaintenanceRoutine {
+    protected static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuildingRoutine.class);
     private final static int INDEX_SCAN_BATCH_SIZE = 100;
     private final Context context;
     private final DirectorySubspace subspace;
@@ -80,7 +80,7 @@ public class BackgroundIndexBuilderRoutine implements IndexMaintenanceRoutine {
     private final IndexMaintenanceRoutineMetrics metrics;
     private volatile boolean stopped;
 
-    public BackgroundIndexBuilderRoutine(
+    public BackgroundIndexBuildingRoutine(
             Context context,
             DirectorySubspace subspace,
             int shardId,

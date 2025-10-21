@@ -32,7 +32,7 @@ import java.util.function.Consumer;
  * managing their lifecycle and coordinating with the watchdog service. Each worker:
  * <ul>
  *   <li>Loads the task definition from FoundationDB</li>
- *   <li>Creates the appropriate maintenance routine (e.g., BackgroundIndexBuilderRoutine)</li>
+ *   <li>Creates the appropriate maintenance routine (e.g., BackgroundIndexBuildingRoutine)</li>
  *   <li>Executes the routine with retry logic for transient failures</li>
  *   <li>Notifies the watchdog upon task completion via a callback hook</li>
  *   <li>Handles graceful shutdown when requested</li>
@@ -51,7 +51,7 @@ import java.util.function.Consumer;
  * new workers for other pending tasks.
  *
  * @see IndexMaintenanceRoutine
- * @see BackgroundIndexBuilderRoutine
+ * @see BackgroundIndexBuildingRoutine
  * @see IndexMaintenanceWatchDog
  */
 public class IndexMaintenanceWorker implements Runnable {
@@ -69,7 +69,7 @@ public class IndexMaintenanceWorker implements Runnable {
      * <ul>
      *   <li>Loads the task definition from FoundationDB using the provided task ID</li>
      *   <li>Deserializes the task definition into an IndexBuildingTask object</li>
-     *   <li>Creates a BackgroundIndexBuilderRoutine to handle the actual index building</li>
+     *   <li>Creates a BackgroundIndexBuildingRoutine to handle the actual index building</li>
      * </ul>
      *
      * <p>The completion hook provided will be called when the task reaches a terminal
@@ -88,7 +88,7 @@ public class IndexMaintenanceWorker implements Runnable {
         this.completionHook = completionHook;
         byte[] raw = context.getFoundationDB().run(tr -> TaskStorage.getDefinition(tr, subspace, taskId));
         IndexBuildingTask task = JSONUtil.readValue(raw, IndexBuildingTask.class);
-        this.routine = new BackgroundIndexBuilderRoutine(context, subspace, shardId, taskId, task);
+        this.routine = new BackgroundIndexBuildingRoutine(context, subspace, shardId, taskId, task);
     }
 
     /**

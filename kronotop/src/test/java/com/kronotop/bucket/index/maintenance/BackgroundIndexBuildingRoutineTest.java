@@ -47,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
-class BackgroundIndexBuilderRoutineTest extends BaseBucketHandlerTest {
+class BackgroundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
     @Test
     void shouldBuildIndexAtBackground() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
