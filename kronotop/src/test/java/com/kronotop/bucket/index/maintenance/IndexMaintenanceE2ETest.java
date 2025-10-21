@@ -23,8 +23,10 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
-import com.kronotop.bucket.index.*;
-import com.kronotop.directory.Bucket;
+import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
 import org.junit.jupiter.api.AfterAll;
@@ -46,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
-            "__test__.background_index_builder.skip_wait_transaction_limit";
+            "__test__.index_maintenance.skip_wait_transaction_limit";
 
     @BeforeAll
     static void setUp() {

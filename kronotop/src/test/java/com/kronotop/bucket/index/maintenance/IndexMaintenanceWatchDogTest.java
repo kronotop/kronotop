@@ -43,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
-            "__test__.background_index_builder.skip_wait_transaction_limit";
+            "__test__.index_maintenance.skip_wait_transaction_limit";
 
     @BeforeAll
     static void setUp() {

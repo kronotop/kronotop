@@ -155,7 +155,7 @@ public class BackgroundIndexBuildingRoutine implements IndexMaintenanceRoutine {
              * is required to retry. This design ensures correctness is preserved even under
              * GC pauses; the worst case is a delayed or failed task, never inconsistent state.
              */
-            String txLimitConfigPath = "__test__.background_index_builder.skip_wait_transaction_limit";
+            String txLimitConfigPath = "__test__.index_maintenance.skip_wait_transaction_limit";
             boolean skipWaitTxLimit = context.getConfig().hasPath(txLimitConfigPath) && context.getConfig().getBoolean(txLimitConfigPath);
             if (!skipWaitTxLimit) {
                 // FoundationDB transactions cannot live beyond 5s.
