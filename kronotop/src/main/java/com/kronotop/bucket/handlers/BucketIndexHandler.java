@@ -16,18 +16,24 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.kronotop.MemberAttributes;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketIndexMessage;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
+import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
+import com.kronotop.cluster.handlers.KrAdminSubcommand;
+import com.kronotop.redis.server.SubcommandHandler;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import io.netty.util.Attribute;
+
+import java.util.EnumMap;
 
 @Command(BucketIndexMessage.COMMAND)
 @MinimumParameterCount(BucketIndexMessage.MINIMUM_PARAMETER_COUNT)
 public class BucketIndexHandler extends AbstractBucketHandler implements Handler {
+    private final EnumMap<BucketIndexSubcommand, SubcommandHandler> handlers = new EnumMap<>(BucketIndexSubcommand.class);
+
     public BucketIndexHandler(BucketService service) {
         super(service);
     }
@@ -35,11 +41,16 @@ public class BucketIndexHandler extends AbstractBucketHandler implements Handler
     @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.BUCKETINDEX).set(new BucketIndexMessage(request));
-
     }
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        BucketIndexMessage message = request.attr(MessageTypes.BUCKETINDEX).get();
+        SubcommandHandler executor = handlers.get(message.getSubcommand());
+        if (executor == null) {
+            throw new UnknownSubcommandException(message.getSubcommand().toString());
+        }
 
+        executor.execute(request, response);
     }
 }
