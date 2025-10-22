@@ -18,6 +18,7 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.handlers.protocol.BucketCreateIndexMessage;
@@ -50,6 +51,12 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
     public void execute(Request request, Response response) throws Exception {
         runAsync(context, response, () -> {
             BucketCreateIndexMessage message = request.attr(MessageTypes.BUCKETCREATEINDEX).get();
+
+            // Create the bucket metadata subspace if there is no such a bucket.
+            // This will prevent us from getting the "NOSUCHBUCKET" error when we want to create
+            // indexes during the application initialization phase.
+            BucketMetadataUtil.createOrOpen(context, request.getSession(), message.getBucket());
+
             Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
             retry.executeRunnable(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {

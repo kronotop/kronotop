@@ -32,14 +32,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
 
     @Test
-    void shouldReturnErrorIfBucketDoesNotExist() {
+    void shouldCreateBucketIfItDoesNotExist() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         cmd.createIndex("non-existing-bucket", "{\"username\": {\"bson_type\": \"string\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertNotNull(actualMessage);
-        assertEquals("NOSUCHBUCKET No such bucket: 'non-existing-bucket'", actualMessage.content());
+        assertEquals(Response.OK, actualMessage.content());
     }
 
     @Test
