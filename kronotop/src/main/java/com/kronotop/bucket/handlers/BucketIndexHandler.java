@@ -50,7 +50,6 @@ public class BucketIndexHandler extends AbstractBucketHandler implements Handler
         if (executor == null) {
             throw new UnknownSubcommandException(message.getSubcommand().toString());
         }
-
         executor.execute(request, response);
     }
 }
