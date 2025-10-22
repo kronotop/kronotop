@@ -47,7 +47,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
 
     @BeforeAll
     static void setUp() {
-        System.setProperty(SKIP_WAIT_TRANSACTION_LIMIT_KEY, "true");
+        System.setProperty(SKIP_WAIT_TRANSACTION_LIMIT_KEY, "false");
     }
 
     @AfterAll
