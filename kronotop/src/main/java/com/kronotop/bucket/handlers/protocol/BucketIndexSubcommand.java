@@ -17,7 +17,7 @@
 package com.kronotop.bucket.handlers.protocol;
 
 public enum BucketIndexSubcommand {
-    SHOW_MAINTENANCE("show-maintenance");
+    DESCRIBE_TASKS("describe-tasks");
 
     private final String value;
 

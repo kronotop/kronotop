@@ -18,10 +18,7 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -29,10 +26,10 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 
-class BucketIndexShowMaintenanceSubcommand implements SubcommandHandler {
+class BucketIndexDescribeTasksSubcommand implements SubcommandHandler {
     private final Context context;
 
-    BucketIndexShowMaintenanceSubcommand(Context context) {
+    BucketIndexDescribeTasksSubcommand(Context context) {
         this.context = context;
     }
 

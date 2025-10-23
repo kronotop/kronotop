@@ -16,16 +16,13 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.kronotop.MemberAttributes;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketIndexMessage;
 import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
-import com.kronotop.cluster.handlers.KrAdminSubcommand;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import io.netty.util.Attribute;
 
 import java.util.EnumMap;
 
@@ -37,7 +34,7 @@ public class BucketIndexHandler extends AbstractBucketHandler implements Handler
     public BucketIndexHandler(BucketService service) {
         super(service);
 
-        handlers.put(BucketIndexSubcommand.SHOW_MAINTENANCE, new BucketIndexShowMaintenanceSubcommand(context));
+        handlers.put(BucketIndexSubcommand.DESCRIBE_TASKS, new BucketIndexDescribeTasksSubcommand(context));
     }
 
     @Override
