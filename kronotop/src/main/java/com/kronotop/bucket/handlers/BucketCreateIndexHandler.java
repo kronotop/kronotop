@@ -89,6 +89,7 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
                                 indexDefinition
                         );
 
+                        // Create the task back pointer for easy inspection
                         int userVersion = tx.getUserVersion();
                         if (indexDefinition.id() != DefaultIndexDefinition.ID.id()) {
                             byte[] taskId = subspace.packWithVersionstamp(

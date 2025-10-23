@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
@@ -67,6 +68,7 @@ public class BucketDropIndexHandler extends AbstractBucketHandler implements Han
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
                 IndexUtil.drop(tx, metadata, message.getIndex());
 
+                // Create the task back pointer for easy inspection
                 int userVersion = tx.getUserVersion();
                 if (!Objects.equals(message.getIndex(), DefaultIndexDefinition.ID.name())) {
                     Collection<Index> indexes = metadata.indexes().getIndexes(IndexSelectionPolicy.ALL);
@@ -75,9 +77,9 @@ public class BucketDropIndexHandler extends AbstractBucketHandler implements Han
                             continue;
                         }
                         byte[] taskId = index.subspace().packWithVersionstamp(
-                                Tuple.from(IndexSubspaceMagic.TASKS, Versionstamp.incomplete(userVersion))
+                                Tuple.from(IndexSubspaceMagic.TASKS.getValue(), Versionstamp.incomplete(userVersion))
                         );
-                        tr.set(taskId, NULL_BYTES);
+                        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, taskId, NULL_BYTES);
                     }
                 }
 
