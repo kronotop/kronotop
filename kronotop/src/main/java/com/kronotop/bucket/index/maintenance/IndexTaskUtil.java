@@ -16,15 +16,25 @@
 
 package com.kronotop.bucket.index.maintenance;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.directory.KronotopDirectory;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -152,5 +162,39 @@ public class IndexTaskUtil {
             }
             return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
         }
+    }
+
+    /**
+     * Retrieves all task identifiers associated with a specific index.
+     * <p>
+     * This method scans the index subspace for task entries and returns their versionstamp
+     * identifiers. Tasks are created during index operations such as background index building
+     * and are stored in the index subspace with the {@link IndexSubspaceMagic#TASKS} prefix.
+     *
+     * @param tx        the transactional context providing access to both the transaction and application context
+     * @param namespace the namespace containing the bucket
+     * @param bucket    the name of the bucket containing the index
+     * @param index     the name of the index whose tasks should be listed
+     * @return a list of versionstamp identifiers for all tasks associated with the index
+     * @see IndexUtil#create(TransactionalContext, String, String, com.kronotop.bucket.index.IndexDefinition)
+     * @see IndexSubspaceMagic#TASKS
+     */
+    public static List<Versionstamp> listTasks(TransactionalContext tx, String namespace, String bucket, String index) {
+        BucketMetadata metadata = BucketMetadataUtil.open(tx.context(), tx.tr(), namespace, bucket);
+        DirectorySubspace indexSubspace = IndexUtil.open(tx.tr(), metadata.subspace(), index);
+
+        // Check that a task key exists in the index subspace
+        byte[] taskKeyPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.TASKS.getValue()));
+        byte[] taskKeyEnd = ByteArrayUtil.strinc(taskKeyPrefix);
+
+        List<Versionstamp> taskIds = new ArrayList<>();
+        KeySelector begin = KeySelector.firstGreaterThan(taskKeyPrefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(taskKeyEnd);
+        for (KeyValue kv : tx.tr().getRange(begin, end)) {
+            Tuple unpacked = indexSubspace.unpack(kv.getKey());
+            Versionstamp taskId = (Versionstamp) unpacked.get(1);
+            taskIds.add(taskId);
+        }
+        return taskIds;
     }
 }

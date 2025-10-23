@@ -16,8 +16,21 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -30,6 +43,9 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import static org.awaitility.Awaitility.await;
@@ -79,6 +95,16 @@ class BucketDropIndexHandlerTest extends BaseIndexHandlerTest {
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertNotNull(actualMessage);
             assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            // Verify task was created
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                List<Versionstamp> taskIds = IndexTaskUtil.listTasks(tx, TEST_NAMESPACE, TEST_BUCKET, "test-index");
+                // create-index + drop-index tasks will co-exists
+                assertEquals(2, taskIds.size());
+            }
         }
 
         {

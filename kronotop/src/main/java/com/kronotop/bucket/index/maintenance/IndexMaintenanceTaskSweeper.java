@@ -18,6 +18,7 @@ package com.kronotop.bucket.index.maintenance;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
@@ -247,6 +248,12 @@ public class IndexMaintenanceTaskSweeper {
                 // Drop the BUILD tasks if there is any.
                 // The DROP tasks will be dropped separately.
                 dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
+
+                // Clean up the back pointer
+                byte[] taskIdBackPointer = index.subspace().pack(Tuple.from(
+                        IndexSubspaceMagic.TASKS.getValue(), taskId
+                ));
+                tr.clear(taskIdBackPointer);
             }
         }
     }
