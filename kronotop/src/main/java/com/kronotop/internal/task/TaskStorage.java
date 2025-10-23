@@ -16,6 +16,7 @@
 
 package com.kronotop.internal.task;
 
+import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
@@ -313,8 +314,11 @@ public class TaskStorage {
      *                 continue iteration or {@code false} to stop
      */
     public static void tasks(Transaction tr, DirectorySubspace subspace, Function<Versionstamp, Boolean> action) {
-        byte[] begin = subspace.pack(Tuple.from(TASKS_MAGIC, DEFINITION));
-        byte[] end = ByteArrayUtil.strinc(begin);
+        byte[] beginKey = subspace.pack(Tuple.from(TASKS_MAGIC, DEFINITION));
+        byte[] endKey = ByteArrayUtil.strinc(beginKey);
+
+        KeySelector begin = KeySelector.firstGreaterThan(beginKey);
+        KeySelector end = KeySelector.firstGreaterOrEqual(endKey);
         for (KeyValue entry : tr.getRange(begin, end)) {
             Tuple tuple = subspace.unpack(entry.getKey());
             Versionstamp taskId = (Versionstamp) tuple.get(2);
