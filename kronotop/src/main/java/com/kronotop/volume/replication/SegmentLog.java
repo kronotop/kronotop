@@ -38,7 +38,6 @@ import static com.kronotop.volume.Subspaces.SEGMENT_LOG_SUBSPACE;
  * subspace using FoundationDB transactions.
  */
 public class SegmentLog {
-    protected static final byte[] NULL_BYTES = new byte[]{};
     private static final byte[] CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private final String segmentName;
     private final DirectorySubspace subspace;

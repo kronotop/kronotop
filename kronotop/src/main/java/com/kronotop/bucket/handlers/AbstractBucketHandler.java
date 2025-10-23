@@ -40,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public abstract class AbstractBucketHandler implements Handler {
+    protected static final byte[] NULL_BYTES = new byte[]{};
     private final static RedisMessage CURSOR_ID_MESSAGE_KEY = new SimpleStringRedisMessage("cursor_id");
     private final static RedisMessage ENTRIES_MESSAGE_KEY = new SimpleStringRedisMessage("entries");
     private final static RedisMessage VERSIONSTAMPS_MESSAGE_KEY = new SimpleStringRedisMessage("versionstamps");

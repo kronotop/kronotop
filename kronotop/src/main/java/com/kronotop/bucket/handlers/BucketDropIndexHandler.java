@@ -17,13 +17,18 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.handlers.protocol.BucketDropIndexMessage;
+import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.TransactionalContext;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -31,6 +36,9 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+
+import java.util.Collection;
+import java.util.Objects;
 
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
@@ -58,6 +66,21 @@ public class BucketDropIndexHandler extends AbstractBucketHandler implements Han
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
                 IndexUtil.drop(tx, metadata, message.getIndex());
+
+                int userVersion = tx.getUserVersion();
+                if (!Objects.equals(message.getIndex(), DefaultIndexDefinition.ID.name())) {
+                    Collection<Index> indexes = metadata.indexes().getIndexes(IndexSelectionPolicy.ALL);
+                    for (Index index : indexes) {
+                        if (!index.definition().name().equals(message.getIndex())) {
+                            continue;
+                        }
+                        byte[] taskId = index.subspace().packWithVersionstamp(
+                                Tuple.from(IndexSubspaceMagic.TASKS, Versionstamp.incomplete(userVersion))
+                        );
+                        tr.set(taskId, NULL_BYTES);
+                    }
+                }
+
                 tr.commit().join();
             }
         }, response::writeOK);

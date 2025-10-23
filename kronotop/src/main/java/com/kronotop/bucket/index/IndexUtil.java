@@ -96,7 +96,7 @@ public class IndexUtil {
         byte[] encodedTask = JSONUtil.writeValueAsBytes(task);
 
         BucketService service = tx.context().getService(BucketService.NAME);
-        int userVersion = tx.userVersion(); // increases the user version
+        int userVersion = tx.getAndIncreaseUserVersion(); // increases the user version
         for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(tx.context(), shardId);
             // create tasks in the task subspaces with the same ID
@@ -349,7 +349,7 @@ public class IndexUtil {
             IndexBuildingTaskState.setStatus(tx.tr(), taskSubspace, taskId, IndexTaskStatus.STOPPED);
             return true;
         });
-        TaskStorage.create(tx.tr(), tx.userVersion(), taskSubspace, definition);
+        TaskStorage.create(tx.tr(), tx.getAndIncreaseUserVersion(), taskSubspace, definition);
         TaskStorage.triggerWatchers(tx.tr(), taskSubspace);
     }
 }

@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * increasing sequence numbers.
  *
  * <p><strong>Thread Safety:</strong> This class uses {@link AtomicInteger} for user version
- * management, making the {@link #userVersion()} method thread-safe. However, the encapsulated
+ * management, making the {@link #getAndIncreaseUserVersion()} method thread-safe. However, the encapsulated
  * {@link Transaction} itself follows FoundationDB's transaction threading model and should
  * typically be used from a single thread.
  *
@@ -69,7 +69,7 @@ public class TransactionalContext {
      * Constructs a new TransactionalContext with the specified application context and transaction.
      * <p>
      * The user version counter is initialized to 0 and will be incremented with each call to
-     * {@link #userVersion()}.
+     * {@link #getAndIncreaseUserVersion()}.
      *
      * @param context the application context providing access to services and configuration
      * @param tr      the FoundationDB transaction for database operations
@@ -121,7 +121,11 @@ public class TransactionalContext {
      *
      * @return the current user version before incrementing
      */
-    public int userVersion() {
+    public int getAndIncreaseUserVersion() {
         return userVersion.getAndIncrement();
+    }
+
+    public int getUserVersion() {
+        return userVersion.get();
     }
 }

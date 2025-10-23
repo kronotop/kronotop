@@ -17,13 +17,18 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.handlers.protocol.BucketCreateIndexMessage;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexNameGenerator;
+import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -38,6 +43,7 @@ import static com.kronotop.AsyncCommandExecutor.runAsync;
 @Command(BucketCreateIndexMessage.COMMAND)
 @MinimumParameterCount(BucketCreateIndexMessage.MINIMUM_PARAMETER_COUNT)
 public class BucketCreateIndexHandler extends AbstractBucketHandler implements Handler {
+
     public BucketCreateIndexHandler(BucketService service) {
         super(service);
     }
@@ -74,12 +80,20 @@ public class BucketCreateIndexHandler extends AbstractBucketHandler implements H
                                 definition.getBsonType()
                         );
 
-                        IndexUtil.create(
+                        DirectorySubspace subspace = IndexUtil.create(
                                 tx,
                                 namespace,
                                 message.getBucket(),
                                 indexDefinition
                         );
+
+                        int userVersion = tx.getUserVersion();
+                        if (indexDefinition.id() != DefaultIndexDefinition.ID.id()) {
+                            byte[] taskId = subspace.packWithVersionstamp(
+                                    Tuple.from(IndexSubspaceMagic.TASKS, Versionstamp.incomplete(userVersion))
+                            );
+                            tr.set(taskId, NULL_BYTES);
+                        }
                     }
                     tr.commit().join();
                 }
