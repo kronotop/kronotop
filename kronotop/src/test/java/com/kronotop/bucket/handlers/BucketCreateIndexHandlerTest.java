@@ -16,6 +16,16 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -25,6 +35,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -116,5 +128,35 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
         assertEquals("ERR Invalid index definition", actualMessage.content());
+    }
+
+    @Test
+    void shouldCreateTaskForSecondaryIndex() {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.createIndex(TEST_BUCKET, "{\"username\": {\"name\": \"test\", \"bson_type\": \"string\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertNotNull(actualMessage);
+        assertEquals(Response.OK, actualMessage.content());
+
+        // Verify task was created
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), "test");
+
+            // Check that a task key exists in the index subspace
+            byte[] taskKeyPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.TASKS.getValue()));
+            byte[] taskKeyEnd = ByteArrayUtil.strinc(taskKeyPrefix);
+
+            List<KeyValue> taskKeys = new ArrayList<>();
+            KeySelector begin = KeySelector.firstGreaterThan(taskKeyPrefix);
+            KeySelector end = KeySelector.firstGreaterOrEqual(taskKeyEnd);
+            for (KeyValue kv : tr.getRange(begin, end)) {
+                taskKeys.add(kv);
+            }
+
+            assertEquals(1, taskKeys.size(), "Expected exactly one task to be created");
+        }
     }
 }
