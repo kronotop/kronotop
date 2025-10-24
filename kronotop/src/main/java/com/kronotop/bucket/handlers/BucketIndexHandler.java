@@ -35,6 +35,7 @@ public class BucketIndexHandler extends AbstractBucketHandler implements Handler
         super(service);
 
         handlers.put(BucketIndexSubcommand.DESCRIBE_TASKS, new BucketIndexDescribeTasksSubcommand(context));
+        handlers.put(BucketIndexSubcommand.CREATE, new BucketIndexCreateSubcommand(context));
     }
 
     @Override
