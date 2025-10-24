@@ -128,8 +128,11 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     }
 
     public Command<String, String, Map<String, Object>> describeIndex(String bucket, String index) {
-        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.UTF8).add(bucket).add(index);
-        return new Command<>(CommandType.BUCKET_DESCRIBE_INDEX, new GenericMapOutput<>(StringCodec.ASCII), args);
+        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.UTF8).
+                add(BucketIndex.DESCRIBE).
+                add(bucket).
+                add(index);
+        return new Command<>(CommandType.BUCKET_INDEX, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
     public Command<K, V, String> dropIndex(String bucket, String index) {
@@ -194,7 +197,8 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
 
     enum BucketIndex implements ProtocolKeyword {
         CREATE("CREATE"),
-        LIST("LIST");
+        LIST("LIST"),
+        DESCRIBE("DESCRIBE");
 
         public final byte[] bytes;
 

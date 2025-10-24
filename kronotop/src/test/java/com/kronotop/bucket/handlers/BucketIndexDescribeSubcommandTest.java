@@ -31,7 +31,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
+class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldReturnErrorIfBucketDoesNotExist() {
