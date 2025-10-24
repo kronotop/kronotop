@@ -67,7 +67,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         handlerMethod(ServerKind.EXTERNAL, new BucketQueryHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new QueryHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketAdvanceHandler(this));
-        handlerMethod(ServerKind.EXTERNAL, new BucketDropIndexHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketDeleteHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketUpdateHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketCloseHandler(this));

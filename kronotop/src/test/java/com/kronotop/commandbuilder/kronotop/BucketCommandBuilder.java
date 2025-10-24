@@ -136,8 +136,11 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     }
 
     public Command<K, V, String> dropIndex(String bucket, String index) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(index);
-        return createCommand(CommandType.BUCKET_DROP_INDEX, new StatusOutput<>(codec), args);
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(BucketIndex.DROP).
+                add(bucket).
+                add(index);
+        return createCommand(CommandType.BUCKET_INDEX, new StatusOutput<>(codec), args);
     }
 
     public final Command<K, V, Map<K, V>> delete(String bucket, String query) {
@@ -172,15 +175,13 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     }
 
     enum CommandType implements ProtocolKeyword {
+        QUERY("QUERY"),
         BUCKET_INSERT("BUCKET.INSERT"),
         BUCKET_QUERY("BUCKET.QUERY"),
         BUCKET_DELETE("BUCKET.DELETE"),
         BUCKET_UPDATE("BUCKET.UPDATE"),
-        QUERY("QUERY"),
         BUCKET_ADVANCE("BUCKET.ADVANCE"),
         BUCKET_CLOSE("BUCKET.CLOSE"),
-        BUCKET_DESCRIBE_INDEX("BUCKET.DESCRIBE-INDEX"),
-        BUCKET_DROP_INDEX("BUCKET.DROP-INDEX"),
         BUCKET_INDEX("BUCKET.INDEX");
 
         public final byte[] bytes;
@@ -198,7 +199,8 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     enum BucketIndex implements ProtocolKeyword {
         CREATE("CREATE"),
         LIST("LIST"),
-        DESCRIBE("DESCRIBE");
+        DESCRIBE("DESCRIBE"),
+        DROP("DROP");
 
         public final byte[] bytes;
 

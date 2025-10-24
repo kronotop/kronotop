@@ -16,20 +16,11 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.apple.foundationdb.KeySelector;
-import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.TransactionalContext;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.IndexStatus;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
-import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.Response;
@@ -43,15 +34,13 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
-class BucketDropIndexHandlerTest extends BaseIndexHandlerTest {
+class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldReturnErrorIfBucketDoesNotExist() {
@@ -114,7 +103,7 @@ class BucketDropIndexHandlerTest extends BaseIndexHandlerTest {
             MapRedisMessage actualMessage = (MapRedisMessage) msg;
             assertNotNull(actualMessage);
             boolean found = false;
-            for (Map.Entry<RedisMessage, RedisMessage> entry: actualMessage.children().entrySet()) {
+            for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
                 SimpleStringRedisMessage key = (SimpleStringRedisMessage) entry.getKey();
                 if (key.content().equals("status")) {
                     found = true;

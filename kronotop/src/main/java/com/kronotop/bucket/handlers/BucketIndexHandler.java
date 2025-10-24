@@ -38,6 +38,7 @@ public class BucketIndexHandler extends AbstractBucketHandler implements Handler
         handlers.put(BucketIndexSubcommand.CREATE, new BucketIndexCreateSubcommand(context));
         handlers.put(BucketIndexSubcommand.LIST, new BucketIndexListSubcommand(context));
         handlers.put(BucketIndexSubcommand.DESCRIBE, new BucketIndexDescribeSubcommand(context));
+        handlers.put(BucketIndexSubcommand.DROP, new BucketIndexDropSubcommand(context));
     }
 
     @Override
