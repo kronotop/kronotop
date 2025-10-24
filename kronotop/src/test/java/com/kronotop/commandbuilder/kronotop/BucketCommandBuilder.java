@@ -111,9 +111,12 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return new Command<>(HELLO, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
-    public final Command<K, V, String> createIndex(String bucket, String definitions) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(definitions);
-        return createCommand(CommandType.BUCKET_CREATE_INDEX, new StatusOutput<>(codec), args);
+    public final Command<K, V, String> createIndex(String bucket, String schemas) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(BucketIndex.CREATE).
+                add(bucket).
+                add(schemas);
+        return createCommand(CommandType.BUCKET_INDEX, new StatusOutput<>(codec), args);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -175,11 +178,27 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         BUCKET_CREATE_INDEX("BUCKET.CREATE-INDEX"),
         BUCKET_LIST_INDEXES("BUCKET.LIST-INDEXES"),
         BUCKET_DESCRIBE_INDEX("BUCKET.DESCRIBE-INDEX"),
-        BUCKET_DROP_INDEX("BUCKET.DROP-INDEX");
+        BUCKET_DROP_INDEX("BUCKET.DROP-INDEX"),
+        BUCKET_INDEX("BUCKET.INDEX");
 
         public final byte[] bytes;
 
         CommandType(String name) {
+            bytes = name.getBytes(StandardCharsets.US_ASCII);
+        }
+
+        @Override
+        public byte[] getBytes() {
+            return bytes;
+        }
+    }
+
+    enum BucketIndex implements ProtocolKeyword {
+        CREATE("CREATE");
+
+        public final byte[] bytes;
+
+        BucketIndex(String name) {
             bytes = name.getBytes(StandardCharsets.US_ASCII);
         }
 

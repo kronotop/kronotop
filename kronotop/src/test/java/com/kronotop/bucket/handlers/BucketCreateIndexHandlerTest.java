@@ -119,7 +119,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
-        assertEquals("ERR Invalid index definition", actualMessage.content());
+        assertEquals("ERR Invalid index schema", actualMessage.content());
     }
 
     @Test

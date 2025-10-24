@@ -16,6 +16,11 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParser;
@@ -26,42 +31,95 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketService;
+import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.RetryMethods;
+import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexNameGenerator;
+import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SessionAttributes;
+import io.github.resilience4j.retry.Retry;
+import io.netty.buffer.ByteBuf;
 import org.bson.BsonType;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class BucketIndexCreateSubcommand implements SubcommandHandler {
+import static com.kronotop.bucket.handlers.AbstractBucketHandler.NULL_BYTES;
+
+class BucketIndexCreateSubcommand implements SubcommandHandler {
     private final Context context;
-    private final BucketService service;
 
     BucketIndexCreateSubcommand(Context context) {
         this.context = context;
-        this.service = context.getService(BucketService.NAME);
     }
 
     @Override
     public void execute(Request request, Response response) {
+        CreateParameters parameters = new CreateParameters(request.getParams());
         AsyncCommandExecutor.runAsync(context, response, () -> {
 
+            // Create the bucket metadata subspace if there is no such a bucket.
+            // This will prevent us from getting the "NOSUCHBUCKET" error when we want to create
+            // indexes during the application initialization phase.
+            BucketMetadataUtil.createOrOpen(context, request.getSession(), parameters.getBucket());
+
+            Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+            retry.executeRunnable(() -> {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    TransactionalContext tx = new TransactionalContext(context, tr);
+                    String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
+                    for (Map.Entry<String, CreateParameters.IndexSchema> entry : parameters.getSchemas().entrySet()) {
+                        CreateParameters.IndexSchema schema = entry.getValue();
+                        String name = schema.getName();
+                        if (name == null) {
+                            name = IndexNameGenerator.generate(entry.getKey(), schema.getBsonType());
+                        }
+                        IndexDefinition indexDefinition = IndexDefinition.create(
+                                name,
+                                entry.getKey(),
+                                schema.getBsonType()
+                        );
+
+                        DirectorySubspace subspace = IndexUtil.create(
+                                tx,
+                                namespace,
+                                parameters.getBucket(),
+                                indexDefinition
+                        );
+
+                        // Create the task back pointer for easy inspection
+                        int userVersion = tx.getUserVersion();
+                        if (indexDefinition.id() != DefaultIndexDefinition.ID.id()) {
+                            byte[] taskId = subspace.packWithVersionstamp(
+                                    Tuple.from(IndexSubspaceMagic.TASKS.getValue(), Versionstamp.incomplete(userVersion))
+                            );
+                            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, taskId, NULL_BYTES);
+                        }
+                    }
+                    tr.commit().join();
+                }
+            });
         }, response::writeOK);
     }
 
     static class CreateParameters {
-        private final Request request;
+        private final ArrayList<ByteBuf> params;
 
         private String bucket;
         private HashMap<String, IndexSchema> schemas;
 
-        CreateParameters(Request request) {
-            this.request = request;
+        CreateParameters(ArrayList<ByteBuf> params) {
+            this.params = params;
             parse();
             validate();
         }
@@ -78,9 +136,12 @@ public class BucketIndexCreateSubcommand implements SubcommandHandler {
         }
 
         private void parse() {
-            bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
+            if (params.size() != 3) {
+                throw new IllegalArgumentException("wrong number of parameters");
+            }
+            bucket = ProtocolMessageUtil.readAsString(params.get(1));
             try {
-                schemas = JSONUtil.readValue(ProtocolMessageUtil.readAsByteArray(request.getParams().get(1)), IndexSchemas.class);
+                schemas = JSONUtil.readValue(ProtocolMessageUtil.readAsByteArray(params.get(2)), IndexSchemas.class);
             } catch (KronotopException e) {
                 if (e.getCause() instanceof JsonMappingException jsonException) {
                     if (jsonException.getCause() instanceof IllegalArgumentException illegalArgumentException) {
