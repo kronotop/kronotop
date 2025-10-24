@@ -46,11 +46,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-class BucketIndexDescribeTasksSubcommand implements SubcommandHandler {
+class BucketIndexTasksSubcommand implements SubcommandHandler {
     private final Context context;
     private final BucketService service;
 
-    BucketIndexDescribeTasksSubcommand(Context context) {
+    BucketIndexTasksSubcommand(Context context) {
         this.context = context;
         this.service = context.getService(BucketService.NAME);
     }
@@ -111,7 +111,7 @@ class BucketIndexDescribeTasksSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        ShowMaintenanceParameters parameters = new ShowMaintenanceParameters(request.getParams());
+        TasksParameters parameters = new TasksParameters(request.getParams());
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> parent = new LinkedHashMap<>();
             String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
@@ -130,11 +130,11 @@ class BucketIndexDescribeTasksSubcommand implements SubcommandHandler {
         }, response::writeMap);
     }
 
-    private static class ShowMaintenanceParameters {
+    private static class TasksParameters {
         private final String bucket;
         private final String index;
 
-        ShowMaintenanceParameters(ArrayList<ByteBuf> params) {
+        TasksParameters(ArrayList<ByteBuf> params) {
             if (params.size() != 3) {
                 throw new KronotopException("wrong number of parameters");
             }
