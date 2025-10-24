@@ -7,7 +7,9 @@
         </encoder>
     </appender>
 
-    <root level="debug">
+    <property name="LOG_LEVEL" value="${log.level:-DEBUG}" />
+
+    <root level="${LOG_LEVEL}">
         <appender-ref ref="STDOUT"/>
     </root>
 
