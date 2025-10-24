@@ -38,7 +38,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
-import io.netty.util.ReferenceCounted;
+import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -363,15 +363,9 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
      */
     private void executeRedisCompatibleCommand(Request request, Response response, Handler handler) {
         transactionLock.readLock().lock();
-        try {
-            beforeExecute(handler, request);
-            executeCommand(handler, request, response);
-        } finally {
-            transactionLock.readLock().unlock();
-            if (request.getRedisMessage() instanceof ReferenceCounted message) {
-                message.release();
-            }
-        }
+        beforeExecute(handler, request);
+        executeCommand(handler, request, response);
+        transactionLock.readLock().unlock();
     }
 
     /**
@@ -383,18 +377,11 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
      * @param handler  the handler responsible for processing the specific command
      */
     private void executeKronotopCommand(Request request, Response response, Handler handler) {
-        try {
-            beforeExecute(handler, request);
-            executeCommand(handler, request, response);
-        } finally {
-            if (request.getRedisMessage() instanceof ReferenceCounted message) {
-                message.release();
-            }
-        }
+        beforeExecute(handler, request);
+        executeCommand(handler, request, response);
     }
 
-    @Override
-    public void channelRead(ChannelHandlerContext ctx, Object message) {
+    private void channelRead0(ChannelHandlerContext ctx, Object message) {
         Session session = Session.extractSessionFromChannel(ctx.channel());
 
         Request request = new RESP3Request(session, message);
@@ -434,6 +421,15 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
             }
         } catch (Exception e) {
             exceptionToRespError(request, response, e);
+        }
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object message) {
+        try {
+            channelRead0(ctx, message);
+        } finally {
+            ReferenceCountUtil.release(message);
         }
     }
 
