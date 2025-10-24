@@ -17,7 +17,6 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
@@ -28,15 +27,14 @@ import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.Session;
-import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 class BucketIndexListSubcommand implements SubcommandHandler {
     private final Context context;
@@ -48,16 +46,14 @@ class BucketIndexListSubcommand implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         ListParameters parameters = new ListParameters(request.getParams());
-        AsyncCommandExecutor.supplyAsync(context, response, () -> {
+        supplyAsync(context, response, () -> {
             Session session = request.getSession();
             List<RedisMessage> children = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, parameters.bucket);
                 List<String> names = IndexUtil.list(tr, metadata.subspace());
                 for (String name : names) {
-                    Map<RedisMessage, RedisMessage> item = new LinkedHashMap<>();
-                    item.put(new SimpleStringRedisMessage("name"), new SimpleStringRedisMessage(name));
-                    children.add(new MapRedisMessage(item));
+                    children.add(new SimpleStringRedisMessage(name));
                 }
             }
             return children;

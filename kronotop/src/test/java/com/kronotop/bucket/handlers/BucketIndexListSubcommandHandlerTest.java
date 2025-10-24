@@ -71,16 +71,8 @@ class BucketIndexListSubcommandHandlerTest extends BaseBucketHandlerTest {
 
         List<String> names = new ArrayList<>();
         for (RedisMessage message : actualMessage.children()) {
-            MapRedisMessage actual = (MapRedisMessage) message;
-            actual.children().forEach((key1, value1) -> {
-                SimpleStringRedisMessage key = (SimpleStringRedisMessage) key1;
-                SimpleStringRedisMessage value = (SimpleStringRedisMessage) value1;
-                if (key.content().equals("name")) {
-                    names.add(value.content());
-                } else {
-                    fail("Unexpected key: " + key.content());
-                }
-            });
+            SimpleStringRedisMessage actual = (SimpleStringRedisMessage) message;
+            names.add(actual.content());
         }
         assertEquals(expectedNames, names);
     }

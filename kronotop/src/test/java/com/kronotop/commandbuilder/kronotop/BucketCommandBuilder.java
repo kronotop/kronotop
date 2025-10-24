@@ -120,11 +120,11 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Command<K, V, List<Map<String, Object>>> indexList(String bucket) {
+    public Command<K, V, List<String>> indexList(String bucket) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(BucketIndex.LIST).
                 add(bucket);
-        return new Command(CommandType.BUCKET_INDEX, new ListOfGenericMapsOutput<>(StringCodec.ASCII), args);
+        return new Command(CommandType.BUCKET_INDEX, new StringListOutput<>(StringCodec.ASCII), args);
     }
 
     public Command<String, String, Map<String, Object>> indexDescribe(String bucket, String index) {
