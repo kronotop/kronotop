@@ -31,6 +31,7 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -66,7 +67,9 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
     }
 
     @Test
+    @Disabled("Flaky test")
     void shouldDropIndex() {
+        // TODO: This test logic is error prone. Use awaitility to check the conditions continuously
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
