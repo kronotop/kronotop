@@ -139,27 +139,26 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                     IndexStatus.WAITING
             );
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            context.getFoundationDB().run(tr -> {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
-                tr.commit().join();
-            }
+                return null;
+            });
 
-            BucketService bucketService = context.getService(BucketService.NAME);
-
-            // Refresh the metadata
             BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata finalMetadata = metadata;
+            context.getFoundationDB().run(tr -> {
                 TransactionalContext tx = new TransactionalContext(context, tr);
-                IndexUtil.drop(tx, metadata, definition.name());
-                tr.commit().join();
-            }
+                IndexUtil.drop(tx, finalMetadata, definition.name());
+                return null;
+            });
 
             allLatch.await();
 
             bgFuture.get();
 
+            BucketService bucketService = context.getService(BucketService.NAME);
             await().atMost(Duration.ofSeconds(15)).until(() -> {
                 // All build & drop tasks are killed and removed
                 AtomicInteger counter = new AtomicInteger();
