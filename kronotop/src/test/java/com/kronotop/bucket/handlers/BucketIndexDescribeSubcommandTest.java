@@ -37,7 +37,7 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
     void shouldReturnErrorIfBucketDoesNotExist() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.describeIndex("non-existing-bucket", "not-existing-index").encode(buf);
+        cmd.indexDescribe("non-existing-bucket", "not-existing-index").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -49,7 +49,7 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
         getBucketMetadata(TEST_BUCKET); // creates the bucket with the default id index
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.describeIndex(TEST_BUCKET, "not-existing-index").encode(buf);
+        cmd.indexDescribe(TEST_BUCKET, "not-existing-index").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -61,7 +61,7 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(TEST_BUCKET, "{\"username\": {\"bson_type\": \"string\"}}").encode(buf);
+            cmd.indexCreate(TEST_BUCKET, "{\"username\": {\"bson_type\": \"string\"}}").encode(buf);
             runCommand(channel, buf);
         }
 
@@ -70,7 +70,7 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
         String indexName = "selector:username.bsonType:STRING";
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.describeIndex(TEST_BUCKET, indexName).encode(buf);
+        cmd.indexDescribe(TEST_BUCKET, indexName).encode(buf);
         Object msg = runCommand(channel, buf);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
         assertNotNull(actualMessage);

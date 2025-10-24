@@ -46,7 +46,7 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
     void shouldReturnErrorIfBucketDoesNotExist() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.dropIndex("non-existing-bucket", "not-existing-index").encode(buf);
+        cmd.indexDrop("non-existing-bucket", "not-existing-index").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -58,7 +58,7 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
         getBucketMetadata(TEST_BUCKET); // creates the bucket with the default id index
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.dropIndex(TEST_BUCKET, "not-existing-index").encode(buf);
+        cmd.indexDrop(TEST_BUCKET, "not-existing-index").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -70,7 +70,7 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(TEST_BUCKET, "{\"username\": {\"name\": \"test-index\", \"bson_type\": \"string\"}}").encode(buf);
+            cmd.indexCreate(TEST_BUCKET, "{\"username\": {\"name\": \"test-index\", \"bson_type\": \"string\"}}").encode(buf);
             Object msg = runCommand(channel, buf);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertNotNull(actualMessage);
@@ -79,7 +79,7 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.dropIndex(TEST_BUCKET, "test-index").encode(buf);
+            cmd.indexDrop(TEST_BUCKET, "test-index").encode(buf);
             Object msg = runCommand(channel, buf);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertNotNull(actualMessage);
@@ -98,7 +98,7 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.describeIndex(TEST_BUCKET, "test-index").encode(buf);
+            cmd.indexDescribe(TEST_BUCKET, "test-index").encode(buf);
             Object msg = runCommand(channel, buf);
             MapRedisMessage actualMessage = (MapRedisMessage) msg;
             assertNotNull(actualMessage);
@@ -116,7 +116,7 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             ByteBuf buf = Unpooled.buffer();
-            cmd.describeIndex(TEST_BUCKET, "test-index").encode(buf);
+            cmd.indexDescribe(TEST_BUCKET, "test-index").encode(buf);
             Object msg = runCommand(channel, buf);
             assertNotNull(msg);
             if (!(msg instanceof ErrorRedisMessage actualMessage)) {
@@ -130,7 +130,7 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
     void shouldNotDropDefaultIdIndex() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.dropIndex(TEST_BUCKET, DefaultIndexDefinition.ID.name()).encode(buf);
+        cmd.indexDrop(TEST_BUCKET, DefaultIndexDefinition.ID.name()).encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);

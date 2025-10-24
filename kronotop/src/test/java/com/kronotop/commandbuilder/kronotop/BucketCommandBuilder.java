@@ -111,7 +111,7 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return new Command<>(HELLO, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
-    public final Command<K, V, String> createIndex(String bucket, String schemas) {
+    public final Command<K, V, String> indexCreate(String bucket, String schemas) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(BucketIndex.CREATE).
                 add(bucket).
@@ -120,14 +120,14 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Command<K, V, List<Map<String, Object>>> listIndexes(String bucket) {
+    public Command<K, V, List<Map<String, Object>>> indexList(String bucket) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(BucketIndex.LIST).
                 add(bucket);
         return new Command(CommandType.BUCKET_INDEX, new ListOfGenericMapsOutput<>(StringCodec.ASCII), args);
     }
 
-    public Command<String, String, Map<String, Object>> describeIndex(String bucket, String index) {
+    public Command<String, String, Map<String, Object>> indexDescribe(String bucket, String index) {
         CommandArgs<String, String> args = new CommandArgs<>(StringCodec.UTF8).
                 add(BucketIndex.DESCRIBE).
                 add(bucket).
@@ -135,7 +135,7 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return new Command<>(CommandType.BUCKET_INDEX, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
-    public Command<K, V, String> dropIndex(String bucket, String index) {
+    public Command<K, V, String> indexDrop(String bucket, String index) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(BucketIndex.DROP).
                 add(bucket).

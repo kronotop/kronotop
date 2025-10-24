@@ -40,7 +40,7 @@ class BucketIndexListSubcommandHandlerTest extends BaseBucketHandlerTest {
     void shouldReturnErrorIfBucketDoesNotExist() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.listIndexes("non-existing-bucket").encode(buf);
+        cmd.indexList("non-existing-bucket").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -52,7 +52,7 @@ class BucketIndexListSubcommandHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(TEST_BUCKET, "{\"selector\": {\"bson_type\": \"int32\"}, \"username\": {\"bson_type\": \"string\"}}").encode(buf);
+            cmd.indexCreate(TEST_BUCKET, "{\"selector\": {\"bson_type\": \"int32\"}, \"username\": {\"bson_type\": \"string\"}}").encode(buf);
             runCommand(channel, buf);
         }
 
@@ -63,7 +63,7 @@ class BucketIndexListSubcommandHandlerTest extends BaseBucketHandlerTest {
         );
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.listIndexes(TEST_BUCKET).encode(buf);
+        cmd.indexList(TEST_BUCKET).encode(buf);
         Object msg = runCommand(channel, buf);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertNotNull(actualMessage);
