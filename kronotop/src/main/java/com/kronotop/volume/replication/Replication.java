@@ -125,8 +125,6 @@ public class Replication {
             throw new IllegalStateException("Replication is already stopped");
         }
 
-        stopped = true;
-
         StageRunner stageRunner = activeStageRunner.get();
         if (stageRunner != null) {
             stageRunner.stop();
@@ -145,5 +143,6 @@ public class Replication {
         LOGGER.atDebug().setMessage("Replication has stopped, slotId = {}")
                 .addArgument(ReplicationMetadata.stringifySlotId(slotId))
                 .log();
+        stopped = true;
     }
 }
