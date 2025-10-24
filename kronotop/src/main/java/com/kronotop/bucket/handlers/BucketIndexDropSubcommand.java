@@ -55,7 +55,7 @@ public class BucketIndexDropSubcommand implements SubcommandHandler {
         DropParameters parameters = new DropParameters(request.getParams());
         runAsync(context, response, () -> {
             if (parameters.index.equals(DefaultIndexDefinition.ID.name())) {
-                throw new IllegalArgumentException("Cannot drop the default index");
+                throw new IllegalArgumentException("Cannot drop the primary index");
             }
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 TransactionalContext tx = new TransactionalContext(context, tr);

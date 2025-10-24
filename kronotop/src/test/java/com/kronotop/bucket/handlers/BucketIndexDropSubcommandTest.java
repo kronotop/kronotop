@@ -134,6 +134,6 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
-        assertEquals("ERR Cannot drop the default index", actualMessage.content());
+        assertEquals("ERR Cannot drop the primary index", actualMessage.content());
     }
 }
